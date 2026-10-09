@@ -124,7 +124,8 @@ export function useSimklScrobble({ src, snap }: { src: PlayerSrc; snap: Snap }):
             if (!ok) recordPendingWatch(metaId, ep, info?.imdb);
           });
         }
-        lastActionRef.current = "stop";
+        // A truncated end is reloaded in place (same key), so it must not lock out the real end.
+        lastActionRef.current = endPct >= WATCHED_MARK_PCT ? "stop" : null;
       }
       return;
     }
