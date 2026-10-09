@@ -58,6 +58,7 @@ export function playbackPersistenceHarness(kind: "local" | "cloud" = "local") {
     useSettings: () => ({ settings: { anilistAutoSync: false, malAutoSync: false } }),
     ANIME_CLOUD_ID: /^(kitsu|mal|anilist|anidb):/, CLOUD_OK: /^(tt|tmdb:)/,
     syncSeriesWatchedToStremio: (...args: any[]) => { synced.push(args); return Promise.resolve(); },
+    isDetectedAnime: () => false,
     isNaturalEnd, playerLoadIdentity,
     cloudWriteId: (id: string, resolved: string, verified: boolean) => id.startsWith("tt") ? id : verified ? resolved : null,
     useProfiles: () => ({ activeProfile: { id: profileId } }),

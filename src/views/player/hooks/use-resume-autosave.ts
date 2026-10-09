@@ -30,6 +30,7 @@ import { useProfiles } from "@/lib/profiles";
 import type { PlayerSrc, PlayEpisode } from "@/lib/view";
 import { ANIME_CLOUD_ID, CLOUD_OK } from "@/lib/stremio";
 import { syncSeriesWatchedToStremio } from "@/lib/stremio-episode-watched";
+import { isDetectedAnime } from "@/lib/anime-detect";
 import { isNaturalEnd } from "@/lib/player/playback-end";
 import { playerLoadIdentity } from "@/lib/player/load-identity";
 
@@ -210,7 +211,20 @@ export function useResumeAutosave(params: ResumeAutosaveParams) {
       });
       for (const coveredEpisode of covered.length ? covered : [ep])
         setManualWatched(id, cs, coveredEpisode, true);
-      void syncSeriesWatchedToStremio(s.meta, rv ? rid : null);
+      const animeImdb = s.episode?.imdbEpisode;
+      const ttAnime =
+        id.startsWith("tt") &&
+        (!!s.isAnime ||
+          s.meta.type === "anime" ||
+          !!s.episode?.kitsuStreamId ||
+          isDetectedAnime(id));
+      // Anime keys use entry numbering; Stremio only understands the episode's Cinemeta pair.
+      if (ttAnime && cs != null && animeImdb != null)
+        void syncSeriesWatchedToStremio(s.meta, id, {
+          watched: new Set([`${cs}:${animeImdb}`]),
+          unwatched: new Set(),
+        });
+      else void syncSeriesWatchedToStremio(s.meta, rv ? rid : null);
     }
     if (s.meta.type === "movie" && finished) {
       setMovieWatchedLocal(id, true);

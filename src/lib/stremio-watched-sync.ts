@@ -218,12 +218,17 @@ export async function setEpisodesWatchedStremio(
   videos: CinemetaVideo[] | undefined,
   localWatched: Set<string>,
   localUnwatched: Set<string>,
+  cinemetaKeyed = false,
 ): Promise<boolean> {
-  if (ANIME_ID.test(meta.id) || meta.type === "anime") return false;
-  if (/^tt\d+$/.test(meta.id) && !isDetectedAnime(meta.id)) {
-    await detectAnimeForCw([{ _id: meta.id, type: "series" }]);
+  if (ANIME_ID.test(canonicalId)) return false;
+  // Anime manual keys use entry numbering; only callers that already mapped them to Cinemeta pass through.
+  if (!cinemetaKeyed) {
+    if (ANIME_ID.test(meta.id) || meta.type === "anime") return false;
+    if (/^tt\d+$/.test(meta.id) && !isDetectedAnime(meta.id)) {
+      await detectAnimeForCw([{ _id: meta.id, type: "series" }]);
+    }
+    if (isDetectedAnime(meta.id)) return false;
   }
-  if (isDetectedAnime(meta.id)) return false;
   return putWithState(authKey, meta, canonicalId, async (base) => {
     const server = await decodeWatchedEpisodes(base?.state?.watched, videos).catch(
       () => new Set<string>(),
