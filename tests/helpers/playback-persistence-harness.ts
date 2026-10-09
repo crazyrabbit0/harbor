@@ -60,6 +60,7 @@ export function playbackPersistenceHarness(kind: "local" | "cloud" = "local") {
     ANIME_CLOUD_ID: /^(kitsu|mal|anilist|anidb):/, CLOUD_OK: /^(tt|tmdb:)/,
     syncSeriesWatchedToStremio: (...args: any[]) => { synced.push(args); return Promise.resolve(stremioPushOk()); },
     isDetectedAnime: () => false,
+    absoluteEntryNumber: async () => null,
     isNaturalEnd, playerLoadIdentity,
     cloudWriteId: (id: string, resolved: string, verified: boolean) => id.startsWith("tt") ? id : verified ? resolved : null,
     useProfiles: () => ({ activeProfile: { id: profileId } }),
@@ -98,6 +99,7 @@ export function playbackPersistenceHarness(kind: "local" | "cloud" = "local") {
       dependencies.resolveAnimeIdentity = (...args: any[]) => { identityRequests.push(args); return resolve(...args); };
     },
     skipIdentityResolution() { dependencies.animeIdentityEligible = () => false; },
+    dependencies,
     switchTrackerSession() { trackerSession = {}; },
     enableAnimeSync() {
       dependencies.useSettings = () => ({ settings: { anilistAutoSync: true, malAutoSync: true } });

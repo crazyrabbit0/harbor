@@ -39,7 +39,8 @@ export function entryTvdbPairs(az: AniZipMapping | null | undefined): Map<number
   return out;
 }
 
-async function absoluteEntryNumber(
+/** Absolute number of a TVDB pair inside an entry spanning several TVDB seasons, else null. */
+export async function absoluteEntryNumber(
   kitsuId: number,
   season: number | undefined,
   episode: number | undefined,
