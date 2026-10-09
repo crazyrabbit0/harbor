@@ -74,6 +74,8 @@ type ResumeSession = {
   ready: boolean;
   position: number;
   lastSaved: number;
+  /** "pushing" while a Stremio watched push is in flight, "done" once it landed this session. */
+  stremioWatched?: "pushing" | "done";
 };
 
 export function useResumeAutosave(params: ResumeAutosaveParams) {
@@ -196,13 +198,12 @@ export function useResumeAutosave(params: ResumeAutosaveParams) {
     } else {
       savePlayback(id, { title: s.meta.name, parsedTitle: s.meta.name }, cs, ep);
     }
-    if (
+    const seriesFinished =
       (s.meta.type === "series" || s.meta.type === "anime" || isAnimeId(id)) &&
       typeof cs === "number" &&
       typeof ep === "number" &&
-      finished &&
-      !isManuallyWatched(id, cs, ep)
-    ) {
+      finished;
+    if (seriesFinished && !isManuallyWatched(id, cs, ep)) {
       recordManualWatchedMeta(id, {
         type: "series",
         name: s.meta.name,
@@ -211,6 +212,10 @@ export function useResumeAutosave(params: ResumeAutosaveParams) {
       });
       for (const coveredEpisode of covered.length ? covered : [ep])
         setManualWatched(id, cs, coveredEpisode, true);
+    }
+    // Kept apart from the local mark so a failed push retries on the next tick.
+    if (seriesFinished && current.stremioWatched == null && isManuallyWatched(id, cs, ep)) {
+      current.stremioWatched = "pushing";
       const animeImdb = s.episode?.imdbEpisode;
       const ttAnime =
         id.startsWith("tt") &&
@@ -219,12 +224,21 @@ export function useResumeAutosave(params: ResumeAutosaveParams) {
           !!s.episode?.kitsuStreamId ||
           isDetectedAnime(id));
       // Anime keys use entry numbering; Stremio only understands the episode's Cinemeta pair.
-      if (ttAnime && cs != null && animeImdb != null)
-        void syncSeriesWatchedToStremio(s.meta, id, {
-          watched: new Set([`${cs}:${animeImdb}`]),
-          unwatched: new Set(),
-        });
-      else void syncSeriesWatchedToStremio(s.meta, rv ? rid : null);
+      const push =
+        ttAnime && cs != null && animeImdb != null
+          ? syncSeriesWatchedToStremio(s.meta, id, {
+              watched: new Set([`${cs}:${animeImdb}`]),
+              unwatched: new Set(),
+            })
+          : syncSeriesWatchedToStremio(s.meta, rv ? rid : null);
+      void push.then(
+        (ok) => {
+          current.stremioWatched = ok ? "done" : undefined;
+        },
+        () => {
+          current.stremioWatched = undefined;
+        },
+      );
     }
     if (s.meta.type === "movie" && finished) {
       setMovieWatchedLocal(id, true);

@@ -32,7 +32,7 @@ test("watched-to-Stremio sync gates on the id SCHEME, never fuzzy anime detectio
   assert.ok(!/isDetectedAnime/.test(episodeWatched), "stremio-episode-watched must not gate on isDetectedAnime");
   assert.match(
     episodeWatched,
-    /if \(ANIME_ID\.test\(id\) \|\| \(meta\.type === "anime" && !animeKeys\)\) return;/,
+    /if \(ANIME_ID\.test\(id\) \|\| \(meta\.type === "anime" && !animeKeys\)\) return true;/,
   );
 });
 

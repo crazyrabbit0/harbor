@@ -84,6 +84,24 @@ test("normal completion still records the watched episode and clears its resume 
   assert.equal(h.synced[0]?.[1], "tt100");
 });
 
+test("a failed Stremio watched push retries after the episode is already marked locally", async () => {
+  const h = resumeAutosaveHarness();
+  let results = [false, true];
+  h.setStremioPush(() => results.shift() ?? true);
+  let p = playbackParams(); h.render(p);
+  p = { ...p, snap: { ...p.snap, status: "playing", positionSec: 3500, durationSec: 3600 } };
+  h.render(p); h.clock(3500); h.tick();
+  assert.equal(h.synced.length, 1);
+  await new Promise((r) => setTimeout(r, 0));
+  h.clock(3510); h.tick();
+  assert.equal(h.watched.length, 1, "the local mark is written once");
+  assert.equal(h.synced.length, 2, "the failed push is retried");
+  await new Promise((r) => setTimeout(r, 0));
+  h.clock(3520); h.tick();
+  assert.equal(h.synced.length, 2, "a landed push is not repeated");
+  results = [];
+});
+
 test("loading with stale telemetry cannot save progress for an episode that never starts", () => {
   const h = resumeAutosaveHarness();
   const first = playbackParams(); h.render(first);
