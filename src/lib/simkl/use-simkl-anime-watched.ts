@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { aniZipByKitsu, aniZipByMal, type AniZipMapping } from "@/lib/providers/anizip";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
+import { entryTvdbPairs } from "@/lib/anime-entry-target";
 import { useSimkl } from "./provider";
 import { loadSimklWatchedMap } from "./list-status";
 
@@ -62,10 +63,10 @@ export function useSimklAnimeWatched(
         }
         const az = await aniZipFor(id);
         if (cancelled) return;
+        const pairs = entryTvdbPairs(az);
         for (const n of numbers) {
-          const m = az?.episodes?.[String(n)];
-          if (m?.seasonNumber != null && m.seasonNumber >= 1 && m.episodeNumber != null)
-            out.add(`${m.seasonNumber}:${m.episodeNumber}`);
+          const pair = pairs.get(n);
+          if (pair) out.add(pair);
         }
       }
       if (!cancelled) setWatched(out);

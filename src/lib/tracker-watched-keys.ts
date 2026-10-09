@@ -1,6 +1,7 @@
 import { aniZipByKitsu } from "@/lib/providers/anizip";
 import { airedOnly } from "@/lib/aired";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
+import { entryTvdbPairs } from "@/lib/anime-entry-target";
 
 /** Episode keys a tracker count reaches, in both the entry's own and the TVDB display coordinates. */
 export async function trackerWatchedKeys(
@@ -30,12 +31,7 @@ export async function trackerWatchedKeys(
   const kitsu = /^kitsu:(\d+)$/.exec(harborId);
   if (kitsu && count > 0) {
     const az = await aniZipByKitsu(Number(kitsu[1])).catch(() => null);
-    for (const [key, m] of Object.entries(az?.episodes ?? {})) {
-      const n = Number(key);
-      if (!Number.isInteger(n) || n < 1 || n > count) continue;
-      if (m.seasonNumber != null && m.seasonNumber >= 1 && m.episodeNumber != null)
-        keys.add(`${m.seasonNumber}:${m.episodeNumber}`);
-    }
+    for (const [n, pair] of entryTvdbPairs(az)) if (n <= count) keys.add(pair);
   }
   return keys;
 }
