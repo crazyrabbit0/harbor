@@ -375,13 +375,20 @@ export function AnimeEpisodes({
     mwVersion,
     settings,
   });
-  const markSeason = (watched: boolean) => routing.markMany(displayEpisodes, watched);
   // Bulk marks must cover the rows the user sees, keyed as the rows read them.
   const allOrderedEpisodes = tvdbPanel.panel
     ? tvdbPanel.panel.orderedEpisodes
     : activeIsAnchor && effectiveOrder
       ? effectiveOrder.orderedEpisodes
       : displayEpisodes;
+  // Unmarking rewinds tracker progress to the last row still shown watched.
+  const seriesRows = () => {
+    const rows = new Map<number, KitsuEpisode>();
+    for (const ep of [...allOrderedEpisodes, ...displayEpisodes, ...episodes]) rows.set(ep.id, ep);
+    return [...rows.values()].map((row) => ({ row, watched: progressFor(row).watched }));
+  };
+  const markSeason = (watched: boolean) =>
+    routing.markMany(displayEpisodes, watched, watched ? undefined : seriesRows());
   const markFromMenu = (scope: "one" | "upTo", watched: boolean) => {
     if (!watchedMenu) return;
     const owner = watchedMenu.metaId ?? meta.id;
@@ -392,7 +399,11 @@ export function AnimeEpisodes({
     const pool = allOrderedEpisodes.some(isTarget) ? allOrderedEpisodes : displayEpisodes;
     const idx = pool.findIndex(isTarget);
     if (idx < 0) return;
-    routing.markMany(scope === "one" ? [pool[idx]] : pool.slice(0, idx + 1), watched);
+    routing.markMany(
+      scope === "one" ? [pool[idx]] : pool.slice(0, idx + 1),
+      watched,
+      watched ? undefined : seriesRows(),
+    );
   };
 
   const orderedEpisodes = useMemo(

@@ -37,7 +37,11 @@ export function useAnimeWatchedRouting(
   };
 
   /** Writes the keys the rows read, then each tracker entry's own episode numbers. */
-  const markMany = (displayEpisodes: KitsuEpisode[], watched: boolean) => {
+  const markMany = (
+    displayEpisodes: KitsuEpisode[],
+    watched: boolean,
+    seriesRows?: Array<{ row: KitsuEpisode; watched: boolean }>,
+  ) => {
     const eligible = watched ? airedOnly(displayEpisodes, (ep) => ep.airdate) : displayEpisodes;
     if (eligible.length === 0) return;
     const groups = new Map<string, KitsuEpisode[]>();
@@ -57,12 +61,17 @@ export function useAnimeWatchedRouting(
     }
     if (!/^(kitsu|mal|anilist|anidb):/.test(meta.id) && groups.has(meta.id))
       syncAnimeWatchedToStremio(meta, imdbId ?? null, groups.get(meta.id)!);
+    const unmarked = new Set(eligible);
     void pushAnimeMarks(meta.id, eligible, watched, {
       title: meta.name,
       trackId,
       anilist: settings.anilistAutoSync,
       mal: settings.malAutoSync,
       simkl: true,
+      watchedRows: seriesRows?.map(({ row, watched: w }) => ({
+        row,
+        watched: w && !unmarked.has(row),
+      })),
     });
   };
 
