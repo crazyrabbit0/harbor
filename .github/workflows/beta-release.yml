@@ -189,7 +189,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tauriScript: pnpm tauri
-          args: --target ${{ matrix.platform.target }} --bundles ${{ matrix.platform.bundle }} ${{ steps.macos-libraries.outputs.config }}
+          args: --target ${{ matrix.platform.target }} ${{ steps.macos-libraries.outputs.config }}
 
       - name: Build Linux system packages
         if: contains(matrix.platform.runner, 'ubuntu')
