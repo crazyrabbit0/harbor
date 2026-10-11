@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "identifier": "site.harbor.Harbor",
+  "build": {
+    "beforeBuildCommand": "node node_modules/typescript/bin/tsc -b && node node_modules/vite/bin/vite.js build"
+  },
+  "bundle": {
+    "active": false,
+    "externalBin": [],
+    "resources": {
+      "resources/capstan/": null,
+      "resources/pokemon-engine/": null
+    }
+  }
+}

@@ -183,10 +183,11 @@ export async function resolveJdks(target, log) {
   if (!TARGETS[target]) throw new Error(`unknown target ${target}, known: ${Object.keys(TARGETS).join(", ")}`);
   const named = jdkHome(process.env.HARBOR_CAPSTAN_JDK ?? process.env.JAVA_HOME ?? "");
   const host = hostTriple();
-  const hostJdk =
-    hasJmods(named) && existsSync(join(named, "bin", exe("jlink")))
-      ? named
-      : await fetchJdk(host, DEFAULT_FEATURE, log);
+  // The bridge is compiled for Java 17, so an older JAVA_HOME (CI images ship 11) cannot run it.
+  const usable =
+    hasJmods(named) && existsSync(join(named, "bin", exe("jlink"))) && featureOf(named) >= DEFAULT_FEATURE;
+  if (named && !usable) log(`${named} is not a JDK ${DEFAULT_FEATURE}+ with jmods/, fetching one`);
+  const hostJdk = usable ? named : await fetchJdk(host, DEFAULT_FEATURE, log);
   if (target === host) return { hostJdk, targetJdk: hostJdk };
 
   const forTarget = jdkHome(process.env.HARBOR_CAPSTAN_JDK_TARGET ?? "");
