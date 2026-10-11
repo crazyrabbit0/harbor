@@ -92,7 +92,7 @@ fi
 echo "libs/ from outside Maven Central"
 get NewPipeExtractor-v0.26.5.jar "$R/libs" "https://jitpack.io/com/github/TeamNewPipe/NewPipeExtractor/v0.26.5/NewPipeExtractor-v0.26.5.jar"
 verify 923bf0a60938d570ad176ed7b08fa9fec7d0772d7a386ca89a2dd3b9212979c7 "$R/libs/NewPipeExtractor-v0.26.5.jar"
-get nanojson-e9d656d.jar "$R/libs" "https://github.com/harborstremio/harbor/releases/download/nanojson-e9d656d/nanojson-e9d656d.jar"
+get nanojson-e9d656d.jar "$R/libs" "https://jitpack.io/com/github/TeamNewPipe/nanojson/e9d656ddb49a412a5a0a5d5ef20ca7ef09549996/nanojson-e9d656ddb49a412a5a0a5d5ef20ca7ef09549996.jar"
 verify d495881a322b3c72e5d43284afd7d7021520028ca8b7c6ba861e3fd8d90614d5 "$R/libs/nanojson-e9d656d.jar"
 
 echo

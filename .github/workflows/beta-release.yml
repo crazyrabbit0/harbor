@@ -1,0 +1,286 @@
+name: Upstream beta release
+
+on:
+  push:
+    branches: [release/beta-0.9.132]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: beta-release
+  cancel-in-progress: false
+
+env:
+  NODE_OPTIONS: --max-old-space-size=6144
+  # The extension compat layer is not in this repository, so a runner cannot stage its runtime and
+  # these installers ship without extension support. The build says so on every run. Drop this line
+  # the day the layer ships with the checkout, and the build starts refusing to omit it.
+  HARBOR_CAPSTAN_OPTIONAL: "1"
+
+jobs:
+  flatpak:
+    name: Flatpak
+    uses: ./.github/workflows/flatpak.yml
+    with:
+      ref: ${{ github.sha }}
+
+  build:
+    name: ${{ matrix.platform.name }} (${{ matrix.platform.target }})
+    runs-on: ${{ matrix.platform.runner }}
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: Windows
+            runner: windows-latest
+            target: x86_64-pc-windows-msvc
+            bundle: nsis
+          - name: macOS-AppleSilicon
+            runner: macos-15
+            target: aarch64-apple-darwin
+            bundle: dmg
+          - name: macOS-Intel
+            runner: macos-15-intel
+            target: x86_64-apple-darwin
+            bundle: dmg
+          - name: Linux-x86_64
+            runner: ubuntu-22.04
+            target: x86_64-unknown-linux-gnu
+            bundle: deb,appimage
+          - name: Linux-aarch64
+            runner: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-gnu
+            bundle: deb,appimage
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Linux deps
+        if: contains(matrix.platform.runner, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libssl-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            libasound2-dev \
+            libudev-dev \
+            libmpv-dev \
+            libgtk-3-dev \
+            gstreamer1.0-plugins-base \
+            gstreamer1.0-plugins-good \
+            gstreamer1.0-plugins-bad \
+            gstreamer1.0-libav \
+            patchelf \
+            xdg-utils
+
+      - name: Install Mac deps
+        if: contains(matrix.platform.runner, 'macos')
+        run: |
+          brew install mpv pkg-config
+          # Make pkg-config find libmpv from homebrew
+          echo "PKG_CONFIG_PATH=$(brew --prefix mpv)/lib/pkgconfig:${PKG_CONFIG_PATH:-}" >> $GITHUB_ENV
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform.target }}
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            harbor-core
+            src-tauri
+
+      - uses: pnpm/action-setup@v5
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Set up Pokémon engine SDK
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.401"
+
+      - name: Build Pokémon engine and corresponding source bundle
+        run: node tools/pokemon-engine/build.mjs --fetch-source "${{ runner.temp }}/harbor-pokemon-source" --output src-tauri/resources/pokemon-engine --artifacts "${{ runner.temp }}/harbor-pokemon-build"
+
+      # .NET loads this LTTng tracing provider only when present; linuxdeploy fails on its missing liblttng-ust.
+      - name: Drop the optional .NET tracing provider (Linux)
+        if: contains(matrix.platform.runner, 'ubuntu')
+        run: rm -f src-tauri/resources/pokemon-engine/libcoreclrtraceptprovider.so
+
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+
+      - name: Verify HTTP redirect boundaries
+        env:
+          CARGO_BUILD_JOBS: 2
+        run: cargo test --manifest-path scripts/http-redirect-tests/Cargo.toml --locked --lib
+
+      - name: Fetch libmpv (Windows)
+        if: contains(matrix.platform.runner, 'windows')
+        run: pnpm run setup:libmpv
+
+      - name: Fetch mpv (Windows x64)
+        if: matrix.platform.target == 'x86_64-pc-windows-msvc'
+        run: pnpm run setup:mpv
+
+      - name: Fetch external binaries
+        run: pnpm run setup:binaries
+
+      - name: harbor-core check
+        working-directory: harbor-core
+        run: |
+          cargo check
+          cargo test --all-targets
+
+      - name: Detect Apple signing identity
+        if: contains(matrix.platform.runner, 'macos')
+        shell: bash
+        env:
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          set -euo pipefail
+          for name in APPLE_CERTIFICATE APPLE_CERTIFICATE_PASSWORD APPLE_SIGNING_IDENTITY APPLE_ID APPLE_PASSWORD APPLE_TEAM_ID; do
+            value="${!name}"
+            if [ -n "$value" ]; then
+              printf '%s<<HARBOR_APPLE_EOF\n%s\nHARBOR_APPLE_EOF\n' "$name" "$value" >> "$GITHUB_ENV"
+            fi
+          done
+          if [ -z "$APPLE_CERTIFICATE" ] && [ -z "$APPLE_SIGNING_IDENTITY" ]; then
+            echo "::warning::No Apple signing secrets, so this macOS bundle is ad-hoc signed: Gatekeeper reports an unidentified developer, the dmg is left unsigned, and users must run xattr -dr com.apple.quarantine on the installed app."
+          elif [ -n "$APPLE_ID" ] && [ -z "$APPLE_TEAM_ID" ]; then
+            echo "::error::APPLE_ID is set without APPLE_TEAM_ID. tauri-bundler rejects that combination after it has already signed the bundle, so the build is stopped here instead."
+            exit 1
+          fi
+
+      - name: Prepare bundled macOS libraries
+        if: contains(matrix.platform.runner, 'macos')
+        id: macos-libraries
+        shell: bash
+        run: |
+          FRAMEWORKS_DIR="$RUNNER_TEMP/harbor-macos-frameworks-${{ matrix.platform.target }}"
+          CONFIG_PATH="$RUNNER_TEMP/tauri-macos-libmpv-${{ matrix.platform.target }}.json"
+          python3 tests/test_macos_mpv_bundle.py
+          python3 tests/test_macos_signature.py
+          python3 tests/test_macos_resign.py
+          python3 tests/test_macos_startup.py
+          python3 scripts/macos-bundle-libmpv.py prepare \
+            --frameworks "$FRAMEWORKS_DIR" \
+            --config "$CONFIG_PATH" \
+            --target "${{ matrix.platform.target }}"
+          echo "HARBOR_MACOS_FRAMEWORKS_DIR=$FRAMEWORKS_DIR" >> "$GITHUB_ENV"
+          echo "config=--config $CONFIG_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Tauri build
+        if: "!contains(matrix.platform.runner, 'ubuntu')"
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tauriScript: pnpm tauri
+          args: --target ${{ matrix.platform.target }} --bundles ${{ matrix.platform.bundle }} ${{ steps.macos-libraries.outputs.config }}
+
+      - name: Build Linux system packages
+        if: contains(matrix.platform.runner, 'ubuntu')
+        env:
+          # linuxdeploy resolves the bundled JRE's libnio.so and fails unless it can see libjvm.so in lib/server.
+          LD_LIBRARY_PATH: ${{ github.workspace }}/src-tauri/resources/capstan/runtime/lib/server:${{ github.workspace }}/src-tauri/target/${{ matrix.platform.target }}/release/bundle/appimage/Harbor.AppDir/usr/lib/Harbor/resources/capstan/runtime/lib/server
+        run: pnpm tauri:build:linux-system --target ${{ matrix.platform.target }} --bundles deb,appimage --verbose
+
+      - name: Verify macOS app dependencies
+        if: contains(matrix.platform.runner, 'macos')
+        shell: bash
+        run: |
+          APP_PATH="$(find "src-tauri/target/${{ matrix.platform.target }}/release/bundle" -type d -name 'Harbor.app' -print -quit)"
+          if [ -z "$APP_PATH" ]; then
+            echo "Harbor.app was not produced" >&2
+            exit 1
+          fi
+          python3 scripts/macos-bundle-libmpv.py verify-app --app "$APP_PATH" --target "${{ matrix.platform.target }}"
+          python3 scripts/macos-verify-signature.py --app "$APP_PATH"
+          python3 scripts/macos-startup-check.py --app "$APP_PATH" --output "$RUNNER_TEMP/harbor-macos-startup" --seconds 20
+
+      - name: Preserve macOS startup diagnostics
+        if: always() && contains(matrix.platform.runner, 'macos')
+        uses: actions/upload-artifact@v7
+        with:
+          name: startup-${{ matrix.platform.target }}
+          path: ${{ runner.temp }}/harbor-macos-startup/*.log
+          if-no-files-found: ignore
+
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v7
+        with:
+          name: harbor-${{ matrix.platform.name }}
+          path: |
+            src-tauri/target/${{ matrix.platform.target }}/release/bundle/**/*.dmg
+            src-tauri/target/${{ matrix.platform.target }}/release/bundle/**/*.deb
+            src-tauri/target/${{ matrix.platform.target }}/release/bundle/**/*.AppImage
+            src-tauri/target/${{ matrix.platform.target }}/release/bundle/**/*.AppImage.sig
+            src-tauri/target/${{ matrix.platform.target }}/release/bundle/**/*.msi
+            src-tauri/target/${{ matrix.platform.target }}/release/bundle/**/*.exe
+            src-tauri/target/${{ matrix.platform.target }}/release/bundle/**/*.app.tar.gz
+            src-tauri/target/${{ matrix.platform.target }}/release/bundle/**/*.sig
+          retention-days: 14
+          if-no-files-found: warn
+
+  publish:
+    name: Publish the release
+    needs: [build, flatpak]
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.flatpak.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download the installers
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      - name: Create the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: "0.9.132"
+        run: |
+          set -euo pipefail
+          mkdir upload
+          find artifacts -type f \( -name '*-setup.exe' -o -name '*.dmg' -o -name '*.deb' -o -name '*.AppImage' \) -exec cp {} upload/ \;
+          cp artifacts/Harbor-flatpak-x86_64/Harbor.flatpak "upload/Harbor_${VERSION}_x86_64.flatpak"
+          {
+            echo "## Downloads"
+            echo
+            node scripts/release-assets.mjs "$VERSION" $(ls upload)
+            echo
+            echo "## About this build"
+            echo
+            echo "This is upstream Harbor's last beta (0.9.132, commit [\`8274f054\`](https://github.com/$GITHUB_REPOSITORY/commit/8274f054)) exactly as the Harbor team left it before the project shut down, without any of this fork's changes. It is here for anyone who prefers the original app."
+            echo
+            echo "- It does not update itself: its updater points at harbor.site, which is gone. Install a newer release from this page to move to the fork's builds."
+            echo "- Features that ran on harbor.site (accounts, theme library, bug reports, IMDb ratings, Trakt/MAL sign-in through Harbor's servers and others) don't work in it. [docs/SUNSET.md](https://github.com/$GITHUB_REPOSITORY/blob/main/docs/SUNSET.md) has the full list."
+            echo "- Only the build setup was changed so the installers can be built today (dead download links replaced, the macOS Intel link fix); the app code is untouched."
+            echo
+            echo "macOS: the dmgs are ad-hoc signed, so run \`xattr -dr com.apple.quarantine /Applications/Harbor.app\` after installing. The Intel dmg needs macOS 15 or newer."
+          } > body.md
+          ls -la upload
+          gh release create "v$VERSION" upload/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --target "$GITHUB_SHA" \
+            --title "Harbor $VERSION (upstream beta)" \
+            --notes-file body.md \
+            --latest=false

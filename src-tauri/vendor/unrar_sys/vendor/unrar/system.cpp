@@ -200,6 +200,15 @@ bool IsUserAdmin()
 
 
 #ifdef USE_SSE
+#ifdef _APPLE
+bool AppleCpuFeature(const char *Name)
+{
+  int Value=0;
+  size_t Size=sizeof(Value);
+  return sysctlbyname(Name,&Value,&Size,NULL,0)==0 && Value!=0;
+}
+#endif
+
 SSE_VERSION _SSE_Version=GetSSEVersion();
 
 SSE_VERSION GetSSEVersion()
@@ -229,6 +238,18 @@ SSE_VERSION GetSSEVersion()
     if ((CPUInfo[3] & 0x2000000)!=0)
       return SSE_SSE;
   }
+#elif defined(_APPLE)
+  // __builtin_cpu_supports needs compiler-rt's __cpu_model, which Apple's x86_64 link does not provide.
+  if (AppleCpuFeature("hw.optional.avx2_0"))
+    return SSE_AVX2;
+  if (AppleCpuFeature("hw.optional.sse4_1"))
+    return SSE_SSE41;
+  if (AppleCpuFeature("hw.optional.supplementalsse3"))
+    return SSE_SSSE3;
+  if (AppleCpuFeature("hw.optional.sse2"))
+    return SSE_SSE2;
+  if (AppleCpuFeature("hw.optional.sse"))
+    return SSE_SSE;
 #elif defined(__GNUC__)
   if (__builtin_cpu_supports("avx2"))
     return SSE_AVX2;

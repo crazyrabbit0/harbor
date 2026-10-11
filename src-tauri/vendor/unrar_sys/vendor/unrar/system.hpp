@@ -37,6 +37,9 @@ bool IsUserAdmin();
 enum SSE_VERSION {SSE_NONE,SSE_SSE,SSE_SSE2,SSE_SSSE3,SSE_SSE41,SSE_AVX2};
 SSE_VERSION GetSSEVersion();
 extern SSE_VERSION _SSE_Version;
+#ifdef _APPLE
+bool AppleCpuFeature(const char *Name);
+#endif
 #endif
 
 #endif

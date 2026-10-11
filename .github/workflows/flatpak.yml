@@ -2,21 +2,12 @@ name: Flatpak
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - flatpak/**
-      - src-tauri/**
-      - harbor-core/**
-      - src/**
-      - public/**
-      - index.html
-      - vite.config.*
-      - tsconfig*.json
-      - package.json
-      - pnpm-lock.yaml
-      - pnpm-workspace.yaml
-      - .github/workflows/flatpak.yml
+  workflow_call:
+    inputs:
+      ref:
+        description: Commit to build
+        type: string
+        required: true
 
 permissions:
   contents: read
@@ -33,6 +24,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.ref || github.sha }}
       - name: Install Flatpak tooling
         run: sudo apt-get update && sudo apt-get install -y flatpak flatpak-builder appstream desktop-file-utils ostree
       - name: Configure Flathub

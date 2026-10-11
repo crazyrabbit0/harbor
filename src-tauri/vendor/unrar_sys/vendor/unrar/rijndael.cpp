@@ -122,6 +122,8 @@ void Rijndael::Init(bool Encrypt,const byte *key,uint keyLen,const byte * initVe
   }
   else
     AES_NI=false;
+#elif defined(_APPLE)
+  AES_NI=AppleCpuFeature("hw.optional.aes");
 #elif defined(__GNUC__)
   AES_NI=__builtin_cpu_supports("aes");
 #endif
