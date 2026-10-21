@@ -7,18 +7,32 @@ if (!version || !names.length) {
 }
 
 const base = `https://github.com/crazyrabbit0/harbor/releases/download/v${version}`;
+const MAC =
+  "macOS 15 or newer. Not notarized: after installing, run `xattr -dr com.apple.quarantine /Applications/Harbor.app`";
 const ROWS = [
-  ["Windows", "x64", [/_x64-setup\.exe$/]],
-  ["macOS", "Apple silicon", [/_aarch64\.dmg$/]],
-  ["macOS 15+", "Intel", [/_x64\.dmg$/]],
-  ["Linux", "x86_64", [/_amd64\.deb$/, /_amd64\.AppImage$/, /_x86_64\.flatpak$/]],
-  ["Linux", "arm64", [/_arm64\.deb$/, /_aarch64\.AppImage$/]],
+  ["Windows (x64)", "Installer", /_x64-setup\.exe$/, "Updates itself from Settings > Updates"],
+  ["macOS (Apple silicon)", "Disk image", /_aarch64\.dmg$/, MAC],
+  ["macOS (Intel)", "Disk image", /_x64\.dmg$/, MAC],
+  [
+    "Linux (x86_64)",
+    "AppImage",
+    /_amd64\.AppImage$/,
+    "Any distro, runs as one file and updates itself",
+  ],
+  ["Linux (x86_64)", "Debian package", /_amd64\.deb$/, "Debian, Ubuntu and derivatives"],
+  ["Linux (x86_64)", "Flatpak", /_x86_64\.flatpak$/, "`flatpak install --user <file>`"],
+  [
+    "Linux (arm64)",
+    "AppImage",
+    /_aarch64\.AppImage$/,
+    "Any distro, runs as one file and updates itself",
+  ],
+  ["Linux (arm64)", "Debian package", /_arm64\.deb$/, "Debian, Ubuntu and derivatives"],
 ];
 
-const lines = ["| OS | Architecture | Download |", "| --- | --- | --- |"];
-for (const [os, arch, patterns] of ROWS) {
-  const files = patterns.flatMap((re) => names.filter((n) => re.test(n)));
-  if (!files.length) continue;
-  lines.push(`| ${os} | ${arch} | ${files.map((f) => `[${f}](${base}/${f})`).join("<br>")} |`);
+const lines = ["| Platform | Download | Notes |", "| --- | --- | --- |"];
+for (const [platform, label, re, notes] of ROWS) {
+  const file = names.find((n) => re.test(n));
+  if (file) lines.push(`| ${platform} | [${label}](${base}/${file}) | ${notes} |`);
 }
 console.log(lines.join("\n"));

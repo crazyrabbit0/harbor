@@ -372,8 +372,6 @@ jobs:
             echo "## Changes"
             echo
             cat notes.md
-            echo
-            echo "macOS: the dmgs are ad-hoc signed, so run \`xattr -dr com.apple.quarantine /Applications/Harbor.app\` after installing. The Intel dmg needs macOS 15 or newer."
             [ -n "$previous" ] && echo && echo "**Full changelog**: https://github.com/$GITHUB_REPOSITORY/compare/$previous...v$VERSION"
           } > body.md
           ls -la upload
