@@ -8,12 +8,12 @@ if (!version || !names.length) {
 
 const base = `https://github.com/crazyrabbit0/harbor/releases/download/v${version}`;
 const MAC =
-  "Needs macOS 15 or newer<br><em>Not notarized: after installing, run <code>xattr -dr com.apple.quarantine /Applications/Harbor.app</code></em>";
-const APPIMAGE = "Any distro, runs as one file and updates itself";
+  "Needs macOS 15 or newer<br><em>Not notarized, after installing run:</em><br><code>xattr -dr com.apple.quarantine /Applications/Harbor.app</code>";
+const APPIMAGE = "Any distro, runs as one file and auto-updates";
 const DEB = "Debian, Ubuntu and derivatives";
 // HTML, not a Markdown table: only HTML lets a platform's rows share one cell through rowspan.
 const ROWS = [
-  ["Windows (x64)", "Installer", /_x64-setup\.exe$/, "Updates itself from Settings &gt; Updates"],
+  ["Windows (x64)", "Installer", /_x64-setup\.exe$/, "Auto-updates"],
   ["macOS (Apple silicon)", "Disk image", /_aarch64\.dmg$/, MAC],
   ["macOS (Intel)", "Disk image", /_x64\.dmg$/, MAC],
   ["Linux (x86_64)", "AppImage", /_amd64\.AppImage$/, APPIMAGE],
