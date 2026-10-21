@@ -394,7 +394,7 @@ Download the latest build from the [Releases page][releases]: every release has 
 | Platform    | Format                                                                                               |
 | ----------- | ---------------------------------------------------------------------------------------------------- |
 | **Windows** | `_x64-setup.exe` NSIS installer (current user install)                                               |
-| **macOS**   | `_aarch64.dmg` for Apple silicon, `_x64.dmg` for Intel (macOS 15 or newer)                           |
+| **macOS**   | `_aarch64.dmg` for Apple silicon, `_x64.dmg` for Intel, both macOS 15 or newer                       |
 | **Linux**   | `.deb` (Debian, Ubuntu), `.AppImage` (any distro, runs as one file) and `.flatpak`, x86_64 and arm64 |
 | **Web**     | Open in any modern browser, nothing to install                                                       |
 
