@@ -32,11 +32,7 @@ const rows = ROWS.flatMap(([platform, label, re, notes]) => {
   const file = names.find((n) => re.test(n));
   return file ? [{ platform, label, file, notes }] : [];
 });
-// GitHub strips style attributes but keeps align, so the Download column is centered through align.
-const lines = [
-  "<table>",
-  '<tr><th>Platform</th><th align="center">Download</th><th>Notes</th></tr>',
-];
+const lines = ["<table>", "<tr><th>Platform</th><th>Download</th><th>Notes</th></tr>"];
 rows.forEach((row, i) => {
   const cells = [];
   if (rows[i - 1]?.platform !== row.platform) {
@@ -44,10 +40,7 @@ rows.forEach((row, i) => {
     const name = row.platform.replace(/ (\(.+\))$/, " <em>$1</em>");
     cells.push(count > 1 ? `<td rowspan="${count}">${name}</td>` : `<td>${name}</td>`);
   }
-  cells.push(
-    `<td align="center"><a href="${base}/${row.file}">${row.label}</a></td>`,
-    `<td>${row.notes}</td>`,
-  );
+  cells.push(`<td><a href="${base}/${row.file}">${row.label}</a></td>`, `<td>${row.notes}</td>`);
   lines.push(`<tr>${cells.join("")}</tr>`);
 });
 lines.push("</table>");
