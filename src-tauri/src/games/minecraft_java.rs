@@ -47,7 +47,7 @@ pub async fn probe(path: &Path, managed: bool, cancel: &AtomicBool) -> Result<Ja
         #[cfg(not(test))] let _ = error;
         "java_invalid"
     })?;
-    let stdout = child.stdout.take().ok_or("java_invalid")?; let stderr = child.stderr.take().ok_or("java_invalid")?;
+    let stdout = crate::child_pipe::take_stdout(&mut child).ok_or("java_invalid")?; let stderr = crate::child_pipe::take_stderr(&mut child).ok_or("java_invalid")?;
     let read = async move {
         let mut out = Vec::new(); let mut err = Vec::new();
         let mut stdout = stdout.take(65537); let mut stderr = stderr.take(65537);

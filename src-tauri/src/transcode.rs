@@ -281,7 +281,7 @@ pub async fn probe_codecs(url: &str, headers: &HashMap<String, String>) -> Probe
     cmd.creation_flags(0x0800_0000);
 
     let fut = async {
-        let output = cmd.output().await.ok()?;
+        let output = crate::child_pipe::output(&mut cmd).await.ok()?;
         let stdout = String::from_utf8_lossy(&output.stdout);
         let stderr = String::from_utf8_lossy(&output.stderr);
         if !stderr.trim().is_empty() {
@@ -509,7 +509,7 @@ pub async fn handle_transcode(
     };
     crate::proc_guard::adopt(&child);
 
-    let stdout = match child.stdout.take() {
+    let stdout = match crate::child_pipe::take_stdout(&mut child) {
         Some(s) => s,
         None => {
             return (StatusCode::INTERNAL_SERVER_ERROR, "ffmpeg stdout missing").into_response();
@@ -518,7 +518,7 @@ pub async fn handle_transcode(
 
     // Drain ffmpeg's stderr line-by-line so users see what's happening / what
     // went wrong. Crucial for diagnosing "video doesn't appear" on the cast device.
-    if let Some(stderr) = child.stderr.take() {
+    if let Some(stderr) = crate::child_pipe::take_stderr(&mut child) {
         tokio::spawn(async move {
             use tokio::io::AsyncBufReadExt;
             let mut reader = tokio::io::BufReader::new(stderr).lines();

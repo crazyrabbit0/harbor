@@ -46,8 +46,7 @@ pub async fn music_scratch_window(
         command.creation_flags(0x0800_0000);
     }
 
-    let output = command
-        .output()
+    let output = crate::child_pipe::output(&mut command)
         .await
         .map_err(|error| format!("ffmpeg: {error}"))?;
     if !output.status.success() || output.stdout.is_empty() {

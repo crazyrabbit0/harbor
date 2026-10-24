@@ -112,7 +112,7 @@ async fn execute(path: &Path, args: &[String], timeout: Duration) -> Result<YtDl
     command.args(args).kill_on_drop(true);
     #[cfg(windows)]
     command.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    let output = tokio::time::timeout(timeout, command.output())
+    let output = tokio::time::timeout(timeout, crate::child_pipe::output(&mut command))
         .await
         .map_err(|_| ())?
         .map_err(|_| ())?;

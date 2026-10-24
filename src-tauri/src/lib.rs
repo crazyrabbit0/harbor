@@ -9,6 +9,8 @@ mod ytmusic;
 mod binary_lookup;
 mod cast_hls;
 mod cast_subs;
+#[cfg_attr(mobile, allow(dead_code))]
+mod child_pipe;
 mod crash_report;
 mod diagnostics;
 mod download;

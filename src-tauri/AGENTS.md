@@ -20,6 +20,7 @@ Notes for agents working in this folder.
 ## mpv
 
 - One OS thread (`spawn_event_loop`, `src/mpv.rs`) waits on mpv and emits everything as `mpv://event` (`{event, ...}`); `time-pos` is throttled to 200 ms. Anything slow on that thread delays every playback event, so move it to `spawn_blocking`/`tokio::spawn`.
+- Take a tokio child's pipes through `child_pipe.rs` (`take_stdout`/`take_stderr`/`take_stdin`, `output`, `wait_with_output`), never `child.stdout.take()` or `Command::output()`. On Windows tokio reads them with blocking `File` calls, and std aborts the whole process (`0xc0000409`, "operation failed to complete synchronously") when one is still pending; `child_pipe.rs` wraps them as overlapped named pipes. `std::process` pipes are safe.
 - Event payload names are the frontend contract (`src/lib/player/mpv.ts`). Change both sides together.
 - On Windows `mpv.rs` finds its embedded child among the main HWND's children by `class == "mpv"` or an empty class with a title starting "Harbor", so no other child window (e.g. the `ytmusic.rs` embed) may have a title starting "Harbor".
 - `stream_proxy.rs` never forwards `accept-encoding`: reqwest manages compression and rejects a manual header.

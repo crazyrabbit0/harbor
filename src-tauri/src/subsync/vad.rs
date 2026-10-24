@@ -205,10 +205,13 @@ async fn decode_pcm(
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000 | 0x0000_4000);
 
-    let output = tokio::time::timeout(Duration::from_secs(HARD_TIMEOUT_SECS), cmd.output())
-        .await
-        .map_err(|_| "ffmpeg-timeout".to_string())?
-        .map_err(|error| format!("run ffmpeg: {}", error))?;
+    let output = tokio::time::timeout(
+        Duration::from_secs(HARD_TIMEOUT_SECS),
+        crate::child_pipe::output(&mut cmd),
+    )
+    .await
+    .map_err(|_| "ffmpeg-timeout".to_string())?
+    .map_err(|error| format!("run ffmpeg: {}", error))?;
     if !output.status.success() {
         return Err(format!("ffmpeg-exit-status: {}", output.status));
     }

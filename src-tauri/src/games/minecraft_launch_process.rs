@@ -112,7 +112,7 @@ pub async fn track(mut child:Child,folder:PathBuf,workspace:Workspace,secrets:Ve
         let held=Arc::new(Mutex::new(Held{session:session.clone(),lines:VecDeque::new(),bytes:0}));all.insert(folder.clone(),held.clone());Ok((session,held))
     })();
     let (session,held)=match registered {Ok(v)=>v,Err(e)=>{let _=child.kill().await;let _=child.wait().await;return Err(e);}};
-    let out=child.stdout.take();let err=child.stderr.take();
+    let out=crate::child_pipe::take_stdout(&mut child);let err=crate::child_pipe::take_stderr(&mut child);
     tokio::spawn(async move {
         let mut readers=Vec::new();
         if let Some(out)=out {readers.push(tokio::spawn(read_log(out,held.clone(),secrets.clone())));}
