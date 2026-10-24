@@ -92,11 +92,13 @@ export function usePipelineResult({
       setPipelineStartedAt(performance.now());
       return () => ac.abort();
     }
-    setLoading(true);
-    setResult(null);
+    // A background prefetch (next episode without plugins) is shown at once while the full search runs.
+    const head = cached && cached.result.picker.all.length > 0 ? cached : null;
+    setLoading(!head);
+    setResult(head ? { ...head.result, raw: { addon: [], library: [] } } : null);
     setResolveError(null);
     setPipelineDone(false);
-    setFirstResultAt(null);
+    setFirstResultAt(head ? performance.now() : null);
     setAutoSettleReady(false);
     setAddonQuorum({
       settled: 0,

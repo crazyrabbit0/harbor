@@ -13,10 +13,11 @@ function harness() {
   const listeners = new Set<(snap: any) => void>();
   const seeks: number[] = [],
     notified: number[] = [];
+  let initial = { positionSec: 0, status: "paused" };
   const bridge = {
     subscribe(fn: (snap: any) => void) {
       listeners.add(fn);
-      fn({ positionSec: 0, status: "paused" });
+      fn(initial);
       return () => listeners.delete(fn);
     },
     seek(sec: number) {
@@ -55,6 +56,9 @@ function harness() {
   return {
     seeks,
     notified,
+    setInitial(snap: any) {
+      initial = snap;
+    },
     inRoomRef,
     get clears() {
       return clears;
@@ -156,4 +160,22 @@ test("start over can settle at zero without waiting for playback to advance", ()
   assert.deepEqual(h.seeks, [0]);
   assert.equal(h.clears, 1);
   assert.equal(h.plays, 1);
+});
+
+test("a load that already started at the resume point is not seeked again", () => {
+  const h = harness();
+  h.setInitial({ positionSec: 600.2, status: "playing" });
+  h.render();
+  assert.deepEqual(h.seeks, []);
+  assert.equal(h.clears, 1);
+  assert.equal(h.plays, 1);
+  assert.deepEqual(h.notified, [600]);
+});
+
+test("a player still loading at the resume point still gets the seek", () => {
+  const h = harness();
+  h.setInitial({ positionSec: 600, status: "loading" });
+  h.render();
+  assert.deepEqual(h.seeks, [600]);
+  assert.equal(h.clears, 0);
 });

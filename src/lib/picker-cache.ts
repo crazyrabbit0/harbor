@@ -91,11 +91,19 @@ export function unpinPickerCache(meta: Meta, episode?: PlayEpisode): void {
   pinned.delete(entryKey(meta, episode));
 }
 
+// The next episode's prefetch has to survive the aggressive sweep that runs when the current player unmounts; only the latest is kept.
+let prefetchKey: string | null = null;
+
+export function keepPrefetchedPickerCache(meta: Meta, episode: PlayEpisode): void {
+  prefetchKey = entryKey(meta, episode);
+}
+
 registerEvictable("picker-cache", (aggressive) => {
   const now = Date.now();
   let changed = false;
   for (const [k, e] of cache) {
     if (pinned.has(k)) continue;
+    if (k === prefetchKey && now - e.fetchedAt <= STALE_MS) continue;
     if (aggressive || now - e.fetchedAt > STALE_MS) {
       cache.delete(k);
       changed = true;
