@@ -34,7 +34,7 @@ Notes for agents working in this folder.
 
 ## Bundled inputs
 
-- `externalBin` (`yt-dlp`, `ffmpeg`, `ffprobe` as `binaries/<name>-<triple>`), Windows `libmpv/libmpv-2.dll` and `resources/capstan/` come from `pnpm run setup`. `resources/pokemon-engine/` is NOT produced by setup (CI runs `node tools/pokemon-engine/build.mjs`).
+- `externalBin` (`yt-dlp`, `ffmpeg`, `ffprobe` as `binaries/<name>-<triple>`), Windows `libmpv/libmpv-2.dll` and `resources/capstan/` come from `pnpm run setup`. `resources/pokemon-engine/` is NOT produced by setup (CI runs `node tools/pokemon-engine/build.mjs`); `scripts/pokemon-engine-stage.mjs` only creates it empty so the bundler accepts it.
 - Linux `build.rs` panics if no libmpv is found (pkg-config `mpv`, then fixed lib dirs). CI installs `libmpv-dev`.
 - Config overlays: `tauri.windows.conf.json` (auto on Windows), `tauri.linux-system.conf.json` (system ffmpeg/yt-dlp, no sidecars), `tauri.updater.conf.json` (CI Windows release only, so the NSIS `setup.exe` gets its updater `.sig`), `tauri.android.conf.json` (`build:tv`, no capstan).
 

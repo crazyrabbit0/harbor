@@ -6,9 +6,9 @@
   "type": "module",
   "scripts": {
     "check": "vp check",
-    "dev": "node scripts/capstan-stage.mjs --dev && vite --config vite.config.ts",
+    "dev": "node scripts/capstan-stage.mjs --dev && node scripts/pokemon-engine-stage.mjs && vite --config vite.config.ts",
     "build": "tsc -b && vite build",
-    "build:desktop": "node scripts/capstan-stage.mjs && tsc -b && vite build",
+    "build:desktop": "node scripts/capstan-stage.mjs && node scripts/pokemon-engine-stage.mjs && tsc -b && vite build",
     "preview": "vite preview",
     "check:settings": "node scripts/check-settings.mjs",
     "check:search": "node scripts/check-settings-search.mjs",
