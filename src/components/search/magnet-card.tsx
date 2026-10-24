@@ -21,7 +21,7 @@ import {
 import { searchCinemeta } from "@/lib/search";
 import { meta as fetchMeta, type Meta } from "@/lib/cinemeta";
 import { ResultPoster } from "./result-poster";
-import { useView, type PlayerSrc } from "@/lib/view";
+import { type PlayerSrc, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 import { releaseYear } from "@/lib/release-info";
@@ -38,7 +38,7 @@ type MagnetMatch = {
 };
 
 export function MagnetCard({ raw, onClose }: { raw: string; onClose: () => void }) {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const t = useT();
   const parsed = useMemo(() => parseMagnet(raw), [raw]);
   const [mode, setMode] = useState<Mode>("idle");

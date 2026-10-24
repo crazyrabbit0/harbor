@@ -12,7 +12,7 @@ import { useLocalizedOverview } from "@/lib/use-localized-overview";
 import { smartPlayEpisode } from "@/lib/smart-play";
 import { fetchTrailer, prefetchTrailer, trailerSrc, type TrailerInfo } from "@/lib/trailer";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { observe, usePageVisible } from "@/lib/visibility";
 import { useTrailerVideo } from "@/lib/use-trailer-video";
 
@@ -214,7 +214,7 @@ function CinemaSlide({
 }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openMeta, openPicker } = useView();
+  const { openMeta, openPicker } = useViewActions();
   const description = useLocalizedOverview(meta);
   const resolvedImdb = useTmdbImdbId(meta.id);
   const imdbRating = useImdbRating(meta, resolvedImdb);

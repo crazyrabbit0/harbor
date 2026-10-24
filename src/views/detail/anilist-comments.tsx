@@ -27,7 +27,7 @@ import {
   type AnilistThreadComment,
 } from "@/lib/anilist/threads";
 import { AnilistApiError } from "@/lib/anilist/client";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { openUrl } from "@/lib/window";
 
@@ -278,7 +278,7 @@ const THREADS_PAGE_SIZE = 20;
 
 export function AnilistComments({ harborId }: { harborId: string | null }) {
   const t = useT();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const { settings } = useSettings();
   const { session } = useAnilist();
   const [authed, setAuthed] = useState(() => isAuthenticated());

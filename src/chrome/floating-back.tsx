@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useSectionBackActive } from "@/lib/section-back";
-import { useView } from "@/lib/view";
+import { useView, useViewActions } from "@/lib/view";
 import { BACK_SHAPE, BACK_SKIN } from "./back-affordance";
 
 const DEEP_KINDS = new Set([
@@ -37,7 +37,7 @@ export function FloatingBack({
   offsetLeft?: number;
   offsetTop?: number;
 }) {
-  const { goBack } = useView();
+  const { goBack } = useViewActions();
   const t = useT();
   const shown = useFloatingBackShown();
 

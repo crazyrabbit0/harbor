@@ -65,7 +65,11 @@ function fixture(grid: any) {
     "@/lib/i18n": { useT: () => (s: string) => s },
     "@/lib/theme": { layoutHasGlobalBack: () => false },
     "@/lib/settings": { useSettings: () => ({ settings: {} }) },
-    "@/lib/view": { useView: () => ({ goBack() {} }), useScrollMemory() {} },
+    "@/lib/view": {
+      useView: () => ({ goBack() {} }),
+      useViewActions: () => ({ goBack() {} }),
+      useScrollMemory() {},
+    },
   };
   const source = readFileSync(process.env.GRID_TEST_SOURCE ?? "src/views/grid.tsx", "utf8");
   const code = ts.transpileModule(source, {

@@ -2,10 +2,10 @@ import { ArrowRight } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchRankList, peekRankSnapshot, type HarborRankExplanation } from "@/lib/harbor-rank";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function TopPeopleCta({ title }: { title?: string }) {
-  const { openPeople } = useView();
+  const { openPeople } = useViewActions();
   const t = useT();
   const [people, setPeople] = useState<HarborRankExplanation[]>([]);
 

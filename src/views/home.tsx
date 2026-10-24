@@ -92,7 +92,7 @@ import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { buildLetterboxdHomeRows } from "@/lib/stremboxd/home-rails";
 import { useMediaFavorites, type MediaEntry } from "@/lib/media-favorites";
 import { useLocalWatchlist } from "@/lib/local-watchlist";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory } from "@/lib/view";
 import { CustomizableRows } from "./home/customizable-rows";
 import { CustomizeBar } from "./home/customize-bar";
 import { CWSection } from "./home/cw-section";
@@ -487,8 +487,10 @@ export function Home({
   ]);
 
   const trackedRef = useRef<Set<string>>(new Set());
+  const lastLibraryRef = useRef<string | null>(null);
   useEffect(() => {
     if (!authKey) {
+      lastLibraryRef.current = null;
       setItems([]);
       return;
     }
@@ -496,7 +498,10 @@ export function Home({
     const load = () => {
       libraryIfChanged(authKey)
         .then((libItems) => {
-          if (cancelled) return;
+          // A refetch with the same ids and mtimes is no change; replacing `items` anyway would redraw every row.
+          const sig = libItems.map((i) => `${i._id}:${String(i._mtime ?? "")}`).join("|");
+          if (cancelled || sig === lastLibraryRef.current) return;
+          lastLibraryRef.current = sig;
           const view = libItems.some(isCorruptAnimeEntry)
             ? libItems.filter((i) => !isCorruptAnimeEntry(i))
             : libItems;
@@ -869,11 +874,6 @@ export function Home({
     setScrollEl(el);
   }, []);
   useScrollMemory("home", scrollRef, active);
-
-  const { homeResetTick } = useView();
-  useEffect(() => {
-    scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-  }, [homeResetTick]);
 
   const shownRows = useHideAnimeRows(rows);
   const shownHeroSlides = useHideAnimeSlides(heroSlides);

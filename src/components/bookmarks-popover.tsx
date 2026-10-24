@@ -6,14 +6,14 @@ import { useT } from "@/lib/i18n";
 import { setMangaReadIntent } from "@/lib/manga/read-intent";
 import { useProfiles } from "@/lib/profiles";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 type T = (key: string) => string;
 
 export function BookmarksButton() {
   const bookmarks = useMangaBookmarks();
   const { settings } = useSettings();
-  const { openManga } = useView();
+  const { openManga } = useViewActions();
   const { activeId } = useProfiles();
   const pid = activeId ?? "default";
   const t = useT();

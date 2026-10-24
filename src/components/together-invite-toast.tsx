@@ -2,7 +2,7 @@ import { ArrowRight, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { useTogether } from "@/lib/together/provider";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { Meta } from "@/lib/cinemeta";
 
 const AUTO_JOIN_MS = 4000;
@@ -10,7 +10,7 @@ const TICK_MS = 60;
 
 export function TogetherInviteToast() {
   const { incomingInvite, dismissInvite } = useTogether();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   const t = useT();
   const handledRef = useRef<number | null>(null);
   const [progress, setProgress] = useState(0);

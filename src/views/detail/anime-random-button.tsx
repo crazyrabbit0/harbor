@@ -3,7 +3,7 @@ import { HoverTooltip } from "@/components/hover-tooltip";
 import type { Meta } from "@/lib/cinemeta";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function AnimeRandomButton({
@@ -14,7 +14,7 @@ export function AnimeRandomButton({
   metaForEp: (ep: KitsuEpisode) => Meta;
 }) {
   const t = useT();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   const { settings } = useSettings();
   const onClick = () => {
     const today = new Date().toISOString().slice(0, 10);

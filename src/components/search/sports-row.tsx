@@ -3,7 +3,7 @@ import { CoverImg } from "@/components/cover-img";
 import type { SportsEventHit } from "@/lib/sports/search-events";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 function dayLabel(ms: number): string {
   try {
@@ -18,7 +18,7 @@ function dayLabel(ms: number): string {
 }
 
 export function SportsRow({ items, onClose }: { items: SportsEventHit[]; onClose: () => void }) {
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const playlists = usePlaylists();
   const t = useT();
   if (items.length === 0) return null;

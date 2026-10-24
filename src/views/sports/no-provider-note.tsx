@@ -1,6 +1,6 @@
 import { Tv } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import { hasSportsSource } from "@/lib/sports/enabled";
 import "./no-provider-note.css";
@@ -8,7 +8,7 @@ import "./no-provider-note.css";
 /** Scores need no provider, so say plainly where a stream would have to come from. */
 export function SportsNoProviderNote() {
   const t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   if (hasSportsSource(usePlaylists())) return null;
   return (
     <aside className="sports-no-provider" role="note">

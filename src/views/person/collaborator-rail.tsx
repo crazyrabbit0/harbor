@@ -2,7 +2,7 @@ import { Poster } from "@/components/poster";
 import { Row } from "@/components/row";
 import { useT } from "@/lib/i18n";
 import { IMG } from "@/lib/providers/tmdb/tmdb-client";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { COLLAB_RAIL_MIN, type Collaborator } from "./collaborator-rank";
 
 export function CollaboratorRail({ people }: { people: Collaborator[] }) {
@@ -19,7 +19,7 @@ export function CollaboratorRail({ people }: { people: Collaborator[] }) {
 
 function CollaboratorCard({ person }: { person: Collaborator }) {
   const t = useT();
-  const { openPerson } = useView();
+  const { openPerson } = useViewActions();
   const shared = t("{n} titles together", { n: person.titles });
   return (
     <button

@@ -7,12 +7,12 @@ import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { layoutHasGlobalBack } from "@/lib/theme";
 import { useSettings } from "@/lib/settings";
-import { useScrollMemory, useView, type GridSpec } from "@/lib/view";
+import { useScrollMemory, type GridSpec, useViewActions } from "@/lib/view";
 
 const PAGE_CAP = 40;
 
 export function GridView({ grid }: { grid: GridSpec }) {
-  const { goBack } = useView();
+  const { goBack } = useViewActions();
   const { settings } = useSettings();
   const t = useT();
   const scrollRef = useRef<HTMLElement>(null);

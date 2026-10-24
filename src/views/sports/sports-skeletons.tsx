@@ -1,5 +1,5 @@
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { ArrowLeft } from "lucide-react";
 import "./sports-skeletons.css";
 
@@ -206,7 +206,7 @@ export function SportsEventSkeleton({
   shellBackAvailable?: boolean;
 }) {
   const t = useT();
-  const { goBack } = useView();
+  const { goBack } = useViewActions();
   return (
     <main className="sh-event-skeleton-page">
       <header className="sh-event-skeleton-header">

@@ -3,7 +3,7 @@ import { TeamProfileLink, teamIdentity } from "@/views/sports/team-profile-link"
 import { lazy, useState, useMemo, useRef } from "react";
 import { ArrowLeft, ArrowUp } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 import type { SportsGame, SportsMatchDetail } from "@/lib/sports/espn";
 import { sportsLeagueByTag } from "@/lib/sports/provider";
@@ -61,7 +61,7 @@ function HeadToHeadMatchDetail({
 }) {
   const t = useT();
   const eventDate = useEventDate();
-  const { goBack } = useView();
+  const { goBack } = useViewActions();
   const officialBoxing = game.source === "official-boxing";
   const boxingGame = useBoxingEvent(game);
   const { detail, loading, failed, retry } = useMatchDetail(game, !officialBoxing);

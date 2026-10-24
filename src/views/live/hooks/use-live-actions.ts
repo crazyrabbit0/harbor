@@ -10,7 +10,7 @@ import { findCurrent } from "@/lib/iptv/xmltv";
 import type { EpgIndex, EpgProgram, IptvChannel, IptvPlaylist } from "@/lib/iptv/types";
 import type { Meta } from "@/lib/cinemeta";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function synthChannelMeta(ch: IptvChannel): Meta {
   return {
@@ -31,7 +31,7 @@ export function useLiveActions(params: {
   playlist: IptvPlaylist | null;
 }) {
   const { epg, activeId, playlist } = params;
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const playlists = usePlaylists();
 
   const handlePlay = useCallback(

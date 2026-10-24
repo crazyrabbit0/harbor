@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { headersFromChannel } from "@/lib/iptv/channel-headers";
 import { recordChannelPlay } from "@/lib/iptv/channel-stats";
 import { isHydratableChannel } from "@/lib/iptv/channel-hydration";
@@ -66,7 +66,7 @@ function useBoundaryClock(): [number, (boundaryMs: number) => void] {
 }
 
 export function useBpLivePlay(): (ch: IptvChannel, current?: EpgProgram | null) => void {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   return useCallback(
     (ch: IptvChannel, current?: EpgProgram | null) => {
       if (!ch.url) return;

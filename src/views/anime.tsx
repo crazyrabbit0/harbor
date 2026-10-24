@@ -115,7 +115,7 @@ import {
 } from "@/lib/simkl/list-status";
 import { loadAnilistWatchedMap } from "@/lib/anilist/watched-map";
 import { useSimkl } from "@/lib/simkl/provider";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 
 export { isAnimeRow } from "./anime/anime-rows";
 
@@ -353,7 +353,7 @@ export function AnimeView({ active = true }: { active?: boolean }) {
   const heroMetas = hero.metas;
   const heroTrending = hero.trending;
 
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const favoriteGenres = settings.animeFavoriteGenres;
   const [showPicker, setShowPicker] = useState(false);
 

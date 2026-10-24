@@ -9,7 +9,7 @@ import { useTmdbImdbId } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
 import { useLocalizedOverview } from "@/lib/use-localized-overview";
 import { smartPlayEpisode } from "@/lib/smart-play";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { toggleWatchlist, useInWatchlist } from "@/lib/watchlist";
 import { useLiveImdbRating } from "@/lib/live-imdb";
 import { ImdbIcon } from "./icons/imdb-icon";
@@ -30,7 +30,7 @@ export function FeedHero({
   onNotInterested?: () => void;
 }) {
   const { settings } = useSettings();
-  const { openMeta, openPicker } = useView();
+  const { openMeta, openPicker } = useViewActions();
   const t = useT();
   const meta = item.meta;
   const description = useLocalizedOverview(meta);

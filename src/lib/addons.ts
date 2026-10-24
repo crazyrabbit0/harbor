@@ -3,6 +3,7 @@ import { runLanes } from "@/lib/run-lanes";
 import { allowDirectHost, safeFetch as fetch } from "@/lib/safe-fetch";
 import type { AddonOrigin, Meta } from "./cinemeta";
 import { fetchManifestAt, filterEnabled, loadInstalled } from "./addon-store";
+import { storedSettings } from "./stored-settings";
 
 const STREMIO_API = "https://api.strem.io/api";
 const MAX_ROWS = 24;
@@ -207,9 +208,7 @@ export function normalizeName(name: string, type: string): string {
 // they actually picked, so the app matches web and honours their choice.
 function addonAcceptLanguage(): string | null {
   try {
-    const raw =
-      typeof localStorage !== "undefined" ? localStorage.getItem("harbor.settings") : null;
-    const s = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
+    const s = storedSettings();
     const region = String(s.region ?? "US")
       .trim()
       .toUpperCase();

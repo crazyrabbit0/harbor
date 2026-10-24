@@ -17,7 +17,7 @@ import {
   type LocalEntry,
 } from "@/lib/local-library";
 import { confirmDialog } from "@/lib/dialog";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { FilterBar, Grid, type TypeKey } from "./shared";
 import { VirtualGrid } from "@/components/virtual-grid";
@@ -49,7 +49,7 @@ type Tr = (key: string, vars?: Record<string, string | number>) => string;
  *  modal has no scroller of its own, so it renders the plain grid instead. */
 export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | null> }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const items = useLocalLibrary();
   const libraryReady = useLocalLibraryReady();
   const [toast, setToast] = useState<string | null>(null);

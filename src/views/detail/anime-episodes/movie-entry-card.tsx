@@ -4,7 +4,7 @@ import type { Meta } from "@/lib/cinemeta";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
-import { useView, type PlayEpisode } from "@/lib/view";
+import { type PlayEpisode, useViewActions } from "@/lib/view";
 
 function entryPlayEpisode(ep: KitsuEpisode | undefined): PlayEpisode | undefined {
   if (!ep) return undefined;
@@ -33,7 +33,7 @@ export function MovieEntryCard({
   watched?: boolean;
 }) {
   const t = useT();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   const { settings } = useSettings();
   const banner = meta.background || meta.poster;
   return (

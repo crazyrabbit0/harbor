@@ -2,7 +2,7 @@ import { browseFetcher, type BrowseCatalog } from "./catalog-browse";
 import type { Meta } from "./cinemeta";
 import type { HomeRow } from "@/views/home/home-types";
 import type { PinnedCatalog } from "./pinned-catalogs";
-import { isExtensionCatalogueBase } from "./streams/plugins";
+import { isExtensionCatalogueBase } from "./streams/plugins/extension/catalogue-base";
 
 const MAX_PER_ROW = 30;
 const PAGE_HINT = 20;

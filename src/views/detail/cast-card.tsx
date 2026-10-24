@@ -2,10 +2,10 @@ import { Poster } from "@/components/poster";
 import { RankBadge } from "@/components/rank-badge";
 import type { CastEntry } from "@/lib/providers/tmdb";
 import { useRankings } from "@/lib/rankings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function CastCard({ cast }: { cast: CastEntry }) {
-  const { openPerson } = useView();
+  const { openPerson } = useViewActions();
   const { rank } = useRankings();
   const isResolved = cast.id > 0;
   const r = isResolved ? rank(cast.id, "Acting") : undefined;

@@ -5,7 +5,7 @@ import { UiIcon } from "@/components/ui-icon";
 import { Poster } from "@/components/poster";
 import { useT } from "@/lib/i18n";
 import { authToken } from "@/lib/theme-auth";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useRating } from "@/lib/ratings/store";
 import { rate, unrate } from "@/lib/ratings/actions";
 import type { RatingTarget } from "@/lib/ratings/types";
@@ -27,7 +27,7 @@ function errorText(e: unknown, t: (s: string) => string, action: "save" | "remov
 
 export function RatingModal({ target, onClose }: { target: RatingTarget; onClose: () => void }) {
   const t = useT();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const signedIn = !!authToken();
   const existing = useRating(target.itemKey);
   const [selected, setSelected] = useState(existing?.score ?? 0);

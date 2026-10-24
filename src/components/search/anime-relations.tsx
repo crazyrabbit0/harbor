@@ -4,7 +4,7 @@ import { usePosterChain } from "@/components/poster";
 import type { AnimeHit } from "@/lib/search";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { Meta } from "@/lib/cinemeta";
 import { kitsuToAnilist } from "@/lib/providers/anime-mapping";
 import { animeRelations, type AnimeRelation } from "@/lib/anilist/relations";
@@ -17,7 +17,7 @@ async function resolveAnilistId(hit: AnimeHit): Promise<number | null> {
 
 export function AnimeRelations({ anime, onClose }: { anime: AnimeHit; onClose: () => void }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const { settings } = useSettings();
   const [entries, setEntries] = useState<AnimeRelation[] | null>(null);
 

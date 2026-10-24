@@ -6,7 +6,7 @@ import type { Addon } from "@/lib/addons";
 import { useAuth } from "@/lib/auth";
 import { captureFocusReturn, tvFocus } from "@/lib/keyboard-navigation";
 import { isBackKey, navOwnsFocus } from "@/lib/keyboard-navigation/geometry";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { requestAddonsTab } from "@/views/addons";
 import { SettingRow } from "../kit";
@@ -20,7 +20,7 @@ export function SyncedAddonsCard() {
   const [addons, setAddons] = useState<Addon[] | null>(null);
   const [busy, setBusy] = useState(false);
   const [lastSynced, setLastSynced] = useState<number | null>(null);
-  const { setView } = useView();
+  const { setView } = useViewActions();
 
   const sync = async () => {
     if (!authKey || busy) return;

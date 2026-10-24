@@ -304,6 +304,19 @@ export function Shows({ active = true }: { active?: boolean }) {
     ];
   }, [top10, rows, allRestRows]);
 
+  const onDismissCw = useCallback(
+    (item: LibraryItem) =>
+      item.manualWatched
+        ? dismissManualWatched(item._id)
+        : item.local
+          ? clearLocalCw(item._id)
+          : dismissCw(item, authKey),
+    [authKey],
+  );
+  const cwCards = useMemo(
+    () => cwItems.map((it) => <ContinueCard key={it._id} item={it} onDismiss={onDismissCw} />),
+    [cwItems, onDismissCw],
+  );
   return (
     <main ref={scrollCb} className="relative h-full overflow-y-auto overflow-x-hidden bg-canvas">
       <ScrollRootContext.Provider value={scrollEl}>
@@ -328,19 +341,7 @@ export function Shows({ active = true }: { active?: boolean }) {
               shape="landscape"
               scrollKey="shows:cw"
             >
-              {cwItems.map((it) => (
-                <ContinueCard
-                  key={it._id}
-                  item={it}
-                  onDismiss={(item) =>
-                    item.manualWatched
-                      ? dismissManualWatched(item._id)
-                      : item.local
-                        ? clearLocalCw(item._id)
-                        : dismissCw(item, authKey)
-                  }
-                />
-              ))}
+              {cwCards}
             </Row>
           )}
           <CatalogRows

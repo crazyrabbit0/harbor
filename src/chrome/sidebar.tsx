@@ -1,7 +1,7 @@
 import { usePreviewNavCustomization } from "@/lib/theme-preview";
 import { useContextMenu } from "@/lib/context-menu";
 import { ChevronDown, ChevronUp, Lock } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { HarborMark } from "@/components/icons/harbor-mark";
 import { ProfileChip } from "@/chrome/sidebar/profile-chip";
 import { useT } from "@/lib/i18n";
@@ -154,7 +154,7 @@ export function Sidebar() {
           collapsed={collapsed}
           retainLabels={retainLabels}
           hiddenTabs={hiddenTabs}
-          onPinNav={(v) => setPendingPinView(v)}
+          onPinNav={setPendingPinView}
         />
         <div data-harbor-sidebar-footer className={`relative p-2 ${collapsed ? "" : "lg:p-4"}`}>
           <div className="mb-1 px-1">
@@ -231,6 +231,7 @@ function ScrollableNav({
   const { settings } = useSettings();
   const kid = useActiveKid();
   const t = useT();
+  const selectView = setView;
   const { open: openContextMenu } = useContextMenu();
   const openEmptyMenu = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("button")) return;
@@ -305,7 +306,7 @@ function ScrollableNav({
               retainLabels={retainLabels}
               big={!!kid}
               active={view === item.view}
-              onClick={() => setView(item.view)}
+              onSelect={selectView}
             />
           ))}
           {kid && (
@@ -340,7 +341,7 @@ function ScrollableNav({
                 collapsed={collapsed}
                 retainLabels={retainLabels}
                 active={view === item.view}
-                onClick={() => (gated ? onPinNav(item.view) : setView(item.view))}
+                onSelect={gated ? onPinNav : selectView}
               />
             );
           })}
@@ -401,12 +402,14 @@ function KidsPlayIcon({ active }: { active: boolean }) {
   );
 }
 
-function NavItem({
+// memo: the sidebar re-renders on every navigation, but only the two items whose `active` flips need to redraw.
+const NavItem = memo(function NavItem({
   id,
   render,
   label,
   active,
-  onClick,
+  onClick: onClickProp,
+  onSelect,
   gated,
   collapsed,
   retainLabels = false,
@@ -418,12 +421,14 @@ function NavItem({
   label: string;
   active?: boolean;
   onClick?: () => void;
+  onSelect?: (view: View) => void;
   gated?: boolean;
   collapsed?: boolean;
   retainLabels?: boolean;
   big?: boolean;
   view?: View;
 }) {
+  const onClick = onClickProp ?? (onSelect && view ? () => onSelect(view) : undefined);
   const t = useT();
   const text = t(label);
   const [hovered, setHovered] = useState(false);
@@ -486,4 +491,4 @@ function NavItem({
       </button>
     </NavEditableItem>
   );
-}
+});

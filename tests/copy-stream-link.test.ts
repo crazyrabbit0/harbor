@@ -25,7 +25,10 @@ function load(path: string, mocks: Record<string, unknown>, globals: Record<stri
   return exports;
 }
 
-const torrent = load("src/lib/torrent/stremio-stream.ts", { "@/lib/stremio-server": {} });
+const torrent = load("src/lib/torrent/stremio-stream.ts", {
+  "@/lib/stremio-server": {},
+  "@/lib/stored-settings": { storedSettings: () => ({}) },
+});
 
 function fixture(
   options: {

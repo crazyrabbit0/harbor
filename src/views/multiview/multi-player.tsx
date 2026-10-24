@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import Hls from "hls.js";
-import mpegts from "mpegts.js";
+import type Hls from "hls.js";
+import type mpegts from "mpegts.js";
+import { loadHls, loadMpegts } from "@/lib/player/stream-libs";
 
 // Long enough that an IPTV stream rebuffering on a busy line is never mistaken
 // for a dead one, short enough that a genuinely dead channel still reports.
@@ -116,65 +117,71 @@ export function MultiPlayer({
       video.play().catch(handleError);
     };
 
-    if (kind === "hls" && Hls.isSupported()) {
-      // lowLatencyMode makes hls.js chase the live edge by ALTERING PLAYBACK
-      // RATE: it speeds up, overshoots, slows down, and on a reseller IPTV line
-      // it never settles. That is the preview visibly surging and stalling. A
-      // preview does not need to be near the edge, it needs to be smooth, so
-      // the chase is off and the buffer is deep enough to ride out a hiccup.
-      hls = new Hls({
-        maxBufferLength: 30,
-        maxMaxBufferLength: 60,
-        lowLatencyMode: false,
-        backBufferLength: 10,
-        manifestLoadingMaxRetry: 3,
-        manifestLoadingRetryDelay: 1000,
-        levelLoadingMaxRetry: 3,
-        levelLoadingRetryDelay: 1000,
-        fragLoadingMaxRetry: 4,
-        fragLoadingRetryDelay: 1000,
-      });
-      hls.loadSource(url);
-      hls.attachMedia(video);
-      hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play().catch(() => {});
-      });
-      // hls.js documents fatal network and media errors as RECOVERABLE, and a
-      // live IPTV line throws both routinely. Reporting the first one is why a
-      // channel that had been playing fine went blank and stayed blank. Retry
-      // in place, and only surrender once recovery itself keeps failing.
-      let recoveries = 0;
-      hls.on(Hls.Events.ERROR, (_e, data) => {
-        if (!data.fatal) return;
-        if (recoveries >= MAX_RECOVERIES) {
+    const start = async () => {
+      const Hls = kind === "hls" ? await loadHls().catch(() => null) : null;
+      const mpegts = kind === "mpegts" ? await loadMpegts().catch(() => null) : null;
+      if (disposed) return;
+      if (Hls && Hls.isSupported()) {
+        // lowLatencyMode makes hls.js chase the live edge by ALTERING PLAYBACK
+        // RATE: it speeds up, overshoots, slows down, and on a reseller IPTV line
+        // it never settles. That is the preview visibly surging and stalling. A
+        // preview does not need to be near the edge, it needs to be smooth, so
+        // the chase is off and the buffer is deep enough to ride out a hiccup.
+        hls = new Hls({
+          maxBufferLength: 30,
+          maxMaxBufferLength: 60,
+          lowLatencyMode: false,
+          backBufferLength: 10,
+          manifestLoadingMaxRetry: 3,
+          manifestLoadingRetryDelay: 1000,
+          levelLoadingMaxRetry: 3,
+          levelLoadingRetryDelay: 1000,
+          fragLoadingMaxRetry: 4,
+          fragLoadingRetryDelay: 1000,
+        });
+        hls.loadSource(url);
+        hls.attachMedia(video);
+        hls.on(Hls.Events.MANIFEST_PARSED, () => {
+          video.play().catch(() => {});
+        });
+        // hls.js documents fatal network and media errors as RECOVERABLE, and a
+        // live IPTV line throws both routinely. Reporting the first one is why a
+        // channel that had been playing fine went blank and stayed blank. Retry
+        // in place, and only surrender once recovery itself keeps failing.
+        let recoveries = 0;
+        hls.on(Hls.Events.ERROR, (_e, data) => {
+          if (!data.fatal) return;
+          if (recoveries >= MAX_RECOVERIES) {
+            handleError();
+            return;
+          }
+          recoveries += 1;
+          if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
+            hls?.startLoad();
+            return;
+          }
+          if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
+            hls?.recoverMediaError();
+            return;
+          }
           handleError();
-          return;
-        }
-        recoveries += 1;
-        if (data.type === Hls.ErrorTypes.NETWORK_ERROR) {
-          hls?.startLoad();
-          return;
-        }
-        if (data.type === Hls.ErrorTypes.MEDIA_ERROR) {
-          hls?.recoverMediaError();
-          return;
-        }
-        handleError();
-      });
-    } else if (kind === "mpegts" && mpegts.isSupported()) {
-      ts = mpegts.createPlayer(
-        { type: "mpegts", url, isLive: true, cors: true },
-        { enableWorker: true, liveBufferLatencyChasing: false, lazyLoad: false },
-      );
-      ts.attachMediaElement(video);
-      ts.on(mpegts.Events.ERROR, handleError);
-      ts.load();
-      ts.play()?.catch(() => {});
-    } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-      tryNative();
-    } else {
-      tryNative();
-    }
+        });
+      } else if (mpegts && mpegts.isSupported()) {
+        ts = mpegts.createPlayer(
+          { type: "mpegts", url, isLive: true, cors: true },
+          { enableWorker: true, liveBufferLatencyChasing: false, lazyLoad: false },
+        );
+        ts.attachMediaElement(video);
+        ts.on(mpegts.Events.ERROR, handleError);
+        ts.load();
+        ts.play()?.catch(() => {});
+      } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+        tryNative();
+      } else {
+        tryNative();
+      }
+    };
+    void start();
 
     if (exclusive) exclusiveTeardown.set(token, () => cleanupRef.current?.());
 

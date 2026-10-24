@@ -4,7 +4,7 @@ import { useT } from "@/lib/i18n";
 import { posterPlate } from "@/components/poster";
 import { ResultPoster } from "@/components/search/result-poster";
 import { BackToTop } from "@/components/back-to-top";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { MangaMatchPicker } from "./manga-match-picker";
 import { useCollection, type CollectionItem, type CollectionItemType } from "@/lib/collections";
 import type { MetaType } from "@/lib/cinemeta";
@@ -37,7 +37,7 @@ export function CommunityCollectionPage({
 }) {
   const t = useT();
   const collection = useCollection(id);
-  const { openMeta, openManga } = useView();
+  const { openMeta, openManga } = useViewActions();
   const self = useSelfAvatar();
   const scrollRef = useRef<HTMLElement>(null);
   const pageBtnRef = useRef<HTMLButtonElement>(null);

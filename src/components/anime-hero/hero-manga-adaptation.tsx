@@ -2,11 +2,11 @@ import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { resolveAnimeSourceReading, type AnimeReadingSource } from "@/lib/manga/anime-adaptation";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function HeroMangaAdaptation({ meta }: { meta: Meta }) {
   const t = useT();
-  const { openEBook, openManga } = useView();
+  const { openEBook, openManga } = useViewActions();
   const [source, setSource] = useState<AnimeReadingSource | null>(null);
 
   useEffect(() => {

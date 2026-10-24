@@ -119,10 +119,13 @@ export async function externalToKitsu(source: string, id: number): Promise<numbe
 }
 
 let xmlInflight: Promise<AnidbMapCache> | null = null;
+// The stored map is ~0.5 MB of JSON and every anime card asks for it, so it is parsed once per session.
+let memoMaps: AnidbMapCache | null = null;
 
 export async function loadAnidbMaps(): Promise<AnidbMapCache> {
+  if (memoMaps && memoMaps.byTvdb && Date.now() - memoMaps.t < XML_TTL_MS) return memoMaps;
   const cached = readJson<AnidbMapCache | null>(ANIDB_TVDB_KEY, null);
-  if (cached && cached.byTvdb && Date.now() - cached.t < XML_TTL_MS) return cached;
+  if (cached && cached.byTvdb && Date.now() - cached.t < XML_TTL_MS) return (memoMaps = cached);
   if (xmlInflight) return xmlInflight;
   xmlInflight = (async () => {
     try {
@@ -178,6 +181,7 @@ export async function loadAnidbMaps(): Promise<AnidbMapCache> {
       }
       const out: AnidbMapCache = { tvdb, imdb, byTvdb, byImdb, t: Date.now() };
       writeJson(ANIDB_TVDB_KEY, out);
+      memoMaps = out;
       return out;
     } catch {
       return cached ?? { tvdb: {}, imdb: {}, t: 0 };

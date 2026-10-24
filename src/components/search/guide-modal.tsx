@@ -5,7 +5,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { getCachedPlaylist } from "@/lib/iptv/store";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import type { IptvChannel, IptvPlaylistSource } from "@/lib/iptv/types";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useEpg, useNowTick } from "@/views/live/hooks/use-epg";
 import { useIptvPlaylist } from "@/views/live/hooks/use-iptv-playlist";
 import { GuideView } from "@/views/live/guide/guide-view";
@@ -29,7 +29,7 @@ function synthChannelMeta(ch: IptvChannel): Meta {
 export function GuideModal({ onClose }: { onClose: () => void }) {
   const t = useT();
   const playlists = usePlaylists();
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const m3uSources = useMemo(
     () => playlists.filter((p) => (p.kind ?? "m3u") !== "epg"),
     [playlists],

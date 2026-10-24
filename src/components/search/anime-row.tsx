@@ -3,7 +3,7 @@ import { usePosterChain } from "@/components/poster";
 import type { AnimeHit } from "@/lib/search";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { Meta } from "@/lib/cinemeta";
 
 function animeHitMetaId(hit: AnimeHit): string {
@@ -14,7 +14,7 @@ function animeHitMetaId(hit: AnimeHit): string {
 }
 
 export function AnimeRow({ items, onClose }: { items: AnimeHit[]; onClose: () => void }) {
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const t = useT();
   if (items.length === 0) return null;
 

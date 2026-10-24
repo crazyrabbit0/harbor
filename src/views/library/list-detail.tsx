@@ -7,7 +7,7 @@ import { relativeTime } from "@/lib/dates";
 import { useT } from "@/lib/i18n";
 import { hasAnyMangaSource } from "@/lib/manga/sources";
 import { resolveMangaOpen } from "@/lib/manga/open-resolve";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { PickCard } from "@/components/pick-card";
 import { AddTitleSearch } from "./list-detail/add-title-search";
 import { ListSettingsMenu } from "./list-detail/list-settings-menu";
@@ -37,7 +37,7 @@ export function ListDetail({
 }) {
   const t = useT();
   const list = store.useList(listId);
-  const { openManga } = useView();
+  const { openManga } = useViewActions();
   const mangaBusy = useRef<Set<string>>(new Set());
   const [missingId, setMissingId] = useState<string | null>(null);
   const itemElsRef = useRef<Map<string, HTMLDivElement>>(new Map());

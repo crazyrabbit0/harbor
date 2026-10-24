@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Building2, Calendar, ChevronDown, Clock, Globe, Languages, Tag, Tv } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { MOVIE_GENRES } from "@/lib/feed/tags";
-import { useView, type MetaFilter } from "@/lib/view";
+import { type MetaFilter, useViewActions } from "@/lib/view";
 import { runtimeRange } from "./rails-config";
 import { BrandHero, useBrandArt } from "./brand-hero";
 import { browsedId, isBrowsed } from "./browsed";
@@ -47,7 +47,7 @@ export function Header({ filter }: { filter: MetaFilter }) {
 
 function MediaTypeToggle({ filter }: { filter: MetaFilter }) {
   const t = useT();
-  const { openFilter } = useView();
+  const { openFilter } = useViewActions();
   const set = (mediaType: "movie" | "tv") => {
     if (mediaType === filter.mediaType) return;
     openFilter({ ...filter, mediaType });
@@ -80,7 +80,7 @@ function GenreSwitcher({
   mediaType: "movie" | "tv";
 }) {
   const t = useT();
-  const { openFilter } = useView();
+  const { openFilter } = useViewActions();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   useEffect(() => {

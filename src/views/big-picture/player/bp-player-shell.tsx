@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { useView, type PlayerSrc } from "@/lib/view";
+import { type PlayerSrc, useViewActions } from "@/lib/view";
 import { runBpBack } from "../bp-back";
 import { BpHintBar, type BpAction } from "../bp-hint-bar";
 import { useBpT } from "../bp-i18n";
@@ -91,7 +91,7 @@ export function BpPlayerShell({
   children?: ReactNode;
 }) {
   const t = useBpT();
-  const { exitPlayback } = useView();
+  const { exitPlayback } = useViewActions();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const chromeRef = useRef<HTMLDivElement | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);

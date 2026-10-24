@@ -5,7 +5,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { tmdbSeasonEpisodes, type Episode, type Season } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 const STILL = "https://image.tmdb.org/t/p/w300";
 
@@ -20,7 +20,7 @@ export function KidsEpisodes({
 }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   const [season, setSeason] = useState(seasons[0]?.seasonNumber ?? 1);
   const [eps, setEps] = useState<Episode[]>([]);
   const [loading, setLoading] = useState(true);

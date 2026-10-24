@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   closeVoyage,
   launchVoyage,
@@ -20,7 +20,7 @@ import { VoyageSailing } from "./voyage-sailing";
 
 export function VoyageRoute({ voyage, inline = false }: { voyage: Voyage; inline?: boolean }) {
   const t = useT();
-  const { openMeta, openPicker } = useView();
+  const { openMeta, openPicker } = useViewActions();
   const root = useRef<HTMLDivElement>(null);
   const launching = useRef(false);
   const sailing = voyage.phase === "sailing";

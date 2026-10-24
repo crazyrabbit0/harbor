@@ -3,11 +3,11 @@ import type { Meta } from "@/lib/cinemeta";
 import { FeedShelf } from "@/components/feed-shelf";
 import { useHideAnimeMetas } from "@/lib/anime-hide";
 import { browseFetcher, catalogTypeLabelKey, type BrowseCatalog } from "@/lib/catalog-browse";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function CatalogShelf({ catalog }: { catalog: BrowseCatalog }) {
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const t = useT();
   const typeLabelKey = catalogTypeLabelKey(catalog.type);
   const [items, setItems] = useState<Meta[] | null>(null);

@@ -2,10 +2,10 @@ import { Row } from "@/components/row";
 import { ServiceLogo } from "@/components/service-logo";
 import { useT } from "@/lib/i18n";
 import type { StreamingService } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function StreamingRail({ services }: { services: StreamingService[] }) {
-  const { openService } = useView();
+  const { openService } = useViewActions();
   const t = useT();
   if (services.length === 0) return null;
 

@@ -4,7 +4,7 @@ import { searchManga } from "@/lib/manga/api";
 import type { MangaSummary } from "@/lib/manga/model";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 function norm(s: string): string {
   return s
@@ -25,7 +25,7 @@ function bestManga(hits: MangaSummary[], title: string): MangaSummary | null {
 }
 
 export function CharacterGroup({ items, onClose }: { items: CharacterHit[]; onClose: () => void }) {
-  const { openMeta, openManga } = useView();
+  const { openMeta, openManga } = useViewActions();
   const t = useT();
   if (items.length === 0) return null;
 

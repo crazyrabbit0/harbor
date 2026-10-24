@@ -3,7 +3,7 @@ import { HoverTooltip } from "@/components/hover-tooltip";
 import type { Meta } from "@/lib/cinemeta";
 import type { Season } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 function pickRandomEpisode(seasons: Season[]): { season: number; episode: number } | null {
@@ -23,7 +23,7 @@ function pickRandomEpisode(seasons: Season[]): { season: number; episode: number
 
 export function RandomEpisodeButton({ meta, seasons }: { meta: Meta; seasons: Season[] }) {
   const t = useT();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   const { settings } = useSettings();
   const onClick = () => {
     const pick = pickRandomEpisode(seasons);

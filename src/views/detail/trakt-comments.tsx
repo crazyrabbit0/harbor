@@ -25,7 +25,7 @@ import {
 import { traktRequest, TraktApiError } from "@/lib/trakt/client";
 import type { IdResolution } from "@/lib/trakt/ids";
 import { getSession, subscribeSession } from "@/lib/trakt/session";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { openUrl } from "@/lib/window";
 
@@ -385,7 +385,7 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
   const [hoverRating, setHoverRating] = useState(0);
   const [blurred, setBlurred] = useState(true);
   const sortRef = useRef<HTMLDivElement>(null);
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const { settings } = useSettings();
   const [session, setSessionState] = useState(() => getSession());
   const connected = !!session;

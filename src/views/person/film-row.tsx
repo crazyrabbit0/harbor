@@ -5,7 +5,7 @@ import { Row } from "@/components/row";
 import { useContextMenu } from "@/lib/context-menu";
 import { creditToMeta, type PersonCredit } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function FilmRow({
   title,
@@ -64,7 +64,7 @@ function FilmCard({
   showRating: boolean;
   imdbRatings?: Map<string, string>;
 }) {
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const { open: openContextMenu } = useContextMenu();
   const { settings } = useSettings();
   const role = credit.character?.trim() || credit.job?.trim() || "";

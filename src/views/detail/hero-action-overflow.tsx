@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "re
 import { createPortal } from "react-dom";
 import type { Meta } from "@/lib/cinemeta";
 import { activeDownloadFor, cancelDownload, useDownloads } from "@/lib/download/downloads-store";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { AddToListMenu } from "@/components/lists/add-to-list-menu";
 import { HoverTooltip } from "@/components/hover-tooltip";
@@ -91,7 +91,7 @@ export function HeroActionOverflow({
   anilist?: { harborId: string } | null;
 }) {
   const t = useT();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   useDownloads();
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);

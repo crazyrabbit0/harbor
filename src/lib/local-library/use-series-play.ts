@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 import type { Meta } from "@/lib/cinemeta";
-import { useView, type PlayEpisode } from "@/lib/view";
+import { type PlayEpisode, useViewActions } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { findLocalEpisodeVersions } from "@/lib/local-library/versions";
 import { openLocalVersions } from "@/lib/player/local-versions-modal";
@@ -14,7 +14,7 @@ import { createMediaServerPlayerSrc, decidePlaybackSource } from "@/lib/media-se
 type PlayOpts = { autoPlay?: boolean; resume?: boolean };
 
 export function useLocalAwareSeriesPlay() {
-  const { openPicker, openPlayer } = useView();
+  const { openPicker, openPlayer } = useViewActions();
   const { settings } = useSettings();
   return useCallback(
     async (args: {

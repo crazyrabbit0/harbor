@@ -4,13 +4,13 @@ import { AuthModal } from "@/components/auth-modal";
 import { ParentalPinModal } from "@/components/parental-pin-modal";
 import { verifyProfilePassword } from "@/lib/profile-password";
 import { subscribeAccountMenuOpen, type AccountMenuAnchor } from "@/lib/social/account-menu-open";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { AccountMenuPanel } from "./account-menu-panel";
 import { useAccountMenu } from "./use-account-menu";
 
 export function AccountMenuFloating() {
   const ctrl = useAccountMenu();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const [anchor, setAnchor] = useState<AccountMenuAnchor>(null);
   const { menuOpen, setMenuOpen, pendingSwitch, setPendingSwitch, selectProfile, activeProfile } =
     ctrl;

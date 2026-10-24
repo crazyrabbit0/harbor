@@ -12,7 +12,7 @@ import {
   searchPluginPage,
   type PluginSearchGroup,
 } from "@/lib/streams/plugins/extension/search";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { useContentDrag } from "@/lib/window-drag";
 import { FeedShelf } from "@/components/feed-shelf";
@@ -34,7 +34,7 @@ function pluginCatalogs(all: BrowseCatalog[]): BrowseCatalog[] {
 export function Plugins({ active = true }: { active?: boolean }) {
   const t = useT();
   const { authKey } = useAuth();
-  const { openSettings, openGrid } = useView();
+  const { openSettings, openGrid } = useViewActions();
   const contentDrag = useContentDrag();
   const [catalogs, setCatalogs] = useState<BrowseCatalog[]>([]);
   const [loading, setLoading] = useState(true);

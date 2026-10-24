@@ -5,11 +5,11 @@ import { hasAnyMangaSource } from "@/lib/manga/sources";
 import { resolveMangaOpen } from "@/lib/manga/open-resolve";
 import { useMangaFavorites, type MangaFavEntry } from "@/lib/manga-favorites";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function MangaFavCard({ entry }: { entry: MangaFavEntry }) {
   const t = useT();
-  const { openManga } = useView();
+  const { openManga } = useViewActions();
   const favorites = useMangaFavorites();
   const [busy, setBusy] = useState(false);
   const [missing, setMissing] = useState(false);

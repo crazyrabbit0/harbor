@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Play, Twitch, Youtube } from "lucide-react";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { officialBroadcastSource, type EsportsStream } from "@/lib/sports/esports-streams";
 
 export function StreamPlatform({
@@ -27,7 +27,7 @@ export function EsportsBroadcast({
   stream: EsportsStream;
   onClose: () => void;
 }) {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const launched = useRef("");
   useEffect(() => {
     if (launched.current === stream.url) return;

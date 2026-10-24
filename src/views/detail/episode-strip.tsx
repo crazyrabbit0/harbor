@@ -10,7 +10,7 @@ import { distinctAbsolute } from "@/lib/episode-absolute";
 import type { Episode } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
 import { SPOILER_TEXT_CLASS, SPOILER_THUMB_CLASS, type SpoilerMask } from "@/lib/spoilers";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useLocalAwareSeriesPlay } from "@/lib/local-library/use-series-play";
 import { useT } from "@/lib/i18n";
 import { EpisodeGrid } from "./episode-grid";
@@ -161,7 +161,7 @@ function EpisodeStripCard({
   cinemetaVideos?: Meta["videos"];
 }) {
   const t = useT();
-  const { openEpisodeDetail } = useView();
+  const { openEpisodeDetail } = useViewActions();
   const playLocalAware = useLocalAwareSeriesPlay();
   const { settings } = useSettings();
   const ratingValue = ep.imdbRating ?? ep.voteAverage;

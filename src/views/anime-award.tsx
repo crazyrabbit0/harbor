@@ -10,7 +10,7 @@ import {
 } from "@/lib/anime-awards";
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 const SOURCE_TINTS: Record<AwardSourceId, string> = {
@@ -293,7 +293,7 @@ function CategoryBlock({ category, tint }: { category: AnimeAwardCategory; tint:
 
 function WinnerRow({ year, title, tint }: { year: number; title: string; tint: string }) {
   const { settings } = useSettings();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const [resolving, setResolving] = useState(false);
   const mappedId = animeAwardId(title);
   const clickable = !!mappedId || !!settings.tmdbKey;

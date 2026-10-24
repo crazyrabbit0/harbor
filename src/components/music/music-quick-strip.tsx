@@ -4,11 +4,11 @@ import { useT } from "@/lib/i18n";
 import { requestMusicLibrary } from "@/lib/music/navigation";
 import { MUSIC_SOURCE_REQUIRED, resolveAndPlayMusicTrack } from "@/lib/music/play-track";
 import { useMusicPlayer } from "@/lib/music/player";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function MusicQuickStrip({ onLeave }: { onLeave: () => void }) {
   const t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const player = useMusicPlayer();
   const tracks = player.recents.slice(0, 24);
 

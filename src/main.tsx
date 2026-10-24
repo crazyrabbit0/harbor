@@ -1,5 +1,5 @@
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { StrictMode, useCallback, useEffect, useState } from "react";
+import { StrictMode, useCallback, useEffect, useState, type ComponentType } from "react";
 import { createRoot } from "react-dom/client";
 import { App } from "@/App";
 import { hydrateCustomThemes } from "@/lib/custom-themes";
@@ -9,13 +9,7 @@ import { applyOsDataset } from "@/lib/platform";
 import { loadSecrets } from "@/lib/secret-store";
 import { initializeMusic } from "@/lib/music/player";
 import { initSubtitleCache } from "@/lib/subtitles/subtitle-cache";
-import { CaptionsApp } from "@/views/captions-app";
-import { DjDeckApp } from "@/views/dj-deck-app";
-import { ModalOverlayApp } from "@/views/modal-overlay-app";
-import { HdrOverlayApp } from "@/views/hdr-overlay-app";
 import { hdrOverlayEmitAction } from "@/lib/hdr-overlay";
-import { PipApp } from "@/views/pip";
-import { VideoPipApp } from "@/views/video-pip";
 import "@/lib/awards-history-eager";
 import "@/index.css";
 import "flag-icons/css/flag-icons.min.css";
@@ -219,23 +213,23 @@ async function mount() {
   if (!isHdrOverlay && !isModal && !isCaptions && !isDjDeck) void initSubtitleCache();
   if (!isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck)
     startTaskbarProgress();
+  // Each secondary window loads only its own app; the main window never parses them.
+  const Secondary: ComponentType | null = isHdrOverlay
+    ? (await import("@/views/hdr-overlay-app")).HdrOverlayApp
+    : isDjDeck
+      ? (await import("@/views/dj-deck-app")).DjDeckApp
+      : isCaptions
+        ? (await import("@/views/captions-app")).CaptionsApp
+        : isModal
+          ? (await import("@/views/modal-overlay-app")).ModalOverlayApp
+          : isVideoPip
+            ? (await import("@/views/video-pip")).VideoPipApp
+            : isPip
+              ? (await import("@/views/pip")).PipApp
+              : null;
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
-      {isHdrOverlay ? (
-        <HdrOverlayApp />
-      ) : isDjDeck ? (
-        <DjDeckApp />
-      ) : isCaptions ? (
-        <CaptionsApp />
-      ) : isModal ? (
-        <ModalOverlayApp />
-      ) : isVideoPip ? (
-        <VideoPipApp />
-      ) : isPip ? (
-        <PipApp />
-      ) : (
-        <MainRoot />
-      )}
+      {Secondary ? <Secondary /> : <MainRoot />}
       {(isModal || isPip || isVideoPip || isCaptions || isDjDeck) && <StartupReady />}
     </StrictMode>,
   );

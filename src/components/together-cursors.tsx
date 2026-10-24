@@ -156,11 +156,11 @@ export function TogetherCursors() {
 
   const [scrollTick, setScrollTick] = useState(0);
   useEffect(() => {
+    if (!live) return;
     const main = findActiveMain();
     if (!main) return;
     const onScroll = () => {
       setScrollTick((t) => t + 1);
-      if (!live) return;
       const last = lastClientRef.current;
       if (!last) return;
       const norm = normFromClient(last.cx, last.cy);

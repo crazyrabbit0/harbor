@@ -3,7 +3,7 @@ import { HoverTooltip } from "@/components/hover-tooltip";
 import type { Meta } from "@/lib/cinemeta";
 import { activeDownloadFor, cancelDownload, useDownloads } from "@/lib/download/downloads-store";
 import { findLocalEpisodeByIds, findLocalMovie } from "@/lib/local-library";
-import { useView, type PlayEpisode } from "@/lib/view";
+import { type PlayEpisode, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function EpisodeDownloadButton({
@@ -18,7 +18,7 @@ export function EpisodeDownloadButton({
   variant?: "row" | "bar";
 }) {
   const t = useT();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   useDownloads();
   const tmdbMatch = meta.id.match(/^tmdb:(?:movie|tv):(\d+)$/);
   const tmdbId = tmdbMatch ? parseInt(tmdbMatch[1], 10) : null;

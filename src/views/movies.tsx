@@ -15,7 +15,7 @@ import { listPager } from "@/lib/list-pager";
 import { CATALOG_REQUEST_TIMEOUT_MS, upsertOrdered, withTimeout } from "@/lib/progressive-rows";
 import { hasPageRowChanges, resetPageRows, usePageRows } from "@/lib/page-rows";
 import { useSettings } from "@/lib/settings";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { buildLetterboxdHomeRows } from "@/lib/stremboxd/home-rails";
 import { LetterboxdRowMenu } from "@/components/letterboxd/letterboxd-row-menu";
@@ -35,9 +35,11 @@ type MovieRow = {
   variant?: "rank";
 };
 
+const RERUN_KEYS = ["coming-soon"];
+
 export function Movies({ active = true }: { active?: boolean }) {
   const { settings } = useSettings();
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const t = useT();
   const letterboxd = useLetterboxd();
   const pageRows = usePageRows("movies");
@@ -349,7 +351,7 @@ export function Movies({ active = true }: { active?: boolean }) {
             onPersist={pageRows.persist}
             scrollPrefix="movies"
             onLoadMore={loadMore}
-            flagRerunKeys={["coming-soon"]}
+            flagRerunKeys={RERUN_KEYS}
           />
         </div>
         <BackToTop scrollRef={scrollRef} />

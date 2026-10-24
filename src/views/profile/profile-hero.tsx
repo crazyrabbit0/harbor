@@ -16,7 +16,7 @@ import { countryFlagSrc } from "@/components/flag";
 import { acceptFriend, removeFriend, sendFriendRequest } from "@/lib/social/friends";
 import { PRESENCE_META, useMyPresence } from "@/lib/social/presence";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   sanitizeStatLayout,
   STAT_ORDER,
@@ -72,7 +72,7 @@ export function ProfileHero({
   onPatch?: (next: ProfileSummary) => void;
 }) {
   const t = useT();
-  const { openFeed } = useView();
+  const { openFeed } = useViewActions();
   const nameFont = userFont ? { fontFamily: `"${userFont}", var(--font-display)` } : undefined;
   const nameBadges = orderShownBadges(badges ?? [], p.shownBadges)
     .filter((b) => b.iconUrl)

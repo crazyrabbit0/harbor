@@ -2,7 +2,7 @@ import { useCallback } from "react";
 import { ContinueCard } from "@/components/continue-card";
 import { Row } from "@/components/row";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { clearLocalCw } from "@/lib/local-cw";
 import type { LibraryItem } from "@/lib/stremio";
 import type { LocalEntry } from "@/lib/local-library";
@@ -17,7 +17,7 @@ import { useLocalContinueWatching } from "@/lib/local-library/use-local-cw";
  */
 export function LocalCwRow() {
   const t = useT();
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const cards = useLocalContinueWatching();
 
   const play = useCallback(

@@ -5,7 +5,6 @@ import { buildDebridClients } from "@/lib/debrid/registry";
 import type { DebridStore } from "@/lib/debrid/types";
 import { loadEffective } from "@/lib/settings/profile-store";
 import type { Settings } from "@/lib/settings";
-import { loadStreamPlugins, pluginAddons, setStreamPluginConfig } from "@/lib/streams/plugins";
 
 export type AutoDlContext = {
   settings: Settings;
@@ -81,6 +80,8 @@ async function gatherStreamAddons(authKey: string | null, settings: Settings): P
   // The switch holds back the extensions that have a page of their own; a plugin with no rows of
   // its own is asked either way, which is why only the first is required here.
   if (settings.pluginsEnabled && settings.pluginsBackground) {
+    const { loadStreamPlugins, pluginAddons, setStreamPluginConfig } =
+      await import("@/lib/streams/plugins");
     await loadStreamPlugins();
     setStreamPluginConfig({ tmdbKey: settings.tmdbKey });
     list.push(

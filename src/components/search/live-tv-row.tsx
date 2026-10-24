@@ -1,10 +1,10 @@
 import { Radio, Tv } from "lucide-react";
 import type { LiveTvHit } from "@/lib/search";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { Meta } from "@/lib/cinemeta";
 
 export function LiveTvRow({ items, onClose }: { items: LiveTvHit[]; onClose: () => void }) {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   if (items.length === 0) return null;
   const play = (hit: LiveTvHit) => {
     const meta: Meta = {

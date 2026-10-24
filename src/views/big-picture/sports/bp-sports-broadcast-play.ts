@@ -6,7 +6,7 @@ import type { IptvChannel } from "@/lib/iptv/types";
 import type { SportsGame } from "@/lib/sports/espn-types";
 import { bestChannelForGame, type SportsChannelIndex } from "@/lib/sports/iptv-match";
 import { hostOf } from "@/lib/sports/stream-resolver";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useAttachments, type AttachedStream } from "@/views/sports/source-store";
 import { fixtureLabelOf } from "@/views/sports/watch-flow";
 
@@ -37,7 +37,7 @@ export function useBpWatchFixture(): SportsGame | null {
 }
 
 export function useBpSportsPlayChannel(): (channel: IptvChannel, subtitle: string) => void {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   return useCallback(
     (channel: IptvChannel, subtitle: string) => {
       if (!channel.url) return;
@@ -52,7 +52,7 @@ export function useBpSportsPlayChannel(): (channel: IptvChannel, subtitle: strin
 }
 
 export function useBpSportsPlayStream(): (stream: AttachedStream, name: string) => void {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   return useCallback(
     (stream: AttachedStream, name: string) => {
       openPlayer({

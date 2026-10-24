@@ -1,5 +1,5 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { ImdbIcon } from "@/components/icons/imdb-icon";
 import { MetaAwardsCorner } from "@/components/meta-awards-corner";
 import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
@@ -9,7 +9,7 @@ import { useImdbRating } from "@/lib/imdb-rating";
 import { useSettings } from "@/lib/settings";
 import { useTitleLogo } from "@/lib/title-logo";
 import { smartPlayEpisode } from "@/lib/smart-play";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { observe, usePageVisible } from "@/lib/visibility";
 
 const ROTATE_MS = 9500;
@@ -145,7 +145,8 @@ export function PeekHero({ slides }: { slides: Meta[] }) {
               dragging={dragging}
               dragOffsetPx={dragOffset}
               trackWidth={widthRef.current}
-              onSelect={() => setActive(i)}
+              index={i}
+              onSelect={setActive}
             />
           );
         })}
@@ -175,14 +176,15 @@ function computeOffset(index: number, active: number, total: number): number {
   return raw;
 }
 
-function PeekSlide({
+const PeekSlide = memo(function PeekSlide({
   meta,
   offset,
   active,
   dragging,
   dragOffsetPx,
   trackWidth,
-  onSelect,
+  index,
+  onSelect: selectIndex,
 }: {
   meta: Meta;
   offset: number;
@@ -190,11 +192,13 @@ function PeekSlide({
   dragging: boolean;
   dragOffsetPx: number;
   trackWidth: number;
-  onSelect: () => void;
+  index: number;
+  onSelect: (index: number) => void;
 }) {
+  const onSelect = () => selectIndex(index);
   const t = useT();
   const { settings } = useSettings();
-  const { openMeta, openPicker } = useView();
+  const { openMeta, openPicker } = useViewActions();
   const resolvedImdb = useTmdbImdbId(meta.id);
   const imdbRating = useImdbRating(meta, resolvedImdb);
   const [logoState, setLogo] = useState<string | undefined>(meta.logo);
@@ -313,7 +317,7 @@ function PeekSlide({
       </div>
     </div>
   );
-}
+});
 
 function upsizeTmdb(url?: string): string | undefined {
   if (!url) return url;

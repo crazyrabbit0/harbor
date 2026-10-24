@@ -20,7 +20,7 @@ import {
   type ChannelMatch,
 } from "@/lib/sports/iptv-match";
 import { hostOf } from "@/lib/sports/stream-resolver";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useAllPlaylists } from "@/views/live/hooks/use-all-playlists";
 import { loadPlaylist } from "@/lib/iptv/store";
 import { AddStreamDialog, useStreamPlayer } from "./add-stream-dialog";
@@ -140,7 +140,7 @@ export function WatchSources(props: WatchSourcesProps) {
 
 function ActiveWatchSources({ game, index, broadcastNames }: WatchSourcesProps) {
   const t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const playStream = useStreamPlayer();
   const playChannel = useChannelPlayer();
   const sources = usePlaylists();

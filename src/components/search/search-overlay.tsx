@@ -8,7 +8,7 @@ import { tvFocus } from "@/lib/keyboard-navigation";
 import { useT } from "@/lib/i18n";
 import type { Meta } from "@/lib/cinemeta";
 import { useSearch } from "@/lib/search-context";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/feed/tags";
 import { metaLooksAnime } from "@/lib/anime-detect";
 import { AnimeRow } from "./anime-row";
@@ -65,7 +65,7 @@ export function SearchOverlay() {
   const inputRef = useRef<HTMLInputElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const backdropGesture = useRef<(() => void) | null>(null);
-  const { openFilter, openMeta, openPerson, setView } = useView();
+  const { openFilter, openMeta, openPerson, setView } = useViewActions();
   const [explore, setExplore] = useState<ExploreFrame[]>([]);
   const t = useT();
   const [guideOpen, setGuideOpen] = useState(false);

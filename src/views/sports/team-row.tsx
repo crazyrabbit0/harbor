@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { House } from "lucide-react";
 import { Row } from "@/components/row";
 import { useT, useUiLanguage } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { SportsGame } from "@/lib/sports/espn";
 import {
   involvesTeam,
@@ -67,7 +67,7 @@ export function TeamRow({ team, board }: { team: FavouriteTeam; board?: SportsGa
   const t = useT();
   const lang = useUiLanguage();
   const fav = useFavourites();
-  const { openMatchDetail } = useView();
+  const { openMatchDetail } = useViewActions();
   const { games, loading } = useTeamGames(team, board);
   const locale = lang === "ar" ? "ar-SA" : "en-US";
   const home = isHomeTeam(fav, team);

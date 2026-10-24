@@ -1,12 +1,12 @@
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { GUTENDEX_ID } from "@/lib/ebook/gutendex";
 import type { AdaptationFamily } from "@/lib/providers/wikidata-graph";
 import { GraphPanel, GraphPanelRow, useAnchor } from "./graph-panel";
 
 export function AdaptationRow({ family }: { family: AdaptationFamily }) {
   const t = useT();
-  const { openMeta, openEBook } = useView();
+  const { openMeta, openEBook } = useViewActions();
   const { anchor, open, close } = useAnchor();
   const { source, siblings } = family;
   const reachable = siblings.length > 0 || !!source.gutenbergId;

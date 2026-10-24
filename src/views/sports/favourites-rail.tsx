@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { House, Plus, Star } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { SportsGame } from "@/lib/sports/espn";
 import {
   isHomeTeam,
@@ -110,7 +110,7 @@ function RailTeam({
 }) {
   const lang = useUiLanguage();
   const fav = useFavourites();
-  const { openMatchDetail } = useView();
+  const { openMatchDetail } = useViewActions();
   const [err, setErr] = useState(false);
   const { games, loading } = useTeamGames(team, board);
   const locale = lang === "ar" ? "ar-SA" : "en-US";

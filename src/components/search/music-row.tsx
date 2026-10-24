@@ -2,7 +2,7 @@ import { Music2 } from "lucide-react";
 import { CoverImg } from "@/components/cover-img";
 import type { MusicSearchHit } from "@/lib/search";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { requestMusicSearch } from "@/lib/music/navigation";
 
 const KIND_LABEL: Record<MusicSearchHit["kind"], string> = {
@@ -12,7 +12,7 @@ const KIND_LABEL: Record<MusicSearchHit["kind"], string> = {
 };
 
 export function MusicRow({ items, onClose }: { items: MusicSearchHit[]; onClose: () => void }) {
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const t = useT();
   if (items.length === 0) return null;
 

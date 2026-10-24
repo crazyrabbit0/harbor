@@ -4,7 +4,7 @@ import { usePosterChain } from "@/components/poster";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { artAtWidth } from "@/lib/image-rung";
 
 function shuffle<T>(arr: T[]): T[] {
@@ -18,7 +18,7 @@ function shuffle<T>(arr: T[]): T[] {
 
 export function SurpriseMe({ pool }: { pool: Meta[] }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const lastRef = useRef<string | null>(null);
   const [tiles, setTiles] = useState<Meta[]>([]);
 

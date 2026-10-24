@@ -4,7 +4,15 @@ Notes for agents working in this folder. Root rules live in `../AGENTS.md`.
 
 ## Entrypoints
 
-- `main.tsx` picks the app by Tauri window label or `?harbor-*=1` query: PiP, video-PiP, modal overlay, HDR overlay, DJ deck, captions, `/remote`/`/reader` (phone `MobileShell`), else `App`. Secondary Rust windows load the same bundle; adding a window means a branch here.
+- `main.tsx` picks the app by Tauri window label or `?harbor-*=1` query: PiP, video-PiP, modal overlay, HDR overlay, DJ deck, captions, `/remote`/`/reader` (phone `MobileShell`), else `App`. Secondary Rust windows load the same bundle; adding a window means a branch here, and its app is a dynamic `import()` there, never a static import, so the main window never parses it.
+
+## Startup bundle
+
+- Everything `main.tsx` and `App.tsx` reach through static imports is parsed before the first screen (the main chunk is ~6.5 MB). Keep large or rarely used code behind a dynamic `import()` at its point of use. To see why a module is in the main chunk, build with `vite build --sourcemap` (needs `NODE_OPTIONS=--max-old-space-size=12288`, it runs out of memory at the default) and walk the static import chain back to `main.tsx`.
+- hls.js and mpegts.js load through `lib/player/stream-libs.ts`, lottie-web through `lib/lottie.ts` (`withLottie` takes a `cancelled` check for effects that unmount first). Never `import lottie`/`import Hls` statically, and never import lucide's whole `icons` map (it pulls every icon in): use `SetIcon` or named icons. `tests/startup-bundle.test.ts` guards these.
+- Code outside `SettingsProvider` reads the `harbor.settings` mirror through `storedSettings()` (`lib/stored-settings.ts`), which parses it once per change. Per-card and per-fetch helpers must not `JSON.parse(localStorage.getItem(...))` large keys themselves; Discover spent ~80 ms per open re-parsing settings and the 0.5 MB `harbor.anidbtvdbcache`.
+- `Row` (`components/row.tsx`) draws skeletons until the row comes within 600 px and keeps cards lazy per column. `alwaysActive` disables that for the whole row; use it only for rows whose children must exist (loading skeletons), not for static tile rows.
+- `useView()` re-renders its caller on every navigation, and kept-alive pages (Home, Discover…) stay mounted, so every card and row under them redraws on each page change. Components that only call actions (`openMeta`, `openPicker`, `setView`, row/scroll memory) use `useViewActions()`, whose value never changes; a new action on `ViewValue` must be a stable callback and be listed in `VIEW_ACTION_KEYS`. `Shell` itself re-renders on every navigation, so pages from `lazyView` (and `SpooktoberHome`) are `memo`'d, and `CustomizableRows`/`CatalogRows` too: a page prop or row prop built inline (`{{...}}`, `() => ...`, `[...]`, JSX) defeats that and redraws every row. `useT()` returns the same function until the language, region or catalog changes, and `useCwAdvance` returns its previous array when the list is unchanged.
 - `main-tv.tsx` mounts `views/big-picture/bp-tv-app.tsx` (Android TV). Never import it from `main.tsx`.
 - `retro-main.tsx` is the `retro-player.html` entry (game popout).
 

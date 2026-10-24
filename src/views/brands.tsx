@@ -5,7 +5,7 @@ import { MOVIE_GENRES, TV_GENRES } from "@/lib/feed/tags";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import type { BrandKind, BrandSummary } from "@/lib/providers/tmdb/tmdb-brands";
 import { useSettings } from "@/lib/settings";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 
 type Sort = "popular" | "titles" | "rated" | "alpha";
 
@@ -58,7 +58,7 @@ export function BrandsView({ brand }: { brand: BrandKind }) {
   const t = useT();
   const uiLang = useUiLanguage();
   const { settings } = useSettings();
-  const { openBrands, openFilter } = useView();
+  const { openBrands, openFilter } = useViewActions();
   const scrollRef = useRef<HTMLElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
   useScrollMemory(`brands:${brand}`, scrollRef);

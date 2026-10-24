@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PickCard } from "@/components/pick-card";
 import { fetchAddonCatalogPage, fetchAddonMeta } from "@/lib/addons";
 import { narrowMediaType, type Meta, type MetaType } from "@/lib/cinemeta";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 type CollectionVideo = NonNullable<Meta["videos"]>[number];
@@ -47,7 +47,7 @@ function dedupe(metas: Meta[], excludeId: string): Meta[] {
 
 export function AddonCollectionView({ meta }: { meta: Meta }) {
   const t = useT();
-  const { setNavStack } = useView();
+  const { setNavStack } = useViewActions();
   const [members, setMembers] = useState<Meta[]>([]);
   const [loading, setLoading] = useState(true);
   const [heroBg, setHeroBg] = useState<string | undefined>(meta.background);

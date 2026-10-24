@@ -1,4 +1,5 @@
-import lottie, { type AnimationItem } from "lottie-web";
+import type { AnimationItem, LottiePlayer } from "lottie-web";
+import { withLottie } from "@/lib/lottie";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import boatData from "@/assets/lottie/voyage-boat.json";
@@ -114,55 +115,60 @@ export function VoyageLaunch({ thumbs, onDone }: { thumbs: LaunchThumb[]; onDone
     let cancelled = false;
     // Let the app's pointer-down cleanup finish before moving focus into the launch.
     const focusFrame = requestAnimationFrame(() => skipRef.current?.focus({ preventScroll: true }));
-    const anim = lottie.loadAnimation({
-      container: stage,
-      renderer: "svg",
-      loop: false,
-      autoplay: false,
-      animationData: structuredClone(boatData),
-      rendererSettings: { preserveAspectRatio: "xMidYMid meet" },
-    });
-    animRef.current = anim;
-    const onReady = () => {
-      if (cancelled || completed.current) return;
-      const svg = stage.querySelector("svg");
-      if (!svg) {
-        finish();
-        return;
-      }
-      paintPosters(
-        svg,
-        three.map((c) => c.src),
-      );
-      const content = measureContent(svg, anim);
-      if (content) {
-        contentRef.current = { svg, content };
-        frameStage(svg, stage, content);
-      }
-      anim.goToAndStop(0, true);
-      const found = three.map((_, i) => {
-        for (const slot of svg.querySelectorAll<SVGGElement>(`.vy-poster-${i}`)) {
-          const box = slot.getBoundingClientRect();
-          if (box.width > 1 && box.height > 1) return box;
-        }
-        return null;
-      });
-      if (found.some((r) => !r)) {
-        finish();
-        return;
-      }
-      setTargets(found as DOMRect[]);
-    };
-    anim.addEventListener("DOMLoaded", onReady);
-    anim.addEventListener("complete", finish);
-    anim.addEventListener("data_failed", finish);
     // A failed renderer must never strand the user on the launch screen.
     const bail = window.setTimeout(finish, 12000);
+    let anim: AnimationItem | null = null;
+    const begin = (lottie: LottiePlayer) => {
+      const a = lottie.loadAnimation({
+        container: stage,
+        renderer: "svg",
+        loop: false,
+        autoplay: false,
+        animationData: structuredClone(boatData),
+        rendererSettings: { preserveAspectRatio: "xMidYMid meet" },
+      });
+      anim = a;
+      animRef.current = a;
+      const onReady = () => {
+        if (cancelled || completed.current) return;
+        const svg = stage.querySelector("svg");
+        if (!svg) {
+          finish();
+          return;
+        }
+        paintPosters(
+          svg,
+          three.map((c) => c.src),
+        );
+        const content = measureContent(svg, a);
+        if (content) {
+          contentRef.current = { svg, content };
+          frameStage(svg, stage, content);
+        }
+        a.goToAndStop(0, true);
+        const found = three.map((_, i) => {
+          for (const slot of svg.querySelectorAll<SVGGElement>(`.vy-poster-${i}`)) {
+            const box = slot.getBoundingClientRect();
+            if (box.width > 1 && box.height > 1) return box;
+          }
+          return null;
+        });
+        if (found.some((r) => !r)) {
+          finish();
+          return;
+        }
+        setTargets(found as DOMRect[]);
+      };
+      a.addEventListener("DOMLoaded", onReady);
+      a.addEventListener("complete", finish);
+      a.addEventListener("data_failed", finish);
+    };
+    withLottie(begin, () => cancelled);
     return () => {
       cancelled = true;
       cancelAnimationFrame(focusFrame);
       window.clearTimeout(bail);
-      anim.destroy();
+      anim?.destroy();
       animRef.current = null;
     };
   }, [three, finish]);

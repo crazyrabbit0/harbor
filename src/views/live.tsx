@@ -6,7 +6,7 @@ import { useLiveActions } from "./live/hooks/use-live-actions";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { FAVORITES_GROUP_KEY, useFavorites } from "@/lib/iptv/favorites";
 import { clearPlaylistCache, getCachedPlaylist } from "@/lib/iptv/store";
 import { pushActivityHint } from "@/lib/discord/activity-hint";
@@ -68,7 +68,7 @@ function writeMode(m: ViewMode) {
 export function LiveView({ active }: { active: boolean }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openMeta, setView } = useView();
+  const { openMeta, setView } = useViewActions();
   const sources = usePlaylists();
 
   const [activeId, setActiveId] = useState<string | null>(() => readActiveId());

@@ -5,7 +5,7 @@ import { loadListItems } from "@/lib/curated/items";
 import { curatedList, itemMeta } from "@/lib/curated/registry";
 import type { CuratedListItem } from "@/lib/curated/types";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { RailHeading } from "./brand-rails";
 
 const LIST_ID = "nbr-top-ten";
@@ -14,7 +14,7 @@ const MIN_TITLES = 5;
 export function YearTopTen({ year }: { year: number }) {
   const t = useT();
   const posterRow = usePosterRow();
-  const { openCuratedList } = useView();
+  const { openCuratedList } = useViewActions();
   const list = curatedList(LIST_ID);
   const [items, setItems] = useState<readonly CuratedListItem[] | null>(null);
 

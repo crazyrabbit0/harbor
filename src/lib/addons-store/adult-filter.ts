@@ -1,3 +1,5 @@
+import { storedSettings } from "@/lib/stored-settings";
+
 const SUBSTRING_TERMS = [
   "porn",
   "pornhub",
@@ -229,14 +231,8 @@ export function isAdultText(...fields: Array<string | undefined | null>): boolea
 }
 
 export function adultContentHidden(): boolean {
-  try {
-    const raw = localStorage.getItem("harbor.settings");
-    if (!raw) return true;
-    const parsed = JSON.parse(raw) as { hideContent?: { adult?: boolean } };
-    return parsed.hideContent?.adult !== false;
-  } catch {
-    return true;
-  }
+  const hide = storedSettings().hideContent as { adult?: boolean } | undefined;
+  return hide?.adult !== false;
 }
 
 const ADULT_ANIME_GENRES = new Set(["hentai", "erotica"]);

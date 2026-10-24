@@ -13,7 +13,8 @@ import { installedStreamPluginsSync } from "./store";
 import type { InstalledStreamPlugin } from "./types";
 import { CAPSTAN_ID_PREFIX } from "./extension/detail";
 
-export const PLUGIN_ADDON_PREFIX = "harbor-plugin://";
+import { PLUGIN_ADDON_PREFIX } from "./extension/catalogue-base";
+export { PLUGIN_ADDON_PREFIX };
 const REPO_ADDON_PREFIX = `${PLUGIN_ADDON_PREFIX}repo/`;
 
 let tmdbKey: string | undefined;

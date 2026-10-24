@@ -4,6 +4,7 @@ import {
   isBundledEngineUrl,
   remoteStreamServerUrl,
 } from "@/lib/stremio-server";
+import { storedSettings } from "@/lib/stored-settings";
 
 export type TorrentFile = {
   idx: number;
@@ -136,23 +137,11 @@ function fileName(f: RawFile): string {
 }
 
 export function localTorrentAllowed(): boolean {
-  try {
-    const raw = localStorage.getItem("harbor.settings");
-    if (!raw) return true;
-    return (JSON.parse(raw) as { directTorrentStream?: boolean }).directTorrentStream !== false;
-  } catch {
-    return true;
-  }
+  return storedSettings().directTorrentStream !== false;
 }
 
 export function torrentsDisabled(): boolean {
-  try {
-    const raw = localStorage.getItem("harbor.settings");
-    if (!raw) return false;
-    return (JSON.parse(raw) as { torrentsDisabled?: boolean }).torrentsDisabled === true;
-  } catch {
-    return false;
-  }
+  return storedSettings().torrentsDisabled === true;
 }
 
 export function directTorrentEnabled(): boolean {

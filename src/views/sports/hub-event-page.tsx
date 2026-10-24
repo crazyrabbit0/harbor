@@ -2,7 +2,7 @@ import { legacyEsportsMatch } from "@/lib/sports/legacy-esports-match";
 import { LegacyEsportsEvent } from "./legacy-esports-event";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ExternalLink } from "lucide-react";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { EventField } from "./event-field";
 import { openUrl } from "@/lib/window";
@@ -39,7 +39,7 @@ function StandardHubEventPage({
 }) {
   const t = useT();
   const date = useEventDate();
-  const { goBack, openMatchDetail } = useView();
+  const { goBack, openMatchDetail } = useViewActions();
   const scrollRef = useRef<HTMLElement>(null);
   const titleRef = useRef<HTMLHeadingElement>(null);
   useScrollMemory(`sports-event:${gameKey(game)}`, scrollRef);
@@ -193,7 +193,7 @@ export function HubEventPage(props: {
   games: SportsGame[];
   shellBackAvailable?: boolean;
 }) {
-  const { goBack } = useView();
+  const { goBack } = useViewActions();
   return legacyEsportsMatch(props.game) ? (
     <LegacyEsportsEvent
       game={props.game}

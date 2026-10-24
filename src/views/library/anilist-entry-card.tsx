@@ -5,7 +5,7 @@ import { Poster, usePosterChain } from "@/components/poster";
 import { anilistMediaToMeta } from "@/lib/anilist/to-meta";
 import type { AnilistMediaEntry, MediaListStatus } from "@/lib/anilist/types";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 const STATUS_LABELS: Record<MediaListStatus, string> = {
@@ -41,7 +41,7 @@ export function AnilistEntryCard({
 }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const m = entry.media;
   const name = m.title.userPreferred || m.title.english || m.title.romaji || t("Untitled");
   const total = m.episodes ?? null;

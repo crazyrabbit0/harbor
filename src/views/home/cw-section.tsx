@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { LogIn } from "lucide-react";
 import stremioWordmark from "@/assets/stremio-wordmark.png";
 import { AuthModal } from "@/components/auth-modal";
@@ -15,7 +15,12 @@ type Props = {
   onDismiss: (item: LibraryItem) => void;
 };
 
-export function CWSection({ signedIn, items, watchedSet, onDismiss }: Props) {
+export const CWSection = memo(function CWSection({
+  signedIn,
+  items,
+  watchedSet,
+  onDismiss,
+}: Props) {
   const t = useT();
   const [showAuth, setShowAuth] = useState(false);
   const rowKey = useMemo(() => {
@@ -91,4 +96,4 @@ export function CWSection({ signedIn, items, watchedSet, onDismiss }: Props) {
       {authModal}
     </div>
   );
-}
+});

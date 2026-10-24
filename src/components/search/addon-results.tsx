@@ -4,7 +4,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { Poster, usePosterChain } from "@/components/poster";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function AddonResults({
   groups,
@@ -57,7 +57,7 @@ function AddonGroup({ group, onClose }: { group: AddonResultGroup; onClose: () =
 }
 
 function AddonResultRow({ meta, onClose }: { meta: Meta; onClose: () => void }) {
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const { settings } = useSettings();
   const poster = usePosterChain(
     settings.rpdbKey,

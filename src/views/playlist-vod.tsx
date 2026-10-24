@@ -10,7 +10,7 @@ import { buildVodLibrary, type VodEpisode, type VodMovie, type VodSeries } from 
 import { credsFromServer } from "@/lib/iptv/xtream";
 import { fetchXtreamSeriesEpisodes } from "@/lib/iptv/xtream-vod";
 import { useSettings } from "@/lib/settings";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { SourcePicker } from "./live/source-picker";
 import { PlaylistEmpty } from "./live/playlist-empty";
 import { useIptvPlaylist } from "./live/hooks/use-iptv-playlist";
@@ -27,7 +27,7 @@ const SCROLL_SETTLE_DELAY_MS = 250;
 export function PlaylistVodView({ active }: { active: boolean }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const { sources, activeId, selectId, addPlaylist, editPlaylist, removePlaylist } =
     useVodSources();
 

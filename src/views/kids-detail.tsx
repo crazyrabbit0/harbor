@@ -6,7 +6,7 @@ import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { tmdbDetails, type TmdbDetail } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { CollectionRow } from "./detail/collection-row";
 import { dropUnreleased, dropUnsafeGenres } from "./kids/kids-filter";
 import { KidsEpisodes } from "./kids-detail/kids-episodes";
@@ -20,7 +20,7 @@ export function KidsDetailView({
 }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   const [base, setBase] = useState<Meta | null>(null);
   const [detail, setDetail] = useState<TmdbDetail | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);

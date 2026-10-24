@@ -13,7 +13,7 @@ import {
   type PersonCredit,
 } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { SPOTLIGHT_SELF_TIMEOUT_MS, SpotlightGateContext } from "./spotlight-gate";
 
 const DIRECTOR_JOBS = new Set(["Director"]);
@@ -99,7 +99,7 @@ export function SpotlightSection({
   const t = useT();
   const posterRow = usePosterRow();
   const { settings } = useSettings();
-  const { openPerson } = useView();
+  const { openPerson } = useViewActions();
   const claim = useClaimSeenIds(`spotlight:${spotlight.name}`);
   const { markDone } = useContext(SpotlightGateContext);
   const [personId, setPersonId] = useState<number | null>(null);

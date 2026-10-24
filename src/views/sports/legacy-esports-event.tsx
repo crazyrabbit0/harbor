@@ -3,7 +3,7 @@ import type { SportsGame } from "@/lib/sports/espn-types";
 import { fetchEsportsFeed, type EsportsMatch } from "@/lib/sports/esports-feeds";
 import { legacyEsportsMatch } from "@/lib/sports/legacy-esports-match";
 import { officialBroadcastSource } from "@/lib/sports/esports-streams";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { EsportsMatchView } from "./esports-match";
 export function LegacyEsportsEvent({
   game,
@@ -16,7 +16,7 @@ export function LegacyEsportsEvent({
   page?: boolean;
   shellBackAvailable?: boolean;
 }) {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const fallback = legacyEsportsMatch(game)!;
   const [resolved, setResolved] = useState<{ key: string; match: EsportsMatch }>();
   const key = `${fallback.game}:${fallback.id}`;

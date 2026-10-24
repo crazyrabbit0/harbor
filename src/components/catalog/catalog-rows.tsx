@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { LazyMount } from "@/components/lazy-mount";
 import { PickCard } from "@/components/pick-card";
 import { TopRankCard } from "@/components/top-rank-card";
@@ -16,7 +16,7 @@ import {
   togglePageRowHidden,
   type PageRowCustomization,
 } from "@/lib/page-rows";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export type CatalogRow = {
   key: string;
@@ -94,7 +94,7 @@ function RowTitle({
   kids?: boolean;
 }) {
   const t = useT();
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   if (!row.fetcher) return <>{title}</>;
   return (
     <button
@@ -112,7 +112,7 @@ function RowTitle({
   );
 }
 
-export function CatalogRows({
+export const CatalogRows = memo(function CatalogRows({
   rows,
   editMode,
   custom,
@@ -140,7 +140,7 @@ export function CatalogRows({
   injectNode2?: React.ReactNode;
 }) {
   const t = useT();
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const shown = useHideAnimeRows(rows);
   const posterRow = usePosterRow(148, kids);
   const allKeys = useMemo(() => shown.map((r) => r.key), [shown]);
@@ -225,4 +225,4 @@ export function CatalogRows({
       })}
     </>
   );
-}
+});

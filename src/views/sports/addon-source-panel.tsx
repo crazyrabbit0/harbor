@@ -5,7 +5,7 @@ import { isAddonEnabled } from "@/lib/addon-store";
 import { useAuth } from "@/lib/auth";
 import { useProfiles } from "@/lib/profiles";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 import type { SportsGame } from "@/lib/sports/espn-types";
 import {
@@ -44,7 +44,7 @@ function AddonSources({ game, onAvailable }: AddonSourcesProps) {
   const t = useT();
   const { authKey } = useAuth();
   const { activeId } = useProfiles();
-  const { openPlayer, openPicker, setView } = useView();
+  const { openPlayer, openPicker, setView } = useViewActions();
   const [refresh, setRefresh] = useState(0);
   const [rows, setRows] = useState<SportsAddonListing[]>([]);
   useEffect(() => {

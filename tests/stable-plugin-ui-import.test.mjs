@@ -182,7 +182,11 @@ test("Lottie waits for loaded frames, pauses offscreen, and cleans up", () => {
         useRef: (value) => ({ current: refs++ === 0 ? {} : value }),
         useEffect: (fn) => effects.push(fn),
       },
-      "lottie-web": { default: { loadAnimation: () => anim } },
+      "@/lib/lottie": {
+        withLottie: (start, cancelled) => {
+          if (!cancelled()) start({ loadAnimation: () => anim });
+        },
+      },
       "@/lib/use-reduced-motion": { useReducedMotion: () => false },
       "@/lib/visibility": {
         observeWithin: (_el, _margin, fn) => {

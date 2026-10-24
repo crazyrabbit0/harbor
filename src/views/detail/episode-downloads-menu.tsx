@@ -6,13 +6,13 @@ import type { PlayEpisode } from "@/lib/view";
 import { toggleAutoDownload, useIsAutoDownloaded } from "@/lib/auto-download";
 import { pendingSeasonEpisodes } from "@/lib/download/season-download";
 import { useDownloads } from "@/lib/download/downloads-store";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { useT } from "@/lib/i18n";
 
 export function EpisodeDownloadsMenu({ meta, episodes }: { meta: Meta; episodes: PlayEpisode[] }) {
   const t = useT();
-  const { openPicker, setView } = useView();
+  const { openPicker, setView } = useViewActions();
   useDownloads();
   const autoOn = useIsAutoDownloaded(meta.id);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);

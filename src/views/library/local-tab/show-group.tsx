@@ -13,7 +13,7 @@ import { memo, useMemo, useState } from "react";
 import { Poster } from "@/components/poster";
 import { removeLocalEntry, type LocalEntry } from "@/lib/local-library";
 import { localGroupKey, sortVersions } from "@/lib/local-library/versions";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { LocalBadge } from "@/components/local-badge";
 import { CardIconButton, type LocalCardProps } from "./card-actions";
@@ -82,7 +82,7 @@ function ShowGroupCardImpl({
   onOpenDetail,
 }: { head: LocalEntry; episodes: LocalEntry[]; isSelected: boolean } & LocalCardProps) {
   const t = useT();
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const [confirm, setConfirm] = useState(false);
   const poster = useLocalPoster(head);
   const episodeIds = useMemo(() => episodes.map((e) => e.id), [episodes]);

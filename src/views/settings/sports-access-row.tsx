@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { hasSportsSource } from "@/lib/sports/enabled";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
@@ -16,7 +16,7 @@ import { ROW_ACTION } from "./kit";
 
 export function SportsAccessRow() {
   const t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const { settings, update } = useSettings();
   const provider = hasSportsSource(usePlaylists());
   const anyway = settings.sportsWithoutProvider === true;

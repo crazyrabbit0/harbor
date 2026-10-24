@@ -10,7 +10,7 @@ import { prefetchSegments } from "@/lib/skip-intro";
 import { formatAirDate } from "@/lib/dates";
 import { distinctAbsolute } from "@/lib/episode-absolute";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { SPOILER_TEXT_CLASS, SPOILER_THUMB_CLASS, type SpoilerMask } from "@/lib/spoilers";
 import { FillerBadge, UpcomingBadge } from "./badges";
@@ -223,7 +223,7 @@ function EpisodePreview({
   onContext: (e: React.MouseEvent) => void;
   t: T;
 }) {
-  const { openEpisodeDetail } = useView();
+  const { openEpisodeDetail } = useViewActions();
   return (
     <div className="animate-popover-in absolute -inset-x-2 -top-2 z-30 overflow-hidden rounded-2xl border border-edge bg-elevated shadow-[0_24px_60px_-18px_rgba(0,0,0,0.8)]">
       <button

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { storedSettings } from "@/lib/stored-settings";
 
 export const DEFAULT_BUNDLED_PORT = 11470;
 const PROBE_TIMEOUT_MS = 1500;
@@ -18,27 +19,13 @@ export function bundledServerUrl(): string {
 }
 
 export function remoteStreamServerUrl(): string {
-  try {
-    const raw = localStorage.getItem("harbor.settings");
-    if (!raw) return "";
-    const url = (JSON.parse(raw) as { remoteStreamServerUrl?: string }).remoteStreamServerUrl;
-    return typeof url === "string" ? url.trim().replace(/\/+$/, "") : "";
-  } catch {
-    return "";
-  }
+  const url = storedSettings().remoteStreamServerUrl;
+  return typeof url === "string" ? url.trim().replace(/\/+$/, "") : "";
 }
 
 export function remoteStreamServerStrict(): boolean {
   if (!remoteStreamServerUrl()) return false;
-  try {
-    const raw = localStorage.getItem("harbor.settings");
-    if (!raw) return false;
-    return (
-      (JSON.parse(raw) as { remoteStreamServerStrict?: boolean }).remoteStreamServerStrict === true
-    );
-  } catch {
-    return false;
-  }
+  return storedSettings().remoteStreamServerStrict === true;
 }
 
 export function isBundledEngineUrl(url: string | undefined | null): boolean {

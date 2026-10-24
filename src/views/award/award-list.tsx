@@ -6,7 +6,7 @@ import { readAwardHistory, type CategoryHistory } from "@/lib/awards-history";
 import { tmdbCompanyIdByName, tmdbPersonIdByName } from "@/lib/providers/tmdb";
 import type { AwardType } from "@/lib/providers/wikidata";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function AwardList({ awardType, tint }: { awardType: AwardType; tint: string }) {
@@ -218,7 +218,7 @@ function WinnerRow({
   preferTv: boolean;
 }) {
   const { settings } = useSettings();
-  const { openMeta, openPerson, openFilter } = useView();
+  const { openMeta, openPerson, openFilter } = useViewActions();
   const [resolving, setResolving] = useState(false);
 
   const onWorkClick = async () => {

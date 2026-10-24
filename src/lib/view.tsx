@@ -253,6 +253,13 @@ const RESTORE_RETRY_MS = 60;
 const RESTORE_RETRIES = 20;
 
 export type SettingsSection = SectionId;
+/** A row to land on: `anchor` is the English title of its Section/SettingGroup, `tab` the sub-tab holding it. */
+export type SettingsSpot = { anchor?: string; tab?: string };
+export type SettingsSectionRequest = {
+  section: SettingsSection | null;
+  spot?: SettingsSpot;
+  nonce: number;
+};
 
 type ViewValue = {
   sportsEvent: EsportsMatch | null;
@@ -263,8 +270,8 @@ type ViewValue = {
   openMatchDetail: (game: SportsGame, eventGames?: SportsGame[]) => void;
   view: View;
   setView: (v: View) => void;
-  openSettings: (section?: SettingsSection) => void;
-  settingsSectionRequest: { section: SettingsSection | null; nonce: number };
+  openSettings: (section?: SettingsSection, spot?: SettingsSpot) => void;
+  settingsSectionRequest: SettingsSectionRequest;
   topKind: Frame["kind"];
   topPath: string;
   rootFrame: Frame;
@@ -388,6 +395,57 @@ type ViewValue = {
 };
 
 const Ctx = createContext<ViewValue | null>(null);
+
+const VIEW_ACTION_KEYS = [
+  "setView",
+  "openSettings",
+  "openService",
+  "openMeta",
+  "promoteMetaToRoot",
+  "openPerson",
+  "openProfile",
+  "openFeed",
+  "openGroups",
+  "openGroup",
+  "openList",
+  "openCollection",
+  "openManga",
+  "openEBook",
+  "openPeople",
+  "openEpisodeDetail",
+  "openQueue",
+  "openMatchDetail",
+  "openGames",
+  "openSportsEvent",
+  "openFilter",
+  "openBrands",
+  "openGrid",
+  "openCollections",
+  "openAward",
+  "openAnimeAward",
+  "openCuratedList",
+  "openPicker",
+  "openPlayer",
+  "replacePlayerSrc",
+  "confirmLeavePartyForLive",
+  "cancelLeavePartyForLive",
+  "openAddonDetail",
+  "goBack",
+  "goForward",
+  "exitPlayback",
+  "setPipDocked",
+  "exitPickerToDetail",
+  "exitPlayer",
+  "rememberScroll",
+  "recallScroll",
+  "rememberRowScroll",
+  "recallRowScroll",
+  "setChromeHidden",
+  "setNavStack",
+] as const satisfies readonly (keyof ViewValue)[];
+
+export type ViewActions = Pick<ViewValue, (typeof VIEW_ACTION_KEYS)[number]>;
+const ActionsCtx = createContext<ViewActions | null>(null);
 
 const STACK_MAX = 30;
 const SCROLL_MEM_MAX = 200;
@@ -791,7 +849,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     }, false);
   }, [setNavStack]);
 
-  const [sectionReq, setSectionReq] = useState<{ section: SettingsSection | null; nonce: number }>({
+  const [sectionReq, setSectionReq] = useState<SettingsSectionRequest>({
     section: null,
     nonce: 0,
   });
@@ -931,8 +989,8 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   );
 
   const openSettings = useCallback(
-    (section?: SettingsSection) => {
-      setSectionReq((r) => ({ section: section ?? null, nonce: r.nonce + 1 }));
+    (section?: SettingsSection, spot?: SettingsSpot) => {
+      setSectionReq((r) => ({ section: section ?? null, spot, nonce: r.nonce + 1 }));
       setNavStack((s) => {
         const t = s[s.length - 1];
         if (t.kind === "settings") return s;
@@ -1594,7 +1652,19 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     ],
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  // Every action is a stable callback, so this object never changes and its readers skip navigation re-renders.
+  const actionsRef = useRef<ViewActions | null>(null);
+  if (!actionsRef.current) {
+    const picked: Partial<Record<keyof ViewActions, unknown>> = {};
+    for (const k of VIEW_ACTION_KEYS) picked[k] = value[k];
+    actionsRef.current = picked as ViewActions;
+  }
+
+  return (
+    <ActionsCtx.Provider value={actionsRef.current}>
+      <Ctx.Provider value={value}>{children}</Ctx.Provider>
+    </ActionsCtx.Provider>
+  );
 }
 
 export type PlayerNavigation = Pick<
@@ -1615,6 +1685,13 @@ export function usePlayerNavigation(): PlayerNavigation {
 export function useView() {
   const v = useContext(Ctx);
   if (!v) throw new Error("useView outside ViewProvider");
+  return v;
+}
+
+/** Navigation actions only; unlike useView it does not re-render the caller on every navigation. */
+export function useViewActions(): ViewActions {
+  const v = useContext(ActionsCtx);
+  if (!v) throw new Error("useViewActions outside ViewProvider");
   return v;
 }
 
@@ -1659,7 +1736,7 @@ export function useScrollMemory(
   active: boolean = true,
   hideUntilRestored: boolean = false,
 ) {
-  const { rememberScroll, recallScroll } = useView();
+  const { rememberScroll, recallScroll } = useViewActions();
   const { settings } = useSettings();
   useSmoothWheel(ref, active && settings.smoothScroll);
 

@@ -2,7 +2,7 @@ import { ArrowRight } from "lucide-react";
 import { Row } from "@/components/row";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { dropUnreleased, dropUnsafeGenres } from "./kids-filter";
 import { franchiseFetcher, KIDS_FRANCHISES, type Franchise } from "./kids-franchises";
 
@@ -21,7 +21,7 @@ export function KidsFranchiseRail() {
 }
 
 function FranchiseTile({ franchise, tmdbKey }: { franchise: Franchise; tmdbKey: string }) {
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const t = useT();
   const open = () => {
     const fetch = franchiseFetcher(tmdbKey, franchise);

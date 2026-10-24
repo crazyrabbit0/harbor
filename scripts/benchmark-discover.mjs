@@ -100,7 +100,10 @@ export function railFixture(source, active = true) {
       "@/components/feed-shelf": { FeedShelf: "FeedShelf" },
       "@/components/row": { ScrollRootContext: {} },
       "@/lib/i18n": { useT: () => (text) => text },
-      "@/lib/view": { useView: () => ({ openGrid: () => {} }) },
+      "@/lib/view": {
+        useView: () => ({ openGrid: () => {} }),
+        useViewActions: () => ({ openGrid: () => {} }),
+      },
     },
     {
       IntersectionObserver: class {

@@ -5,7 +5,7 @@ import { APP_VERSION } from "@/lib/build-info";
 import { useT } from "@/lib/i18n";
 import { queueAdd } from "@/lib/queue";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   HarborDeviceCard,
   ListeningPulse,
@@ -88,7 +88,7 @@ function QueueButton({
 
 function PlayOnPanel({ request, themeId }: { request: PlayOnRequest; themeId: string }) {
   const t = useT();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   const [identity, setIdentity] = useState<HarborIdentity | null>(null);
   const [peers, setPeers] = useState<HarborInstance[]>([]);
   const [settled, setSettled] = useState(false);

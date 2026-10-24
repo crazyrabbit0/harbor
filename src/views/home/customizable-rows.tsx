@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { LazyMount } from "@/components/lazy-mount";
 import { releaseYear } from "@/lib/release-info";
 import { PickCard } from "@/components/pick-card";
@@ -10,7 +10,7 @@ import { LetterboxdRowMenu } from "@/components/letterboxd/letterboxd-row-menu";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { useT } from "@/lib/i18n";
 import type { HomeRowCustomization } from "@/lib/home-customization";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { HomeRow } from "./home-types";
 import { RowControls } from "./row-controls";
 import { watchTitleKey, type WatchedSet } from "@/lib/playback-history";
@@ -92,7 +92,7 @@ function isUnreleased(m: { releaseDate?: string; releaseInfo?: string }): boolea
 
 function RowTitle({ row, title }: { row: HomeRow; title: string }) {
   const t = useT();
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const lb = useLetterboxd();
   const isLetterboxd = row.key.startsWith("letterboxd-");
   const catalogId = isLetterboxd ? row.key.replace("letterboxd-", "") : "";
@@ -160,7 +160,7 @@ function RowTitleExtra({ row }: { row: HomeRow }) {
   );
 }
 
-export function CustomizableRows({
+export const CustomizableRows = memo(function CustomizableRows({
   rows,
   editMode,
   customization,
@@ -197,7 +197,7 @@ export function CustomizableRows({
   stremioWatched?: Set<string>;
   homeLanguages?: string[];
 }) {
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const t = useT();
   const posterRow = usePosterRow();
   const { settings } = useSettings();
@@ -317,4 +317,4 @@ export function CustomizableRows({
       })}
     </>
   );
-}
+});

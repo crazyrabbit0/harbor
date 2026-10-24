@@ -2,14 +2,14 @@ import { useEffect, useState } from "react";
 import type { ThemeLayout } from "@/lib/theme";
 import type { NavCustomization } from "@/chrome/nav-items";
 import { setThemePreview } from "@/lib/theme-preview";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function useStudioPreview(
   layout: ThemeLayout,
   bokeh: boolean,
   navCustomization: NavCustomization,
 ) {
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const [inspectorHidden, setInspectorHidden] = useState(false);
 
   useEffect(() => {

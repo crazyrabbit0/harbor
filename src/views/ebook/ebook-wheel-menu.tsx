@@ -30,7 +30,7 @@ import { sourceEBookChapters, sourceEBookDetail } from "@/lib/ebook/providers";
 import { loadEBookResume } from "@/lib/ebook/reader-state";
 import { useT } from "@/lib/i18n";
 import { getEBookTracking, saveEBookTracking } from "@/lib/ebook/tracking";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export type EBookWheelTarget = { ebook: EBook; x: number; y: number };
 
@@ -94,7 +94,7 @@ export function EBookWheelMenu({
 }) {
   const { ebook } = target;
   const t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const [mode, setMode] = useState<WheelMode>("wheel");
   const [onShelf, setOnShelf] = useState(() => ebookInLibrary(ebook.id));
   const [readLater, setReadLater] = useState(() => eBookIsReadLater(ebook.id));

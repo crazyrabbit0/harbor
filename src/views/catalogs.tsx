@@ -9,7 +9,7 @@ import {
   subscribeBrowseCatalogs,
   type BrowseCatalog,
 } from "@/lib/catalog-browse";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { CatalogShelf } from "./catalogs/catalog-shelf";
@@ -21,7 +21,7 @@ import { useContentDrag } from "@/lib/window-drag";
 export function Catalogs({ active = true }: { active?: boolean }) {
   const t = useT();
   const { authKey } = useAuth();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const { settings, update } = useSettings();
   const contentDrag = useContentDrag();
   const [catalogs, setCatalogs] = useState<BrowseCatalog[]>([]);

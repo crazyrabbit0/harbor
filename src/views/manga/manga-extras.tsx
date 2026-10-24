@@ -12,7 +12,7 @@ import type { MangaChapter } from "@/lib/manga/api";
 import type { MangaUpdatesInfo } from "@/lib/manga/mangaupdates";
 import type { MangaSummary } from "@/lib/manga/model";
 import { Poster } from "@/components/poster";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { AnimeCoverage, coverageOf } from "./anime-coverage";
 
 function formatLabel(format?: string): string {
@@ -42,7 +42,7 @@ export function MangaAdaptationCard({
   onReadChapter?: (index: number) => void;
   heroBg?: string | null;
 }) {
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const t = useT();
   const { settings } = useSettings();
   const [adaptation, setAdaptation] = useState<MangaAdaptation | null>(null);
