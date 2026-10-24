@@ -242,37 +242,77 @@ test("hiding or unmounting cancels pending work; late replies cannot update the 
   assert.equal(h.writes(), 0);
 });
 
-test("page adapter forwards cursor, abort signal and auth; normalizes artwork and rejects bad envelopes", async () => {
+test("page adapter reads the static community feed, forwards the abort signal and rejects bad envelopes", async () => {
   const requests: any[] = [];
+  let status = 200;
   let response: any = {
-    collections: [{ handle: "alice", id: "c1", name: "One", coverImage: "/cover.png" }],
-    nextCursor: "next",
+    collections: [
+      { handle: "alice", id: "c1", name: "One", coverImage: "/cover.png" },
+      { id: "x" },
+    ],
   };
   const api = moduleWithMocks("../src/lib/social/collections-sync.ts", {
     "@tauri-apps/api/core": {},
     "@/lib/safe-fetch": {
       safeFetch: async (...args: any[]) => {
         requests.push(args);
-        return { ok: true, json: async () => response };
+        return { ok: status === 200, status, json: async () => response };
       },
     },
     "@/lib/theme-auth": { authToken: () => "fixture-token" },
-    "@/lib/config/endpoints": { HARBOR_API_BASE: "https://harbor.site" },
+    "@/lib/config/endpoints": {
+      HARBOR_API_BASE: "https://harbor.site",
+      HARBOR_DATA_BASE: "https://data.example/main/data",
+    },
     "@/lib/collections": {
       absCollectionImage: (path: string) => (path ? `https://harbor.site${path}` : undefined),
     },
   });
   const controller = new AbortController();
   const result = await api.fetchCommunityCollectionsPage("previous", controller.signal);
-  assert.equal(new URL(requests[0][0]).searchParams.get("limit"), "24");
-  assert.equal(new URL(requests[0][0]).searchParams.get("cursor"), "previous");
+  assert.equal(requests[0][0], "https://data.example/main/data/collections/index.json");
   assert.equal(requests[0][1].signal, controller.signal);
-  assert.equal(requests[0][1].headers.authorization, "Bearer fixture-token");
+  assert.equal(requests[0][1].headers, undefined);
+  assert.equal(result.collections.length, 1);
   assert.equal(result.collections[0].coverImage, "https://harbor.site/cover.png");
-  response = { collections: [], nextCursor: "previous" };
-  await assert.rejects(api.fetchCommunityCollectionsPage("previous"), /did not advance/);
+  assert.equal(result.nextCursor, null);
   response = { error: "unavailable" };
   await assert.rejects(api.fetchCommunityCollectionsPage(), /Invalid/);
-  response = { collections: [] };
-  assert.equal((await api.fetchCommunityCollectionsPage()).nextCursor, null);
+  status = 404;
+  assert.deepEqual((await api.fetchCommunityCollectionsPage()).collections, []);
+  status = 500;
+  await assert.rejects(api.fetchCommunityCollectionsPage(), /500/);
+});
+
+test("the shipped community feed parses whole: every collection, id and poster survives", async () => {
+  const feed = JSON.parse(
+    readFileSync(new URL("../data/collections/index.json", import.meta.url), "utf8"),
+  );
+  const api = moduleWithMocks("../src/lib/social/collections-sync.ts", {
+    "@tauri-apps/api/core": {},
+    "@/lib/safe-fetch": {
+      safeFetch: async () => ({ ok: true, status: 200, json: async () => feed }),
+    },
+    "@/lib/theme-auth": { authToken: () => "" },
+    "@/lib/config/endpoints": { HARBOR_API_BASE: "", HARBOR_DATA_BASE: "" },
+    "@/lib/collections": { absCollectionImage: (path: string) => path || undefined },
+  });
+  const { collections } = await api.fetchCommunityCollectionsPage();
+  assert.equal(collections.length, feed.collections.length);
+  assert.ok(collections.length >= 20);
+  assert.equal(
+    new Set(collections.map((c: any) => `${c.handle}/${c.id}`)).size,
+    collections.length,
+  );
+  for (const c of collections) {
+    assert.ok(c.items.length >= 2, c.name);
+    assert.ok(c.coverImage?.startsWith("https://"), c.name);
+    for (const item of c.items) {
+      assert.match(item.id, /^tt\d+$/, `${c.name}: ${item.name}`);
+      assert.ok(item.poster?.startsWith("https://"), `${c.name}: ${item.name}`);
+    }
+  }
+  assert.ok(collections.some((c: any) => c.name === "Harry Potter"));
+  assert.ok(collections.some((c: any) => c.name === "Star Wars"));
+  assert.ok(collections.some((c: any) => c.name === "The Dark Knight"));
 });
