@@ -22,7 +22,7 @@ import { library, type LibraryItem } from "@/lib/stremio";
 import { useSettings } from "@/lib/settings";
 import { useTrakt } from "@/lib/trakt/provider";
 import { useSimkl } from "@/lib/simkl/provider";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { AuthModal } from "@/components/auth-modal";
 import { RemindersManagerButton } from "@/components/reminders-manager";
@@ -53,9 +53,9 @@ export function CalendarView({
 }) {
   const t = useT();
   const { settings, update } = useSettings();
-  const { authKey } = useAuth();
+  const { authKey, user } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
-  const { openSettings, openMeta } = useView();
+  const { openSettings, openMeta } = useViewActions();
   const today = useMemo(() => new Date(), []);
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -109,6 +109,7 @@ export function CalendarView({
   const { items, loading, error } = useCalendarData({
     source,
     authKey,
+    accountId: user?._id ?? null,
     traktConnected,
     simklConnected,
     settings,
@@ -211,7 +212,11 @@ export function CalendarView({
   } else if (source === "library" && !authKey) {
     body = <NotSignedInState onSignIn={() => setShowAuth(true)} />;
   } else if (source === "all" && !settings.tmdbKey) {
-    body = <NoKeyState onSetup={() => openSettings("library")} />;
+    body = (
+      <NoKeyState
+        onSetup={() => openSettings("library", { tab: "providers", anchor: "Metadata providers" })}
+      />
+    );
   } else if (error) {
     body = <ErrorState message={error} />;
   } else if (loading && filtered.length === 0) {
@@ -233,7 +238,7 @@ export function CalendarView({
         todayISO={todayISO}
         weekStartsMonday={settings.weekStartsMonday}
         onOpenItem={openItem}
-        onOpenDay={(iso) => setDayModal(iso)}
+        onOpenDay={setDayModal}
         hideTypeTag={hideTypeTag}
       />
     );
@@ -256,6 +261,12 @@ export function CalendarView({
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
+              onClick={goToday}
+              className="h-10 rounded-full border border-edge-soft px-4 text-[13px] font-semibold text-ink-muted transition-colors hover:border-edge hover:text-ink"
+            >
+              {t("Today")}
+            </button>
+            <button
               onClick={goPrev}
               className="flex h-10 w-10 items-center justify-center rounded-full border border-edge-soft text-ink-muted transition-colors hover:border-edge hover:text-ink"
               aria-label={t("Previous month")}
@@ -267,12 +278,6 @@ export function CalendarView({
               ) : (
                 <ChevronLeft size={16} strokeWidth={2.2} className="dir-icon" />
               )}
-            </button>
-            <button
-              onClick={goToday}
-              className="h-10 rounded-full border border-edge-soft px-4 text-[13px] font-semibold text-ink-muted transition-colors hover:border-edge hover:text-ink"
-            >
-              {t("Today")}
             </button>
             <div className="flex h-10 min-w-[150px] items-center justify-center gap-2 rounded-full border border-edge-soft px-5 text-[14px] font-semibold text-ink">
               <CalendarIcon size={14} strokeWidth={2} className="text-ink-subtle" />

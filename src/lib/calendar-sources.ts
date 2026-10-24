@@ -7,7 +7,12 @@ import {
 } from "./trakt/calendar";
 import type { CalendarItem } from "./calendar";
 import { localDateTimeFromIso } from "./calendar-time";
-import { resolveSavedCalendar, type SavedCandidate } from "./calendar-library";
+import {
+  mapLimit,
+  progressReporter,
+  resolveSavedCalendar,
+  type SavedCandidate,
+} from "./calendar-library";
 import { fetchWatchlist as fetchSimklWatchlist, fetchWatchingItems } from "./simkl/watchlist";
 import { fetchSimklCdnCalendar } from "./simkl/calendar";
 import { isAuthenticated as simklConnected } from "./simkl/session";
@@ -135,7 +140,7 @@ async function mapDubFeedToCalendar(year: number, month: number): Promise<Calend
 export async function fetchSimklCalendar(
   year: number,
   month: number,
-  opts: { tmdbKey: string },
+  opts: { tmdbKey: string; onProgress?: (items: CalendarItem[]) => void },
 ): Promise<CalendarItem[]> {
   if (!simklConnected()) return [];
   const cacheKey = `simkl-calendar:${year}-${month}`;
@@ -191,7 +196,32 @@ function isAnimationGenre(genres: string[] | undefined): boolean {
   return genres.some((g) => wanted.includes(g.toLowerCase()));
 }
 
-export async function fetchTraktCalendar(year: number, month: number): Promise<CalendarItem[]> {
+type ProgressOpts = { onProgress?: (items: CalendarItem[]) => void };
+type CinemetaMetaResult = Awaited<ReturnType<typeof cinemetaMeta>>;
+const META_CONCURRENCY = 6;
+
+// The calendar is drawn from the source's own fields first; Cinemeta posters and ratings fill in a few lookups at a time.
+async function enrichWithCinemeta(
+  wanted: Array<{ type: "series" | "movie"; id: string }>,
+  build: (meta: Map<string, CinemetaMetaResult>) => CalendarItem[],
+  opts: ProgressOpts,
+): Promise<CalendarItem[]> {
+  const metas = new Map<string, CinemetaMetaResult>();
+  const { report, cancel } = progressReporter(() => build(metas), opts.onProgress);
+  report();
+  await mapLimit(wanted, META_CONCURRENCY, async ({ type, id }) => {
+    metas.set(`${type}:${id}`, await cinemetaMeta(type, id).catch(() => null));
+    report();
+  });
+  cancel();
+  return build(metas);
+}
+
+export async function fetchTraktCalendar(
+  year: number,
+  month: number,
+  opts: ProgressOpts = {},
+): Promise<CalendarItem[]> {
   const today = new Date();
   const cur = new Date(year, month, 1);
   const fwdMonths =
@@ -213,17 +243,36 @@ export async function fetchTraktCalendar(year: number, month: number): Promise<C
   const movieIds = [
     ...new Set(mvsInMonth.map((x) => x.m.ids.imdb).filter((x): x is string => !!x)),
   ];
-  const [showMetas, movieMetas] = await Promise.all([
-    Promise.all(showIds.map((id) => cinemetaMeta("series", id).catch(() => null))),
-    Promise.all(movieIds.map((id) => cinemetaMeta("movie", id).catch(() => null))),
-  ]);
-  const showMeta = new Map(showIds.map((id, i) => [id, showMetas[i]] as const));
-  const movieMeta = new Map(movieIds.map((id, i) => [id, movieMetas[i]] as const));
+  const wanted = [
+    ...showIds.map((id) => ({ type: "series" as const, id })),
+    ...movieIds.map((id) => ({ type: "movie" as const, id })),
+  ];
+  return enrichWithCinemeta(
+    wanted,
+    (metas) => buildTraktItems(epsInMonth, mvsInMonth, metas),
+    opts,
+  );
+}
 
+function buildTraktItems(
+  epsInMonth: Array<{
+    ep: Awaited<ReturnType<typeof fetchUpcomingEpisodes>>[number];
+    date: string;
+    time?: string;
+    atMs?: number;
+  }>,
+  mvsInMonth: Array<{
+    m: Awaited<ReturnType<typeof fetchUpcomingMovies>>[number];
+    date: string;
+    time?: string;
+    atMs?: number;
+  }>,
+  metas: Map<string, CinemetaMetaResult>,
+): CalendarItem[] {
   const out: CalendarItem[] = [];
   for (const { ep, date, time, atMs } of epsInMonth) {
     const imdb = ep.ids.imdb ?? null;
-    const meta = imdb ? (showMeta.get(imdb) ?? null) : null;
+    const meta = imdb ? (metas.get(`series:${imdb}`) ?? null) : null;
     const baseId = imdb ?? `trakt:${ep.ids.tmdb ?? ep.ids.tvdb ?? ep.title}`;
     const epLabel = `S${pad(ep.season)}E${pad(ep.number)}`;
     const vid = meta?.videos?.find(
@@ -248,7 +297,7 @@ export async function fetchTraktCalendar(year: number, month: number): Promise<C
   }
   for (const { m, date, time, atMs } of mvsInMonth) {
     const imdb = m.ids.imdb ?? null;
-    const meta = imdb ? (movieMeta.get(imdb) ?? null) : null;
+    const meta = imdb ? (metas.get(`movie:${imdb}`) ?? null) : null;
     const id = imdb ?? `trakt:${m.ids.tmdb ?? m.title}`;
     out.push({
       id,
@@ -272,26 +321,35 @@ export async function fetchTraktCalendar(year: number, month: number): Promise<C
 export async function fetchAnticipatedCalendar(
   year: number,
   month: number,
+  opts: ProgressOpts = {},
 ): Promise<CalendarItem[]> {
   const [shows, mvs] = await Promise.all([fetchAnticipatedShows(), fetchAnticipatedMovies()]);
   const inMonthShows = shows.filter((s) => inMonth(s.firstAired, year, month));
   const inMonthMovies = mvs.filter((m) => inMonth(m.released, year, month));
-  const [showMetas, movieMetas] = await Promise.all([
-    Promise.all(
-      inMonthShows.map((s) =>
-        s.ids.imdb ? cinemetaMeta("series", s.ids.imdb).catch(() => null) : Promise.resolve(null),
-      ),
+  const wanted = [
+    ...inMonthShows.flatMap((s) =>
+      s.ids.imdb ? [{ type: "series" as const, id: s.ids.imdb }] : [],
     ),
-    Promise.all(
-      inMonthMovies.map((m) =>
-        m.ids.imdb ? cinemetaMeta("movie", m.ids.imdb).catch(() => null) : Promise.resolve(null),
-      ),
+    ...inMonthMovies.flatMap((m) =>
+      m.ids.imdb ? [{ type: "movie" as const, id: m.ids.imdb }] : [],
     ),
-  ]);
+  ];
+  return enrichWithCinemeta(
+    wanted,
+    (metas) => buildAnticipatedItems(inMonthShows, inMonthMovies, metas),
+    opts,
+  );
+}
+
+function buildAnticipatedItems(
+  inMonthShows: Awaited<ReturnType<typeof fetchAnticipatedShows>>,
+  inMonthMovies: Awaited<ReturnType<typeof fetchAnticipatedMovies>>,
+  metas: Map<string, CinemetaMetaResult>,
+): CalendarItem[] {
   const out: CalendarItem[] = [];
   for (let i = 0; i < inMonthShows.length; i++) {
     const s = inMonthShows[i];
-    const meta = showMetas[i];
+    const meta = s.ids.imdb ? (metas.get(`series:${s.ids.imdb}`) ?? null) : null;
     const id = s.ids.imdb ?? `trakt:${s.ids.tmdb ?? s.ids.tvdb ?? s.title}`;
     out.push({
       id: `${id}:premiere`,
@@ -308,7 +366,7 @@ export async function fetchAnticipatedCalendar(
   }
   for (let i = 0; i < inMonthMovies.length; i++) {
     const m = inMonthMovies[i];
-    const meta = movieMetas[i];
+    const meta = m.ids.imdb ? (metas.get(`movie:${m.ids.imdb}`) ?? null) : null;
     const id = m.ids.imdb ?? `trakt:${m.ids.tmdb ?? m.title}`;
     out.push({
       id,

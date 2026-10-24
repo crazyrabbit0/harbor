@@ -1,10 +1,11 @@
+import { memo } from "react";
 import type { CalendarItem } from "@/lib/calendar";
 import { useT } from "@/lib/i18n";
 import { CalendarChip } from "./calendar-chip";
 import type { Cell } from "./types";
 import { orderedWeekdayNames } from "./utils";
 
-export function MonthGrid({
+export const MonthGrid = memo(function MonthGrid({
   cells,
   grouped,
   todayISO,
@@ -89,4 +90,4 @@ export function MonthGrid({
       </div>
     </div>
   );
-}
+});

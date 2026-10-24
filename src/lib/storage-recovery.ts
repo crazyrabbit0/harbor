@@ -13,6 +13,8 @@ const PRUNABLE_EXACT = new Set<string>([
   "harbor.scroll.v1",
   "harbor.webhook.lastTick",
   "harbor.calendar.webhook.last",
+  "harbor.calendar.resolved.v1",
+  "harbor.calendar.snapshot.v1",
   "harbor.anidbtvdbcache",
   "harbor.armcache",
   "harbor.armkitsucache",

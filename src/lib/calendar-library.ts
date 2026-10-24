@@ -1,5 +1,5 @@
 import { meta as cinemetaMeta } from "./cinemeta";
-import { library, type LibraryItem } from "./stremio";
+import { libraryIfChanged, type LibraryItem } from "./stremio";
 import { readLocalEntries } from "./watchlist";
 import { fetchWatchlist as fetchTraktWatchlist } from "./trakt/watchlist";
 import { tvmazeUpcoming } from "./providers/tvmaze";
@@ -12,6 +12,7 @@ import {
 import { aniZipByAnilist, aniZipByKitsu, aniZipByMal, pickEpisodeTitle } from "./providers/anizip";
 import type { CalendarItem } from "./calendar";
 import { localDateTimeFromIso } from "./calendar-time";
+import { setItemWithRecovery } from "./storage-recovery";
 
 const SERIES_LIMIT = 80;
 const MOVIE_LIMIT = 80;
@@ -47,9 +48,53 @@ type ResolvedSeries = {
   episodes: ResolvedEpisode[];
 };
 
-const CACHE_TTL_MS = 30 * 60 * 1000;
-const seriesCache = new Map<string, { at: number; series: ResolvedSeries | null }>();
-const movieCache = new Map<string, { at: number; movie: CalendarItem | null }>();
+const CACHE_TTL_MS = 12 * 60 * 60 * 1000;
+const MISS_TTL_MS = 30 * 60 * 1000;
+const DISK_KEY = "harbor.calendar.resolved.v1";
+const DISK_MAX = 400;
+type Resolved = { at: number; series?: ResolvedSeries | null; movie?: CalendarItem | null };
+let resolved: Map<string, Resolved> | null = null;
+let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+// Resolved shows and movies outlive the session, so reopening the calendar skips Cinemeta/TMDB until the TTL runs out.
+function resolvedCache(): Map<string, Resolved> {
+  if (resolved) return resolved;
+  resolved = new Map();
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(DISK_KEY) ?? "{}");
+    const now = Date.now();
+    for (const [k, v] of Object.entries((parsed ?? {}) as Record<string, Resolved>)) {
+      if (v && typeof v.at === "number" && now - v.at < CACHE_TTL_MS) resolved.set(k, v);
+    }
+  } catch {
+    resolved.clear();
+  }
+  return resolved;
+}
+
+// A miss can be a network failure, so it is retried sooner than a found show.
+function fresh(entry: Resolved, value: unknown): boolean {
+  return Date.now() - entry.at < (value ? CACHE_TTL_MS : MISS_TTL_MS);
+}
+
+function remember(key: string, entry: Resolved): void {
+  const map = resolvedCache();
+  map.delete(key);
+  map.set(key, entry);
+  for (const k of map.keys()) {
+    if (map.size <= DISK_MAX) break;
+    map.delete(k);
+  }
+  if (flushTimer) return;
+  flushTimer = setTimeout(() => {
+    flushTimer = null;
+    try {
+      setItemWithRecovery(DISK_KEY, JSON.stringify(Object.fromEntries(resolvedCache())));
+    } catch {
+      return;
+    }
+  }, 2000);
+}
 
 function wideWindow(): (iso: string) => boolean {
   const lo = Date.now() - 31 * 864e5;
@@ -81,15 +126,21 @@ function isAnimationGenre(genres: string[] | undefined): boolean {
   });
 }
 
-async function mapLimit<T, R>(
+// A sliding window: each worker takes the next item as soon as its last one settles.
+export async function mapLimit<T, R>(
   items: T[],
   limit: number,
   fn: (item: T) => Promise<R>,
 ): Promise<R[]> {
   const out: R[] = [];
-  for (let i = 0; i < items.length; i += limit) {
-    out.push(...(await Promise.all(items.slice(i, i + limit).map(fn))));
-  }
+  let next = 0;
+  const worker = async () => {
+    while (next < items.length) {
+      const i = next++;
+      out[i] = await fn(items[i]);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
   return out;
 }
 
@@ -155,19 +206,25 @@ async function tmdbSeries(
 ): Promise<ResolvedSeries | null> {
   let tvId: number | null = null;
   if (id.startsWith("tmdb:tv:")) tvId = Number(id.split(":")[2]);
-  else if (id.startsWith("tt")) tvId = (await tmdbFindByImdb(tmdbKey, id.split(":")[0])).tvId;
+  else if (id.startsWith("tt"))
+    tvId = (await tmdbFindByImdb(tmdbKey, id.split(":")[0], "series")).tvId;
   if (tvId == null || !Number.isFinite(tvId)) return null;
   return tmdbTvUpcoming(tmdbKey, tvId, inWindow);
 }
 
+// `ended` means Cinemeta dates the run as closed ("2008–2013"), so no other source is asked.
 async function cinemetaSeriesUpcoming(
   id: string,
   inWindow: (date: string) => boolean,
-): Promise<ResolvedSeries | null> {
+): Promise<ResolvedSeries | "ended" | null> {
   const imdb = id.startsWith("tt") ? id.split(":")[0] : null;
   if (!imdb) return null;
   const m = await cinemetaMeta("series", imdb).catch(() => null);
   if (!m?.videos) return null;
+  if (/\d{4}\s*[–-]\s*\d{4}/.test(m.releaseInfo ?? "") && m.videos.length > 0) {
+    const last = m.videos.reduce((a, v) => Math.max(a, Date.parse(v.released ?? "") || 0), 0);
+    if (last > 0 && last < Date.now() - 31 * 864e5) return "ended";
+  }
   const episodes: ResolvedEpisode[] = [];
   for (const v of m.videos) {
     const { date, time, atMs } = localDateTimeFromIso(v.released ?? v.firstAired);
@@ -196,8 +253,10 @@ async function seriesUpcoming(
   tmdbKey: string,
 ): Promise<ResolvedSeries | null> {
   if (isAnimeId(c.id)) return animeUpcoming(c.id, inWindow, tmdbKey);
+  // One Cinemeta request covers most shows; TMDB costs 3-4 (find, details, seasons), so it runs only on a miss.
   if (c.id.startsWith("tt")) {
     const cm = await cinemetaSeriesUpcoming(c.id, inWindow);
+    if (cm === "ended") return null;
     if (cm) return cm;
   }
   if (tmdbKey) {
@@ -232,8 +291,14 @@ async function movieRelease(
 ): Promise<CalendarItem | null> {
   const imdb = c.id.startsWith("tt") ? c.id.split(":")[0] : null;
   let movieId: number | null = null;
+  if (imdb && tmdbKey) {
+    // Cinemeta is one request and usually cached; a movie from two or more years back has no upcoming release to find.
+    const cm = await cinemetaMeta("movie", imdb).catch(() => null);
+    const year = Number((cm?.releaseInfo ?? "").slice(0, 4));
+    if (year > 0 && year < new Date().getFullYear() - 1) return null;
+  }
   if (c.id.startsWith("tmdb:movie:")) movieId = Number(c.id.split(":")[2]);
-  else if (imdb && tmdbKey) movieId = (await tmdbFindByImdb(tmdbKey, imdb)).movieId;
+  else if (imdb && tmdbKey) movieId = (await tmdbFindByImdb(tmdbKey, imdb, "movie")).movieId;
 
   if (movieId != null && Number.isFinite(movieId) && tmdbKey) {
     const m = await tmdbMovieRelease(tmdbKey, movieId);
@@ -329,55 +394,117 @@ export async function fetchLibraryCalendar(
   authKey: string,
   year: number,
   month: number,
-  opts: { tmdbKey: string; includeTrakt: boolean },
+  opts: { tmdbKey: string; includeTrakt: boolean; onProgress?: (items: CalendarItem[]) => void },
 ): Promise<CalendarItem[]> {
   const local = readLocalEntries();
-  let stremio: LibraryItem[] = [];
   let stremioFailed = false;
-  if (authKey) {
-    try {
-      stremio = await library(authKey);
-    } catch {
-      stremioFailed = true;
-    }
-  }
-  const trakt = opts.includeTrakt ? await fetchTraktWatchlist().catch(() => []) : [];
+  const [stremio, trakt] = await Promise.all([
+    authKey
+      ? libraryIfChanged(authKey).catch((): LibraryItem[] => {
+          stremioFailed = true;
+          return [];
+        })
+      : Promise.resolve<LibraryItem[]>([]),
+    opts.includeTrakt ? fetchTraktWatchlist().catch(() => []) : Promise.resolve([]),
+  ]);
 
   const candidates = gatherCandidates(stremio, local, trakt);
   if (candidates.length === 0) {
     if (stremioFailed) throw new Error("Couldn't load your library");
     return [];
   }
-  return resolveSavedCalendar(candidates, year, month, { tmdbKey: opts.tmdbKey });
+  return resolveSavedCalendar(candidates, year, month, {
+    tmdbKey: opts.tmdbKey,
+    onProgress: opts.onProgress,
+  });
 }
 
 async function resolveSeriesCached(
   c: SavedCandidate,
   tmdbKey: string,
 ): Promise<ResolvedSeries | null> {
-  const hit = seriesCache.get(c.id);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.series;
-  const series = await seriesUpcoming(c, wideWindow(), tmdbKey).catch(() => null);
-  seriesCache.set(c.id, { at: Date.now(), series });
-  return series;
+  const key = `series|${tmdbKey ? "t" : ""}|${c.id}`;
+  const hit = resolvedCache().get(key);
+  if (hit?.series !== undefined && fresh(hit, hit.series)) return hit.series;
+  const series = await seriesUpcoming(c, wideWindow(), tmdbKey).catch(() => undefined);
+  if (series !== undefined) remember(key, { at: Date.now(), series });
+  return series ?? null;
 }
 
 async function resolveMovieCached(
   c: SavedCandidate,
   tmdbKey: string,
 ): Promise<CalendarItem | null> {
-  const hit = movieCache.get(c.id);
-  if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.movie;
-  const movie = await movieRelease(c, wideWindow(), tmdbKey).catch(() => null);
-  movieCache.set(c.id, { at: Date.now(), movie });
-  return movie;
+  const key = `movie|${tmdbKey ? "t" : ""}|${c.id}`;
+  const hit = resolvedCache().get(key);
+  if (hit?.movie !== undefined && fresh(hit, hit.movie)) return hit.movie;
+  const movie = await movieRelease(c, wideWindow(), tmdbKey).catch(() => undefined);
+  if (movie !== undefined) remember(key, { at: Date.now(), movie });
+  return movie ?? null;
+}
+
+function seriesItems(
+  c: SavedCandidate,
+  r: ResolvedSeries,
+  inMonth: (iso: string) => boolean,
+): CalendarItem[] {
+  const out: CalendarItem[] = [];
+  const showName = r.name || c.name;
+  for (const ep of r.episodes) {
+    if (ep.season === 0 && ep.number === 0) continue;
+    if (!inMonth(ep.airDate)) continue;
+    const epLabel = `S${pad(ep.season)}E${pad(ep.number)}`;
+    out.push({
+      id: `${c.id}:${ep.season}:${ep.number}`,
+      imdbId: c.id.startsWith("tt") ? c.id.split(":")[0] : null,
+      type: "tv",
+      name: ep.name ? `${showName} ${epLabel}: ${ep.name}` : `${showName} ${epLabel}`,
+      poster: r.poster ?? ep.image ?? null,
+      background: null,
+      releaseDate: ep.airDate,
+      releaseTime: ep.releaseTime,
+      releaseAtMs: ep.releaseAtMs,
+      isAnime: r.isAnime,
+      overview: ep.overview,
+      voteAverage: ep.voteAverage,
+    });
+  }
+  return out;
+}
+
+const PROGRESS_MS = 250;
+
+/** Calls `onProgress(collect())` at most every 250 ms; `cancel` drops a pending call once the final result is ready. */
+export function progressReporter(
+  collect: () => CalendarItem[],
+  onProgress: ((items: CalendarItem[]) => void) | undefined,
+): { report: () => void; cancel: () => void } {
+  let last = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const fire = () => {
+    timer = null;
+    last = Date.now();
+    onProgress?.(collect());
+  };
+  return {
+    report: () => {
+      if (!onProgress || timer) return;
+      const wait = PROGRESS_MS - (Date.now() - last);
+      if (wait <= 0) fire();
+      else timer = setTimeout(fire, wait);
+    },
+    cancel: () => {
+      if (timer) clearTimeout(timer);
+      timer = null;
+    },
+  };
 }
 
 export async function resolveSavedCalendar(
   candidates: SavedCandidate[],
   year: number,
   month: number,
-  opts: { tmdbKey: string },
+  opts: { tmdbKey: string; onProgress?: (items: CalendarItem[]) => void },
 ): Promise<CalendarItem[]> {
   const inMonth = inMonthFactory(year, month);
   const series = candidates
@@ -389,42 +516,42 @@ export async function resolveSavedCalendar(
     .sort(curatedFirst)
     .slice(0, MOVIE_LIMIT);
 
-  const out: CalendarItem[] = [];
+  const seriesOut: CalendarItem[][] = series.map(() => []);
+  const movieOut: Array<CalendarItem | null> = movies.map(() => null);
+  const collect = () =>
+    dedupeCalendar([...seriesOut.flat(), ...movieOut.filter((m): m is CalendarItem => !!m)]);
+  const { report, cancel } = progressReporter(collect, opts.onProgress);
 
   const seriesConc = opts.tmdbKey ? TMDB_CONCURRENCY : TVMAZE_CONCURRENCY;
-  const seriesResults = await mapLimit(series, seriesConc, async (c) => ({
-    c,
-    r: await resolveSeriesCached(c, opts.tmdbKey),
-  }));
-  for (const { c, r } of seriesResults) {
-    if (!r) continue;
-    const showName = r.name || c.name;
-    for (const ep of r.episodes) {
-      if (ep.season === 0 && ep.number === 0) continue;
-      if (!inMonth(ep.airDate)) continue;
-      const epLabel = `S${pad(ep.season)}E${pad(ep.number)}`;
-      out.push({
-        id: `${c.id}:${ep.season}:${ep.number}`,
-        imdbId: c.id.startsWith("tt") ? c.id.split(":")[0] : null,
-        type: "tv",
-        name: ep.name ? `${showName} ${epLabel}: ${ep.name}` : `${showName} ${epLabel}`,
-        poster: r.poster ?? ep.image ?? null,
-        background: null,
-        releaseDate: ep.airDate,
-        releaseTime: ep.releaseTime,
-        releaseAtMs: ep.releaseAtMs,
-        isAnime: r.isAnime,
-        overview: ep.overview,
-        voteAverage: ep.voteAverage,
-      });
-    }
-  }
+  await Promise.all([
+    mapLimit(
+      series.map((c, i) => [c, i] as const),
+      seriesConc,
+      async ([c, i]) => {
+        const r = await resolveSeriesCached(c, opts.tmdbKey);
+        if (r) {
+          seriesOut[i] = seriesItems(c, r, inMonth);
+          if (seriesOut[i].length > 0) report();
+        }
+      },
+    ),
+    mapLimit(
+      movies.map((c, i) => [c, i] as const),
+      TMDB_CONCURRENCY,
+      async ([c, i]) => {
+        const mi = await resolveMovieCached(c, opts.tmdbKey);
+        if (mi && inMonth(mi.releaseDate)) {
+          movieOut[i] = mi;
+          report();
+        }
+      },
+    ),
+  ]);
+  cancel();
+  return collect();
+}
 
-  const movieResults = await mapLimit(movies, TMDB_CONCURRENCY, (c) =>
-    resolveMovieCached(c, opts.tmdbKey),
-  );
-  for (const mi of movieResults) if (mi && inMonth(mi.releaseDate)) out.push(mi);
-
+function dedupeCalendar(out: CalendarItem[]): CalendarItem[] {
   const seen = new Set<string>();
   const deduped: CalendarItem[] = [];
   for (const item of out) {

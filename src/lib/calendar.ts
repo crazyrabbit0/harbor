@@ -150,21 +150,34 @@ export async function fetchCalendarRange(
   start: string,
   end: string,
   region: string,
+  onProgress?: (items: CalendarItem[]) => void,
 ): Promise<CalendarItem[]> {
   if (!apiKey) return [];
   const inRange = (d?: string) => !!d && d >= start && d <= end;
-  const [m1, m2, mu1, t1, t2] = await Promise.all([
-    fetchDiscoverMovies(apiKey, start, end, region, 1),
-    fetchDiscoverMovies(apiKey, start, end, region, 2),
-    fetchUpcomingMovies(apiKey, region, 1),
-    fetchDiscoverTv(apiKey, start, end, 1),
-    fetchDiscoverTv(apiKey, start, end, 2),
+  const moviePages: DiscoverMovieRow[][] = [[], [], []];
+  const tvPages: DiscoverTvRow[][] = [[], []];
+  const page = <T>(p: Promise<T[]>, into: T[][], i: number) =>
+    p.then((rows) => {
+      into[i] = rows;
+      if (rows.length > 0) onProgress?.(buildCalendarRange(moviePages, tvPages, inRange));
+    });
+  await Promise.all([
+    page(fetchDiscoverMovies(apiKey, start, end, region, 1), moviePages, 0),
+    page(fetchDiscoverMovies(apiKey, start, end, region, 2), moviePages, 1),
+    page(fetchUpcomingMovies(apiKey, region, 1), moviePages, 2),
+    page(fetchDiscoverTv(apiKey, start, end, 1), tvPages, 0),
+    page(fetchDiscoverTv(apiKey, start, end, 2), tvPages, 1),
   ]);
-  const movieP1 = [...m1, ...m2, ...mu1.filter((m) => inRange(m.release_date))];
-  const movieP2: DiscoverMovieRow[] = [];
-  const tvP1 = [...t1, ...t2];
-  const tvP2: DiscoverTvRow[] = [];
-  const movies: CalendarItem[] = [...movieP1, ...movieP2]
+  return buildCalendarRange(moviePages, tvPages, inRange);
+}
+
+function buildCalendarRange(
+  moviePages: DiscoverMovieRow[][],
+  tvPages: DiscoverTvRow[][],
+  inRange: (d?: string) => boolean,
+): CalendarItem[] {
+  const [m1, m2, mu1] = moviePages;
+  const movies: CalendarItem[] = [...m1, ...m2, ...mu1.filter((m) => inRange(m.release_date))]
     .filter((m) => m.release_date && m.title)
     .map((m) => ({
       id: `tmdb:movie:${m.id}`,
@@ -178,7 +191,8 @@ export async function fetchCalendarRange(
       overview: m.overview ?? "",
       voteAverage: m.vote_average ?? 0,
     }));
-  const series: CalendarItem[] = [...tvP1, ...tvP2]
+  const series: CalendarItem[] = tvPages
+    .flat()
     .filter((s) => s.first_air_date && s.name)
     .map((s) => ({
       id: `tmdb:tv:${s.id}`,
@@ -408,9 +422,10 @@ export async function fetchCustomCalendar(opts: {
   filters: CustomCalendarFilters;
   start: string;
   end: string;
-  extra?: CalendarItem[];
+  extra?: CalendarItem[] | Promise<CalendarItem[]>;
+  onProgress?: (items: CalendarItem[]) => void;
 }): Promise<CalendarItem[]> {
-  const { apiKey, region, filters, start, end, extra = [] } = opts;
+  const { apiKey, region, filters, start, end, extra = [], onProgress } = opts;
   const movieGenres = filters.genres.filter((g) => g.mediaType === "movie").map((g) => g.id);
   const tvGenres = filters.genres.filter((g) => g.mediaType === "tv").map((g) => g.id);
   const providerIds = filters.watchProviders.map((p) => p.id);
@@ -450,26 +465,38 @@ export async function fetchCustomCalendar(opts: {
       }),
     );
   }
-  const batches = await Promise.all(tasks);
-  const all = [...extra, ...batches.flat()];
-
   const filterMatches = (i: CalendarItem): boolean => {
     if (i.isAnime) return wantAnime;
     if (i.type === "movie") return wantMovie;
     if (i.type === "tv") return wantTv;
     return false;
   };
+  tasks.unshift(Promise.resolve(extra).catch(() => []));
+  const collect = (batches: CalendarItem[][]): CalendarItem[] => {
+    const seen = new Set<string>();
+    const deduped: CalendarItem[] = [];
+    for (const item of batches.flat()) {
+      if (!filterMatches(item)) continue;
+      if (seen.has(item.id)) continue;
+      seen.add(item.id);
+      deduped.push(item);
+    }
+    deduped.sort((a, b) => a.releaseDate.localeCompare(b.releaseDate));
+    return deduped;
+  };
 
-  const seen = new Set<string>();
-  const deduped: CalendarItem[] = [];
-  for (const item of all) {
-    if (!filterMatches(item)) continue;
-    if (seen.has(item.id)) continue;
-    seen.add(item.id);
-    deduped.push(item);
-  }
-  deduped.sort((a, b) => a.releaseDate.localeCompare(b.releaseDate));
-  return deduped;
+  // Extras, each tracked person and each discover query load in parallel; finished ones are shown while the rest load.
+  const done: CalendarItem[][] = tasks.map(() => []);
+  const batches = await Promise.all(
+    tasks.map((task, i) =>
+      task.then((items) => {
+        done[i] = items;
+        if (items.length > 0) onProgress?.(collect(done));
+        return items;
+      }),
+    ),
+  );
+  return collect(batches);
 }
 
 export function todayLocalISO(): string {
