@@ -25,6 +25,7 @@ The app talks to Stremio, addons and most metadata services directly, so the cor
 - IGDB in Games (catalogs, details, completion times, favorites search), once a Twitch client ID and secret are set in Settings > Library > Games. Requests go straight to `id.twitch.tv` and `api.igdb.com`; without the credentials the Games catalog stays empty and says how to add them.
 - IMDb ratings on titles and episodes, and the IMDb parents guide with its age rating (hover previews and the player's content advisory), straight from IMDb's public GraphQL endpoint `caching.graphql.imdb.com` with no key (`src/lib/providers/harbor-imdb.ts`). Common Sense Media stays the fallback for the parents guide. The same endpoint fills the player's About panel (title, plot, cast, directors and writers) when no TMDB key is set (`src/lib/providers/imdbapi/imdbapi-details.ts`).
 - Browsing and installing community themes, from the read-only index in `data/themes/` (seeded with the built-in presets). New themes join it by pull request (`data/themes/README.md`); publishing, ratings, comments, notifications and the "My themes" tab needed Harbor accounts and are hidden.
+- Browsing community collections (Collections > From the community, and Big Picture's Community tab), from the read-only `data/collections/index.json`. Collections join it by pull request (`data/collections/README.md`); sharing to the community from the app and share links still needed Harbor accounts.
 
 ## What no longer works
 

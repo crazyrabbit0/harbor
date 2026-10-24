@@ -2,7 +2,7 @@ import { Users } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { ProfileWatching } from "./profile-types";
 import { useProfileTitle } from "./use-profile-title";
 
@@ -33,7 +33,7 @@ function useLivePosition(watching?: ProfileWatching): number {
 
 export function WatchNowCard({ watching }: { watching?: ProfileWatching }) {
   const t = useT();
-  const { openMeta, openManga } = useView();
+  const { openMeta, openManga } = useViewActions();
   const livePos = useLivePosition(watching);
   const media = useProfileTitle(
     watching?.metaId,

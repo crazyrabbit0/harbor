@@ -1,8 +1,8 @@
 import type { FilmSoundtrack } from "@/lib/providers/musicbrainz-soundtrack";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function SoundtrackRow({ album }: { album: FilmSoundtrack }) {
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const open = () => {
     setView("music");
     void Promise.all([import("@/lib/music/navigation"), import("@/lib/music/deep-link")]).then(

@@ -2,7 +2,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useSearch } from "@/lib/search-context";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { SFX } from "@/lib/sfx";
 import { isAndroid } from "@/lib/platform";
 import { BpKeyboardSheet } from "./bp-keyboard-sheet";
@@ -88,7 +88,7 @@ export function BpSearch({ onSelect }: { onSelect: (m: Meta) => void }) {
   const { settings } = useSettings();
   const t = useBpT();
   const { query, recent, recordRecent, clearRecent } = useSearch();
-  const { openManga } = useView();
+  const { openManga } = useViewActions();
 
   // The filter is chosen against one query and is meaningless against the next,
   // so it is derived rather than stored. A chip that survives into a new search

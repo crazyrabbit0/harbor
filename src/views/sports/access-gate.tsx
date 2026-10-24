@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } fro
 import { ExternalLink } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   acceptSportsConsent,
   declineSportsConsent,
@@ -75,7 +75,7 @@ export function SportsAccessGate({
 
 function SportsConsentPrompt() {
   const t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const [checked, setChecked] = useState(false);
   const heading = useRef<HTMLHeadingElement>(null);
   useEffect(() => {

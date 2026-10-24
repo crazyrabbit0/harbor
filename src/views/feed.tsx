@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Loader2, UserPlus, Users } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { MetaType } from "@/lib/cinemeta";
 import type { FeedItem } from "@/lib/social/feed";
 import { FeedRow } from "./feed/feed-row";
@@ -11,7 +11,7 @@ import { ScrollToTop } from "@/views/profile/scroll-to-top";
 
 export function FeedView({ onOpenProfile }: { onOpenProfile?: (handle: string) => void }) {
   const t = useT();
-  const { openMeta, openManga } = useView();
+  const { openMeta, openManga } = useViewActions();
   const f = useFeed();
   const scrollRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);

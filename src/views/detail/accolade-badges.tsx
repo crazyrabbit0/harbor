@@ -2,12 +2,12 @@ import { accoladesFor } from "@/lib/curated/accolades";
 import { CRITERION_LIST_ID, spineFor } from "@/lib/curated/spine";
 import { inductionYear, REGISTRY_LIST_ID } from "@/lib/film-registry/inductions";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { Pill } from "./pill";
 
 export function AccoladeBadges({ imdbId }: { imdbId: string | null | undefined }) {
   const t = useT();
-  const { openCuratedList } = useView();
+  const { openCuratedList } = useViewActions();
   const spine = spineFor(imdbId);
   const inducted = inductionYear(imdbId);
   const accolades = accoladesFor(imdbId);

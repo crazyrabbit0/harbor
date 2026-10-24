@@ -7,7 +7,7 @@ import { imageLangParam, imageLangRank } from "./tmdb-image-lang";
 import { pickTrailers, type Video } from "./tmdb-trailers";
 import type { PersonRef } from "./tmdb-people";
 import { isAnimeItem } from "./tmdb-meta-mappers";
-import { setItemWithRecovery } from "@/lib/storage-recovery";
+import { cachedTmdbFind, rememberTmdbFind } from "./tmdb-find-cache";
 
 export type CastEntry = {
   id: number;
@@ -130,35 +130,6 @@ const WRITER_JOBS = new Set([
 ]);
 const PRODUCER_JOBS = new Set(["Producer", "Executive Producer"]);
 
-const FIND_KEY = "harbor.tmdb.find.v1";
-const FIND_MAX = 600;
-let findMap: Record<string, string> | null = null;
-let findTimer: ReturnType<typeof setTimeout> | null = null;
-
-function findCache(): Record<string, string> {
-  if (findMap) return findMap;
-  try {
-    findMap = JSON.parse(localStorage.getItem(FIND_KEY) ?? "{}") as Record<string, string>;
-  } catch {
-    findMap = {};
-  }
-  return findMap;
-}
-
-function rememberFind(key: string, value: string): void {
-  const map = findCache();
-  map[key] = value;
-  const keys = Object.keys(map);
-  if (keys.length > FIND_MAX) for (const k of keys.slice(0, keys.length - FIND_MAX)) delete map[k];
-  if (findTimer != null) return;
-  findTimer = setTimeout(() => {
-    findTimer = null;
-    try {
-      setItemWithRecovery(FIND_KEY, JSON.stringify(findMap ?? {}));
-    } catch {}
-  }, 3000);
-}
-
 type RawImageEntry = { file_path?: string; vote_average?: number };
 
 function urlsFromImages(entries: RawImageEntry[] | undefined, size: string, max: number): string[] {
@@ -210,7 +181,7 @@ export async function tmdbDetails(
     id = meta.id.slice("tmdb:tv:".length);
   } else if (meta.id.startsWith("tt")) {
     const findKey = `${meta.id}:${meta.type}`;
-    const cached = findCache()[findKey];
+    const cached = cachedTmdbFind(findKey);
     if (cached) {
       const cut = cached.indexOf(":");
       kind = cached.slice(0, cut) as "movie" | "tv";
@@ -227,7 +198,7 @@ export async function tmdbDetails(
       } else {
         return null;
       }
-      rememberFind(findKey, `${kind}:${id}`);
+      rememberTmdbFind(findKey, `${kind}:${id}`);
     }
   } else {
     return null;

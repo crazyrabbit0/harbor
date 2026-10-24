@@ -28,13 +28,12 @@ function effectDeps(): string[][] {
   return out;
 }
 
-test("useT hands back a new function every render, so it cannot be an effect dependency", () => {
-  // A dependency that changes on every render restarts the effect that lists it, and an effect
-  // that sets state renders again — so listing this one is a loop, not a refresh.
+test("useT's function changes only with the language, region or catalog", () => {
+  // A language switch still hands back a new function, so an effect listing t reruns then; the modal keeps t out of its deps.
   assert.match(
     TRANSLATE,
-    /export function useT\(\)[\s\S]*?return \(key: string, vars\?: Vars\) =>/,
-    "useT builds its function inside the hook body, so its identity is per-render",
+    /export function useT\(\)[\s\S]*?useMemo\([\s\S]*?\[lang, region, catalogVersion\]/,
+    "useT memoises its function on the language, region and catalog version",
   );
 });
 

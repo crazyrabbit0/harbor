@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { useSectionBack } from "@/lib/section-back";
 import { openExternalUrlStrict } from "@/lib/window";
@@ -53,7 +53,7 @@ export function SpooktoberView(props: SpooktoberViewProps) {
 
 function SpooktoberContent({ active, onBack, playlistRequest, entryToken }: SpooktoberViewProps) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const { settings } = useSettings();
   const { play, playVideo } = useSpooktoberMusicPlayback();
   const host = useRef<HTMLDivElement>(null);

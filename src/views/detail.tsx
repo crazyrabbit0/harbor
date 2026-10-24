@@ -103,7 +103,7 @@ import { useIsFavorite, useMediaFavorites } from "@/lib/media-favorites";
 import { openUrl } from "@/lib/window";
 import { profileFromDetail, trackEvent } from "@/lib/discover";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/feed/tags";
-import { useScrollMemory, useView, type PlayEpisode } from "@/lib/view";
+import { useScrollMemory, type PlayEpisode, useViewActions } from "@/lib/view";
 import { prefetchSegments } from "@/lib/skip-intro";
 import { useT } from "@/lib/i18n";
 import { AddToListMenu } from "@/components/lists/add-to-list-menu";
@@ -334,7 +334,7 @@ export function DetailView({
     promoteMetaToRoot,
     openMeta,
     openManga,
-  } = useView();
+  } = useViewActions();
   useTvdbCastFallback(meta, detail, detectedKitsu, setDetail);
   const { snapshot: roomSnapshot, claimHost } = useTogether();
   const { isConnected: traktConnected } = useTrakt();

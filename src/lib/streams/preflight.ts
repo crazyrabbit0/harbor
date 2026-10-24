@@ -95,6 +95,29 @@ async function probe(url: string, signal?: AbortSignal): Promise<PreflightResult
   }
 }
 
+const WARM_TIMEOUT_MS = 20_000;
+
+/** Requests one byte so the addon and debrid side create the link ahead of playback; the answer is discarded. */
+export async function warmStreamUrl(url: string, signal?: AbortSignal): Promise<void> {
+  if (MANIFEST_URL_RX.test(url) || !/^https?:/i.test(url)) return;
+  const ctrl = new AbortController();
+  const onAbort = () => ctrl.abort();
+  signal?.addEventListener("abort", onAbort);
+  const timer = window.setTimeout(() => ctrl.abort(), WARM_TIMEOUT_MS);
+  try {
+    const res = await probeFetch(url, {
+      method: "GET",
+      headers: { Range: "bytes=0-0" },
+      redirect: "follow",
+      signal: ctrl.signal,
+    }).catch(() => null);
+    void res?.body?.cancel().catch(() => {});
+  } finally {
+    window.clearTimeout(timer);
+    signal?.removeEventListener("abort", onAbort);
+  }
+}
+
 function parseLength(v: string | null): number | null {
   if (!v) return null;
   const n = parseInt(v, 10);

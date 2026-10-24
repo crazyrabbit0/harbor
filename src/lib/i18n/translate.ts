@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useMemo, useSyncExternalStore } from "react";
 import en from "./locales/en";
 import { getUiLanguage, getUiRegion, useUiLanguage, useUiRegion } from "./store";
 import { isRtl, LANGUAGES, type UiLanguage } from "./languages";
@@ -157,8 +157,17 @@ export function sourceTranslationKey(value: string): string {
 export function useT(): (key: string, vars?: Vars) => string {
   const lang = useUiLanguage();
   const region = useUiRegion();
-  useSyncExternalStore(subscribeUiCatalog, uiCatalogVersion, uiCatalogVersion);
-  return (key: string, vars?: Vars) => interpolate(resolve(lang, key, vars, region), vars);
+  const catalogVersion = useSyncExternalStore(
+    subscribeUiCatalog,
+    uiCatalogVersion,
+    uiCatalogVersion,
+  );
+  // Stable per language, region and catalog, so memos and memo'd children that take `t` don't redo work every render.
+  return useMemo(
+    () => (key: string, vars?: Vars) => interpolate(resolve(lang, key, vars, region), vars),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lang, region, catalogVersion],
+  );
 }
 
 export { useUiLanguage, isRtl, LANGUAGES };

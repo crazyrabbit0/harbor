@@ -7,7 +7,7 @@ import type { Meta } from "@/lib/cinemeta";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
 import { useSettings } from "@/lib/settings";
 import { SPOILER_TEXT_CLASS, SPOILER_THUMB_CLASS, type SpoilerMask } from "@/lib/spoilers";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   animePlayEpisode,
   animeSeasonKey,
@@ -50,7 +50,7 @@ export function AnimeEpisodeStrip({
   metaForEp?: (ep: KitsuEpisode) => Meta;
   showSeason?: boolean;
 }) {
-  const { openPicker, openEpisodeDetail } = useView();
+  const { openPicker, openEpisodeDetail } = useViewActions();
   const { settings } = useSettings();
   const t = useT();
 
@@ -160,7 +160,7 @@ function AnimeEpisodeStripCard({
   showSeason?: boolean;
 }) {
   const t = useT();
-  const { openPicker, openEpisodeDetail } = useView();
+  const { openPicker, openEpisodeDetail } = useViewActions();
   const { settings } = useSettings();
   const upcoming = isUpcomingDate(ep.airdate);
 

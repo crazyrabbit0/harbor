@@ -4,14 +4,14 @@ import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { useTogether } from "@/lib/together/provider";
 import { isPublicRelay, REQUIRED_RELAY_VERSION } from "@/lib/together/relay-version";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 const DISMISS_KEY = "harbor.relayBannerDismissed";
 
 export function TogetherRelayBanner() {
   const { relayOutdated, closeModal } = useTogether();
   const { settings } = useSettings();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const t = useT();
   const pub = isPublicRelay(settings.togetherRelayUrl);
   const [dismissed, setDismissed] = useState(() => {

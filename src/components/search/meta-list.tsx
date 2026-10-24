@@ -2,10 +2,10 @@ import { Star } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { useLocalizedOverview } from "@/lib/use-localized-overview";
 import { ResultPoster } from "./result-poster";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 function MetaRow({ m, onClose, index }: { m: Meta; onClose: () => void; index?: number }) {
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const description = useLocalizedOverview(m);
   const staggered = index != null;
   return (

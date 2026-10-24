@@ -1,5 +1,6 @@
-import Hls from "hls.js";
-import mpegts from "mpegts.js";
+import type Hls from "hls.js";
+import type mpegts from "mpegts.js";
+import { loadHls, loadMpegts } from "@/lib/player/stream-libs";
 import {
   initialPlayerSnapshot,
   type PlayerBridge,
@@ -547,7 +548,11 @@ export function createHtml5Bridge(): PlayerBridge {
       const isTs =
         bare.endsWith(".ts") ||
         (src.notWebReady === true && !isHls && !/\.(mp4|webm|mov|mkv|mpd)$/.test(bare));
-      if (isHls && Hls.isSupported()) {
+      const revision = mediaRevision;
+      const Hls = isHls ? await loadHls().catch(() => null) : null;
+      const mpegts = isTs && !Hls ? await loadMpegts().catch(() => null) : null;
+      if (revision !== mediaRevision || !video) return;
+      if (Hls && Hls.isSupported()) {
         hls = new Hls(
           src.notWebReady === true || src.isLive === true
             ? {
@@ -562,7 +567,7 @@ export function createHtml5Bridge(): PlayerBridge {
         hls.attachMedia(video);
         hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, refreshSnapshot);
         hls.on(Hls.Events.AUDIO_TRACK_SWITCHED, refreshSnapshot);
-      } else if (isTs && mpegts.isSupported()) {
+      } else if (mpegts && mpegts.isSupported()) {
         tsPlayer = mpegts.createPlayer(
           { type: "mpegts", url: src.url, isLive: true, cors: true },
           { enableWorker: true, liveBufferLatencyChasing: true, lazyLoadMaxDuration: 4 },

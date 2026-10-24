@@ -2,7 +2,7 @@ import { ExternalLink, Link2, Settings2 } from "lucide-react";
 import { useEffect, useMemo, useRef } from "react";
 import letterboxdLogo from "@/assets/addon-logos/letterboxd.png";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openLinkOut } from "@/lib/social/link-out";
 import { socialPatch } from "@/lib/social/client";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
@@ -118,7 +118,7 @@ function ListRow({ list }: { list: LetterboxdPublishedList }) {
 
 function Body({ data, isOwner }: { data: LetterboxdPublished; isOwner: boolean }) {
   const t = useT();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   return (
     <>
       <Identity
@@ -180,7 +180,7 @@ export function LetterboxdCard({
   published?: LetterboxdPublished | null;
 }) {
   const t = useT();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const lb = useLetterboxd();
 
   const local = useMemo<LetterboxdPublished | null>(() => {

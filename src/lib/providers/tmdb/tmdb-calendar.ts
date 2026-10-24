@@ -1,4 +1,5 @@
 import { get } from "./tmdb-client";
+import { cachedTmdbFind, rememberTmdbFind } from "./tmdb-find-cache";
 import { tmdbBackdropUrl, tmdbPosterThumbUrl } from "./tmdb-image-rungs";
 
 const poster = (p: string | null | undefined) => tmdbPosterThumbUrl(p) ?? null;
@@ -37,15 +38,30 @@ export type TmdbMovieRelease = {
 export async function tmdbFindByImdb(
   key: string,
   ttId: string,
+  type: "movie" | "series",
 ): Promise<{ tvId: number | null; movieId: number | null }> {
+  const findKey = `${ttId}:${type}`;
+  const cached = cachedTmdbFind(findKey);
+  if (cached) {
+    const id = Number(cached.slice(cached.indexOf(":") + 1));
+    return cached.startsWith("tv:") ? { tvId: id, movieId: null } : { tvId: null, movieId: id };
+  }
   const data = await get<{
     tv_results?: Array<{ id: number }>;
     movie_results?: Array<{ id: number }>;
   }>(key, `find/${ttId}`, { external_source: "imdb_id" });
-  return {
-    tvId: data?.tv_results?.[0]?.id ?? null,
-    movieId: data?.movie_results?.[0]?.id ?? null,
-  };
+  const tvId = data?.tv_results?.[0]?.id ?? null;
+  const movieId = data?.movie_results?.[0]?.id ?? null;
+  const hit =
+    type === "series"
+      ? tvId != null
+        ? `tv:${tvId}`
+        : null
+      : movieId != null
+        ? `movie:${movieId}`
+        : null;
+  if (hit) rememberTmdbFind(findKey, hit);
+  return { tvId, movieId };
 }
 
 type TvDetail = {
@@ -95,8 +111,12 @@ export async function tmdbTvUpcoming(
     }
   }
   const episodes: TmdbUpcomingEpisode[] = [];
-  for (const season of seasons) {
-    const sd = await get<SeasonDetail>(key, `tv/${tvId}/season/${season}`);
+  const order = [...seasons];
+  const details = await Promise.all(
+    order.map((season) => get<SeasonDetail>(key, `tv/${tvId}/season/${season}`)),
+  );
+  for (const [i, sd] of details.entries()) {
+    const season = order[i];
     for (const ep of sd?.episodes ?? []) {
       const date = (ep.air_date ?? "").slice(0, 10);
       if (!date || !inWindow(date) || typeof ep.episode_number !== "number") continue;

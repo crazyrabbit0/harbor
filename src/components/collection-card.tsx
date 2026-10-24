@@ -7,7 +7,7 @@ import {
   tmdbSearchCollectionId,
 } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function CollectionCard({
   id,
@@ -21,7 +21,7 @@ export function CollectionCard({
   knownCount?: number | null;
 }) {
   const { settings } = useSettings();
-  const { openCollection } = useView();
+  const { openCollection } = useViewActions();
   const t = useT();
   const ref = useRef<HTMLButtonElement>(null);
   const [inView, setInView] = useState(false);

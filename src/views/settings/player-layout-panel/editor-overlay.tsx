@@ -1,5 +1,5 @@
 import { Film, Maximize, Minimize, Plus, Save, Tv, Users, X } from "../icons";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { captureFocusReturn, tvFocus } from "@/lib/keyboard-navigation";
 import { isBackKey, isVisible } from "@/lib/keyboard-navigation/geometry";
@@ -20,7 +20,15 @@ import {
 } from "@/components/player/transport/control-renderer-stremio";
 import { setPlaybackClock } from "@/lib/player/playback-clock";
 import { useT } from "@/lib/i18n";
-import { DefaultLayout, FauxBackdrop, StremioLayout, TopRow } from "./editor-chrome";
+import {
+  DefaultLayout,
+  DragCtx,
+  DragProvider,
+  FauxBackdrop,
+  StremioLayout,
+  TopRow,
+  type DropSlot,
+} from "./editor-chrome";
 import { buildDefaultCtx, buildStremioCtx, type PlayerMode } from "./editor-mock-ctx";
 import { EditorPanels } from "./editor-panels";
 import { FloatingInspector } from "./floating-inspector";
@@ -32,6 +40,8 @@ const OVERLAY_LABEL = "text-[13px] font-extrabold uppercase leading-[17px] track
 
 type Props = {
   theme: ThemeId;
+  /** Opened from the player: the real video shows through instead of the preview backdrop. */
+  overVideo?: boolean;
   config: PlayerChromeConfig;
   selectedId: PlayerControlId | null;
   onSelect: (id: PlayerControlId | null) => void;
@@ -42,6 +52,7 @@ type Props = {
   onClose: () => void;
   onMoveSlot: (dir: -1 | 1) => void;
   onMoveOrder: (dir: -1 | 1) => void;
+  onDropControl: (id: PlayerControlId, slot: DropSlot, beforeId: PlayerControlId | null) => void;
   onToggleHidden: () => void;
   onResetControl: () => void;
   onSetCustomIcon: (id: PlayerControlId, dataUrl: string | null, state?: string) => void;
@@ -63,6 +74,7 @@ type Props = {
 
 export function EditorOverlay({
   theme,
+  overVideo = false,
   config,
   selectedId,
   onSelect,
@@ -73,6 +85,7 @@ export function EditorOverlay({
   onClose,
   onMoveSlot,
   onMoveOrder,
+  onDropControl,
   onToggleHidden,
   onResetControl,
   onSetCustomIcon,
@@ -120,7 +133,8 @@ export function EditorOverlay({
 
   useEffect(() => {
     document.body.style.overflow = "hidden";
-    setPlaybackClock(1342, 1500);
+    // Over a playing video the real clock drives the preview, so the mock position is skipped.
+    if (!overVideo) setPlaybackClock(1342, 1500);
     const restore = captureFocusReturn();
     const land =
       rootRef.current?.querySelector<HTMLElement>(
@@ -129,9 +143,10 @@ export function EditorOverlay({
     if (land) tvFocus(land);
     return () => {
       document.body.style.overflow = "";
-      setPlaybackClock(0, 0);
+      if (!overVideo) setPlaybackClock(0, 0);
       restore();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -255,18 +270,21 @@ export function EditorOverlay({
       ref={rootRef}
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-[300] flex flex-col bg-black text-white"
+      data-layout-editor=""
+      className={`fixed inset-0 z-[300] flex flex-col text-white ${overVideo ? "bg-transparent" : "bg-black"}`}
     >
       <header
         ref={headerRef}
-        className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 px-8 py-4"
+        className={`flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3 px-8 py-4 ${
+          overVideo ? "bg-black/80 backdrop-blur-md" : ""
+        }`}
       >
         <div className="flex min-w-0 flex-col gap-0.5">
           <span className={`${OVERLAY_LABEL} text-white/60`}>
             {t("Layout editor")} · {theme === "stremio" ? t("Stremio") : t("Default")}
           </span>
           <h2 className="font-display text-[22px] font-medium tracking-tight">
-            {t("Click any control to edit it.")}
+            {t("Click any control to edit it, or drag it to a new spot.")}
           </h2>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -322,86 +340,95 @@ export function EditorOverlay({
         </div>
       </header>
 
-      <HiddenTray
-        config={config}
-        mode={mode}
-        onUnhide={onUnhide}
-        onSelect={onSelect}
-        onEmptied={focusHeader}
-      />
-
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        <FauxBackdrop width={winSize.w} height={winSize.h} sizeLabel={sizeLabel} bg={previewBg} />
-
-        <TopRow
-          theme={theme}
+      <DragProvider onDrop={onDropControl} onSelect={selectControl}>
+        <HiddenTray
           config={config}
-          selectedId={selectedId}
-          onSelect={selectControl}
-          renderOne={renderOne}
-        />
-
-        <EditorPanels
-          config={config}
-          selectedPanelId={selectedPanelId}
-          onSelect={(id) => {
-            onSelectPanel(id);
-            if (id) onSelect(null);
-          }}
+          overVideo={overVideo}
           mode={mode}
+          onUnhide={onUnhide}
+          onSelect={onSelect}
+          onEmptied={focusHeader}
         />
-
-        <FloatingInspector
-          config={config}
-          selectedId={selectedId}
-          onSelect={(id) => {
-            onSelect(id);
-            if (id) onSelectPanel(null);
-          }}
-          selectedPanelId={selectedPanelId}
-          onSelectPanel={onSelectPanel}
-          onSetPanelCorner={onSetPanelCorner}
-          onTogglePanelHidden={onTogglePanelHidden}
-          onMoveSlot={onMoveSlot}
-          onMoveOrder={onMoveOrder}
-          onToggleHidden={onToggleHidden}
-          onResetControl={onResetControl}
-          onSetCustomIcon={onSetCustomIcon}
-          onSetVariant={onSetVariant}
-          previewStates={previewStates}
-          onSetPreviewState={setPreviewState}
-        />
-
-        <div
-          ref={chromeRef}
-          className={
-            theme === "stremio"
-              ? "absolute inset-x-0 bottom-0 z-30 flex flex-col gap-1 bg-gradient-to-t from-black/35 to-transparent px-8 pb-3 pt-12"
-              : `absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2.5 bg-gradient-to-t from-black/70 via-black/25 to-transparent ${
-                  tight ? "px-3 pt-6 pb-3" : "px-7 pt-10 pb-5"
-                }`
-          }
-        >
-          {theme === "default" ? (
-            <DefaultLayout
-              config={config}
-              selectedId={selectedId}
-              onSelect={selectControl}
-              renderOne={renderOne}
-              isLive={mode === "live"}
-              compact={compact}
-            />
-          ) : (
-            <StremioLayout
-              config={config}
-              selectedId={selectedId}
-              onSelect={selectControl}
-              renderOne={renderOne}
-              isLive={mode === "live"}
+        <div className="relative min-h-0 flex-1 overflow-hidden">
+          {!overVideo && (
+            <FauxBackdrop
+              width={winSize.w}
+              height={winSize.h}
+              sizeLabel={sizeLabel}
+              bg={previewBg}
             />
           )}
+
+          <TopRow
+            theme={theme}
+            config={config}
+            selectedId={selectedId}
+            onSelect={selectControl}
+            renderOne={renderOne}
+          />
+
+          <EditorPanels
+            config={config}
+            selectedPanelId={selectedPanelId}
+            onSelect={(id) => {
+              onSelectPanel(id);
+              if (id) onSelect(null);
+            }}
+            mode={mode}
+          />
+
+          <FloatingInspector
+            config={config}
+            selectedId={selectedId}
+            onSelect={(id) => {
+              onSelect(id);
+              if (id) onSelectPanel(null);
+            }}
+            selectedPanelId={selectedPanelId}
+            onSelectPanel={onSelectPanel}
+            onSetPanelCorner={onSetPanelCorner}
+            onTogglePanelHidden={onTogglePanelHidden}
+            onMoveSlot={onMoveSlot}
+            onMoveOrder={onMoveOrder}
+            onToggleHidden={onToggleHidden}
+            onResetControl={onResetControl}
+            onSetCustomIcon={onSetCustomIcon}
+            onSetVariant={onSetVariant}
+            previewStates={previewStates}
+            onSetPreviewState={setPreviewState}
+          />
+
+          <div
+            ref={chromeRef}
+            className={
+              theme === "stremio"
+                ? "absolute inset-x-0 bottom-0 z-30 flex flex-col gap-1 bg-gradient-to-t from-black/35 to-transparent px-8 pb-3 pt-12"
+                : `absolute inset-x-0 bottom-0 z-30 flex flex-col gap-2.5 bg-gradient-to-t from-black/70 via-black/25 to-transparent ${
+                    tight ? "px-3 pt-6 pb-3" : "px-7 pt-10 pb-5"
+                  }`
+            }
+          >
+            {theme === "default" ? (
+              <DefaultLayout
+                config={config}
+                selectedId={selectedId}
+                onSelect={selectControl}
+                renderOne={renderOne}
+                isLive={mode === "live"}
+                compact={compact}
+              />
+            ) : (
+              <StremioLayout
+                config={config}
+                selectedId={selectedId}
+                onSelect={selectControl}
+                renderOne={renderOne}
+                isLive={mode === "live"}
+              />
+            )}
+          </div>
         </div>
-      </div>
+      </DragProvider>
     </div>,
     document.body,
   );
@@ -424,21 +451,27 @@ function controlAppliesToMode(id: PlayerControlId, mode: PlayerMode): boolean {
 
 function HiddenTray({
   config,
+  overVideo,
   mode,
   onUnhide,
   onSelect,
   onEmptied,
 }: {
   config: PlayerChromeConfig;
+  overVideo: boolean;
   mode: PlayerMode;
   onUnhide: (id: PlayerControlId) => void;
   onSelect: (id: PlayerControlId | null) => void;
   onEmptied: () => void;
 }) {
   const t = useT();
+  const dnd = useContext(DragCtx);
   const chipRefs = useRef(new Map<PlayerControlId, HTMLButtonElement>());
   const pending = useRef<PlayerControlId | null>(null);
   const hidden = config.controls.filter((c) => c.hidden && controlAppliesToMode(c.id, mode));
+  const dragging = dnd?.drag ?? null;
+  const dragFromBar = dragging != null && !hidden.some((c) => c.id === dragging.id);
+  const targeted = dragging?.target?.slot === "hidden";
 
   useLayoutEffect(() => {
     const id = pending.current;
@@ -448,11 +481,25 @@ function HiddenTray({
     if (el) tvFocus(el);
   });
 
-  if (hidden.length === 0) return null;
+  if (hidden.length === 0 && !dragFromBar) return null;
   return (
-    <div className="flex shrink-0 flex-wrap items-center gap-3 px-8 pb-3">
+    <div
+      className={`flex shrink-0 flex-wrap items-center gap-3 px-8 pb-3 ${
+        overVideo ? "bg-black/80 backdrop-blur-md" : ""
+      }`}
+    >
       <span className={`shrink-0 ${OVERLAY_LABEL} text-white/60`}>{t("Hidden")}</span>
-      <div className="flex flex-wrap items-center gap-1.5">
+      <div
+        data-drop-slot="hidden"
+        className={`flex min-h-11 min-w-[120px] flex-wrap items-center gap-1.5 rounded-md transition-colors ${
+          dragFromBar ? "outline-2 outline-dashed outline-white/20" : ""
+        } ${targeted && dragFromBar ? "bg-accent/10 outline-accent/70" : ""}`}
+      >
+        {hidden.length === 0 && (
+          <span className="px-3 text-[12px] font-medium text-white/45">
+            {t("Drop here to hide")}
+          </span>
+        )}
         {hidden.map((c, i) => (
           <button
             key={c.id}
@@ -461,15 +508,21 @@ function HiddenTray({
               if (el) chipRefs.current.set(c.id, el);
               else chipRefs.current.delete(c.id);
             }}
+            onPointerDown={(e) => dnd?.begin(c.id, e)}
             onClick={() => {
+              if (dnd?.justDropped()) return;
               const next = hidden[i + 1] ?? hidden[i - 1] ?? null;
               if (next) pending.current = next.id;
               else onEmptied();
               onUnhide(c.id);
               onSelect(c.id);
             }}
-            title={t("Show {label}", { label: t(CONTROL_META[c.id]?.label ?? c.id) })}
-            className="flex h-11 shrink-0 items-center gap-2 rounded-md bg-white/8 ps-3 pe-4 text-[15px] font-medium text-white/80 transition-colors hover:bg-white/15 hover:text-white"
+            title={t("Show {label}, or drag it onto the player", {
+              label: t(CONTROL_META[c.id]?.label ?? c.id),
+            })}
+            className={`flex h-11 shrink-0 cursor-grab items-center gap-2 rounded-md bg-white/8 ps-3 pe-4 text-[15px] font-medium text-white/80 transition-colors hover:bg-white/15 hover:text-white ${
+              dragging?.id === c.id ? "opacity-35" : ""
+            }`}
           >
             <Plus size={16} strokeWidth={2.6} />
             <span className="max-w-[160px] truncate">{t(CONTROL_META[c.id]?.label ?? c.id)}</span>

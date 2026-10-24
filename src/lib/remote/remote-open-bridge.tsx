@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { isBigPictureActive, pushBigPicture } from "@/lib/big-picture";
 import type { Meta } from "@/lib/cinemeta";
 import { useProfiles } from "@/lib/profiles";
-import { useView, type PlayEpisode } from "@/lib/view";
+import { type PlayEpisode, useViewActions } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { resolveLocalPlayVersions } from "@/lib/local-library/playback";
 import { localPlayerSrc } from "@/lib/local-library/player-src";
@@ -50,7 +50,7 @@ function toMeta(d: MetaOpen): Meta {
  * ViewProvider so the desktop opens the detail page or starts playback.
  */
 export function RemoteOpenBridge() {
-  const { openMeta, openPerson, openPicker, openPlayer, openService, setView } = useView();
+  const { openMeta, openPerson, openPicker, openPlayer, openService, setView } = useViewActions();
   const { settings } = useSettings();
   const { selectProfile } = useProfiles();
   useEffect(() => {

@@ -3,7 +3,7 @@ import { NavArrow } from "@/components/nav-arrow";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import type { SearchPerson } from "@/lib/search";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 const CARD_WIDTH = 104;
 const GAP = 16;
@@ -17,7 +17,7 @@ export function PeopleRow({
   onClose: () => void;
   onOpenPerson?: (p: SearchPerson) => void;
 }) {
-  const { openPerson } = useView();
+  const { openPerson } = useViewActions();
   const t = useT();
   const withPhotos = people.filter((p) => p.profile);
   const trackRef = useRef<HTMLDivElement>(null);

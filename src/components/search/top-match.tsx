@@ -5,7 +5,7 @@ import { AwardChips } from "@/components/award-chips";
 import { ResultPoster } from "./result-poster";
 import { useLocalizedOverview } from "@/lib/use-localized-overview";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function TopMatch({
   match,
@@ -16,7 +16,7 @@ export function TopMatch({
   onClose: () => void;
   collection?: { name: string; onOpen: () => void };
 }) {
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const t = useT();
   const yearTxt = match.meta.releaseInfo ?? "";
   const rating = match.voteAverage && match.voteAverage > 0 ? match.voteAverage.toFixed(1) : null;

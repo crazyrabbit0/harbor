@@ -20,7 +20,7 @@ import { useAnilist } from "@/lib/anilist/provider";
 import { useMal } from "@/lib/mal/provider";
 import { useSimkl } from "@/lib/simkl/provider";
 import { useTrakt } from "@/lib/trakt/provider";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { useContentDrag } from "@/lib/window-drag";
 import { useT } from "@/lib/i18n";
@@ -202,7 +202,7 @@ function Header({
   lbConnected: boolean;
 }) {
   const t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const { settings, update } = useSettings();
   return (
     <header className="flex flex-col gap-5">

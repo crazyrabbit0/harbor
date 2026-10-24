@@ -7,6 +7,7 @@ import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useMenuSide } from "../menu-side";
 import { Tooltip } from "./tooltip";
+import { KeyChips } from "./hotkey-label";
 import { watchOutsideMouseDown } from "@/lib/player/overlay-dismiss";
 
 const A4K_OPTIONS: Array<{ id: Anime4kChoice; label: string }> = [
@@ -62,7 +63,7 @@ export function ShaderMenu({
 
   return (
     <div ref={wrap} className="relative">
-      <Tooltip label={t("Shaders")}>
+      <Tooltip label={t("Shaders")} hidden={open}>
         <button
           onClick={() => {
             if (!open) measure();
@@ -95,8 +96,9 @@ export function ShaderMenu({
           <div className="p-2">
             {anime4kAvailable && (
               <>
-                <div className="px-3 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
-                  {t("Anime4K")}
+                <div className="flex items-center justify-between gap-2 px-3 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
+                  <span>{t("Anime4K")}</span>
+                  <KeyChips ids={["playerAnime4kToggle"]} />
                 </div>
                 <div className="mb-1 flex flex-col gap-0.5">
                   {A4K_OPTIONS.map((o) => {
@@ -112,7 +114,11 @@ export function ShaderMenu({
                         }`}
                       >
                         <span className={sel ? "font-medium" : ""}>{t(o.label)}</span>
-                        {sel && <Check size={15} strokeWidth={2.6} className="text-accent" />}
+                        <span className="flex items-center gap-2">
+                          {o.id === "auto" && <KeyChips ids={["playerAnime4kOn"]} />}
+                          {o.id === "off" && <KeyChips ids={["playerAnime4kOff"]} />}
+                          {sel && <Check size={15} strokeWidth={2.6} className="text-accent" />}
+                        </span>
                       </button>
                     );
                   })}

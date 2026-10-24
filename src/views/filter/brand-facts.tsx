@@ -10,7 +10,7 @@ import {
   type BrandTitle,
 } from "@/lib/providers/tmdb/tmdb-brands";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 import { compactMoney } from "./brand-rails";
 import { browsedId, type Browsed } from "./browsed";
@@ -44,7 +44,7 @@ export function useBrandStats(filter: Browsed): {
 type Fact = { key: string; value: string; label: string; title?: BrandTitle; sub?: string };
 
 function FactCard({ fact }: { fact: Fact }) {
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const sub = fact.title ? fact.title.meta.name : fact.sub;
   return (
     <div className="flex min-w-0 flex-col gap-1 rounded-2xl border border-edge-soft bg-elevated/40 px-4 py-3.5">
@@ -90,7 +90,7 @@ export function BrandFacts({
 }) {
   const t = useT();
   const uiLang = useUiLanguage();
-  const { openFilter } = useView();
+  const { openFilter } = useViewActions();
   const region = useMemo(() => {
     try {
       const names = new Intl.DisplayNames([uiLang], { type: "region" });

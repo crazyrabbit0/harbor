@@ -4,6 +4,7 @@ import { addonAccepts, userAddons, type Addon } from "./addons";
 import { loadInstalled } from "./addon-store";
 import { readActiveStremioAuthKey } from "./auth";
 import { lruSet } from "./cache";
+import { storedSettings } from "./stored-settings";
 
 const ADDON_TIMEOUT_MS = 4000;
 const PREFERRED_CACHE_MAX = 500;
@@ -15,12 +16,7 @@ export type PreferredVideo = NonNullable<Meta["videos"]>[number];
 const preferredCache = new Map<string, Promise<Meta | null>>();
 
 export function preferCustomMeta(): boolean {
-  try {
-    const raw = localStorage.getItem("harbor.settings");
-    return raw ? JSON.parse(raw).preferCustomMetaAddon === true : false;
-  } catch {
-    return false;
-  }
+  return storedSettings().preferCustomMetaAddon === true;
 }
 
 function localAddons(): Addon[] {

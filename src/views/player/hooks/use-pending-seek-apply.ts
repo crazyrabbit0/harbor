@@ -31,24 +31,32 @@ export function usePendingSeekApply(params: {
     const t = target <= 5 || target >= durationSec - 20 ? 0 : Math.min(target, durationSec - 1);
     let issued = false;
     let applied = false;
-    const off = b.subscribe((snap) => {
-      // seek() queues a native command. Keep automatic intro/outro actions blocked
-      // until the player reports the requested position, including while paused.
-      if (
-        !issued ||
-        applied ||
-        bridgeRef.current !== b ||
-        snap.status === "loading" ||
-        !Number.isFinite(snap.positionSec) ||
-        Math.abs(snap.positionSec - t) > 1
-      )
-        return;
+    let alreadyThere = false;
+    const atTarget = (snap: { status: string; positionSec: number }) =>
+      snap.status !== "loading" &&
+      Number.isFinite(snap.positionSec) &&
+      Math.abs(snap.positionSec - t) <= 1;
+    const apply = () => {
       applied = true;
       notifyMediaSeeked(t);
       onApplied.current();
       if (!inRoomRef.current && !startPaused) b.play().catch(() => {});
+    };
+    const off = b.subscribe((snap) => {
+      if (!issued) {
+        alreadyThere = atTarget(snap);
+        return;
+      }
+      // Intro/outro automation stays blocked until the player reports the requested position, even while paused.
+      if (applied || bridgeRef.current !== b || !atTarget(snap)) return;
+      apply();
     });
     issued = true;
+    // A load that started at the resume point (start=) is already there; seeking again restarts the exact seek and its decode.
+    if (alreadyThere && t > 0) {
+      apply();
+      return off;
+    }
     b.seek(t);
     return off;
   }, [pendingSeekSec, durationSec, bridgeRef, inRoomRef, sourceKey, startPaused]);

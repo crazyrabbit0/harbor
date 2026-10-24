@@ -1,11 +1,11 @@
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { SharedCrewFilm } from "@/lib/providers/wikidata-graph";
 import { GraphPanel, GraphPanelRow, useAnchor } from "./graph-panel";
 
 export function SharedCrewLine({ films }: { films: SharedCrewFilm[] }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const { anchor, open, close } = useAnchor();
 
   if (films.length === 0) return null;

@@ -5,7 +5,7 @@ import { PickCard } from "@/components/pick-card";
 import { useT } from "@/lib/i18n";
 import { curatedList, itemMeta } from "@/lib/curated/registry";
 import type { CuratedList, ListBrand } from "@/lib/curated/types";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
 
 const BRAND_MARK: Record<ListBrand, { src: string; alt: string; height: number }> = {
@@ -31,7 +31,7 @@ function ListHeading({ list, label }: { list: CuratedList; label: string }) {
 
 export function CuratedListRow({ listId, title }: { listId: string; title?: string }) {
   const t = useT();
-  const { openCuratedList } = useView();
+  const { openCuratedList } = useViewActions();
   const list = curatedList(listId);
   const cards = useMemo(
     () => (list ? list.head.map((item) => ({ item, meta: itemMeta(list, item) })) : []),

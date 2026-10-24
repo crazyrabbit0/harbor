@@ -12,6 +12,7 @@ import {
   removeCustomTheme,
   saveCustomTheme,
   subscribeCustomThemes,
+  themeNavPatch,
   type CustomTheme,
 } from "@/lib/custom-themes";
 import { downloadText } from "@/lib/download-text";
@@ -126,19 +127,7 @@ export function CustomThemesSection({
   const activateTheme = (id: string, nav?: ThemePreset["navCustomization"]) => {
     const next = getThemeById(id);
     const bg = next?.background;
-    const held = settings.navCustomizationOwn;
-    const navPatch = nav
-      ? {
-          navCustomization: {
-            order: nav.order ?? [],
-            hidden: nav.hidden ?? [],
-            renamed: nav.renamed ?? {},
-          },
-          navCustomizationOwn: held ?? settings.navCustomization,
-        }
-      : held
-        ? { navCustomization: held, navCustomizationOwn: null }
-        : {};
+    const navPatch = themeNavPatch(settings, nav);
     update({
       theme: {
         ...settings.theme,

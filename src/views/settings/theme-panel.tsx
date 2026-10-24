@@ -363,12 +363,7 @@ function TopbarAppearanceRow() {
             { value: "glass", label: t("Liquid glass") },
             { value: "filled", label: t("Filled") },
           ]}
-          onChange={(topbarAppearance) =>
-            update({
-              topbarAppearance,
-              transparentTopBar: topbarAppearance === "transparent",
-            })
-          }
+          onChange={(topbarAppearance) => update({ topbarAppearance })}
         />
         <WindowControlArt style={settings.topbarAppearance} />
       </div>

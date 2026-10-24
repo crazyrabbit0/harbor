@@ -6,7 +6,7 @@ import { ArrowUp, ArrowRight, CalendarDays, Star } from "lucide-react";
 import { SportsRefreshButton } from "./sports/refresh-button";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useView, useViewActions } from "@/lib/view";
 import type { EsportsMatch } from "@/lib/sports/esports-feeds";
 import { officialBroadcastSource } from "@/lib/sports/esports-streams";
 import { getGroupLabel, getLeagueLabel, type SportsGame } from "@/lib/sports/espn";
@@ -66,7 +66,7 @@ export function SportsView({ active = false }: { active?: boolean }) {
 }
 
 function LinkedEsportsEvent({ match, active }: { match: EsportsMatch; active: boolean }) {
-  const { goBack, openPlayer } = useView();
+  const { goBack, openPlayer } = useViewActions();
   return (
     <main className="sh-page">
       <Suspense fallback={null}>
@@ -91,7 +91,7 @@ function SportsHubView({ active = false }: { active?: boolean }) {
   const locale = useUiLanguage();
   const { settings } = useSettings();
   const fav = useFavourites();
-  const { openMatchDetail } = useView();
+  const { openMatchDetail } = useViewActions();
   const scrollRef = useRef<HTMLElement>(null);
   useScrollMemory("sports", scrollRef, active);
   const { ref: sportRail, handlers: sportHandlers } = useDragScroll<HTMLDivElement>();

@@ -11,6 +11,7 @@ import { SportsEventSkeleton } from "@/views/sports/sports-skeletons";
 import { SportsReminderLoop } from "@/components/sports-reminder-loop";
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { lazyView as lazy } from "@/lib/lazy-view";
+import type { GameMediaTarget } from "@/lib/games/cross-media";
 import { startIdleAway } from "@/lib/social/idle-away";
 import { FloatingBack } from "@/chrome/floating-back";
 import { ensureStaticHeroArt } from "@/lib/providers/anime-hero-art-static";
@@ -301,39 +302,30 @@ function useViewPreloader(tmdbKey: string) {
       typeof win.requestIdleCallback === "function"
         ? win.requestIdleCallback(cb, { timeout: 2500 })
         : window.setTimeout(cb, 1200);
-    schedule(() => {
+    // Prefetch a few views per idle slot, most-visited first; one burst of all of them blocked input for ~150 ms.
+    const batches: (() => unknown)[][] = [
+      [importDetail, importPlayPicker, importPlayer],
+      [importMovies, importShows, importAnime],
+      [importDiscover, importSettings, importLibrary],
+      [importLive, importAddons, importCatalogs],
+      [importPerson, importPeople, importFilter, importCalendar],
+      [importQueue, importAward, importAnimeAward, importService],
+      [importOnboarding, importPlugins, importCommunityCollections, importDownloads],
+      [importGrid, importWrapped, importKids],
+    ];
+    const next = () => {
       if (cancelled) return;
-      void importDetail();
-      void importPlayPicker();
-      void importPlayer();
-      void importSettings();
-      void importAddons();
-      void importDiscover();
-      void importPerson();
-      void importPeople();
-      void importFilter();
-      void importCalendar();
-      void importMovies();
-      void importShows();
-      void importLive();
-      void importAnime();
-      void importQueue();
-      void importAward();
-      void importAnimeAward();
-      void importService();
-      void importOnboarding();
-      void importCatalogs();
-      void importPlugins();
-      void importLibrary();
-      void importCommunityCollections();
-      void importDownloads();
-      void importGrid();
-      void importWrapped();
-      void importKids();
-      if (keyRef.current) {
-        void import("@/lib/feed/pool").then((m) => m.getPool(keyRef.current)).catch(() => {});
+      const batch = batches.shift();
+      if (!batch) {
+        if (keyRef.current) {
+          void import("@/lib/feed/pool").then((m) => m.getPool(keyRef.current)).catch(() => {});
+        }
+        return;
       }
-    });
+      for (const load of batch) void load();
+      schedule(next);
+    };
+    schedule(next);
     return () => {
       cancelled = true;
     };
@@ -1529,6 +1521,23 @@ function Shell({ onReady }: { onReady?: () => void }) {
   const ebookAlive = useIdleEvict(ebookTop);
   const peopleAlive = useIdleEvict(peopleTop);
 
+  const gameCloudKeys = useMemo(
+    () => ({ rd: settings.rdKey, tb: settings.tbKey, pm: settings.pmKey, ad: settings.adKey }),
+    [settings.rdKey, settings.tbKey, settings.pmKey, settings.adKey],
+  );
+  const openGameSourceSettings = useCallback(
+    () => openSettings("streaming", { tab: "services", anchor: "Debrid services" }),
+    [openSettings],
+  );
+  const openSportsHome = useCallback(() => openSportsEvent(), [openSportsEvent]);
+  const openGameMedia = useCallback(
+    (target: GameMediaTarget) => {
+      if (target.kind === "book") openEBook(target.id);
+      else openMeta({ id: target.id, type: target.kind, name: target.name, poster: target.poster });
+    },
+    [openEBook, openMeta],
+  );
+
   const gameDockVisible =
     !kid && !kidsTop && !playerActive && !pickerTop && !bigPicture && !immersive && !chromeHidden;
   return (
@@ -1750,28 +1759,14 @@ function Shell({ onReady }: { onReady?: () => void }) {
                           layout,
                         ))
                     }
-                    cloudKeys={{
-                      rd: settings.rdKey,
-                      tb: settings.tbKey,
-                      pm: settings.pmKey,
-                      ad: settings.adKey,
-                    }}
-                    openSourceSettings={() => openSettings("streaming")}
+                    cloudKeys={gameCloudKeys}
+                    openSourceSettings={openGameSourceSettings}
                     key={activeProfile?.id ?? "default"}
                     active={gamesTop}
                     profileId={activeProfile?.id ?? "default"}
                     openEsports={sportsEnabled ? openSportsEvent : undefined}
-                    openSports={sportsEnabled ? () => openSportsEvent() : undefined}
-                    openMedia={(target) => {
-                      if (target.kind === "book") openEBook(target.id);
-                      else
-                        openMeta({
-                          id: target.id,
-                          type: target.kind,
-                          name: target.name,
-                          poster: target.poster,
-                        });
-                    }}
+                    openSports={sportsEnabled ? openSportsHome : undefined}
+                    openMedia={openGameMedia}
                   />
                 </Suspense>
               </div>

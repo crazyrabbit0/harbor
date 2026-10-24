@@ -254,8 +254,7 @@ export function RatingsMatrix({
   ];
 
   const setCard = (src: Source, next: boolean) => {
-    if (src.id === "simkl") update({ showSimklBadge: next, simklShowCommunityRatings: next });
-    else update({ [src.cardKey]: next } as Partial<Settings>);
+    update({ [src.cardKey]: next } as Partial<Settings>);
   };
 
   return (

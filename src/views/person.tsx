@@ -15,7 +15,7 @@ import { mergeBundledPersonAwards } from "@/lib/awards-history";
 import { useRankings } from "@/lib/rankings";
 import { useSettings } from "@/lib/settings";
 import { useTopRankModal, type TopRankDept } from "@/lib/top-rank-modal";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { AwardLaurelStrip } from "./person/award-laurel-strip";
 import { Bio } from "./person/bio";
@@ -46,7 +46,7 @@ export function PersonView({ personId }: { personId: number }) {
   const t = useT();
   const { settings } = useSettings();
   const { rank } = useRankings();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const { open: openTopRank } = useTopRankModal();
   const initialCached = tmdbPersonCached(personId);
   const [person, setPerson] = useState<PersonDetail | null>(initialCached ?? null);

@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { BackToTop } from "@/components/back-to-top";
 import { posterPlate } from "@/components/poster";
 import { ResultPoster } from "@/components/search/result-poster";
@@ -440,7 +440,7 @@ function CommunityDetail({
   onBack: () => void;
 }) {
   const t = useT();
-  const { openMeta, openManga } = useView();
+  const { openMeta, openManga } = useViewActions();
   const scrollRef = useRef<HTMLElement>(null);
   const items = collection.items;
   const seed = collection.id + collection.name;

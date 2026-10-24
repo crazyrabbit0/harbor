@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Clapperboard } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { searchCinemeta } from "@/lib/search";
 import { bestFilmMatch, soundtrackFilmTitle } from "@/lib/music/soundtrack";
 import type { Meta } from "@/lib/cinemeta";
@@ -17,7 +17,7 @@ export function MusicSoundtrackLink({
   release?: string;
 }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const film = soundtrackFilmTitle(title, album, release);
   const [found, setFound] = useState<{ film: string; meta: Meta | null } | null>(null);
   useEffect(() => {

@@ -1,4 +1,5 @@
 import {
+  memo,
   Children,
   createContext,
   isValidElement,
@@ -17,7 +18,7 @@ import { ThreeLiquidGlassSurface } from "@/components/ThreeLiquidGlassSurface";
 import { NavChevron } from "./nav-arrow";
 import { useT, useUiLanguage, isRtl as checkRtl } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { resetPosterDock as resetPosterDockItems, updatePosterDock } from "@/lib/poster-dock";
 import { scrollDeltaToRevealCard } from "@/lib/poster-backdrop-expansion";
 import { RowCardExpansionProvider } from "@/components/row-card-expansion";
@@ -54,25 +55,53 @@ export function usePosterRow(min = 144, kids = false): { min: number; shape: Row
 const RowTrackContext = createContext<HTMLDivElement | null>(null);
 export const ScrollRootContext = createContext<HTMLElement | null>(null);
 
-function LazyChild({
+const LazyChild = memo(
+  LazyChildImpl,
+  (a, b) =>
+    a.children === b.children &&
+    a.eager === b.eager &&
+    a.rowSeen === b.rowSeen &&
+    a.shape === b.shape &&
+    a.span === b.span &&
+    sameExpansion(a.expansion, b.expansion),
+);
+
+type Expansion = {
+  index: number;
+  baseWidth: number;
+  expandedWidth?: number;
+  expanded: boolean;
+  onExpand: (index: number, width: number) => void;
+  onCollapse: (index: number) => void;
+};
+
+// The row rebuilds this object every render, so compare it by value or every card redraws with the row.
+function sameExpansion(a?: Expansion, b?: Expansion): boolean {
+  if (!a || !b) return a === b;
+  return (
+    a.index === b.index &&
+    a.baseWidth === b.baseWidth &&
+    a.expandedWidth === b.expandedWidth &&
+    a.expanded === b.expanded &&
+    a.onExpand === b.onExpand &&
+    a.onCollapse === b.onCollapse
+  );
+}
+
+function LazyChildImpl({
   children,
   eager,
+  rowSeen,
   shape,
   span,
   expansion,
 }: {
   children: ReactNode;
   eager: boolean;
+  rowSeen: boolean;
   shape: RowShape;
   span?: string;
-  expansion?: {
-    index: number;
-    baseWidth: number;
-    expandedWidth?: number;
-    expanded: boolean;
-    onExpand: (index: number, width: number) => void;
-    onCollapse: (index: number) => void;
-  };
+  expansion?: Expansion;
 }) {
   const root = useContext(RowTrackContext);
   const [visible, setVisible] = useState(eager);
@@ -143,7 +172,7 @@ function LazyChild({
             : undefined
       }
     >
-      {visible ? (
+      {visible && rowSeen ? (
         expansion ? (
           <RowCardExpansionProvider
             index={expansion.index}
@@ -250,7 +279,7 @@ export function Row({
 }) {
   const { settings } = useSettings();
   const t = useT();
-  const { rememberRowScroll, recallRowScroll } = useView();
+  const { rememberRowScroll, recallRowScroll } = useViewActions();
   const lang = useUiLanguage();
   const rtl = checkRtl(lang);
   const tvCards =
@@ -280,10 +309,15 @@ export function Row({
   });
 
   const [near, setNear] = useState(false);
+  // Rows further down the page draw skeletons until they come within 600px, so opening a page renders only its first screen.
+  const [seen, setSeen] = useState(alwaysActive);
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    return observeWithin(el, "600px", (e) => setNear(e.isIntersecting));
+    return observeWithin(el, "600px", (e) => {
+      setNear(e.isIntersecting);
+      if (e.isIntersecting) setSeen(true);
+    });
   }, []);
   const measure = () => {
     const container = containerRef.current;
@@ -531,6 +565,10 @@ export function Row({
     el.style.scrollSnapType = "none";
     glideTo(el, target, false);
   };
+  const scrollRef = useRef(scroll);
+  scrollRef.current = scroll;
+  const scrollPrev = useCallback(() => scrollRef.current(-1), []);
+  const scrollNext = useCallback(() => scrollRef.current(1), []);
 
   const rafId = useRef<number | null>(null);
   const strideRef = useRef(effMin + GAP);
@@ -823,6 +861,7 @@ export function Row({
               return (
                 <LazyChild
                   eager={alwaysActive || i < EAGER_COUNT}
+                  rowSeen={seen}
                   shape={effShape}
                   span={span}
                   expansion={
@@ -844,14 +883,14 @@ export function Row({
             })}
           </div>
         </RowTrackContext.Provider>
-        <EdgeArrow side="left" visible={canPrev} always={arrowsAlways} onClick={() => scroll(-1)} />
-        <EdgeArrow side="right" visible={canNext} always={arrowsAlways} onClick={() => scroll(1)} />
+        <EdgeArrow side="left" visible={canPrev} always={arrowsAlways} onClick={scrollPrev} />
+        <EdgeArrow side="right" visible={canNext} always={arrowsAlways} onClick={scrollNext} />
       </div>
     </div>
   );
 }
 
-function EdgeArrow({
+const EdgeArrow = memo(function EdgeArrow({
   side,
   visible,
   always = false,
@@ -936,4 +975,4 @@ function EdgeArrow({
       </button>
     </div>
   );
-}
+});

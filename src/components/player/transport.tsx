@@ -29,6 +29,7 @@ import {
 import { renderControl, type ControlContext } from "./transport/control-renderer";
 import { SongIdToast } from "@/components/song-id-toast";
 import { useCastModalPlay } from "./use-cast-modal-play";
+import type { PlayerExtras } from "./transport/player-extras";
 
 // This is the mouse-era transport. Big Picture suppresses it outright and
 // renders views/big-picture/player instead, so nothing here scales for ten feet.
@@ -97,6 +98,7 @@ export function Transport({
   onOpenDvr,
   sleep,
   homeServerQualityControl,
+  extras,
 }: {
   snap: PlayerSnapshot;
   isLive?: boolean;
@@ -162,6 +164,7 @@ export function Transport({
   onOpenDvr?: () => void;
   sleep?: import("@/views/player/hooks/use-sleep-timer").SleepTimerState;
   homeServerQualityControl?: import("react").ReactNode;
+  extras?: PlayerExtras;
 }) {
   const t = useT();
   const { settings } = useSettings();
@@ -289,6 +292,7 @@ export function Transport({
         onOpenDvr={onOpenDvr}
         sleep={sleep}
         homeServerQualityControl={homeServerQualityControl}
+        extras={extras}
       />
     );
   }
@@ -424,6 +428,7 @@ export function Transport({
     onAnime4kMode,
     anime4kAvailable,
     homeServerQualityControl,
+    extras,
   };
   const fadeClassName = `transition-opacity duration-300 ${visible ? "opacity-100" : "opacity-0"}`;
   const renderFadedControl = (id: PlayerControlId) => {
@@ -436,12 +441,9 @@ export function Transport({
       <SongIdToast />
       <div
         data-tauri-drag-region={fullscreen ? undefined : ""}
-        className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between px-7 pt-4 pb-8"
+        className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-start justify-between px-7 pt-4 pb-16"
       >
-        <div
-          aria-hidden
-          className={`absolute inset-0 bg-gradient-to-b from-black/55 via-black/15 to-transparent ${fadeClassName}`}
-        />
+        <div aria-hidden className={`player-scrim-top absolute inset-0 ${fadeClassName}`} />
         <div className="pointer-events-auto relative flex items-start gap-2">
           {controlsInSlot(chromeConfig, "top-left").map((c) => (
             <Fragment key={c.id}>{renderFadedControl(c.id)}</Fragment>
@@ -460,13 +462,10 @@ export function Transport({
         ref={controlsRef}
         dir="ltr"
         className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-2.5 ${
-          tight ? "px-3 pt-6 pb-3" : "px-7 pt-10 pb-5"
+          tight ? "px-3 pt-10 pb-3" : "px-7 pt-20 pb-5"
         }`}
       >
-        <div
-          aria-hidden
-          className={`absolute inset-0 bg-gradient-to-t from-black/70 via-black/25 to-transparent ${fadeClassName}`}
-        />
+        <div aria-hidden className={`player-scrim-bottom absolute inset-0 ${fadeClassName}`} />
         <div dir="ltr" className="pointer-events-auto relative flex items-center gap-3">
           {isLiveChannel ? (
             <>

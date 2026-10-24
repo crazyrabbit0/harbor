@@ -51,6 +51,21 @@ import { renderCustomIconControlStremio } from "./custom-icon-renderer";
 import { WindowControlButtons } from "./window-control-buttons";
 import { IdentifySongButton } from "@/components/identify-song-button";
 import { FullscreenClock } from "@/components/player/fullscreen-clock";
+import { ExtraControl, isExtraControl, type ExtraButtonStyle } from "./extra-controls";
+import type { PlayerExtras } from "./player-extras";
+import { withHotkey } from "./hotkey-label";
+
+const stremioExtraButton: ExtraButtonStyle = ({
+  onClick,
+  ariaLabel,
+  active,
+  disabled,
+  children,
+}) => (
+  <StremioBtn onClick={onClick} ariaLabel={ariaLabel} active={active} disabled={disabled}>
+    {children}
+  </StremioBtn>
+);
 
 function qualityInfoOn(): boolean {
   try {
@@ -140,6 +155,7 @@ export type StremioRenderCtx = {
   onDownloadReset?: () => void;
   onOpenDvr?: () => void;
   homeServerQualityControl?: ReactNode;
+  extras?: PlayerExtras;
 };
 
 function getStremioState(id: PlayerControlId, ctx: StremioRenderCtx): string | undefined {
@@ -174,6 +190,21 @@ export function RenderedStremioControl({
   const tr = useT();
   const state = getStremioState(id, ctx);
   const iconUrl = getCustomIcon(ctx.customIcons, id, state);
+  if (isExtraControl(id)) {
+    return (
+      <ExtraControl
+        id={id}
+        ctx={{
+          extras: ctx.extras,
+          durationSec: ctx.snap.durationSec,
+          isLiveChannel: ctx.isLiveChannel,
+          editing: ctx.editing,
+          Button: stremioExtraButton,
+          iconSize: 26,
+        }}
+      />
+    );
+  }
   if (iconUrl) {
     const custom = renderCustomIconControlStremio(id, ctx, iconUrl);
     if (custom !== undefined) return <>{custom}</>;
@@ -182,7 +213,7 @@ export function RenderedStremioControl({
     case "back":
       if (!ctx.onBack) return null;
       return (
-        <Tooltip label={tr("Back")} side="bottom">
+        <Tooltip label={withHotkey(tr("Back"), "playerClose")} side="bottom">
           <StremioBtn onClick={ctx.onBack} ariaLabel={tr("Back")}>
             <ChevronLeft size={30} strokeWidth={2} />
           </StremioBtn>
@@ -263,7 +294,7 @@ export function RenderedStremioControl({
       );
     case "play-pause":
       return (
-        <Tooltip label={ctx.playing ? tr("Pause") : tr("Play")}>
+        <Tooltip label={withHotkey(ctx.playing ? tr("Pause") : tr("Play"), "playerPlayPause")}>
           <StremioBtn onClick={ctx.onPlayPause} ariaLabel={ctx.playing ? tr("Pause") : tr("Play")}>
             {ctx.playing ? (
               <Pause size={32} strokeWidth={2} fill="currentColor" />
@@ -276,7 +307,7 @@ export function RenderedStremioControl({
     case "prev-episode":
       if (!ctx.showEpisodeNav) return null;
       return (
-        <Tooltip label={tr("Previous episode")}>
+        <Tooltip label={withHotkey(tr("Previous episode"), "playerPrevEpisode")}>
           <StremioBtn
             onClick={ctx.onPrevEp}
             ariaLabel={tr("Previous episode")}
@@ -289,7 +320,7 @@ export function RenderedStremioControl({
     case "next-episode":
       if (!ctx.showEpisodeNav) return null;
       return (
-        <Tooltip label={tr("Next episode")}>
+        <Tooltip label={withHotkey(tr("Next episode"), "playerNextEpisode")}>
           <StremioBtn
             onClick={ctx.onNextEp}
             ariaLabel={tr("Next episode")}
@@ -329,7 +360,13 @@ export function RenderedStremioControl({
     case "pick-another":
       if (!ctx.canPickAnother) return null;
       return (
-        <Tooltip label={ctx.isLiveChannel ? tr("TV Guide") : tr("Switch stream")}>
+        <Tooltip
+          label={
+            ctx.isLiveChannel
+              ? withHotkey(tr("TV Guide"), "playerTvGuide")
+              : withHotkey(tr("Switch stream"), "playerStreamSwitcher")
+          }
+        >
           <StremioBtn
             onClick={ctx.onPickAnother}
             ariaLabel={ctx.isLiveChannel ? tr("TV Guide") : tr("Switch stream")}
@@ -473,7 +510,7 @@ export function RenderedStremioControl({
       );
     case "screenshot":
       return (
-        <Tooltip label={tr("Screenshot")}>
+        <Tooltip label={withHotkey(tr("Screenshot"), "playerScreenshot")}>
           <StremioBtn onClick={ctx.onScreenshot} ariaLabel={tr("Screenshot")}>
             <Camera size={26} strokeWidth={1.9} />
           </StremioBtn>
@@ -484,7 +521,7 @@ export function RenderedStremioControl({
     case "pip":
       if (!ctx.capabilities.pictureInPicture) return null;
       return (
-        <Tooltip label={tr("Picture in Picture")}>
+        <Tooltip label={withHotkey(tr("Picture in Picture"), "playerPip")}>
           <StremioBtn onClick={ctx.onPiP} ariaLabel={tr("Picture in Picture")}>
             <PictureInPicture2 size={26} strokeWidth={1.9} />
           </StremioBtn>
@@ -493,7 +530,13 @@ export function RenderedStremioControl({
     case "fullscreen":
       if (!ctx.onFullscreen) return null;
       return (
-        <Tooltip label={ctx.fullscreen ? tr("Exit fullscreen") : tr("Fullscreen")} side="bottom">
+        <Tooltip
+          label={withHotkey(
+            ctx.fullscreen ? tr("Exit fullscreen") : tr("Fullscreen"),
+            "playerFullscreen",
+          )}
+          side="bottom"
+        >
           <StremioBtn onClick={ctx.onFullscreen} ariaLabel={tr("Fullscreen")}>
             {ctx.fullscreen ? (
               <Minimize size={28} strokeWidth={2} />

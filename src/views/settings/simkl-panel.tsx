@@ -128,7 +128,7 @@ export function SimklPanel() {
               label={t("Display Simkl Community Ratings")}
               sub={t("Display SIMKL community score badge on details pages.")}
               value={settings.showSimklBadge}
-              onChange={(val) => update({ showSimklBadge: val, simklShowCommunityRatings: val })}
+              onChange={(val) => update({ showSimklBadge: val })}
               leading={<Star size={20} strokeWidth={2.1} />}
             />
 
@@ -289,7 +289,6 @@ export function SimklPanel() {
                     update({
                       useSimklAvatar: false,
                       simklScrobbleEnabled: true,
-                      simklShowCommunityRatings: true,
                       simklEnableUserRatings: true,
                       simklHomeRailsEnabled: false,
                       simklUpNextRailEnabled: false,

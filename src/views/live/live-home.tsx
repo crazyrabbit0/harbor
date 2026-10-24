@@ -10,7 +10,7 @@ import { clearCountries, toggleCountry, useCountryPrefs } from "@/lib/iptv/count
 import { useFavorites } from "@/lib/iptv/favorites";
 import { DEFAULT_SPORTS_LEAGUES, LEAGUES } from "@/lib/sports/espn";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useChannelHydration } from "./hooks/use-channel-hydration";
 import { CountryBar } from "./live-home/country-bar";
 import { SportsMarquee } from "./live-home/sports/sports-marquee";
@@ -47,7 +47,7 @@ export function LiveHome({
   onOpenCategory: (group: string) => void;
 }) {
   const t = useT();
-  const { openMatchDetail } = useView();
+  const { openMatchDetail } = useViewActions();
   const { spotlight, guide, rails, categoryRails, countries } = useLiveHome({
     channels,
     epg,

@@ -1143,9 +1143,8 @@ const SETTINGS_OPTIONS: SettingsOption[] = [
   },
   {
     label: "Player controls in Big Picture",
-    section: "hotkeys",
-    tab: "behaviour",
-    anchorTitle: "Big Picture",
+    section: "bigPicture",
+    anchorTitle: "Interface",
     keywords: [
       "big picture player",
       "ten foot player",
@@ -3245,7 +3244,7 @@ const SETTINGS_OPTIONS: SettingsOption[] = [
     label: "games.dock.settingTitle",
     section: "theme",
     tab: "interface",
-    anchorTitle: "games.dock.settingTitle",
+    anchorTitle: "Games",
     keywords: [
       "games",
       "quick game library",
@@ -3461,8 +3460,9 @@ const SETTINGS_OPTIONS: SettingsOption[] = [
   },
   {
     label: "Picture in picture style",
-    section: "basics",
-    anchorTitle: "Picture in picture style",
+    section: "player",
+    tab: "play",
+    anchorTitle: "Picture in picture",
     keywords: [
       "pip",
       "picture in picture",
@@ -4394,7 +4394,7 @@ const SETTINGS_OPTIONS: SettingsOption[] = [
     keywords: ["open profile", "anilist profile", "view profile", "profile page", "my anilist"],
   },
   {
-    label: "Sync watch progress",
+    label: "Sync AniList progress",
     section: "trackers",
     tab: "anilist",
     anchorTitle: "Tracking what you watch",
@@ -5379,7 +5379,7 @@ const SETTINGS_OPTIONS: SettingsOption[] = [
     label: "Subtitle size",
     section: "subtitles",
     tab: "look",
-    anchorTitle: "Subtitle style",
+    anchorTitle: "Text",
     keywords: ["size", "font size", "bigger subtitles", "text size", "small subtitles"],
   },
   {
@@ -6790,18 +6790,18 @@ const SETTINGS_OPTIONS: SettingsOption[] = [
     keywords: ["fast forward", "arrow right", "jump ahead", "skip forward"],
   },
   {
-    label: "Seek back 30s",
+    label: "Long seek back",
     section: "hotkeys",
     tab: "keys",
     anchorTitle: "Player",
-    keywords: ["back thirty seconds", "comma key", "big rewind", "30 second jump"],
+    keywords: ["back thirty seconds", "big rewind", "30 second jump", "long rewind"],
   },
   {
-    label: "Seek forward 30s",
+    label: "Long seek forward",
     section: "hotkeys",
     tab: "keys",
     anchorTitle: "Player",
-    keywords: ["forward thirty seconds", "period key", "big skip", "30 second jump"],
+    keywords: ["forward thirty seconds", "big skip", "30 second jump", "long skip"],
   },
   {
     label: "Previous frame",
@@ -9089,6 +9089,41 @@ const SETTINGS_OPTIONS: SettingsOption[] = [
     ],
   },
   {
+    label: "Long seek",
+    section: "hotkeys",
+    tab: "behaviour",
+    anchorTitle: "Behavior",
+    keywords: [
+      "long seek",
+      "big jump",
+      "skip 30 seconds",
+      "thirty seconds",
+      "large seek",
+      "seek step",
+    ],
+  },
+  {
+    label: "Player captures",
+    section: "advanced",
+    tab: "system",
+    anchorTitle: "Player captures",
+    keywords: [
+      "screenshot folder",
+      "gif folder",
+      "clip folder",
+      "frame grab folder",
+      "where screenshots go",
+      "capture location",
+    ],
+  },
+  {
+    label: "Clip length",
+    section: "hotkeys",
+    tab: "behaviour",
+    anchorTitle: "Behavior",
+    keywords: ["clip length", "save clip", "video clip", "last 30 seconds", "clip seconds"],
+  },
+  {
     label: "Short seek back",
     section: "hotkeys",
     tab: "keys",
@@ -10096,9 +10131,8 @@ const SETTINGS_OPTIONS: SettingsOption[] = [
   },
   {
     label: "Show the Big Picture button",
-    section: "hotkeys",
-    tab: "behaviour",
-    anchorTitle: "Big Picture",
+    section: "bigPicture",
+    anchorTitle: "Interface",
     keywords: ["big picture button", "tv mode button", "hide big picture", "ten foot"],
   },
   {

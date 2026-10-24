@@ -6,7 +6,7 @@ import {
   type ThemeSettings,
 } from "@/lib/theme";
 import { languageName } from "@/lib/subtitles/language";
-import { sanitizeSeekStep } from "@/lib/seek-step";
+import { sanitizeClipLength, sanitizeSeekStep } from "@/lib/seek-step";
 import { migrateModelId, providerTabFor } from "@/lib/ai-models";
 import {
   sanitizeFullscreenClockFormat,
@@ -485,6 +485,18 @@ function parseStoredSettings(raw: string | null): Settings {
         parsed.seekForwardStepShortSec,
         DEFAULT.seekForwardStepShortSec,
       ),
+      seekBackStepLongSec: sanitizeSeekStep(
+        parsed.seekBackStepLongSec,
+        DEFAULT.seekBackStepLongSec,
+      ),
+      seekForwardStepLongSec: sanitizeSeekStep(
+        parsed.seekForwardStepLongSec,
+        DEFAULT.seekForwardStepLongSec,
+      ),
+      clipLengthSec: sanitizeClipLength(parsed.clipLengthSec, DEFAULT.clipLengthSec),
+      screenshotDir: typeof parsed.screenshotDir === "string" ? parsed.screenshotDir : "",
+      gifDir: typeof parsed.gifDir === "string" ? parsed.gifDir : "",
+      clipDir: typeof parsed.clipDir === "string" ? parsed.clipDir : "",
       theme: sanitizeTheme(parsed.theme),
       webhooks: {
         ...DEFAULT.webhooks,

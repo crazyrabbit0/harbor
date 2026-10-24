@@ -1,8 +1,8 @@
 import type { PersonRef } from "@/lib/providers/tmdb";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function Credit({ label, people }: { label: string; people: PersonRef[] }) {
-  const { openPerson } = useView();
+  const { openPerson } = useViewActions();
   return (
     <div className="flex flex-col gap-1">
       <span className="text-[12px] font-medium uppercase tracking-[0.18em] text-ink-subtle">

@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { SourceFolder } from "@/lib/custom-sources";
 import { useAuth } from "@/lib/auth";
 import { createAddonCatalogFetcher, gatherCatalogAddons } from "@/lib/addons";
@@ -26,7 +26,7 @@ export function SourceFolderCard({
 }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const { authKey } = useAuth();
   const [hover, setHover] = useState(false);
   const [loading, setLoading] = useState(false);

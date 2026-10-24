@@ -1,5 +1,5 @@
 import type { Meta } from "@/lib/cinemeta";
-import { PLUGIN_ADDON_PREFIX } from "../addon";
+import { extensionCatalogueBase } from "./catalogue-base";
 import { capstanId } from "./detail";
 import { readListing } from "./listing";
 import { metaType, providerMetaType } from "./meta-type";
@@ -13,27 +13,11 @@ const MAX_ROWS_PER_PLUGIN = 24;
 const MAX_ITEMS = 60;
 const EXHAUSTED_MAX = 200;
 
-/** The catalogue's identity folded into one url shaped string, because that is the field every
- * browse surface already persists for a catalogue and reads back to fetch it again. */
-export function extensionCatalogueBase(pluginId: string, providerId: string): string {
-  return `${PLUGIN_ADDON_PREFIX}${pluginId}/${providerId}`;
-}
-
-export function parseExtensionCatalogueBase(
-  base: string,
-): { pluginId: string; providerId: string } | null {
-  if (!base.startsWith(PLUGIN_ADDON_PREFIX)) return null;
-  const rest = base.slice(PLUGIN_ADDON_PREFIX.length);
-  const cut = rest.indexOf("/");
-  if (cut <= 0) return null;
-  const pluginId = rest.slice(0, cut);
-  const providerId = rest.slice(cut + 1);
-  return pluginId && providerId ? { pluginId, providerId } : null;
-}
-
-export function isExtensionCatalogueBase(base: string): boolean {
-  return parseExtensionCatalogueBase(base) != null;
-}
+export {
+  extensionCatalogueBase,
+  isExtensionCatalogueBase,
+  parseExtensionCatalogueBase,
+} from "./catalogue-base";
 
 /** Providers are not filtered by their declared home page flag: the layer stands a row up for a
  * provider that answers the call without declaring one, and that row is its only entry point. */

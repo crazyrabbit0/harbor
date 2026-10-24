@@ -8,6 +8,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { BigButton } from "./big-button";
 import { StremioBtn } from "./stremio-btn";
 import { Tooltip } from "./tooltip";
+import { withHotkey } from "./hotkey-label";
 
 function useRtxVsr(meta: Meta | undefined) {
   const { settings, update } = useSettings();
@@ -21,7 +22,10 @@ export function RtxVsrToggleStremioBtn({ meta }: { meta?: Meta }) {
   const { active, disabled, toggle } = useRtxVsr(meta);
   if (!isWindowsDesktop()) return null;
   return (
-    <Tooltip label={t("RTX Video Super Resolution")} side="bottom">
+    <Tooltip
+      label={withHotkey(t("RTX Video Super Resolution"), "playerRtxVsrToggle")}
+      side="bottom"
+    >
       <StremioBtn
         onClick={toggle}
         ariaLabel={t("RTX Video Super Resolution")}

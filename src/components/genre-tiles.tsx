@@ -6,7 +6,7 @@ import { useT } from "@/lib/i18n";
 import { rpdbPoster } from "@/lib/providers/rpdb";
 import { useSettings } from "@/lib/settings";
 import { claimUniqueArt, releaseUniqueArt } from "@/lib/unique-art";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
 import { Poster } from "./poster";
 
@@ -79,7 +79,7 @@ const TILES: string[] = [
 export function GenreTiles({ title }: { title?: string }) {
   const t = useT();
   return (
-    <Row title={title ?? t("Browse by Genre")} min={210} shape="tile" alwaysActive>
+    <Row title={title ?? t("Browse by Genre")} min={210} shape="tile">
       {TILES.map((g) => (
         <GenreTile key={g} genre={g} />
       ))}
@@ -89,7 +89,7 @@ export function GenreTiles({ title }: { title?: string }) {
 
 function GenreTile({ genre }: { genre: string }) {
   const { settings } = useSettings();
-  const { openFilter } = useView();
+  const { openFilter } = useViewActions();
   const t = useT();
   const [backdrops, setBackdrops] = useState<Meta[]>([]);
   const palette = GENRE_PALETTE[genre] ?? GENRE_PALETTE.Drama;

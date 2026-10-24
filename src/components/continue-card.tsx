@@ -22,7 +22,7 @@ import { Tooltip } from "@/views/detail/tooltip";
 import { useProfiles, sharesStremioStorage } from "@/lib/profiles";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/lib/settings";
-import { useView, type PlayEpisode } from "@/lib/view";
+import { useViewActions, type PlayEpisode } from "@/lib/view";
 import { getWatchedBy } from "@/lib/watched-by";
 import { resolveLocalPlayVersions } from "@/lib/local-library/playback";
 import { localPlayerSrc } from "@/lib/local-library/player-src";
@@ -87,7 +87,7 @@ export const ContinueCard = memo(function ContinueCard({
   onDismiss,
   onPlayOverride,
 }: Props) {
-  const { openMeta, openPicker, openPlayer } = useView();
+  const { openMeta, openPicker, openPlayer } = useViewActions();
   const t = useT();
   const { settings } = useSettings();
   const { authKey } = useAuth();

@@ -1,35 +1,13 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { alertDialog, confirmDialog } from "@/lib/dialog";
-import {
-  notifyPlayerChromeChanged,
-  readPlayerChromeConfig,
-  resetPlayerChromeConfig,
-  writePlayerChromeConfig,
-  type PanelId,
-  type PlayerChromeConfig,
-  type PlayerControlId,
-  type ThemeId,
-  type TimeFormat,
-  type VolumeStyle,
-} from "@/lib/player-chrome";
-import {
-  createProfile,
-  deleteProfile as deleteProfileApi,
-  exportProfileJson,
-  getActiveProfile,
-  importProfileJson,
-  listProfiles,
-  PROFILE_DB_KEY,
-  renameProfile as renameProfileApi,
-  setActiveProfile,
-} from "@/lib/player-chrome-profiles";
+import { useCallback, useEffect, useState } from "react";
+import { confirmDialog } from "@/lib/dialog";
+import { type ThemeId, type TimeFormat, type VolumeStyle } from "@/lib/player-chrome";
 import { useSettings } from "@/lib/settings";
 import { resolveChromeTheme } from "@/lib/theme";
 import { sameConfig } from "./config-helpers";
 import { EditorOverlay } from "./editor-overlay";
 import { OptionsSection } from "./options-section";
 import { EditLayoutCard, ThemeTabs, usePlayerLayoutPageActions } from "./panel-bars";
-import { useChromeEdits } from "./use-chrome-edits";
+import { editorOverlayProps, useLayoutEditor } from "./use-layout-editor";
 import { AdvisoryPreview } from "./advisory-preview";
 import { AdvisoryIgnoreRow } from "./advisory-ignore-row";
 import { SeekBarPanel } from "../player-panel";
@@ -49,46 +27,18 @@ export function PlayerLayoutPanel() {
   const { dismiss } = useOnboarding();
   const appTheme = themeIdFromSettings(settings);
   const [theme, setTheme] = useState<ThemeId>(appTheme);
-  const [saved, setSaved] = useState<PlayerChromeConfig>(() => readPlayerChromeConfig(appTheme));
-  const [draft, setDraft] = useState<PlayerChromeConfig>(saved);
-  const [selectedId, setSelectedId] = useState<PlayerControlId | null>(null);
-  const [selectedPanelId, setSelectedPanelId] = useState<PanelId | null>(null);
   const [confirmingReset, setConfirmingReset] = useState(false);
-  const [justSaved, setJustSaved] = useState(false);
   const [editorOpen, setEditorOpen] = useState(false);
-  const [profileVersion, setProfileVersion] = useState(0);
-  const [configVersion, setConfigVersion] = useState(0);
-  const bumpProfiles = useCallback((reloadConfig = true) => {
-    setProfileVersion((v) => v + 1);
-    if (reloadConfig) setConfigVersion((v) => v + 1);
-  }, []);
-
-  const profiles = useMemo(() => listProfiles(theme), [theme, profileVersion]);
-  const activeProfileId = useMemo(
-    () => getActiveProfile(theme)?.id ?? null,
-    [theme, profileVersion],
-  );
+  const editor = useLayoutEditor(theme, setTheme);
+  const { draft, setDraft, saved, dirty, justSaved, profiles, activeProfileId } = editor;
 
   useEffect(() => {
-    const next = readPlayerChromeConfig(theme);
-    setSaved(next);
-    setDraft(next);
-    setSelectedId(null);
-    setSelectedPanelId(null);
     setConfirmingReset(false);
-  }, [theme, configVersion]);
+  }, [theme]);
 
   useEffect(() => {
     setTheme(appTheme);
   }, [appTheme]);
-
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key === PROFILE_DB_KEY) bumpProfiles();
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, [bumpProfiles]);
 
   useEffect(() => {
     return pushActivityHint({
@@ -103,148 +53,17 @@ export function PlayerLayoutPanel() {
     return () => window.clearTimeout(id);
   }, [confirmingReset]);
 
-  const dirty = useMemo(() => !sameConfig(draft, saved), [draft, saved]);
-
-  const {
-    moveSlot,
-    moveOrder,
-    toggleHidden,
-    unhideControl,
-    resetControl,
-    setCustomIcon,
-    setVariant,
-    setPanelCorner,
-    togglePanelHidden,
-  } = useChromeEdits(setDraft, selectedId, theme);
-
-  const onSave = useCallback(() => {
-    const res = writePlayerChromeConfig(theme, draft);
-    if (!res.ok) {
-      void alertDialog(t("Couldn't save your layout. {error}", { error: res.error }));
-      return;
-    }
-    setSaved(draft);
-    bumpProfiles();
-    notifyPlayerChromeChanged(theme);
-    setJustSaved(true);
-    window.setTimeout(() => setJustSaved(false), 1600);
-  }, [draft, theme, bumpProfiles]);
-
-  const onSwitchProfile = useCallback(
-    async (id: string) => {
-      if (!sameConfig(draft, saved)) {
-        const ok = await confirmDialog(
-          t("You have unsaved changes that will be lost when switching profiles. Continue?"),
-        );
-        if (!ok) return;
-      }
-      const res = setActiveProfile(theme, id);
-      if (!res.ok) {
-        void alertDialog(t("Couldn't switch profile. {error}", { error: res.error }));
-        return;
-      }
-      bumpProfiles();
-      notifyPlayerChromeChanged(theme);
-    },
-    [draft, saved, theme, bumpProfiles],
-  );
-
-  const onSaveAsNew = useCallback(
-    (name: string) => {
-      const res = createProfile(theme, name, draft);
-      if (!res.ok) {
-        void alertDialog(t("Couldn't create the profile. {error}", { error: res.error }));
-        return;
-      }
-      bumpProfiles();
-      notifyPlayerChromeChanged(theme);
-      setJustSaved(true);
-      window.setTimeout(() => setJustSaved(false), 1600);
-    },
-    [draft, theme, bumpProfiles],
-  );
-
-  const onRenameProfile = useCallback(
-    (newName: string) => {
-      if (!activeProfileId) return;
-      const res = renameProfileApi(activeProfileId, newName);
-      if (!res.ok) {
-        void alertDialog(t("Couldn't rename the profile. {error}", { error: res.error }));
-        return;
-      }
-      bumpProfiles(false);
-    },
-    [activeProfileId, bumpProfiles],
-  );
-
-  const onDeleteProfile = useCallback(() => {
-    if (!activeProfileId) return;
-    const res = deleteProfileApi(activeProfileId);
-    if (!res.ok) {
-      void alertDialog(t("Couldn't delete the profile. {error}", { error: res.error }));
-      return;
-    }
-    bumpProfiles();
-    notifyPlayerChromeChanged(theme);
-  }, [activeProfileId, theme, bumpProfiles]);
-
-  const onExportProfile = useCallback(() => {
-    if (!activeProfileId) return;
-    const json = exportProfileJson(activeProfileId);
-    if (!json) return;
-    const active = getActiveProfile(theme);
-    const safeName = (active?.name ?? "layout").replace(/[^a-zA-Z0-9._-]+/g, "-");
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `harbor-${theme}-${safeName}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  }, [activeProfileId, theme]);
-
-  const onImportProfile = useCallback(
-    (text: string) => {
-      const res = importProfileJson(text);
-      if (!res.ok) {
-        void alertDialog(t("Couldn't import that file. {error}", { error: res.error }));
-        return;
-      }
-      bumpProfiles();
-      notifyPlayerChromeChanged(res.profile.themeId);
-      if (res.profile.themeId !== theme) setTheme(res.profile.themeId);
-    },
-    [theme, bumpProfiles],
-  );
-
-  const onResetToDefaults = useCallback(() => {
-    const baseline = resetPlayerChromeConfig(theme);
-    setSaved(baseline);
-    setDraft(baseline);
-    bumpProfiles();
-    notifyPlayerChromeChanged(theme);
-    setSelectedId(null);
-  }, [theme, bumpProfiles]);
-
-  const onDiscard = useCallback(() => {
-    setDraft(saved);
-    setSelectedId(null);
-  }, [saved]);
-
+  const onSave = editor.onSave;
+  const onDiscard = editor.discard;
+  const { resetAll } = editor;
   const onResetAll = useCallback(() => {
     if (!confirmingReset) {
       setConfirmingReset(true);
       return;
     }
-    const baseline = resetPlayerChromeConfig(theme);
-    setSaved(baseline);
-    setDraft(baseline);
-    notifyPlayerChromeChanged(theme);
-    setSelectedId(null);
+    resetAll();
     setConfirmingReset(false);
-  }, [confirmingReset, theme]);
+  }, [confirmingReset, resetAll]);
 
   const visibleCount = draft.controls.filter((c) => !c.hidden).length;
   const hiddenCount = draft.controls.length - visibleCount;
@@ -399,44 +218,10 @@ export function PlayerLayoutPanel() {
       {editorOpen && (
         <EditorOverlay
           theme={theme}
-          config={draft}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-          selectedPanelId={selectedPanelId}
-          onSelectPanel={setSelectedPanelId}
-          onSetPanelCorner={setPanelCorner}
-          onTogglePanelHidden={togglePanelHidden}
+          {...editorOverlayProps(editor)}
           onClose={async () => {
-            if (!sameConfig(draft, saved)) {
-              const ok = await confirmDialog(
-                t("You have unsaved changes. Close the editor and discard them?"),
-              );
-              if (!ok) return;
-              setDraft(saved);
-              setSelectedId(null);
-              setSelectedPanelId(null);
-            }
-            setEditorOpen(false);
+            if (await editor.confirmClose()) setEditorOpen(false);
           }}
-          onMoveSlot={moveSlot}
-          onMoveOrder={moveOrder}
-          onToggleHidden={toggleHidden}
-          onResetControl={resetControl}
-          onSetCustomIcon={setCustomIcon}
-          onSetVariant={setVariant}
-          profiles={profiles}
-          activeProfileId={activeProfileId}
-          dirty={dirty}
-          justSaved={justSaved}
-          onSave={onSave}
-          onSwitchProfile={onSwitchProfile}
-          onSaveAsNew={onSaveAsNew}
-          onRenameProfile={onRenameProfile}
-          onDeleteProfile={onDeleteProfile}
-          onExportProfile={onExportProfile}
-          onImportProfile={onImportProfile}
-          onResetToDefaults={onResetToDefaults}
-          onUnhide={unhideControl}
         />
       )}
     </div>

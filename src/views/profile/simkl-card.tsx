@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import simklLogo from "@/assets/simkl.png";
 import { SimklDeviceModal } from "@/components/simkl/simkl-device-modal";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openLinkOut } from "@/lib/social/link-out";
 import { socialPatch } from "@/lib/social/client";
 import type { SimklAccountType, SimklProfile, SimklProfileStats } from "@/lib/simkl/profile";
@@ -186,7 +186,7 @@ export function SimklCard({
   published?: SimklPublished | null;
 }) {
   const t = useT();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const [connecting, setConnecting] = useState(false);
   const { state, username, reload } = useSimklCard({ includeStats: isOwner, enabled: isOwner });
 

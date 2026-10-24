@@ -40,7 +40,7 @@ import { useSettings } from "@/lib/settings";
 import type { ScoredStream, Tier } from "@/lib/streams/types";
 import { isAddonRanked } from "@/lib/streams/addon-detect";
 import { isFilterEmpty, matchesCustomFilter } from "@/lib/streams/custom-filters";
-import { useScrollMemory, useView, type PlayEpisode, type PlayerSrc } from "@/lib/view";
+import { useScrollMemory, type PlayEpisode, type PlayerSrc, useViewActions } from "@/lib/view";
 import { prefetchSegments } from "@/lib/skip-intro";
 import { exitWindowFullscreen } from "@/lib/fullscreen-state";
 import { useWindowFullscreen } from "@/lib/use-window-fullscreen";
@@ -130,7 +130,7 @@ export function PlayPicker({
   const t = useT();
   const isDownload = intent === "download";
   const isSeasonDownload = isDownload && (seasonEpisodes?.length ?? 0) > 0;
-  const { openPlayer, openSettings, exitPickerToDetail } = useView();
+  const { openPlayer, openSettings, exitPickerToDetail } = useViewActions();
   const backToDetail = () => {
     if (playerActive) void exitWindowFullscreen();
     exitPickerToDetail(meta);
@@ -991,7 +991,7 @@ export function PlayPicker({
             </span>
             <button
               type="button"
-              onClick={() => openSettings("player")}
+              onClick={() => openSettings("p2p", { tab: "engine", anchor: "P2P streaming" })}
               className="rounded-md border border-amber-300/40 px-3 py-1 text-[12px] font-semibold text-amber-100 transition-colors hover:bg-amber-300/10"
             >
               Open Settings
@@ -1075,8 +1075,12 @@ export function PlayPicker({
               rawCount={rawCount}
               strictMode={strictMode}
               forceShowAll={forceShowAll}
-              onOpenLibrarySettings={() => openSettings("library")}
-              onOpenStreamingSettings={() => openSettings("streaming")}
+              onOpenLibrarySettings={() =>
+                openSettings("library", { tab: "providers", anchor: "Metadata providers" })
+              }
+              onOpenStreamingSettings={() =>
+                openSettings("streaming", { tab: "services", anchor: "Debrid services" })
+              }
               onShowAll={() => setForceShowAll(true)}
               onSearchWider={() => {
                 if (strictMode) setStrictMode(false);

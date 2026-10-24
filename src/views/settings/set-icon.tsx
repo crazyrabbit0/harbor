@@ -1,5 +1,5 @@
 import { forwardRef } from "react";
-import { icons, type LucideIcon } from "lucide-react";
+import { Circle, MonitorPlay, type LucideIcon } from "lucide-react";
 import { SETTINGS_ICON_FILE } from "./settings-icon-map";
 
 const RAW = import.meta.glob("../../assets/settings-icons/*.svg", {
@@ -13,6 +13,9 @@ for (const [path, body] of Object.entries(RAW)) {
   const file = path.slice(path.lastIndexOf("/") + 1).replace(/\.svg$/, "");
   BY_FILE[file] = body;
 }
+
+// Names with no settings SVG; importing lucide's whole `icons` map would pull every icon into the main bundle.
+const LUCIDE_FALLBACK: Record<string, LucideIcon> = { MonitorPlay };
 
 export type SetIconProps = {
   size?: number | string;
@@ -49,7 +52,7 @@ export function SetIcon({
   const file = SETTINGS_ICON_FILE[name];
   const body = file ? BY_FILE[file] : undefined;
   if (!body) {
-    const Fallback = icons[name as keyof typeof icons] ?? icons.Circle;
+    const Fallback = LUCIDE_FALLBACK[name] ?? Circle;
     return (
       <Fallback
         size={px}

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 
 export type TrickplayState = { active: boolean; bufferedOnly: boolean };
@@ -49,6 +50,7 @@ export function thumbCacheNearest(bucket: number, maxDistance: number): string |
 }
 
 export async function trickplaySetUrl(url: string): Promise<void> {
+  generation++;
   thumbCache.clear();
   try {
     await invoke("thumbs_set_url", { url });
@@ -69,7 +71,37 @@ export async function trickplayGet(timeSec: number): Promise<string | null> {
   }
 }
 
+const prefetchListeners = new Set<() => void>();
+let generation = 0;
+
+/** Renders the given times in parallel on the native side; each frame lands in the cache as soon as it is ready. */
+export async function trickplayPrefetch(times: number[], bucketSec: number): Promise<void> {
+  const gen = generation;
+  const put = (time: number, uri: string) => {
+    if (gen !== generation) return;
+    thumbCache.set(Math.round(time / bucketSec), uri);
+    for (const l of prefetchListeners) l();
+  };
+  const unlisten = await listen<{ time: number; uri: string }>("thumbs://frame", (e) =>
+    put(e.payload.time, e.payload.uri),
+  ).catch(() => null);
+  try {
+    const frames = await invoke<(string | null)[]>("thumbs_prefetch", { times });
+    frames.forEach((uri, i) => uri && put(times[i], uri));
+  } catch {
+    return;
+  } finally {
+    unlisten?.();
+  }
+}
+
+export function onTrickplayPrefetched(cb: () => void): () => void {
+  prefetchListeners.add(cb);
+  return () => prefetchListeners.delete(cb);
+}
+
 export async function trickplayStop(): Promise<void> {
+  generation++;
   thumbCache.clear();
   try {
     await invoke("thumbs_stop");

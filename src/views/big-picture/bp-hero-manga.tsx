@@ -5,7 +5,7 @@ import { resolveAnimeSourceReading, type AnimeReadingSource } from "@/lib/manga/
 import { useProxiedImageSrc } from "@/lib/remote-image-proxy";
 import { bpCardArt } from "./bp-art";
 import { SFX } from "@/lib/sfx";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { BP_HERO_RING } from "./bp-hero-style";
 import { useBpT } from "./bp-i18n";
 
@@ -14,7 +14,7 @@ const THUMB_W = 64;
 
 export function BpHeroManga({ meta }: { meta: Meta }) {
   const t = useBpT();
-  const { openEBook, openManga } = useView();
+  const { openEBook, openManga } = useViewActions();
   const [source, setSource] = useState<AnimeReadingSource | null>(null);
   const poster = useProxiedImageSrc(bpCardArt(source?.node.poster, THUMB_W));
 

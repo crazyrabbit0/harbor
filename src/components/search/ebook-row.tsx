@@ -2,10 +2,10 @@ import { BookMarked } from "lucide-react";
 import { CoverImg } from "@/components/cover-img";
 import type { EBook } from "@/lib/ebook/api";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function EBookRow({ items, onClose }: { items: EBook[]; onClose: () => void }) {
-  const { openEBook } = useView();
+  const { openEBook } = useViewActions();
   const t = useT();
   if (items.length === 0) return null;
 

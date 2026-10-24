@@ -6,7 +6,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { tmdbCollection } from "@/lib/providers/tmdb";
 import { useActiveKid } from "@/lib/profiles";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { dropUnreleased, dropUnsafeGenres } from "@/views/kids/kids-filter";
 
 export function CollectionRow({
@@ -17,7 +17,7 @@ export function CollectionRow({
   currentId: string;
 }) {
   const { settings } = useSettings();
-  const { openCollection } = useView();
+  const { openCollection } = useViewActions();
   const kid = useActiveKid();
   const [parts, setParts] = useState<Meta[]>([]);
 

@@ -5,7 +5,7 @@ import { mergeBundledAwards } from "@/lib/awards-history";
 import type { Meta } from "@/lib/cinemeta";
 import { awardSummary, useAwards, type AwardType } from "@/lib/providers/wikidata";
 import { parseAwardYear } from "@/lib/anime-awards";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 function shortName(type: AwardType): string {
   return AWARD_CATALOG[type]?.shorthand ?? "Award";
@@ -24,7 +24,7 @@ export function AwardChips({
 }) {
   const isAnime = meta.id.startsWith("kitsu:") || meta.id.startsWith("mal:");
   const live = useAwards(isAnime ? undefined : (imdbId ?? undefined), meta.type === "series");
-  const { openAward } = useView();
+  const { openAward } = useViewActions();
   const chips = useMemo(() => {
     if (isAnime) return [];
     const awards = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));

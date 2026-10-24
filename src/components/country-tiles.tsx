@@ -5,7 +5,7 @@ import { tmdbDiscover } from "@/lib/providers/tmdb";
 import { rpdbPoster } from "@/lib/providers/rpdb";
 import { useSettings } from "@/lib/settings";
 import { claimUniqueArt, releaseUniqueArt } from "@/lib/unique-art";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
 import { Poster } from "./poster";
 
@@ -67,7 +67,7 @@ export function CountryTiles({ title }: { title?: string }) {
     }
   }, [uiLang]);
   return (
-    <Row title={title ?? t("Browse by Country")} min={210} shape="tile" alwaysActive>
+    <Row title={title ?? t("Browse by Country")} min={210} shape="tile">
       {ISO.map((iso) => (
         <CountryTile key={iso} iso={iso} name={regionName(iso)} />
       ))}
@@ -77,7 +77,7 @@ export function CountryTiles({ title }: { title?: string }) {
 
 function CountryTile({ iso, name }: { iso: string; name: string }) {
   const { settings } = useSettings();
-  const { openFilter } = useView();
+  const { openFilter } = useViewActions();
   const [art, setArt] = useState<Meta[]>([]);
 
   useEffect(() => {

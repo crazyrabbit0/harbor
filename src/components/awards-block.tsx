@@ -6,7 +6,7 @@ import { tmdbPersonIdByName, tmdbPersonIdCached } from "@/lib/providers/tmdb";
 import type { CanonEntry } from "@/lib/curated/canon";
 import { useCanon } from "@/lib/curated/use-canon";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { type AwardEntry, type AwardType } from "@/lib/providers/wikidata";
 import { useT } from "@/lib/i18n";
 import { AwardLogo, laurelColorFor } from "./icons/award-logo";
@@ -145,7 +145,7 @@ function placeLabel(entry: CanonEntry, t: (key: string) => string) {
 
 function CuratedAccolade({ entry }: { entry: CanonEntry }) {
   const t = useT();
-  const { openCuratedList } = useView();
+  const { openCuratedList } = useViewActions();
   const [open, setOpen] = useState(false);
   const { curator, title, listId, year, companion } = entry;
   return (
@@ -214,7 +214,7 @@ function CuratedAccolade({ entry }: { entry: CanonEntry }) {
 
 function AwardGroup({ type, entries }: { type: AwardType; entries: AwardEntry[] }) {
   const t = useT();
-  const { openAward } = useView();
+  const { openAward } = useViewActions();
   const wins = entries.filter((e) => e.result === "won" && e.category);
   const noms = entries.filter((e) => e.result === "nominated" && e.category);
   const totalWins = entries.filter((e) => e.result === "won").length;
@@ -364,7 +364,7 @@ function EntryRow({ entry, won }: { entry: AwardEntry; won: boolean }) {
 
 function PersonLink({ name }: { name: string }) {
   const { settings } = useSettings();
-  const { openPerson } = useView();
+  const { openPerson } = useViewActions();
   const [busy, setBusy] = useState(false);
   const cached = settings.tmdbKey ? tmdbPersonIdCached(name) : null;
   const known = cached !== undefined && cached !== null;

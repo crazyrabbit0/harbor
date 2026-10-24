@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SportsDockControls } from "./sports/dock-controls";
 import { useDockDrag, type DockSpot } from "./sports/use-dock-drag";
 import { readEmbedRect } from "@/lib/player/embed-rect";
@@ -68,6 +68,8 @@ import { useStillWatching } from "./player/hooks/use-still-watching";
 import { useStartedNearEnd } from "./player/hooks/use-started-near-end";
 import { useFrameGrab } from "./player/hooks/use-frame-grab";
 import { useClipRecorder } from "./player/hooks/use-clip-recorder";
+import { sanitizeClipLength } from "@/lib/seek-step";
+import { DEFAULT } from "@/lib/settings/defaults";
 import { useGifRecorder } from "./player/hooks/use-gif-recorder";
 import { HomeServerQualityControl } from "./player/home-server-quality-control";
 import { useSleepTimer } from "./player/hooks/use-sleep-timer";
@@ -81,6 +83,9 @@ import { usePlaybackPresence } from "./player/hooks/use-playback-presence";
 import { usePlayerExit } from "./player/hooks/use-player-exit";
 import { usePendingSeekApply } from "./player/hooks/use-pending-seek-apply";
 import { usePlayerHotkeys } from "./player/hooks/use-player-hotkeys";
+import type { PlayerExtras } from "@/components/player/transport/player-extras";
+
+const InPlayerLayoutEditor = lazy(() => import("./settings/player-layout-panel/in-player-editor"));
 import {
   clearMediaControls,
   updateMediaControls,
@@ -118,6 +123,7 @@ import { SUBTITLE_FPS_TRANSITION_FAILED_EVENT } from "@/lib/player/subtitle-fps"
 import { PlayerInteractionLockControls } from "@/components/player/player-interaction-lock";
 import { usePlayerInteractionLock } from "./player/hooks/use-player-interaction-lock";
 import { isNextAired } from "@/lib/cw-resurface";
+import { NextEpisodePrefetch } from "./player/next-episode-prefetch";
 import { exitAnyFullscreen } from "@/lib/fullscreen-state";
 
 let hdrFallbackNoticeShown = false;
@@ -168,8 +174,15 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
       delete root.dataset.playerBlack;
     };
   }, [settings.playerMenuBlack]);
-  const { avatarsCorner, chatCorner, episodesCorner, avatarsHidden, chatHidden, episodesHidden } =
-    useChromeConfig(chromeTheme);
+  const {
+    avatarsCorner,
+    chatCorner,
+    episodesCorner,
+    avatarsHidden,
+    chatHidden,
+    episodesHidden,
+    jumpDigitsShown,
+  } = useChromeConfig(chromeTheme);
   const { authKey } = useAuth();
   const debrids = useDebridClients();
   const {
@@ -366,6 +379,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     unlock: unlockScreen,
     wakeControls: wakeScreenLockControls,
   } = usePlayerInteractionLock();
+  const [layoutEditorOpen, setLayoutEditorOpen] = useState(false);
 
   const { adjacent, swappingEp, goToEpisode } = useEpisodeNavigation({
     src,
@@ -457,9 +471,14 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   const frameGrab = useFrameGrab({
     bridgeRef,
     src,
+    folder: settings.screenshotDir,
   });
-  const gif = useGifRecorder({ src });
-  const clip = useClipRecorder({ src });
+  const gif = useGifRecorder({ src, folder: settings.gifDir });
+  const clip = useClipRecorder({
+    src,
+    folder: settings.clipDir,
+    seconds: sanitizeClipLength(settings.clipLengthSec, DEFAULT.clipLengthSec),
+  });
   const svpToast = useSvpGuard(settings.playerSvp && !!settings.svpVpyPath);
 
   const {
@@ -713,6 +732,20 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     isNextUp: true,
   });
   const isSeriesPlayback = !!src.episode && src.meta.type === "series";
+  // Searched once the current episode has started, so the lookup never competes with its startup.
+  const [startedUrl, setStartedUrl] = useState<string | null>(null);
+  useEffect(() => {
+    if (snap.firstFrameReady) setStartedUrl(src.url);
+  }, [snap.firstFrameReady, src.url]);
+  const prefetchNextEp =
+    airedNext &&
+    canChangeEpisode &&
+    !isLocalSrc &&
+    !isLiveLike &&
+    startedUrl === src.url &&
+    settings.localPlaybackMode !== "local"
+      ? airedNext
+      : null;
   const showEpisodePanel =
     isSeriesPlayback || (settings.queueDrivesNav && queue.length > 0 && !isLiveLike);
 
@@ -766,7 +799,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     mediaKey: `${src.meta.id}|${src.episode?.season ?? ""}|${src.episode?.episode ?? ""}`,
   });
 
-  const { rememberSubChoice, cycleSubtitles, playPauseToggle, seekStep, seekTo } =
+  const { rememberSubChoice, cycleSubtitles, cycleAudio, playPauseToggle, seekStep, seekTo } =
     usePlaybackControls({
       bridgeRef,
       snapRef,
@@ -1070,7 +1103,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     })();
   }, [liveUrl, reloadSource, showSyncToast, src.url, t, transcodedUrl]);
 
-  const { holdSpeedActive, showStats, subtitleOffsetSec } = usePlayerHotkeys({
+  const { holdSpeedActive, showStats, toggleStats, subtitleOffsetSec } = usePlayerHotkeys({
     bridgeRef,
     snap,
     metaId: src.meta.id,
@@ -1086,6 +1119,30 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     togglePip: togglePipMode,
     fullscreen,
     cycleSubtitles,
+    cycleAudio: engine === "mpv" ? cycleAudio : undefined,
+    onDownload:
+      download && !isLocalSrc && !isLiveLike
+        ? () => {
+            const kind = download.status.kind;
+            if (kind === "downloading" || kind === "preparing") {
+              download.cancel();
+              showActionFeedback({ icon: "download", title: t("Download"), value: t("Cancelled") });
+              return;
+            }
+            if (kind === "done") {
+              download.reveal();
+              return;
+            }
+            download.start();
+            showActionFeedback({ icon: "download", title: t("Download"), value: t("Started") });
+          }
+        : undefined,
+    onCast: () => {
+      const btn = document.querySelector('[aria-label="Cast"]') as HTMLElement | null;
+      const r = btn?.getBoundingClientRect();
+      cast.openCastMenu(r && r.width > 0 ? { right: r.right, bottom: r.top } : null);
+    },
+    onEditLayout: bigPictureActive ? undefined : () => setLayoutEditorOpen(true),
     playNext,
     playPrev,
     hasNextEpisode: hasNextEpisodeNow,
@@ -1318,6 +1375,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     url: playUrl,
     enabled: settings.seekPreviewEnabled,
     isLive: isLiveLike,
+    prefetchDurationSec: jumpDigitsShown ? snap.durationSec : 0,
   });
   const adSegments = useAdSegments(
     src.meta.id,
@@ -1390,7 +1448,12 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   // button, the X-ray overlay and the P2P chip, and none of them belong on a
   // television. Big Picture renders its own.
   const showChrome =
-    !screenLocked && !loaderActive && !loaderShowing && !tenFoot && (chromeVisible || drawMode);
+    !screenLocked &&
+    !layoutEditorOpen &&
+    !loaderActive &&
+    !loaderShowing &&
+    !tenFoot &&
+    (chromeVisible || drawMode);
   const liveShellSnap =
     cast.castDevice && !cast.audioRouting
       ? { ...snap, status: (cast.castPlaying ? "playing" : "paused") as typeof snap.status }
@@ -1431,8 +1494,26 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     }
   }, [src]);
 
+  const playerExtras: PlayerExtras = {
+    loop: quickToolsEnabled ? ab : undefined,
+    gif: quickToolsEnabled ? gif : undefined,
+    onClip: quickToolsEnabled ? clip.openChooser : undefined,
+    onClipSave: quickToolsEnabled ? clip.saveClip : undefined,
+    stats: { on: showStats, toggle: toggleStats },
+    screenLock: screenLockEnabled ? lockScreen : undefined,
+    onReloadSource: reloadSource,
+    onRestartServer: isWeb() ? undefined : restartStreamServer,
+    onPrevChannel: liveOverlay.isLive ? liveOverlay.goPrevChannel : undefined,
+    onFrameStep: bridgeRef.current?.frameStep
+      ? (dir) => bridgeRef.current?.frameStep?.(dir)
+      : undefined,
+    onJump: seekTo,
+    onEditLayout: tenFoot ? undefined : () => setLayoutEditorOpen(true),
+  };
+
   const overlayProps: PlayerOverlayLayersProps = {
     tenFoot,
+    playerExtras,
     snap,
     engine,
     src,
@@ -1718,6 +1799,22 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
         />
       )}
       {!docked && !hdrStageActive && <PlayerOverlayLayers {...overlayProps} />}
+      {prefetchNextEp && (
+        <NextEpisodePrefetch
+          key={`${src.meta.id}:${prefetchNextEp.season}:${prefetchNextEp.episode}`}
+          meta={src.meta}
+          episode={prefetchNextEp}
+          durationSec={snap.durationSec}
+        />
+      )}
+      {layoutEditorOpen && (
+        <Suspense fallback={null}>
+          <InPlayerLayoutEditor
+            theme={resolveChromeTheme(settings.theme, settings.playerChromeTheme)}
+            onClose={() => setLayoutEditorOpen(false)}
+          />
+        </Suspense>
+      )}
       {!docked && !hdrStageActive && (
         <PlayerInteractionLockControls
           enabled={screenLockEnabled}

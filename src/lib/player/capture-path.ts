@@ -35,8 +35,10 @@ export function captureBaseTitle(src: PlayerSrc): string {
   return src.meta.name;
 }
 
-export async function captureDir(): Promise<string | null> {
+/** Pictures/Harbor, or `custom` when the user chose a folder for this kind of capture. */
+export async function captureDir(custom?: string): Promise<string | null> {
   if (typeof window === "undefined" || !("__TAURI_INTERNALS__" in window)) return null;
+  if (custom?.trim()) return custom.trim();
   try {
     const pathMod = await import("@tauri-apps/api/path");
     const pictures = await pathMod.pictureDir();
@@ -44,6 +46,18 @@ export async function captureDir(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/** Short name for a toast: "Pictures/Harbor" for the default folder, else the folder's last part. */
+export function captureDirLabel(dir: string | null, custom?: string): string {
+  if (!dir) return "downloads";
+  if (!custom?.trim()) return "Pictures/Harbor";
+  return (
+    dir
+      .replace(/[\\/]+$/, "")
+      .split(/[\\/]/)
+      .pop() || dir
+  );
 }
 
 export async function joinPath(dir: string, name: string): Promise<string> {

@@ -15,7 +15,7 @@ import { GamesIcon } from "@/components/icons/games-icon";
 import { NavGlyph } from "@/components/icons/nav-glyph";
 import { MusicQuickStrip } from "@/components/music/music-quick-strip";
 import { requestMusicLibrary, requestMusicSearch } from "@/lib/music/navigation";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   filterQuickLibrary,
   quickLibrary,
@@ -41,7 +41,7 @@ let heldDockMode: DockMode = "games";
 export function GameLibraryDock({ visible: pageVisible }: { visible: boolean }) {
   const access = useGameAccess(),
     t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const [mode, setDockMode] = useState<DockMode>(heldDockMode);
   const music = mode === "music";
   const setMode = (next: DockMode) => {

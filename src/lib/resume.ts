@@ -18,10 +18,19 @@ function entryKey(id: string, season?: number, episode?: number): string {
   return id;
 }
 
+const parsed = new Map<string, { raw: string; all: Record<string, Entry> }>();
+
+// Every poster card reads resume progress, so the stored JSON is parsed once per change; callers get a copy to mutate.
 function readAll(key = readKey()): Record<string, Entry> {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as Record<string, Entry>) : {};
+    if (!raw) return {};
+    let hit = parsed.get(key);
+    if (hit?.raw !== raw) {
+      hit = { raw, all: JSON.parse(raw) as Record<string, Entry> };
+      parsed.set(key, hit);
+    }
+    return { ...hit.all };
   } catch {
     return {};
   }

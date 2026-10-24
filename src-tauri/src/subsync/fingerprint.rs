@@ -185,10 +185,13 @@ async fn run_fpcalc(path: &Path, len_sec: f64) -> Result<Fingerprint, String> {
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000);
 
-    let out = tokio::time::timeout(Duration::from_secs(FPCALC_TIMEOUT_SECS), cmd.output())
-        .await
-        .map_err(|_| "fpcalc timeout".to_string())?
-        .map_err(|e| format!("fpcalc: {}", e))?;
+    let out = tokio::time::timeout(
+        Duration::from_secs(FPCALC_TIMEOUT_SECS),
+        crate::child_pipe::output(&mut cmd),
+    )
+    .await
+    .map_err(|_| "fpcalc timeout".to_string())?
+    .map_err(|e| format!("fpcalc: {}", e))?;
     if !out.status.success() {
         return Err("fpcalc failed".into());
     }
@@ -271,7 +274,9 @@ pub async fn compressed_fingerprint(path: &str, len_sec: f64) -> Result<(f64, St
     cmd.stderr(Stdio::null());
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000);
-    let out = cmd.output().await.map_err(|e| format!("fpcalc: {}", e))?;
+    let out = crate::child_pipe::output(&mut cmd)
+        .await
+        .map_err(|e| format!("fpcalc: {}", e))?;
     if !out.status.success() {
         return Err("fpcalc failed".into());
     }

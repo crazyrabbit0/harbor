@@ -2,7 +2,7 @@ import { Poster } from "@/components/poster";
 import { Row } from "@/components/row";
 import type { AwardPerson } from "@/lib/awards/award-page";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function PeopleRail({
   title,
@@ -28,7 +28,7 @@ export function PeopleRail({
 
 function PersonCard({ person, tint }: { person: AwardPerson; tint: string }) {
   const t = useT();
-  const { openPerson } = useView();
+  const { openPerson } = useViewActions();
   return (
     <button
       onClick={() => openPerson(person.id)}

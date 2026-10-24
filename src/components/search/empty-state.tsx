@@ -34,7 +34,7 @@ import { surpriseMe } from "@/lib/surprise-me";
 import { tmdbDiscover } from "@/lib/providers/tmdb";
 import { SERVICES, providerIdsFor } from "@/lib/providers/streaming";
 import type { StreamingService } from "@/lib/settings";
-import { useView, type View } from "@/lib/view";
+import { type View, useViewActions } from "@/lib/view";
 import type { LockableTab } from "@/lib/lockable-tabs";
 import { topMovies, topSeries, type Meta } from "@/lib/cinemeta";
 import { PickCard } from "@/components/pick-card";
@@ -87,7 +87,7 @@ export function EmptyState({
   onOpenGuide: () => void;
 }) {
   const { recent, removeRecent, clearRecent, setQuery } = useSearch();
-  const { setView, openMeta } = useView();
+  const { setView, openMeta } = useViewActions();
   const { hiddenTabs } = useParental();
   const { settings } = useSettings();
   const t = useT();

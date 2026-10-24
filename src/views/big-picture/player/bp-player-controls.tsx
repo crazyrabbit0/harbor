@@ -1,5 +1,6 @@
 import { Pause, Play, Rewind, FastForward } from "lucide-react";
 import { SkipBackIcon, SkipIcon } from "@/components/icons/harbor-glyphs";
+import { seekSteps } from "@/lib/seek-step";
 import { useSettings } from "@/lib/settings";
 import { SFX } from "@/lib/sfx";
 import { useBpT } from "../bp-i18n";
@@ -65,8 +66,7 @@ function BpControl({
 export function BpPlayerControls({ playback }: { playback: BpPlayback }) {
   const t = useBpT();
   const { settings } = useSettings();
-  const back = settings.seekBackStepSec || 10;
-  const forward = settings.seekForwardStepSec || 10;
+  const { back, forward } = seekSteps(settings);
   const series = playback.hasPrevEpisode || playback.hasNextEpisode;
 
   return (

@@ -1,7 +1,7 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { Home } from "@/views/home";
 import { isSpooktoberSeason, nextSpooktoberDateCheck } from "@/lib/spooktober-season";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   SPOOKTOBER_PLAYLIST_EVENT,
   takeSpooktoberPlaylistRequest,
@@ -15,14 +15,14 @@ const Festival = lazy(() =>
   import("./spooktober-view").then((module) => ({ default: module.SpooktoberView })),
 );
 
-export function SpooktoberHome({
+export const SpooktoberHome = memo(function SpooktoberHome({
   active = true,
   onReady,
 }: {
   active?: boolean;
   onReady?: () => void;
 }) {
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const { isDismissed, dismiss } = useOnboarding();
   const [available, setAvailable] = useState(isSpooktoberSeason);
   const [screen, setScreen] = useState<"home" | "festival">("home");
@@ -38,12 +38,25 @@ export function SpooktoberHome({
         ?.focus({ preventScroll: true }),
     );
   }, []);
-  const prepareFestival = () => setFestivalOpened(true);
-  const openFestival = () => {
-    prepareFestival();
+  const prepareFestival = useCallback(() => setFestivalOpened(true), []);
+  const openFestival = useCallback(() => {
+    setFestivalOpened(true);
     setEntryToken((value) => value + 1);
     setScreen("festival");
-  };
+  }, []);
+  const collapsed = isDismissed("spooktober");
+  const invitation = useMemo(
+    () =>
+      available ? (
+        <SpooktoberInvitation
+          collapsed={collapsed}
+          onDismiss={() => dismiss("spooktober")}
+          onOpen={openFestival}
+          onPrepare={prepareFestival}
+        />
+      ) : undefined,
+    [available, collapsed, dismiss, openFestival, prepareFestival],
+  );
   useEffect(() => {
     const receive = () => {
       const request = takeSpooktoberPlaylistRequest();
@@ -84,16 +97,7 @@ export function SpooktoberHome({
         <Home
           active={active && screen === "home"}
           onReady={onReady}
-          seasonalInvitation={
-            available ? (
-              <SpooktoberInvitation
-                collapsed={isDismissed("spooktober")}
-                onDismiss={() => dismiss("spooktober")}
-                onOpen={openFestival}
-                onPrepare={prepareFestival}
-              />
-            ) : undefined
-          }
+          seasonalInvitation={invitation}
         />
       </div>
       {festivalOpened && (
@@ -121,4 +125,4 @@ export function SpooktoberHome({
       )}
     </div>
   );
-}
+});

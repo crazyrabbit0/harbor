@@ -1,5 +1,6 @@
 import { BookOpen, Check, Copy, Download, Play, Redo2, Undo2, X } from "../../icons";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { CodeEditor, type CodeLang } from "@/components/code-editor";
 import { downloadText } from "@/lib/download-text";
 import { useT } from "@/lib/i18n";
@@ -87,13 +88,13 @@ export function CodePopout({
     window.setTimeout(() => setCopied(false), 1300);
   };
 
-  return (
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
       aria-label={t("Code")}
       style={SUITE_CHROME}
-      className={`pointer-events-auto fixed inset-0 z-[244] flex flex-col bg-surface text-ink-muted ${
+      className={`pointer-events-auto fixed inset-0 z-[230] flex flex-col bg-surface text-ink-muted ${
         closing ? "animate-[editorOut_150ms_ease-in_forwards]" : "animate-[editorIn_220ms_ease-out]"
       }`}
     >
@@ -245,6 +246,7 @@ export function CodePopout({
       />
 
       {cheatOpen && <CheatSheet onClose={() => setCheatOpen(false)} />}
-    </div>
+    </div>,
+    document.body,
   );
 }

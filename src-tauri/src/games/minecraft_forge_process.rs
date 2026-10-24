@@ -50,7 +50,7 @@ async fn execute(root:&Path,java:&Java,setup:&Setup,processor:&forge::Processor,
     for key in["JAVA_TOOL_OPTIONS","_JAVA_OPTIONS","JDK_JAVA_OPTIONS","CLASSPATH"]{command.env_remove(key);}
     #[cfg(windows)]command.creation_flags(0x08000000);
     let mut child=command.spawn().map_err(|_|"runtime_processor")?;
-    let stdout=child.stdout.take().ok_or("runtime_processor")?;let stderr=child.stderr.take().ok_or("runtime_processor")?;
+    let stdout=crate::child_pipe::take_stdout(&mut child).ok_or("runtime_processor")?;let stderr=crate::child_pipe::take_stderr(&mut child).ok_or("runtime_processor")?;
     let run=async{let(_out,_err,status)=tokio::try_join!(drain(stdout),drain(stderr),async{child.wait().await.map_err(|_|"runtime_processor")})?;if status.success(){Ok(())}else{
         #[cfg(test)] eprintln!("Processor {} exited {status}: {} {}",processor.jar,String::from_utf8_lossy(&_out),String::from_utf8_lossy(&_err));
         Err("runtime_processor")}};

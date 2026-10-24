@@ -20,6 +20,7 @@ import { t } from "@/lib/i18n";
 type Args = {
   source: Settings["calendarSource"];
   authKey: string | null;
+  accountId: string | null;
   traktConnected: boolean;
   simklConnected: boolean;
   settings: Settings;
@@ -28,9 +29,45 @@ type Args = {
   animeDub: boolean;
 };
 
+const SNAPSHOT_KEY = "harbor.calendar.snapshot.v1";
+const SNAPSHOT_MAX = 12;
+type Snapshot = Record<string, { at: number; items: CalendarItem[] }>;
+let snapshotMemo: Snapshot | null = null;
+
+function readSnapshots(): Snapshot {
+  if (snapshotMemo) return snapshotMemo;
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) ?? "{}");
+    snapshotMemo = parsed && typeof parsed === "object" ? (parsed as Snapshot) : {};
+  } catch {
+    snapshotMemo = {};
+  }
+  return snapshotMemo;
+}
+
+function readSnapshot(key: string | null): CalendarItem[] | null {
+  if (!key) return null;
+  const hit = readSnapshots()[key];
+  return Array.isArray(hit?.items) ? hit.items : null;
+}
+
+function writeSnapshot(key: string | null, items: CalendarItem[]): void {
+  if (!key) return;
+  const all = { ...readSnapshots(), [key]: { at: Date.now(), items } };
+  const keys = Object.keys(all).sort((a, b) => all[b].at - all[a].at);
+  for (const k of keys.slice(SNAPSHOT_MAX)) delete all[k];
+  snapshotMemo = all;
+  try {
+    localStorage.setItem(SNAPSHOT_KEY, JSON.stringify(all));
+  } catch {
+    return;
+  }
+}
+
 export function useCalendarData({
   source,
   authKey,
+  accountId,
   traktConnected,
   simklConnected,
   settings,
@@ -38,14 +75,36 @@ export function useCalendarData({
   month,
   animeDub,
 }: Args) {
-  const [items, setItems] = useState<CalendarItem[]>([]);
-  const [loading, setLoading] = useState(false);
+  // The last result for this view is drawn at once and refreshed in the background; a cold library month takes many requests.
+  const custom = settings.customCalendar;
+  const keyed =
+    source === "all"
+      ? settings.region
+      : source === "custom"
+        ? JSON.stringify([
+            settings.region,
+            custom.trackedPeople.map((p) => p.id),
+            custom.genres.map((g) => `${g.mediaType}${g.id}`),
+            custom.watchProviders.map((p) => p.id),
+            custom.originCountries,
+            custom.mediaTypes,
+            custom.includeTraktAnticipated,
+            custom.includeTraktWatchlist,
+          ])
+        : "";
+  const snapshotKey =
+    source === "games"
+      ? null
+      : `${source}|${keyed}|${animeDub ? "dub" : ""}|${authKey ? (accountId ?? "signed-in") : ""}|${year}-${month}`;
+  const [items, setItems] = useState<CalendarItem[]>(() => readSnapshot(snapshotKey) ?? []);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const prevSourceRef = useRef(source);
+  const viewKey = `${source}|${animeDub}|${year}-${month}|${snapshotKey ?? ""}`;
+  const prevKeyRef = useRef(viewKey);
 
-  if (prevSourceRef.current !== source) {
-    prevSourceRef.current = source;
-    setItems([]);
+  if (prevKeyRef.current !== viewKey) {
+    prevKeyRef.current = viewKey;
+    setItems(readSnapshot(snapshotKey) ?? []);
     setLoading(true);
     setError(null);
   }
@@ -53,10 +112,15 @@ export function useCalendarData({
   useEffect(() => {
     let cancelled = false;
     setError(null);
+    const onProgress = (rows: CalendarItem[]) => {
+      if (!cancelled && rows.length > 0) setItems(rows);
+    };
     const run = (p: Promise<CalendarItem[]>) => {
       setLoading(true);
       p.then((rows) => {
-        if (!cancelled) setItems(rows);
+        if (cancelled) return;
+        setItems(rows);
+        writeSnapshot(snapshotKey, rows);
       })
         .catch((e) => {
           if (!cancelled) setError(e instanceof Error ? e.message : t("Failed to load"));
@@ -78,16 +142,17 @@ export function useCalendarData({
           fetchLibraryCalendar(authKey, year, month, {
             tmdbKey: settings.tmdbKey,
             includeTrakt: traktConnected,
+            onProgress,
           }),
         );
       }
       if (source === "trakt") {
         if (!traktConnected) return stop();
-        return run(fetchTraktCalendar(year, month));
+        return run(fetchTraktCalendar(year, month, { onProgress }));
       }
       if (source === "simkl") {
         if (!simklConnected) return stop();
-        return run(fetchSimklCalendar(year, month, { tmdbKey: settings.tmdbKey }));
+        return run(fetchSimklCalendar(year, month, { tmdbKey: settings.tmdbKey, onProgress }));
       }
       if (source === "simkl-anticipated") {
         return run(fetchSimklPremieresCalendar(year, month));
@@ -98,7 +163,7 @@ export function useCalendarData({
         );
       }
       if (source === "anticipated") {
-        return run(fetchAnticipatedCalendar(year, month));
+        return run(fetchAnticipatedCalendar(year, month, { onProgress }));
       }
       if (source === "custom") {
         if (!settings.tmdbKey) return stop();
@@ -111,29 +176,26 @@ export function useCalendarData({
           extras.push(fetchTraktCalendar(year, month).catch(() => []));
         }
         return run(
-          Promise.all(extras)
-            .then((batches) => batches.flat())
-            .then((extra) =>
-              fetchCustomCalendar({
-                apiKey: settings.tmdbKey,
-                region: settings.region,
-                filters: {
-                  trackedPeople: settings.customCalendar.trackedPeople,
-                  genres: settings.customCalendar.genres,
-                  watchProviders: settings.customCalendar.watchProviders,
-                  originCountries: settings.customCalendar.originCountries,
-                  mediaTypes: settings.customCalendar.mediaTypes,
-                },
-                start,
-                end,
-                extra,
-              }),
-            ),
+          fetchCustomCalendar({
+            apiKey: settings.tmdbKey,
+            region: settings.region,
+            filters: {
+              trackedPeople: settings.customCalendar.trackedPeople,
+              genres: settings.customCalendar.genres,
+              watchProviders: settings.customCalendar.watchProviders,
+              originCountries: settings.customCalendar.originCountries,
+              mediaTypes: settings.customCalendar.mediaTypes,
+            },
+            start,
+            end,
+            extra: Promise.all(extras).then((batches) => batches.flat()),
+            onProgress,
+          }),
         );
       }
       if (!settings.tmdbKey) return stop();
       const { start, end } = monthRangeISO(year, month);
-      return run(fetchCalendarRange(settings.tmdbKey, start, end, settings.region));
+      return run(fetchCalendarRange(settings.tmdbKey, start, end, settings.region, onProgress));
     };
 
     dispatch();
@@ -148,18 +210,16 @@ export function useCalendarData({
     settings.tmdbKey,
     settings.region,
     settings.customCalendar.trackedPeople,
+    settings.customCalendar.genres,
+    settings.customCalendar.watchProviders,
+    settings.customCalendar.originCountries,
+    settings.customCalendar.mediaTypes,
     settings.customCalendar.includeTraktAnticipated,
     settings.customCalendar.includeTraktWatchlist,
     year,
     month,
     animeDub,
   ]);
-
-  useEffect(() => {
-    if (simklConnected && source !== "games") {
-      void fetchSimklPremieresCalendar(year, month).catch(() => {});
-    }
-  }, [simklConnected, year, month, source]);
 
   return { items, loading, error };
 }

@@ -2151,6 +2151,77 @@ const uiFallback: Record<string, string> = {
     "For Application URL anything works, for example https://github.com. TMDB never visits it.",
   "These settings stay on this computer.": "These settings stay on this computer.",
   "Changes not synced yet": "Changes not synced yet",
+  "Stop GIF recording": "Stop GIF recording",
+  "Hide stats": "Hide stats",
+  "Show stats": "Show stats",
+  "Looping {a} – {b}": "Looping {a} – {b}",
+  "Start set at {a}": "Start set at {a}",
+  "A-B loop": "A-B loop",
+  "Change seek steps": "Change seek steps",
+  Shorter: "Shorter",
+  Longer: "Longer",
+  "{n}s": "{n}s",
+  "Seek step": "Seek step",
+  "Short seek": "Short seek",
+  "Drop here to hide": "Drop here to hide",
+  "Show {label}, or drag it onto the player": "Show {label}, or drag it onto the player",
+  "Edit player layout": "Edit player layout",
+  "Cycle audio tracks": "Cycle audio tracks",
+  "Cycle audio tracks backward": "Cycle audio tracks backward",
+  "Download video": "Download video",
+  Cast: "Cast",
+  "Cast to a device": "Cast to a device",
+  Started: "Started",
+  "Jump through video 0-9": "Jump through video 0-9",
+  "Switch to the next audio track.": "Switch to the next audio track.",
+  "Switch to the previous audio track.": "Switch to the previous audio track.",
+  "Start downloading the video you are watching, or cancel a download in progress.":
+    "Start downloading the video you are watching, or cancel a download in progress.",
+  "Open the list of devices to cast to.": "Open the list of devices to cast to.",
+  "Open the layout editor over the video, without leaving playback.":
+    "Open the layout editor over the video, without leaving playback.",
+  "Jump to {time}": "Jump to {time}",
+  "Right-click or hold for more options": "Right-click or hold for more options",
+  "{word} {n} seconds. Right-click or hold for more options":
+    "{word} {n} seconds. Right-click or hold for more options",
+  "Previous channel (Live TV)": "Previous channel (Live TV)",
+  "Long seek": "Long seek",
+  "Long seek back": "Long seek back",
+  "Long seek forward": "Long seek forward",
+  "Jump back by the Long seek step set under Behavior.":
+    "Jump back by the Long seek step set under Behavior.",
+  "Jump forward by the Long seek step set under Behavior.":
+    "Jump forward by the Long seek step set under Behavior.",
+  "A longer jump for skipping ahead or back quickly. Its keys are set under Keys.":
+    "A longer jump for skipping ahead or back quickly. Its keys are set under Keys.",
+  "Drop here": "Drop here",
+  "Click any control to edit it, or drag it to a new spot.":
+    "Click any control to edit it, or drag it to a new spot.",
+  "Sync AniList progress": "Sync AniList progress",
+  "Sync MyAnimeList progress": "Sync MyAnimeList progress",
+  "Offset indicator position": "Offset indicator position",
+  "Offset indicator size": "Offset indicator size",
+  "Sync indicator position": "Sync indicator position",
+  "Subtitle size": "Subtitle size",
+  "Poster size": "Poster size",
+  "Save the last": "Save the last",
+  "Save the last {n} seconds": "Save the last {n} seconds",
+  "Clip length": "Clip length",
+  Screenshots: "Screenshots",
+  GIFs: "GIFs",
+  "Video clips": "Video clips",
+  "Player captures": "Player captures",
+  "Pictures/Harbor": "Pictures/Harbor",
+  "Choose where videos, eBooks and player captures are saved, and how their folders are organized.":
+    "Choose where videos, eBooks and player captures are saved, and how their folders are organized.",
+  "Save the current frame (video only, no subtitles) as a PNG to the Screenshots folder.":
+    "Save the current frame (video only, no subtitles) as a PNG to the Screenshots folder.",
+  "Start or stop recording a GIF of the video (no subtitles). Saves to the GIFs folder.":
+    "Start or stop recording a GIF of the video (no subtitles). Saves to the GIFs folder.",
+  "Save the last seconds of video, set by Clip length, as a clip with audio, choosing subtitles on or off. Saves to the Video clips folder.":
+    "Save the last seconds of video, set by Clip length, as a clip with audio, choosing subtitles on or off. Saves to the Video clips folder.",
+  "How many seconds Save video clip keeps, counting back from where you are.":
+    "How many seconds Save video clip keeps, counting back from where you are.",
 };
 
 export default uiFallback;

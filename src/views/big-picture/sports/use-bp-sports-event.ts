@@ -3,7 +3,7 @@ import { Bell, BellRing, ExternalLink, Heart } from "lucide-react";
 import { openUrl } from "@/lib/window";
 import { useUiLanguage } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { getLeagueLabel } from "@/lib/sports/espn-leagues";
 import type { LeagueDef, SportsGame, SportsMatchDetail, SportsSide } from "@/lib/sports/espn-types";
 import { formatSportsEventDate } from "@/lib/sports/event-date";
@@ -134,7 +134,7 @@ export function useBpSportsEventActions(data: BpSportsEventData): BpDetailAction
   const t = useBpT();
   const { game, league, group } = data;
   const { settings } = useSettings();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const favourites = useFavourites();
   const reminders = useSportsReminders();
   const id = reminderId(game);

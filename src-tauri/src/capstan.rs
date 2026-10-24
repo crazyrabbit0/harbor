@@ -75,9 +75,9 @@ async fn spawn(app: &AppHandle) -> Result<Arc<Bridge>, String> {
     crate::proc_guard::adopt(&child);
     eprintln!("[capstan] bridge started, jvm from {}", jvm.source);
 
-    let mut stdin = child.stdin.take().ok_or("bridge stdin unavailable")?;
-    let stdout = child.stdout.take().ok_or("bridge stdout unavailable")?;
-    let stderr = child.stderr.take().ok_or("bridge stderr unavailable")?;
+    let mut stdin = crate::child_pipe::take_stdin(&mut child).ok_or("bridge stdin unavailable")?;
+    let stdout = crate::child_pipe::take_stdout(&mut child).ok_or("bridge stdout unavailable")?;
+    let stderr = crate::child_pipe::take_stderr(&mut child).ok_or("bridge stderr unavailable")?;
 
     let (tx, mut rx) = mpsc::unbounded_channel::<String>();
     let pending: Arc<SyncMutex<HashMap<String, oneshot::Sender<Value>>>> =

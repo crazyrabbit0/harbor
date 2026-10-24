@@ -2,7 +2,7 @@ import { Play } from "@/components/icons/play-filled";
 import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, BookOpen, Crosshair, Radio, Search, X, RefreshCw } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { officialBroadcastSource } from "@/lib/sports/esports-streams";
 import { twitchGameSlug } from "@/lib/games/guide-streams";
 import type { GuideVideoSort, GuideVideoDate } from "@/lib/games/guide-video-options";
@@ -29,7 +29,7 @@ export function GameGuides({
   read: (item: GameGuide, origin?: HTMLElement) => void;
   back?: () => void;
 }) {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const [videoSort, setVideoSort] = useState<GuideVideoSort>("popular"),
     [videoDate, setVideoDate] = useState<GuideVideoDate>("year"),
     [liveSort, setLiveSort] = useState<"popular" | "relevance">("popular");

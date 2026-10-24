@@ -13,7 +13,7 @@ import { Play } from "@/components/icons/play-filled";
 import { memo, useCallback, useMemo, useState } from "react";
 import { Poster } from "@/components/poster";
 import { removeLocalEntry, type LocalEntry } from "@/lib/local-library";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { LocalBadge } from "@/components/local-badge";
 import { CardIconButton, type LocalCardProps } from "./card-actions";
@@ -33,7 +33,7 @@ function OwnedCardImpl({
 }: { entry: LocalEntry; versions: LocalEntry[]; isSelected: boolean } & LocalCardProps) {
   const t = useT();
   const [confirm, setConfirm] = useState(false);
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const poster = useLocalPoster(entry);
 
   const epLabel = episodeLabel(entry);

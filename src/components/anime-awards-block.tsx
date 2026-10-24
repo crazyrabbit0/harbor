@@ -7,7 +7,7 @@ import {
   type AwardWin,
 } from "@/lib/anime-awards";
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function AnimeAwardsBlock({ name, year }: { name: string; year?: number }) {
@@ -39,7 +39,7 @@ export function AnimeAwardsBlock({ name, year }: { name: string; year?: number }
 }
 
 function SourceGroup({ source, wins }: { source: AwardSourceId; wins: AwardWin[] }) {
-  const { openAnimeAward } = useView();
+  const { openAnimeAward } = useViewActions();
   const t = useT();
   const meta = awardSourceMeta(source);
   const years = uniqueYears(wins);

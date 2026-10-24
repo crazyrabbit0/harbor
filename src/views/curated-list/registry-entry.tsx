@@ -5,7 +5,7 @@ import { itemMeta } from "@/lib/curated/registry";
 import type { CuratedList, CuratedListItem } from "@/lib/curated/types";
 import type { RegistryEntry as Entry } from "@/lib/film-registry/types";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 
 const QUIET =
@@ -39,7 +39,7 @@ function RegistryEntryBody({
   inducted: number | null;
 }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const [showCredits, setShowCredits] = useState(false);
   const meta = itemMeta(list, item);
   const open = () => openMeta(meta);

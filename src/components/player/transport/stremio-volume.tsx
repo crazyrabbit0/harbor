@@ -5,6 +5,7 @@ import type { VolumeStyle } from "@/lib/player-chrome";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { Tooltip } from "./tooltip";
+import { withHotkey } from "./hotkey-label";
 import {
   fractionFromValue,
   NORMAL_FRACTION,
@@ -83,7 +84,7 @@ export function StremioVolume({
 
   if (style === "icon-only") {
     return (
-      <Tooltip label={muted ? tr("Unmute") : tr("Mute")}>
+      <Tooltip label={withHotkey(muted ? tr("Unmute") : tr("Mute"), "playerMute")}>
         <button
           type="button"
           onClick={onMute}
@@ -108,7 +109,7 @@ export function StremioVolume({
     };
     return (
       <div className="pointer-events-auto flex items-center gap-1" onWheel={onWheel}>
-        <Tooltip label={muted ? tr("Unmute") : tr("Mute")}>
+        <Tooltip label={withHotkey(muted ? tr("Unmute") : tr("Mute"), "playerMute")}>
           <button
             type="button"
             onClick={onMute}
@@ -169,7 +170,7 @@ export function StremioVolume({
           )}
         </button>
       ) : (
-        <Tooltip label={muted ? tr("Unmute") : tr("Mute")}>
+        <Tooltip label={withHotkey(muted ? tr("Unmute") : tr("Mute"), "playerMute")}>
           <button
             type="button"
             onClick={onMute}

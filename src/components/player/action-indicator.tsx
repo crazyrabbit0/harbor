@@ -2,11 +2,14 @@ import {
   Activity,
   Captions,
   CaptionsOff,
+  Cast,
   ChevronFirst,
   ChevronLast,
   Clock,
   Crop,
+  Download,
   FastForward,
+  Languages,
   Moon,
   Pause,
   Play,
@@ -38,7 +41,10 @@ export type ActionIcon =
   | "stats"
   | "sleep"
   | "upscale"
-  | "video";
+  | "video"
+  | "audio"
+  | "download"
+  | "cast";
 
 /** A short confirmation for a player action: an uppercase title and the state it reached. */
 export type ActionFeedback = { icon: ActionIcon; title: string; value: string };
@@ -63,6 +69,9 @@ const ICONS: Record<ActionIcon, LucideIcon> = {
   sleep: Moon,
   upscale: Sparkles,
   video: ScanSearch,
+  audio: Languages,
+  download: Download,
+  cast: Cast,
 };
 
 // Same anchors as the volume and speed cards, centred by transform because this card grows with its label.

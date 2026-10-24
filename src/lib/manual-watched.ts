@@ -354,27 +354,36 @@ export function applyRemoteWatched(
   unset: Array<{ season: number; episode: number }>,
 ): void {
   if (add.length === 0 && unset.length === 0) return;
-  const on = new Set(watchedSet());
-  const off = new Set(unwatchedSet());
   const at = unwatchedAtMap();
   const rem = remoteSet();
-  for (const { season, episode } of add) {
-    const k = key(metaId, season, episode);
+  const addKeys = add.map(({ season, episode }) => key(metaId, season, episode));
+  const unsetKeys = unset.map(({ season, episode }) => key(metaId, season, episode));
+  // Runs for every library series on each sync, so skip the ~300 KB rewrite and the subscriber fan-out when nothing changes.
+  const onSet = watchedSet();
+  const offSet = unwatchedSet();
+  const flagsChanged =
+    addKeys.some((k) => !onSet.has(k) || offSet.has(k)) ||
+    unsetKeys.some((k) => onSet.has(k) || offSet.has(k));
+  const atChanged = [...addKeys, ...unsetKeys].some((k) => k in at);
+  const remChanged = addKeys.some((k) => !rem.has(k)) || unsetKeys.some((k) => rem.has(k));
+  if (!flagsChanged && !atChanged && !remChanged) return;
+  const on = new Set(onSet);
+  const off = new Set(offSet);
+  for (const k of addKeys) {
     on.add(k);
     off.delete(k);
     delete at[k];
     rem.add(k);
   }
-  for (const { season, episode } of unset) {
-    const k = key(metaId, season, episode);
+  for (const k of unsetKeys) {
     on.delete(k);
     off.delete(k);
     delete at[k];
     rem.delete(k);
   }
-  persistUnwatchedAt();
-  persistRemote();
-  persist(on, off);
+  if (atChanged) persistUnwatchedAt();
+  if (remChanged) persistRemote();
+  if (flagsChanged) persist(on, off);
 }
 
 export function recordManualWatchedMeta(metaId: string, meta: ManualWatchedMeta): void {

@@ -212,7 +212,7 @@ pub async fn probe_audio_streams(
     #[cfg(windows)]
     cmd.creation_flags(0x0800_0000);
 
-    let fut = async { cmd.output().await.ok() };
+    let fut = async { crate::child_pipe::output(&mut cmd).await.ok() };
     let out = match tokio::time::timeout(Duration::from_secs(PROBE_TIMEOUT_SECS), fut).await {
         Ok(Some(o)) => o,
         _ => return Err("ffprobe failed or timed out".into()),

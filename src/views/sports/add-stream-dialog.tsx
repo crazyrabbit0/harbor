@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, CircleAlert, ClipboardPaste, Link2, Loader2, Play, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   fileNameOf,
   hostOf,
@@ -40,7 +40,7 @@ function toAttached(candidate: StreamCandidate, result: ResolveResult): Attached
 
 export function useStreamPlayer(): (stream: AttachedStream, name: string) => void {
   const t = useT();
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   return useCallback(
     (stream: AttachedStream, name: string) => {
       openPlayer({

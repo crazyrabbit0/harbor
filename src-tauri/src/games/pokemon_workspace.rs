@@ -54,8 +54,8 @@ async fn engine(path: &Path, request: Value) -> Result<Value, String> {
     #[cfg(windows)]
     command.creation_flags(0x08000000);
     let mut child = command.spawn().map_err(|_| "pokemon_engine_start")?;
-    let mut input = child.stdin.take().ok_or("pokemon_engine_start")?;
-    let output = child.stdout.take().ok_or("pokemon_engine_start")?;
+    let mut input = crate::child_pipe::take_stdin(&mut child).ok_or("pokemon_engine_start")?;
+    let output = crate::child_pipe::take_stdout(&mut child).ok_or("pokemon_engine_start")?;
     let operation = async {
         input
             .write_all(&bytes)

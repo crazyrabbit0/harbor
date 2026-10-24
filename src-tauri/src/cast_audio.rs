@@ -15,7 +15,7 @@ use std::{
 };
 use tokio::{
     io::AsyncReadExt,
-    process::{Child, ChildStdout},
+    process::Child,
     sync::{watch, Mutex, RwLock, Semaphore},
 };
 
@@ -44,7 +44,7 @@ pub(crate) struct AudioCastInput {
 
 struct Prepared {
     child: Child,
-    stdout: ChildStdout,
+    stdout: crate::child_pipe::Reader,
     prefix: Vec<u8>,
 }
 struct AudioSession {
@@ -239,10 +239,8 @@ async fn prepare(input: &AudioCastInput) -> Result<Prepared, String> {
     let mut child = command
         .spawn()
         .map_err(|_| "Could not start speaker audio conversion")?;
-    let mut stdout = child
-        .stdout
-        .take()
-        .ok_or("Speaker audio stream is unavailable")?;
+    let mut stdout =
+        crate::child_pipe::take_stdout(&mut child).ok_or("Speaker audio stream is unavailable")?;
     // Prewarm decoded frames, not just a container header, before the receiver's short startup deadline.
     let mut prefix = vec![0; 64 * 1024];
     let length = tokio::time::timeout(Duration::from_secs(20), async {

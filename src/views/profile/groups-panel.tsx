@@ -1,7 +1,7 @@
 import { ChevronRight, Plus, UsersRound } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { fetchGroupInvites, fetchMyGroups, fetchUserGroups, type Group } from "@/lib/social/groups";
 import { CreateGroupModal } from "./create-group-modal";
 import { Avatar } from "@/views/profile/profile-bits";
@@ -29,7 +29,7 @@ function FindGroupRow({ onClick }: { onClick: () => void }) {
 
 export function GroupsPanel({ isOwner, handle }: { isOwner: boolean; handle: string }) {
   const t = useT();
-  const { openGroup, openGroups } = useView();
+  const { openGroup, openGroups } = useViewActions();
   const [groups, setGroups] = useState<Group[]>([]);
   const [invites, setInvites] = useState<Group[]>([]);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");

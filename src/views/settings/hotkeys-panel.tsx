@@ -17,8 +17,9 @@ import {
   type HotkeyScope,
 } from "@/lib/hotkeys";
 import { isBackKey } from "@/lib/keyboard-navigation/geometry";
-import { SEEK_STEP_OPTIONS } from "@/lib/seek-step";
+import { CLIP_LENGTH_OPTIONS, SEEK_STEP_OPTIONS, sanitizeClipLength } from "@/lib/seek-step";
 import { useSettings } from "@/lib/settings";
+import { DEFAULT } from "@/lib/settings/defaults";
 import { useT } from "@/lib/i18n";
 import { Dropdown } from "@/components/dropdown";
 import { Section, ToggleRow } from "./shared";
@@ -297,6 +298,33 @@ export function HotkeysPanel() {
               onBack={(seekBackStepShortSec) => update({ seekBackStepShortSec })}
               onForward={(seekForwardStepShortSec) => update({ seekForwardStepShortSec })}
             />
+            <SeekStepRow
+              label={t("Long seek")}
+              sub={t(
+                "A longer jump for skipping ahead or back quickly. Its keys are set under Keys.",
+              )}
+              back={settings.seekBackStepLongSec}
+              forward={settings.seekForwardStepLongSec}
+              onBack={(seekBackStepLongSec) => update({ seekBackStepLongSec })}
+              onForward={(seekForwardStepLongSec) => update({ seekForwardStepLongSec })}
+            />
+            <SettingRow
+              label={t("Clip length")}
+              desc={t("How many seconds Save video clip keeps, counting back from where you are.")}
+              wide
+            >
+              <div className="w-[220px] max-w-full">
+                <Dropdown
+                  value={String(sanitizeClipLength(settings.clipLengthSec, DEFAULT.clipLengthSec))}
+                  options={CLIP_LENGTH_OPTIONS.map((n) => ({
+                    value: String(n),
+                    label: t("{n} seconds", { n }),
+                  }))}
+                  onChange={(next) => update({ clipLengthSec: Number(next) })}
+                  size="md"
+                />
+              </div>
+            </SettingRow>
           </Section>
         </>
       )}

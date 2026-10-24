@@ -1,5 +1,6 @@
 import { withMetaCache } from "@/lib/cinemeta-cache";
 import { safeFetch as fetch } from "@/lib/safe-fetch";
+import { storedSettings } from "@/lib/stored-settings";
 
 const CINEMETA = "https://v3-cinemeta.strem.io";
 
@@ -160,12 +161,7 @@ export const topSeries = (genre?: string, skip = 0) =>
   catalog(cinemetaTopPath("series", genre, skip));
 
 export function cinemetaEnabled(): boolean {
-  try {
-    const raw = localStorage.getItem("harbor.settings");
-    return raw ? JSON.parse(raw).cinemetaEnabled !== false : true;
-  } catch {
-    return true;
-  }
+  return storedSettings().cinemetaEnabled !== false;
 }
 
 export async function meta(

@@ -5,7 +5,7 @@ import { useMangaFavorites } from "@/lib/manga-favorites";
 import { mangaLists } from "@/lib/manga-lists";
 import { resolveMangaOpen } from "@/lib/manga/open-resolve";
 import { hasAnyMangaSource } from "@/lib/manga/sources";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import type { MangaSummary } from "@/lib/manga/types";
 import { MyListsTab } from "../library/my-lists-tab";
 import { VirtualGrid } from "@/components/virtual-grid";
@@ -14,7 +14,7 @@ import { observeWithin } from "@/lib/visibility";
 import { useProxiedImageSrc } from "@/lib/remote-image-proxy";
 
 function useOpenTitle() {
-  const { openManga } = useView();
+  const { openManga } = useViewActions();
   const favorites = useMangaFavorites();
   const busyRef = useRef<Set<string>>(new Set());
   const [missing, setMissing] = useState<Set<string>>(() => new Set());

@@ -5,7 +5,7 @@ import { tmdbCompanyIdByName, type TmdbDetail } from "@/lib/providers/tmdb";
 import { useCriticism } from "@/lib/providers/podcast-criticism";
 import { useAdaptationFamily } from "@/lib/providers/wikidata-graph";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { AdaptationRow } from "./adaptation-row";
 import { CriticismRow } from "./criticism-row";
@@ -37,7 +37,7 @@ function focusAnimeRow(key: string) {
 
 export function InfoBlock({ detail, isAnime = false }: { detail: TmdbDetail; isAnime?: boolean }) {
   const t = useT();
-  const { openFilter, setView } = useView();
+  const { openFilter, setView } = useViewActions();
   const adaptation = useAdaptationFamily(isAnime ? undefined : (detail.imdbId ?? undefined));
   const soundtrack = useFilmSoundtrack(detail.imdbId ?? undefined);
   const production = useProductionFacts(

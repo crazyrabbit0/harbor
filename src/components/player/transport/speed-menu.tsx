@@ -9,6 +9,8 @@ import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useMenuSide } from "../menu-side";
 import { Tooltip } from "./tooltip";
+import { KeyChips } from "./hotkey-label";
+import type { HotkeyId } from "@/lib/hotkeys";
 import { watchOutsideMouseDown } from "@/lib/player/overlay-dismiss";
 import { SPEED_MAX, SPEED_MIN } from "../speed-indicator";
 
@@ -145,7 +147,22 @@ export function SpeedMenu({
 
   return (
     <div ref={wrap} className="relative">
-      <Tooltip label={sleep ? t("Speed & sleep") : t("Playback speed")}>
+      <Tooltip
+        label={
+          <span className="inline-flex flex-col items-start gap-1">
+            <span className="inline-flex items-center gap-2">
+              <span>{t("Playback speed")}</span>
+              <KeyChips ids={["playerSpeedDown", "playerSpeedUp"]} tone="tip" />
+            </span>
+            {sleep && (
+              <span className="inline-flex items-center gap-2">
+                <span>{t("Sleep timer")}</span>
+                <KeyChips ids={["playerSleep"]} tone="tip" />
+              </span>
+            )}
+          </span>
+        }
+      >
         <button
           ref={btnRef}
           onClick={() => {
@@ -182,7 +199,7 @@ export function SpeedMenu({
       {open && (
         <div className="fixed end-14 bottom-[150px] w-[400px] max-w-[calc(100vw-72px)] max-h-[calc(100vh-174px)] overflow-y-auto rounded-md bg-elevated shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] animate-menu-pop">
           <div className={`grid ${sleep ? "grid-cols-2" : "grid-cols-1"}`}>
-            <Section title={t("Playback speed")}>
+            <Section title={t("Playback speed")} hotkeys={["playerSpeedDown", "playerSpeedUp"]}>
               {speedList.map((s) => {
                 const isDefault = Math.abs(s.value - (settings.defaultPlaybackSpeed ?? 1)) < 0.01;
                 return (
@@ -210,7 +227,7 @@ export function SpeedMenu({
               )}
             </Section>
             {sleep && (
-              <Section title={t("Sleep timer")} leftBorder>
+              <Section title={t("Sleep timer")} hotkeys={["playerSleep"]} leftBorder>
                 {sleepList.map((p) => {
                   const isSel =
                     (sleep.mode.kind === "minutes" &&
@@ -281,16 +298,21 @@ export function SpeedMenu({
 function Section({
   title,
   leftBorder,
+  hotkeys,
   children,
 }: {
   title: string;
+  hotkeys?: HotkeyId[];
   leftBorder?: boolean;
   children: React.ReactNode;
 }) {
   return (
     <div className={`p-2 ${leftBorder ? "border-s border-edge-soft" : ""}`}>
-      <div className="px-3 pb-1.5 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
-        {title}
+      <div className="flex items-center justify-between gap-3 px-3 pb-1.5 pt-1">
+        <span className="text-[10.5px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
+          {title}
+        </span>
+        {hotkeys && <KeyChips ids={hotkeys} />}
       </div>
       <div className="flex flex-col gap-0.5">{children}</div>
     </div>

@@ -3,7 +3,7 @@ import { Users } from "lucide-react";
 import { exitBigPicture } from "@/lib/big-picture";
 import { SFX } from "@/lib/sfx";
 import type { ScoredStream } from "@/lib/streams/types";
-import { useView, type PlayEpisode } from "@/lib/view";
+import { type PlayEpisode, useViewActions } from "@/lib/view";
 import { formatSize, streamSummaryParts } from "@/views/play-picker/picker-utils";
 import { pushBpBack } from "./bp-back";
 import { useBpT } from "./bp-i18n";
@@ -207,7 +207,7 @@ export function BpDebridDownDialog({
 
 export function BpNoSourcesDialog({ title, onClose }: { title: string; onClose: () => void }) {
   const t = useBpT();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const seedRef = useRef<HTMLButtonElement | null>(null);
   useSeededFocus(seedRef, onClose);
 
@@ -241,7 +241,7 @@ export function BpNoSourcesDialog({ title, onClose }: { title: string; onClose: 
         onClick={() => {
           SFX.click();
           exitBigPicture();
-          openSettings("streaming");
+          openSettings("streaming", { tab: "services", anchor: "Debrid services" });
         }}
         className={BTN_QUIET}
       >

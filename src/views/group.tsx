@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { currentAuthor } from "@/lib/theme-auth";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { InviteMemberModal } from "@/views/profile/invite-member-modal";
 import { CanvasCard } from "@/views/profile/customization/canvas-frame";
 import { useFontLink } from "@/views/profile/customization/apply";
@@ -24,7 +24,7 @@ export function GroupView({
   onOpenProfile?: (handle: string) => void;
 }) {
   const t = useT();
-  const { goBack, openGroups } = useView();
+  const { goBack, openGroups } = useViewActions();
   const g = useGroup(id, goBack);
   const [tab, setTab] = useState<Tab>("posts");
   const [inviting, setInviting] = useState(false);

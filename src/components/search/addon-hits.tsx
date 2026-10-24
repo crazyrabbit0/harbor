@@ -2,10 +2,10 @@ import { Blocks, Check, ChevronRight } from "lucide-react";
 import { AddonLogo, resolveAddonLogo } from "@/components/addon-logo";
 import type { AddonHit } from "@/lib/search-addon-index";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function AddonHits({ hits, onClose }: { hits: AddonHit[]; onClose: () => void }) {
-  const { openAddonDetail } = useView();
+  const { openAddonDetail } = useViewActions();
   const t = useT();
   if (hits.length === 0) return null;
   return (

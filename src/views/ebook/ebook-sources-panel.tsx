@@ -455,7 +455,7 @@ function LocalFolderTutorial({ onClose, onChoose }: { onClose: () => void; onCho
   const t = useT();
   return createPortal(
     <div
-      className="animate-fade-in fixed inset-0 z-[80] grid place-items-center bg-black/60 p-6 backdrop-blur-sm"
+      className="animate-fade-in fixed inset-0 z-[200] grid place-items-center bg-black/60 p-6 backdrop-blur-sm"
       onClick={onClose}
     >
       <div

@@ -4,7 +4,7 @@ import { HoverTooltip } from "@/components/hover-tooltip";
 import { useT } from "@/lib/i18n";
 import { collectionsForTitle } from "@/lib/manga/collections";
 import { hasAnyMangaSource } from "@/lib/manga/sources";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 const BADGE_ART: Record<string, string> = {
   popular: "/awards/most-popular-clean.webp",
@@ -33,7 +33,7 @@ export function MangaAwardCorner({
   fallbackPoster?: string;
 }) {
   const t = useT();
-  const { openManga } = useView();
+  const { openManga } = useViewActions();
   const award = collectionsForTitle(title).find((c) => c.award && BADGE_ART[c.id]);
   const [poster, setPoster] = useState<string | null>(null);
   const [mangaId, setMangaId] = useState<string | null>(null);

@@ -36,8 +36,31 @@ export function reconcileRemoteWatched(items: LibraryItem[]): void {
     if (typeof watched === "string" && watched.length > 0) {
       const rawMt = i._mtime as unknown;
       const mtime = typeof rawMt === "number" ? rawMt : Date.parse(String(rawMt ?? ""));
-      void applySeries(i._id, watched, Number.isFinite(mtime) ? mtime : 0);
+      enqueue(() => applySeries(i._id, watched, Number.isFinite(mtime) ? mtime : 0));
     }
+  }
+}
+
+// A library sync reconciles every series; a few at a time keeps their fetches and decodes from landing in one long task.
+const MAX_RUNNING = 3;
+const queue: Array<() => Promise<void>> = [];
+let running = 0;
+
+function enqueue(job: () => Promise<void>): void {
+  queue.push(job);
+  pump();
+}
+
+function pump(): void {
+  while (running < MAX_RUNNING && queue.length > 0) {
+    const job = queue.shift()!;
+    running += 1;
+    setTimeout(() => {
+      void job().finally(() => {
+        running -= 1;
+        pump();
+      });
+    }, 0);
   }
 }
 

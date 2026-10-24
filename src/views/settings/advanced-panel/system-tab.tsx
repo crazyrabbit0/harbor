@@ -16,7 +16,7 @@ export function SystemTab() {
       <Section
         title={t("Downloads")}
         subtitle={t(
-          "Choose where videos and eBooks are saved, and how their folders are organized.",
+          "Choose where videos, eBooks and player captures are saved, and how their folders are organized.",
         )}
       >
         {isTauri ? (

@@ -5,7 +5,7 @@ import { Dropdown } from "@/components/dropdown";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { useSectionBack } from "@/lib/section-back";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 import { ESPORTS_GAMES, esportsGame, type EsportsGameId } from "@/lib/sports/esports-catalog";
 import { officialBroadcastSource, type EsportsStream } from "@/lib/sports/esports-streams";
@@ -26,7 +26,7 @@ function TournamentDialog({ event, onClose }: { event: MajorTournament; onClose:
     id = useId(),
     root = useAccountDialogFocus(),
     { closing, close } = useModalExit(onClose),
-    { openPlayer } = useView();
+    { openPlayer } = useViewActions();
   useSectionBack(close, true);
   const watch = (stream: EsportsStream) => {
     const source = officialBroadcastSource(stream);

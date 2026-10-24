@@ -7,7 +7,12 @@ import type { CastEntry } from "@/lib/providers/tmdb";
 import { fetchEpisodeData } from "@/lib/episode-data-fetcher";
 import { meta as fetchCinemetaMeta } from "@/lib/cinemeta";
 import { useSettings, type Settings } from "@/lib/settings";
-import { useScrollMemory, useView, type EpisodeDetailPlayback, type PlayEpisode } from "@/lib/view";
+import {
+  useScrollMemory,
+  type EpisodeDetailPlayback,
+  type PlayEpisode,
+  useViewActions,
+} from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
 import { useOmdbScores, omdbScores as fetchOmdbScores } from "@/lib/providers/omdb";
@@ -41,7 +46,7 @@ export function EpisodeDetailView({
 }: EpisodeDetailViewProps) {
   const t = useT();
   const { settings } = useSettings();
-  const { openPicker, openMeta, goBack } = useView();
+  const { openPicker, openMeta, goBack } = useViewActions();
 
   const [seriesMeta, setSeriesMeta] = useState<Meta | null>(initialSeriesMeta || null);
   const [episodeData, setEpisodeData] = useState<EpisodeDetail | null>(null);

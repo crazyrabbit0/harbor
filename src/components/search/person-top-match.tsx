@@ -1,7 +1,7 @@
 import { ArrowRight } from "lucide-react";
 import type { SearchPerson } from "@/lib/search";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function matchPersonForQuery(
   people: SearchPerson[] | undefined,
@@ -29,7 +29,7 @@ export function PersonTopMatch({
   onClose: () => void;
   onOpenPerson?: (p: SearchPerson) => void;
 }) {
-  const { openPerson } = useView();
+  const { openPerson } = useViewActions();
   const t = useT();
   const open = () => {
     if (onOpenPerson) {

@@ -5,7 +5,7 @@ import { fetchTrailer, resolveTrailerQuality, trailerSrc } from "@/lib/trailer";
 import { isMacDesktop } from "@/lib/platform";
 import { openUrl } from "@/lib/window";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { NativeTrailerPlayer } from "./native-trailer-player";
 import { Tooltip } from "./tooltip";
@@ -22,7 +22,7 @@ export function TrailerOverlay({
   onClose: () => void;
 }) {
   const t = useT();
-  const { setChromeHidden } = useView();
+  const { setChromeHidden } = useViewActions();
   const { settings } = useSettings();
   const [open, setOpen] = useState(false);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);

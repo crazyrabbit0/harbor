@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Loader2, Search, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { CoverImg } from "@/components/cover-img";
@@ -81,8 +82,8 @@ export function MangaMatchPicker({
     };
   }, [debounced, hasSource]);
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
       <button
         type="button"
         aria-label={t("Close")}
@@ -185,6 +186,7 @@ export function MangaMatchPicker({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

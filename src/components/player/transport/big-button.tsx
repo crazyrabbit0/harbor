@@ -12,7 +12,7 @@ export function BigButton({
   children: React.ReactNode;
   onClick?: () => void;
   ariaLabel: string;
-  tooltip?: string;
+  tooltip?: React.ReactNode;
   active?: boolean;
   disabled?: boolean;
   iconUrl?: string;

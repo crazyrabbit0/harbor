@@ -4,6 +4,7 @@ import { t } from "@/lib/i18n";
 import {
   captureBaseTitle,
   captureDir,
+  captureDirLabel,
   formatStamp,
   joinPath,
   safeName,
@@ -16,7 +17,7 @@ export type GifState = "idle" | "recording" | "encoding";
 const MAX_SECONDS = 30;
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-export function useGifRecorder(params: { src: PlayerSrc }): {
+export function useGifRecorder(params: { src: PlayerSrc; folder?: string }): {
   state: GifState;
   elapsedSec: number;
   toast: FrameGrabToast | null;
@@ -25,7 +26,7 @@ export function useGifRecorder(params: { src: PlayerSrc }): {
   abort: () => void;
   toggle: () => void;
 } {
-  const { src } = params;
+  const { src, folder } = params;
   const [state, setState] = useState<GifState>("idle");
   const [elapsedSec, setElapsedSec] = useState(0);
   const [toast, setToast] = useState<FrameGrabToast | null>(null);
@@ -48,7 +49,7 @@ export function useGifRecorder(params: { src: PlayerSrc }): {
     clearTick();
     setPhase("encoding");
     const filename = `${safeName(captureBaseTitle(src))} - ${formatStamp(new Date())}.gif`;
-    const dir = await captureDir();
+    const dir = await captureDir(folder);
     const outPath = dir ? await joinPath(dir, filename) : filename;
     if (dismissRef.current) window.clearTimeout(dismissRef.current);
     try {
@@ -56,7 +57,7 @@ export function useGifRecorder(params: { src: PlayerSrc }): {
       setToast({
         id: Date.now(),
         kind: "ok",
-        text: t("GIF saved to {path}", { path: dir ? "Pictures/Harbor" : "downloads" }),
+        text: t("GIF saved to {path}", { path: captureDirLabel(dir, folder) }),
         path: result.path,
       });
     } catch (e) {
@@ -70,7 +71,7 @@ export function useGifRecorder(params: { src: PlayerSrc }): {
       setElapsedSec(0);
       dismissRef.current = window.setTimeout(() => setToast(null), 6000);
     }
-  }, [src]);
+  }, [src, folder]);
 
   const start = useCallback(async () => {
     if (!isTauri || stateRef.current !== "idle") return;

@@ -9,9 +9,10 @@ import {
   type PlayerChromeConfig,
   type PlayerControlConfig,
   type PlayerControlId,
+  type PlayerSlot,
   type ThemeId,
 } from "@/lib/player-chrome";
-import { moveControlOrder, moveControlSlot } from "./config-helpers";
+import { moveControlOrder, moveControlSlot, placeControl } from "./config-helpers";
 
 const THEME_BASELINES: Record<ThemeId, PlayerChromeConfig> = {
   default: DEFAULT_DEFAULT_CONFIG,
@@ -37,6 +38,13 @@ export function useChromeEdits(
       setDraft((cur) => moveControlOrder(cur, selectedId, dir));
     },
     [selectedId, setDraft],
+  );
+
+  const dropControl = useCallback(
+    (id: PlayerControlId, slot: PlayerSlot | "hidden", beforeId: PlayerControlId | null) => {
+      setDraft((cur) => placeControl(cur, id, slot, beforeId));
+    },
+    [setDraft],
   );
 
   const toggleHidden = useCallback(() => {
@@ -133,6 +141,7 @@ export function useChromeEdits(
   return {
     moveSlot,
     moveOrder,
+    dropControl,
     toggleHidden,
     unhideControl,
     resetControl,

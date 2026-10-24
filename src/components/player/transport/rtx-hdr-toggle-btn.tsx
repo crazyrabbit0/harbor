@@ -8,6 +8,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { BigButton } from "./big-button";
 import { StremioBtn } from "./stremio-btn";
 import { Tooltip } from "./tooltip";
+import { withHotkey } from "./hotkey-label";
 
 function useRtxHdr(meta: Meta | undefined) {
   const { settings, update } = useSettings();
@@ -21,7 +22,7 @@ export function RtxHdrToggleStremioBtn({ meta }: { meta?: Meta }) {
   const { active, disabled, toggle } = useRtxHdr(meta);
   if (!isWindowsDesktop()) return null;
   return (
-    <Tooltip label={t("RTX Video HDR")} side="bottom">
+    <Tooltip label={withHotkey(t("RTX Video HDR"), "playerRtxHdrToggle")} side="bottom">
       <StremioBtn
         onClick={toggle}
         ariaLabel={t("RTX Video HDR")}

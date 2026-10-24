@@ -60,7 +60,7 @@ export function SubtitleOffsetSettings() {
             <SubtitleOffsetIndicator delaySec={0.3} preview />
           </div>
 
-          <SettingGroup label={t("Position")}>
+          <SettingGroup label={t("Offset indicator position")}>
             <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
               {POSITION_OPTIONS.map((option) => {
                 const active = settings.subOffsetIndicatorPosition === option.value;
@@ -92,7 +92,7 @@ export function SubtitleOffsetSettings() {
             </div>
           </SettingGroup>
 
-          <SettingGroup label={t("Size")}>
+          <SettingGroup label={t("Offset indicator size")}>
             <Segmented
               value={settings.subOffsetIndicatorSize}
               options={SIZE_OPTIONS.map((o) => ({ ...o, label: t(o.label) }))}

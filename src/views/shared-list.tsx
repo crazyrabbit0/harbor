@@ -1,5 +1,5 @@
 import { currentAuthor } from "@/lib/theme-auth";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { SharedListBackdrop } from "./shared-list/shared-list-backdrop";
 import { SharedListHero } from "./shared-list/shared-list-hero";
 import { SharedListPosters } from "./shared-list/shared-list-posters";
@@ -17,7 +17,7 @@ export function SharedListView({
   onOpenProfile?: (handle: string) => void;
   onOpenMeta?: (id: string, kind?: string, hint?: { name?: string; poster?: string }) => void;
 }) {
-  const { goBack } = useView();
+  const { goBack } = useViewActions();
   const { state, summary, list, reload } = useSharedList(handle, listId);
   const signedIn = !!currentAuthor();
 

@@ -530,6 +530,155 @@ async fn generate_thumb(
     }
 }
 
+// Debrid CDNs drop connections past about five at once from one client.
+const PREFETCH_PARALLEL: usize = 5;
+const PREFETCH_TIMEOUT: Duration = Duration::from_secs(60);
+
+// Addon stream links redirect to a CDN; resolving once spares every ffmpeg the redirect round trip.
+async fn resolve_redirects(url: &str) -> String {
+    if !url.starts_with("http") {
+        return url.to_string();
+    }
+    let Ok(client) = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+    else {
+        return url.to_string();
+    };
+    match client.get(url).header("Range", "bytes=0-0").send().await {
+        Ok(resp) => resp.url().to_string(),
+        Err(_) => url.to_string(),
+    }
+}
+
+// One keyframe-only ffmpeg per time, a few at once, so a set of frames doesn't queue behind the shadow mpv's single seek.
+#[tauri::command]
+pub async fn thumbs_prefetch(
+    app: tauri::AppHandle,
+    state: State<'_, ThumbsState>,
+    times: Vec<f64>,
+) -> Result<Vec<Option<String>>, String> {
+    use tauri::Emitter;
+    let (url, session) = {
+        let inner = state.inner.lock().await;
+        (
+            inner.url.clone().ok_or_else(|| "no url".to_string())?,
+            inner
+                .session
+                .clone()
+                .ok_or_else(|| "no session".to_string())?,
+        )
+    };
+    let ffmpeg = crate::transcode::locate_ffmpeg().ok_or_else(|| "ffmpeg not found".to_string())?;
+    let url = resolve_redirects(&url).await;
+    let filter = thumb_filter(is_hdr_source(&url).await);
+    let gate = Arc::new(tokio::sync::Semaphore::new(PREFETCH_PARALLEL));
+    let mut jobs = tokio::task::JoinSet::new();
+    for (i, t) in times.iter().copied().enumerate() {
+        if !t.is_finite() || t < 0.0 {
+            continue;
+        }
+        let bucket = (t / BUCKET_SECONDS).round() as u32;
+        if let Some(hit) = state.inner.lock().await.cache.get(bucket) {
+            jobs.spawn(async move { (i, bucket, Some(hit), true) });
+            continue;
+        }
+        let (gate, ffmpeg, url, filter) =
+            (gate.clone(), ffmpeg.clone(), url.clone(), filter.clone());
+        jobs.spawn(async move {
+            let Ok(_permit) = gate.acquire_owned().await else {
+                return (i, bucket, None, false);
+            };
+            let at = (bucket as f64) * BUCKET_SECONDS;
+            let frame = tokio::time::timeout(PREFETCH_TIMEOUT, async {
+                match ffmpeg_frame(&ffmpeg, &url, at, &filter).await {
+                    None => ffmpeg_frame(&ffmpeg, &url, at, &filter).await,
+                    hit => hit,
+                }
+            })
+            .await
+            .ok()
+            .flatten();
+            (i, bucket, frame, false)
+        });
+    }
+    let mut out = vec![None; times.len()];
+    while let Some(done) = jobs.join_next().await {
+        let Ok((i, bucket, frame, cached)) = done else {
+            continue;
+        };
+        if let (Some(uri), false) = (&frame, cached) {
+            let mut inner = state.inner.lock().await;
+            if inner.session.as_deref() != Some(session.as_str()) {
+                return Ok(vec![None; times.len()]);
+            }
+            inner.cache.insert(bucket, uri.clone());
+            drop(inner);
+            let _ = app.emit(
+                "thumbs://frame",
+                json!({ "session": session, "time": times[i], "uri": uri }),
+            );
+        }
+        out[i] = frame;
+    }
+    Ok(out)
+}
+
+async fn ffmpeg_frame(bin: &PathBuf, url: &str, at: f64, filter: &str) -> Option<String> {
+    use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
+    let mut cmd = Command::new(bin);
+    cmd.kill_on_drop(true);
+    cmd.args(["-v", "error"]);
+    if url.starts_with("http") {
+        cmd.args([
+            "-reconnect",
+            "1",
+            "-reconnect_on_network_error",
+            "1",
+            "-reconnect_delay_max",
+            "2",
+        ]);
+    }
+    cmd.args([
+        "-skip_frame",
+        "nokey",
+        "-ss",
+        &format!("{at:.3}"),
+        "-i",
+        url,
+        "-an",
+        "-sn",
+        "-dn",
+        "-frames:v",
+        "1",
+        "-vf",
+        filter,
+        "-q:v",
+        "5",
+        "-f",
+        "image2pipe",
+        "-c:v",
+        "mjpeg",
+        "-",
+    ])
+    .stdin(Stdio::null())
+    .stdout(Stdio::piped())
+    .stderr(Stdio::null());
+    #[cfg(windows)]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+    crate::proc_guard::configure_command(&mut cmd);
+    let out = crate::child_pipe::output(&mut cmd).await.ok()?;
+    if !out.status.success() || out.stdout.is_empty() {
+        return None;
+    }
+    Some(format!(
+        "data:image/jpeg;base64,{}",
+        B64.encode(&out.stdout)
+    ))
+}
+
 #[tauri::command]
 pub async fn thumbs_stop(state: State<'_, ThumbsState>) -> Result<(), String> {
     state.stop().await;
@@ -586,7 +735,8 @@ async fn is_hdr_source(url: &str) -> bool {
         cmd.creation_flags(CREATE_NO_WINDOW);
     }
     crate::proc_guard::configure_command(&mut cmd);
-    let probe = tokio::time::timeout(Duration::from_secs(8), cmd.output()).await;
+    let probe =
+        tokio::time::timeout(Duration::from_secs(8), crate::child_pipe::output(&mut cmd)).await;
     let Ok(Ok(out)) = probe else {
         return false;
     };

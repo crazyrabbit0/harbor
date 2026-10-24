@@ -2,14 +2,14 @@ import { X } from "lucide-react";
 import { useRef } from "react";
 import { useOnboarding } from "@/lib/onboarding";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function PlayModeHint({ children }: { children: React.ReactNode }) {
   const t = useT();
   const { settings } = useSettings();
   const { isDismissed, dismiss } = useOnboarding();
-  const { openSettings } = useView();
+  const { openSettings } = useViewActions();
   const visible = settings.instantPlay && !isDismissed("play-mode-hint");
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -41,7 +41,7 @@ export function PlayModeHint({ children }: { children: React.ReactNode }) {
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
-                  openSettings("player");
+                  openSettings("player", { tab: "play", anchor: "Play button behavior" });
                 }}
                 className="self-start text-[12px] font-semibold text-accent transition-colors hover:underline"
               >

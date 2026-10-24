@@ -7,7 +7,7 @@ import { parseStream } from "@/lib/streams/parser";
 import { resolveStream } from "@/lib/streams/resolve";
 import { registerStreamProxy, unregisterStreamProxy } from "@/lib/stream-proxy";
 import type { Stream } from "@/lib/streams/types";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 import type { BpSportsAddonSources } from "./bp-sports-addon-sources";
 
@@ -30,7 +30,7 @@ export type BpSportsAddonPick = {
 };
 
 export function useBpSportsAddonPick(sources: BpSportsAddonSources): BpSportsAddonPick {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const [picked, setPicked] = useState<SportsAddonListing | null>(null);
   const [streams, setStreams] = useState<Stream[]>([]);
   const [pending, setPending] = useState(false);

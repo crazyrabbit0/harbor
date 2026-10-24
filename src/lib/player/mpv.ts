@@ -272,12 +272,20 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
   let snap: PlayerSnapshot = initialPlayerSnapshot();
   let profileAf = "";
   let hdrToSdr = mpvOptions?.hdrToSdr ?? true;
+  let appliedAf: string | null = null;
   const applyAudioFilters = () => {
     const parts: string[] = [];
-    if (snap.audioNormalize) parts.push("dynaudnorm=f=500:g=31:p=0.9:m=4:b=1");
+    // Frame length × window size sets the look-ahead audio waits on at every start and seek; 250 ms × 15 is ~4× shorter than 500 × 31.
+    if (snap.audioNormalize) parts.push("dynaudnorm=f=250:g=15:p=0.9:m=4:b=1");
     if (profileAf) parts.push(profileAf);
     if (parts.length > 0) parts.push("lavfi=[alimiter=limit=0.97]");
-    invoke("mpv_command", { cmd: ["af", "set", parts.join(",")] }).catch(() => {});
+    const chain = parts.join(",");
+    // Every `af set` rebuilds the chain and refills dynaudnorm's look-ahead, holding audio (and so playback) for seconds.
+    if (chain === appliedAf) return;
+    appliedAf = chain;
+    invoke("mpv_command", { cmd: ["af", "set", chain] }).catch(() => {
+      if (appliedAf === chain) appliedAf = null;
+    });
   };
   const listeners = new Set<(s: PlayerSnapshot) => void>();
   let unlistenEvent: UnlistenFn | null = null;
@@ -674,7 +682,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
         if (prevAid) {
           await invoke("mpv_set_property", { name: "aid", value: prevAid }).catch(() => {});
         }
-        // dynaudnorm's ~15 s lookahead restarts audio that far ahead of video after a reload; an exact seek in place refills it.
+        // dynaudnorm's look-ahead restarts audio ahead of video after a reload; an exact seek in place refills it.
         if (snap.audioNormalize) {
           await invoke("mpv_command", { cmd: ["seek", 0, "relative+exact"] }).catch(() => {});
         }
@@ -1057,6 +1065,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
           }
         }
         retainedMpv = null;
+        appliedAf = null;
         await invoke("mpv_start", {
           args: {
             url: src.url,

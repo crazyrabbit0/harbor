@@ -29,7 +29,7 @@ export function SyncIndicatorSetting() {
       {settings.syncIndicator && (
         <SettingRow
           wide
-          label={t("Position")}
+          label={t("Sync indicator position")}
           desc={t("Corners keep it clear of subtitles along the bottom.")}
         >
           <Segmented

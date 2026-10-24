@@ -31,7 +31,7 @@ import { refreshMusicRecentContextArtwork } from "@/lib/music/recent-context";
 import type { MusicTrack } from "@/lib/music/types";
 import { useMusicNowPlaying } from "@/lib/music/use-now-playing";
 import { useSectionBack } from "@/lib/section-back";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   loadSpooktoberMusic,
   spooktoberAsset,
@@ -62,7 +62,7 @@ export function SpooktoberMusicProvider({
   children: ReactNode;
   active?: boolean;
 }) {
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const navigate = useMemo(
     () => ({
       goToArtist: (name: string, track?: MusicTrack) => {
@@ -153,7 +153,7 @@ export function SpooktoberPlaylist({
   focusTrackId?: string;
 }) {
   const t = useT();
-  const { setView } = useView();
+  const { setView } = useViewActions();
   const navigate = useMusicNavigate();
   const { play } = useSpooktoberMusicPlayback();
   const { openPlaylistPicker } = useMusicPlaylistPicker();

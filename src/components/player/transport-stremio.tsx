@@ -15,6 +15,7 @@ import {
 import { CastModal } from "./cast-modal";
 import { SongIdToast } from "@/components/song-id-toast";
 import type { DownloadStatus } from "@/views/player/hooks/use-video-download";
+import type { PlayerExtras } from "./transport/player-extras";
 import { SeekBar } from "./transport/seek-bar";
 import { LiveBadge, GoToLive, LiveSeekBar } from "./transport/live-controls";
 import {
@@ -86,6 +87,7 @@ export type TransportStremioProps = {
   onOpenDvr?: () => void;
   sleep?: import("@/views/player/hooks/use-sleep-timer").SleepTimerState;
   homeServerQualityControl?: import("react").ReactNode;
+  extras?: PlayerExtras;
 };
 
 export function TransportStremio(p: TransportStremioProps) {
@@ -150,6 +152,7 @@ export function TransportStremio(p: TransportStremioProps) {
     onOpenDvr,
     sleep,
     homeServerQualityControl,
+    extras,
   } = p;
 
   const playing = snap.status === "playing";
@@ -276,6 +279,7 @@ export function TransportStremio(p: TransportStremioProps) {
     onDownloadReset,
     onOpenDvr,
     homeServerQualityControl,
+    extras,
   };
 
   const renderSlot = (slot: PlayerSlot) =>
@@ -288,7 +292,7 @@ export function TransportStremio(p: TransportStremioProps) {
       <SongIdToast />
       <div
         data-tauri-drag-region={fullscreen ? undefined : ""}
-        className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex h-[88px] items-center justify-between bg-gradient-to-b from-black/35 via-black/15 to-transparent px-6 transition-opacity duration-200 ${
+        className={`pointer-events-none absolute inset-x-0 top-0 z-20 player-scrim-top flex h-[112px] items-center justify-between px-6 transition-opacity duration-200 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -305,7 +309,7 @@ export function TransportStremio(p: TransportStremioProps) {
       <div
         ref={controlsRef}
         dir="ltr"
-        className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-1 bg-gradient-to-t from-black/35 to-transparent px-8 pb-3 pt-12 transition-opacity duration-200 ${
+        className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 player-scrim-bottom flex flex-col gap-1 px-8 pb-3 pt-16 transition-opacity duration-200 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
       >

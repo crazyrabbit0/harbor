@@ -1,7 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { safeFetch } from "@/lib/safe-fetch";
 import { authToken } from "@/lib/theme-auth";
-import { HARBOR_API_BASE } from "@/lib/config/endpoints";
+import { HARBOR_API_BASE, HARBOR_DATA_BASE } from "@/lib/config/endpoints";
 import {
   MAX_COLLECTIONS,
   MAX_COLLECTION_ITEMS,
@@ -140,23 +140,20 @@ function normalizeCommunityCollection(raw: unknown): CommunityCollection | null 
   };
 }
 
+// The community feed is the read-only data/collections/index.json in this repo (collections join by pull request).
+const COMMUNITY_INDEX = `${HARBOR_DATA_BASE}/collections/index.json`;
+
 export async function fetchCommunityCollections(
   signal?: AbortSignal,
 ): Promise<CommunityCollection[]> {
-  const res = await safeFetch(`${BASE}/collections/community`, {
-    headers: authHeaders(),
-    signal,
-  });
+  const res = await safeFetch(COMMUNITY_INDEX, { cache: "no-cache", signal });
+  if (res.status === 404) return [];
   if (!res.ok) throw new Error(`community collections ${res.status}`);
   const data = (await res.json()) as { collections?: unknown } | null;
-  const list = data?.collections;
-  if (!Array.isArray(list)) return [];
-  const out: CommunityCollection[] = [];
-  for (const raw of list) {
-    const c = normalizeCommunityCollection(raw);
-    if (c) out.push(c);
-  }
-  return out;
+  if (!Array.isArray(data?.collections)) throw new Error("Invalid community collection feed");
+  return data.collections
+    .map(normalizeCommunityCollection)
+    .filter((item): item is CommunityCollection => item !== null);
 }
 
 export const COMMUNITY_COLLECTION_PAGE_SIZE = 24;
@@ -165,32 +162,12 @@ export type CommunityCollectionPage = {
   nextCursor: string | null;
 };
 
-/** The array-only endpoint remains available to older callers, including Big Picture. */
+/** The feed is one static file, so it comes back as a single cursorless batch the hub reveals a page at a time. */
 export async function fetchCommunityCollectionsPage(
-  cursor: string | null = null,
+  _cursor: string | null = null,
   signal?: AbortSignal,
 ): Promise<CommunityCollectionPage> {
-  const params = new URLSearchParams({ limit: String(COMMUNITY_COLLECTION_PAGE_SIZE) });
-  if (cursor) params.set("cursor", cursor);
-  const res = await safeFetch(`${BASE}/collections/community?${params}`, {
-    headers: authHeaders(),
-    signal,
-  });
-  if (!res.ok) throw new Error(`community collections ${res.status}`);
-  const data = (await res.json()) as { collections?: unknown; nextCursor?: unknown } | null;
-  if (!Array.isArray(data?.collections)) throw new Error("Invalid community collection page");
-  const nextCursor =
-    typeof data.nextCursor === "string" && data.nextCursor ? data.nextCursor : null;
-  if (nextCursor && nextCursor === cursor)
-    throw new Error("Community collection cursor did not advance");
-  return {
-    collections: data.collections
-      .map(normalizeCommunityCollection)
-      .filter((item): item is CommunityCollection => item !== null),
-    // Old servers return a single larger batch without a cursor. The hub reveals
-    // that batch progressively and never requests the same legacy batch twice.
-    nextCursor,
-  };
+  return { collections: await fetchCommunityCollections(signal), nextCursor: null };
 }
 
 export async function publishCollections(

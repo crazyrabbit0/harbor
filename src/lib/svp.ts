@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { Settings } from "@/lib/settings/types";
 
 export type SvpStatus = {
   supported: boolean;
@@ -21,6 +22,6 @@ export async function svpEnsureRunning(): Promise<boolean> {
   return invoke<boolean>("svp_ensure_running");
 }
 
-export async function svpApply(targetFps: string): Promise<string> {
-  return invoke<string>("svp_apply", { targetFps });
+export async function svpApply({ svpTargetFps }: Pick<Settings, "svpTargetFps">): Promise<string> {
+  return invoke<string>("svp_apply", { targetFps: svpTargetFps });
 }

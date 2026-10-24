@@ -1,5 +1,5 @@
 import type { Meta } from "@/lib/cinemeta";
-import { useView, type PlayEpisode } from "@/lib/view";
+import { type PlayEpisode, useViewActions } from "@/lib/view";
 import { parseKitsuId } from "@/lib/providers/kitsu";
 import { splitFranchiseDisplaySeason } from "@/lib/streams/anime-identity-core";
 import { useT } from "@/lib/i18n";
@@ -18,7 +18,7 @@ export function AutoExhaustedModal({
   triedCount: number;
   onBrowseManually: () => void;
 }) {
-  const { goBack } = useView();
+  const { goBack } = useViewActions();
   const t = useT();
   const title = meta.name ?? "this title";
   const partSeason = episode

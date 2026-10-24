@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { Row } from "@/components/row";
 import { useT } from "@/lib/i18n";
 import type { NewEpisode } from "@/lib/new-episodes";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 type Props = {
   episodes: NewEpisode[];
@@ -24,7 +24,7 @@ const EpisodeCard = memo(function EpisodeCard({
   onDismiss: (key: string) => void;
 }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const art = ep.still ?? ep.poster;
 
   return (

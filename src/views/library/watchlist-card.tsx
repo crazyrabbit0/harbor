@@ -3,14 +3,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Poster, usePosterChain } from "@/components/poster";
 import { hasEmbeddedStreams, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useInWatchlist } from "@/lib/watchlist";
 import { useT } from "@/lib/i18n";
 import { hydrateLibraryMeta } from "./hydrate-meta";
 
 export function WatchlistCard({ meta, onRemove }: { meta: Meta; onRemove?: () => void }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const { settings } = useSettings();
   const inList = useInWatchlist(meta.id);
   const cardRef = useRef<HTMLDivElement>(null);

@@ -2,10 +2,10 @@ import { BookOpen } from "lucide-react";
 import { CoverImg } from "@/components/cover-img";
 import type { MangaSummary } from "@/lib/manga/model";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function MangaRow({ items, onClose }: { items: MangaSummary[]; onClose: () => void }) {
-  const { openManga } = useView();
+  const { openManga } = useViewActions();
   const t = useT();
   if (items.length === 0) return null;
 

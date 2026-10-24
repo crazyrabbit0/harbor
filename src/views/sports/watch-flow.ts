@@ -5,7 +5,7 @@ import { recordChannelPlay } from "@/lib/iptv/channel-stats";
 import type { IptvChannel } from "@/lib/iptv/types";
 import type { SportsGame } from "@/lib/sports/espn";
 import { bestChannelForGame, type SportsChannelIndex } from "@/lib/sports/iptv-match";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useStreamPlayer } from "./add-stream-dialog";
 import { useAttachments } from "./source-store";
 
@@ -17,7 +17,7 @@ export function fixtureLabelOf(game: SportsGame): string {
 
 export function useChannelPlayer(): (channel: IptvChannel, subtitle: string) => void {
   const t = useT();
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   return useCallback(
     (channel: IptvChannel, subtitle: string) => {
       recordChannelPlay(channel);

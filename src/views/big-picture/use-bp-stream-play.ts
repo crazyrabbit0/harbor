@@ -5,7 +5,7 @@ import { useActiveKid } from "@/lib/profiles";
 import { useSettings } from "@/lib/settings";
 import type { ScoredStream } from "@/lib/streams/types";
 import { useTogether } from "@/lib/together/provider";
-import { useView, type PlayEpisode, type PlayerSrc } from "@/lib/view";
+import { type PlayEpisode, type PlayerSrc, useViewActions } from "@/lib/view";
 import { isLivePlaybackSrc } from "@/lib/player/live-src";
 import { playError, streamIdentity, type PickerError } from "@/views/play-picker/picker-utils";
 import { useAutoCandidates } from "@/views/play-picker/use-auto-candidates";
@@ -52,7 +52,7 @@ export function useBpStreamPlay(params: {
 }): BpStreamPlay {
   const { meta, episode, s, autoPlay, resume, intent, onPick } = params;
   const { settings, update } = useSettings();
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const kid = useActiveKid();
   const {
     snapshot: roomSnapshot,

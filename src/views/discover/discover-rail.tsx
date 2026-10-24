@@ -4,7 +4,7 @@ import type { RailDef } from "@/lib/feed";
 import { FeedShelf } from "@/components/feed-shelf";
 import { ScrollRootContext } from "@/components/row";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function Rail({
   active = true,
@@ -23,7 +23,7 @@ export function Rail({
   ensureLoaded?: (id: string) => void;
   titleOverride?: string;
 }) {
-  const { openGrid } = useView();
+  const { openGrid } = useViewActions();
   const t = useT();
   const root = useContext(ScrollRootContext);
   const element = useRef<HTMLDivElement>(null);

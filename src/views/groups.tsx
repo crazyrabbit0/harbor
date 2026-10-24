@@ -3,7 +3,7 @@ import { Loader2, Plus, UsersRound } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
 import { useT } from "@/lib/i18n";
 import { currentAuthor } from "@/lib/theme-auth";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { CreateGroupModal } from "@/views/profile/create-group-modal";
 import { GroupTile } from "./groups/group-tile";
 import { GroupsHeroMosaic } from "./groups/hero-mosaic";
@@ -12,7 +12,7 @@ import { useGroupDiscovery } from "./groups/use-group-discovery";
 
 export function GroupsView() {
   const t = useT();
-  const { openGroup } = useView();
+  const { openGroup } = useViewActions();
   const signedIn = !!currentAuthor();
   const d = useGroupDiscovery(signedIn);
   const [creating, setCreating] = useState(false);

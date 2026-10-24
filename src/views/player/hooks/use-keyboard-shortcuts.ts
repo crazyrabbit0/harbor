@@ -18,6 +18,7 @@ import { isAnyFullscreen, exitAnyFullscreen } from "@/lib/fullscreen-state";
 import { isBigPictureActive } from "@/lib/big-picture";
 import { getLeaveConfirm, openLeaveConfirm } from "@/lib/player/leave-confirm";
 import { isPlayerInteractionLocked } from "@/lib/player/interaction-lock";
+import { flashJumpMarks } from "@/lib/player/jump-marks";
 import { round2 } from "../player-utils";
 import { SPEED_MAX, SPEED_MIN } from "@/components/player/speed-indicator";
 import { SFX } from "@/lib/sfx";
@@ -25,6 +26,7 @@ import type { ActionFeedback } from "@/components/player/action-indicator";
 import { useT } from "@/lib/i18n";
 import { fmtTime } from "@/components/player/transport/transport-utils";
 import { subtitleTrackLanguageLabel } from "@/lib/subtitles/track-label";
+import { trackLanguageName } from "@/lib/subtitles/language";
 
 export function useKeyboardShortcuts(params: {
   bridgeRef: RefObject<PlayerBridge | null>;
@@ -41,6 +43,10 @@ export function useKeyboardShortcuts(params: {
   togglePip?: () => void;
   fullscreen: boolean;
   cycleSubtitles: (direction: 1 | -1) => TrackInfo | null | undefined;
+  cycleAudio?: (direction: 1 | -1) => TrackInfo | undefined;
+  onDownload?: () => void;
+  onCast?: () => void;
+  onEditLayout?: () => void;
   setShowStats: (updater: (prev: boolean) => boolean) => void;
   metaId: string;
   svpActive: boolean;
@@ -86,6 +92,10 @@ export function useKeyboardShortcuts(params: {
     toggleFullscreen,
     togglePip,
     cycleSubtitles,
+    cycleAudio,
+    onDownload,
+    onCast,
+    onEditLayout,
     setShowStats,
     metaId,
     svpActive,
@@ -124,6 +134,8 @@ export function useKeyboardShortcuts(params: {
   const seekForwardStepSec = settings.seekForwardStepSec;
   const seekBackStepShortSec = settings.seekBackStepShortSec;
   const seekForwardStepShortSec = settings.seekForwardStepShortSec;
+  const seekBackStepLongSec = settings.seekBackStepLongSec;
+  const seekForwardStepLongSec = settings.seekForwardStepLongSec;
   const [subtitleOffsetSec, setSubtitleOffsetSec] = useState<number | null>(null);
   const subtitleOffsetTimerRef = useRef<number | null>(null);
   const showSubtitleOffset = (delaySec: number) => {
@@ -205,6 +217,8 @@ export function useKeyboardShortcuts(params: {
         if (e.cancelable) e.preventDefault();
         return;
       }
+      // The in-player layout editor owns the keyboard while it is open.
+      if (document.querySelector("[data-layout-editor]")) return;
       if (isTypingTarget(e)) return;
 
       const binding = eventToBinding(e);
@@ -321,12 +335,12 @@ export function useKeyboardShortcuts(params: {
       }
       if (match("playerSeekBack30")) {
         e.preventDefault();
-        seekBy(-30);
+        seekBy(-seekBackStepLongSec);
         return;
       }
       if (match("playerSeekForward30")) {
         e.preventDefault();
-        seekBy(30);
+        seekBy(seekForwardStepLongSec);
         return;
       }
       if (match("playerFrameForward") && onFrameStep) {
@@ -463,6 +477,34 @@ export function useKeyboardShortcuts(params: {
         }
         return;
       }
+      const audioForward = match("playerAudioCycle");
+      if ((audioForward || match("playerAudioCycleBack")) && cycleAudio) {
+        e.preventDefault();
+        const track = cycleAudio(audioForward ? 1 : -1);
+        if (track) {
+          onOsd?.({
+            icon: "audio",
+            title: t("Audio"),
+            value: track.title || trackLanguageName(track.lang, track.title),
+          });
+        }
+        return;
+      }
+      if (match("playerDownload") && onDownload) {
+        e.preventDefault();
+        if (!e.repeat) onDownload();
+        return;
+      }
+      if (match("playerCast") && onCast) {
+        e.preventDefault();
+        if (!e.repeat) onCast();
+        return;
+      }
+      if (match("playerEditLayout") && onEditLayout) {
+        e.preventDefault();
+        if (!e.repeat) onEditLayout();
+        return;
+      }
       if (match("playerNextEpisode") && hasNextEp && onNextEp) {
         e.preventDefault();
         onNextEp();
@@ -595,6 +637,7 @@ export function useKeyboardShortcuts(params: {
       const digit = digitFromEvent(e, effectiveBinding("playerJumpDigits", overrides));
       if (digit != null) {
         e.preventDefault();
+        flashJumpMarks();
         if (digit === 0) jumpTo(0, "start");
         else if (snap.durationSec > 0) jumpTo((snap.durationSec * digit) / 10);
         return;
@@ -653,6 +696,8 @@ export function useKeyboardShortcuts(params: {
     seekForwardStepSec,
     seekBackStepShortSec,
     seekForwardStepShortSec,
+    seekBackStepLongSec,
+    seekForwardStepLongSec,
     seekTo,
     toggleSwitcher,
     toggleEpisodePanel,
@@ -672,6 +717,10 @@ export function useKeyboardShortcuts(params: {
     onReloadSource,
     onRestartServer,
     onFrameStep,
+    cycleAudio,
+    onDownload,
+    onCast,
+    onEditLayout,
     onVolumeFeedback,
     onSpeedFeedback,
     onOsd,

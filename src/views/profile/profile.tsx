@@ -22,7 +22,7 @@ import { useProfiles } from "@/lib/profiles";
 import { useSettings } from "@/lib/settings";
 import { useCustomLists } from "@/lib/custom-lists";
 import { currentAuthor } from "@/lib/theme-auth";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import { pushBackHandler } from "@/lib/back-intercept";
 import { consumeProfileEditIntent } from "@/lib/social/open-profile";
 import { BadgesRow } from "./badges-row";
@@ -65,7 +65,7 @@ export function ProfileView({
   onOpenProfile?: (handle: string) => void;
   onOpenMeta?: (metaId: string, kind?: string, hint?: { name?: string; poster?: string }) => void;
 }) {
-  const { goBack } = useView();
+  const { goBack } = useViewActions();
   const t = useT();
   const { authKey, user } = useAuth();
   const { activeProfile } = useProfiles();

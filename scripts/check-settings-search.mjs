@@ -38,7 +38,6 @@ const QUERIES = [
   "back up my settings",
   "restore from a backup",
   "check for updates",
-  "join the beta",
   "report a bug",
   "keyboard shortcuts",
   "use a game controller",
@@ -56,7 +55,7 @@ const QUERIES = [
 ];
 
 // no setting exists for these, so returning nothing is the right answer
-const NO_SETTING = new Set(["reset everything"]);
+const NO_SETTING = new Set(["reset everything", "join the beta"]);
 
 // pressing Enter jumps to the first result, so the first result has to be the obvious one
 const TOP_RESULT = [

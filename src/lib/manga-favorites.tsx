@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useProfiles } from "./profiles";
 import { persistCritical } from "./storage-recovery";
-import { setMangaInLibrary } from "./manga/api";
 import { notifyMangaLibraryChanged } from "./manga/library-events";
 
 export type MangaFavEntry = {
@@ -21,7 +20,7 @@ function syncLibrary(id: string, inLibrary: boolean): void {
   const next = pending
     .catch(() => {})
     .then(async () => {
-      await setMangaInLibrary(id, inLibrary);
+      await (await import("./manga/api")).setMangaInLibrary(id, inLibrary);
       notifyMangaLibraryChanged();
     });
   librarySync.set(id, next);

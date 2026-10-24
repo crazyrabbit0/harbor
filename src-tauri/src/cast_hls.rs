@@ -381,11 +381,12 @@ async fn probe_source(url: &str, headers: &HashMap<String, String>) -> Result<Pr
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::piped());
     cmd.kill_on_drop(true);
-    let output = match tokio::time::timeout(PROBE_TIMEOUT, cmd.output()).await {
-        Ok(Ok(o)) => o,
-        Ok(Err(e)) => return Err(format!("ffprobe spawn: {}", e)),
-        Err(_) => return Err("ffprobe timed out".to_string()),
-    };
+    let output =
+        match tokio::time::timeout(PROBE_TIMEOUT, crate::child_pipe::output(&mut cmd)).await {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => return Err(format!("ffprobe spawn: {}", e)),
+            Err(_) => return Err("ffprobe timed out".to_string()),
+        };
     parse_probe_output(&String::from_utf8_lossy(&output.stdout))
 }
 
@@ -561,7 +562,7 @@ async fn spawn_continuous_ffmpeg(
     crate::proc_guard::adopt(&child);
     eprintln!("[cast-hls] ffmpeg spawned for seek={seek_start:.1}");
 
-    if let Some(stderr) = child.stderr.take() {
+    if let Some(stderr) = crate::child_pipe::take_stderr(&mut child) {
         tokio::spawn(async move {
             use tokio::io::AsyncBufReadExt;
             let mut reader = tokio::io::BufReader::new(stderr).lines();

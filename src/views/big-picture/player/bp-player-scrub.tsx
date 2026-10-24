@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { fmtTime } from "@/components/player/transport/transport-utils";
+import { seekSteps } from "@/lib/seek-step";
 import { useSettings } from "@/lib/settings";
 import { useBpT } from "../bp-i18n";
 import type { BpDir } from "../bp-focus-core";
@@ -54,8 +55,7 @@ export function BpPlayerScrub({
 
   const duration = playback.durationSec;
   const position = pending ?? playback.positionSec;
-  const back = settings.seekBackStepSec || 10;
-  const forward = settings.seekForwardStepSec || 10;
+  const { back, forward } = seekSteps(settings);
   const steppable = active && !playback.live;
 
   const stepRef = useRef({ position: 0, duration: 0, back: 10, forward: 10 });

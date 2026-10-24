@@ -13,14 +13,14 @@ import {
   type DownloadItem,
 } from "@/lib/download/downloads-store";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 type T = (key: string) => string;
 
 export function DownloadsButton() {
   const downloads = useDownloads();
   const t = useT();
-  const { openMeta, setView } = useView();
+  const { openMeta, setView } = useViewActions();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);

@@ -572,22 +572,31 @@ export function useCwAdvance(
     simkl,
   ]);
 
+  const prevResult = useRef<LibraryItem[]>([]);
+  let result: LibraryItem[];
   if (
     !enabled ||
     resolvedOwner.privacyOwner !== privacyOwner ||
     resolvedOwner.profileId !== profileId ||
     resolvedOwner.simklSession !== simklSession ||
     resolvedOwner.simklEnabled !== simklEnabled
-  )
-    return items.filter((i) => !isCwDismissed(i));
-  // Dismissal targets the displayed up-next episode, which may differ from the
-  // library entry. Filter stored display results immediately, without refetching.
-  const base = items
-    .map((i) => advanced.get(i._id) ?? i)
-    .filter((i) => !removed.has(i._id) && !isCwDismissed(i));
-  if (extra.length === 0) return base;
-  const keyOf = (i: LibraryItem) => `${i.type}|${franchiseDedupKey(i.name ?? "")}`;
-  const baseKeys = new Set(base.map(keyOf));
-  const dedupExtra = extra.filter((i) => !baseKeys.has(keyOf(i)) && !isCwDismissed(i));
-  return dedupExtra.length === 0 ? base : base.concat(dedupExtra);
+  ) {
+    result = items.filter((i) => !isCwDismissed(i));
+  } else {
+    // Dismissal targets the displayed up-next episode, which may differ from the
+    // library entry. Filter stored display results immediately, without refetching.
+    const base = items
+      .map((i) => advanced.get(i._id) ?? i)
+      .filter((i) => !removed.has(i._id) && !isCwDismissed(i));
+    const keyOf = (i: LibraryItem) => `${i.type}|${franchiseDedupKey(i.name ?? "")}`;
+    const baseKeys = new Set(base.map(keyOf));
+    const dedupExtra =
+      extra.length === 0 ? [] : extra.filter((i) => !baseKeys.has(keyOf(i)) && !isCwDismissed(i));
+    result = dedupExtra.length === 0 ? base : base.concat(dedupExtra);
+  }
+  // The list is rebuilt every render; returning the previous array when nothing changed keeps Home's rows from redrawing.
+  const prev = prevResult.current;
+  if (prev.length === result.length && prev.every((v, i) => v === result[i])) return prev;
+  prevResult.current = result;
+  return result;
 }

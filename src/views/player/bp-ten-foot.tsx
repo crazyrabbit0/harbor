@@ -10,7 +10,7 @@ import type { SpoilerMask } from "@/lib/spoilers";
 import type { ScoredStream } from "@/lib/streams/types";
 import { rememberedChoiceFromLoad, type SubChoiceInput } from "@/lib/subtitles/subtitle-memory";
 import type { EngineStats } from "@/lib/torrent/engine-stats";
-import { useView, type PlayerSrc, type PlayEpisode } from "@/lib/view";
+import { type PlayerSrc, type PlayEpisode, useViewActions } from "@/lib/view";
 import { MEDIA_SERVER_QUALITIES } from "@/lib/media-server/quality";
 import { switchMediaServerQuality } from "@/lib/media-server/playback";
 import type { MediaServerQuality } from "@/lib/media-server/types";
@@ -383,7 +383,7 @@ function HomeServerQualityPanel({
 }) {
   const t = useBpT();
   const { closePanel } = useBpPlayer();
-  const { replacePlayerSrc } = useView();
+  const { replacePlayerSrc } = useViewActions();
   const [switching, setSwitching] = useState<MediaServerQuality | null>(null);
   const [error, setError] = useState("");
   const select = async (quality: MediaServerQuality) => {

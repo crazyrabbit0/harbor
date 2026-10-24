@@ -35,6 +35,10 @@ export function usePlayerHotkeys(params: {
   togglePip: () => void;
   fullscreen: boolean;
   cycleSubtitles: (direction: 1 | -1) => TrackInfo | null | undefined;
+  cycleAudio?: (direction: 1 | -1) => TrackInfo | undefined;
+  onDownload?: () => void;
+  onCast?: () => void;
+  onEditLayout?: () => void;
   playNext: () => void;
   playPrev: () => void;
   hasNextEpisode: boolean;
@@ -75,6 +79,10 @@ export function usePlayerHotkeys(params: {
     togglePip,
     fullscreen,
     cycleSubtitles,
+    cycleAudio,
+    onDownload,
+    onCast,
+    onEditLayout,
     playNext,
     playPrev,
     hasNextEpisode,
@@ -126,6 +134,10 @@ export function usePlayerHotkeys(params: {
     togglePip,
     fullscreen,
     cycleSubtitles,
+    cycleAudio,
+    onDownload,
+    onCast,
+    onEditLayout,
     setShowStats,
     metaId,
     svpActive,
@@ -171,5 +183,6 @@ export function usePlayerHotkeys(params: {
     onLoopClear: quickToolsEnabled ? ab?.clear : undefined,
   });
 
-  return { holdSpeedActive, showStats, subtitleOffsetSec };
+  const toggleStats = useCallback(() => setShowStats((v) => !v), [setShowStats]);
+  return { holdSpeedActive, showStats, toggleStats, subtitleOffsetSec };
 }

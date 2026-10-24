@@ -3,11 +3,11 @@ import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { tmdbLogo } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function KidsHero({ featured }: { featured: Meta[] }) {
   const t = useT();
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
 
   const cards = useMemo(() => {
     const usable = featured.filter((m) => m.background || m.poster);

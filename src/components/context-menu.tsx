@@ -72,10 +72,8 @@ import {
   useReadMangaChapterIds,
 } from "@/lib/manga-progress";
 import { addMangaBookmark, removeMangaBookmark, useMangaBookmarks } from "@/lib/manga-bookmarks";
-import { downloadChapter } from "@/lib/manga-downloads";
 import { requestMangaChapterRead, setMangaReadIntent } from "@/lib/manga/read-intent";
 import { mangaLists } from "@/lib/manga-lists";
-import { mangaChapters } from "@/lib/manga/api";
 import { resolveReaderChapters } from "@/lib/manga/chapter-identity";
 
 const MENU_WIDTH = 220;
@@ -668,6 +666,7 @@ export function ContextMenu() {
             close();
             void (async () => {
               try {
+                const { mangaChapters } = await import("@/lib/manga/api");
                 const chs = await mangaChapters(target.id);
                 const first = resolveReaderChapters(chs)[0] ?? chs[0];
                 if (first) requestMangaChapterRead(target.id, first.id);
@@ -895,11 +894,13 @@ export function ContextMenu() {
         icon={<Download size={14} strokeWidth={2} />}
         label={t("Download chapter")}
         onClick={() => {
-          void downloadChapter(target.mangaId, chapter.id, {
-            title: target.mangaTitle,
-            cover: target.mangaCover,
-            chapter: chapter.chapter,
-          });
+          void import("@/lib/manga-downloads").then(({ downloadChapter }) =>
+            downloadChapter(target.mangaId, chapter.id, {
+              title: target.mangaTitle,
+              cover: target.mangaCover,
+              chapter: chapter.chapter,
+            }),
+          );
           close();
         }}
       />,

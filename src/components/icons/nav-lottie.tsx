@@ -1,4 +1,5 @@
-import lottie, { type AnimationItem } from "lottie-web";
+import type { AnimationItem } from "lottie-web";
+import { withLottie } from "@/lib/lottie";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { useSettings } from "@/lib/settings";
@@ -25,23 +26,33 @@ export function NavLottie({
     if (!play || reduce || anim.current) return;
     const el = host.current;
     if (!el) return;
-    const a = lottie.loadAnimation({
-      container: el,
-      renderer: "svg",
-      loop,
-      autoplay: true,
-      animationData: data,
-      rendererSettings: {
-        progressiveLoad: false,
-        hideOnTransparent: true,
-        preserveAspectRatio: "xMidYMid meet",
+    let cancelled = false;
+    withLottie(
+      (lottie) => {
+        if (anim.current) return;
+        const a = lottie.loadAnimation({
+          container: el,
+          renderer: "svg",
+          loop,
+          autoplay: true,
+          animationData: data,
+          rendererSettings: {
+            progressiveLoad: false,
+            hideOnTransparent: true,
+            preserveAspectRatio: "xMidYMid meet",
+          },
+        });
+        anim.current = a;
+        a.addEventListener("DOMLoaded", () => {
+          if (anim.current === a) setReady(true);
+        });
+        if (a.isLoaded) setReady(true);
       },
-    });
-    anim.current = a;
-    a.addEventListener("DOMLoaded", () => {
-      if (anim.current === a) setReady(true);
-    });
-    if (a.isLoaded) setReady(true);
+      () => cancelled,
+    );
+    return () => {
+      cancelled = true;
+    };
   }, [play, reduce, data, loop]);
 
   useEffect(() => {

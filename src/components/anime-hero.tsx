@@ -16,7 +16,7 @@ import { useT } from "@/lib/i18n";
 import { useMalRating } from "@/lib/mal-rating";
 import { useSettings } from "@/lib/settings";
 import { useTitleLogo } from "@/lib/title-logo";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { observe, usePageVisible } from "@/lib/visibility";
 import { useHeroLogos } from "./anime-hero/use-hero-logos";
 import { MalLogo } from "./icons/mal-logo";
@@ -37,7 +37,7 @@ export function AnimeHero({
   trendingByMetaId?: Record<string, string>;
   topBleed?: boolean;
 }) {
-  const { openMeta } = useView();
+  const { openMeta } = useViewActions();
   const { settings } = useSettings();
   const t = useT();
   useAwardMasterVersion();

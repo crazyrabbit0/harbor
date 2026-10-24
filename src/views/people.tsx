@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { useT } from "@/lib/i18n";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useViewActions } from "@/lib/view";
 import {
   fetchRankManifest,
   type HarborRankExplanation,
@@ -44,7 +44,7 @@ function heroHasArt(person: Person, source: RankSource): boolean {
 
 export function PeopleView({ init }: { init: PeopleInit }) {
   const t = useT();
-  const { openPerson, openMeta, openSettings } = useView();
+  const { openPerson, openMeta, openSettings } = useViewActions();
   const scrollRef = useRef<HTMLElement>(null);
 
   const [source, setSource] = useState<RankSource>(init?.source ?? "harbor");
@@ -207,7 +207,9 @@ export function PeopleView({ init }: { init: PeopleInit }) {
               setCountry(null);
               setGenre(null);
             }}
-            onOpenSettings={() => openSettings("account")}
+            onOpenSettings={() =>
+              openSettings("library", { tab: "providers", anchor: "Metadata providers" })
+            }
             onRetry={() => setReloadNonce((n) => n + 1)}
           />
         </div>

@@ -100,7 +100,7 @@ function harness(t, options = {}) {
     "react-dom": { createPortal: (tree) => tree },
     "@/lib/search-context": { useSearch: () => search },
     "@/lib/settings": { useSettings: () => ({ settings, update() {} }) },
-    "@/lib/view": { useView: () => ({}) },
+    "@/lib/view": { useView: () => ({}), useViewActions: () => ({}) },
     "@/lib/profiles": { useProfiles: () => ({ activeProfile: null }) },
     "@/lib/games/steam-store-search": { steamStoreQuery: () => null },
     "@/lib/i18n": { useT: () => (value) => value },

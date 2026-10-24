@@ -7,6 +7,7 @@ import {
   setSeekHovering,
 } from "@/lib/player/playback-clock";
 import { useTrickplayState } from "@/lib/trickplay";
+import { useJumpMarksVisible } from "@/lib/player/jump-marks";
 import { useSkipSegmentsView } from "@/lib/skip-intro/segment-store";
 import { ThumbPreview } from "@/components/player/thumb-preview";
 import { SeekBarVisual } from "./seek-bar-visual";
@@ -39,7 +40,8 @@ export function SeekBar({
   const { settings } = useSettings();
   const baseDot = Math.min(Math.max(settings.seekDotSize ?? 16, 8), 200);
   const { active: trickplayActive, bufferedOnly } = useTrickplayState();
-  const position = usePlaybackPositionGated(active);
+  const jumpMarks = useJumpMarksVisible();
+  const position = usePlaybackPositionGated(active || jumpMarks);
   const buffered = usePlaybackBufferedGated(active);
   const downloaded = usePlaybackDownloadedGated(active);
   const dur = durationSec || 1;
@@ -180,6 +182,36 @@ export function SeekBar({
           hovered={hover != null}
           segments={segmentSpans}
         />
+        {jumpMarks && hover == null && durationSec > 0 && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-[calc(100%+2px)]"
+          >
+            {Array.from({ length: 10 }, (_, d) => {
+              const lit = d === Math.min(9, Math.round((position / dur) * 10));
+              return (
+                <span
+                  key={d}
+                  className="absolute bottom-0 flex -translate-x-1/2 flex-col items-center gap-0.5 animate-[harbor-fade-in_140ms_ease-out]"
+                  style={{ left: `${d * 10}%` }}
+                >
+                  <kbd
+                    className={`inline-flex h-[18px] min-w-[18px] items-center justify-center rounded border px-1 font-sans text-[11px] font-semibold leading-none shadow-[0_2px_8px_rgba(0,0,0,0.6)] ${
+                      lit
+                        ? "border-accent bg-accent text-black"
+                        : "border-white/20 bg-black/75 text-white/90"
+                    }`}
+                  >
+                    {d}
+                  </kbd>
+                  <span
+                    className={`h-2.5 w-0.5 rounded-full ${lit ? "bg-accent" : "bg-white/70"}`}
+                  />
+                </span>
+              );
+            })}
+          </div>
+        )}
         {hover != null &&
           !(overDot && scrub == null) &&
           (trickplayActive ? (

@@ -10,7 +10,7 @@ import { SPOILER_TEXT_CLASS, SPOILER_THUMB_CLASS, type SpoilerMask } from "@/lib
 import { animeSeasonKey } from "./anime-season-key";
 import { parseKitsuId } from "@/lib/providers/kitsu";
 import { splitFranchiseDisplaySeason } from "@/lib/streams/anime-identity-core";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { FillerBadge, UpcomingBadge } from "../badges";
 import { EpisodeRatingBadge } from "../episode-rating-badge";
@@ -45,7 +45,7 @@ export function AnimeEpisodeRow({
   showSeason?: boolean;
 }) {
   const t = useT();
-  const { openPicker } = useView();
+  const { openPicker } = useViewActions();
   const { settings } = useSettings();
   const epMeta = metaForEp ? metaForEp(ep) : meta;
   const watchedAgo = progress.startedAt > 0 ? formatRelativeWatched(progress.startedAt) : "";

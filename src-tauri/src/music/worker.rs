@@ -105,19 +105,20 @@ pub async fn run(
     preserve_runtime_environment(&mut command);
     let mut child = command.spawn().map_err(|error| error.to_string())?;
     let payload = serde_json::to_vec(&request).map_err(|error| error.to_string())?;
-    let mut stdin = child
-        .stdin
-        .take()
+    let mut stdin = crate::child_pipe::take_stdin(&mut child)
         .ok_or_else(|| "Connector worker stdin is unavailable".to_string())?;
     stdin
         .write_all(&payload)
         .await
         .map_err(|error| error.to_string())?;
     drop(stdin);
-    let output = tokio::time::timeout(Duration::from_secs(25), child.wait_with_output())
-        .await
-        .map_err(|_| "Connector worker timed out".to_string())?
-        .map_err(|error| error.to_string())?;
+    let output = tokio::time::timeout(
+        Duration::from_secs(25),
+        crate::child_pipe::wait_with_output(child),
+    )
+    .await
+    .map_err(|_| "Connector worker timed out".to_string())?
+    .map_err(|error| error.to_string())?;
     if output.stdout.len() > MAX_RESPONSE_BYTES + 64 * 1024 {
         return Err("Connector worker response is too large".to_string());
     }

@@ -1,7 +1,7 @@
 import { useT } from "@/lib/i18n";
 import { shelfLists } from "@/lib/curated/registry";
 import type { CuratedList } from "@/lib/curated/types";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
 import { curatedListLogos } from "./curated-list-logos";
 
@@ -18,13 +18,7 @@ export function CuratedListTiles({ title }: { title?: string }) {
   const lists = shelfLists();
   if (lists.length === 0) return null;
   return (
-    <Row
-      title={title ?? t("The canon")}
-      min={210}
-      shape="tile"
-      scrollKey="discover:canon"
-      alwaysActive
-    >
+    <Row title={title ?? t("The canon")} min={210} shape="tile" scrollKey="discover:canon">
       {lists.map((list) => (
         <CuratedListTile key={list.id} list={list} />
       ))}
@@ -34,7 +28,7 @@ export function CuratedListTiles({ title }: { title?: string }) {
 
 function CuratedListTile({ list }: { list: CuratedList }) {
   const t = useT();
-  const { openCuratedList } = useView();
+  const { openCuratedList } = useViewActions();
   const logo = curatedListLogos[list.id];
   return (
     <button

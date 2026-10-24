@@ -11,7 +11,7 @@ import { handleLinkOutActivation } from "@/lib/social/link-out-activation";
 import { scanMentions } from "@/lib/social/mentions";
 import { openLinkOut } from "@/lib/social/link-out";
 import { requestOpenProfile } from "@/lib/social/open-profile";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import {
   HOVER_CARD_CLOSE_MS,
   HOVER_CARD_OPEN_MS,
@@ -33,7 +33,7 @@ export function PostBody({
   body: string;
   onOpenProfile?: (handle: string) => void;
 }) {
-  const { openMeta, openManga } = useView();
+  const { openMeta, openManga } = useViewActions();
   const [card, setCard] = useState<{ handle: string; anchor: DOMRect } | null>(null);
   const openTimer = useRef<number | null>(null);
   const closeTimer = useRef<number | null>(null);
