@@ -110,7 +110,7 @@ export function PosterCardSection() {
           <div className="hset-postertune-dials" style={tv ? { flex: "1 1 280px" } : undefined}>
             <SettingRow
               wide
-              label={t("Size")}
+              label={t("Poster size")}
               desc={t("How large every poster card is drawn across Home and search.")}
             >
               <div className="flex w-full items-center gap-4">
@@ -119,7 +119,7 @@ export function PosterCardSection() {
                   min={0}
                   max={POSTER_SIZES.length - 1}
                   step={1}
-                  aria-label={t("Size")}
+                  aria-label={t("Poster size")}
                   value={sizeIndex(settings.posterScale)}
                   onChange={(e) =>
                     update({ posterScale: POSTER_SIZES[Number(e.target.value)].scale })

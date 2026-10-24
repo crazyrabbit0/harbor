@@ -16,6 +16,8 @@ import type { PlayerCapabilities, PlayerSnapshot } from "@/lib/player/bridge";
 import { useT } from "@/lib/i18n";
 import { fmtTime } from "./transport/transport-utils";
 import { FullscreenClock } from "./fullscreen-clock";
+import { useSettings } from "@/lib/settings";
+import { seekSteps } from "@/lib/seek-step";
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 
@@ -54,6 +56,7 @@ export function TransportKids({
   canPickAnother: boolean;
 }) {
   const t = useT();
+  const steps = seekSteps(useSettings().settings);
   const playing = snap.status === "playing";
   const subActive = snap.subtitleTracks.some((s) => s.selected);
   const firstSub = snap.subtitleTracks[0];
@@ -65,7 +68,7 @@ export function TransportKids({
     <>
       <div
         data-tauri-drag-region={fullscreen ? undefined : ""}
-        className={`pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between bg-gradient-to-b from-black/65 via-black/20 to-transparent px-7 pb-12 pt-5 transition-opacity duration-300 ${
+        className={`pointer-events-none absolute inset-x-0 top-0 z-20 player-scrim-top flex items-center justify-between px-7 pb-14 pt-5 transition-opacity duration-300 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -97,7 +100,7 @@ export function TransportKids({
       </div>
 
       <div
-        className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-5 bg-gradient-to-t from-black/80 via-black/35 to-transparent px-8 pb-8 pt-14 transition-opacity duration-300 ${
+        className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 player-scrim-bottom flex flex-col gap-5 px-8 pb-8 pt-16 transition-opacity duration-300 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
       >
@@ -127,7 +130,12 @@ export function TransportKids({
           </div>
 
           <div className="flex items-center gap-6 justify-self-center">
-            <SeekBtn dir={-1} onClick={() => onSeekStep(-10)} label={t("Back 10s")} />
+            <SeekBtn
+              dir={-1}
+              seconds={steps.back}
+              onClick={() => onSeekStep(-steps.back)}
+              label={t("Back {n}s", { n: steps.back })}
+            />
             <button
               onClick={onPlayPause}
               aria-label={playing ? t("Pause") : t("Play")}
@@ -139,7 +147,12 @@ export function TransportKids({
                 <Play size={46} strokeWidth={0} fill="currentColor" className="ms-1.5" />
               )}
             </button>
-            <SeekBtn dir={1} onClick={() => onSeekStep(10)} label={t("Forward 10s")} />
+            <SeekBtn
+              dir={1}
+              seconds={steps.forward}
+              onClick={() => onSeekStep(steps.forward)}
+              label={t("Forward {n}s", { n: steps.forward })}
+            />
           </div>
 
           <div className="flex items-center gap-3 justify-self-end">
@@ -288,7 +301,17 @@ function KidsVolume({
   );
 }
 
-function SeekBtn({ dir, onClick, label }: { dir: -1 | 1; onClick: () => void; label: string }) {
+function SeekBtn({
+  dir,
+  seconds,
+  onClick,
+  label,
+}: {
+  dir: -1 | 1;
+  seconds: number;
+  onClick: () => void;
+  label: string;
+}) {
   const Icon = dir < 0 ? RotateCcw : RotateCw;
   return (
     <button
@@ -297,7 +320,7 @@ function SeekBtn({ dir, onClick, label }: { dir: -1 | 1; onClick: () => void; la
       className="relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition hover:bg-white/25 active:scale-95"
     >
       <Icon size={42} strokeWidth={2.1} />
-      <span className="absolute text-[13px] font-extrabold">10</span>
+      <span className="absolute text-[13px] font-extrabold">{seconds}</span>
     </button>
   );
 }

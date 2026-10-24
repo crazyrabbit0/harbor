@@ -4,6 +4,7 @@ import type { DownloadStatus } from "@/views/player/hooks/use-video-download";
 import { useT } from "@/lib/i18n";
 import { BigButton } from "./big-button";
 import { Tooltip } from "./tooltip";
+import { withHotkey } from "./hotkey-label";
 
 type Props = {
   status: DownloadStatus;
@@ -108,7 +109,7 @@ export function DownloadButton({ status, onStart, onCancel, onReveal, onReset, i
     <BigButton
       onClick={onStart}
       ariaLabel={t("Download video")}
-      tooltip={t("Download")}
+      tooltip={withHotkey(t("Download"), "playerDownload")}
       iconUrl={iconUrl}
     >
       <Download size={22} strokeWidth={1.9} />

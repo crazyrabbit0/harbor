@@ -27,9 +27,8 @@ import {
 import { searchAddonIndex } from "@/lib/search-addon-index";
 import { createSearchRequestGuard } from "@/lib/search-request-guard";
 import { normalizeSearchQuery } from "@/lib/search-query";
-import { searchManga } from "@/lib/manga/api";
 import type { MangaSummary } from "@/lib/manga/model";
-import { searchEBooks, type EBook } from "@/lib/ebook/api";
+import type { EBook } from "@/lib/ebook/api";
 import { searchTyped } from "@/lib/music/catalog";
 import { toMusicHits } from "@/lib/search-music-hits";
 import type { MusicSearchHit } from "@/lib/search";
@@ -287,13 +286,19 @@ export function SearchProvider({ children }: { children: ReactNode }) {
           )
         : Promise.resolve([]);
       const mangaPromise: Promise<MangaSummary[]> = mangaAllowed
-        ? guard(searchManga(trimmed), [])
+        ? guard(
+            import("@/lib/manga/api").then((m) => m.searchManga(trimmed)),
+            [],
+          )
         : Promise.resolve([]);
       const musicPromise: Promise<MusicSearchHit[]> = guard(
         searchTyped(trimmed, 10).then(toMusicHits),
         [],
       );
-      const ebookPromise: Promise<EBook[]> = guard(searchEBooks(trimmed), []);
+      const ebookPromise: Promise<EBook[]> = guard(
+        import("@/lib/ebook/api").then((m) => m.searchEBooks(trimmed)),
+        [],
+      );
       const sportsPromise: Promise<SportsEventHit[]> = guard(searchSportsEvents(trimmed), []);
       const charactersPromise: Promise<CharacterHit[]> = franchiseAllowed
         ? guard(anilistCharacterSearch(trimmed), [])

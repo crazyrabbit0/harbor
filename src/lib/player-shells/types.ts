@@ -69,6 +69,7 @@ export type PlayerShellProps = {
   onOpenDvr?: () => void;
   sleep?: import("@/views/player/hooks/use-sleep-timer").SleepTimerState;
   homeServerQualityControl?: ReactNode;
+  extras?: import("@/components/player/transport/player-extras").PlayerExtras;
 };
 
 export type PlayerShellMeta = {

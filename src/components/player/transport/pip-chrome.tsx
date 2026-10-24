@@ -6,7 +6,7 @@ import { PipIconBtn, PipStepBtn } from "./pip-controls";
 import { PipSeekBar } from "./pip-seek-bar";
 import { PipVolume } from "./pip-volume";
 import { useSettings } from "@/lib/settings";
-import { sanitizeSeekStep } from "@/lib/seek-step";
+import { seekSteps } from "@/lib/seek-step";
 import { useCaptionsPopout } from "@/views/player/hooks/use-captions-popout";
 
 export function PipChrome({
@@ -45,8 +45,7 @@ export function PipChrome({
   const t = useT();
   const { settings } = useSettings();
   const { captionsOpen, captionsFault, toggleCaptions } = useCaptionsPopout(snap);
-  const backSec = sanitizeSeekStep(settings.seekBackStepSec, 10);
-  const fwdSec = sanitizeSeekStep(settings.seekForwardStepSec, 10);
+  const { back: backSec, forward: fwdSec } = seekSteps(settings);
   const muted = snap.muted || snap.volume === 0;
   return (
     <>

@@ -76,6 +76,15 @@ import { EpisodeNavBtn } from "./episode-nav-btn";
 import { TimeStart, TimeEnd } from "./time-display";
 import { WindowControlButtons } from "./window-control-buttons";
 import { IdentifySongButton } from "@/components/identify-song-button";
+import { ExtraControl, isExtraControl, type ExtraButtonStyle } from "./extra-controls";
+import type { PlayerExtras } from "./player-extras";
+import { withHotkey } from "./hotkey-label";
+
+const bigExtraButton: ExtraButtonStyle = ({ onClick, ariaLabel, active, disabled, children }) => (
+  <BigButton onClick={onClick} ariaLabel={ariaLabel} active={active} disabled={disabled}>
+    {children}
+  </BigButton>
+);
 
 export type ControlContext = {
   t?: (key: string, vars?: Record<string, string | number>) => string;
@@ -159,10 +168,27 @@ export type ControlContext = {
   onAnime4kMode?: (id: string) => void;
   anime4kAvailable?: boolean;
   homeServerQualityControl?: ReactNode;
+  extras?: PlayerExtras;
 };
 
 export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNode {
   const t = ctx.t ?? translate;
+  if (isExtraControl(id)) {
+    if (ctx.tight && id !== "screen-lock") return null;
+    return (
+      <ExtraControl
+        id={id}
+        ctx={{
+          extras: ctx.extras,
+          durationSec: ctx.snap.durationSec,
+          isLiveChannel: ctx.isLiveChannel,
+          editing: ctx.editing,
+          Button: bigExtraButton,
+          iconSize: 22,
+        }}
+      />
+    );
+  }
   const state = getControlState(id, ctx);
   const iconUrl = getCustomIcon(ctx.customIcons, id, state);
   if (
@@ -181,7 +207,7 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
       if (!ctx.onBack) return null;
       const isMpv = ctx.engine === "mpv";
       return (
-        <Tooltip label={t("Back")} side="bottom">
+        <Tooltip label={withHotkey(t("Back"), "playerClose")} side="bottom">
           <ThreeLiquidGlassSurface
             radius="9999px"
             shaderRadius={0.48}
@@ -242,7 +268,7 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
           <div className="flex items-center gap-2">
             <h1
               style={{ fontSize: `${Math.round(19 * scale)}px` }}
-              className="font-semibold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]"
+              className="player-legible font-semibold leading-tight text-white"
             >
               {primary}
             </h1>
@@ -251,7 +277,7 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
           {secondary && (
             <p
               style={{ fontSize: `${Math.round(13 * scale)}px` }}
-              className="text-white/70 drop-shadow-[0_1px_4px_rgba(0,0,0,0.6)]"
+              className="player-legible text-white/85"
             >
               {secondary}
             </p>
@@ -367,6 +393,7 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
         <EpisodeNavBtn
           direction="prev"
           label={t("Previous")}
+          tooltip={withHotkey(t("Previous episode"), "playerPrevEpisode")}
           onClick={ctx.onPrevEp}
           disabled={!ctx.hasPrevEp}
           iconOnly={iconOnly}
@@ -375,13 +402,19 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
     }
     case "seek-back": {
       if (ctx.tight || ctx.isLiveChannel) return null;
-      return <SeekStepBtn direction="back" seconds={10} onSeekStep={ctx.onSeekStep} />;
+      return (
+        <SeekStepBtn
+          direction="back"
+          onSeekStep={ctx.onSeekStep}
+          onFrameStep={ctx.extras?.onFrameStep}
+        />
+      );
     }
     case "play-pause": {
       const sizeClass = ctx.tight ? "h-12 w-12" : ctx.compact ? "h-14 w-14" : "h-16 w-16";
       const iconSize = ctx.tight ? 28 : ctx.compact ? 32 : 36;
       return (
-        <Tooltip label={ctx.playing ? t("Pause") : t("Play")}>
+        <Tooltip label={withHotkey(ctx.playing ? t("Pause") : t("Play"), "playerPlayPause")}>
           <div
             className={`shrink-0 rounded-full ${sizeClass} transition-opacity duration-300 ${
               ctx.active ? "opacity-100" : "opacity-0"
@@ -415,7 +448,13 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
     }
     case "seek-forward": {
       if (ctx.tight || ctx.isLiveChannel) return null;
-      return <SeekStepBtn direction="forward" seconds={10} onSeekStep={ctx.onSeekStep} />;
+      return (
+        <SeekStepBtn
+          direction="forward"
+          onSeekStep={ctx.onSeekStep}
+          onFrameStep={ctx.extras?.onFrameStep}
+        />
+      );
     }
     case "next-episode": {
       if (ctx.tight || !ctx.showEpisodeNav) return null;
@@ -425,6 +464,7 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
         <EpisodeNavBtn
           direction="next"
           label={t("Next")}
+          tooltip={withHotkey(t("Next episode"), "playerNextEpisode")}
           onClick={ctx.onNextEp}
           disabled={!ctx.hasNextEp}
           iconOnly={iconOnly}
@@ -437,7 +477,11 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
         <BigButton
           onClick={ctx.onPickAnother}
           ariaLabel={ctx.isLiveChannel ? t("TV Guide") : t("Switch stream")}
-          tooltip={ctx.isLiveChannel ? t("TV Guide") : t("Switch stream")}
+          tooltip={
+            ctx.isLiveChannel
+              ? withHotkey(t("TV Guide"), "playerTvGuide")
+              : withHotkey(t("Switch stream"), "playerStreamSwitcher")
+          }
         >
           {ctx.isLiveChannel ? (
             <NavGlyph name="guide" className="h-[22px] w-[22px]" />
@@ -587,7 +631,7 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
         <BigButton
           onClick={ctx.onScreenshot}
           ariaLabel={t("Screenshot")}
-          tooltip={t("Screenshot")}
+          tooltip={withHotkey(t("Screenshot"), "playerScreenshot")}
           iconUrl={iconUrl}
         >
           <Camera size={24} strokeWidth={1.9} />
@@ -604,7 +648,7 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
         <BigButton
           onClick={ctx.onPiP}
           ariaLabel={t("Picture in Picture")}
-          tooltip={t("Picture in Picture")}
+          tooltip={withHotkey(t("Picture in Picture"), "playerPip")}
         >
           <PictureInPicture2 size={22} strokeWidth={1.9} />
         </BigButton>
@@ -619,7 +663,10 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
         <BigButton
           onClick={ctx.onFullscreen}
           ariaLabel={t("Fullscreen")}
-          tooltip={ctx.fullscreen ? t("Exit fullscreen") : t("Fullscreen")}
+          tooltip={withHotkey(
+            ctx.fullscreen ? t("Exit fullscreen") : t("Fullscreen"),
+            "playerFullscreen",
+          )}
         >
           {ctx.fullscreen ? (
             <Minimize size={22} strokeWidth={1.9} />

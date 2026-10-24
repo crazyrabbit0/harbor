@@ -4,6 +4,7 @@ import type { PlayerBridge } from "@/lib/player/bridge";
 import {
   captureBaseTitle,
   captureDir,
+  captureDirLabel,
   formatPosition,
   formatStamp,
   joinPath,
@@ -14,7 +15,7 @@ import type { PlayerSrc } from "@/lib/view";
 
 export type FrameGrabToast = {
   id: number;
-  kind: "ok" | "error";
+  kind: "ok" | "error" | "busy";
   text: string;
   path?: string;
 };
@@ -22,8 +23,9 @@ export type FrameGrabToast = {
 export function useFrameGrab(params: {
   bridgeRef: RefObject<PlayerBridge | null>;
   src: PlayerSrc;
+  folder?: string;
 }): { toast: FrameGrabToast | null; trigger: () => void } {
-  const { bridgeRef, src } = params;
+  const { bridgeRef, src, folder } = params;
   const [toast, setToast] = useState<FrameGrabToast | null>(null);
   const busyRef = useRef(false);
   const dismissTimer = useRef<number | null>(null);
@@ -37,7 +39,7 @@ export function useFrameGrab(params: {
       const filename = `${safeName(captureBaseTitle(src))} - ${formatStamp(new Date())} - ${formatPosition(
         getPlaybackPosition(),
       )}.png`;
-      const dir = await captureDir();
+      const dir = await captureDir(folder);
       const fullPath = dir ? await joinPath(dir, filename) : filename;
       const result = await bridge.screenshot(fullPath);
       if (dismissTimer.current) window.clearTimeout(dismissTimer.current);
@@ -45,7 +47,7 @@ export function useFrameGrab(params: {
         setToast({
           id: Date.now(),
           kind: "ok",
-          text: t("Screenshot saved to {path}", { path: dir ? "Pictures/Harbor" : "downloads" }),
+          text: t("Screenshot saved to {path}", { path: captureDirLabel(dir, folder) }),
           path: result.path,
         });
       } else {
@@ -59,7 +61,7 @@ export function useFrameGrab(params: {
     } finally {
       busyRef.current = false;
     }
-  }, [bridgeRef, src.meta.name, src.episode]);
+  }, [bridgeRef, src.meta.name, src.episode, folder]);
 
   useEffect(
     () => () => {

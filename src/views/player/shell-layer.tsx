@@ -66,6 +66,7 @@ export const ShellLayer = memo(function ShellLayer({
   onVolumeFeedback,
   onSpeedFeedback,
   homeServerQualityControl,
+  extras,
 }: {
   shellId: string;
   shellSnap: PlayerSnapshot;
@@ -125,6 +126,7 @@ export const ShellLayer = memo(function ShellLayer({
   onVolumeFeedback?: (volume: number, muted: boolean) => void;
   onSpeedFeedback?: (rate: number) => void;
   homeServerQualityControl?: PlayerShellProps["homeServerQualityControl"];
+  extras?: PlayerShellProps["extras"];
 }) {
   const ActiveShell = getPlayerShell(shellId).Component;
   return (
@@ -243,6 +245,7 @@ export const ShellLayer = memo(function ShellLayer({
       onOpenDvr={onOpenDvr}
       sleep={sleep}
       homeServerQualityControl={homeServerQualityControl}
+      extras={extras}
     />
   );
 });

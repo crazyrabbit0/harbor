@@ -7,6 +7,7 @@ import { useFloatingMedia, VideoPipSettings } from "./video-pip-settings";
 import { floatingSeek } from "@/lib/player/floating-controls";
 import { useT } from "@/lib/i18n";
 import { matchPlayerKey, storedHotkeyOverrides, type HotkeyId } from "@/lib/hotkeys";
+import { storedSeekSteps } from "@/lib/seek-step";
 import "./video-pip.css";
 
 type MpvEvent = { event: string; name?: string; data?: unknown };
@@ -223,10 +224,11 @@ export function VideoPipApp() {
         toggle();
       } else if (action === "playerSeekBack10") {
         event.preventDefault();
-        seek(Math.max(0, position - 5));
+        seek(Math.max(0, position - storedSeekSteps().back));
       } else if (action === "playerSeekForward10") {
         event.preventDefault();
-        seek(Math.min(duration || position + 5, position + 5));
+        const step = storedSeekSteps().forward;
+        seek(Math.min(duration || position + step, position + step));
       } else if (action === "playerVolumeUp" || action === "playerVolumeDown") {
         event.preventDefault();
         void media.property(

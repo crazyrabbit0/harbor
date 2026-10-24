@@ -8,6 +8,7 @@ import { languageName, normalizeLang, trackLanguageName } from "@/lib/subtitles/
 import { useT } from "@/lib/i18n";
 import { useMenuSide } from "./menu-side";
 import { Tooltip } from "./transport/tooltip";
+import { withHotkey } from "./transport/hotkey-label";
 import { watchOutsideMouseDown } from "@/lib/player/overlay-dismiss";
 
 type Props = {
@@ -107,7 +108,10 @@ export function AudioMenu(props: Props) {
 
   return (
     <div ref={wrap} className="relative">
-      <Tooltip label={t("Audio tracks")}>
+      <Tooltip
+        label={withHotkey(t("Audio tracks"), "playerAudioCycle", "playerAudioCycleBack")}
+        hidden={open}
+      >
         <button
           type="button"
           onClick={handleClick}

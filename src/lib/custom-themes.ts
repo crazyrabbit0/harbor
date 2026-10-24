@@ -8,6 +8,7 @@ import {
   type ThemeCardStyle,
   type ThemeLayout,
 } from "./theme";
+import type { Settings } from "./settings/types";
 import { setItemWithRecovery } from "./storage-recovery";
 import { themeKvGet, themeKvPut } from "./theme-storage";
 
@@ -405,6 +406,28 @@ export function exportThemeJson(theme: ThemePreset | CustomTheme): string {
   if (ext.js) out.js = ext.js;
   if (ext.html) out.html = ext.html;
   return JSON.stringify(out, null, 2);
+}
+
+type NavSettings = Pick<Settings, "navCustomization" | "navCustomizationOwn">;
+
+// The user's own nav order is held aside while a theme supplies one, and restored when it stops.
+export function themeNavPatch(
+  { navCustomization, navCustomizationOwn }: NavSettings,
+  nav: ThemePreset["navCustomization"] | undefined,
+): Partial<NavSettings> {
+  if (nav) {
+    return {
+      navCustomization: {
+        order: nav.order ?? [],
+        hidden: nav.hidden ?? [],
+        renamed: nav.renamed ?? {},
+      },
+      navCustomizationOwn: navCustomizationOwn ?? navCustomization,
+    };
+  }
+  return navCustomizationOwn
+    ? { navCustomization: navCustomizationOwn, navCustomizationOwn: null }
+    : {};
 }
 
 export function getStarterTemplate(): string {

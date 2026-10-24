@@ -31,6 +31,7 @@ import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
+import { createPortal } from "react-dom";
 import "./ebook-hero.css";
 import "./ebook-showcase.css";
 import { NavArrow } from "@/components/nav-arrow";
@@ -118,7 +119,7 @@ import {
   flushPendingEBookTracking,
   getEBookTracking,
 } from "@/lib/ebook/tracking";
-import { useScrollMemory, useView } from "@/lib/view";
+import { useScrollMemory, useView, useViewActions } from "@/lib/view";
 import { useProfiles } from "@/lib/profiles";
 import { usePageVisible } from "@/lib/visibility";
 import { openUrl } from "@/lib/window";
@@ -2360,7 +2361,7 @@ function EBookInformation({ ebook }: { ebook: EBook }) {
     title: string;
     items: Array<{ id: string; title: string; cover?: string }>;
   } | null>(null);
-  const { openManga, openMeta } = useView();
+  const { openManga, openMeta } = useViewActions();
 
   useEffect(() => {
     let active = true;
@@ -2624,71 +2625,73 @@ function EBookInformation({ ebook }: { ebook: EBook }) {
           <p className="mt-3 text-[14px] text-ink-subtle">{t("No adaptations found.")}</p>
         )}
       </div>
-      {adaptationChoices && (
-        <div
-          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-6 backdrop-blur-md"
-          role="presentation"
-          onClick={() => setAdaptationChoices(null)}
-        >
+      {adaptationChoices &&
+        createPortal(
           <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ebook-adaptation-picker-title"
-            className="w-full max-w-3xl rounded-[28px] border border-white/10 bg-surface p-6 shadow-2xl sm:p-8"
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-6 backdrop-blur-md"
+            role="presentation"
+            onClick={() => setAdaptationChoices(null)}
           >
-            <div className="flex items-start justify-between gap-5">
-              <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
-                  {t("Manga adaptation")}
-                </p>
-                <h5
-                  id="ebook-adaptation-picker-title"
-                  className="mt-2 text-xl font-semibold text-ink"
-                >
-                  {t("Best Match for {title}", { title: adaptationChoices.title })}
-                </h5>
-              </div>
-              <button
-                type="button"
-                onClick={() => setAdaptationChoices(null)}
-                aria-label={t("Close Manga selection")}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-ink-muted transition hover:bg-white/10 hover:text-ink"
-              >
-                <X className="h-4 w-4" aria-hidden />
-              </button>
-            </div>
-            <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-3">
-              {adaptationChoices.items.map((choice) => (
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="ebook-adaptation-picker-title"
+              className="w-full max-w-3xl rounded-[28px] border border-white/10 bg-surface p-6 shadow-2xl sm:p-8"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-start justify-between gap-5">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-accent">
+                    {t("Manga adaptation")}
+                  </p>
+                  <h5
+                    id="ebook-adaptation-picker-title"
+                    className="mt-2 text-xl font-semibold text-ink"
+                  >
+                    {t("Best Match for {title}", { title: adaptationChoices.title })}
+                  </h5>
+                </div>
                 <button
-                  key={choice.id}
                   type="button"
-                  onClick={() => {
-                    setAdaptationChoices(null);
-                    openManga(choice.id);
-                  }}
-                  className="group min-w-0 text-left outline-none"
+                  onClick={() => setAdaptationChoices(null)}
+                  aria-label={t("Close Manga selection")}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/5 text-ink-muted transition hover:bg-white/10 hover:text-ink"
                 >
-                  <span className="flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-white/10 transition duration-200 group-hover:-translate-y-1 group-hover:ring-accent/60 group-focus-visible:ring-2 group-focus-visible:ring-accent">
-                    {choice.cover ? (
-                      <img
-                        src={choice.cover}
-                        alt={t("{title} poster", { title: choice.title })}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : (
-                      <BookOpen className="h-9 w-9 text-ink-subtle" aria-hidden />
-                    )}
-                  </span>
-                  <span className="mt-3 block line-clamp-2 text-[14px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
-                    {choice.title}
-                  </span>
+                  <X className="h-4 w-4" aria-hidden />
                 </button>
-              ))}
+              </div>
+              <div className="mt-7 grid grid-cols-1 gap-5 sm:grid-cols-3">
+                {adaptationChoices.items.map((choice) => (
+                  <button
+                    key={choice.id}
+                    type="button"
+                    onClick={() => {
+                      setAdaptationChoices(null);
+                      openManga(choice.id);
+                    }}
+                    className="group min-w-0 text-left outline-none"
+                  >
+                    <span className="flex aspect-[2/3] w-full items-center justify-center overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-white/10 transition duration-200 group-hover:-translate-y-1 group-hover:ring-accent/60 group-focus-visible:ring-2 group-focus-visible:ring-accent">
+                      {choice.cover ? (
+                        <img
+                          src={choice.cover}
+                          alt={t("{title} poster", { title: choice.title })}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <BookOpen className="h-9 w-9 text-ink-subtle" aria-hidden />
+                      )}
+                    </span>
+                    <span className="mt-3 block line-clamp-2 text-[14px] font-semibold leading-snug text-ink transition-colors group-hover:text-accent">
+                      {choice.title}
+                    </span>
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body,
+        )}
     </section>
   );
 }

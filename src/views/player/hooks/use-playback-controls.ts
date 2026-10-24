@@ -173,6 +173,17 @@ export function usePlaybackControls(params: {
     return subs[next];
   };
 
+  // Audio has no off stop; returns the track now selected, or undefined when there is only one.
+  const cycleAudio = (direction: 1 | -1 = 1): TrackInfo | undefined => {
+    const tracks = snapRef.current.audioTracks;
+    if (tracks.length < 2) return undefined;
+    const idx = tracks.findIndex((t) => t.selected);
+    const next = tracks[(Math.max(0, idx) + direction + tracks.length) % tracks.length];
+    bridgeRef.current?.setAudioTrack(next.id);
+    if (next.lang) writePlayerPrefs(metaId, { audioLang: next.lang });
+    return next;
+  };
+
   const playPauseToggle = () => {
     if (inRoom && isHost && !hasStarted) {
       startHost();
@@ -249,5 +260,5 @@ export function usePlaybackControls(params: {
     [castDevice, canControl, inRoom, isHost, sendCommand, seekCast, bridgeRef],
   );
 
-  return { rememberSubChoice, cycleSubtitles, playPauseToggle, seekStep, seekTo };
+  return { rememberSubChoice, cycleSubtitles, cycleAudio, playPauseToggle, seekStep, seekTo };
 }

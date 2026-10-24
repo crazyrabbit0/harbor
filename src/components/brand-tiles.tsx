@@ -8,7 +8,7 @@ import {
   type BrandSummary,
 } from "@/lib/providers/tmdb/tmdb-brands";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
 
 export function useBrandRanking(
@@ -41,7 +41,7 @@ export function useBrandRanking(
 export function BrandTiles({ kind, title }: { kind: BrandKind; title?: string }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openBrands } = useView();
+  const { openBrands } = useViewActions();
   const { brands } = useBrandRanking(kind);
   if (!settings.tmdbKey || brands.length === 0) return null;
   return (
@@ -49,7 +49,6 @@ export function BrandTiles({ kind, title }: { kind: BrandKind; title?: string })
       title={title ?? (kind === "studio" ? t("Top studios") : t("Top networks"))}
       min={210}
       shape="tile"
-      alwaysActive
       onViewAll={() => openBrands(kind)}
       viewAllLabel={t("See all")}
     >
@@ -62,7 +61,7 @@ export function BrandTiles({ kind, title }: { kind: BrandKind; title?: string })
 
 export function BrandTile({ brand, facts }: { brand: BrandSummary; facts?: string }) {
   const t = useT();
-  const { openFilter } = useView();
+  const { openFilter } = useViewActions();
   const [logoBroken, setLogoBroken] = useState(false);
   const open = () =>
     openFilter({ kind: brand.kind, mediaType: brand.media, name: brand.name, id: brand.id });

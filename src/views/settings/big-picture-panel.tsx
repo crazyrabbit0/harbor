@@ -48,6 +48,22 @@ export function BigPicturePanel() {
           value={settings.bigPictureButton}
           onChange={(v) => update({ bigPictureButton: v })}
         />
+        <SettingRow
+          wide
+          label={t("Player controls in Big Picture")}
+          desc={t(
+            "Ten-foot uses large controls built for a remote across the room. Desktop keeps the same player you use in the normal window, which is quicker with a mouse and keyboard.",
+          )}
+        >
+          <Segmented
+            value={settings.bigPicturePlayerUi}
+            options={[
+              { value: "tenFoot", label: t("Ten-foot") },
+              { value: "desktop", label: t("Desktop") },
+            ]}
+            onChange={(v) => update({ bigPicturePlayerUi: v })}
+          />
+        </SettingRow>
         <SettingRow wide label={t("Interface sounds")}>
           <Segmented
             value={settings.bigPictureSound}

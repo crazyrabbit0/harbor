@@ -10,6 +10,7 @@ import {
 import { useT } from "@/lib/i18n";
 import { useMenuSide } from "../menu-side";
 import { Tooltip } from "./tooltip";
+import { withHotkey } from "./hotkey-label";
 import { watchOutsideMouseDown } from "@/lib/player/overlay-dismiss";
 
 export function AspectMenu({
@@ -44,7 +45,7 @@ export function AspectMenu({
   const current = CROP_PRESETS.find((m) => m.id === mode);
   return (
     <div ref={wrap} className="relative">
-      <Tooltip label={t("Picture")}>
+      <Tooltip label={withHotkey(t("Picture"), "playerCrop")}>
         <button
           onClick={() => {
             if (!open) measure();

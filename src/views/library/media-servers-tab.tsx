@@ -40,7 +40,7 @@ import type {
 } from "@/lib/media-server/types";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { hydrateLibraryMeta } from "./hydrate-meta";
 import { FilterBar, type TypeKey } from "./shared";
 import { useReportFeatured } from "./featured-context";
@@ -66,7 +66,7 @@ const fallbackMeta = (title: MediaServerTitle): Meta => ({
 export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | null> }) {
   const t = useT();
   const { settings } = useSettings();
-  const { openMeta, openSettings } = useView();
+  const { openMeta, openSettings } = useViewActions();
   const initialProgress = currentMediaServerSyncProgress();
   const [items, setItems] = useState<MediaServerItem[]>([]);
   const [cards, setCards] = useState<Card[]>([]);
@@ -310,8 +310,7 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
         <button
           className="rounded-md bg-ink px-4 py-2 text-[12.5px] font-semibold text-canvas"
           onClick={() => {
-            sessionStorage.setItem("harbor.settings.streaming.home-servers", "1");
-            openSettings("streaming");
+            openSettings("streaming", { tab: "home-servers" });
           }}
         >
           {t("Connect now")}
@@ -507,7 +506,7 @@ const ServerCard = memo(function ServerCard({
   onOpen: () => void;
   onReview: () => void;
 }) {
-  const { openPlayer } = useView();
+  const { openPlayer } = useViewActions();
   const t = useT();
   const matched =
     card.title.identity.tmdbId != null ||

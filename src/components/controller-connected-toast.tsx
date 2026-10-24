@@ -1,9 +1,17 @@
-import { useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useGamepads, type GamepadInfo } from "@/lib/gamepad/store";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
-import { ControllerSvg, detectLayout } from "@/views/settings/controllers-panel/controller-svg";
+
+// The controller art is ~230 KB and only shows when a pad connects, so it stays out of the startup bundle.
+const ControllerArt = lazy(() =>
+  import("@/views/settings/controllers-panel/controller-svg").then((m) => ({
+    default: ({ name }: { name: string }) => (
+      <m.ControllerSvg layout={m.detectLayout([name]) ?? "xbox"} compact />
+    ),
+  })),
+);
 
 const SHOW_MS = 4200;
 
@@ -43,7 +51,6 @@ export function ControllerConnectedToast() {
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
   if (!pad || !settings.controllerSupportEnabled) return null;
-  const layout = detectLayout([pad.name]) ?? "xbox";
 
   return createPortal(
     <div
@@ -61,7 +68,9 @@ export function ControllerConnectedToast() {
         }`}
       >
         <span className="w-[78px] shrink-0">
-          <ControllerSvg layout={layout} compact />
+          <Suspense fallback={null}>
+            <ControllerArt name={pad.name} />
+          </Suspense>
         </span>
         <span className="flex min-w-0 flex-col">
           <span className="text-[13.5px] font-semibold text-ink">{t("Controller connected")}</span>

@@ -473,6 +473,9 @@ export type Settings = {
   seekForwardStepSec: number;
   seekBackStepShortSec: number;
   seekForwardStepShortSec: number;
+  seekBackStepLongSec: number;
+  seekForwardStepLongSec: number;
+  clipLengthSec: number;
   shareWatchPresence: boolean;
   playerHdrOpaqueWindow: boolean;
   playerEscExitsFullscreen: boolean;
@@ -715,6 +718,10 @@ export type Settings = {
   downloadCreateFolders: boolean;
   ebookDownloadDir: string;
   ebookDownloadCreateFolders: boolean;
+  /** Player capture folders; empty means Pictures/Harbor. */
+  screenshotDir: string;
+  gifDir: string;
+  clipDir: string;
   nytKey: string;
   sportsApiKey: string;
   stremioDeeplinkInstall: boolean;

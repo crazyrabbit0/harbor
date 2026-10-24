@@ -1,11 +1,10 @@
-import { icons } from "./icons";
 import { useT } from "@/lib/i18n";
 import { SECTION_ICONS } from "./section-icons";
+import { SetIcon } from "./set-icon";
 import type { SectionId } from "./shared";
 
 function Glyph({ name, size }: { name: string; size: number }) {
-  const Icon = icons[name as keyof typeof icons] ?? icons.Circle;
-  return <Icon size={size} strokeWidth={2} />;
+  return <SetIcon name={name} size={size} strokeWidth={2} />;
 }
 
 export function SectionCards({

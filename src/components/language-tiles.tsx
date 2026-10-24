@@ -5,7 +5,7 @@ import { tmdbDiscover } from "@/lib/providers/tmdb";
 import { rpdbPoster } from "@/lib/providers/rpdb";
 import { useSettings } from "@/lib/settings";
 import { claimUniqueArt, releaseUniqueArt } from "@/lib/unique-art";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
 import { Poster } from "./poster";
 
@@ -35,7 +35,7 @@ const LANGS: Lang[] = [
 export function LanguageTiles({ title }: { title?: string }) {
   const t = useT();
   return (
-    <Row title={title ?? t("Browse by Language")} min={210} shape="tile" alwaysActive>
+    <Row title={title ?? t("Browse by Language")} min={210} shape="tile">
       {LANGS.map((l) => (
         <LanguageTile key={l.iso} lang={l} />
       ))}
@@ -45,7 +45,7 @@ export function LanguageTiles({ title }: { title?: string }) {
 
 function LanguageTile({ lang }: { lang: Lang }) {
   const { settings } = useSettings();
-  const { openFilter } = useView();
+  const { openFilter } = useViewActions();
   const t = useT();
   const [backdrops, setBackdrops] = useState<Meta[]>([]);
   const from = `oklch(0.42 0.13 ${lang.hue})`;

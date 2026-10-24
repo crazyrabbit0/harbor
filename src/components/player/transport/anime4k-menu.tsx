@@ -5,6 +5,7 @@ import type { Anime4kChoice } from "@/views/player/hooks/use-anime4k";
 import { useT } from "@/lib/i18n";
 import { useMenuSide } from "../menu-side";
 import { Tooltip } from "./tooltip";
+import { KeyChips, withHotkey } from "./hotkey-label";
 import { watchOutsideMouseDown } from "@/lib/player/overlay-dismiss";
 
 const OPTIONS: Array<{ id: Anime4kChoice; label: string }> = [
@@ -44,7 +45,7 @@ export function Anime4kMenu({
   const sub = ANIME4K_MODES.find((m) => m.id === mode)?.sub;
   return (
     <div ref={wrap} className="relative">
-      <Tooltip label={t("Anime4K upscaling")}>
+      <Tooltip label={withHotkey(t("Anime4K upscaling"), "playerAnime4kToggle")} hidden={open}>
         <button
           onClick={() => {
             if (!open) measure();
@@ -77,8 +78,9 @@ export function Anime4kMenu({
       {open && (
         <div className="fixed end-14 bottom-[150px] max-h-[calc(100vh-174px)] w-[320px] max-w-[calc(100vw-72px)] overflow-y-auto rounded-md bg-elevated shadow-[0_10px_30px_-12px_rgba(0,0,0,0.6)] animate-menu-pop">
           <div className="p-2">
-            <div className="px-3 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
-              {t("Anime4K")}
+            <div className="flex items-center justify-between gap-2 px-3 pt-1 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
+              <span>{t("Anime4K")}</span>
+              <KeyChips ids={["playerAnime4kToggle"]} />
             </div>
             <div className="px-3 pb-1.5 pt-0.5 text-[11px] leading-snug text-ink-subtle">
               {sub ? t(sub) : t("Real-time anime upscaling. GPU-intensive.")}
@@ -101,10 +103,14 @@ export function Anime4kMenu({
                   >
                     <span className={sel ? "font-medium" : ""}>{t(o.label)}</span>
                     {o.id === "auto" && (
-                      <span className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-subtle">
-                        {t("default")}
+                      <span className="flex items-center gap-2">
+                        <span className="text-[10.5px] font-semibold uppercase tracking-[0.16em] text-ink-subtle">
+                          {t("default")}
+                        </span>
+                        <KeyChips ids={["playerAnime4kOn"]} />
                       </span>
                     )}
+                    {o.id === "off" && <KeyChips ids={["playerAnime4kOff"]} />}
                   </button>
                 );
               })}

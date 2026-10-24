@@ -21,6 +21,7 @@ import { useSubtitleContext } from "./subtitle-menu/subtitle-context-store";
 import type { SubtitleMenuProps } from "./subtitle-menu/types";
 import { buildOverlayState } from "./subtitle-menu/utils";
 import { Tooltip } from "./transport/tooltip";
+import { withHotkey } from "./transport/hotkey-label";
 import { watchOutsideMouseDown } from "@/lib/player/overlay-dismiss";
 
 export type { SubtitleMenuProps } from "./subtitle-menu/types";
@@ -190,7 +191,7 @@ export function SubtitleMenu(props: Props) {
 
   return (
     <div ref={wrap} className="relative">
-      <Tooltip label={t("Subtitles")}>
+      <Tooltip label={withHotkey(t("Subtitles"), "playerSubtitleCycle", "playerSubtitleCycleBack")}>
         <button
           data-player-subtitles
           type="button"

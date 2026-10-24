@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import {
   Bookmark,
   BookOpen,
@@ -1717,9 +1718,9 @@ export function HarborReader({
     return output;
   };
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[90] overflow-hidden transition-colors duration-300"
+      className="fixed inset-0 z-[150] overflow-hidden transition-colors duration-300"
       style={{
         background: colors.desk,
         color: colors.ink,
@@ -2553,7 +2554,8 @@ export function HarborReader({
         />
       )}
       <style>{`.reader-icon{display:grid;width:42px;height:42px;place-items:center;border-radius:999px;color:inherit;transition:.16s ease}.reader-icon:hover{background:rgba(127,127,127,.16);transform:translateY(-1px)}.reader-icon:active{transform:scale(.92)}.reader-icon:disabled{pointer-events:none;opacity:.28}.reader-icon-accent{background:var(--color-accent);color:#111}.reader-icon-cancel{background:rgba(239,68,68,.16);color:#f87171;box-shadow:inset 0 0 0 1px rgba(248,113,113,.28)}.reader-icon-cancel:hover{background:rgba(239,68,68,.25);color:#fca5a5}.reader-language-toggle{display:flex;width:auto;gap:6px;padding:0 12px;font-size:11px;font-weight:700}.reader-current{border-radius:4px}.reader-read{color:var(--reader-read-color)}.reader-annotation{color:inherit;border-radius:3px;padding:.04em .02em;cursor:pointer}.reader-annotation:hover{outline:1px solid color-mix(in srgb,var(--color-accent) 60%,transparent)}.ebook-book-crossfade-in{animation:ebook-book-fade-in 240ms ease-out both;will-change:opacity}.ebook-book-crossfade-out{animation:ebook-book-fade-out 240ms ease-out both;will-change:opacity}@keyframes ebook-book-fade-in{from{opacity:0}to{opacity:1}}@keyframes ebook-book-fade-out{from{opacity:1}to{opacity:0}}@media(prefers-reduced-motion:reduce){.ebook-book-crossfade-in,.ebook-book-crossfade-out{animation:none}}.ebook-audio-seeker{appearance:none;background:transparent}.ebook-audio-seeker::-webkit-slider-runnable-track{height:4px;border-radius:99px;background:linear-gradient(90deg,var(--color-accent) var(--audio-progress),rgba(127,127,127,.28) var(--audio-progress))}.ebook-audio-seeker::-webkit-slider-thumb{appearance:none;width:12px;height:12px;margin-top:-4px;border:2px solid var(--color-accent);border-radius:50%;background:#111;box-shadow:0 0 0 3px color-mix(in srgb,var(--color-accent) 18%,transparent);transition:transform .15s}.ebook-audio-seeker:hover::-webkit-slider-thumb{transform:scale(1.2)}`}</style>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

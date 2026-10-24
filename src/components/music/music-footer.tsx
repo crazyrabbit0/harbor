@@ -4,7 +4,7 @@ import { SECONDARY_BUTTON } from "@/components/music/music-connections/connectio
 import { APP_VERSION, BUILD_LABEL } from "@/lib/build-info";
 import { useT } from "@/lib/i18n";
 import type { MusicConnection, MusicConnectionStatus } from "@/lib/music/types";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 
 const LEGAL_TERMS = [
@@ -148,7 +148,7 @@ function ConnectionsColumn() {
 
 export function MusicFooter({ className = "" }: { className?: string }) {
   const t = useT();
-  const { openSettings, openFeed, openGroups } = useView();
+  const { openSettings, openFeed, openGroups } = useViewActions();
   const { openConnections } = useMusicConnections();
 
   const setup: FooterLink[] = [
@@ -159,7 +159,7 @@ export function MusicFooter({ className = "" }: { className?: string }) {
   ];
 
   const harbor: FooterLink[] = [
-    { key: "music.footer.about", run: () => openSettings("advanced") },
+    { key: "music.footer.about", run: () => openSettings("advanced", { tab: "about" }) },
     { key: "music.footer.account", run: () => openSettings("account") },
   ];
 

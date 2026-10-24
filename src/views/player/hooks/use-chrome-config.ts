@@ -39,5 +39,6 @@ export function useChromeConfig(chromeTheme: "stremio" | "default") {
     avatarsHidden: !!avatarsPanel?.hidden,
     chatHidden: !!chatPanel?.hidden,
     episodesHidden: !!episodesPanel?.hidden,
+    jumpDigitsShown: chromeConfig.controls.some((c) => c.id === "jump-digits" && !c.hidden),
   };
 }

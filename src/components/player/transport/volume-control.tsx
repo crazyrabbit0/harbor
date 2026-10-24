@@ -5,6 +5,7 @@ import type { VolumeStyle } from "@/lib/player-chrome";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { Tooltip } from "./tooltip";
+import { withHotkey } from "./hotkey-label";
 import {
   NORMAL_FRACTION,
   TRACK_WIDTH,
@@ -91,7 +92,7 @@ export function VolumeControl({
         }%, #f97316 ${(breakPct / filledPct) * 100}%, ${color} 100%)`;
 
   const muteBtn = (
-    <Tooltip label={label}>
+    <Tooltip label={withHotkey(label, "playerMute")}>
       <button
         onClick={onMute}
         className="flex h-12 w-12 items-center justify-center rounded-full text-white/90 transition-colors hover:bg-white/10 hover:text-white"
@@ -131,7 +132,7 @@ export function VolumeControl({
     return (
       <div className="flex items-center gap-1" onWheel={onWheel}>
         {muteBtn}
-        <Tooltip label={tr("Volume down")}>
+        <Tooltip label={withHotkey(tr("Volume down"), "playerVolumeDown")}>
           <button
             onClick={() => step(-0.05)}
             className="flex h-9 w-9 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10 hover:text-white"
@@ -143,7 +144,7 @@ export function VolumeControl({
         <span className="min-w-[2.5rem] text-center font-mono text-[12px] tabular-nums text-white/85">
           {pct}%
         </span>
-        <Tooltip label={tr("Volume up")}>
+        <Tooltip label={withHotkey(tr("Volume up"), "playerVolumeUp")}>
           <button
             onClick={() => step(0.05)}
             className="flex h-9 w-9 items-center justify-center rounded-full text-white/85 transition-colors hover:bg-white/10 hover:text-white"

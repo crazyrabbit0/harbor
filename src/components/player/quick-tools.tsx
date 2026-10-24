@@ -1,5 +1,5 @@
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
-import { Camera, FolderOpen, Repeat, X } from "lucide-react";
+import { Camera, FolderOpen, Loader2, Repeat, X } from "lucide-react";
 import type { AbLoopState } from "@/views/player/hooks/use-ab-loop";
 import type { FrameGrabToast } from "@/views/player/hooks/use-frame-grab";
 import { useT } from "@/lib/i18n";
@@ -84,13 +84,19 @@ function FrameToast({ toast }: { toast: FrameGrabToast }) {
       className="pointer-events-none absolute left-1/2 top-24 z-40 -translate-x-1/2 animate-[harbor-fade-in_200ms_ease-out]"
     >
       <div
-        className={`pointer-events-auto flex items-center gap-2.5 rounded-full border py-2 ps-4 pe-2 text-[12.5px] font-medium backdrop-blur-md ${
-          toast.kind === "ok"
-            ? "border-white/20 bg-black/80 text-white"
-            : "border-danger/40 bg-danger/15 text-danger"
+        className={`pointer-events-auto flex items-center gap-2.5 rounded-full border py-2 ps-4 text-[12.5px] font-medium backdrop-blur-md ${
+          toast.kind === "ok" && toast.path ? "pe-2" : "pe-4"
+        } ${
+          toast.kind === "error"
+            ? "border-danger/40 bg-danger/15 text-danger"
+            : "border-white/20 bg-black/80 text-white"
         }`}
       >
-        <Camera size={13} strokeWidth={2.2} className="shrink-0" />
+        {toast.kind === "busy" ? (
+          <Loader2 size={13} strokeWidth={2.4} className="shrink-0 animate-spin text-white/80" />
+        ) : (
+          <Camera size={13} strokeWidth={2.2} className="shrink-0" />
+        )}
         <span className="whitespace-nowrap">{toast.text}</span>
         {toast.kind === "ok" && toast.path && (
           <button

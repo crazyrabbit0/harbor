@@ -1,5 +1,6 @@
 import { isTauri } from "@tauri-apps/api/core";
 import { osClass } from "@/lib/platform";
+import type { Settings } from "@/lib/settings/types";
 
 function dataUrlToBytes(dataUrl: string): Uint8Array | null {
   const comma = dataUrl.indexOf(",");
@@ -15,6 +16,19 @@ function dataUrlToBytes(dataUrl: string): Uint8Array | null {
 }
 
 export type ApplyIconResult = { ok: true } | { ok: false; reason: string };
+
+export type AppIconChoice =
+  | { kind: "default" }
+  | { kind: "preset"; id: string }
+  | { kind: "custom" };
+
+export function appIconChoice({
+  customAppIcon,
+  customAppIconPreset,
+}: Pick<Settings, "customAppIcon" | "customAppIconPreset">): AppIconChoice {
+  if (customAppIconPreset) return { kind: "preset", id: customAppIconPreset };
+  return customAppIcon ? { kind: "custom" } : { kind: "default" };
+}
 
 export async function applyAppIcon(dataUrl: string): Promise<ApplyIconResult> {
   if (!isTauri()) return { ok: false, reason: "not running in the desktop app" };

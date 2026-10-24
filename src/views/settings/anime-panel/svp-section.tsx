@@ -72,7 +72,7 @@ export function SvpSection() {
     setBusy(true);
     setError(null);
     try {
-      update({ svpVpyPath: await svpApply(next) });
+      update({ svpVpyPath: await svpApply({ svpTargetFps: next }) });
     } catch (e) {
       setError(t("Couldn't set up SVP: {err}", { err: String(e) }));
     } finally {
@@ -89,7 +89,7 @@ export function SvpSection() {
     }
     setBusy(true);
     try {
-      const vpy = await svpApply(settings.svpTargetFps);
+      const vpy = await svpApply(settings);
       update({ playerSvp: true, svpVpyPath: vpy });
       svpStatus()
         .then(setStatus)

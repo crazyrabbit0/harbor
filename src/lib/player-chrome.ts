@@ -47,7 +47,19 @@ export type PlayerControlId =
   | "pip"
   | "cast"
   | "fullscreen"
-  | "window-controls";
+  | "window-controls"
+  | "ab-loop"
+  | "gif-record"
+  | "clip-record"
+  | "stats"
+  | "screen-lock"
+  | "reload-source"
+  | "restart-server"
+  | "prev-channel"
+  | "jump-start"
+  | "jump-end"
+  | "jump-digits"
+  | "edit-layout";
 
 export type PanelId = "avatars" | "chat" | "episodes";
 export type PanelCorner = "top-left" | "top-right" | "bottom-left" | "bottom-right";
@@ -175,10 +187,26 @@ export type PlayerChromeConfig = {
   };
 };
 
+// Hotkey-only actions, offered as buttons the user can turn on in the layout editor.
+const HIDDEN_EXTRAS: PlayerControlConfig[] = [
+  { id: "jump-start", slot: "seek-leading", order: -10, hidden: true },
+  { id: "jump-end", slot: "seek-trailing", order: 10, hidden: true },
+  { id: "jump-digits", slot: "bottom-left", order: 30, hidden: true },
+  { id: "prev-channel", slot: "bottom-left", order: 35, hidden: true },
+  { id: "ab-loop", slot: "bottom-right", order: 41, hidden: true },
+  { id: "gif-record", slot: "bottom-right", order: 42, hidden: true },
+  { id: "clip-record", slot: "bottom-right", order: 43, hidden: true },
+  { id: "stats", slot: "bottom-right", order: 47, hidden: true },
+  { id: "screen-lock", slot: "bottom-right", order: 48, hidden: true },
+  { id: "reload-source", slot: "bottom-right", order: 55, hidden: true },
+  { id: "restart-server", slot: "bottom-right", order: 56, hidden: true },
+];
+
 export const DEFAULT_DEFAULT_CONFIG: PlayerChromeConfig = {
   controls: [
     { id: "back", slot: "top-left", order: 0 },
     { id: "title-info", slot: "top-left", order: 10 },
+    { id: "edit-layout", slot: "top-right", order: 80 },
     { id: "local-time", slot: "top-right", order: 90 },
     { id: "window-controls", slot: "top-right", order: 100 },
     { id: "time-start", slot: "seek-leading", order: 0 },
@@ -209,6 +237,7 @@ export const DEFAULT_DEFAULT_CONFIG: PlayerChromeConfig = {
     { id: "pip", slot: "bottom-right", order: 50 },
     { id: "cast", slot: "bottom-right", order: 60 },
     { id: "fullscreen", slot: "bottom-right", order: 70 },
+    ...HIDDEN_EXTRAS,
   ],
   options: {
     volumeStyle: "slider",
@@ -221,6 +250,7 @@ export const DEFAULT_STREMIO_CONFIG: PlayerChromeConfig = {
     { id: "back", slot: "top-left", order: 0 },
     { id: "title-info", slot: "top-left", order: 10 },
     { id: "fullscreen", slot: "top-right", order: 0 },
+    { id: "edit-layout", slot: "top-right", order: 80 },
     { id: "local-time", slot: "top-right", order: 90 },
     { id: "window-controls", slot: "top-right", order: 100 },
     { id: "play-pause", slot: "bottom-left", order: 0 },
@@ -249,6 +279,7 @@ export const DEFAULT_STREMIO_CONFIG: PlayerChromeConfig = {
     { id: "cast", slot: "bottom-right", order: 40 },
     { id: "pick-another", slot: "bottom-right", order: 50 },
     { id: "pip", slot: "bottom-right", order: 60 },
+    ...HIDDEN_EXTRAS,
   ],
   options: {
     volumeStyle: "slider",
@@ -317,6 +348,30 @@ export const CONTROL_META: Record<
     group: "actions",
     defaultSlot: "top-right",
   },
+  "ab-loop": { label: "A-B loop", group: "actions", defaultSlot: "bottom-right" },
+  "gif-record": { label: "Record GIF", group: "actions", defaultSlot: "bottom-right" },
+  "clip-record": { label: "Save video clip", group: "actions", defaultSlot: "bottom-right" },
+  stats: { label: "Stats overlay", group: "info", defaultSlot: "bottom-right" },
+  "screen-lock": { label: "Lock player controls", group: "actions", defaultSlot: "bottom-right" },
+  "reload-source": { label: "Reload source", group: "actions", defaultSlot: "bottom-right" },
+  "restart-server": {
+    label: "Restart streaming server",
+    group: "actions",
+    defaultSlot: "bottom-right",
+  },
+  "prev-channel": {
+    label: "Previous channel (Live TV)",
+    group: "transport",
+    defaultSlot: "bottom-left",
+  },
+  "jump-start": { label: "Jump to start", group: "transport", defaultSlot: "seek-leading" },
+  "jump-end": { label: "Jump to end", group: "transport", defaultSlot: "seek-trailing" },
+  "jump-digits": {
+    label: "Jump through video 0-9",
+    group: "transport",
+    defaultSlot: "bottom-left",
+  },
+  "edit-layout": { label: "Edit player layout", group: "actions", defaultSlot: "top-right" },
 };
 
 export type ThemeId = "default" | "stremio";

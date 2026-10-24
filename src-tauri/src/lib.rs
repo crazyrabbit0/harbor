@@ -1446,6 +1446,7 @@ pub fn run() {
             thumbs::thumbs_set_url,
             thumbs::thumbs_spawn_eager,
             thumbs::thumbs_get,
+            thumbs::thumbs_prefetch,
             thumbs::thumbs_stop,
             dvr::dvr_start,
             dvr::dvr_stop,

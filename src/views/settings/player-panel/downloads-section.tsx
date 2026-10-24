@@ -5,6 +5,7 @@ import { FolderOpen, RotateCcw } from "../icons";
 import { useEffect, useState, type ReactNode } from "react";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
+import { captureDir } from "@/lib/player/capture-path";
 import { SettingGroup, SettingRow } from "../kit";
 import { SButton } from "../ui";
 import { ToggleRow } from "@/views/settings/shared";
@@ -100,12 +101,75 @@ export function DownloadsSection() {
           onChange={(value) => update({ ebookDownloadCreateFolders: value })}
         />
       </DownloadLocation>
+      <CaptureFolders onError={setError} />
       {error && (
         <p role="alert" className="text-[15px] text-danger">
           {error}
         </p>
       )}
     </div>
+  );
+}
+
+type CaptureKey = "screenshotDir" | "gifDir" | "clipDir";
+
+function CaptureFolders({ onError }: { onError: (e: string | null) => void }) {
+  const t = useT();
+  const { settings, update } = useSettings();
+  const [fallback, setFallback] = useState("");
+  useEffect(() => {
+    let cancelled = false;
+    void captureDir().then((d) => {
+      if (!cancelled && d) setFallback(d);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const rows: { key: CaptureKey; label: string }[] = [
+    { key: "screenshotDir", label: t("Screenshots") },
+    { key: "gifDir", label: t("GIFs") },
+    { key: "clipDir", label: t("Video clips") },
+  ];
+  const pick = async (key: CaptureKey) => {
+    onError(null);
+    try {
+      const picked = await open({
+        directory: true,
+        defaultPath: settings[key] || fallback || undefined,
+      });
+      if (typeof picked === "string") update({ [key]: picked });
+    } catch {
+      onError(t("Could not open the folder picker. Try again."));
+    }
+  };
+  const reveal = async (dir: string) => {
+    onError(null);
+    try {
+      await revealItemInDir(dir);
+    } catch {
+      onError(t("Could not open that folder. Check that the drive is connected."));
+    }
+  };
+  return (
+    <SettingGroup label={t("Player captures")}>
+      {rows.map(({ key, label }) => {
+        const custom = !!settings[key];
+        const current = settings[key] || fallback;
+        return (
+          <FolderRow
+            key={key}
+            label={label}
+            current={current}
+            placeholder={t("Pictures/Harbor")}
+            custom={custom}
+            onChoose={() => void pick(key)}
+            onReset={() => update({ [key]: "" })}
+            onReveal={() => void reveal(current)}
+          />
+        );
+      })}
+    </SettingGroup>
   );
 }
 
@@ -131,39 +195,69 @@ function DownloadLocation({
   const t = useT();
   return (
     <SettingGroup label={title}>
-      <SettingRow
-        label={
-          <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
-            <span className="min-w-0">{t("Download folder")}</span>
-            <span className={`${BADGE_BASE} bg-elevated text-ink-subtle`}>
-              {custom ? t("Custom") : t("Default")}
-            </span>
-          </span>
-        }
-        desc={
-          <span className="block break-all font-mono text-[15.5px] leading-[22px] text-ink">
-            {current ||
-              (loading ? t("Finding your Downloads folder…") : t("Default Downloads folder"))}
-          </span>
-        }
-      >
-        <span className="flex flex-wrap items-center gap-2.5">
-          <SButton onClick={onChoose}>{t("Choose folder")}</SButton>
-          {current && (
-            <SButton onClick={onReveal}>
-              <FolderOpen size={16} strokeWidth={2.2} />
-              {t("Open")}
-            </SButton>
-          )}
-          {custom && (
-            <SButton onClick={onReset}>
-              <RotateCcw size={16} strokeWidth={2.2} />
-              {t("Reset to default")}
-            </SButton>
-          )}
-        </span>
-      </SettingRow>
+      <FolderRow
+        label={t("Download folder")}
+        current={current}
+        placeholder={loading ? t("Finding your Downloads folder…") : t("Default Downloads folder")}
+        custom={custom}
+        onChoose={onChoose}
+        onReset={onReset}
+        onReveal={onReveal}
+      />
       {children}
     </SettingGroup>
+  );
+}
+
+function FolderRow({
+  label,
+  current,
+  placeholder,
+  custom,
+  onChoose,
+  onReset,
+  onReveal,
+}: {
+  label: string;
+  current: string;
+  placeholder: string;
+  custom: boolean;
+  onChoose: () => void;
+  onReset: () => void;
+  onReveal: () => void;
+}) {
+  const t = useT();
+  return (
+    <SettingRow
+      label={
+        <span className="inline-flex min-w-0 flex-wrap items-center gap-2">
+          <span className="min-w-0">{label}</span>
+          <span className={`${BADGE_BASE} bg-elevated text-ink-subtle`}>
+            {custom ? t("Custom") : t("Default")}
+          </span>
+        </span>
+      }
+      desc={
+        <span className="block break-all font-mono text-[15.5px] leading-[22px] text-ink">
+          {current || placeholder}
+        </span>
+      }
+    >
+      <span className="flex flex-wrap items-center justify-end gap-2.5">
+        <SButton onClick={onChoose}>{t("Choose folder")}</SButton>
+        {current && (
+          <SButton onClick={onReveal}>
+            <FolderOpen size={16} strokeWidth={2.2} />
+            {t("Open")}
+          </SButton>
+        )}
+        {custom && (
+          <SButton onClick={onReset}>
+            <RotateCcw size={16} strokeWidth={2.2} />
+            {t("Reset to default")}
+          </SButton>
+        )}
+      </span>
+    </SettingRow>
   );
 }

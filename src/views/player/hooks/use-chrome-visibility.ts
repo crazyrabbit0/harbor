@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { getSeekHovering, subscribeSeekHovering } from "@/lib/player/playback-clock";
+import { getJumpMarks, subscribeJumpMarks } from "@/lib/player/jump-marks";
+import { isPlayerChromeHeld, subscribePlayerChromeHold } from "@/lib/player/chrome-hold";
 import {
   CHROME_HIDE_MS_PAUSED,
   CHROME_HIDE_MS_PLAYING,
@@ -35,6 +37,7 @@ export function useChromeVisibility(params: {
   const resizeTimer = useRef<number | null>(null);
   const resizingUiRef = useRef(false);
   const anyMenuOpenRef = useRef(false);
+  const heldRef = useRef(false);
   const resumeHideRef = useRef(false);
   const playingRef = useRef(playing);
   playingRef.current = playing;
@@ -47,7 +50,8 @@ export function useChromeVisibility(params: {
     setChromeVisible(true);
     setChromeHidden(pipModeRef.current);
     if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    if (resizingUiRef.current || anyMenuOpenRef.current || getSeekHovering()) return;
+    if (resizingUiRef.current || anyMenuOpenRef.current || heldRef.current || getSeekHovering())
+      return;
     let wait =
       playingRef.current && !drawModeRef.current ? CHROME_HIDE_MS_PLAYING : CHROME_HIDE_MS_PAUSED;
     if (resumeHideRef.current) {
@@ -157,6 +161,27 @@ export function useChromeVisibility(params: {
       }),
     [wakeChrome],
   );
+
+  useEffect(() => {
+    const sync = () => {
+      const marks = getJumpMarks();
+      const held = marks.pinned || marks.flashing || isPlayerChromeHeld();
+      heldRef.current = held;
+      if (held) {
+        setChromeVisible(true);
+        setChromeHidden(pipModeRef.current);
+        if (hideTimer.current) window.clearTimeout(hideTimer.current);
+      } else {
+        wakeChrome();
+      }
+    };
+    const offMarks = subscribeJumpMarks(sync);
+    const offHold = subscribePlayerChromeHold(sync);
+    return () => {
+      offMarks();
+      offHold();
+    };
+  }, [wakeChrome, setChromeHidden]);
 
   const [anyMenuOpen, setAnyMenuOpen] = useState(false);
   useEffect(() => {

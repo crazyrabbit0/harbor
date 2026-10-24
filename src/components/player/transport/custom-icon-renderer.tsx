@@ -8,6 +8,7 @@ import type { StremioRenderCtx } from "./control-renderer-stremio";
 import { BigButton } from "./big-button";
 import { Tooltip } from "./tooltip";
 import { StremioBtn } from "./stremio-btn";
+import { withHotkey } from "./hotkey-label";
 
 export function CustomIcon({ url, size }: { url: string; size: number }) {
   const [errored, setErrored] = useState(false);
@@ -47,7 +48,7 @@ export function renderCustomIconControl(
     case "back": {
       if (!ctx.onBack) return null;
       return (
-        <Tooltip label={t("Back")} side="bottom">
+        <Tooltip label={withHotkey(t("Back"), "playerClose")} side="bottom">
           <button
             onClick={ctx.onBack}
             aria-label={t("Back")}
@@ -62,7 +63,7 @@ export function renderCustomIconControl(
       const iconSize = ctx.tight ? 28 : ctx.compact ? 32 : 36;
       const boxSize = ctx.tight ? "h-12 w-12" : ctx.compact ? "h-14 w-14" : "h-16 w-16";
       return (
-        <Tooltip label={ctx.playing ? t("Pause") : t("Play")}>
+        <Tooltip label={withHotkey(ctx.playing ? t("Pause") : t("Play"), "playerPlayPause")}>
           <button
             onClick={ctx.onPlayPause}
             aria-label={ctx.playing ? t("Pause") : t("Play")}
@@ -77,7 +78,7 @@ export function renderCustomIconControl(
       if (ctx.tight || ctx.isLiveChannel) return null;
       const seconds = ctx.seekBackStepSec;
       return (
-        <Tooltip label={t("Back {n}s", { n: seconds })}>
+        <Tooltip label={withHotkey(t("Back {n}s", { n: seconds }), "playerSeekBack10")}>
           <button
             type="button"
             onClick={() => ctx.onSeekStep(-seconds)}
@@ -93,7 +94,7 @@ export function renderCustomIconControl(
       if (ctx.tight || ctx.isLiveChannel) return null;
       const seconds = ctx.seekForwardStepSec;
       return (
-        <Tooltip label={t("Forward {n}s", { n: seconds })}>
+        <Tooltip label={withHotkey(t("Forward {n}s", { n: seconds }), "playerSeekForward10")}>
           <button
             type="button"
             onClick={() => ctx.onSeekStep(seconds)}
@@ -108,7 +109,7 @@ export function renderCustomIconControl(
     case "prev-episode": {
       if (ctx.tight || !ctx.showEpisodeNav) return null;
       return (
-        <Tooltip label={t("Previous")}>
+        <Tooltip label={withHotkey(t("Previous"), "playerPrevEpisode")}>
           <button
             onClick={ctx.hasPrevEp ? ctx.onPrevEp : undefined}
             disabled={!ctx.hasPrevEp}
@@ -127,7 +128,7 @@ export function renderCustomIconControl(
     case "next-episode": {
       if (ctx.tight || !ctx.showEpisodeNav) return null;
       return (
-        <Tooltip label={t("Next")}>
+        <Tooltip label={withHotkey(t("Next"), "playerNextEpisode")}>
           <button
             onClick={ctx.hasNextEp ? ctx.onNextEp : undefined}
             disabled={!ctx.hasNextEp}
@@ -147,7 +148,11 @@ export function renderCustomIconControl(
       if (ctx.tight || !ctx.canPickAnother) return null;
       const label = ctx.isLiveChannel ? t("TV Guide") : t("Switch stream");
       return (
-        <BigButton onClick={ctx.onPickAnother} ariaLabel={label} tooltip={label}>
+        <BigButton
+          onClick={ctx.onPickAnother}
+          ariaLabel={label}
+          tooltip={withHotkey(label, ctx.isLiveChannel ? "playerTvGuide" : "playerStreamSwitcher")}
+        >
           {ctx.isLiveChannel ? (
             <NavGlyph name="guide" className="h-[22px] w-[22px]" />
           ) : (
@@ -159,7 +164,11 @@ export function renderCustomIconControl(
     case "dvr": {
       if (ctx.tight || !ctx.isLiveChannel || !ctx.onOpenDvr) return null;
       return (
-        <BigButton onClick={ctx.onOpenDvr} ariaLabel={t("Record")} tooltip={t("DVR record")}>
+        <BigButton
+          onClick={ctx.onOpenDvr}
+          ariaLabel={t("Record")}
+          tooltip={withHotkey(t("DVR record"), "playerDvr")}
+        >
           <CustomIcon url={iconUrl} size={22} />
         </BigButton>
       );
@@ -167,7 +176,11 @@ export function renderCustomIconControl(
     case "download": {
       if (ctx.mid || ctx.isLiveChannel || !ctx.onDownloadStart) return null;
       return (
-        <BigButton onClick={ctx.onDownloadStart} ariaLabel={t("Download")} tooltip={t("Download")}>
+        <BigButton
+          onClick={ctx.onDownloadStart}
+          ariaLabel={t("Download")}
+          tooltip={withHotkey(t("Download"), "playerDownload")}
+        >
           <CustomIcon url={iconUrl} size={22} />
         </BigButton>
       );
@@ -191,7 +204,7 @@ export function renderCustomIconControl(
         <BigButton
           onClick={ctx.onPiP}
           ariaLabel={t("Picture in Picture")}
-          tooltip={t("Picture in Picture")}
+          tooltip={withHotkey(t("Picture in Picture"), "playerPip")}
         >
           <CustomIcon url={iconUrl} size={22} />
         </BigButton>
@@ -200,7 +213,11 @@ export function renderCustomIconControl(
     case "cast": {
       if (ctx.tight) return null;
       return (
-        <BigButton onClick={ctx.onCast} ariaLabel={t("Cast")} tooltip={t("Cast")}>
+        <BigButton
+          onClick={ctx.onCast}
+          ariaLabel={t("Cast")}
+          tooltip={withHotkey(t("Cast"), "playerCast")}
+        >
           <CustomIcon url={iconUrl} size={22} />
         </BigButton>
       );
@@ -210,7 +227,10 @@ export function renderCustomIconControl(
         <BigButton
           onClick={ctx.onFullscreen}
           ariaLabel={t("Fullscreen")}
-          tooltip={ctx.fullscreen ? t("Exit fullscreen") : t("Fullscreen")}
+          tooltip={withHotkey(
+            ctx.fullscreen ? t("Exit fullscreen") : t("Fullscreen"),
+            "playerFullscreen",
+          )}
         >
           <CustomIcon url={iconUrl} size={22} />
         </BigButton>
@@ -230,7 +250,7 @@ export function renderCustomIconControlStremio(
     case "back":
       if (!ctx.onBack) return null;
       return (
-        <Tooltip label={t("Back")} side="bottom">
+        <Tooltip label={withHotkey(t("Back"), "playerClose")} side="bottom">
           <StremioBtn onClick={ctx.onBack} ariaLabel={t("Back")}>
             <CustomIcon url={iconUrl} size={28} />
           </StremioBtn>
@@ -238,7 +258,7 @@ export function renderCustomIconControlStremio(
       );
     case "play-pause":
       return (
-        <Tooltip label={ctx.playing ? t("Pause") : t("Play")}>
+        <Tooltip label={withHotkey(ctx.playing ? t("Pause") : t("Play"), "playerPlayPause")}>
           <StremioBtn onClick={ctx.onPlayPause} ariaLabel={ctx.playing ? t("Pause") : t("Play")}>
             <CustomIcon url={iconUrl} size={32} />
           </StremioBtn>
@@ -247,7 +267,7 @@ export function renderCustomIconControlStremio(
     case "prev-episode":
       if (!ctx.showEpisodeNav) return null;
       return (
-        <Tooltip label={t("Previous episode")}>
+        <Tooltip label={withHotkey(t("Previous episode"), "playerPrevEpisode")}>
           <StremioBtn
             onClick={ctx.onPrevEp}
             ariaLabel={t("Previous episode")}
@@ -260,7 +280,7 @@ export function renderCustomIconControlStremio(
     case "next-episode":
       if (!ctx.showEpisodeNav) return null;
       return (
-        <Tooltip label={t("Next episode")}>
+        <Tooltip label={withHotkey(t("Next episode"), "playerNextEpisode")}>
           <StremioBtn
             onClick={ctx.onNextEp}
             ariaLabel={t("Next episode")}
@@ -273,7 +293,12 @@ export function renderCustomIconControlStremio(
     case "pick-another":
       if (!ctx.canPickAnother) return null;
       return (
-        <Tooltip label={ctx.isLiveChannel ? t("TV Guide") : t("Switch stream")}>
+        <Tooltip
+          label={withHotkey(
+            ctx.isLiveChannel ? t("TV Guide") : t("Switch stream"),
+            ctx.isLiveChannel ? "playerTvGuide" : "playerStreamSwitcher",
+          )}
+        >
           <StremioBtn
             onClick={ctx.onPickAnother}
             ariaLabel={ctx.isLiveChannel ? t("TV Guide") : t("Switch stream")}
@@ -285,7 +310,7 @@ export function renderCustomIconControlStremio(
     case "dvr":
       if (!ctx.isLiveChannel || !ctx.onOpenDvr) return null;
       return (
-        <Tooltip label={t("DVR record")}>
+        <Tooltip label={withHotkey(t("DVR record"), "playerDvr")}>
           <StremioBtn onClick={ctx.onOpenDvr} ariaLabel={t("DVR record")}>
             <CustomIcon url={iconUrl} size={26} />
           </StremioBtn>
@@ -294,7 +319,7 @@ export function renderCustomIconControlStremio(
     case "download":
       if (ctx.isLiveChannel || !ctx.onDownloadStart) return null;
       return (
-        <Tooltip label={t("Download")}>
+        <Tooltip label={withHotkey(t("Download"), "playerDownload")}>
           <StremioBtn onClick={ctx.onDownloadStart} ariaLabel={t("Download")}>
             <CustomIcon url={iconUrl} size={26} />
           </StremioBtn>
@@ -302,7 +327,7 @@ export function renderCustomIconControlStremio(
       );
     case "cast":
       return (
-        <Tooltip label={t("Cast")}>
+        <Tooltip label={withHotkey(t("Cast"), "playerCast")}>
           <StremioBtn onClick={ctx.onCast} ariaLabel={t("Cast")}>
             <CustomIcon url={iconUrl} size={26} />
           </StremioBtn>
@@ -320,7 +345,7 @@ export function renderCustomIconControlStremio(
     case "pip":
       if (!ctx.capabilities.pictureInPicture) return null;
       return (
-        <Tooltip label={t("Picture in Picture")}>
+        <Tooltip label={withHotkey(t("Picture in Picture"), "playerPip")}>
           <StremioBtn onClick={ctx.onPiP} ariaLabel={t("Picture in Picture")}>
             <CustomIcon url={iconUrl} size={26} />
           </StremioBtn>

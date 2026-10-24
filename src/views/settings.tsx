@@ -23,7 +23,7 @@ import {
 } from "./settings/anchor-navigation";
 import { PageActionsProvider, type PageActionReg } from "./settings/page-actions";
 import { SettingsFooter } from "./settings/settings-footer";
-import { SettingsActiveContext, type SectionId } from "./settings/shared";
+import { SettingsActiveContext, settingsAnchor, type SectionId } from "./settings/shared";
 import { SectionCards } from "./settings/section-cards";
 import { LicensesPanel } from "./settings/licenses-panel";
 import { IconsPanel } from "./settings/icons-panel";
@@ -480,9 +480,14 @@ export function Settings({ visible = true }: { visible?: boolean }) {
   };
 
   useEffect(() => {
-    if (!settingsSectionRequest.section) return;
+    const { section, spot } = settingsSectionRequest;
+    if (!section) return;
+    if (spot?.anchor || spot?.tab) {
+      handleNav(section, spot.anchor ? settingsAnchor(spot.anchor) : undefined, spot.tab);
+      return;
+    }
     setLanding(null);
-    setActive(resolveSection(settingsSectionRequest.section));
+    setActive(resolveSection(section));
   }, [settingsSectionRequest]);
 
   useEffect(() => {

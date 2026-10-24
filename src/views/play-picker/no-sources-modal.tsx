@@ -1,8 +1,8 @@
 import type { Meta } from "@/lib/cinemeta";
-import { useView } from "@/lib/view";
+import { useViewActions } from "@/lib/view";
 
 export function NoSourcesConfiguredModal({ meta }: { meta: Meta }) {
-  const { goBack, setView, openSettings } = useView();
+  const { goBack, setView, openSettings } = useViewActions();
   const title = meta.name ?? "this title";
   return (
     <main className="fixed inset-0 z-[120] flex items-center justify-center overflow-hidden bg-black px-6">
@@ -29,7 +29,9 @@ export function NoSourcesConfiguredModal({ meta }: { meta: Meta }) {
             Browse addons
           </button>
           <button
-            onClick={() => openSettings("streaming")}
+            onClick={() =>
+              openSettings("streaming", { tab: "services", anchor: "Debrid services" })
+            }
             className="flex h-11 items-center justify-center rounded-full bg-elevated text-[13.5px] font-medium text-ink ring-1 ring-edge-soft transition-colors hover:bg-raised"
           >
             Open settings

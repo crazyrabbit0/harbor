@@ -642,7 +642,7 @@ main[data-kids="on"]::-webkit-scrollbar-thumb:hover {
     transform: scale(0.98, 0.97);
   }
   to {
-    transform: scale(1, 1);
+    transform: none;
   }
 }
 
@@ -672,7 +672,7 @@ main[data-kids="on"]::-webkit-scrollbar-thumb:hover {
     transform: translateY(0.6px);
   }
   to {
-    transform: translateY(0);
+    transform: none;
   }
 }
 
@@ -1534,7 +1534,7 @@ main[data-kids="on"]::-webkit-scrollbar-thumb:hover {
     transform: scaleX(1.04);
   }
   100% {
-    transform: scaleX(1);
+    transform: none;
   }
 }
 
@@ -2171,7 +2171,7 @@ main[data-kids="on"]::-webkit-scrollbar-thumb:hover {
 .harbor-settings-nav-icon.is-active,
 [data-active] .harbor-settings-nav-icon,
 .group:hover .harbor-settings-nav-icon {
-  animation: harbor-gear-spin 1.6s var(--ease-out) both;
+  animation: harbor-gear-spin 1.6s var(--ease-out);
 }
 
 [data-active] .harbor-settings-nav-icon {
@@ -7019,7 +7019,7 @@ button.hset-rail-me:hover,
   }
   to {
     opacity: 1;
-    transform: scale(1, 1);
+    transform: none;
   }
 }
 
@@ -7439,4 +7439,34 @@ button.hset-rail-me:hover,
     animation: none;
     height: 55%;
   }
+}
+
+/* Eased scrims keep player titles and controls legible over bright frames. */
+.player-scrim-top,
+.player-scrim-bottom {
+  --scrim: 0.8;
+  background: linear-gradient(
+    var(--scrim-dir),
+    rgb(0 0 0 / calc(var(--scrim) * 1)) 0%,
+    rgb(0 0 0 / calc(var(--scrim) * 0.74)) 16%,
+    rgb(0 0 0 / calc(var(--scrim) * 0.54)) 30%,
+    rgb(0 0 0 / calc(var(--scrim) * 0.38)) 43%,
+    rgb(0 0 0 / calc(var(--scrim) * 0.26)) 55%,
+    rgb(0 0 0 / calc(var(--scrim) * 0.16)) 66%,
+    rgb(0 0 0 / calc(var(--scrim) * 0.09)) 77%,
+    rgb(0 0 0 / calc(var(--scrim) * 0.04)) 87%,
+    rgb(0 0 0 / 0) 100%
+  );
+}
+.player-scrim-top {
+  --scrim-dir: to bottom;
+}
+.player-scrim-bottom {
+  --scrim-dir: to top;
+  --scrim: 0.86;
+}
+.player-legible {
+  text-shadow:
+    0 1px 2px rgb(0 0 0 / 0.85),
+    0 0 14px rgb(0 0 0 / 0.55);
 }

@@ -4,6 +4,7 @@ import { t } from "@/lib/i18n";
 import {
   captureBaseTitle,
   captureDir,
+  captureDirLabel,
   formatStamp,
   joinPath,
   safeName,
@@ -11,10 +12,9 @@ import {
 import type { FrameGrabToast } from "./use-frame-grab";
 import type { PlayerSrc } from "@/lib/view";
 
-const CLIP_SECONDS = 30;
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-export function useClipRecorder(params: { src: PlayerSrc }): {
+export function useClipRecorder(params: { src: PlayerSrc; seconds: number; folder?: string }): {
   saving: boolean;
   chooserOpen: boolean;
   toast: FrameGrabToast | null;
@@ -22,7 +22,7 @@ export function useClipRecorder(params: { src: PlayerSrc }): {
   closeChooser: () => void;
   saveClip: (withSubs: boolean) => void;
 } {
-  const { src } = params;
+  const { src, seconds, folder } = params;
   const [saving, setSaving] = useState(false);
   const [chooserOpen, setChooserOpen] = useState(false);
   const [toast, setToast] = useState<FrameGrabToast | null>(null);
@@ -42,20 +42,20 @@ export function useClipRecorder(params: { src: PlayerSrc }): {
       busyRef.current = true;
       setSaving(true);
       if (dismissRef.current) window.clearTimeout(dismissRef.current);
-      setToast({ id: Date.now(), kind: "ok", text: t("Saving clip…") });
+      setToast({ id: Date.now(), kind: "busy", text: t("Saving clip…") });
       try {
         const filename = `${safeName(captureBaseTitle(src))} - ${formatStamp(new Date())}.mp4`;
-        const dir = await captureDir();
+        const dir = await captureDir(folder);
         const outPath = dir ? await joinPath(dir, filename) : filename;
         const result = await invoke<{ path: string; duration: number }>("mpv_clip_save", {
           withSubs,
-          beforeSec: CLIP_SECONDS,
+          beforeSec: seconds,
           outPath,
         });
         setToast({
           id: Date.now(),
           kind: "ok",
-          text: t("Clip saved to {path}", { path: dir ? "Pictures/Harbor" : "downloads" }),
+          text: t("Clip saved to {path}", { path: captureDirLabel(dir, folder) }),
           path: result.path,
         });
       } catch (e) {
@@ -70,7 +70,7 @@ export function useClipRecorder(params: { src: PlayerSrc }): {
         dismissRef.current = window.setTimeout(() => setToast(null), 6000);
       }
     },
-    [src],
+    [src, seconds, folder],
   );
 
   useEffect(

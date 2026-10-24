@@ -29,6 +29,7 @@ import { Toaster } from "@/views/addons/toaster";
 import type { ToastInfo } from "@/views/addons/addons-types";
 import type { usePlayerCast } from "./hooks/use-player-cast";
 import type { useTextSync } from "./hooks/use-text-sync";
+import type { PlayerExtras } from "@/components/player/transport/player-extras";
 
 type Room = ComponentProps<typeof RoomLayer>;
 type Shell = ComponentProps<typeof ShellLayer>;
@@ -44,6 +45,7 @@ export type PlayerOverlayLayersProps = {
   // is suppressed and BpTenFootLayer renders the replacement. Never both. Two
   // transports on two independent timers shipped that way once.
   tenFoot: boolean;
+  playerExtras: PlayerExtras;
   snap: PlayerSnapshot;
   engine: "html5" | "mpv";
   src: PlayerSrc;
@@ -412,6 +414,7 @@ export const PlayerOverlayLayers = memo(function PlayerOverlayLayers(p: PlayerOv
           onVolumeFeedback={p.onVolumeFeedback}
           onSpeedFeedback={p.onSpeedFeedback}
           homeServerQualityControl={p.homeServerQualityControl}
+          extras={p.playerExtras}
         />
       )}
 

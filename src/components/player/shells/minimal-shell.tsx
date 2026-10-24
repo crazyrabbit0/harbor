@@ -42,7 +42,7 @@ export function MinimalShell({
         </div>
       )}
       <div
-        className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 flex flex-col gap-2 bg-gradient-to-t from-black/70 to-transparent px-8 pb-5 pt-12 transition-opacity duration-300 ${
+        className={`pointer-events-none absolute inset-x-0 bottom-0 z-20 player-scrim-bottom flex flex-col gap-2 px-8 pb-5 pt-16 transition-opacity duration-300 ${
           visible ? "opacity-100" : "opacity-0"
         }`}
       >

@@ -1,6 +1,6 @@
 import { Check, ChevronDown, ImageDown, RefreshCw, Trash2, Upload } from "../icons";
 import { useEffect, useRef, useState } from "react";
-import { applyAppIcon } from "@/lib/app-icon";
+import { appIconChoice, applyAppIcon } from "@/lib/app-icon";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { SettingRow } from "../kit";
@@ -129,8 +129,9 @@ function AppIconPicker() {
   const [applied, setApplied] = useState(false);
   const [failed, setFailed] = useState(false);
   const [rot, setRot] = useState(0);
-  const presetId = settings.customAppIconPreset;
-  const hasCustom = !!settings.customAppIcon && !presetId;
+  const choice = appIconChoice(settings);
+  const presetId = choice.kind === "preset" ? choice.id : "";
+  const hasCustom = choice.kind === "custom";
   const active = presetId || hasCustom;
 
   useEffect(() => {

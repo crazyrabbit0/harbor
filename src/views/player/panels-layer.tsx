@@ -6,6 +6,7 @@ import type { PanelCorner } from "@/lib/player-chrome";
 import type { PlayEpisode } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { HeaderWarning, NoAudioWarning } from "./header-warning";
+import { KeyChips } from "@/components/player/transport/hotkey-label";
 
 export const PanelsLayer = memo(function PanelsLayer({
   tenFoot,
@@ -72,14 +73,14 @@ export const PanelsLayer = memo(function PanelsLayer({
           aria-label={t("Up next")}
           tabIndex={upNextButtonVisible ? 0 : -1}
           aria-hidden={!upNextButtonVisible}
-          className={`group absolute top-1/2 z-20 flex h-32 -translate-y-1/2 flex-col items-center justify-center gap-2.5 bg-elevated/45 text-ink shadow-[0_6px_20px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md transition-[padding,background,opacity] duration-300 hover:bg-elevated/85 ${
+          className={`group absolute top-1/2 z-20 flex min-h-32 -translate-y-1/2 flex-col items-center justify-center gap-3 py-4 bg-elevated/45 text-ink shadow-[0_6px_20px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md transition-[padding,background,opacity] duration-300 hover:bg-elevated/85 ${
             upNextButtonVisible
               ? "pointer-events-auto opacity-40 hover:opacity-100"
               : "pointer-events-none opacity-0"
           } ${
             episodesCorner === "top-left" || episodesCorner === "bottom-left"
-              ? "left-0 rounded-r-2xl border-y border-r border-edge-soft pl-2 pr-2.5 hover:pr-3"
-              : "right-0 rounded-l-2xl border-y border-l border-edge-soft pl-2.5 pr-2 hover:pl-3"
+              ? "left-0 rounded-r-2xl border-y border-r border-edge-soft pl-3 pr-3 hover:pr-3.5"
+              : "right-0 rounded-l-2xl border-y border-l border-edge-soft pl-3 pr-3 hover:pl-3.5"
           }`}
         >
           <img
@@ -92,11 +93,12 @@ export const PanelsLayer = memo(function PanelsLayer({
             className="select-none"
           />
           <span
-            className="text-[11px] font-semibold uppercase tracking-[0.28em]"
+            className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.28em]"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
             {t("Up Next")}
           </span>
+          <KeyChips ids={["playerEpisodePanel"]} />
         </button>
       )}
 

@@ -19,6 +19,11 @@ export type HotkeyId =
   | "playerSubtitleCycle"
   | "playerSubtitleCycleAlt"
   | "playerSubtitleCycleBack"
+  | "playerAudioCycle"
+  | "playerAudioCycleBack"
+  | "playerDownload"
+  | "playerCast"
+  | "playerEditLayout"
   | "playerLoopStart"
   | "playerLoopEnd"
   | "playerLoopClear"
@@ -271,7 +276,8 @@ export const HOTKEYS: HotkeyDef[] = [
     scope: "Player",
     group: "Playback",
     label: "Screenshot",
-    description: "Save the current frame (video only, no subtitles) as a PNG to Pictures/Harbor.",
+    description:
+      "Save the current frame (video only, no subtitles) as a PNG to the Screenshots folder.",
     defaultBinding: "p",
   },
   {
@@ -280,7 +286,7 @@ export const HOTKEYS: HotkeyDef[] = [
     group: "Playback",
     label: "Record GIF",
     description:
-      "Start or stop recording a GIF of the video (no subtitles). Saves to Pictures/Harbor.",
+      "Start or stop recording a GIF of the video (no subtitles). Saves to the GIFs folder.",
     defaultBinding: "o",
   },
   {
@@ -289,8 +295,32 @@ export const HOTKEYS: HotkeyDef[] = [
     group: "Playback",
     label: "Save video clip",
     description:
-      "Save the last 30 seconds as a video clip with audio, choosing subtitles on or off. Saves to Pictures/Harbor.",
+      "Save the last seconds of video, set by Clip length, as a clip with audio, choosing subtitles on or off. Saves to the Video clips folder.",
     defaultBinding: "c",
+  },
+  {
+    id: "playerDownload",
+    scope: "Player",
+    group: "Playback",
+    label: "Download video",
+    description: "Start downloading the video you are watching, or cancel a download in progress.",
+    defaultBinding: "d",
+  },
+  {
+    id: "playerCast",
+    scope: "Player",
+    group: "Playback",
+    label: "Cast",
+    description: "Open the list of devices to cast to.",
+    defaultBinding: "shift+c",
+  },
+  {
+    id: "playerEditLayout",
+    scope: "Player",
+    group: "Panels",
+    label: "Edit player layout",
+    description: "Open the layout editor over the video, without leaving playback.",
+    defaultBinding: "ctrl+e",
   },
   {
     id: "playerAnime4kToggle",
@@ -371,16 +401,16 @@ export const HOTKEYS: HotkeyDef[] = [
     id: "playerSeekBack30",
     scope: "Player",
     group: "Seeking",
-    label: "Seek back 30s",
-    description: "Jump back thirty seconds.",
+    label: "Long seek back",
+    description: "Jump back by the Long seek step set under Behavior.",
     defaultBinding: ",",
   },
   {
     id: "playerSeekForward30",
     scope: "Player",
     group: "Seeking",
-    label: "Seek forward 30s",
-    description: "Jump forward thirty seconds.",
+    label: "Long seek forward",
+    description: "Jump forward by the Long seek step set under Behavior.",
     defaultBinding: ".",
   },
   {
@@ -497,6 +527,22 @@ export const HOTKEYS: HotkeyDef[] = [
     label: "Cycle subtitles backward",
     description: "Cycle through subtitle tracks in reverse order.",
     defaultBinding: "shift+s",
+  },
+  {
+    id: "playerAudioCycle",
+    scope: "Player",
+    group: "Tracks",
+    label: "Cycle audio tracks",
+    description: "Switch to the next audio track.",
+    defaultBinding: "y",
+  },
+  {
+    id: "playerAudioCycleBack",
+    scope: "Player",
+    group: "Tracks",
+    label: "Cycle audio tracks backward",
+    description: "Switch to the previous audio track.",
+    defaultBinding: "shift+y",
   },
   {
     id: "playerSubDelayDown",

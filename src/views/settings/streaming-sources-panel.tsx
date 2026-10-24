@@ -39,9 +39,7 @@ export function StreamingSourcesPanel({
   saveKey: (which: DebridKey, value: string) => void;
 }) {
   const t = useT();
-  const [tab, setTab] = useState<Tab>(() =>
-    sessionStorage.getItem("harbor.settings.streaming.home-servers") ? "home-servers" : "services",
-  );
+  const [tab, setTab] = useState<Tab>("services");
   const tabs = [
     { id: "services" as const, label: t("Services") },
     { id: "home-servers" as const, label: t("Home servers") },
@@ -50,7 +48,6 @@ export function StreamingSourcesPanel({
     { id: "picker" as const, label: t("Picker") },
   ];
   useSubTabs(tabs, tab, (id) => setTab(id as Tab));
-  if (tab === "home-servers") sessionStorage.removeItem("harbor.settings.streaming.home-servers");
   return (
     <>
       <div key={tab} className="harbor-cascade flex flex-col gap-10">

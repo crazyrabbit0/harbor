@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { matchPlayerKey, type HotkeyId } from "@/lib/hotkeys";
 import { useSettings } from "@/lib/settings";
+import { seekSteps } from "@/lib/seek-step";
 import { Tooltip } from "./tooltip";
 import { PiPButton, Scrubber, SpeedPill, VolumeControl, formatTime } from "./trailer-controls";
 
@@ -190,12 +191,12 @@ export function NativeTrailerPlayer({
           break;
         case "playerSeekBack10":
           e.preventDefault();
-          seekBy(-10);
+          seekBy(-seekSteps(settings).back);
           wake();
           break;
         case "playerSeekForward10":
           e.preventDefault();
-          seekBy(10);
+          seekBy(seekSteps(settings).forward);
           wake();
           break;
         case "playerVolumeUp":
@@ -222,7 +223,7 @@ export function NativeTrailerPlayer({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [toggle, seekBy, applyVolume, toggleMute, togglePiP, volume, wake, hotkeys]);
+  }, [toggle, seekBy, applyVolume, toggleMute, togglePiP, volume, wake, hotkeys, settings]);
 
   const remaining = Math.max(0, duration - time);
   const timeText = showRemaining ? `−${formatTime(remaining)}` : formatTime(time);

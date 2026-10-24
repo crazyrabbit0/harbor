@@ -51,6 +51,41 @@ export function moveControlOrder(
   };
 }
 
+/** Moves a control into `slot`, before `beforeId` (or to the end when null), renumbering that slot's order; "hidden" hides it. */
+export function placeControl(
+  config: PlayerChromeConfig,
+  id: PlayerControlId,
+  slot: PlayerSlot | "hidden",
+  beforeId: PlayerControlId | null,
+): PlayerChromeConfig {
+  if (id === beforeId) return config;
+  const moving = config.controls.find((c) => c.id === id);
+  if (!moving) return config;
+  if (slot === "hidden") {
+    if (moving.hidden) return config;
+    return {
+      ...config,
+      controls: config.controls.map((c) => (c.id === id ? { ...c, hidden: true } : c)),
+    };
+  }
+  // Hidden controls keep their slot, so they never count as peers of the drop position.
+  const peers = config.controls
+    .filter((c) => c.slot === slot && c.id !== id && !c.hidden)
+    .sort((a, b) => a.order - b.order);
+  const at = beforeId ? peers.findIndex((c) => c.id === beforeId) : -1;
+  const ordered = [...peers];
+  ordered.splice(at < 0 ? ordered.length : at, 0, { ...moving, slot });
+  const orderOf = new Map(ordered.map((c, i) => [c.id, i * 10]));
+  return {
+    ...config,
+    controls: config.controls.map((c) => {
+      const order = orderOf.get(c.id);
+      if (order === undefined) return c;
+      return c.id === id ? { ...c, slot, order, hidden: false } : { ...c, order };
+    }),
+  };
+}
+
 export function requireSlot(config: PlayerChromeConfig, id: PlayerControlId): PlayerSlot {
   const c = config.controls.find((x) => x.id === id);
   return c ? c.slot : CONTROL_META[id].defaultSlot;

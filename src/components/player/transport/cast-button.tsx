@@ -2,6 +2,7 @@ import { Cast } from "lucide-react";
 import type { PlayerCapabilities } from "@/lib/player/bridge";
 import { useT } from "@/lib/i18n";
 import { BigButton } from "./big-button";
+import { withHotkey } from "./hotkey-label";
 
 export function CastButton({
   onClick,
@@ -16,7 +17,11 @@ export function CastButton({
     <BigButton
       onClick={onClick}
       ariaLabel={t("Cast")}
-      tooltip={supported ? t("Cast to a device") : t("Casting comes with the mpv backend")}
+      tooltip={
+        supported
+          ? withHotkey(t("Cast to a device"), "playerCast")
+          : t("Casting comes with the mpv backend")
+      }
       disabled={!supported}
     >
       <Cast size={22} strokeWidth={1.9} />

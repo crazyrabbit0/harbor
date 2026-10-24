@@ -1,5 +1,11 @@
-import { Captions, CaptionsOff, Loader2, Scissors, X } from "lucide-react";
+import { Captions, CaptionsOff, Minus, Plus, Scissors, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { CLIP_LENGTH_OPTIONS, nudgeStep, sanitizeClipLength } from "@/lib/seek-step";
+import { useSettings } from "@/lib/settings";
+import { DEFAULT } from "@/lib/settings/defaults";
+
+const STEP_BTN =
+  "flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-white/80 transition-colors hover:bg-white/20 hover:text-white disabled:cursor-not-allowed disabled:opacity-35";
 
 export function ClipChooser({
   open,
@@ -13,28 +19,43 @@ export function ClipChooser({
   onClose: () => void;
 }) {
   const t = useT();
-  if (saving) {
-    return (
-      <div className="pointer-events-none absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2">
-        <div className="pointer-events-auto flex items-center gap-2.5 rounded-full border border-white/15 bg-black/85 px-4 py-2.5 text-[13px] font-medium text-white backdrop-blur-xl">
-          <Loader2 size={15} strokeWidth={2.2} className="animate-spin text-white/80" />
-          {t("Saving clip…")}
-        </div>
-      </div>
-    );
-  }
-  if (!open) return null;
+  const { settings, update } = useSettings();
+  const seconds = sanitizeClipLength(settings.clipLengthSec, DEFAULT.clipLengthSec);
+  if (saving || !open) return null;
   return (
     <div className="pointer-events-none absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 animate-[harbor-fade-in_160ms_ease-out]">
       <div className="pointer-events-auto flex flex-col gap-3.5 rounded-2xl border border-white/15 bg-black/85 p-5 text-white backdrop-blur-xl shadow-[0_24px_60px_-20px_rgba(0,0,0,0.8)]">
         <div className="flex items-center gap-2">
           <Scissors size={15} strokeWidth={2.2} className="text-white/80" />
-          <span className="text-[13.5px] font-semibold">{t("Save the last 30 seconds")}</span>
+          <span className="text-[13.5px] font-semibold">{t("Save the last")}</span>
+          <div className="ms-1 flex items-center gap-1.5">
+            <button
+              type="button"
+              aria-label={t("Shorter")}
+              disabled={seconds <= CLIP_LENGTH_OPTIONS[0]}
+              onClick={() => update({ clipLengthSec: nudgeStep(seconds, -1, CLIP_LENGTH_OPTIONS) })}
+              className={STEP_BTN}
+            >
+              <Minus size={13} strokeWidth={2.4} />
+            </button>
+            <span className="min-w-[3.25rem] text-center text-[13.5px] font-semibold tabular-nums">
+              {t("{n}s", { n: seconds })}
+            </span>
+            <button
+              type="button"
+              aria-label={t("Longer")}
+              disabled={seconds >= CLIP_LENGTH_OPTIONS[CLIP_LENGTH_OPTIONS.length - 1]}
+              onClick={() => update({ clipLengthSec: nudgeStep(seconds, 1, CLIP_LENGTH_OPTIONS) })}
+              className={STEP_BTN}
+            >
+              <Plus size={13} strokeWidth={2.4} />
+            </button>
+          </div>
           <button
             type="button"
             onClick={onClose}
             aria-label={t("Cancel")}
-            className="ms-2 flex h-6 w-6 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white"
+            className="ms-auto flex h-6 w-6 items-center justify-center rounded-full text-white/55 transition-colors hover:bg-white/10 hover:text-white"
           >
             <X size={13} strokeWidth={2.2} />
           </button>
