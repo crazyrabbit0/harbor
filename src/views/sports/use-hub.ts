@@ -80,16 +80,21 @@ export function useSportsHub(
         busy = false;
       }
     };
-    void run();
-    const timer = window.setInterval(run, mode === "upcoming" ? 15 * 60_000 : 60_000);
+    let timer: number | null = null;
+    // The refresh timer runs only while the window is shown; a reveal refreshes at once.
     const visible = () => {
-      if (document.visibilityState === "visible") void run();
+      if (timer !== null) window.clearInterval(timer);
+      timer = null;
+      if (document.visibilityState !== "visible") return;
+      void run();
+      timer = window.setInterval(run, mode === "upcoming" ? 15 * 60_000 : 60_000);
     };
+    visible();
     document.addEventListener("visibilitychange", visible);
     return () => {
       alive = false;
       controller.abort();
-      clearInterval(timer);
+      if (timer !== null) window.clearInterval(timer);
       document.removeEventListener("visibilitychange", visible);
     };
   }, [request, keys, mode, active, refresh]);

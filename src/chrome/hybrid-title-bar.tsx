@@ -4,14 +4,17 @@ import { close, minimize, toggleMaximize, useMaximized } from "@/lib/window";
 import { osClass } from "@/lib/platform";
 import { useWindowFullscreen } from "@/lib/use-window-fullscreen";
 import { useSearch } from "@/lib/search-context";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { HybridMenuBar } from "./hybrid-menu-bar";
 
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export function HybridTitleBar({ suppressed = false }: { suppressed?: boolean }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hybridTitleBar: s.hybridTitleBar,
+    useNativeTitleBar: s.useNativeTitleBar,
+  }));
   const fullscreen = useWindowFullscreen();
   if (!IS_TAURI || settings.useNativeTitleBar || !settings.hybridTitleBar) return null;
   if (suppressed || fullscreen) return null;

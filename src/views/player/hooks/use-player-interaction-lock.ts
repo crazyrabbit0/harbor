@@ -57,6 +57,13 @@ export function usePlayerInteractionBlocker({
     const activePointerOptions: AddEventListenerOptions = { capture: true, passive: false };
     window.addEventListener("keydown", onKeyboard, keyboardOptions);
     window.addEventListener("keyup", onKeyboard, keyboardOptions);
+    // Pointer, wheel and touch listeners exist only while locked so unlocked scrolling stays passive.
+    if (!locked) {
+      return () => {
+        window.removeEventListener("keydown", onKeyboard, keyboardOptions);
+        window.removeEventListener("keyup", onKeyboard, keyboardOptions);
+      };
+    }
     window.addEventListener("pointerdown", onPointer, pointerOptions);
     window.addEventListener("pointerup", onPointer, pointerOptions);
     window.addEventListener("pointermove", onPointer, pointerOptions);

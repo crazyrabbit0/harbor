@@ -90,11 +90,54 @@ function emit(): void {
   for (const fn of subs) fn();
 }
 
-function saveEntry(key: string, entry: LocalCwEntry): void {
-  const all = { ...readAll(key) };
+// Continue Watching cards draw a progress bar and a minutes-left label, so progress counts in 1% and whole-minute steps.
+function progressBucket(e: LocalCwEntry): string {
+  if (!(e.durationMs > 0)) return `${e.positionMs > 0}`;
+  const pct = Math.floor((e.positionMs / e.durationMs) * 100);
+  return `${pct}|${Math.round((e.durationMs - e.positionMs) / 60000)}`;
+}
+
+function entryVisiblyChanged(a: LocalCwEntry, b: LocalCwEntry): boolean {
+  return (
+    a.type !== b.type ||
+    a.name !== b.name ||
+    a.poster !== b.poster ||
+    a.background !== b.background ||
+    a.isAnime !== b.isAnime ||
+    a.source !== b.source ||
+    a.season !== b.season ||
+    a.episode !== b.episode ||
+    a.videoId !== b.videoId ||
+    Math.floor(a.t / 60000) !== Math.floor(b.t / 60000) ||
+    progressBucket(a) !== progressBucket(b)
+  );
+}
+
+const byRecency = (all: Record<string, LocalCwEntry>): string =>
+  Object.keys(all)
+    .sort((a, b) => all[b].t - all[a].t)
+    .join("\n");
+
+/** True when consumers would render the store differently: membership, order or a visible field of an entry. */
+export function localCwVisiblyChanged(
+  prev: Record<string, LocalCwEntry>,
+  next: Record<string, LocalCwEntry>,
+): boolean {
+  const ids = Object.keys(next);
+  if (ids.length !== Object.keys(prev).length) return true;
+  for (const id of ids) {
+    const a = prev[id];
+    if (!a || entryVisiblyChanged(a, next[id])) return true;
+  }
+  return byRecency(prev) !== byRecency(next);
+}
+
+function saveEntry(key: string, entry: LocalCwEntry): boolean {
+  const prev = readAll(key);
+  const all = { ...prev };
   const finished = entry.durationMs > 0 && entry.positionMs / entry.durationMs >= FINISHED_RATIO;
   if (finished && entry.type === "movie") {
-    if (!(entry.id in all)) return;
+    if (!(entry.id in all)) return false;
     delete all[entry.id];
   } else {
     all[entry.id] = entry;
@@ -105,15 +148,16 @@ function saveEntry(key: string, entry: LocalCwEntry): void {
     }
   }
   writeAll(key, all);
+  return localCwVisiblyChanged(prev, all);
 }
 
 // Only an actual playback session may assign ownership. Cloud absorption keeps
 // writing the shared store; its history cannot establish who watched a title.
 export function saveLocalCw(entry: LocalCwEntry, ownerId?: string, shared = true): void {
   if (!entry.id || (entry.type !== "movie" && entry.type !== "series")) return;
-  if (ownerId) saveEntry(storeKey(true, ownerId), entry);
-  if (shared) saveEntry(storeKey(false, ownerId), entry);
-  emit();
+  const ownChanged = ownerId ? saveEntry(storeKey(true, ownerId), entry) : false;
+  const sharedChanged = shared ? saveEntry(storeKey(false, ownerId), entry) : false;
+  if (ownChanged || sharedChanged) emit();
 }
 
 export function listLocalCw(privateOnly = !!privateCwProfileId()): LocalCwEntry[] {

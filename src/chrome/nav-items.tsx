@@ -1,26 +1,11 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useSportsEnabled } from "@/lib/sports/enabled";
 import { usePluginCataloguesAvailable } from "@/lib/streams/plugins/available";
 import { SportsNavIcon } from "@/components/icons/sports-nav-icon";
 import { Popcorn, Puzzle } from "lucide-react";
 import { NavGlyph } from "@/components/icons/nav-glyph";
 import { NavLottie } from "@/components/icons/nav-lottie";
-import lotHome from "@/assets/lottie/nav/home.json";
-import lotCatalogs from "@/assets/lottie/nav/catalogs.json";
-import lotMovies from "@/assets/lottie/nav/movies.json";
-import lotMusic from "@/assets/lottie/nav/music.json";
-import lotShows from "@/assets/lottie/nav/shows.json";
-import lotAnime from "@/assets/lottie/nav/anime.json";
-import lotManga from "@/assets/lottie/nav/manga.json";
-import lotEbook from "@/assets/lottie/nav/ebook.json";
-import lotLiveTv from "@/assets/lottie/nav/live-tv.json";
-import lotPlaylists from "@/assets/lottie/nav/playlists.json";
-import lotCalendar from "@/assets/lottie/nav/calendar.json";
-import lotLibrary from "@/assets/lottie/nav/library.json";
-import lotCollections from "@/assets/lottie/nav/collections.json";
-import lotDownloads from "@/assets/lottie/nav/downloads.json";
-import lotAddons from "@/assets/lottie/nav/addons.json";
-import lotSettings from "@/assets/lottie/nav/settings.json";
+
 import { useUnseenReminderCount } from "@/lib/reminders";
 import { AddonsIcon } from "@/components/icons/addons-icon";
 import { CatalogsIcon } from "@/components/icons/catalogs-icon";
@@ -38,6 +23,64 @@ import { DownloadsNavIcon } from "@/chrome/downloads-nav-icon";
 import { GamesNavIcon } from "@/components/icons/games-nav-icon";
 import type { LockableTab } from "@/lib/parental";
 import type { View } from "@/lib/view";
+
+type LottieLoader = () => Promise<{ default: object }>;
+
+// Each animation's JSON loads on its first hover, so the startup chunk carries none of them.
+const lotHome: LottieLoader = () => import("@/assets/lottie/nav/home.json");
+const lotCatalogs: LottieLoader = () => import("@/assets/lottie/nav/catalogs.json");
+const lotMovies: LottieLoader = () => import("@/assets/lottie/nav/movies.json");
+const lotMusic: LottieLoader = () => import("@/assets/lottie/nav/music.json");
+const lotShows: LottieLoader = () => import("@/assets/lottie/nav/shows.json");
+const lotAnime: LottieLoader = () => import("@/assets/lottie/nav/anime.json");
+const lotManga: LottieLoader = () => import("@/assets/lottie/nav/manga.json");
+const lotEbook: LottieLoader = () => import("@/assets/lottie/nav/ebook.json");
+const lotLiveTv: LottieLoader = () => import("@/assets/lottie/nav/live-tv.json");
+const lotPlaylists: LottieLoader = () => import("@/assets/lottie/nav/playlists.json");
+const lotCalendar: LottieLoader = () => import("@/assets/lottie/nav/calendar.json");
+const lotLibrary: LottieLoader = () => import("@/assets/lottie/nav/library.json");
+const lotCollections: LottieLoader = () => import("@/assets/lottie/nav/collections.json");
+const lotDownloads: LottieLoader = () => import("@/assets/lottie/nav/downloads.json");
+const lotAddons: LottieLoader = () => import("@/assets/lottie/nav/addons.json");
+const lotSettings: LottieLoader = () => import("@/assets/lottie/nav/settings.json");
+
+const lottieData = new Map<LottieLoader, object>();
+const EMPTY_ANIMATION = {};
+
+function LazyNavLottie({
+  load,
+  hovered,
+  fallback,
+  loop,
+}: {
+  load: LottieLoader;
+  hovered?: boolean;
+  fallback: ReactNode;
+  loop?: boolean;
+}) {
+  const [data, setData] = useState<object | null>(() => lottieData.get(load) ?? null);
+  useEffect(() => {
+    if (!hovered || data) return;
+    let live = true;
+    void load()
+      .then((m) => {
+        lottieData.set(load, m.default);
+        if (live) setData(m.default);
+      })
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [hovered, data, load]);
+  return (
+    <NavLottie
+      data={data ?? EMPTY_ANIMATION}
+      hovered={!!hovered && data !== null}
+      fallback={fallback}
+      loop={loop}
+    />
+  );
+}
 
 function CalendarNavIcon({ active }: { active: boolean }) {
   const unseen = useUnseenReminderCount();
@@ -97,7 +140,7 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "home",
     label: "nav.home",
     render: (active, hovered) => (
-      <NavLottie data={lotHome} hovered={hovered} fallback={<HomeIcon active={active} />} />
+      <LazyNavLottie load={lotHome} hovered={hovered} fallback={<HomeIcon active={active} />} />
     ),
     view: "home",
   },
@@ -112,7 +155,11 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "catalogs",
     label: "nav.catalogs",
     render: (active, hovered) => (
-      <NavLottie data={lotCatalogs} hovered={hovered} fallback={<CatalogsIcon active={active} />} />
+      <LazyNavLottie
+        load={lotCatalogs}
+        hovered={hovered}
+        fallback={<CatalogsIcon active={active} />}
+      />
     ),
     view: "catalogs",
     parentalKey: "discover",
@@ -129,7 +176,7 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "movies",
     label: "nav.movies",
     render: (active, hovered) => (
-      <NavLottie data={lotMovies} hovered={hovered} fallback={<MoviesIcon active={active} />} />
+      <LazyNavLottie load={lotMovies} hovered={hovered} fallback={<MoviesIcon active={active} />} />
     ),
     view: "movies",
     parentalKey: "movies",
@@ -138,7 +185,7 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "shows",
     label: "nav.shows",
     render: (active, hovered) => (
-      <NavLottie data={lotShows} hovered={hovered} loop fallback={<TvIcon active={active} />} />
+      <LazyNavLottie load={lotShows} hovered={hovered} loop fallback={<TvIcon active={active} />} />
     ),
     view: "shows",
     parentalKey: "shows",
@@ -155,7 +202,7 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "anime",
     label: "nav.anime",
     render: (active, hovered) => (
-      <NavLottie data={lotAnime} hovered={hovered} fallback={<AnimeIcon active={active} />} />
+      <LazyNavLottie load={lotAnime} hovered={hovered} fallback={<AnimeIcon active={active} />} />
     ),
     view: "anime",
     parentalKey: "anime",
@@ -164,8 +211,8 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "manga",
     label: "nav.manga",
     render: (_active, hovered) => (
-      <NavLottie
-        data={lotManga}
+      <LazyNavLottie
+        load={lotManga}
         hovered={hovered}
         fallback={<NavGlyph name="manga" className="h-[26px] w-[26px] p-[2px]" />}
       />
@@ -177,8 +224,8 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "ebook",
     label: "nav.ebook",
     render: (_active, hovered) => (
-      <NavLottie
-        data={lotEbook}
+      <LazyNavLottie
+        load={lotEbook}
         hovered={hovered}
         fallback={<NavGlyph name="ebook" className="h-[26px] w-[26px] p-[2px]" />}
       />
@@ -190,8 +237,8 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "music",
     label: "nav.music",
     render: (_active, hovered) => (
-      <NavLottie
-        data={lotMusic}
+      <LazyNavLottie
+        load={lotMusic}
         hovered={hovered}
         fallback={<NavGlyph name="music" className="h-[26px] w-[26px] p-[2px]" />}
       />
@@ -208,8 +255,8 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "live",
     label: "nav.live",
     render: (active, hovered) => (
-      <NavLottie
-        data={lotLiveTv}
+      <LazyNavLottie
+        load={lotLiveTv}
         hovered={hovered}
         loop
         fallback={<LiveTvIcon active={active} />}
@@ -230,8 +277,8 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "vod",
     label: "nav.playlists",
     render: (active, hovered) => (
-      <NavLottie
-        data={lotPlaylists}
+      <LazyNavLottie
+        load={lotPlaylists}
         hovered={hovered}
         fallback={<PlaylistVodIcon active={active} />}
       />
@@ -242,8 +289,8 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "calendar",
     label: "nav.calendar",
     render: (active, hovered) => (
-      <NavLottie
-        data={lotCalendar}
+      <LazyNavLottie
+        load={lotCalendar}
         hovered={hovered}
         fallback={<CalendarNavIcon active={active} />}
       />
@@ -255,7 +302,11 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "library",
     label: "nav.library",
     render: (active, hovered) => (
-      <NavLottie data={lotLibrary} hovered={hovered} fallback={<LibraryIcon active={active} />} />
+      <LazyNavLottie
+        load={lotLibrary}
+        hovered={hovered}
+        fallback={<LibraryIcon active={active} />}
+      />
     ),
     view: "library",
     parentalKey: "library",
@@ -264,8 +315,8 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "collections",
     label: "Collections",
     render: (_active, hovered) => (
-      <NavLottie
-        data={lotCollections}
+      <LazyNavLottie
+        load={lotCollections}
         hovered={hovered}
         fallback={<NavGlyph name="collections" className="h-[26px] w-[26px] p-[2px]" />}
       />
@@ -276,8 +327,8 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "downloads",
     label: "nav.downloads",
     render: (active, hovered) => (
-      <NavLottie
-        data={lotDownloads}
+      <LazyNavLottie
+        load={lotDownloads}
         hovered={hovered}
         fallback={<DownloadsNavIcon active={active} />}
       />
@@ -288,7 +339,7 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "addons",
     label: "nav.addons",
     render: (active, hovered) => (
-      <NavLottie data={lotAddons} hovered={hovered} fallback={<AddonsIcon active={active} />} />
+      <LazyNavLottie load={lotAddons} hovered={hovered} fallback={<AddonsIcon active={active} />} />
     ),
     view: "addons",
     parentalKey: "addons",
@@ -297,7 +348,11 @@ const NAV_ITEMS_ALL: NavItem[] = [
     id: "settings",
     label: "nav.settings",
     render: (active, hovered) => (
-      <NavLottie data={lotSettings} hovered={hovered} fallback={<SettingsIcon active={active} />} />
+      <LazyNavLottie
+        load={lotSettings}
+        hovered={hovered}
+        fallback={<SettingsIcon active={active} />}
+      />
     ),
     view: "settings",
     pinGated: true,

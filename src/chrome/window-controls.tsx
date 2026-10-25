@@ -1,12 +1,15 @@
 import type { ReactNode } from "react";
 import { close, minimize, toggleMaximize, useMaximized } from "@/lib/window";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export function WindowControls() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hybridTitleBar: s.hybridTitleBar,
+    useNativeTitleBar: s.useNativeTitleBar,
+  }));
   const maxed = useMaximized();
   const t = useT();
   if (!IS_TAURI || settings.useNativeTitleBar || settings.hybridTitleBar) return null;

@@ -1,4 +1,4 @@
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { startResize, useMaximized, type ResizeDir } from "@/lib/window";
 import { useWindowFullscreen } from "@/lib/use-window-fullscreen";
 
@@ -14,7 +14,7 @@ const EDGES: Array<{ dir: ResizeDir; cls: string }> = [
 ];
 
 export function WindowResizeEdges() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ useNativeTitleBar: s.useNativeTitleBar }));
   const fullscreen = useWindowFullscreen();
   const maximized = useMaximized();
   if (!IS_TAURI || settings.useNativeTitleBar || fullscreen || maximized) return null;

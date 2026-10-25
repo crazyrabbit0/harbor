@@ -140,11 +140,33 @@ export function isAddonNativeMeta(meta: Meta): boolean {
   return !resolvable;
 }
 
-async function catalog(path: string): Promise<Meta[]> {
+const CATALOG_TTL_MS = 30 * 60 * 1000;
+const catalogCache = new Map<string, { t: number; metas: Meta[] }>();
+const catalogInflight = new Map<string, Promise<Meta[] | null>>();
+
+async function fetchCatalog(path: string): Promise<Meta[] | null> {
   const res = await fetch(`${CINEMETA}/catalog/${path}.json`);
-  if (!res.ok) return [];
+  if (!res.ok) return null;
   const json = await res.json();
   return json.metas ?? [];
+}
+
+// Successful responses are shared for 30 min; each caller gets its own array copy.
+async function catalog(path: string): Promise<Meta[]> {
+  const hit = catalogCache.get(path);
+  if (hit && Date.now() - hit.t < CATALOG_TTL_MS) return [...hit.metas];
+  let pending = catalogInflight.get(path);
+  if (!pending) {
+    pending = fetchCatalog(path)
+      .then((metas) => {
+        if (metas) catalogCache.set(path, { t: Date.now(), metas });
+        return metas;
+      })
+      .finally(() => catalogInflight.delete(path));
+    catalogInflight.set(path, pending);
+  }
+  const metas = await pending;
+  return metas ? [...metas] : [];
 }
 
 function cinemetaTopPath(type: "movie" | "series", genre?: string, skip = 0): string {

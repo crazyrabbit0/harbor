@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
 
 export type TopRankDept = "Acting" | "Directing" | "Production" | "Writing";
 
@@ -14,7 +14,8 @@ export function TopRankModalProvider({ children }: { children: ReactNode }) {
   const [openDept, setOpenDept] = useState<TopRankDept | null>(null);
   const open = useCallback((dept: TopRankDept) => setOpenDept(dept), []);
   const close = useCallback(() => setOpenDept(null), []);
-  return <C.Provider value={{ openDept, open, close }}>{children}</C.Provider>;
+  const value = useMemo(() => ({ openDept, open, close }), [openDept, open, close]);
+  return <C.Provider value={value}>{children}</C.Provider>;
 }
 
 export function useTopRankModal(): Ctx {

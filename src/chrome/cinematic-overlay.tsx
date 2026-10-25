@@ -10,7 +10,7 @@ import { RecordingPill } from "@/chrome/recording-pill";
 import { TogetherButton } from "@/chrome/topbar";
 import { useT } from "@/lib/i18n";
 import { useSearch } from "@/lib/search-context";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
 import { useParental } from "@/lib/parental";
 import { type View, useViewActions, useViewSelector } from "@/lib/view";
@@ -31,7 +31,14 @@ export function CinematicOverlay() {
     chromeHidden: v.chromeHidden,
   }));
   const { locked, unlock, hiddenTabs } = useParental();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hideContent: s.hideContent,
+    hybridTitleBar: s.hybridTitleBar,
+    navCustomization: s.navCustomization,
+    showPlaylistsTab: s.showPlaylistsTab,
+    theme: s.theme,
+    useNativeTitleBar: s.useNativeTitleBar,
+  }));
   const { setOpen: setSearchOpen } = useSearch();
   const t = useT();
   const [pinFor, setPinFor] = useState<View | null>(null);

@@ -13,6 +13,7 @@ import {
   isTypingTarget,
 } from "@/lib/hotkeys";
 import { useSettings } from "@/lib/settings";
+import { useNow } from "@/lib/use-now";
 
 const RECENT_WINDOW_MS = 7000;
 const COMPOSE_TIMEOUT_MS = 4500;
@@ -48,14 +49,9 @@ export function ChatOverlay({
   const selfIdentity = useSelfIdentity();
   const [composing, setComposing] = useState(false);
   const [draft, setDraft] = useState("");
-  const [tickNow, setTickNow] = useState(() => Date.now());
+  const tickNow = useNow(1000, !hidden);
   const inputRef = useRef<HTMLInputElement>(null);
   const composeTimer = useRef<number | null>(null);
-
-  useEffect(() => {
-    const id = window.setInterval(() => setTickNow(Date.now()), 1000);
-    return () => window.clearInterval(id);
-  }, []);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

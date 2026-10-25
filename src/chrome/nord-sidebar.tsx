@@ -12,7 +12,7 @@ import { NavHiddenTray, NavEditableItem, useNavDrag } from "@/chrome/nav-edit";
 import { useNavEditMode } from "@/chrome/nav-edit-mode";
 import { useT } from "@/lib/i18n";
 import { useParental } from "@/lib/parental";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { type View, useViewActions, useViewSelector } from "@/lib/view";
 
 const FROST = "#88c0d0";
@@ -37,7 +37,12 @@ export function NordSidebar() {
     chromeHidden: v.chromeHidden,
   }));
   const { locked, unlock, hiddenTabs } = useParental();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hideContent: s.hideContent,
+    navCustomization: s.navCustomization,
+    showPlaylistsTab: s.showPlaylistsTab,
+    sidebarCollapsed: s.sidebarCollapsed,
+  }));
   const t = useT();
   const collapsed = settings.sidebarCollapsed;
   const [pinFor, setPinFor] = useState<View | null>(null);

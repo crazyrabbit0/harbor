@@ -21,7 +21,7 @@ import { useHasNewEpisode } from "@/lib/new-episodes";
 import { Tooltip } from "@/views/detail/tooltip";
 import { useProfiles, sharesStremioStorage } from "@/lib/profiles";
 import { useAuth } from "@/lib/auth";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions, type PlayEpisode } from "@/lib/view";
 import { getWatchedBy } from "@/lib/watched-by";
 import { resolveLocalPlayVersions } from "@/lib/local-library/playback";
@@ -89,7 +89,14 @@ export const ContinueCard = memo(function ContinueCard({
 }: Props) {
   const { openMeta, openPicker, openPlayer } = useViewActions();
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    cwPreferEpisodeStill: s.cwPreferEpisodeStill,
+    liquidGlass: s.liquidGlass,
+    simklAnimeTitleLanguage: s.simklAnimeTitleLanguage,
+    tmdbKey: s.tmdbKey,
+    playbackSourcePreference: s.playbackSourcePreference,
+    preferredMediaServerId: s.preferredMediaServerId,
+  }));
   const { authKey } = useAuth();
   const { profiles, activeProfile } = useProfiles();
   const watcherId = getWatchedBy(item._id);
@@ -674,30 +681,32 @@ export const ContinueCard = memo(function ContinueCard({
         </div>
       </button>
       {settings.liquidGlass ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex aspect-[16/9] items-center justify-center">
-          <ThreeLiquidGlassSurface
-            radius="9999px"
-            shaderRadius={0.58}
-            intensity={0.9}
-            style={{
-              boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.05)",
-            }}
-            className="pointer-events-none h-14 w-14 scale-95 rounded-full border border-white/[0.10] opacity-0 transition-[opacity,transform] duration-[120ms] group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100 focus-within:pointer-events-auto focus-within:scale-100 focus-within:opacity-100"
-            contentClassName="flex h-full w-full"
-          >
-            <button
-              type="button"
-              tabIndex={-1}
-              data-tv-skip="true"
-              onClick={onPlay}
-              aria-label={t("Play {name}", { name: displayTitle })}
-              title={t("Play")}
-              className="flex h-full w-full items-center justify-center rounded-full bg-transparent text-ink outline-none transition-transform duration-150 active:scale-95 focus-visible:ring-2 focus-visible:ring-accent"
+        <GlassReveal className="pointer-events-none absolute inset-x-0 top-0 z-10 flex aspect-[16/9] items-center justify-center">
+          {(armed) => (
+            <ThreeLiquidGlassSurface
+              radius="9999px"
+              shaderRadius={0.58}
+              intensity={0.9}
+              style={{
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.05)",
+              }}
+              className={`pointer-events-none h-14 w-14 scale-95 rounded-full border border-white/[0.10] opacity-0 transition-[opacity,transform] duration-[120ms] group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100 focus-within:pointer-events-auto focus-within:scale-100 focus-within:opacity-100${armed ? "" : GLASS_UNARMED}`}
+              contentClassName="flex h-full w-full"
             >
-              <Play size={22} fill="currentColor" className="ml-0.5 text-ink" />
-            </button>
-          </ThreeLiquidGlassSurface>
-        </div>
+              <button
+                type="button"
+                tabIndex={-1}
+                data-tv-skip="true"
+                onClick={onPlay}
+                aria-label={t("Play {name}", { name: displayTitle })}
+                title={t("Play")}
+                className="flex h-full w-full items-center justify-center rounded-full bg-transparent text-ink outline-none transition-transform duration-150 active:scale-95 focus-visible:ring-2 focus-visible:ring-accent"
+              >
+                <Play size={22} fill="currentColor" className="ml-0.5 text-ink" />
+              </button>
+            </ThreeLiquidGlassSurface>
+          )}
+        </GlassReveal>
       ) : (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex aspect-[16/9] items-center justify-center opacity-0 transition-opacity duration-[220ms] group-hover:opacity-100 group-focus-within:opacity-100">
           <button
@@ -725,32 +734,35 @@ export const ContinueCard = memo(function ContinueCard({
       </button>
       {onDismiss &&
         (settings.liquidGlass ? (
-          <div className="absolute end-0.5 top-0.5 z-10 flex h-11 w-11 items-center justify-center">
-            <ThreeLiquidGlassSurface
-              radius="9999px"
-              shaderRadius={0.58}
-              intensity={0.9}
-              style={{
-                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.05)",
-              }}
-              className="pointer-events-none h-9 w-9 scale-95 rounded-full border border-white/[0.09] opacity-0 transition-[opacity,transform] duration-[120ms] group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100 focus-within:pointer-events-auto focus-within:scale-100 focus-within:opacity-100"
-              contentClassName="flex h-full w-full"
-            >
-              <button
-                type="button"
-                tabIndex={-1}
-                data-tv-skip="true"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDismiss(item);
+          <GlassReveal className="absolute end-0.5 top-0.5 z-10 flex h-11 w-11 items-center justify-center">
+            {(armed) => (
+              <ThreeLiquidGlassSurface
+                radius="9999px"
+                shaderRadius={0.58}
+                intensity={0.9}
+                style={{
+                  boxShadow:
+                    "inset 0 1px 0 rgba(255,255,255,0.10), inset 0 -1px 0 rgba(0,0,0,0.05)",
                 }}
-                aria-label={t("Remove from Continue Watching")}
-                className="flex h-full w-full items-center justify-center rounded-full bg-transparent text-ink-muted outline-none transition-colors duration-150 hover:text-ink active:scale-95"
+                className={`pointer-events-none h-9 w-9 scale-95 rounded-full border border-white/[0.09] opacity-0 transition-[opacity,transform] duration-[120ms] group-hover:pointer-events-auto group-hover:scale-100 group-hover:opacity-100 focus-within:pointer-events-auto focus-within:scale-100 focus-within:opacity-100${armed ? "" : GLASS_UNARMED}`}
+                contentClassName="flex h-full w-full"
               >
-                <X size={20} strokeWidth={2.4} />
-              </button>
-            </ThreeLiquidGlassSurface>
-          </div>
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  data-tv-skip="true"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onDismiss(item);
+                  }}
+                  aria-label={t("Remove from Continue Watching")}
+                  className="flex h-full w-full items-center justify-center rounded-full bg-transparent text-ink-muted outline-none transition-colors duration-150 hover:text-ink active:scale-95"
+                >
+                  <X size={20} strokeWidth={2.4} />
+                </button>
+              </ThreeLiquidGlassSurface>
+            )}
+          </GlassReveal>
         ) : (
           <button
             type="button"
@@ -771,6 +783,60 @@ export const ContinueCard = memo(function ContinueCard({
     </div>
   );
 });
+
+const GLASS_FADE_MS = 160;
+const GLASS_UNARMED = " opacity-0! scale-95!";
+
+// Mounts the glass surface only while the card is hovered; it starts unarmed so the fade-in still runs.
+function GlassReveal({
+  className,
+  children,
+}: {
+  className: string;
+  children: (armed: boolean) => React.ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    const card = ref.current?.parentElement;
+    if (!card) return;
+    let hideTimer = 0;
+    const show = () => {
+      window.clearTimeout(hideTimer);
+      setMounted(true);
+    };
+    const hide = (e: PointerEvent) => {
+      if (e.relatedTarget instanceof Node && card.contains(e.relatedTarget)) return;
+      window.clearTimeout(hideTimer);
+      hideTimer = window.setTimeout(() => {
+        if (!ref.current?.contains(document.activeElement)) setMounted(false);
+      }, GLASS_FADE_MS);
+    };
+    card.addEventListener("pointerover", show);
+    card.addEventListener("pointerout", hide);
+    return () => {
+      window.clearTimeout(hideTimer);
+      card.removeEventListener("pointerover", show);
+      card.removeEventListener("pointerout", hide);
+    };
+  }, []);
+  useEffect(() => {
+    if (!mounted) {
+      setArmed(false);
+      return;
+    }
+    let frame = requestAnimationFrame(() => {
+      frame = requestAnimationFrame(() => setArmed(true));
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [mounted]);
+  return (
+    <div ref={ref} className={className}>
+      {mounted && children(armed)}
+    </div>
+  );
+}
 
 function hiResStill(url?: string): string | undefined {
   if (!url) return url;

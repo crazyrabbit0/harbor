@@ -18,7 +18,7 @@ import {
   formatBindingForDisplay,
   shouldHandleGlobalKeyboardEvent,
 } from "@/lib/hotkeys";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
 import { useParental } from "@/lib/parental";
 import { type View, useViewActions, useViewSelector } from "@/lib/view";
@@ -36,7 +36,14 @@ export function RoyalTopbar() {
     chromeHidden: v.chromeHidden,
   }));
   const { locked, unlock, hiddenTabs } = useParental();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hideContent: s.hideContent,
+    hybridTitleBar: s.hybridTitleBar,
+    navCustomization: s.navCustomization,
+    showPlaylistsTab: s.showPlaylistsTab,
+    theme: s.theme,
+    useNativeTitleBar: s.useNativeTitleBar,
+  }));
   const { setOpen: setSearchOpen } = useSearch();
   const t = useT();
   const [pinFor, setPinFor] = useState<View | null>(null);
@@ -307,7 +314,7 @@ function Filigree() {
 }
 
 function SearchPill({ onOpen }: { onOpen: () => void }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys }));
   const t = useT();
   const binding = effectiveBinding("globalSearchFocus", settings.hotkeys ?? {});
 

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, ChevronDown, LoaderCircle, RefreshCw } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { openUrl } from "@/lib/window";
 import { loadTarkovSeasons, loadTarkovWipes } from "@/lib/games/tarkov";
 import {
@@ -20,7 +21,6 @@ export function GameTarkovCompanion({ active }: { active: boolean }) {
     label = (key: string) => t(`games.tarkov.${key}`),
     root = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false),
-    [now, setNow] = useState(Date.now),
     [retry, setRetry] = useState(0),
     [pending, setPending] = useState(true);
   const [seasons, setSeasons] = useState<CompanionObservation<TarkovSeason[]> | null>(null),
@@ -66,19 +66,7 @@ export function GameTarkovCompanion({ active }: { active: boolean }) {
     });
     return () => request.abort();
   }, [active, visible, retry]);
-  useEffect(() => {
-    if (!active || !visible) return;
-    const tick = () => {
-      if (!document.hidden) setNow(Date.now());
-    };
-    tick();
-    const timer = setInterval(tick, 1000);
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [active, visible]);
+  const now = useNow(60_000, active && visible);
   const season = seasons && tarkovSeasonAt(seasons.data, now),
     remaining = season && tarkovRemaining(season.target, now),
     history = wipes?.data.filter((w) => w.start <= now) ?? [],

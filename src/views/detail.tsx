@@ -50,6 +50,7 @@ import { omdbPrefetch, omdbScores, type OmdbScores } from "@/lib/providers/omdb"
 import { harborImdbTitle } from "@/lib/providers/harbor-imdb";
 import { awardSummary, pickHeroAwards, useAwards } from "@/lib/providers/wikidata";
 import { mergeBundledAwards } from "@/lib/awards-history";
+import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 import {
   tmdbDetails,
   tmdbImdbId,
@@ -1075,13 +1076,13 @@ export function DetailView({
     const seen = new Set<string>();
     const pool: string[] = [];
     for (const b of [primaryBackdrop, ...backdrops]) {
-      const hi = toHiResBackdrop(b ?? undefined);
+      const hi = toHiResBackdrop(b ?? undefined, settings.heroFullQuality);
       if (!hi || seen.has(hi)) continue;
       seen.add(hi);
       pool.push(hi);
     }
     return pool;
-  }, [primaryBackdrop, backdrops]);
+  }, [primaryBackdrop, backdrops, settings.heroFullQuality]);
   const reducedMotion = useReducedMotion();
   const carouselOn =
     settings.heroBackdropCarousel && !pinnedBackdrop && backdropPool.length >= 2 && !reducedMotion;
@@ -1152,9 +1153,11 @@ export function DetailView({
     [shownSimilar, graphReasons],
   );
   const liveAwards = useAwards(detail?.imdbId ?? undefined, meta.type === "series");
+  const bundledAwardsV = useBundledAwardsVersion();
   const awards = useMemo(
     () => mergeBundledAwards(liveAwards, meta.name, releaseYearNum ?? undefined),
-    [liveAwards, meta.name, releaseYearNum],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [liveAwards, meta.name, releaseYearNum, bundledAwardsV],
   );
   const heroAwardSummary = pickHeroAwards(awardSummary(awards));
   const awardsInDescription = (settings.theme.preset as string) === "elegantfin";
@@ -1762,19 +1765,25 @@ export function DetailView({
           className="harbor-bleed-stremio relative h-[78vh] min-h-[640px] overflow-hidden"
         >
           {carouselOn ? (
-            backdropPool.map((b, i) => (
-              <img
-                key={b}
-                src={b}
-                alt=""
-                decoding="async"
-                fetchPriority={i === 0 ? "high" : "low"}
-                loading={i < 3 ? "eager" : "lazy"}
-                className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ${i === backdropIdx ? "opacity-100" : "opacity-0"}`}
-              />
-            ))
+            backdropPool.map((b, i) => {
+              const n = backdropPool.length;
+              // Mount the current slide, the next one (preload) and the previous one (still fading out).
+              const mounted =
+                i === backdropIdx || i === (backdropIdx + 1) % n || i === (backdropIdx - 1 + n) % n;
+              if (!mounted) return null;
+              return (
+                <img
+                  key={b}
+                  src={b}
+                  alt=""
+                  decoding="async"
+                  fetchPriority={i === backdropIdx ? "high" : "low"}
+                  className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-[1200ms] ${i === backdropIdx ? "opacity-100" : "opacity-0"}`}
+                />
+              );
+            })
           ) : backdrop ? (
-            <HeroBackdrop url={backdrop} />
+            <HeroBackdrop url={backdrop} fullQuality={settings.heroFullQuality} />
           ) : (
             <div className="absolute inset-0 animate-pulse bg-white/[0.02]" />
           )}

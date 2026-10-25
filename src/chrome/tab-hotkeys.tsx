@@ -5,13 +5,17 @@ import {
   eventToBinding,
   shouldHandleGlobalKeyboardEvent,
 } from "@/lib/hotkeys";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions, useViewSelector } from "@/lib/view";
 import { applyNavCustomization, useAvailableNavItems } from "./nav-items";
 import { usePreviewNavCustomization } from "@/lib/theme-preview";
 
 export function TabHotkeys() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hotkeys: s.hotkeys,
+    navCustomization: s.navCustomization,
+    tabHotkeys: s.tabHotkeys,
+  }));
   const { setView } = useViewActions();
   const { view, player } = useViewSelector((v) => ({ view: v.view, player: !!v.player }));
   const items = applyNavCustomization(

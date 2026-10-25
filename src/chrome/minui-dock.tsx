@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ParentalPinModal } from "@/components/parental-pin-modal";
 import { useT } from "@/lib/i18n";
 import { useParental } from "@/lib/parental";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { type View, useViewActions, useViewSelector } from "@/lib/view";
 import { useAvailableNavItems, applyNavCustomization, type NavItem } from "@/chrome/nav-items";
 import { NavHiddenTray, NavHideBadge, useNavDrag } from "@/chrome/nav-edit";
@@ -24,7 +24,11 @@ export function MinUIDock() {
     chromeHidden: v.chromeHidden,
   }));
   const { locked, unlock, hiddenTabs } = useParental();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hideContent: s.hideContent,
+    navCustomization: s.navCustomization,
+    showPlaylistsTab: s.showPlaylistsTab,
+  }));
   const [pinFor, setPinFor] = useState<View | null>(null);
   const [cursor, setCursor] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);

@@ -10,7 +10,7 @@ import { loadSecrets } from "@/lib/secret-store";
 import { initializeMusic } from "@/lib/music/player";
 import { initSubtitleCache } from "@/lib/subtitles/subtitle-cache";
 import { hdrOverlayEmitAction } from "@/lib/hdr-overlay";
-import "@/lib/awards-history-eager";
+import { ensureBundledAwards } from "@/lib/awards-history";
 import "@/index.css";
 import "flag-icons/css/flag-icons.min.css";
 import { startTaskbarProgress } from "@/lib/download/taskbar-progress";
@@ -189,7 +189,21 @@ function MainRoot() {
   return <App onReady={markAppReady} />;
 }
 
+// A translated catalog that arrives later re-renders useT() callers through subscribeUiCatalog.
+const LOCALE_WAIT_MS = 150;
+
+function afterFirstPaint(run: () => void): void {
+  requestAnimationFrame(() => {
+    if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 2000 });
+    else setTimeout(run, 0);
+  });
+}
+
 async function mount() {
+  const localeReady = ensureUiLocale(getUiLanguage());
+  // Started unawaited before App mounts, so resetMusicForProfile sees it running and keeps the saved checkpoint.
+  if (!isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck)
+    void initializeMusic();
   if (
     "__TAURI_INTERNALS__" in window &&
     !isHdrOverlay &&
@@ -205,10 +219,7 @@ async function mount() {
   await Promise.all([
     loadSecrets(),
     hydrateCustomThemes().catch(() => {}),
-    ensureUiLocale(getUiLanguage()),
-    !isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck
-      ? initializeMusic()
-      : Promise.resolve(),
+    Promise.race([localeReady, new Promise((resolve) => setTimeout(resolve, LOCALE_WAIT_MS))]),
   ]);
   if (!isHdrOverlay && !isModal && !isCaptions && !isDjDeck) void initSubtitleCache();
   if (!isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck)
@@ -233,6 +244,7 @@ async function mount() {
       {(isModal || isPip || isVideoPip || isCaptions || isDjDeck) && <StartupReady />}
     </StrictMode>,
   );
+  if (!isHdrOverlay && !isCaptions) afterFirstPaint(ensureBundledAwards);
 }
 void mount().catch(() => {
   if (isHdrOverlay) {

@@ -43,7 +43,7 @@ import {
   useTmdbImdbId,
   useTmdbVote,
 } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, type Settings } from "@/lib/settings";
 import { useSimklCardScores, useSimklCardScoresByAnimeId } from "@/lib/simkl/ratings";
 import { simklRequest } from "@/lib/simkl/client";
 import { getLocalCache } from "@/lib/simkl/activities";
@@ -109,6 +109,47 @@ function getTitleFromKitsu(
   return null;
 }
 
+// Every field PosterCard reads, so a change to any other setting leaves the cards alone.
+function selectPosterCardSettings(s: Settings) {
+  return {
+    animeCardRating: s.animeCardRating,
+    awardTabPosition: s.awardTabPosition,
+    awardTabs: s.awardTabs,
+    badgePlacement: s.badgePlacement,
+    cardBadgeLimit: s.cardBadgeLimit,
+    cardHoverShine: s.cardHoverShine,
+    cardHoverStyle: s.cardHoverStyle,
+    customHoverId: s.customHoverId,
+    hidePosterTitles: s.hidePosterTitles,
+    hoverPreviewEnabled: s.hoverPreviewEnabled,
+    mdblistKey: s.mdblistKey,
+    omdbKey: s.omdbKey,
+    posterBaseUrl: s.posterBaseUrl,
+    posterFocusedCard: s.posterFocusedCard,
+    preferCustomMetaAddon: s.preferCustomMetaAddon,
+    rpdbKey: s.rpdbKey,
+    showCardBadges: s.showCardBadges,
+    showDubBadge: s.showDubBadge,
+    showImdbBadge: s.showImdbBadge,
+    showLetterboxdBadge: s.showLetterboxdBadge,
+    showLocalLibraryBadge: s.showLocalLibraryBadge,
+    showMalBadge: s.showMalBadge,
+    showMdblistBadge: s.showMdblistBadge,
+    showMetacriticBadge: s.showMetacriticBadge,
+    showPopcornBadge: s.showPopcornBadge,
+    showRtBadge: s.showRtBadge,
+    showSimklBadge: s.showSimklBadge,
+    showTmdbBadge: s.showTmdbBadge,
+    showTraktBadge: s.showTraktBadge,
+    showWatchedBadge: s.showWatchedBadge,
+    simklAnimeTitleLanguage: s.simklAnimeTitleLanguage,
+    tmdbKey: s.tmdbKey,
+    top10Ribbon: s.top10Ribbon,
+    top10RibbonSide: s.top10RibbonSide,
+    watchlistBadge: s.watchlistBadge,
+  };
+}
+
 const PosterCard = memo(function PosterCard({
   meta,
   flagRerun = false,
@@ -130,7 +171,7 @@ const PosterCard = memo(function PosterCard({
   // Saved list items may carry a stale id; let the caller resolve it first.
   const openMangaTarget = (m: Meta) => (onOpenManga ? onOpenManga(m) : openManga(m.id));
   const { open: openContextMenu } = useContextMenu();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector(selectPosterCardSettings);
   const ref = useRef<HTMLButtonElement>(null);
   const expandingCard = useExpandingCard({
     cardRef: ref,
@@ -1031,8 +1072,8 @@ export const PickCard = Object.assign(
     reasonDetail?: string;
     onOpenManga?: (meta: Meta) => void;
   }) {
-    const { settings } = useSettings();
-    if (settings.rowCardStyle === "tv" && !props.kids && props.meta.type !== "manga") {
+    const rowCardStyle = useSettingsSelector((s) => s.rowCardStyle);
+    if (rowCardStyle === "tv" && !props.kids && props.meta.type !== "manga") {
       return <TvCard meta={props.meta} kids={props.kids} reason={props.reason} />;
     }
     return <PosterCard {...props} />;

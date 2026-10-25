@@ -1234,15 +1234,24 @@ function buildElegantFinJs(): string {
   }
   document.addEventListener("click", onClick, true);
   window.addEventListener("keydown", onKey);
-  var iv = w.setInterval(tick, 800);
-  tick();
+  var iv = null;
+  function syncPolling() {
+    if (iv !== null) w.clearInterval(iv);
+    iv = null;
+    if (document.hidden) return;
+    tick();
+    iv = w.setInterval(tick, 800);
+  }
+  syncPolling();
+  document.addEventListener("visibilitychange", syncPolling);
   var cleanup = function () {
     observer.disconnect();
     if (sidebar) sidebar.inert = originalInert;
     root.classList.remove("ef-drawer-open");
     document.removeEventListener("click", onClick, true);
     window.removeEventListener("keydown", onKey);
-    w.clearInterval(iv);
+    document.removeEventListener("visibilitychange", syncPolling);
+    if (iv !== null) w.clearInterval(iv);
     ["ef-profile", "ef-search"].forEach(function (rid) {
       var el = document.getElementById(rid);
       if (el && el.parentElement) el.parentElement.removeChild(el);

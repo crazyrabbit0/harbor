@@ -17,7 +17,7 @@ export function useStableAsset(
   return locked ?? firstReal;
 }
 
-export function toHiResBackdrop(url: string | undefined): string | undefined {
+export function toHiResBackdrop(url: string | undefined, full = false): string | undefined {
   if (!url) return url;
-  return url.replace(/\/t\/p\/w\d+\//, "/t/p/original/");
+  return url.replace(/\/t\/p\/(w\d+|original)\//, `/t/p/${full ? "original" : "w1280"}/`);
 }

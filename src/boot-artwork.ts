@@ -1,6 +1,10 @@
 import { readArtworkChoices } from "./lib/custom-artwork-store";
 import { mountCustomArtwork } from "./lib/custom-artwork-render";
 
+// The font CSS is preloaded without blocking render; the CSP forbids an inline onload, so it is applied here.
+for (const link of document.querySelectorAll<HTMLLinkElement>("link[data-font-css]"))
+  link.rel = "stylesheet";
+
 // The inline poster covers the interval before this module can be parsed.
 const host = document.getElementById("harbor-custom-boot-art");
 const choice = readArtworkChoices().launch;

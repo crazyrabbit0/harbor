@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettings } from "@/lib/settings";
 import type { Anime4kMode } from "@/lib/player/anime4k-modes";
+import { usePageVisible } from "@/lib/visibility";
 import type { Anime4kChoice } from "@/views/player/hooks/use-anime4k";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -23,12 +24,14 @@ export function Anime4kIndicator({
   const { settings } = useSettings();
   const enabled = settings.playerAnime4kIndicator && engine === "mpv" && isTauri;
   const [active, setActive] = useState(false);
+  const pageVisible = usePageVisible();
 
   useEffect(() => {
     if (!enabled) {
       setActive(false);
       return;
     }
+    if (!pageVisible) return;
     let cancelled = false;
     const tick = async () => {
       const shaders = await invoke("mpv_get_property", { name: "glsl-shaders" }).catch(() => null);
@@ -40,7 +43,7 @@ export function Anime4kIndicator({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [enabled]);
+  }, [enabled, pageVisible]);
 
   if (!active) return null;
 

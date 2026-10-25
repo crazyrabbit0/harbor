@@ -1,7 +1,7 @@
 import { AuthModal } from "@/components/auth-modal";
 import { ParentalPinModal } from "@/components/parental-pin-modal";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { verifyProfilePassword } from "@/lib/profile-password";
 import { StatusDot, StatusPicker } from "@/chrome/sidebar/status-control";
 import { AccountMenuPanel } from "./account-menu-panel";
@@ -30,7 +30,7 @@ export function AccountMenu({
   triggerClassName?: string;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ harborAvatar: s.harborAvatar }));
   const ctrl = useAccountMenu();
   const {
     ref,

@@ -21,7 +21,7 @@ import { isTft } from "@/lib/games/tft-data";
 import { isTarkov } from "@/lib/games/tarkov-data";
 import { isSims4 } from "@/lib/games/sims";
 import { isStardew } from "@/lib/games/stardew";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowUpRight,
@@ -280,6 +280,10 @@ export function GameDetailPage({
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
+  const expansion = useMemo(
+    () => ({ all: allDetails, roomy, scope: game.id }),
+    [allDetails, roomy, game.id],
+  );
   const revision = useLiveRefresh(active);
   useEffect(() => {
     if (!active) setBackups(false);
@@ -788,7 +792,7 @@ export function GameDetailPage({
         }
         rail={
           detail && (
-            <DetailExpansion.Provider value={{ all: allDetails, roomy, scope: game.id }}>
+            <DetailExpansion.Provider value={expansion}>
               <aside
                 key={`dossier:${game.id}`}
                 className="games-facts games-detail-dossier"

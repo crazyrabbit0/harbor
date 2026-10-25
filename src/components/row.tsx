@@ -17,7 +17,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { ThreeLiquidGlassSurface } from "@/components/ThreeLiquidGlassSurface";
 import { NavChevron } from "./nav-arrow";
 import { useT, useUiLanguage, isRtl as checkRtl } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { resetPosterDock as resetPosterDockItems, updatePosterDock } from "@/lib/poster-dock";
 import { scrollDeltaToRevealCard } from "@/lib/poster-backdrop-expansion";
@@ -46,8 +46,8 @@ function holdsPosterCards(children: React.ReactNode): boolean {
 }
 
 export function usePosterRow(min = 144, kids = false): { min: number; shape: RowShape } {
-  const { settings } = useSettings();
-  return settings.rowCardStyle === "tv" && !kids
+  const rowCardStyle = useSettingsSelector((s) => s.rowCardStyle);
+  return rowCardStyle === "tv" && !kids
     ? { min: TV_CARD_MIN, shape: "landscape" }
     : { min, shape: "portrait" };
 }
@@ -211,8 +211,10 @@ function batchWrite(fn: () => void): void {
 }
 
 function Skeleton({ shape }: { shape: RowShape }) {
-  const { settings } = useSettings();
-  const radius = settings.posterRadius;
+  const { posterRadius: radius, hidePosterTitles } = useSettingsSelector((s) => ({
+    posterRadius: s.posterRadius,
+    hidePosterTitles: s.hidePosterTitles,
+  }));
   if (shape === "service") {
     return <div className="h-20 w-full rounded-xl bg-elevated/40" />;
   }
@@ -229,7 +231,7 @@ function Skeleton({ shape }: { shape: RowShape }) {
   }
   const aspect =
     shape === "landscape" ? "aspect-[16/9]" : shape === "square" ? "aspect-square" : "aspect-[2/3]";
-  const hideText = shape === "portrait" && settings.hidePosterTitles;
+  const hideText = shape === "portrait" && hidePosterTitles;
   return (
     <div className="flex w-full min-w-0 flex-col gap-2.5">
       <div className={`${aspect} bg-elevated/40`} style={{ borderRadius: radius }} />
@@ -280,7 +282,15 @@ export function Row({
   titleClassName?: string;
   titleScale?: number;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hidePosterTitles: s.hidePosterTitles,
+    rowCardStyle: s.rowCardStyle,
+    posterScale: s.posterScale,
+    posterBackdropExpansion: s.posterBackdropExpansion,
+    posterDockMagnification: s.posterDockMagnification,
+    posterDockTransitionMs: s.posterDockTransitionMs,
+    rowTitleScale: s.rowTitleScale,
+  }));
   const t = useT();
   const { rememberRowScroll, recallRowScroll } = useViewActions();
   const lang = useUiLanguage();
@@ -907,7 +917,7 @@ const EdgeArrow = memo(function EdgeArrow({
   onClick: () => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ liquidGlass: s.liquidGlass }));
   const label = t(side === "left" ? "Scroll left" : "Scroll right");
   if (settings.liquidGlass) {
     const sideClass = side === "left" ? "start-0 justify-start" : "end-0 justify-end";

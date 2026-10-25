@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, ChevronDown, RefreshCw, Search } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT, useUiLanguage } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { openUrl } from "@/lib/window";
 import { loadWarframeState } from "@/lib/games/warframe";
 import { WARFRAME_OFFICIAL_URL } from "@/lib/games/warframe-official-data";
@@ -44,7 +45,7 @@ export function GameWarframeCompanion({ active }: { active: boolean }) {
   const [visible, setVisible] = useState(false),
     [activated, setActivated] = useState(false),
     [attempt, setAttempt] = useState(0),
-    [now, setNow] = useState(Date.now);
+    [loadedAt, setLoadedAt] = useState(0);
   const [data, setData] = useState<WarframeState | null>(null),
     [busy, setBusy] = useState(false),
     [failed, setFailed] = useState(false);
@@ -76,13 +77,13 @@ export function GameWarframeCompanion({ active }: { active: boolean }) {
     const controller = new AbortController();
     setBusy(true);
     setFailed(false);
-    setNow(Date.now());
+    setLoadedAt(Date.now());
     void loadWarframeState(controller.signal, attempt > 0).then(
       (result) => {
         if (!controller.signal.aborted) {
           setData(result.data);
           setBusy(false);
-          setNow(Date.now());
+          setLoadedAt(Date.now());
         }
       },
       () => {
@@ -94,19 +95,8 @@ export function GameWarframeCompanion({ active }: { active: boolean }) {
     );
     return () => controller.abort();
   }, [active, activated, attempt, revision]);
-  useEffect(() => {
-    if (!active || !visible) return;
-    const tick = () => {
-      if (!document.hidden) setNow(Date.now());
-    };
-    tick();
-    const timer = setInterval(tick, 1000);
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [active, visible]);
+  const clock = useNow(1000, active && visible),
+    now = Math.max(clock, loadedAt);
   const usable = data && warframeUsable(data, now),
     stale = data && now - data.timestamp > WARFRAME_STALE;
   const fissures = data ? warframeFissures(data, now, tier, mode, query) : [];

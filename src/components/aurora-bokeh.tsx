@@ -1,13 +1,14 @@
 import { useMemo } from "react";
 
 const ORBS = 7;
+const STOPS = 10;
+const SPREAD = 3;
 
 type Orb = {
   x: number;
   y: number;
-  size: number;
-  color: string;
-  blur: number;
+  box: number;
+  gradient: string;
   opacity: number;
   delay: number;
   duration: number;
@@ -26,6 +27,37 @@ function seeded(i: number): number {
   return s - Math.floor(s);
 }
 
+// 2D Gaussian blur (as CSS blur(sigma)) of a linear radial falloff (1 at r=0, 0 at r=fade), sampled at radius r.
+function blurredFalloff(r: number, fade: number, sigma: number): number {
+  const steps = 24;
+  const span = SPREAD * sigma;
+  const cell = (2 * span) / steps;
+  let sum = 0;
+  let weight = 0;
+  for (let i = 0; i <= steps; i++) {
+    const dx = -span + i * cell;
+    for (let j = 0; j <= steps; j++) {
+      const dy = -span + j * cell;
+      const w = Math.exp(-(dx * dx + dy * dy) / (2 * sigma * sigma));
+      sum += w * Math.max(0, 1 - Math.hypot(r + dx, dy) / fade);
+      weight += w;
+    }
+  }
+  return sum / weight;
+}
+
+// Bakes the blur into gradient stops, so the animated orb repaints nothing and only composites.
+function orbGradient(color: string, fade: number, sigma: number): string {
+  const [r, g, b, a] = color.match(/[\d.]+/g)!.map(Number);
+  const reach = fade + SPREAD * sigma;
+  const stops = Array.from({ length: STOPS + 1 }, (_, i) => {
+    const at = (reach * i) / STOPS;
+    const alpha = i === STOPS ? 0 : a * blurredFalloff(at, fade, sigma);
+    return `rgba(${r},${g},${b},${alpha.toFixed(4)}) ${at.toFixed(1)}px`;
+  });
+  return `radial-gradient(circle ${reach.toFixed(1)}px, ${stops.join(", ")})`;
+}
+
 export function AuroraBokeh() {
   const orbs = useMemo<Orb[]>(() => {
     return Array.from({ length: ORBS }, (_, i) => {
@@ -33,12 +65,14 @@ export function AuroraBokeh() {
       const r2 = seeded(i * 3 + 2);
       const r3 = seeded(i * 3 + 3);
       const size = 180 + r1 * 220;
+      const blur = 24 + r3 * 28;
+      // A plain "circle" gradient reaches the box corner, so 65% of it is 0.65 * size / sqrt(2).
+      const fade = (0.65 * size) / Math.SQRT2;
       return {
         x: r1 * 100,
         y: r2 * 100,
-        size,
-        color: PALETTE[i % PALETTE.length],
-        blur: 24 + r3 * 28,
+        box: 2 * (fade + SPREAD * blur),
+        gradient: orbGradient(PALETTE[i % PALETTE.length], fade, blur),
         opacity: 0.4 + r2 * 0.35,
         delay: -r1 * 30,
         duration: 28 + r3 * 24,
@@ -55,10 +89,9 @@ export function AuroraBokeh() {
             position: "absolute",
             left: `${o.x}%`,
             top: `${o.y}%`,
-            width: `${o.size}px`,
-            height: `${o.size}px`,
-            background: `radial-gradient(circle, ${o.color}, transparent 65%)`,
-            filter: `blur(${o.blur}px)`,
+            width: `${o.box}px`,
+            height: `${o.box}px`,
+            background: o.gradient,
             opacity: o.opacity,
             transform: "translate(-50%, -50%)",
             animation: `aurora-orb ${o.duration}s ease-in-out ${o.delay}s infinite alternate`,

@@ -2,6 +2,7 @@ import { GameFileIcon } from "./game-file-icon";
 import { SourceFilesLoading } from "./game-source-loading";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useId,
@@ -89,10 +90,11 @@ export function GameSourceLinkScope({
   useEffect(() => {
     if (!active || (draft && draft.profile !== profile)) setDraft(null);
   }, [active, profile, draft]);
+  const openLink = useCallback((link: SourceLink) => setDraft({ link, profile }), [profile]);
   return (
     <SourceTransfersContext.Provider value={downloads}>
       <SourceDownloadContext.Provider value={openDownload}>
-        <SourceLinkContext.Provider value={(link) => setDraft({ link, profile })}>
+        <SourceLinkContext.Provider value={openLink}>
           <SourceRelinkContext.Provider value={setRepair}>
             {children}
             {active && draft?.profile === profile && (

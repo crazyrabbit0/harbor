@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { posterPlate } from "@/components/poster";
+import { ScaledBlur } from "@/components/scaled-blur";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 const BOTTOM_SCRIM =
@@ -34,17 +35,27 @@ export function PeopleHeroBackdrop({
   return (
     <div aria-hidden className="absolute inset-0 -z-10 overflow-hidden">
       {frames.length > 0 ? (
-        frames.map((f, i) => (
-          <div
-            key={f}
-            className="absolute inset-0 scale-105 bg-cover bg-center transition-opacity duration-[1800ms] ease-out motion-reduce:transition-none"
-            style={{
-              backgroundImage: `url(${f})`,
-              opacity: i === idx ? (usingStills ? 0.52 : 0.42) : 0,
-              filter: usingStills ? "saturate(1.08)" : "blur(64px) saturate(1.25)",
-            }}
-          />
-        ))
+        frames.map((f, i) =>
+          usingStills ? (
+            <div
+              key={f}
+              className="absolute inset-0 scale-105 bg-cover bg-center transition-opacity duration-[1800ms] ease-out motion-reduce:transition-none"
+              style={{
+                backgroundImage: `url(${f})`,
+                opacity: i === idx ? 0.52 : 0,
+                filter: "saturate(1.08)",
+              }}
+            />
+          ) : (
+            <div
+              key={f}
+              className="absolute inset-0 scale-105 transition-opacity duration-[1800ms] ease-out motion-reduce:transition-none"
+              style={{ opacity: i === idx ? 0.42 : 0 }}
+            >
+              <ScaledBlur image={f} blur={64} extraFilter="saturate(1.25)" />
+            </div>
+          ),
+        )
       ) : (
         <div className="absolute inset-0" style={{ background: posterPlate(seed), opacity: 0.5 }} />
       )}

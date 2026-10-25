@@ -5,7 +5,7 @@ import { APP_VERSION } from "@/lib/build-info";
 import { close, openUrl } from "@/lib/window";
 import { toggleWindowFullscreen } from "@/lib/fullscreen-state";
 import { checkForUpdate } from "@/lib/updater/use-update";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { HARBOR_BUG_FORM_URL } from "@/lib/config/endpoints";
@@ -20,7 +20,8 @@ type Menu = { id: string; label: string; items: Item[] };
 export function HybridMenuBar() {
   const t = useT();
   const { setView } = useViewActions();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ uiScale: s.uiScale }));
+  const update = useSettingsUpdate();
   const [openId, setOpenId] = useState<string | null>(null);
 
   useEffect(() => {

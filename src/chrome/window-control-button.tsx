@@ -1,6 +1,6 @@
 import { memo, type ReactNode } from "react";
 import { ThreeLiquidGlassSurface } from "@/components/ThreeLiquidGlassSurface";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export const WindowControlGlyph = memo(function WindowControlGlyph({
   kind,
@@ -58,7 +58,7 @@ export function WindowControlButton({
   children: ReactNode;
   appearance?: "transparent" | "glass" | "filled";
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ topbarAppearance: s.topbarAppearance }));
   const glassControls = (appearance ?? settings.topbarAppearance) === "glass";
   const button = (
     <button

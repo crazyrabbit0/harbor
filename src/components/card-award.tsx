@@ -5,6 +5,7 @@ import { awardSummary, useAwards } from "@/lib/providers/wikidata";
 import { mergeBundledAwards } from "@/lib/awards-history";
 import { parseAwardYear } from "@/lib/anime-awards";
 import type { Meta } from "@/lib/cinemeta";
+import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 
 const NOUN: Record<string, string> = {
   oscar: "Oscar",
@@ -38,11 +39,12 @@ function labelFor(win: ClassicWin): string {
 export function useClassicAwardWin(meta: Meta, imdbId?: string): ClassicWin | null {
   const live = useAwards(imdbId, meta.type === "series");
   const year = parseAwardYear(meta.releaseInfo);
+  const awardsV = useBundledAwardsVersion();
   return useMemo(() => {
     const summary = awardSummary(mergeBundledAwards(live, meta.name, year));
     const won = summary.find((s) => s.wins > 0);
     return won ? { type: won.type, wins: won.wins } : null;
-  }, [live, meta.name, year]);
+  }, [awardsV, live, meta.name, year]);
 }
 
 export function ClassicAwardTab({

@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { toHiResBackdrop } from "@/lib/use-stable-asset";
 
-function Layer({ url, first, onReady }: { url: string; first: boolean; onReady: () => void }) {
+type LayerProps = { url: string; first: boolean; fullQuality: boolean; onReady: () => void };
+
+function Layer({ url, first, fullQuality, onReady }: LayerProps) {
   const lowUrl = url.replace(/\/t\/p\/(w\d+|original)\//, "/t/p/w300/");
-  const highUrl = url.replace(/\/t\/p\/(w\d+|original)\//, "/t/p/original/");
+  const highUrl = toHiResBackdrop(url, fullQuality) ?? url;
   const canBlurUp = first && lowUrl !== highUrl;
   const [ready, setReady] = useState(false);
   const done = () => {
@@ -35,7 +38,7 @@ function Layer({ url, first, onReady }: { url: string; first: boolean; onReady: 
   );
 }
 
-export function HeroBackdrop({ url }: { url: string }) {
+export function HeroBackdrop({ url, fullQuality }: { url: string; fullQuality: boolean }) {
   const [layers, setLayers] = useState<{ id: number; url: string }[]>([{ id: 0, url }]);
   const nextId = useRef(1);
   useEffect(() => {
@@ -50,7 +53,13 @@ export function HeroBackdrop({ url }: { url: string }) {
   return (
     <>
       {layers.map((l) => (
-        <Layer key={l.id} url={l.url} first={l.id === 0} onReady={() => settle(l.id)} />
+        <Layer
+          key={l.id}
+          url={l.url}
+          first={l.id === 0}
+          fullQuality={fullQuality}
+          onReady={() => settle(l.id)}
+        />
       ))}
     </>
   );

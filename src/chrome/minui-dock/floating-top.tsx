@@ -9,7 +9,7 @@ import { TogetherButton } from "@/chrome/topbar";
 import { useBigPictureEntry } from "@/chrome/use-big-picture-entry";
 import { useT } from "@/lib/i18n";
 import { useSearch } from "@/lib/search-context";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
 import { useViewActions, useViewSelector } from "@/lib/view";
 import { close, minimize, toggleMaximize } from "@/lib/window";
@@ -27,7 +27,11 @@ export function FloatingTop() {
       homeTop: v.topKind === "home",
       pickerTop: v.topKind === "picker",
     }));
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hybridTitleBar: s.hybridTitleBar,
+    theme: s.theme,
+    useNativeTitleBar: s.useNativeTitleBar,
+  }));
   const { setOpen: setSearchOpen } = useSearch();
   const t = useT();
   const bigPicture = useBigPictureEntry();

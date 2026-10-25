@@ -141,16 +141,52 @@ async function call<T>(path: string, body: object): Promise<T | null> {
   }
 }
 
+const USER_ADDONS_TTL_MS = 60 * 1000;
+const userAddonsCache = new Map<string, { t: number; addons: Addon[] }>();
+const userAddonsInflight = new Map<string, Promise<Addon[] | null>>();
+let userAddonsGeneration = 0;
+
+export function invalidateUserAddons(): void {
+  userAddonsGeneration += 1;
+  userAddonsCache.clear();
+  userAddonsInflight.clear();
+}
+
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("harbor:addons-changed", invalidateUserAddons);
+}
+
+// Shared per authKey for 60 s; failures are not cached and each caller gets its own array copy.
 export async function userAddons(authKey: string): Promise<Addon[]> {
-  const result = await call<{ addons: Addon[] }>("addonCollectionGet", {
-    authKey,
-    type: "user",
-    update: false,
-  });
-  return result?.addons ?? [];
+  const hit = userAddonsCache.get(authKey);
+  if (hit && Date.now() - hit.t < USER_ADDONS_TTL_MS) return [...hit.addons];
+  let pending = userAddonsInflight.get(authKey);
+  if (!pending) {
+    const generation = userAddonsGeneration;
+    const request = call<{ addons: Addon[] }>("addonCollectionGet", {
+      authKey,
+      type: "user",
+      update: false,
+    })
+      .then((result) => {
+        const addons = Array.isArray(result?.addons) ? result.addons : null;
+        if (addons && generation === userAddonsGeneration) {
+          userAddonsCache.set(authKey, { t: Date.now(), addons });
+        }
+        return addons;
+      })
+      .finally(() => {
+        if (userAddonsInflight.get(authKey) === request) userAddonsInflight.delete(authKey);
+      });
+    userAddonsInflight.set(authKey, request);
+    pending = request;
+  }
+  const addons = await pending;
+  return addons ? [...addons] : [];
 }
 
 export async function setUserAddons(authKey: string, addons: Addon[]): Promise<boolean> {
+  invalidateUserAddons();
   const result = await call<{ success?: boolean }>("addonCollectionSet", {
     authKey,
     type: "user",
@@ -167,6 +203,7 @@ export async function setUserAddons(authKey: string, addons: Addon[]): Promise<b
       };
     }),
   });
+  invalidateUserAddons();
   return result != null;
 }
 
@@ -182,11 +219,13 @@ export async function getUserAddonsRaw(authKey: string): Promise<Addon[] | null>
 
 export async function setUserAddonsRaw(authKey: string, addons: Addon[]): Promise<boolean> {
   if (addons.length === 0) return false;
+  invalidateUserAddons();
   const result = await call<{ success?: boolean }>("addonCollectionSet", {
     authKey,
     type: "user",
     addons,
   });
+  invalidateUserAddons();
   return result != null;
 }
 

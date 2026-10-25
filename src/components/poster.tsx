@@ -7,7 +7,7 @@ import {
   useTmdbIdFromImdb,
   useTmdbImdbId,
 } from "@/lib/providers/tmdb/tmdb-imdb-resolve";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { externalToKitsu, kitsuToImdb, kitsuToTvdb } from "@/lib/providers/anime-mapping";
 import { tmdbLocalizedPoster } from "@/lib/providers/tmdb/tmdb-images";
 import { sizeImageUrl, qualityMultiplier } from "@/lib/img-size";
@@ -21,7 +21,11 @@ export function useLocalizedPoster(metaId: string): {
   url: string | undefined;
   localizing: boolean;
 } {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    tmdbKey: s.tmdbKey,
+    tmdbLanguage: s.tmdbLanguage,
+    tmdbImageLangs: s.tmdbImageLangs,
+  }));
   const [url, setUrl] = useState<string | undefined>(undefined);
   const [localizing, setLocalizing] = useState<boolean>(() => {
     const canResolve = metaId.startsWith("tmdb:") || metaId.startsWith("tt");
@@ -60,7 +64,7 @@ export function useRpdbAltId(
   metaId: string,
   type?: "movie" | "series",
 ): { altId: string | undefined; pending: boolean } {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const wantImdb = needsImdbForPoster(rpdbKey, metaId);
   const wantTmdb = needsTmdbForPoster(rpdbKey, metaId);
   const imdb = useTmdbImdbId(wantImdb ? metaId : undefined);
@@ -81,7 +85,7 @@ function useAnimeRpdbIds(
   rpdbKey: string,
   metaId: string,
 ): { animeImdb?: string; animeTvdb?: string; animeTmdb?: string } {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ posterBaseUrl: s.posterBaseUrl }));
   const [animeImdb, setAnimeImdb] = useState<string>();
   const [animeTvdb, setAnimeTvdb] = useState<string>();
   const isAnime = /^(kitsu|mal|anilist|anidb):/.test(metaId);
@@ -226,7 +230,10 @@ function PosterBody({
   lazy?: boolean | "release";
   fallbacks?: Array<string | null | undefined>;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    posterEffect: s.posterEffect,
+    posterQuality: s.posterQuality,
+  }));
   const effect = settings.posterEffect;
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [inView, setInView] = useState(!lazy);

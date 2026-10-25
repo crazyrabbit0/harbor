@@ -22,7 +22,7 @@ import {
 import { useT } from "@/lib/i18n";
 import { useActiveKid } from "@/lib/profiles";
 import { useSearch } from "@/lib/search-context";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import { useTogether } from "@/lib/together/provider";
 import { useSelfIdentity } from "@/lib/together/use-self-identity";
@@ -82,7 +82,15 @@ export function Topbar({ connecting = false }: { connecting?: boolean } = {}) {
       pickerTop: v.topKind === "picker",
     }));
   const liveHasSources = usePlaylists().length > 0;
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hybridTitleBar: s.hybridTitleBar,
+    navbarSleepTimer: s.navbarSleepTimer,
+    sidebarCollapsed: s.sidebarCollapsed,
+    theme: s.theme,
+    topbarAppearance: s.topbarAppearance,
+    topbarScrollBlur: s.topbarScrollBlur,
+    useNativeTitleBar: s.useNativeTitleBar,
+  }));
   const kid = useActiveKid();
   const t = useT();
   const [closeConfirm, setCloseConfirm] = useState(false);
@@ -129,9 +137,12 @@ export function Topbar({ connecting = false }: { connecting?: boolean } = {}) {
       {!inSettings && settings.topbarScrollBlur && settings.topbarAppearance !== "transparent" && (
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 transition-opacity duration-[350ms] ease-out"
+          className="pointer-events-none absolute inset-0 transition-[opacity,visibility] duration-[350ms] ease-out"
           style={{
             opacity: scrolled ? 1 : 0,
+            // Hidden after the fade so the backdrop filter stops sampling the page at the top; strict keeps it to the bar box.
+            visibility: scrolled ? "visible" : "hidden",
+            contain: "strict",
             background: "color-mix(in oklch, var(--color-canvas), transparent 20%)",
             backdropFilter: "blur(14px) saturate(115%)",
             WebkitBackdropFilter: "blur(14px) saturate(115%)",
@@ -287,7 +298,7 @@ export function TogetherButton({
 } = {}) {
   const { snapshot, modalOwner, openModal, closeModal, clientId } = useTogether();
   const { avatar: selfAvatar, color: selfColor } = useSelfIdentity();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ topbarAppearance: s.topbarAppearance }));
   const cleanModal = settings.topbarAppearance === "transparent";
   const glassControls = settings.topbarAppearance === "glass";
   const t = useT();
@@ -434,7 +445,7 @@ function nameHue(name: string): number {
 
 function SearchPill() {
   const { setOpen } = useSearch();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys, liquidGlass: s.liquidGlass }));
   const t = useT();
   const binding = effectiveBinding("globalSearchFocus", settings.hotkeys ?? {});
 
