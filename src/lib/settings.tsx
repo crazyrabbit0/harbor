@@ -3,9 +3,11 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { applyTheme, isKnownPreset, nextColorTheme } from "@/lib/theme";
@@ -37,6 +39,12 @@ import type { Settings, StreamingService } from "./settings/types";
 import { markSectionDirty } from "./profile-sync/scheduler";
 import { configureLayoutStore } from "./layout-sync/store";
 import { SYNCED_SETTINGS_FIELDS } from "./layout-sync/sections";
+import {
+  createSelectionReader,
+  createSettingsStore,
+  type SettingsStore,
+} from "./settings/selector-store";
+import { applySettingsPatch, changedSettingsKeys } from "./settings/patch";
 
 export type {
   ContentCategory,
@@ -76,6 +84,28 @@ function readActiveSource(): SettingsSource {
 }
 
 const Ctx = createContext<SettingsValue | null>(null);
+const StoreCtx = createContext<SettingsStore | null>(null);
+const UpdateCtx = createContext<SettingsValue["update"] | null>(null);
+
+// Module setters for provider keys; children read them during render and in effects, so the first call precedes them.
+type ProviderKeys = Pick<
+  Settings,
+  | "tvdbKey"
+  | "traktClientId"
+  | "traktClientSecret"
+  | "malClientId"
+  | "igdbClientId"
+  | "igdbClientSecret"
+>;
+
+function applyProviderKeys(s: ProviderKeys): void {
+  setTvdbKey(s.tvdbKey ?? "");
+  setTraktCredentials(s.traktClientId ?? "", s.traktClientSecret ?? "");
+  setMalClientId(s.malClientId ?? "");
+  setIgdbCredentials(s.igdbClientId ?? "", s.igdbClientSecret ?? "");
+}
+
+const PERSIST_BURST_MS = 150;
 
 export function SettingsProvider({
   children,
@@ -91,8 +121,14 @@ export function SettingsProvider({
     sourceRef.current = src;
     const s = loadEffective(src.profileId, src.linked);
     setUiLanguage(s.uiLanguage, s.region);
+    setTmdbLanguage(s.tmdbLanguage);
+    applyProviderKeys(s);
     return s;
   });
+  const storeRef = useRef<SettingsStore | null>(null);
+  if (!storeRef.current) storeRef.current = createSettingsStore(settings);
+  const store = storeRef.current;
+  useLayoutEffect(() => store.set(settings), [store, settings]);
   const [settingsReady, setSettingsReady] = useState(false);
   const settingsReadyRef = useRef(settingsReady);
   useEffect(() => {
@@ -109,7 +145,12 @@ export function SettingsProvider({
     setUiLanguage(settings.uiLanguage, settings.region);
   }, [settings.uiLanguage, settings.region]);
 
-  setTmdbLanguage(settings.tmdbLanguage);
+  // Set during render, only on change, so children rendering in the same pass read the new value.
+  const tmdbLanguageSetRef = useRef(settings.tmdbLanguage);
+  if (tmdbLanguageSetRef.current !== settings.tmdbLanguage) {
+    tmdbLanguageSetRef.current = settings.tmdbLanguage;
+    setTmdbLanguage(settings.tmdbLanguage);
+  }
 
   const lastSavedImageRef = useRef<{ profileId: string; image: string | null }>({
     profileId: sourceRef.current.profileId,
@@ -171,25 +212,52 @@ export function SettingsProvider({
   }, [settings.theme.backgroundImage]);
 
   const fileTimerRef = useRef(0);
-  useEffect(() => {
-    if (!settingsReady) return;
+  const persistTimerRef = useRef(0);
+  const lastPersistAtRef = useRef(0);
+  const pendingPersistRef = useRef<({ settings: Settings } & SettingsSource) | null>(null);
+  const flushPersist = useCallback(() => {
+    window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = 0;
+    const pending = pendingPersistRef.current;
+    if (!pending) return;
+    pendingPersistRef.current = null;
+    lastPersistAtRef.current = Date.now();
     try {
-      const json = persistEffective(
-        settings,
-        sourceRef.current.profileId,
-        sourceRef.current.linked,
-      );
+      const json = persistEffective(pending.settings, pending.profileId, pending.linked);
       window.clearTimeout(fileTimerRef.current);
       fileTimerRef.current = window.setTimeout(() => void writeSettingsFile(json), 600);
     } catch (e) {
       if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22)) {
         console.warn("[settings] localStorage quota exceeded, dropping avatar");
-        if (settings.harborAvatar != null) {
+        if (pending.settings.harborAvatar != null) {
           setSettings((s) => ({ ...s, harborAvatar: null }));
         }
       }
     }
-  }, [settings, settingsReady]);
+  }, []);
+  // A lone change persists at once; a burst (slider drag) persists its latest value at most every PERSIST_BURST_MS.
+  useEffect(() => {
+    if (!settingsReady) return;
+    pendingPersistRef.current = { settings, ...sourceRef.current };
+    const wait = lastPersistAtRef.current + PERSIST_BURST_MS - Date.now();
+    if (wait <= 0) flushPersist();
+    else if (!persistTimerRef.current)
+      persistTimerRef.current = window.setTimeout(flushPersist, wait);
+  }, [settings, settingsReady, flushPersist]);
+  useEffect(() => {
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") flushPersist();
+    };
+    window.addEventListener("pagehide", flushPersist);
+    window.addEventListener("beforeunload", flushPersist);
+    document.addEventListener("visibilitychange", onHidden);
+    return () => {
+      window.removeEventListener("pagehide", flushPersist);
+      window.removeEventListener("beforeunload", flushPersist);
+      document.removeEventListener("visibilitychange", onHidden);
+      flushPersist();
+    };
+  }, [flushPersist]);
 
   useEffect(() => {
     if (!syncTorrentEnginePolicy || !settingsReady || !("__TAURI_INTERNALS__" in window)) return;
@@ -276,10 +344,20 @@ export function SettingsProvider({
     setMdblistBatchKey(settings.mdblistKey);
   }, [settings.mdblistKey]);
 
-  setTvdbKey(settings.tvdbKey ?? "");
-  setTraktCredentials(settings.traktClientId ?? "", settings.traktClientSecret ?? "");
-  setMalClientId(settings.malClientId ?? "");
-  setIgdbCredentials(settings.igdbClientId ?? "", settings.igdbClientSecret ?? "");
+  // Same as tmdbLanguage: applied during render, only when one of the keys changes.
+  const providerKeysSig = JSON.stringify([
+    settings.tvdbKey,
+    settings.traktClientId,
+    settings.traktClientSecret,
+    settings.malClientId,
+    settings.igdbClientId,
+    settings.igdbClientSecret,
+  ]);
+  const providerKeysSetRef = useRef(providerKeysSig);
+  if (providerKeysSetRef.current !== providerKeysSig) {
+    providerKeysSetRef.current = providerKeysSig;
+    applyProviderKeys(settings);
+  }
 
   useEffect(() => {
     if (typeof document === "undefined" || !("fonts" in document)) return;
@@ -479,16 +557,17 @@ export function SettingsProvider({
     };
   }, []);
 
-  const update = useCallback((patch: Partial<Settings>) => {
-    setSettings((s) => ({ ...s, ...patch }));
-    // The write-side trigger for account sync. Without it a layout change is persisted
-    // locally and never queued, so the section only ever travels device-to-server by
-    // accident. Marking on the patch rather than diffing the whole blob keeps this off
-    // the hot path: update is called for every settings toggle in the app.
-    for (const [section, field] of SYNCED_SETTINGS_FIELDS) {
-      if (field in patch) markSectionDirty(section);
-    }
-  }, []);
+  const update = useCallback(
+    (patch: Partial<Settings>) => {
+      setSettings((s) => applySettingsPatch(s, patch));
+      // Account sync queues only synced sections whose patched value differs from the last committed settings.
+      const changed = changedSettingsKeys(store.get(), patch);
+      for (const [section, field] of SYNCED_SETTINGS_FIELDS) {
+        if (changed.has(field)) markSectionDirty(section);
+      }
+    },
+    [store],
+  );
 
   // Same contract as the roster store: sync reads and writes through the provider for
   // the ACTIVE profile, and straight to disk for any other, because only the active
@@ -523,45 +602,49 @@ export function SettingsProvider({
     }));
   }, []);
 
-  const switchProfile = useCallback((profileId: string, linked: boolean) => {
-    const cur = sourceRef.current;
-    if (cur.profileId === profileId && cur.linked === linked) {
-      return;
-    }
+  const switchProfile = useCallback(
+    (profileId: string, linked: boolean) => {
+      const cur = sourceRef.current;
+      if (cur.profileId === profileId && cur.linked === linked) {
+        return;
+      }
 
-    if (sourceKeyFor(cur.profileId, cur.linked) === sourceKeyFor(profileId, linked)) {
-      sourceRef.current = { profileId, linked };
-    } else {
-      if (settingsReadyRef.current)
-        persistEffective(settingsRef.current, cur.profileId, cur.linked);
-      const next = loadEffective(profileId, linked);
-      setUiLanguage(next.uiLanguage, next.region);
-      setTmdbLanguage(next.tmdbLanguage);
-      tmdbLangRef.current = effectiveTmdbLanguage();
-      imgLangRef.current = next.tmdbImageLangs.join(",");
-      sourceRef.current = { profileId, linked };
-      if (settingsReadyRef.current) persistEffective(next, profileId, linked);
-      settingsRef.current = next;
-      setSettings(next);
-    }
+      if (sourceKeyFor(cur.profileId, cur.linked) === sourceKeyFor(profileId, linked)) {
+        sourceRef.current = { profileId, linked };
+      } else {
+        flushPersist();
+        if (settingsReadyRef.current)
+          persistEffective(settingsRef.current, cur.profileId, cur.linked);
+        const next = loadEffective(profileId, linked);
+        setUiLanguage(next.uiLanguage, next.region);
+        setTmdbLanguage(next.tmdbLanguage);
+        tmdbLangRef.current = effectiveTmdbLanguage();
+        imgLangRef.current = next.tmdbImageLangs.join(",");
+        sourceRef.current = { profileId, linked };
+        if (settingsReadyRef.current) persistEffective(next, profileId, linked);
+        settingsRef.current = next;
+        setSettings(next);
+      }
 
-    lastSavedImageRef.current = { profileId, image: null };
-    settingsRef.current = {
-      ...settingsRef.current,
-      theme: { ...settingsRef.current.theme, backgroundImage: null },
-    };
-    setSettings((s) => ({ ...s, theme: { ...s.theme, backgroundImage: null } }));
-
-    void loadBgImage(profileId).then((img) => {
-      if (sourceRef.current.profileId !== profileId) return;
-      lastSavedImageRef.current = { profileId, image: img };
+      lastSavedImageRef.current = { profileId, image: null };
       settingsRef.current = {
         ...settingsRef.current,
-        theme: { ...settingsRef.current.theme, backgroundImage: img },
+        theme: { ...settingsRef.current.theme, backgroundImage: null },
       };
-      setSettings((s) => ({ ...s, theme: { ...s.theme, backgroundImage: img } }));
-    });
-  }, []);
+      setSettings((s) => ({ ...s, theme: { ...s.theme, backgroundImage: null } }));
+
+      void loadBgImage(profileId).then((img) => {
+        if (sourceRef.current.profileId !== profileId) return;
+        lastSavedImageRef.current = { profileId, image: img };
+        settingsRef.current = {
+          ...settingsRef.current,
+          theme: { ...settingsRef.current.theme, backgroundImage: img },
+        };
+        setSettings((s) => ({ ...s, theme: { ...s.theme, backgroundImage: img } }));
+      });
+    },
+    [flushPersist],
+  );
 
   const setSettingsLinked = useCallback(
     (linked: boolean) => {
@@ -594,11 +677,38 @@ export function SettingsProvider({
     ],
   );
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+  return (
+    <StoreCtx.Provider value={store}>
+      <UpdateCtx.Provider value={update}>
+        <Ctx.Provider value={value}>{children}</Ctx.Provider>
+      </UpdateCtx.Provider>
+    </StoreCtx.Provider>
+  );
 }
 
 export function useSettings() {
   const v = useContext(Ctx);
   if (!v) throw new Error("useSettings outside SettingsProvider");
   return v;
+}
+
+/** Re-renders the caller only when the selection changes (shallow compare for plain objects). */
+export function useSettingsSelector<T>(select: (s: Settings) => T): T {
+  const store = useContext(StoreCtx);
+  if (!store) throw new Error("useSettingsSelector outside SettingsProvider");
+  const selectRef = useRef(select);
+  selectRef.current = select;
+  const readerRef = useRef<{ store: SettingsStore; read: () => T } | null>(null);
+  if (readerRef.current?.store !== store) {
+    readerRef.current = { store, read: createSelectionReader(store, () => selectRef.current) };
+  }
+  const read = readerRef.current.read;
+  return useSyncExternalStore(store.subscribe, read, read);
+}
+
+/** The stable settings `update`; never re-renders its caller. */
+export function useSettingsUpdate(): SettingsValue["update"] {
+  const update = useContext(UpdateCtx);
+  if (!update) throw new Error("useSettingsUpdate outside SettingsProvider");
+  return update;
 }

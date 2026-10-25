@@ -20,25 +20,33 @@ function entryKey(id: string, season?: number, episode?: number): string {
 
 const parsed = new Map<string, { raw: string; all: Record<string, Entry> }>();
 
-// Every poster card reads resume progress, so the stored JSON is parsed once per change; callers get a copy to mutate.
-function readAll(key = readKey()): Record<string, Entry> {
+const EMPTY: Readonly<Record<string, Entry>> = Object.freeze({});
+
+// Every poster card reads resume progress, so the stored JSON is parsed once per change; the shared map must not be mutated.
+function readShared(key = readKey()): Readonly<Record<string, Entry>> {
   try {
     const raw = localStorage.getItem(key);
-    if (!raw) return {};
+    if (!raw) return EMPTY;
     let hit = parsed.get(key);
     if (hit?.raw !== raw) {
       hit = { raw, all: JSON.parse(raw) as Record<string, Entry> };
       parsed.set(key, hit);
     }
-    return { ...hit.all };
+    return hit.all;
   } catch {
-    return {};
+    return EMPTY;
   }
+}
+
+function readAll(key: string): Record<string, Entry> {
+  return { ...readShared(key) };
 }
 
 function writeAll(all: Record<string, Entry>, key: string): void {
   try {
-    localStorage.setItem(key, JSON.stringify(all));
+    const raw = JSON.stringify(all);
+    localStorage.setItem(key, raw);
+    parsed.set(key, { raw, all });
   } catch {
     /* noop */
   }
@@ -107,7 +115,7 @@ export function saveResumeBatch(
 }
 
 export function readResumeMs(id: string, season?: number, episode?: number): number {
-  const all = readAll();
+  const all = readShared();
   return all[entryKey(id, season, episode)]?.ms ?? 0;
 }
 
@@ -116,7 +124,7 @@ export function readResumeEntry(
   season?: number,
   episode?: number,
 ): { ms: number; t: number; s?: number; pct?: number; source?: ExternalCwSource } | null {
-  const all = readAll();
+  const all = readShared();
   const e = all[entryKey(id, season, episode)];
   return e
     ? {
@@ -134,7 +142,7 @@ export function readResumeSource(
   season?: number,
   episode?: number,
 ): ExternalCwSource | undefined {
-  return readAll()[entryKey(id, season, episode)]?.source;
+  return readShared()[entryKey(id, season, episode)]?.source;
 }
 
 export function clearResume(id: string, season?: number, episode?: number, ownerId?: string): void {
@@ -154,7 +162,7 @@ export function lastPlayedEpisode(seriesId: string): {
   pct?: number;
   source?: ExternalCwSource;
 } | null {
-  const all = readAll();
+  const all = readShared();
   const prefix = `${seriesId}|s`;
   let best: {
     season: number;

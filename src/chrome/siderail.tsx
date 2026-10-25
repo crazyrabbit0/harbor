@@ -18,7 +18,7 @@ import {
 import { NavHiddenTray, NavEditableItem, useNavDrag } from "@/chrome/nav-edit";
 import { useNavEditMode } from "@/chrome/nav-edit-mode";
 import { useSearch } from "@/lib/search-context";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useParental } from "@/lib/parental";
 import { type View, useViewActions, useViewSelector } from "@/lib/view";
@@ -46,7 +46,14 @@ export function SideRail() {
     view: v.view,
     chromeHidden: v.chromeHidden,
   }));
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hideContent: s.hideContent,
+    hybridTitleBar: s.hybridTitleBar,
+    navCustomization: s.navCustomization,
+    showPlaylistsTab: s.showPlaylistsTab,
+    sidebarCollapsed: s.sidebarCollapsed,
+    useNativeTitleBar: s.useNativeTitleBar,
+  }));
   const { locked, unlock, hiddenTabs } = useParental();
   const { setOpen: setSearchOpen } = useSearch();
   const t = useT();

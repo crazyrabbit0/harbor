@@ -5,7 +5,7 @@ import { memo, useEffect, useRef, useState, type ReactNode } from "react";
 import { HarborMark } from "@/components/icons/harbor-mark";
 import { ProfileChip } from "@/chrome/sidebar/profile-chip";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useHarborLogo } from "@/lib/harbor-logo";
 import { ParentalPinModal } from "@/components/parental-pin-modal";
 import { useParental, type LockableTab } from "@/lib/parental";
@@ -44,7 +44,12 @@ export function Sidebar() {
     chromeHidden: v.chromeHidden,
   }));
   const { locked, unlock, hiddenTabs } = useParental();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hybridTitleBar: s.hybridTitleBar,
+    sidebarCollapsed: s.sidebarCollapsed,
+    theme: s.theme,
+    useNativeTitleBar: s.useNativeTitleBar,
+  }));
   const kid = useActiveKid();
   const t = useT();
   const [pendingPinView, setPendingPinView] = useState<View | null>(null);
@@ -232,7 +237,11 @@ function ScrollableNav({
   hiddenTabs: Record<LockableTab, boolean>;
   onPinNav: (v: View) => void;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hideContent: s.hideContent,
+    navCustomization: s.navCustomization,
+    showPlaylistsTab: s.showPlaylistsTab,
+  }));
   const kid = useActiveKid();
   const t = useT();
   const selectView = setView;

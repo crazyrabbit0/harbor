@@ -1,6 +1,6 @@
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsUpdate } from "@/lib/settings";
 
 export function CollapseToggle({
   collapsed,
@@ -9,7 +9,7 @@ export function CollapseToggle({
   collapsed: boolean;
   retainLabels?: boolean;
 }) {
-  const { update } = useSettings();
+  const update = useSettingsUpdate();
   const t = useT();
   const label = collapsed ? t("Expand sidebar") : t("Collapse sidebar");
   return (

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Eye, Plus, RotateCcw, X } from "lucide-react";
 import { TvModalClose } from "@/components/tv-modal-close";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import {
   NAV_ITEMS,
   effectiveNavOrder,
@@ -14,7 +14,8 @@ import {
 import { setNavEditMode, useNavEditMode } from "./nav-edit-mode";
 
 function useNavCfg() {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ navCustomization: s.navCustomization }));
+  const update = useSettingsUpdate();
   return {
     cfg: settings.navCustomization,
     commit: (next: typeof settings.navCustomization) => update({ navCustomization: next }),

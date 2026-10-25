@@ -12,7 +12,7 @@ import { ParentalPinModal } from "@/components/parental-pin-modal";
 import { useBigPictureEntry } from "@/chrome/use-big-picture-entry";
 import { useT } from "@/lib/i18n";
 import { useParental } from "@/lib/parental";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
 import { type View, useViewActions, useViewSelector } from "@/lib/view";
 
@@ -24,7 +24,12 @@ export function StremioRail() {
     chromeHidden: v.chromeHidden,
   }));
   const { locked, unlock, hiddenTabs } = useParental();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hideContent: s.hideContent,
+    navCustomization: s.navCustomization,
+    showPlaylistsTab: s.showPlaylistsTab,
+    theme: s.theme,
+  }));
   const t = useT();
   const [pendingPin, setPendingPin] = useState<View | null>(null);
   const bigPicture = useBigPictureEntry();

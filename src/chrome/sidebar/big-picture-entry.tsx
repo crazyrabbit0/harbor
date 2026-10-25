@@ -1,7 +1,7 @@
 import { Monitor } from "lucide-react";
 import { enterBigPicture } from "@/lib/big-picture";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useActiveKid } from "@/lib/profiles";
 import { SFX } from "@/lib/sfx";
 import { shouldOfferBigPicture } from "@/views/big-picture/bp-logic";
@@ -13,7 +13,7 @@ export function SidebarBigPictureEntry({
   collapsed: boolean;
   retainLabels?: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ bigPictureButton: s.bigPictureButton }));
   const t = useT();
   const kid = useActiveKid();
   const label = t("Big Picture");

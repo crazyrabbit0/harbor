@@ -24,10 +24,24 @@ const TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_ENTRIES = 200;
 
 const listeners = new Set<() => void>();
+let profileCache: { raw: string | null; id: string } | null = null;
+let parsedCache: { key: string; raw: string; all: Record<string, PlaybackEntry> } | null = null;
 
 function activeProfileId(): string {
+  let raw: string | null;
   try {
-    const raw = localStorage.getItem(PROFILES_KEY);
+    raw = localStorage.getItem(PROFILES_KEY);
+  } catch {
+    return "";
+  }
+  if (profileCache?.raw === raw) return profileCache.id;
+  const id = parseActiveProfileId(raw);
+  profileCache = { raw, id };
+  return id;
+}
+
+function parseActiveProfileId(raw: string | null): string {
+  try {
     if (!raw) return "";
     const s = JSON.parse(raw) as {
       activeId?: string;
@@ -93,33 +107,60 @@ function entryKey(metaId: string, season?: number, episode?: number): string {
   return metaId;
 }
 
-function readAll(): Record<string, PlaybackEntry> {
+// The player saves every few seconds, so the stored JSON is parsed once per change; the shared map must not be mutated.
+function readParsed(): Readonly<Record<string, PlaybackEntry>> {
   migrateLegacy();
   try {
-    const raw = localStorage.getItem(storeKey());
+    const key = storeKey();
+    const raw = localStorage.getItem(key);
     if (!raw) return {};
-    const parsed = JSON.parse(raw) as Record<string, PlaybackEntry>;
-    const now = Date.now();
-    const fresh: Record<string, PlaybackEntry> = {};
-    for (const [k, v] of Object.entries(parsed)) {
-      if (!v?.savedAt) continue;
-      if (now - v.savedAt > TTL_MS) continue;
-      fresh[k] = v;
+    if (parsedCache?.key !== key || parsedCache.raw !== raw) {
+      parsedCache = { key, raw, all: JSON.parse(raw) as Record<string, PlaybackEntry> };
     }
-    return fresh;
+    return parsedCache.all;
   } catch {
     return {};
   }
 }
 
+function readAll(): Record<string, PlaybackEntry> {
+  const now = Date.now();
+  const fresh: Record<string, PlaybackEntry> = {};
+  for (const [k, v] of Object.entries(readParsed())) {
+    if (!v?.savedAt) continue;
+    if (now - v.savedAt > TTL_MS) continue;
+    fresh[k] = v;
+  }
+  return fresh;
+}
+
+/** True when the maps differ in what recentlyPlayed exposes: entry keys or titles; savedAt and stream fields are not shown. */
+export function playbackVisiblyChanged(
+  prev: Readonly<Record<string, PlaybackEntry>>,
+  next: Readonly<Record<string, PlaybackEntry>>,
+): boolean {
+  const keys = Object.keys(next);
+  if (keys.length !== Object.keys(prev).length) return true;
+  for (const k of keys) {
+    const a = prev[k];
+    const b = next[k];
+    if (!a || a.title !== b.title || a.parsedTitle !== b.parsedTitle) return true;
+  }
+  return false;
+}
+
 function writeAll(map: Record<string, PlaybackEntry>): void {
+  const prev = readAll();
   try {
     const keys = Object.keys(map);
     if (keys.length > MAX_ENTRIES) {
       const sorted = Object.entries(map).sort((a, b) => b[1].savedAt - a[1].savedAt);
       map = Object.fromEntries(sorted.slice(0, MAX_ENTRIES));
     }
-    localStorage.setItem(storeKey(), JSON.stringify(map));
+    const key = storeKey();
+    const raw = JSON.stringify(map);
+    localStorage.setItem(key, raw);
+    parsedCache = { key, raw, all: map };
   } catch (e) {
     if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22)) {
       try {
@@ -127,19 +168,11 @@ function writeAll(map: Record<string, PlaybackEntry>): void {
       } catch {}
     }
   }
-  listeners.forEach((l) => l());
+  if (playbackVisiblyChanged(prev, readAll())) listeners.forEach((l) => l());
 }
 
 export function playbackHistoryRawKeys(): string[] {
-  migrateLegacy();
-  try {
-    const raw = localStorage.getItem(storeKey());
-    if (!raw) return [];
-    const parsed = JSON.parse(raw) as Record<string, PlaybackEntry>;
-    return Object.keys(parsed);
-  } catch {
-    return [];
-  }
+  return Object.keys(readParsed());
 }
 
 export function savePlayback(
