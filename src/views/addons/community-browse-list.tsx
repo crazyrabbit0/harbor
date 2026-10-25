@@ -1,6 +1,8 @@
 import { ChevronRight, Loader2, Plus, Sparkles, Star, TrendingUp } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AddonLogo, resolveAddonLogo } from "@/components/addon-logo";
+import { VirtualGrid } from "@/components/virtual-grid";
+import { scrollRootOf } from "@/lib/visibility";
 import { installAddon, manifestToConfigureUrl } from "@/lib/addon-store";
 import { rememberPendingAddon } from "@/lib/addons-store/pending-detail";
 import { openInstallerViewport } from "@/components/installer-viewport";
@@ -17,6 +19,8 @@ import { useT } from "@/lib/i18n";
 export type BrowseMode = "top" | "new" | "rising";
 
 const NEW_WINDOW_MS = 14 * 24 * 60 * 60 * 1000;
+// A column wider than any screen keeps the virtual grid to one full-width row per addon.
+const SINGLE_COLUMN = 100_000;
 
 export function CommunityBrowseList({
   mode,
@@ -124,37 +128,75 @@ function ApiSortedList({
     if (items.length === 0 && !loading && !exhausted) void loadMore();
   }, [items.length, loading, exhausted, loadMore]);
 
+  const loadMoreRef = useRef(loadMore);
+  loadMoreRef.current = loadMore;
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  // One observer per list; it always calls the latest loadMore through a ref.
   useEffect(() => {
     const el = sentinelRef.current;
     if (!el || exhausted) return;
     const io = new IntersectionObserver(
       (entries) => {
-        if (entries[0]?.isIntersecting) void loadMore();
+        if (entries[0]?.isIntersecting) void loadMoreRef.current();
       },
       { rootMargin: "800px 0px" },
     );
+    observerRef.current = io;
     io.observe(el);
-    return () => io.disconnect();
-  }, [loadMore, exhausted, items.length]);
+    return () => {
+      observerRef.current = null;
+      io.disconnect();
+    };
+  }, [exhausted]);
+  // Re-observing after each batch fires a fresh entry when the sentinel stayed in range.
+  useEffect(() => {
+    const io = observerRef.current;
+    const el = sentinelRef.current;
+    if (!io || !el || loading) return;
+    io.unobserve(el);
+    io.observe(el);
+  }, [items.length, loading]);
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const [scrollReady, setScrollReady] = useState(false);
+  useLayoutEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    scrollRef.current =
+      (scrollRootOf(el) as HTMLElement | null) ?? (document.scrollingElement as HTMLElement | null);
+    setScrollReady(true);
+  }, []);
 
   return (
-    <div className="flex flex-col gap-2">
-      {items.map((a) => {
-        const r = risingEntryFor(rising, a);
-        return (
-          <CommunityRow
-            key={a.uuid}
-            addon={a}
-            installed={isInstalled(a, installedIds)}
-            showRising={r != null}
-            risingDelta={r?.recentStars}
-            risingWindow={1}
-            showNew={mode === "new" && isNewlyAdded(a.createdAt)}
-            onOpen={onOpen}
-            onChange={onChange}
-          />
-        );
-      })}
+    <div ref={rootRef} className="flex flex-col gap-2">
+      {scrollReady && (
+        <VirtualGrid
+          items={items}
+          scrollRef={scrollRef}
+          minColumnWidth={SINGLE_COLUMN}
+          gapX={0}
+          gapY={8}
+          estimateRowHeight={116}
+          overscan={6}
+          getKey={(a) => a.uuid}
+          renderItem={(a) => {
+            const r = risingEntryFor(rising, a);
+            return (
+              <CommunityRow
+                addon={a}
+                installed={isInstalled(a, installedIds)}
+                showRising={r != null}
+                risingDelta={r?.recentStars}
+                risingWindow={1}
+                showNew={mode === "new" && isNewlyAdded(a.createdAt)}
+                onOpen={onOpen}
+                onChange={onChange}
+              />
+            );
+          }}
+        />
+      )}
       {items.length === 0 && loading && <SkeletonRows />}
       <div ref={sentinelRef} className="h-px w-full" aria-hidden />
       {loading && items.length > 0 && (

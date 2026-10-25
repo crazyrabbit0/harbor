@@ -28,6 +28,7 @@ function fixture(grid: any) {
       observer = this;
     }
     observe() {}
+    unobserve() {}
     disconnect() {
       this.active = false;
     }
@@ -62,6 +63,7 @@ function fixture(grid: any) {
     "@/components/back-to-top": { BackToTop: "back-top" },
     "@/components/pick-card": { PickCard: "card" },
     "@/components/row": { TV_CARD_MIN: 250 },
+    "@/components/virtual-grid": { VirtualGrid: "virtual-grid" },
     "@/lib/i18n": { useT: () => (s: string) => s },
     "@/lib/theme": { layoutHasGlobalBack: () => false },
     "@/lib/settings": { useSettings: () => ({ settings: {} }) },
@@ -99,6 +101,8 @@ function fixture(grid: any) {
       if (Array.isArray(node)) node.forEach(visit);
       else if (node?.props) {
         if (node.type === "card") ids.push(node.props.meta.id);
+        if (node.type === "virtual-grid")
+          node.props.items.forEach((item: any, i: number) => visit(node.props.renderItem(item, i)));
         visit(node.props.children);
       }
     };

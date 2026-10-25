@@ -600,8 +600,17 @@ export function Settings({ visible = true }: { visible?: boolean }) {
 
   const chromeHidden = wide || (active === "relay" && relayMode !== "panel");
 
+  const navRef = useRef({ handleNav, openPage });
+  navRef.current = { handleNav, openPage };
+  // Stable wrappers call the latest handlers, so panels reading this context do not redraw per render.
+  const [settingsNav] = useState(() => ({
+    setActive: (id: SectionId, anchor?: string, tab?: string) =>
+      navRef.current.handleNav(id, anchor, tab),
+    openPage: (id: SectionId, tab?: string) => navRef.current.openPage(id, tab),
+  }));
+
   return (
-    <SettingsActiveContext.Provider value={{ setActive: handleNav, openPage }}>
+    <SettingsActiveContext.Provider value={settingsNav}>
       <PageActionsProvider value={{ reg: pageActions, setReg: setPageActions }}>
         <SubTabsProvider value={{ section: active, reg: subReg, setReg: setSubReg }}>
           <div ref={shellRef} className="harbor-settings-shell flex h-full flex-col bg-canvas">

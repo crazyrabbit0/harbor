@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { ScaledBlur } from "@/components/scaled-blur";
 import { listAddons, type SAAddon } from "@/lib/providers/stremio-addons";
 
 const SLOT_COUNT = 6;
@@ -79,14 +80,16 @@ export function AddonsMosaicBackdrop() {
               width: s.size,
               height: s.size,
               transform: `rotate(${s.rotate}deg)`,
-              filter: `blur(40px) saturate(1.4) hue-rotate(${s.hue}deg)`,
               opacity: 0.18,
-              backgroundImage: `url(${s.url})`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              borderRadius: "50%",
             }}
-          />
+          >
+            <ScaledBlur
+              image={s.url}
+              blur={40}
+              extraFilter={`saturate(1.4) hue-rotate(${s.hue}deg)`}
+              style={{ borderRadius: "50%" }}
+            />
+          </div>
         ))}
       </div>
       <div className="absolute inset-0" style={{ background: fade }} />

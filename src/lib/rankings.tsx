@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSettings } from "./settings";
 
 const TMDB = "https://api.themoviedb.org/3";
@@ -138,19 +138,21 @@ export function RankingsProvider({ children }: { children: ReactNode }) {
     };
   }, [settings.tmdbKey]);
 
-  const list = (dept: string): PersonEntry[] => {
-    if (!cache) return [];
-    if (dept === "Directing") return cache.directors;
-    if (dept === "Production") return cache.producers;
-    if (dept === "Writing") return cache.writers;
-    return cache.actors;
-  };
+  // The module cache is read at call time; ready and the key are the points where it can change.
+  const value = useMemo<RankingsValue>(() => {
+    const list = (dept: string): PersonEntry[] => {
+      if (!cache) return [];
+      if (dept === "Directing") return cache.directors;
+      if (dept === "Production") return cache.producers;
+      if (dept === "Writing") return cache.writers;
+      return cache.actors;
+    };
+    const rank = (id: number, dept = "Acting"): number | undefined =>
+      list(dept).find((p) => p.id === id)?.rank;
+    return { ready, rank, topList: list };
+  }, [ready, settings.tmdbKey]);
 
-  const rank = (id: number, dept = "Acting"): number | undefined => {
-    return list(dept).find((p) => p.id === id)?.rank;
-  };
-
-  return <Ctx.Provider value={{ ready, rank, topList: list }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useRankings() {

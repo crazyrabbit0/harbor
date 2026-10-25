@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 
 import { NavChevron } from "@/components/nav-arrow";
 import { useT, useUiLanguage } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { useInViewport, usePageVisible } from "@/lib/visibility";
 import { openUrl } from "@/lib/window";
 import {
@@ -28,7 +29,6 @@ export function GameSteamSale({ active }: { active: boolean }) {
     [loaded, setLoaded] = useState(false),
     [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0),
-    [now, setNow] = useState(Date.now),
     [expanded, setExpanded] = useState(false);
   const revision = useLiveRefresh(running, 6 * 60 * 60_000);
   useEffect(() => {
@@ -48,12 +48,7 @@ export function GameSteamSale({ active }: { active: boolean }) {
     );
     return () => request.abort();
   }, [running, revision, attempt]);
-  useEffect(() => {
-    if (!running) return;
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, [running]);
+  const now = useNow(60_000, running);
   const event = currentSteamSale(events, now),
     phase = event ? steamSalePhase(event, now) : null,
     current = phase === "current";

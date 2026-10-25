@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PickCard } from "@/components/pick-card";
+import { ScaledBlur } from "@/components/scaled-blur";
 import { fetchAddonCatalogPage, fetchAddonMeta } from "@/lib/addons";
 import { narrowMediaType, type Meta, type MetaType } from "@/lib/cinemeta";
 import { useScrollMemory, useViewActions } from "@/lib/view";
@@ -150,15 +151,9 @@ export function AddonCollectionView({ meta }: { meta: Meta }) {
           {heroBg ? (
             <img src={heroBg} alt="" className="h-full w-full scale-105 object-cover" />
           ) : (
-            <div
-              className="h-full w-full scale-125"
-              style={{
-                backgroundImage: `url(${meta.poster})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                filter: "blur(64px) saturate(1.35)",
-              }}
-            />
+            <div className="relative h-full w-full scale-125">
+              <ScaledBlur image={meta.poster!} blur={64} extraFilter="saturate(1.35)" />
+            </div>
           )}
           <div className="absolute inset-0 bg-gradient-to-t from-canvas via-canvas/55 to-canvas/5" />
           <div className="absolute inset-0 bg-gradient-to-r from-canvas/92 via-canvas/35 to-transparent" />

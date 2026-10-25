@@ -23,6 +23,18 @@ function hoverCss(rules: CSSRuleList): string {
     .join("");
 }
 
+const writtenStyles = new WeakMap<HTMLElement, Map<string, string>>();
+
+// The cursor loop runs every frame; skipping unchanged values keeps an idle pad from dirtying style.
+function setCursorStyle(el: HTMLElement | null, prop: string, value: string): void {
+  if (!el) return;
+  let written = writtenStyles.get(el);
+  if (!written) writtenStyles.set(el, (written = new Map()));
+  if (written.get(prop) === value) return;
+  written.set(prop, value);
+  el.style.setProperty(prop, value);
+}
+
 type TextField = HTMLInputElement | HTMLTextAreaElement;
 const isTextField = (el: unknown): el is TextField =>
   el instanceof HTMLTextAreaElement ||
@@ -91,7 +103,7 @@ export function GamepadRunner() {
   useEffect(() => {
     if (pads.length === 0) {
       active.current = false;
-      cursor.current?.style.setProperty("opacity", "0");
+      setCursorStyle(cursor.current, "opacity", "0");
       return;
     }
     let frame = 0;
@@ -105,7 +117,7 @@ export function GamepadRunner() {
       const dt = Math.min((now - previous) / 1000, 0.05);
       previous = now;
       if (capturedRef.current) {
-        cursor.current?.style.setProperty("opacity", "0");
+        setCursorStyle(cursor.current, "opacity", "0");
         frame = requestAnimationFrame(tick);
         return;
       }
@@ -175,7 +187,8 @@ export function GamepadRunner() {
           tvHover((hovered.current = target));
         }
       }
-      cursor.current?.style.setProperty(
+      setCursorStyle(
+        cursor.current,
         "opacity",
         cursorEnabled.current &&
           active.current &&
@@ -187,7 +200,8 @@ export function GamepadRunner() {
           ? "1"
           : "0",
       );
-      cursor.current?.style.setProperty(
+      setCursorStyle(
+        cursor.current,
         "transform",
         `translate(${position.current.x}px,${position.current.y}px) translate(-50%,-50%)`,
       );
@@ -222,7 +236,7 @@ export function GamepadRunner() {
       if (!active.current) return;
       active.current = false;
       lastActivity.current = 0;
-      cursor.current?.style.setProperty("opacity", "0");
+      setCursorStyle(cursor.current, "opacity", "0");
       for (const el of hoverPath.current) el.removeAttribute("data-gamepad-hover");
       hoverPath.current = [];
       hovered.current = null;
@@ -332,7 +346,7 @@ export function GamepadRunner() {
   useEffect(() => {
     if (pads.length > 0) return;
     active.current = false;
-    cursor.current?.style.setProperty("opacity", "0");
+    setCursorStyle(cursor.current, "opacity", "0");
     for (const el of hoverPath.current) el.removeAttribute("data-gamepad-hover");
     hoverPath.current = [];
     hovered.current = null;

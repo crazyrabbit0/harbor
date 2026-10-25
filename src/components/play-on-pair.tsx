@@ -2,6 +2,7 @@ import { AlertCircle, Check, Loader2, Tv, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import {
   LanPairSession,
   PAIR_CODE_LEN,
@@ -71,7 +72,6 @@ function PairPanel({ instance }: { instance: HarborInstance }) {
   const [attempt, setAttempt] = useState(0);
   const [phase, setPhase] = useState<PairPhase>({ kind: "opening" });
   const [typed, setTyped] = useState("");
-  const [now, setNow] = useState(() => Date.now());
   const session = useRef<LanPairSession | null>(null);
   const alive = useRef(true);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -127,11 +127,7 @@ function PairPanel({ instance }: { instance: HarborInstance }) {
   const expiresAt = phase.kind === "entering" || phase.kind === "checking" ? phase.expiresAt : 0;
   const len = phase.kind === "entering" || phase.kind === "checking" ? phase.len : PAIR_CODE_LEN;
 
-  useEffect(() => {
-    if (!expiresAt) return;
-    const tick = window.setInterval(() => setNow(Date.now()), 1000);
-    return () => window.clearInterval(tick);
-  }, [expiresAt]);
+  const now = useNow(1000, expiresAt > 0);
 
   useEffect(() => {
     if (phase.kind !== "entering" || !expiresAt || now < expiresAt) return;

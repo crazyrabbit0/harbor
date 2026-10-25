@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { PickCard } from "@/components/pick-card";
+import { ScaledBlur } from "@/components/scaled-blur";
 import type { Meta } from "@/lib/cinemeta";
 import { tmdbCollection, type TmdbCollection } from "@/lib/providers/tmdb";
 import { useSettings } from "@/lib/settings";
@@ -49,14 +50,10 @@ export function CollectionView({ collectionId }: { collectionId: number }) {
         <div
           aria-hidden
           className="harbor-bleed-stremio pointer-events-none absolute inset-x-0 top-0 -z-10 h-[680px]"
-          style={{
-            backgroundImage: `url(${data.backdrop})`,
-            backgroundSize: "cover",
-            backgroundPosition: "center",
-            filter: "blur(64px) saturate(1.35)",
-            opacity: 0.24,
-          }}
-        />
+          style={{ opacity: 0.24 }}
+        >
+          <ScaledBlur image={data.backdrop} blur={64} extraFilter="saturate(1.35)" />
+        </div>
       )}
       <div className="relative">
         {data?.backdrop && (

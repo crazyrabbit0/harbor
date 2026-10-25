@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayerSnapshot } from "@/lib/player/bridge";
 import { useT } from "@/lib/i18n";
+import { usePageVisible } from "@/lib/visibility";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -44,9 +45,10 @@ async function getProp<T = unknown>(name: string): Promise<T | null> {
 export function StatsOverlay({ snap, engine }: { snap: PlayerSnapshot; engine: "html5" | "mpv" }) {
   const tr = useT();
   const [stats, setStats] = useState<MpvStats>(EMPTY_STATS);
+  const pageVisible = usePageVisible();
 
   useEffect(() => {
-    if (engine !== "mpv") return;
+    if (engine !== "mpv" || !pageVisible) return;
     let cancelled = false;
     const tick = async () => {
       const [vb, ab, fdd, fdo, fps, vc, ac, hw, cfps, cb] = await Promise.all([
@@ -81,7 +83,7 @@ export function StatsOverlay({ snap, engine }: { snap: PlayerSnapshot; engine: "
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [engine]);
+  }, [engine, pageVisible]);
 
   const audioTrack = snap.audioTracks.find((t) => t.selected) ?? null;
   const subTrack = snap.subtitleTracks.find((t) => t.selected) ?? null;

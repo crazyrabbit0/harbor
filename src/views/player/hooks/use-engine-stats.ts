@@ -95,12 +95,22 @@ export function useEngineStats(args: {
       }
     };
 
-    void tick();
-    const id = window.setInterval(() => void tick(), POLL_MS);
+    let id: number | null = null;
+    // Polls only while the window is shown; a reveal refreshes at once.
+    const sync = () => {
+      if (id !== null) window.clearInterval(id);
+      id = null;
+      if (document.hidden) return;
+      void tick();
+      id = window.setInterval(() => void tick(), POLL_MS);
+    };
+    sync();
+    document.addEventListener("visibilitychange", sync);
     return () => {
       cancelled = true;
       ac.abort();
-      window.clearInterval(id);
+      if (id !== null) window.clearInterval(id);
+      document.removeEventListener("visibilitychange", sync);
     };
   }, [enabled, url, infoHash, fileIdx]);
 

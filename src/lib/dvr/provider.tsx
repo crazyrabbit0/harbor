@@ -1,6 +1,14 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type { DvrSession, DvrStartArgs } from "./types";
 
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -84,13 +92,12 @@ export function DvrProvider({ children }: { children: ReactNode }) {
     setTerminal((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  const all = [...sessions, ...terminal];
-
-  return (
-    <DvrContext.Provider value={{ sessions: all, start, stop, reveal, defaultDir, dismiss }}>
-      {children}
-    </DvrContext.Provider>
+  const value = useMemo(
+    () => ({ sessions: [...sessions, ...terminal], start, stop, reveal, defaultDir, dismiss }),
+    [sessions, terminal, start, stop, reveal, defaultDir, dismiss],
   );
+
+  return <DvrContext.Provider value={value}>{children}</DvrContext.Provider>;
 }
 
 export function useDvr(): DvrContextValue {

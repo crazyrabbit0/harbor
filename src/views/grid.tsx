@@ -3,6 +3,7 @@ import { ArrowLeft } from "lucide-react";
 import { BackToTop } from "@/components/back-to-top";
 import { PickCard } from "@/components/pick-card";
 import { TV_CARD_MIN } from "@/components/row";
+import { VirtualGrid } from "@/components/virtual-grid";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { layoutHasGlobalBack } from "@/lib/theme";
@@ -25,8 +26,13 @@ export function GridView({ grid }: { grid: GridSpec }) {
   // including duplicates, rather than the number of visible cards.
   const loadedRef = useRef(initialPage === 0 ? 0 : (grid.initial?.length ?? 0));
   const loadingRef = useRef(false);
+  const pageRef = useRef(page);
+  const idsRef = useRef<Set<string> | null>(null);
+  idsRef.current ??= new Set((grid.initial ?? []).map((m) => m.id));
+  const observerRef = useRef<IntersectionObserver | null>(null);
   useScrollMemory(`grid:${grid.title}`, scrollRef);
 
+  // One observer lives until the grid is done; the latest page and seen ids come from refs.
   useEffect(() => {
     if (done) return;
     const el = sentinelRef.current;
@@ -35,14 +41,15 @@ export function GridView({ grid }: { grid: GridSpec }) {
       (entries) => {
         if (!entries[0]?.isIntersecting || loadingRef.current) return;
         loadingRef.current = true;
-        const next = page + 1;
+        const next = pageRef.current + 1;
         grid
           .fetcher(next, loadedRef.current)
           .then((batch) => {
+            pageRef.current = next;
             setPage(next);
             loadedRef.current += batch.length;
             if (batch.length === 0 || next >= PAGE_CAP) setDone(true);
-            const seen = new Set(metas.map((m) => m.id));
+            const seen = idsRef.current!;
             const fresh = batch.filter((m) => {
               if (seen.has(m.id)) return false;
               seen.add(m.id);
@@ -57,27 +64,39 @@ export function GridView({ grid }: { grid: GridSpec }) {
       },
       { rootMargin: "900px 0px" },
     );
+    observerRef.current = io;
     io.observe(el);
-    return () => io.disconnect();
-  }, [grid, page, done, metas]);
+    return () => {
+      observerRef.current = null;
+      io.disconnect();
+    };
+  }, [grid, done]);
+
+  // Re-observing after each page fires a fresh entry when the sentinel never left the viewport.
+  useEffect(() => {
+    const io = observerRef.current;
+    const el = sentinelRef.current;
+    if (!io || !el) return;
+    io.unobserve(el);
+    io.observe(el);
+  }, [page]);
 
   const hero = grid.kidsHero;
+  const tvCards = settings.rowCardStyle === "tv" && !hero;
   const bgArt = metas.find((m) => m.background)?.background?.replace("/t/p/w780/", "/t/p/w1280/");
 
   const body = (
     <>
-      <div
-        className="grid gap-x-4 gap-y-8"
-        style={{
-          gridTemplateColumns: `repeat(auto-fill, minmax(${
-            settings.rowCardStyle === "tv" && !hero ? TV_CARD_MIN : 150
-          }px, 1fr))`,
-        }}
-      >
-        {metas.map((m, i) => (
-          <PickCard key={`${m.id}-${i}`} meta={m} kids={!!hero} />
-        ))}
-      </div>
+      <VirtualGrid
+        items={metas}
+        scrollRef={scrollRef}
+        minColumnWidth={tvCards ? TV_CARD_MIN : 150}
+        gapX={16}
+        gapY={32}
+        estimateRowHeight={tvCards ? 200 : 300}
+        getKey={(m, i) => `${m.id}-${i}`}
+        renderItem={(m) => <PickCard meta={m} kids={!!hero} />}
+      />
       {!done && <div ref={sentinelRef} className="h-24" />}
       {done &&
         metas.length === 0 &&

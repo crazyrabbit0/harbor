@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
+import { usePageVisible } from "@/lib/visibility";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -22,12 +23,14 @@ export function SvpIndicator({
   const t = useT();
   const enabled = settings.playerSvp && engine === "mpv" && isTauri;
   const [active, setActive] = useState(false);
+  const pageVisible = usePageVisible();
 
   useEffect(() => {
     if (!enabled) {
       setActive(false);
       return;
     }
+    if (!pageVisible) return;
     let cancelled = false;
     const tick = async () => {
       const vf = await invoke("mpv_get_property", { name: "vf" }).catch(() => null);
@@ -42,7 +45,7 @@ export function SvpIndicator({
       window.clearInterval(id);
       window.removeEventListener("harbor:svp-failed", onFailed);
     };
-  }, [enabled]);
+  }, [enabled, pageVisible]);
 
   if (!enabled || !active) return null;
 

@@ -1,4 +1,4 @@
-import { useVirtualizer } from "@tanstack/react-virtual";
+import { defaultRangeExtractor, useVirtualizer, type Range } from "@tanstack/react-virtual";
 import {
   useCallback,
   useEffect,
@@ -40,8 +40,12 @@ export function VirtualGrid<T>({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [cols, setCols] = useState(1);
+  const hasItems = items.length > 0;
+  // Row holding the focused card; it stays mounted so keyboard/gamepad focus survives scrolling it away.
+  const focusedRowRef = useRef<number | null>(null);
 
-  useEffect(() => {
+  // Measured before paint so the first frame already has the real column count.
+  useLayoutEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     const measure = () => {
@@ -54,7 +58,7 @@ export function VirtualGrid<T>({
     const ro = new ResizeObserver(measure);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [gapX, minColumnWidth]);
+  }, [gapX, minColumnWidth, hasItems]);
 
   // A grid rarely starts at the top of its scroller: a page can stack one per date group,
   // and all of them share the one scroll element. Without its own distance from the top,
@@ -64,8 +68,10 @@ export function VirtualGrid<T>({
     const el = containerRef.current;
     const scroller = scrollRef.current;
     if (!el || !scroller) return;
-    const offset =
-      el.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+    // The document scroller's own rect already moves with scrolling, so its top counts as 0.
+    const scrollerTop =
+      scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
+    const offset = el.getBoundingClientRect().top - scrollerTop + scroller.scrollTop;
     setScrollMargin((previous) => (Math.abs(previous - offset) > 0.5 ? offset : previous));
   }, [scrollRef]);
 
@@ -80,7 +86,32 @@ export function VirtualGrid<T>({
     // as well as the estimate, otherwise measured rows stack flush together.
     measureElement: (element) => element.getBoundingClientRect().height + gapY,
     overscan,
+    rangeExtractor: (range: Range) => {
+      const rows = defaultRangeExtractor(range);
+      const focused = focusedRowRef.current;
+      if (focused === null || focused >= range.count || rows.includes(focused)) return rows;
+      return [...rows, focused].sort((a, b) => a - b);
+    },
   });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const onFocusIn = (e: FocusEvent) => {
+      const row = (e.target as Element | null)?.closest?.("[data-vgrid-row]");
+      const index = row ? Number(row.getAttribute("data-vgrid-row")) : NaN;
+      focusedRowRef.current = Number.isFinite(index) ? index : null;
+    };
+    const onFocusOut = (e: FocusEvent) => {
+      if (!el.contains(e.relatedTarget as Node | null)) focusedRowRef.current = null;
+    };
+    el.addEventListener("focusin", onFocusIn);
+    el.addEventListener("focusout", onFocusOut);
+    return () => {
+      el.removeEventListener("focusin", onFocusIn);
+      el.removeEventListener("focusout", onFocusOut);
+    };
+  }, [hasItems]);
 
   const totalSize = rowVirtualizer.getTotalSize();
   useLayoutEffect(readMargin, [readMargin, cols, items.length, totalSize]);
@@ -121,6 +152,7 @@ export function VirtualGrid<T>({
             <div
               key={row.key}
               data-index={row.index}
+              data-vgrid-row={row.index}
               ref={rowVirtualizer.measureElement}
               className="absolute start-0 grid w-full"
               style={{

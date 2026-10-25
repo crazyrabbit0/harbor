@@ -1,4 +1,12 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Meta } from "@/lib/cinemeta";
 import type { NavItemId } from "@/chrome/nav-items";
 import type { View } from "@/lib/view";
@@ -95,7 +103,8 @@ export function ContextMenuProvider({ children }: { children: ReactNode }) {
     };
   }, [state, close]);
 
-  return <Ctx.Provider value={{ state, open, openAt, close }}>{children}</Ctx.Provider>;
+  const value = useMemo(() => ({ state, open, openAt, close }), [state, open, openAt, close]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
 export function useContextMenu(): CtxValue {

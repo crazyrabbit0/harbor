@@ -1,7 +1,7 @@
 import { Users } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { useViewActions } from "@/lib/view";
 import type { ProfileWatching } from "./profile-types";
 import { useProfileTitle } from "./use-profile-title";
@@ -19,16 +19,8 @@ function useLivePosition(watching?: ProfileWatching): number {
   const base = watching?.positionSec ?? 0;
   const at = watching?.positionAt ?? 0;
   const running = !!watching && !watching.paused && at > 0 && (watching.durationSec ?? 0) > 0;
-  const [elapsed, setElapsed] = useState(0);
-  useEffect(() => {
-    setElapsed(0);
-    if (!running) return;
-    const tick = () => setElapsed(Math.max(0, (Date.now() - at) / 1000));
-    tick();
-    const id = window.setInterval(tick, 1000);
-    return () => window.clearInterval(id);
-  }, [running, at, base]);
-  return base + elapsed;
+  const now = useNow(1000, running);
+  return running ? base + Math.max(0, (now - at) / 1000) : base;
 }
 
 export function WatchNowCard({ watching }: { watching?: ProfileWatching }) {

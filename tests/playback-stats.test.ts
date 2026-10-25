@@ -35,6 +35,7 @@ async function renderStats(values: Record<string, number>) {
           },
         },
         "@/lib/i18n": { useT: () => (value: string) => value },
+        "@/lib/visibility": { usePageVisible: () => true },
       },
     );
     const props = {
