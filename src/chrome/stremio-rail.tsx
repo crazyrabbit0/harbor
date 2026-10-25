@@ -14,11 +14,15 @@ import { useT } from "@/lib/i18n";
 import { useParental } from "@/lib/parental";
 import { useSettings } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
-import { useView, type View } from "@/lib/view";
+import { type View, useViewActions, useViewSelector } from "@/lib/view";
 
 export function StremioRail() {
   const editing = useNavEditMode();
-  const { view, setView, chromeHidden } = useView();
+  const { setView } = useViewActions();
+  const { view, chromeHidden } = useViewSelector((v) => ({
+    view: v.view,
+    chromeHidden: v.chromeHidden,
+  }));
   const { locked, unlock, hiddenTabs } = useParental();
   const { settings } = useSettings();
   const t = useT();

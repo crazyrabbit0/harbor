@@ -2,17 +2,20 @@ import { AuroraBokeh } from "@/components/aurora-bokeh";
 import { useSettings } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
 import { useThemePreview } from "@/lib/theme-preview";
-import { useView } from "@/lib/view";
+import { useViewSelector } from "@/lib/view";
 
 export function ThemeBackdrop() {
   const { settings } = useSettings();
-  const { player, view } = useView();
+  const { player, onAddons } = useViewSelector((v) => ({
+    player: !!v.player,
+    onAddons: v.view === "addons",
+  }));
   const preview = useThemePreview();
 
   if (player) return null;
 
   const preset = settings.theme.preset !== "custom" ? getThemeById(settings.theme.preset) : null;
-  const wantsBokeh = (preview ? preview.bokeh : !!preset?.bokeh) && view !== "addons";
+  const wantsBokeh = (preview ? preview.bokeh : !!preset?.bokeh) && !onAddons;
   const img = settings.theme.backgroundImage ?? preset?.background?.image ?? null;
   const dim = Math.max(
     0,

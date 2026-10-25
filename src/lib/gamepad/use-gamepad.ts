@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewSelector } from "@/lib/view";
 import { dispatchTvNav } from "@/lib/keyboard-navigation";
 import { isGamepadCaptured } from "./capture";
 import { publishGamepads } from "./store";
@@ -92,7 +92,7 @@ function seedList(): void {
 
 export function useGamepad(): void {
   const { settings } = useSettings();
-  const { player } = useView();
+  const { player } = useViewSelector((v) => ({ player: !!v.player }));
   const enabled = settings.controllerSupportEnabled;
   const backgroundInput = settings.controllerBackgroundInput;
 

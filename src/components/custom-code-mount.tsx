@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSettings } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
-import { useView } from "@/lib/view";
+import { useViewSelector } from "@/lib/view";
 import { scanTheme } from "@/lib/theme-scan";
 import { subscribeCustomThemes, type CustomTheme } from "@/lib/custom-themes";
 
@@ -24,7 +24,7 @@ function runThemeCleanup(key: "__harborCustomCleanup" | "__harborThemeCleanup") 
 
 export function CustomCodeMount() {
   const { settings } = useSettings();
-  const { player } = useView();
+  const { player } = useViewSelector((v) => ({ player: !!v.player }));
   const [themesTick, setThemesTick] = useState(0);
 
   useEffect(() => subscribeCustomThemes(() => setThemesTick((t) => t + 1)), []);

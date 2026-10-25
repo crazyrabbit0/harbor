@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import type { RailDef } from "@/lib/feed";
 import { FeedShelf } from "@/components/feed-shelf";
@@ -34,11 +34,19 @@ export function Rail({
       setNear(true);
       return;
     }
-    const observer = new IntersectionObserver(([entry]) => setNear(entry.isIntersecting), {
-      root,
-      rootMargin: "1000px 0px",
-    });
-    observer.observe(element.current);
+    const el = element.current;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        // Parking the page is not scrolling away; flipping to far there redraws the rail's whole row.
+        if (!entry.isIntersecting && el.closest("[data-layer-inactive]")) return;
+        setNear(entry.isIntersecting);
+      },
+      {
+        root,
+        rootMargin: "1000px 0px",
+      },
+    );
+    observer.observe(el);
     return () => observer.disconnect();
   }, [active, root]);
   useEffect(() => {
@@ -53,13 +61,24 @@ export function Rail({
     };
   }, [active, near, railId, ensureLoaded]);
   const def = allRails.find((r) => r.id === railId);
-  if (!def) return null;
   const items = deduped[railId] ?? null;
-  const shelf = {
-    ...def.shelf,
-    title: titleOverride === undefined ? t(def.shelf.title) : titleOverride,
-    kicker: def.shelf.kicker ? t(def.shelf.kicker) : def.shelf.kicker,
-  };
+  const title = def ? (titleOverride === undefined ? t(def.shelf.title) : titleOverride) : "";
+  const kicker = def?.shelf.kicker ? t(def.shelf.kicker) : def?.shelf.kicker;
+  const shelf = useMemo(() => (def ? { ...def.shelf, title, kicker } : null), [def, title, kicker]);
+  // Callbacks read the latest values through a ref so parking the page does not hand the row new props.
+  const latest = useRef({ active, loadMore, railId, def, items, title });
+  latest.current = { active, loadMore, railId, def, items, title };
+  const onEndReached = useCallback(() => {
+    const l = latest.current;
+    if (l.active) l.loadMore(l.railId);
+  }, []);
+  const onViewAll = useCallback(() => {
+    const l = latest.current;
+    if (!l.def) return;
+    const d = l.def;
+    openGrid({ title: l.title, fetcher: (page) => d.fetch(page), initial: l.items ?? undefined });
+  }, [openGrid]);
+  if (!def || !shelf) return null;
   return (
     <div
       ref={element}
@@ -70,15 +89,9 @@ export function Rail({
       <FeedShelf
         shelf={shelf}
         items={items}
-        onEndReached={active && near && items !== null ? () => loadMore(railId) : undefined}
+        onEndReached={near && items !== null ? onEndReached : undefined}
         scrollKey={`discover:${railId}`}
-        onViewAll={() =>
-          openGrid({
-            title: shelf.title,
-            fetcher: (page) => def.fetch(page),
-            initial: items ?? undefined,
-          })
-        }
+        onViewAll={onViewAll}
       />
     </div>
   );

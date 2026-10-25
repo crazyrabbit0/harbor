@@ -44,7 +44,7 @@ import { t as translate, useT } from "@/lib/i18n";
 import { usePlayerActions } from "@/lib/player-actions";
 import { useTogether } from "@/lib/together/provider";
 import type { ParticipantLocation } from "@/lib/together/protocol";
-import { useView } from "@/lib/view";
+import { type ViewActions, useViewActions, useViewSelector } from "@/lib/view";
 import { toggleWatchlist, useInWatchlist } from "@/lib/watchlist";
 import { markMetaWatched, unmarkMetaWatched } from "@/lib/mark-watched";
 import { useMetaWatched } from "@/lib/watched-flag";
@@ -117,13 +117,22 @@ export function ContextMenu() {
     openService,
     openAddonDetail,
     openSettings,
+  } = useViewActions();
+  const {
     meta: currentMeta,
     personId,
     mangaId,
     ebookId,
     topKind,
     player,
-  } = useView();
+  } = useViewSelector((v) => ({
+    meta: v.meta,
+    personId: v.personId,
+    mangaId: v.mangaId,
+    ebookId: v.ebookId,
+    topKind: v.topKind,
+    player: v.player,
+  }));
   const { snapshot, sendSummon, hostLocation, clientId } = useTogether();
   const playerActions = usePlayerActions();
   const menuMeta = currentMeta ?? player?.meta ?? null;
@@ -1136,14 +1145,14 @@ function topKindToView(topKind: string): ViewSummonable | null {
 }
 
 type LocationNavigators = {
-  openMeta: ReturnType<typeof useView>["openMeta"];
-  openPicker: ReturnType<typeof useView>["openPicker"];
-  openPerson: ReturnType<typeof useView>["openPerson"];
-  openService: ReturnType<typeof useView>["openService"];
-  openAddonDetail: ReturnType<typeof useView>["openAddonDetail"];
-  openSettings: ReturnType<typeof useView>["openSettings"];
-  setView: ReturnType<typeof useView>["setView"];
-  openQueue: ReturnType<typeof useView>["openQueue"];
+  openMeta: ViewActions["openMeta"];
+  openPicker: ViewActions["openPicker"];
+  openPerson: ViewActions["openPerson"];
+  openService: ViewActions["openService"];
+  openAddonDetail: ViewActions["openAddonDetail"];
+  openSettings: ViewActions["openSettings"];
+  setView: ViewActions["setView"];
+  openQueue: ViewActions["openQueue"];
 };
 
 function navigateToLocation(loc: ParticipantLocation, nav: LocationNavigators) {

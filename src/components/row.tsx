@@ -123,8 +123,11 @@ function LazyChildImpl({
           }
           setVisible(true);
         } else if (!eager && hideTimer == null) {
+          // A parked page reports every card as off-screen; keep them so showing it again redraws nothing.
+          if (el.closest("[data-layer-inactive]")) return;
           hideTimer = window.setTimeout(() => {
             hideTimer = null;
+            if (el.closest("[data-layer-inactive]")) return;
             setVisible(false);
           }, FAR_RELEASE_MS);
         }
@@ -315,6 +318,8 @@ export function Row({
     const el = containerRef.current;
     if (!el) return;
     return observeWithin(el, "600px", (e) => {
+      // Parking a page is not scrolling away; flipping to far there would redraw every card twice.
+      if (!e.isIntersecting && el.closest("[data-layer-inactive]")) return;
       setNear(e.isIntersecting);
       if (e.isIntersecting) setSeen(true);
     });

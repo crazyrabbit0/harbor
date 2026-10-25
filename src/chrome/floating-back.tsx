@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useSectionBackActive } from "@/lib/section-back";
-import { useView, useViewActions } from "@/lib/view";
+import { useViewActions, useViewSelector } from "@/lib/view";
 import { BACK_SHAPE, BACK_SKIN } from "./back-affordance";
 
 const DEEP_KINDS = new Set([
@@ -25,9 +25,13 @@ const DEEP_KINDS = new Set([
 
 /** The inline back controls defer to this one, so both read the same condition. */
 export function useFloatingBackShown(): boolean {
-  const { canGoBack, topKind, chromeHidden } = useView();
+  const { canGoBack, deepTop, chromeHidden } = useViewSelector((v) => ({
+    canGoBack: v.canGoBack,
+    deepTop: DEEP_KINDS.has(v.topKind),
+    chromeHidden: v.chromeHidden,
+  }));
   const sectionBack = useSectionBackActive();
-  return canGoBack && !chromeHidden && (sectionBack || DEEP_KINDS.has(topKind));
+  return canGoBack && !chromeHidden && (sectionBack || deepTop);
 }
 
 export function FloatingBack({

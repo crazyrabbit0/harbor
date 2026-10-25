@@ -15,7 +15,7 @@ import { useSearch } from "@/lib/search-context";
 import { useSettings } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
 import { useParental } from "@/lib/parental";
-import { useView, type View } from "@/lib/view";
+import { type View, useViewActions, useViewSelector } from "@/lib/view";
 import { ParentalPinModal } from "@/components/parental-pin-modal";
 import { close, minimize, toggleMaximize, useMaximized } from "@/lib/window";
 import { OverflowNav, type NavEntry } from "@/chrome/nav-overflow";
@@ -25,7 +25,11 @@ import { useBigPictureEntry } from "@/chrome/use-big-picture-entry";
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export function TopDock() {
-  const { view, setView, chromeHidden } = useView();
+  const { setView } = useViewActions();
+  const { view, chromeHidden } = useViewSelector((v) => ({
+    view: v.view,
+    chromeHidden: v.chromeHidden,
+  }));
   const { locked, unlock, hiddenTabs } = useParental();
   const { settings } = useSettings();
   const { setOpen: setSearchOpen } = useSearch();

@@ -11,13 +11,22 @@ import { useT } from "@/lib/i18n";
 import { useSearch } from "@/lib/search-context";
 import { useSettings } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
-import { useView } from "@/lib/view";
+import { useViewActions, useViewSelector } from "@/lib/view";
 import { close, minimize, toggleMaximize } from "@/lib/window";
 
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export function FloatingTop() {
-  const { view, setView, chromeHidden, canGoBack, goBack, topKind, exitPlayback } = useView();
+  const { setView, goBack, exitPlayback } = useViewActions();
+  const { liveActive, settingsActive, chromeHidden, canGoBack, homeTop, pickerTop } =
+    useViewSelector((v) => ({
+      liveActive: v.view === "live",
+      settingsActive: v.view === "settings",
+      chromeHidden: v.chromeHidden,
+      canGoBack: v.canGoBack,
+      homeTop: v.topKind === "home",
+      pickerTop: v.topKind === "picker",
+    }));
   const { settings } = useSettings();
   const { setOpen: setSearchOpen } = useSearch();
   const t = useT();
@@ -31,9 +40,8 @@ export function FloatingTop() {
   const themePreset =
     settings.theme.preset !== "custom" ? getThemeById(settings.theme.preset) : null;
   const customMark = themePreset?.logo?.mark ?? null;
-  const liveActive = view === "live";
-  const showBack = canGoBack && topKind !== "home" && topKind !== "picker";
-  const onBack = () => (topKind === "picker" ? exitPlayback() : goBack());
+  const showBack = canGoBack && !homeTop && !pickerTop;
+  const onBack = () => (pickerTop ? exitPlayback() : goBack());
 
   return (
     <div
@@ -84,7 +92,7 @@ export function FloatingTop() {
           align="end"
           showSettings
           onOpenSettings={() => setView("settings")}
-          settingsActive={view === "settings"}
+          settingsActive={settingsActive}
         />
         {IS_TAURI && !settings.useNativeTitleBar && !settings.hybridTitleBar && (
           <div className="ms-1 flex items-center gap-1">

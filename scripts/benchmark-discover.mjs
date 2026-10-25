@@ -74,7 +74,9 @@ export function railFixture(source, active = true) {
     {
       react: {
         useContext: () => root,
-        useRef: () => ({ current: {} }),
+        useRef: () => ({ current: { closest: () => null } }),
+        useMemo: (fn) => fn(),
+        useCallback: (fn) => fn,
         useState: (initial) => {
           const id = cursor++;
           if (!(id in states)) states[id] = initial;

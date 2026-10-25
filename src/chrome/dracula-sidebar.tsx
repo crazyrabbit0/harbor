@@ -13,7 +13,7 @@ import { ParentalPinModal } from "@/components/parental-pin-modal";
 import { useT } from "@/lib/i18n";
 import { useParental } from "@/lib/parental";
 import { useSettings } from "@/lib/settings";
-import { useView, type View } from "@/lib/view";
+import { type View, useViewActions, useViewSelector } from "@/lib/view";
 
 const PRIMARY_IDS = new Set([
   "home",
@@ -29,7 +29,11 @@ const PRIMARY_IDS = new Set([
 
 export function DraculaSidebar() {
   const editing = useNavEditMode();
-  const { view, setView, chromeHidden } = useView();
+  const { setView } = useViewActions();
+  const { view, chromeHidden } = useViewSelector((v) => ({
+    view: v.view,
+    chromeHidden: v.chromeHidden,
+  }));
   const { locked, unlock, hiddenTabs } = useParental();
   const { settings } = useSettings();
   const t = useT();

@@ -13,7 +13,7 @@ import { useAvailableNavItems, applyNavCustomization, type NavItem } from "@/chr
 import { isRtl, useT, useUiLanguage } from "@/lib/i18n";
 import { useParental } from "@/lib/parental";
 import { useSettings } from "@/lib/settings";
-import { useView, type View } from "@/lib/view";
+import { type View, useViewActions, useViewSelector } from "@/lib/view";
 
 const SUN = "oklch(0.9 0.12 100)";
 const LEAF = "oklch(0.8 0.15 145)";
@@ -33,7 +33,11 @@ const PRIMARY_IDS = new Set<string>([
 
 export function ForestSidebar() {
   const editing = useNavEditMode();
-  const { view, setView, chromeHidden } = useView();
+  const { setView } = useViewActions();
+  const { view, chromeHidden } = useViewSelector((v) => ({
+    view: v.view,
+    chromeHidden: v.chromeHidden,
+  }));
   const { locked, unlock, hiddenTabs } = useParental();
   const { settings } = useSettings();
   const t = useT();

@@ -2,7 +2,7 @@ import { ArrowRight, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useTogether } from "@/lib/together/provider";
 import { useSelfIdentity } from "@/lib/together/use-self-identity";
-import { useView, type View } from "@/lib/view";
+import { type View, useViewActions, useViewSelector } from "@/lib/view";
 import type { Meta } from "@/lib/cinemeta";
 import { Avatar } from "./together-modal/avatar";
 
@@ -10,7 +10,8 @@ export function TogetherSummonToast() {
   const t = useT();
   const { incomingSummon, dismissSummon, snapshot, clientId } = useTogether();
   const { avatar: selfAvatar, color: selfColor } = useSelfIdentity();
-  const { openMeta, setView, openQueue, openAddonDetail, player } = useView();
+  const { openMeta, setView, openQueue, openAddonDetail } = useViewActions();
+  const { player } = useViewSelector((v) => ({ player: !!v.player }));
   if (player || !incomingSummon) return null;
   const { from, name, target } = incomingSummon;
   const isSelf = from === clientId;

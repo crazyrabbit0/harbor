@@ -10,7 +10,7 @@ import { useHarborLogo } from "@/lib/harbor-logo";
 import { ParentalPinModal } from "@/components/parental-pin-modal";
 import { useParental, type LockableTab } from "@/lib/parental";
 import { useActiveKid } from "@/lib/profiles";
-import { useView, type View } from "@/lib/view";
+import { type View, useViewActions, useViewSelector } from "@/lib/view";
 import { KidsSidebarDoodles } from "./kids-sidebar-doodles";
 import { CollapseToggle } from "@/chrome/sidebar/collapse-toggle";
 import { SidebarBigPictureEntry } from "@/chrome/sidebar/big-picture-entry";
@@ -38,7 +38,11 @@ const PRIMARY_IDS = new Set([
 
 export function Sidebar() {
   const editing = useNavEditMode();
-  const { view, setView, chromeHidden } = useView();
+  const { setView } = useViewActions();
+  const { view, chromeHidden } = useViewSelector((v) => ({
+    view: v.view,
+    chromeHidden: v.chromeHidden,
+  }));
   const { locked, unlock, hiddenTabs } = useParental();
   const { settings } = useSettings();
   const kid = useActiveKid();
