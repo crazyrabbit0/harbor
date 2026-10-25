@@ -1,8 +1,8 @@
-import type { ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { ThreeLiquidGlassSurface } from "@/components/ThreeLiquidGlassSurface";
 import { useSettings } from "@/lib/settings";
 
-export function WindowControlGlyph({
+export const WindowControlGlyph = memo(function WindowControlGlyph({
   kind,
   maximized = false,
 }: {
@@ -43,7 +43,7 @@ export function WindowControlGlyph({
       )}
     </svg>
   );
-}
+});
 
 export function WindowControlButton({
   label,

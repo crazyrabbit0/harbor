@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import { isWindowsDesktop } from "@/lib/platform";
-import { useView } from "@/lib/view";
+import { useViewSelector } from "@/lib/view";
 import {
   embedYouTubeMusic,
   openYouTubeMusic,
@@ -21,7 +21,7 @@ export function MusicYouTube({ active, onFellBack }: { active: boolean; onFellBa
   // Pushing a player or a detail page only marks the view stack invisible in CSS, which a
   // native child window ignores. "music" being the top frame is the real test for whether
   // anything is stacked over this surface.
-  const { topKind } = useView();
+  const { topKind } = useViewSelector((v) => ({ topKind: v.topKind }));
   const onTop = active && topKind === "music";
   const host = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState("");

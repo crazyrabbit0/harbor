@@ -2,10 +2,11 @@ import { createPortal } from "react-dom";
 import { useEffect } from "react";
 import { Tv } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions, useViewSelector } from "@/lib/view";
 
 export function TogetherLeaveForLiveModal() {
-  const { pendingLiveSrc, confirmLeavePartyForLive, cancelLeavePartyForLive } = useView();
+  const { confirmLeavePartyForLive, cancelLeavePartyForLive } = useViewActions();
+  const { pendingLiveSrc } = useViewSelector((v) => ({ pendingLiveSrc: v.pendingLiveSrc }));
   const t = useT();
 
   useEffect(() => {

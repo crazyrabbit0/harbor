@@ -15,6 +15,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
   type RefObject,
 } from "react";
@@ -446,6 +447,33 @@ const VIEW_ACTION_KEYS = [
 
 export type ViewActions = Pick<ViewValue, (typeof VIEW_ACTION_KEYS)[number]>;
 const ActionsCtx = createContext<ViewActions | null>(null);
+
+type ViewStore = { get: () => ViewValue; subscribe: (listener: () => void) => () => void };
+const StoreCtx = createContext<ViewStore | null>(null);
+
+function createViewStore(initial: ViewValue): ViewStore & { set: (v: ViewValue) => void } {
+  let current = initial;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => current,
+    set: (v) => {
+      if (v === current) return;
+      current = v;
+      for (const l of Array.from(listeners)) l();
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+
+function shallowEqual(a: Record<string, unknown>, b: Record<string, unknown>): boolean {
+  const ka = Object.keys(a);
+  if (ka.length !== Object.keys(b).length) return false;
+  for (const k of ka) if (!Object.is(a[k], b[k])) return false;
+  return true;
+}
 
 const STACK_MAX = 30;
 const SCROLL_MEM_MAX = 200;
@@ -1660,9 +1688,16 @@ export function ViewProvider({ children }: { children: ReactNode }) {
     actionsRef.current = picked as ViewActions;
   }
 
+  const storeRef = useRef<ReturnType<typeof createViewStore> | null>(null);
+  if (!storeRef.current) storeRef.current = createViewStore(value);
+  const store = storeRef.current;
+  useLayoutEffect(() => store.set(value), [store, value]);
+
   return (
     <ActionsCtx.Provider value={actionsRef.current}>
-      <Ctx.Provider value={value}>{children}</Ctx.Provider>
+      <StoreCtx.Provider value={store}>
+        <Ctx.Provider value={value}>{children}</Ctx.Provider>
+      </StoreCtx.Provider>
     </ActionsCtx.Provider>
   );
 }
@@ -1693,6 +1728,23 @@ export function useViewActions(): ViewActions {
   const v = useContext(ActionsCtx);
   if (!v) throw new Error("useViewActions outside ViewProvider");
   return v;
+}
+
+/** Re-renders the caller only when a field of the selected object changes (shallow compare). */
+export function useViewSelector<T extends Record<string, unknown>>(select: (v: ViewValue) => T): T {
+  const store = useContext(StoreCtx);
+  if (!store) throw new Error("useViewSelector outside ViewProvider");
+  const selectRef = useRef(select);
+  selectRef.current = select;
+  const cache = useRef<T | null>(null);
+  const getSnapshot = () => {
+    const next = selectRef.current(store.get());
+    const prev = cache.current;
+    if (prev && shallowEqual(prev, next)) return prev;
+    cache.current = next;
+    return next;
+  };
+  return useSyncExternalStore(store.subscribe, getSnapshot, getSnapshot);
 }
 
 function anchorOffsetIn(scrollEl: HTMLElement, anchor: HTMLElement): number {

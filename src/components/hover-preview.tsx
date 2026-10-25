@@ -42,14 +42,17 @@ import {
 import { useSearch } from "@/lib/search-context";
 import { useSettings } from "@/lib/settings";
 import { activeLayout } from "@/lib/theme";
-import { useView } from "@/lib/view";
+import { useViewActions, useViewSelector } from "@/lib/view";
 import { PreviewBody } from "./hover-preview/marquee";
 import { useMedia, type Scene } from "./hover-preview/scene";
 import { crownHeightFor, panelWidthFor, placePanel } from "./hover-preview/use-preview-position";
 
 export function HoverPreview() {
   const { settings } = useSettings();
-  const view = useView();
+  const view = useViewActions();
+  const { viewClear } = useViewSelector((v) => ({
+    viewClear: v.player === null && v.picker === null && !v.chromeHidden,
+  }));
   const search = useSearch();
   const menu = useContextMenu();
   const finePointer = useMedia("(hover: hover) and (pointer: fine)");
@@ -72,7 +75,7 @@ export function HoverPreview() {
         settings.hoverPreviewEnabled &&
         (settings.cardHoverStyle === "default" || settings.cardHoverStyle === "marquee"),
       finePointer,
-      viewClear: view.player === null && view.picker === null && !view.chromeHidden,
+      viewClear,
       searchClosed: !search.open,
       menuClosed: menu.state === null,
     });
@@ -80,9 +83,7 @@ export function HoverPreview() {
     settings.hoverPreviewEnabled,
     settings.cardHoverStyle,
     finePointer,
-    view.player,
-    view.picker,
-    view.chromeHidden,
+    viewClear,
     search.open,
     menu.state,
   ]);

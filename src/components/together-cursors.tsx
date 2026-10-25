@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useSettings } from "@/lib/settings";
 import { useTogether, type RemoteCursor } from "@/lib/together/provider";
-import { useView } from "@/lib/view";
+import { useViewSelector } from "@/lib/view";
 
 const SEND_INTERVAL_MS = 60;
 const HIDDEN_AFTER_IDLE_MS = 1500;
@@ -56,7 +56,10 @@ function normFromClient(cx: number, cy: number): { x: number; y: number } | null
 
 export function TogetherCursors() {
   const { snapshot, sendCursor, remoteCursors, clientId } = useTogether();
-  const { chromeHidden, topPath } = useView();
+  const { chromeHidden, topPath } = useViewSelector((v) => ({
+    chromeHidden: v.chromeHidden,
+    topPath: v.topPath,
+  }));
   const { settings } = useSettings();
 
   const lastSentRef = useRef(0);

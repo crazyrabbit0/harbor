@@ -5,11 +5,12 @@ import { loadCurfew, saveCurfew, type CurfewRecord } from "@/lib/curfew";
 import { useT } from "@/lib/i18n";
 import { verifyProfilePassword } from "@/lib/profile-password";
 import { useProfiles, type Profile } from "@/lib/profiles";
-import { useView } from "@/lib/view";
+import { useViewActions, useViewSelector } from "@/lib/view";
 
 export function CurfewGuard() {
   const { activeProfile, openPicker } = useProfiles();
-  const { player, exitPlayer } = useView();
+  const { exitPlayer } = useViewActions();
+  const { player } = useViewSelector((v) => ({ player: !!v.player }));
   const profileId = activeProfile?.id ?? null;
   const limit = activeProfile?.kid?.curfewMinutes ?? null;
 

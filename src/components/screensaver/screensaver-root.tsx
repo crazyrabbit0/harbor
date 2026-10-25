@@ -2,7 +2,7 @@ import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useBigPicture } from "@/lib/big-picture";
 import { useSettings } from "@/lib/settings";
-import { useView } from "@/lib/view";
+import { useViewSelector } from "@/lib/view";
 import { usePlaybackStatus } from "@/lib/player/playback-clock";
 import { useIdleScreensaver } from "@/lib/screensaver/use-idle-screensaver";
 import { activeScreensaverMedia, onScreensaverPreview } from "@/lib/screensaver/media";
@@ -43,7 +43,11 @@ function toItems(metas: Meta[]): AmbientItem[] {
 
 export function ScreensaverRoot() {
   const { settings } = useSettings();
-  const { player, picker, topKind } = useView();
+  const { player, picker, liveTop } = useViewSelector((v) => ({
+    player: !!v.player,
+    picker: !!v.picker,
+    liveTop: v.topKind === "live" || v.topKind === "vod",
+  }));
   const { active: bigPicture } = useBigPicture();
   const playerStatus = usePlaybackStatus();
   const enabled = settings.screensaver;
@@ -62,9 +66,8 @@ export function ScreensaverRoot() {
   // Suppress while the player is actively playing (an idle ambient overlay
   // over moving video would obscure the content), but allow it once playback
   // is paused or stopped so an idle viewer still gets the screensaver.
-  const activelyPlaying = !!player && playerStatus === "playing";
-  const suppressed =
-    bigPicture || activelyPlaying || !!picker || topKind === "live" || topKind === "vod";
+  const activelyPlaying = player && playerStatus === "playing";
+  const suppressed = bigPicture || activelyPlaying || picker || liveTop;
   const { active, dismiss } = useIdleScreensaver(enabled, delayMs, suppressed);
   const [preview, setPreview] = useState(false);
   useEffect(() => onScreensaverPreview(() => setPreview(true)), []);

@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useTogether, type ChatMessage } from "@/lib/together/provider";
-import { useView } from "@/lib/view";
+import { useViewSelector } from "@/lib/view";
 
 const VISIBLE_MS = 5500;
 const MAX_TOASTS = 3;
 
 export function TogetherChatToast() {
   const { chat, modalOpen, clientId, snapshot } = useTogether();
-  const { player } = useView();
+  const { player } = useViewSelector((v) => ({ player: !!v.player }));
   const seenAtRef = useRef<number>(Date.now());
   const [toasts, setToasts] = useState<ChatMessage[]>([]);
 

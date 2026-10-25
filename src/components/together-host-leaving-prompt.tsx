@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTogether } from "@/lib/together/provider";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewActions, useViewSelector } from "@/lib/view";
 
 const PREF_KEY = "harbor.together.followHostExit";
 
@@ -18,7 +18,8 @@ function writePref(v: Exclude<Pref, null>) {
 
 export function TogetherHostLeavingPrompt() {
   const { incomingHostLeaving, dismissHostLeaving, snapshot, clientId } = useTogether();
-  const { exitPlayback, topKind } = useView();
+  const { exitPlayback } = useViewActions();
+  const { topKind } = useViewSelector((v) => ({ topKind: v.topKind }));
   const t = useT();
   const [remember, setRemember] = useState(false);
   const triggeredRef = useRef<number | null>(null);

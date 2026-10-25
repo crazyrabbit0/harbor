@@ -40,7 +40,7 @@ import { useSettings } from "@/lib/settings";
 import { effectiveBinding, eventToBinding } from "@/lib/hotkeys";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import { isMagnetInput, isDirectVideoUrl } from "@/lib/torrent/magnet";
-import { useView, type Frame } from "@/lib/view";
+import { useViewSelector, type Frame } from "@/lib/view";
 
 type SearchState = {
   open: boolean;
@@ -556,17 +556,23 @@ export function SearchProvider({ children }: { children: ReactNode }) {
     saveRecent([]);
   }, []);
 
-  const { navDepth, rootFrame } = useView();
+  const { navDepth, rootFrame } = useViewSelector((v) => ({
+    navDepth: v.navDepth,
+    rootFrame: v.rootFrame,
+  }));
   const restoreDepth = useRef<number | null>(null);
   const restoreRoot = useRef<Frame | null>(null);
   const armed = useRef(false);
+  const navRef = useRef({ navDepth, rootFrame });
+  navRef.current = { navDepth, rootFrame };
 
+  // Reads the stack through a ref so the context value, and every useSearch() caller, survives navigation.
   const closeForNavigation = useCallback(() => {
-    restoreDepth.current = navDepth;
-    restoreRoot.current = rootFrame;
+    restoreDepth.current = navRef.current.navDepth;
+    restoreRoot.current = navRef.current.rootFrame;
     armed.current = false;
     setOpen(false);
-  }, [navDepth, rootFrame]);
+  }, []);
 
   useEffect(() => {
     const mark = restoreDepth.current;

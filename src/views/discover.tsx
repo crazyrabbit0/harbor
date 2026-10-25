@@ -1,15 +1,15 @@
-import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BackToTop } from "@/components/back-to-top";
-import { CollectionsRow } from "@/components/collections-row";
-import { CriticsPick } from "@/components/critics-pick";
-import { BrandTiles } from "@/components/brand-tiles";
-import { DiscoveryQueueCta } from "@/components/discovery-queue-cta";
-import { TopPeopleCta } from "@/components/top-people-cta";
-import { FeaturedBanner } from "@/components/featured-banner";
-import { AwardTiles } from "@/components/award-tiles";
-import { GenreTiles } from "@/components/genre-tiles";
-import { LanguageTiles } from "@/components/language-tiles";
-import { CountryTiles } from "@/components/country-tiles";
+import { CollectionsRow as CollectionsRowImpl } from "@/components/collections-row";
+import { CriticsPick as CriticsPickImpl } from "@/components/critics-pick";
+import { BrandTiles as BrandTilesImpl } from "@/components/brand-tiles";
+import { DiscoveryQueueCta as DiscoveryQueueCtaImpl } from "@/components/discovery-queue-cta";
+import { TopPeopleCta as TopPeopleCtaImpl } from "@/components/top-people-cta";
+import { FeaturedBanner as FeaturedBannerImpl } from "@/components/featured-banner";
+import { AwardTiles as AwardTilesImpl } from "@/components/award-tiles";
+import { GenreTiles as GenreTilesImpl } from "@/components/genre-tiles";
+import { LanguageTiles as LanguageTilesImpl } from "@/components/language-tiles";
+import { CountryTiles as CountryTilesImpl } from "@/components/country-tiles";
 import { Row, ScrollRootContext } from "@/components/row";
 import { PickCard } from "@/components/pick-card";
 import type { Meta } from "@/lib/cinemeta";
@@ -37,18 +37,18 @@ import { useContentDrag } from "@/lib/window-drag";
 import { useScrollMemory } from "@/lib/view";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { buildLetterboxdHomeRows } from "@/lib/stremboxd/home-rails";
-import { CuratedListRow } from "@/components/curated-list-row";
-import { CuratedListTiles } from "@/components/curated-list-tiles";
+import { CuratedListRow as CuratedListRowImpl } from "@/components/curated-list-row";
+import { CuratedListTiles as CuratedListTilesImpl } from "@/components/curated-list-tiles";
 import { REGISTRY_LATEST_LIST_ID } from "@/lib/film-registry/inductions";
 import { LetterboxdRowMenu } from "@/components/letterboxd/letterboxd-row-menu";
-import { Rail } from "./discover/discover-rail";
+import { Rail as RailImpl } from "./discover/discover-rail";
 import { useDedupedRows } from "./discover/use-deduped-rows";
 import { ANCHOR_AWARDS, ANCHOR_TOP_RATED } from "@/lib/feed/daily-rows-anchors";
 import type { HomeRow } from "./home/home-types";
 import { CatalogCustomizeBar } from "@/components/catalog/customize-bar";
-import { CatalogBrowser } from "@/views/discover/catalog-browser";
-import { SurpriseMe } from "@/views/discover/surprise-me";
-import { VoyageBanner } from "@/components/voyage/voyage-banner";
+import { CatalogBrowser as CatalogBrowserImpl } from "@/views/discover/catalog-browser";
+import { SurpriseMe as SurpriseMeImpl } from "@/views/discover/surprise-me";
+import { VoyageBanner as VoyageBannerImpl } from "@/components/voyage/voyage-banner";
 import { SectionEditBar } from "@/views/discover/section-edit-bar";
 import { RowControls } from "@/views/home/row-controls";
 import { useT } from "@/lib/i18n";
@@ -85,6 +85,24 @@ const SPECIAL_ROWS: Array<RowItem & { after: number }> = [
   { key: "special:networks", title: "Top networks", after: 4 },
   { key: "special:people", title: "Top People", after: -1 },
 ];
+
+// Parking or showing the page flips `active`; memo keeps every section that does not read it still.
+const CollectionsRow = memo(CollectionsRowImpl);
+const CriticsPick = memo(CriticsPickImpl);
+const BrandTiles = memo(BrandTilesImpl);
+const DiscoveryQueueCta = memo(DiscoveryQueueCtaImpl);
+const TopPeopleCta = memo(TopPeopleCtaImpl);
+const FeaturedBanner = memo(FeaturedBannerImpl);
+const AwardTiles = memo(AwardTilesImpl);
+const GenreTiles = memo(GenreTilesImpl);
+const LanguageTiles = memo(LanguageTilesImpl);
+const CountryTiles = memo(CountryTilesImpl);
+const CuratedListRow = memo(CuratedListRowImpl);
+const CuratedListTiles = memo(CuratedListTilesImpl);
+const Rail = memo(RailImpl);
+const CatalogBrowser = memo(CatalogBrowserImpl);
+const SurpriseMe = memo(SurpriseMeImpl);
+const VoyageBanner = memo(VoyageBannerImpl);
 
 const isSpecialRow = (key: string) => key.startsWith("special:");
 

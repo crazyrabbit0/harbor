@@ -1,3 +1,4 @@
+import { memo } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { PickCard } from "./pick-card";
 import { Row, usePosterRow } from "./row";
@@ -8,7 +9,7 @@ export type ShelfMeta = {
   kicker?: string;
 };
 
-export function FeedShelf({
+export const FeedShelf = memo(function FeedShelf({
   shelf,
   items,
   onEndReached,
@@ -53,7 +54,7 @@ export function FeedShelf({
       ))}
     </Row>
   );
-}
+});
 
 function ShelfTitle({ shelf }: { shelf: ShelfMeta }) {
   return (

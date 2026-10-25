@@ -35,7 +35,7 @@ import {
   toggleMusicPlayback,
   useMusicPlayer,
 } from "@/lib/music/player";
-import { useView } from "@/lib/view";
+import { useViewActions, useViewSelector } from "@/lib/view";
 import { useSettings } from "@/lib/settings";
 import { MusicSourcePicker } from "./music-source-picker";
 import { requestMusicConnection } from "./music-connections";
@@ -154,7 +154,8 @@ export function MusicDock() {
   );
   const transport = useMusicTransport();
   useMusicAudioSettings();
-  const { topKind, setView } = useView();
+  const { setView } = useViewActions();
+  const { topKind } = useViewSelector((v) => ({ topKind: v.topKind }));
   const dockRef = useRef<HTMLElement | null>(null);
   const sourceButton = useRef<HTMLButtonElement | null>(null);
   const [skipIn, setSkipIn] = useState<number | null>(null);

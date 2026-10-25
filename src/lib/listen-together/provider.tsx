@@ -12,7 +12,7 @@ import { TogetherClient, type RoomSnapshot } from "@/lib/together/client";
 import { useSelfIdentity } from "@/lib/together/use-self-identity";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
-import { useView } from "@/lib/view";
+import { useViewSelector } from "@/lib/view";
 import { generateListenRoomCode, isListenRoomCode, normalizeListenRoomCode } from "./room";
 import { listenTrackFromState, type ListenTrackRef } from "./track-state";
 import { listenListenerCount } from "./session";
@@ -96,7 +96,7 @@ export function useListenTogether(): ListenTogetherValue {
 export function ListenTogetherProvider({ children }: { children: ReactNode }) {
   const t = useT();
   const { settings } = useSettings();
-  const { player } = useView();
+  const { player } = useViewSelector((v) => ({ player: !!v.player }));
   const identity = useSelfIdentity();
   const relayUrl = settings.togetherRelayUrl;
 

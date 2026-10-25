@@ -28,7 +28,7 @@ import { useTogether } from "@/lib/together/provider";
 import { useSelfIdentity } from "@/lib/together/use-self-identity";
 import { activeLayout } from "@/lib/theme";
 import { useThemePreview } from "@/lib/theme-preview";
-import { useView } from "@/lib/view";
+import { useViewActions, useViewSelector } from "@/lib/view";
 import { useWindowFullscreen } from "@/lib/use-window-fullscreen";
 import { close, minimize, toggleMaximize, useMaximized } from "@/lib/window";
 
@@ -71,7 +71,16 @@ function PresenceAvatar({ name, src, color }: { name: string; src: string | null
 }
 
 export function Topbar({ connecting = false }: { connecting?: boolean } = {}) {
-  const { chromeHidden, canGoBack, view, setView, topKind } = useView();
+  const { setView } = useViewActions();
+  const { chromeHidden, canGoBack, inSettings, searchlessView, liveTop, pickerTop } =
+    useViewSelector((v) => ({
+      chromeHidden: v.chromeHidden,
+      canGoBack: v.canGoBack,
+      inSettings: v.view === "settings",
+      searchlessView: v.view === "music" || v.view === "games" || v.view === "addons",
+      liveTop: v.topKind === "live",
+      pickerTop: v.topKind === "picker",
+    }));
   const liveHasSources = usePlaylists().length > 0;
   const { settings } = useSettings();
   const kid = useActiveKid();
@@ -97,16 +106,9 @@ export function Topbar({ connecting = false }: { connecting?: boolean } = {}) {
   }, []);
   if (chromeHidden && !connecting) return null;
   const layout = kid ? "sidebar" : preview ? preview.layout : activeLayout(settings.theme);
-  const onLiveRoot = topKind === "live" && liveHasSources;
-  const sidebarHidden = connecting || view === "settings" || onLiveRoot || topKind === "picker";
-  const inSettings = view === "settings";
-  const hideSearch =
-    view === "music" ||
-    view === "games" ||
-    view === "addons" ||
-    connecting ||
-    topKind === "picker" ||
-    inSettings;
+  const onLiveRoot = liveTop && liveHasSources;
+  const sidebarHidden = connecting || inSettings || onLiveRoot || pickerTop;
+  const hideSearch = searchlessView || connecting || pickerTop || inSettings;
   const sidebarOffset =
     layout === "stremio"
       ? "ps-[80px]"
@@ -122,7 +124,7 @@ export function Topbar({ connecting = false }: { connecting?: boolean } = {}) {
   return (
     <header
       data-cleannav={settings.topbarAppearance === "transparent" ? "on" : undefined}
-      className={`pointer-events-none fixed inset-x-0 top-0 ${topKind === "picker" || connecting ? "z-[130]" : "z-[55]"} h-20`}
+      className={`pointer-events-none fixed inset-x-0 top-0 ${pickerTop || connecting ? "z-[130]" : "z-[55]"} h-20`}
     >
       {!inSettings && settings.topbarScrollBlur && settings.topbarAppearance !== "transparent" && (
         <div

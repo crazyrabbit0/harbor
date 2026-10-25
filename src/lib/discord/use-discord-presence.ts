@@ -1,6 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { useSettings } from "@/lib/settings";
-import { useView, type MetaFilter } from "@/lib/view";
+import { type MetaFilter, useViewSelector } from "@/lib/view";
 import { useTogether } from "@/lib/together/provider";
 import { SERVICES } from "@/lib/providers/streaming";
 import { awardTypeLabel } from "@/lib/providers/wikidata";
@@ -86,7 +86,17 @@ function personBrowse(name: string, profilePath: string | null): BrowsePresence 
 
 export function useDiscordPresence(): void {
   const { settings } = useSettings();
-  const { topKind, service, meta, awardType, animeAwardSource, filter, personId } = useView();
+  const { topKind, service, meta, awardType, animeAwardSource, filter, personId } = useViewSelector(
+    (v) => ({
+      topKind: v.topKind,
+      service: v.service,
+      meta: v.meta,
+      awardType: v.awardType,
+      animeAwardSource: v.animeAwardSource,
+      filter: v.filter,
+      personId: v.personId,
+    }),
+  );
   const hint = useActivityHint();
   const manga = useSyncExternalStore(subscribeMangaReading, getMangaReading, getMangaReading);
   const { snapshot } = useTogether();

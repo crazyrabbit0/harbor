@@ -232,6 +232,7 @@ function PosterBody({
   const [inView, setInView] = useState(!lazy);
   const [eager, setEager] = useState(!lazy);
   const [targetPx, setTargetPx] = useState(0);
+  const targetPxRef = useRef(0);
   const qMult = qualityMultiplier(settings.posterQuality);
   useEffect(() => {
     if (inView) return;
@@ -264,7 +265,10 @@ function PosterBody({
       // describing the 4K panel, while the window it rasterises is 1920x1080, so the
       // raw value asks for a bucket twice as wide and four times the pixels.
       const t = Math.ceil(need * Math.min(2, window.devicePixelRatio || 1) * qMult);
-      setTargetPx((prev) => (t > prev ? t : prev));
+      // A page shown again fires this with the same size; skipping the no-op update keeps every poster from re-rendering.
+      if (t <= targetPxRef.current) return;
+      targetPxRef.current = t;
+      setTargetPx(t);
     });
   }, [inView, qMult, ratio]);
   const rawCandidates = [src, ...(fallbacks ?? [])].filter((u): u is string => !!u);
@@ -304,8 +308,11 @@ function PosterBody({
         return;
       }
       if (timer) return;
+      // A parked page reports every card as off-screen; keep its images so showing it again needs no reload.
+      if (el.closest("[data-layer-inactive]") || !el.getClientRects().length) return;
       timer = window.setTimeout(() => {
         timer = 0;
+        if (el.closest("[data-layer-inactive]")) return;
         if (el.closest("a,button,[tabindex]") === document.activeElement) return;
         setInView(false);
         setEager(false);
