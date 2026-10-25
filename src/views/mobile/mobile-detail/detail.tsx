@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import type { Meta } from "@/lib/cinemeta";
 import { awardSummary, pickHeroAwards, useAwards } from "@/lib/providers/wikidata";
 import { mergeBundledAwards } from "@/lib/awards-history";
+import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useHideAnimeMetas } from "@/lib/anime-hide";
@@ -168,9 +169,10 @@ function DetailBody({
   const imdbId = detail?.imdbId ?? (meta.id.startsWith("tt") ? meta.id : null);
   const releaseYear = Number(year) || undefined;
   const liveAwards = useAwards(imdbId ?? undefined, isSeries);
+  const awardsV = useBundledAwardsVersion();
   const awards = useMemo(
     () => mergeBundledAwards(liveAwards, meta.name, releaseYear),
-    [liveAwards, meta.name, releaseYear],
+    [awardsV, liveAwards, meta.name, releaseYear],
   );
   const awardGroups = useMemo(() => awardSummary(awards), [awards]);
   const heroAwardSummary = useMemo(() => pickHeroAwards(awardGroups), [awardGroups]);

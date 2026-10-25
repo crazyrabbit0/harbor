@@ -13,6 +13,7 @@ import { isTitleUpcoming } from "@/views/detail/helpers";
 import { UpcomingCta } from "@/views/detail/upcoming-cta";
 import { awardSummary, pickHeroAwards, useAwards } from "@/lib/providers/wikidata";
 import { mergeBundledAwards } from "@/lib/awards-history";
+import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 import { IMG } from "@/lib/providers/tmdb/tmdb-client";
 import type { CastEntry } from "@/lib/providers/tmdb/tmdb-details";
 import type { PersonRef } from "@/lib/providers/tmdb/tmdb-people";
@@ -87,9 +88,10 @@ export function TitlePanel({
   const tmdbRating = !anime && detail?.rating ? detail.rating : null;
 
   const liveAwards = useAwards(imdbId ?? undefined, meta.type === "series");
+  const awardsV = useBundledAwardsVersion();
   const awards = useMemo(
     () => mergeBundledAwards(liveAwards, title, year ? Number(year) : undefined),
-    [liveAwards, title, year],
+    [awardsV, liveAwards, title, year],
   );
   const awardSummaryItems = pickHeroAwards(awardSummary(awards), 3);
 

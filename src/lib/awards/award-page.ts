@@ -1,6 +1,6 @@
 import { meta as cinemetaMeta, type Meta } from "@/lib/cinemeta";
 import { AWARD_CATALOG } from "@/lib/awards-catalog";
-import { readAwardHistory } from "@/lib/awards-history";
+import { bundledAwardsLoaded, readAwardHistory, whenBundledAwards } from "@/lib/awards-history";
 import { get, IMG } from "@/lib/providers/tmdb/tmdb-client";
 import type { AwardType } from "@/lib/providers/wikidata";
 
@@ -318,7 +318,7 @@ function getSeeds(awardType: AwardType): ReturnType<typeof buildSeeds> {
   let s = seedsMemo.get(awardType);
   if (!s) {
     s = buildSeeds(awardType);
-    seedsMemo.set(awardType, s);
+    if (bundledAwardsLoaded()) seedsMemo.set(awardType, s);
   }
   return s;
 }
@@ -363,6 +363,7 @@ export async function loadAwardPeople(tmdbKey: string, awardType: AwardType): Pr
   const existing = peopleInflight.get(awardType);
   if (existing) return existing;
   const p = (async () => {
+    await whenBundledAwards();
     const seeds = getSeeds(awardType);
     const [actors, directors] = await Promise.all([
       resolvePeople(tmdbKey, seeds.actors),
@@ -389,7 +390,7 @@ function filmStateFor(awardType: AwardType): FilmState {
   let s = filmState.get(awardType);
   if (!s) {
     s = { seeds: getSeeds(awardType).films, resolved: [], ids: new Set(), next: 0 };
-    filmState.set(awardType, s);
+    if (bundledAwardsLoaded()) filmState.set(awardType, s);
   }
   return s;
 }
@@ -403,6 +404,7 @@ export async function loadAwardFilms(
   awardType: AwardType,
   targetCount: number,
 ): Promise<{ films: Meta[]; done: boolean }> {
+  await whenBundledAwards();
   const s = filmStateFor(awardType);
   while (s.resolved.length < targetCount && s.next < s.seeds.length) {
     const batch = s.seeds.slice(s.next, s.next + 12);

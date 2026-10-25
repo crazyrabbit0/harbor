@@ -24,36 +24,41 @@ type RawEntry = {
 
 type RawData = Record<string, Record<string, { name: string; entries: RawEntry[] }>>;
 
-// data/awards.json is 4.2MB, and an `import x from "*.json"` compiles to a
-// javascript object literal, which a television parses far slower than it
-// parses the same bytes through JSON.parse. Measured on a Fire TV Stick 4K Max
-// it was the single largest thing in the Big Picture boot graph. So the file is
-// no longer wired in here; whoever boots the app decides how it arrives.
-// Desktop keeps the old timing exactly via awards-history-eager, which main.tsx
-// imports before it mounts. Television calls ensureBundledAwards after the
-// first paint and re-renders through subscribeBundledAwards when it lands.
+// The 4.2 MB data/awards.json loads after first paint (ensureBundledAwards); readers subscribe or await whenBundledAwards.
 let data: RawData = {};
 let version = 0;
 const listeners = new Set<() => void>();
 let requested = false;
+let loaded = false;
+let arrival: Promise<void> | null = null;
+let arrived: (() => void) | null = null;
+let failed: ((e: unknown) => void) | null = null;
 
-/**
- * @param warm build the title index here rather than leaving it to the first
- * reader. Setting the table nulls the index, so on television the notification
- * below reached 240 mounted tiles whose memo then re-ran, and the first one
- * through built the index inside a React render on a sync lane that cannot
- * yield. buildTitleIndex walks 16,312 titled entries, allocating an object, a
- * template string and an NFKD normalise for each: 48 to 67ms measured in V8 on
- * x86, so 150 to 400ms on a Cortex-A55, landing exactly when the viewer first
- * presses a key on home. Desktop passes false and keeps the old lazy timing.
- */
+/** `warm` builds the title index here, so the subscribers this notifies never build it inside a render. */
 export function setBundledAwards(raw: unknown, warm = false): void {
   data = (raw ?? {}) as RawData;
   titleIndex = null;
   personIndex = null;
   if (warm) titleIndex = buildTitleIndex();
+  loaded = true;
   version += 1;
+  arrived?.();
   for (const fn of listeners) fn();
+}
+
+export function bundledAwardsLoaded(): boolean {
+  return loaded;
+}
+
+/** Resolves once the bundled table is set, requesting it if nobody has yet. */
+export function whenBundledAwards(): Promise<void> {
+  if (loaded) return Promise.resolve();
+  arrival ??= new Promise<void>((resolve, reject) => {
+    arrived = resolve;
+    failed = reject;
+  });
+  ensureBundledAwards();
+  return arrival;
 }
 
 export function bundledAwardsVersion(): number {
@@ -70,8 +75,14 @@ export function ensureBundledAwards(): void {
   requested = true;
   void import("@/data/awards.json")
     .then((m) => setBundledAwards(m.default, true))
-    .catch(() => {
+    .catch((e) => {
       requested = false;
+      // Waiters fail instead of hanging; the next whenBundledAwards() starts a fresh load.
+      const reject = failed;
+      arrival = null;
+      arrived = null;
+      failed = null;
+      reject?.(e);
     });
 }
 

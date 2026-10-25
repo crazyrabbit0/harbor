@@ -3,6 +3,7 @@ import { Search } from "@/components/icons/search-icon";
 import { useEffect, useMemo, useState } from "react";
 import { AWARD_CATALOG } from "@/lib/awards-catalog";
 import { readAwardHistory, type CategoryHistory } from "@/lib/awards-history";
+import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 import { tmdbCompanyIdByName, tmdbPersonIdByName } from "@/lib/providers/tmdb";
 import type { AwardType } from "@/lib/providers/wikidata";
 import { useSettings } from "@/lib/settings";
@@ -12,9 +13,10 @@ import { useT } from "@/lib/i18n";
 export function AwardList({ awardType, tint }: { awardType: AwardType; tint: string }) {
   const t = useT();
   const meta = AWARD_CATALOG[awardType];
+  const awardsV = useBundledAwardsVersion();
   const history = useMemo(
     () => readAwardHistory(awardType, meta.categories),
-    [awardType, meta.categories],
+    [awardsV, awardType, meta.categories],
   );
   const [decade, setDecade] = useState<number | null>(null);
   const [query, setQuery] = useState("");

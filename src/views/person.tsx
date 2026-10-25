@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { Poster } from "@/components/poster";
+import { ScaledBlur } from "@/components/scaled-blur";
 import { movieWatchedVersion, subscribeMovieWatched } from "@/lib/movie-watched";
 import {
   creditToMeta,
@@ -12,6 +13,7 @@ import { tmdbDepartmentLabelKey } from "@/lib/providers/tmdb/tmdb-people";
 import { AwardDetailModal } from "@/components/award-detail-modal";
 import { awardSummary, type AwardType, useAwards } from "@/lib/providers/wikidata";
 import { mergeBundledPersonAwards } from "@/lib/awards-history";
+import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 import { useRankings } from "@/lib/rankings";
 import { useSettings } from "@/lib/settings";
 import { useTopRankModal, type TopRankDept } from "@/lib/top-rank-modal";
@@ -62,9 +64,10 @@ export function PersonView({ personId }: { personId: number }) {
   const scrollRef = useRef<HTMLElement>(null);
   const personRank = rank(personId, person?.knownForDepartment ?? "Acting");
   const liveAwards = useAwards(person?.imdbId ?? undefined);
+  const awardsV = useBundledAwardsVersion();
   const awardEntries = useMemo(
     () => mergeBundledPersonAwards(liveAwards, person?.name),
-    [liveAwards, person?.name],
+    [awardsV, liveAwards, person?.name],
   );
   const awardChips = useMemo(() => awardSummary(awardEntries), [awardEntries]);
   const [openAward, setOpenAward] = useState<{ type: AwardType; anchor: DOMRect } | null>(null);
@@ -156,16 +159,9 @@ export function PersonView({ personId }: { personId: number }) {
             aria-hidden
             className="harbor-bleed-stremio pointer-events-none absolute inset-x-0 top-0 -z-10 h-[70vh] overflow-hidden"
           >
-            <div
-              className="absolute inset-0 scale-110"
-              style={{
-                backgroundImage: `url(${backdrop})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                filter: "blur(80px) saturate(1.3)",
-                opacity: 0.45,
-              }}
-            />
+            <div className="absolute inset-0 scale-110" style={{ opacity: 0.45 }}>
+              <ScaledBlur image={backdrop} blur={80} extraFilter="saturate(1.3)" />
+            </div>
             <div className="absolute inset-0 bg-gradient-to-b from-canvas/40 via-canvas/70 to-canvas" />
           </div>
         )}

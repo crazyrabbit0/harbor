@@ -198,6 +198,8 @@ export default defineConfig(({ mode }) => {
       alias: { "@": "/src" },
     },
     assetsInclude: ["**/*.onnx", "**/*.tflite"],
+    // JSON.parse beats an object literal at startup; named JSON imports are unsupported, use the default export.
+    json: { stringify: true },
     optimizeDeps: {
       // Scan only app entries, not the installer or local HTML previews.
       entries: ["index.html", "index-tv.html"],

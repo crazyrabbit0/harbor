@@ -1,6 +1,6 @@
 import type { Meta } from "@/lib/cinemeta";
 import type { AwardCategory } from "@/lib/awards-catalog";
-import { readAwardHistory } from "@/lib/awards-history";
+import { readAwardHistory, whenBundledAwards } from "@/lib/awards-history";
 import { tmdbSearchMovie } from "@/lib/providers/tmdb";
 import type { AwardType } from "@/lib/providers/wikidata";
 import { HARBOR_DATA_BASE } from "@/lib/config/endpoints";
@@ -77,6 +77,7 @@ async function resolveAll(tmdbKey: string): Promise<Meta[]> {
   }
   if (inflight) return inflight;
   inflight = (async () => {
+    await whenBundledAwards();
     const titles = winnerTitles();
     const hits = await mapLimit(titles, BATCH, (t) => tmdbSearchMovie(tmdbKey, t.title, t.year));
     const seen = new Set<string>();

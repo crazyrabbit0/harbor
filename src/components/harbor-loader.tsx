@@ -1,9 +1,6 @@
 import type { AnimationItem } from "lottie-web";
 import { withLottie } from "@/lib/lottie";
 import { useCallback, useEffect, useRef, useState } from "react";
-import whiteBoat from "@/assets/lottie/addons-boat-white.json";
-import darkBoat from "@/assets/lottie/addons-boat-dark.json";
-import harborBoat from "@/assets/lottie/harbor-loader.json";
 import { CustomArtwork } from "./custom-artwork";
 import {
   prefetchTopAddonLogos,
@@ -21,6 +18,26 @@ const SIZE_CLASS: Record<Size, string> = {
 };
 
 const XLINK = "http://www.w3.org/1999/xlink";
+
+type BoatKind = "white" | "dark" | "harbor";
+
+const BOATS: Record<BoatKind, () => Promise<{ default: object }>> = {
+  white: () => import("@/assets/lottie/addons-boat-white.json"),
+  dark: () => import("@/assets/lottie/addons-boat-dark.json"),
+  harbor: () => import("@/assets/lottie/harbor-loader.json"),
+};
+
+const boatData = new Map<BoatKind, Promise<object>>();
+
+function loadBoat(kind: BoatKind): Promise<object> {
+  let data = boatData.get(kind);
+  if (!data) {
+    data = BOATS[kind]().then((m) => m.default);
+    data.catch(() => boatData.delete(kind));
+    boatData.set(kind, data);
+  }
+  return data;
+}
 
 function darkBackground(): boolean {
   if (typeof document === "undefined") return true;
@@ -129,20 +146,25 @@ function Boat({ size, keyed, logos }: { size: Size; keyed: boolean; logos?: stri
       cycleRef.current += 3;
       paint();
     };
-    withLottie(
-      (lottie) => {
-        anim = lottie.loadAnimation({
-          container: host,
-          renderer: "svg",
-          loop: true,
-          autoplay: true,
-          animationData: cargo ? (dark ? whiteBoat : darkBoat) : harborBoat,
-        });
-        anim.addEventListener("DOMLoaded", onLoaded);
-        anim.addEventListener("loopComplete", onLoop);
-      },
-      () => cancelled,
-    );
+    void loadBoat(cargo ? (dark ? "white" : "dark") : "harbor")
+      .then((animationData) => {
+        if (cancelled) return;
+        withLottie(
+          (lottie) => {
+            anim = lottie.loadAnimation({
+              container: host,
+              renderer: "svg",
+              loop: true,
+              autoplay: true,
+              animationData,
+            });
+            anim.addEventListener("DOMLoaded", onLoaded);
+            anim.addEventListener("loopComplete", onLoop);
+          },
+          () => cancelled,
+        );
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
       anim?.removeEventListener("DOMLoaded", onLoaded);
