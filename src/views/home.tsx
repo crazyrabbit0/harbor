@@ -226,26 +226,40 @@ export function Home({
     let retryTimer: number | null = null;
     (async () => {
       const isClassic = settings.homeMode === "classic";
+      type BuiltRows = { rows: HomeRow[]; hero: Meta[]; failed?: number };
+      const failedBuild = (): BuiltRows => ({ rows: [], hero: [], failed: 1 });
 
-      let built: { rows: HomeRow[]; hero: Meta[]; failed?: number } = { rows: [], hero: [] };
+      let heroFeedApplied = false;
+      if (settings.heroFeed && settings.heroFeed !== "classic") {
+        void fetchHeroFeed(settings.heroFeed)
+          .catch(() => [] as Meta[])
+          .then((feed) => {
+            if (cancelled || feed.length < 4) return;
+            heroFeedApplied = true;
+            setHeroPool(feed);
+          });
+      }
+
+      const dedupRows = isClassic ? false : !settings.homeShowAllAddonRows;
+      // Addon catalogs load alongside the TMDB/Cinemeta build instead of after it.
+      let addonsFailed = false;
+      const addonsPending = loadAddonRows(authKey, {
+        dedup: dedupRows,
+        onFailed: (n) => {
+          if (n > 0) addonsFailed = true;
+        },
+      }).catch(() => {
+        addonsFailed = true;
+        return [] as AddonRow[];
+      });
+
+      let built: BuiltRows = { rows: [], hero: [] };
       if (!isClassic) {
         built = settings.tmdbKey
-          ? await buildTmdbRows(settings).catch(() => ({
-              rows: [] as HomeRow[],
-              hero: [] as Meta[],
-              failed: 1,
-            }))
-          : await buildCinemetaRows().catch(() => ({
-              rows: [] as HomeRow[],
-              hero: [] as Meta[],
-              failed: 1,
-            }));
+          ? await buildTmdbRows(settings).catch(failedBuild)
+          : await buildCinemetaRows().catch(failedBuild);
         if (built.rows.length === 0) {
-          built = await buildCinemetaRows().catch(() => ({
-            rows: [] as HomeRow[],
-            hero: [] as Meta[],
-            failed: 1,
-          }));
+          built = await buildCinemetaRows().catch(failedBuild);
         }
       }
       if (cancelled) return;
@@ -255,23 +269,11 @@ export function Home({
           degraded && next.length === 0 && prev.length > 0 ? prev : mergeLoadedHomeRows(prev, next),
         );
       commitRows(mergeRows(built.rows, []));
-      if (!degraded || built.hero.length > 0) setHeroPool(built.hero);
+      if (!heroFeedApplied && (!degraded || built.hero.length > 0)) setHeroPool(built.hero);
       setHeroReady(true);
-      if (settings.heroFeed && settings.heroFeed !== "classic") {
-        const feed = await fetchHeroFeed(settings.heroFeed).catch(() => [] as Meta[]);
-        if (!cancelled && feed.length >= 4) setHeroPool(feed);
-      }
 
-      const dedupRows = isClassic ? false : !settings.homeShowAllAddonRows;
-      const addons = await loadAddonRows(authKey, {
-        dedup: dedupRows,
-        onFailed: (n) => {
-          if (n > 0) degraded = true;
-        },
-      }).catch(() => {
-        degraded = true;
-        return [] as AddonRow[];
-      });
+      const addons = await addonsPending;
+      if (addonsFailed) degraded = true;
       if (cancelled) return;
       const usable = isClassic
         ? addons

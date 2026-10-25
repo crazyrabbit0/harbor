@@ -15,6 +15,8 @@ export type StaticHeroArt = {
 };
 
 const SEED_URL = "/anime-hero-art.json";
+// Top-level `v` of public/anime-hero-art.json; tests/anime-hero-art-seed-version.test.ts keeps them equal.
+export const SEED_VERSION = 1;
 const REMOTE_URL = `${HARBOR_DATA_BASE}/anime-hero-art.json`;
 const REFRESH_MS = 24 * 60 * 60 * 1000;
 const MIN_KEEP_RATIO = 0.9;
@@ -44,7 +46,8 @@ async function readSeed(): Promise<{ art: Record<string, StaticHeroArt>; v: numb
 
 async function load(): Promise<void> {
   const cached = await readHeroArtCache().catch(() => null);
-  const seed = await readSeed();
+  const cacheCurrent = !!cached && cached.v >= SEED_VERSION && cached.count > 0;
+  const seed = cacheCurrent ? null : await readSeed();
   const seedCount = seed ? Object.keys(seed.art).length : 0;
 
   if (cached && cached.count >= seedCount) {
