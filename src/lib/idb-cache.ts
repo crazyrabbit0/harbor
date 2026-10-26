@@ -55,6 +55,9 @@ export const TRIMMABLE_PREFIXES = [
   "cinemeta.meta.v1:",
   "tmdb.catalog.v1:",
   "tmdb.title.v1:",
+  "anizip.v1:",
+  "addon.catalog.v1:",
+  "addon.meta.v1:",
   "harbor.sa.v1.",
 ];
 
