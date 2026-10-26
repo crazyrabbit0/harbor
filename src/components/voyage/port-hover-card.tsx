@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { IMG } from "@/lib/providers/tmdb/tmdb-client";
 import { ImdbIcon } from "@/components/icons/imdb-icon";
 import { usePortCredits, type PortPerson } from "./port-hover-credits";
@@ -98,7 +98,7 @@ export function PortHoverCard({
   onLeave: () => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const credits = usePortCredits(meta, settings.tmdbKey ?? "");
   const ref = useRef<HTMLDivElement>(null);
   const [spot, setSpot] = useState<Spot | null>(null);

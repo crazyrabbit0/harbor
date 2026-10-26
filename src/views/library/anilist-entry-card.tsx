@@ -4,7 +4,7 @@ import { AnchoredMenu } from "@/components/anchored-menu";
 import { Poster, usePosterChain } from "@/components/poster";
 import { anilistMediaToMeta } from "@/lib/anilist/to-meta";
 import type { AnilistMediaEntry, MediaListStatus } from "@/lib/anilist/types";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
@@ -40,7 +40,7 @@ export function AnilistEntryCard({
   onRemove: () => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const { openMeta } = useViewActions();
   const m = entry.media;
   const name = m.title.userPreferred || m.title.english || m.title.romaji || t("Untitled");

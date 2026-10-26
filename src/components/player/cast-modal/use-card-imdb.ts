@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { harborImdbTitle } from "@/lib/providers/harbor-imdb";
 import { tmdbImdbId } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const ttCache = new Map<string, string | null>();
 const scoreCache = new Map<string, string | null>();
@@ -39,7 +39,7 @@ export async function resolveImdbScore(id: string, tmdbKey: string): Promise<num
 }
 
 export function useCardImdb(meta: Meta): { imdb: string | null } {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [imdb, setImdb] = useState<string | null>(() => cachedScore(meta.id) ?? null);
   useEffect(() => {
     const known = cachedScore(meta.id);

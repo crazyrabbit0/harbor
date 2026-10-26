@@ -1,7 +1,7 @@
 import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useBigPicture } from "@/lib/big-picture";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewSelector } from "@/lib/view";
 import { usePlaybackStatus } from "@/lib/player/playback-clock";
 import { useIdleScreensaver } from "@/lib/screensaver/use-idle-screensaver";
@@ -42,7 +42,14 @@ function toItems(metas: Meta[]): AmbientItem[] {
 }
 
 export function ScreensaverRoot() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    heroFeed: s.heroFeed,
+    screensaver: s.screensaver,
+    screensaverDelayMin: s.screensaverDelayMin,
+    screensaverMedia: s.screensaverMedia,
+    screensaverMediaId: s.screensaverMediaId,
+    screensaverStyle: s.screensaverStyle,
+  }));
   const { player, picker, liveTop } = useViewSelector((v) => ({
     player: !!v.player,
     picker: !!v.picker,

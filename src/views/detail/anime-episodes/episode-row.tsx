@@ -5,7 +5,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { formatAirDate } from "@/lib/dates";
 import { formatRelativeWatched } from "@/lib/episode-progress";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { SPOILER_TEXT_CLASS, SPOILER_THUMB_CLASS, type SpoilerMask } from "@/lib/spoilers";
 import { animeSeasonKey } from "./anime-season-key";
 import { parseKitsuId } from "@/lib/providers/kitsu";
@@ -46,7 +46,10 @@ export function AnimeEpisodeRow({
 }) {
   const t = useT();
   const { openPicker } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    instantPlay: s.instantPlay,
+    showEpisodeRating: s.showEpisodeRating,
+  }));
   const epMeta = metaForEp ? metaForEp(ep) : meta;
   const watchedAgo = progress.startedAt > 0 ? formatRelativeWatched(progress.startedAt) : "";
   const playEpisode = {

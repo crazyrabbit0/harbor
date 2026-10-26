@@ -1,9 +1,9 @@
 import type { Meta } from "@/lib/cinemeta";
 import { usePosterChain } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function useCardPoster(meta: Meta) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   return usePosterChain(
     settings.rpdbKey,
     meta.id,

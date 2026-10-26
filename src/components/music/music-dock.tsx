@@ -36,7 +36,7 @@ import {
   useMusicPlayer,
 } from "@/lib/music/player";
 import { useViewActions, useViewSelector } from "@/lib/view";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { MusicSourcePicker } from "./music-source-picker";
 import { requestMusicConnection } from "./music-connections";
 import { MusicServiceLogo } from "./music-service-logo";
@@ -207,7 +207,10 @@ export function MusicDock() {
     }
     setExpanded(false);
   }, [topKind]);
-  const { settings: dockSettings } = useSettings();
+  const dockSettings = useSettingsSelector((s) => ({
+    musicSeekThumb: s.musicSeekThumb,
+    musicSeekThumbHover: s.musicSeekThumbHover,
+  }));
   const appearance = useMusicAppearance();
   const dockParts = useMusicDockLayout();
   const { profile: recording, display } = useRecordingProfile(player.current);

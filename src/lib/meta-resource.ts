@@ -1,3 +1,4 @@
+import { cachedAddonMeta } from "./addon-catalog-cache";
 import { cinemetaEnabled, meta as cinemetaMeta, type Meta } from "./cinemeta";
 import { safeFetch as fetch } from "./safe-fetch";
 import { addonAccepts, userAddons, type Addon } from "./addons";
@@ -185,19 +186,22 @@ function isCinemeta(addon: Addon): boolean {
   return id.includes("cinemeta") || url.includes("v3-cinemeta") || url.includes("cinemeta.strem");
 }
 
-async function fetchAddonMeta(addon: Addon, type: string, id: string): Promise<Meta | null> {
+function fetchAddonMeta(addon: Addon, type: string, id: string): Promise<Meta | null> {
   const base = addon.transportUrl.replace(/\/manifest\.json$/, "");
   const url = `${base}/meta/${type}/${id}.json`;
-  const ac = new AbortController();
-  const timer = setTimeout(() => ac.abort(), ADDON_TIMEOUT_MS);
-  try {
-    const res = await fetch(url, { signal: ac.signal });
-    if (!res.ok) return null;
-    const json = (await res.json()) as { meta?: Meta };
-    return json.meta ?? null;
-  } catch {
-    return null;
-  } finally {
-    clearTimeout(timer);
-  }
+  return cachedAddonMeta<Meta>(type, url, async () => {
+    const ac = new AbortController();
+    const timer = setTimeout(() => ac.abort(), ADDON_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, { signal: ac.signal });
+      if (!res.ok) return { value: null, cacheable: res.status === 404 };
+      const text = await res.text();
+      const json = JSON.parse(text) as { meta?: Meta | null };
+      return { value: json.meta ?? null, cacheable: !!json.meta, chars: text.length };
+    } catch {
+      return { value: null, cacheable: false };
+    } finally {
+      clearTimeout(timer);
+    }
+  });
 }

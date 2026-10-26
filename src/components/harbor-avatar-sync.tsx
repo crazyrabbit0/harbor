@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
 import { pushAvatarToEcosystem } from "@/lib/account/avatar-sync";
 import { useProfiles } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { currentAuthor, subscribeAuthor } from "@/lib/theme-auth";
 
 export function HarborAvatarSync() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ harborAvatar: s.harborAvatar }));
   const { activeProfile } = useProfiles();
   const [author, setAuthor] = useState(currentAuthor);
 

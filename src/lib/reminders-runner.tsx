@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { emitListToast } from "@/components/lists/list-toast";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { fetchEpisodeList } from "@/lib/series-episodes";
 import {
   fireReminderNotification,
@@ -85,7 +85,7 @@ async function checkAll(tmdbKey: string, t: Tfn): Promise<void> {
 
 export function RemindersRunner() {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const keyRef = useRef(settings.tmdbKey);
   keyRef.current = settings.tmdbKey;
   const tRef = useRef(t);

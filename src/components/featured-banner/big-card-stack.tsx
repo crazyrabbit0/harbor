@@ -5,7 +5,7 @@ import { useT } from "@/lib/i18n";
 import { peekCachedLogo, resolveLogo } from "@/lib/logo";
 import { useTmdbImdbId } from "@/lib/providers/tmdb";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { MetaAwardsCorner } from "../meta-awards-corner";
 import { ThumbsDock } from "./thumbs-dock";
@@ -33,7 +33,7 @@ export function BigCardStack({
   onPrev?: () => void;
   onNext?: () => void;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openMeta } = useViewActions();
   const t = useT();
   const current = items[active] ?? items[0];

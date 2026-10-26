@@ -1,3 +1,4 @@
+import { idbCacheGetFresh, idbCacheSet } from "@/lib/idb-cache";
 import { registerEvictable } from "@/lib/maintenance";
 
 // Every catalog of every installed addon is swept by the home page AND by the
@@ -9,6 +10,9 @@ import { registerEvictable } from "@/lib/maintenance";
 const TTL_MS = 10 * 60 * 1000;
 const FAIL_TTL_MS = 15 * 1000;
 const MAX_ENTRIES = 80;
+// Successful rows also persist in IndexedDB, so a restart within DISK_TTL_MS reuses them.
+export const CATALOG_DISK_PREFIX = "addon.catalog.v1:";
+const DISK_TTL_MS = 30 * 60 * 1000;
 
 export type CatalogLoad<T> = { value: T; ok: boolean };
 
@@ -23,6 +27,26 @@ registerEvictable("addon-catalog-rows", (aggressive) => {
   for (const [k, e] of rows) if (now - e.t > e.ttl) rows.delete(k);
 });
 
+function remember(key: string, entry: Entry<unknown>): void {
+  if (rows.size >= MAX_ENTRIES) {
+    const oldest = rows.keys().next().value;
+    if (oldest !== undefined) rows.delete(oldest);
+  }
+  rows.set(key, entry);
+}
+
+// The disk copy only stands in for the first read of a key per session; later misses refetch.
+const diskRead = new Set<string>();
+
+async function readDisk<T>(key: string): Promise<{ at: number; value: T } | null> {
+  try {
+    const entry = await idbCacheGetFresh(CATALOG_DISK_PREFIX + key, DISK_TTL_MS);
+    return entry ? { at: entry.at, value: entry.data as T } : null;
+  } catch {
+    return null;
+  }
+}
+
 export function cachedCatalogRow<T>(
   key: string,
   load: () => Promise<CatalogLoad<T>>,
@@ -33,17 +57,65 @@ export function cachedCatalogRow<T>(
   if (existing) return existing as Promise<CatalogLoad<T>>;
   const p = (async () => {
     try {
-      const v = await load();
-      if (rows.size >= MAX_ENTRIES) {
-        const oldest = rows.keys().next().value;
-        if (oldest !== undefined) rows.delete(oldest);
+      const stored = diskRead.has(key) ? null : await readDisk<T>(key);
+      diskRead.add(key);
+      if (stored) {
+        const v: CatalogLoad<T> = { value: stored.value, ok: true };
+        remember(key, { v, t: Date.now(), ttl: TTL_MS });
+        return v;
       }
-      rows.set(key, { v, t: Date.now(), ttl: v.ok ? TTL_MS : FAIL_TTL_MS });
+      const v = await load();
+      remember(key, { v, t: Date.now(), ttl: v.ok ? TTL_MS : FAIL_TTL_MS });
+      if (v.ok) {
+        void idbCacheSet(CATALOG_DISK_PREFIX + key, { at: Date.now(), data: v.value }).catch(
+          () => {},
+        );
+      }
       return v;
     } finally {
       inflight.delete(key);
     }
   })();
   inflight.set(key, p);
+  return p;
+}
+
+// Movie and series metas share the disk layer; only a found meta or a definitive 404 is stored.
+export const META_DISK_PREFIX = "addon.meta.v1:";
+const META_TTL_MS = { movie: 3 * 60 * 60 * 1000, series: 30 * 60 * 1000 };
+const META_MISS_TTL_MS = 30 * 60 * 1000;
+const META_MAX_CHARS = 1_000_000;
+const metaInflight = new Map<string, Promise<unknown>>();
+const metaDiskRead = new Set<string>();
+
+export type MetaFetch<T> = { value: T | null; cacheable: boolean; chars?: number };
+
+export function cachedAddonMeta<T>(
+  type: string,
+  url: string,
+  load: () => Promise<MetaFetch<T>>,
+): Promise<T | null> {
+  if (type !== "movie" && type !== "series") return load().then((r) => r.value);
+  const existing = metaInflight.get(url);
+  if (existing) return existing as Promise<T | null>;
+  const p = (async () => {
+    try {
+      const entry = metaDiskRead.has(url)
+        ? null
+        : await idbCacheGetFresh(META_DISK_PREFIX + url, META_TTL_MS[type]).catch(() => null);
+      metaDiskRead.add(url);
+      if (entry && (entry.data != null || Date.now() - entry.at < META_MISS_TTL_MS)) {
+        return (entry.data ?? null) as T | null;
+      }
+      const r = await load();
+      if (r.cacheable && (r.chars ?? 0) <= META_MAX_CHARS) {
+        void idbCacheSet(META_DISK_PREFIX + url, { at: Date.now(), data: r.value }).catch(() => {});
+      }
+      return r.value;
+    } finally {
+      metaInflight.delete(url);
+    }
+  })();
+  metaInflight.set(url, p);
   return p;
 }

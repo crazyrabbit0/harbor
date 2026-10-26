@@ -61,7 +61,7 @@ import {
 } from "@/lib/providers/tmdb";
 import { cinemetaDetails } from "@/lib/providers/cinemeta-details";
 import { useAuth } from "@/lib/auth";
-import { useSettings } from "@/lib/settings";
+import { useSettingsGetter, useSettingsSelector, type Settings } from "@/lib/settings";
 import { useContentDrag } from "@/lib/window-drag";
 import {
   CLOUD_OK,
@@ -222,6 +222,32 @@ function FadeInUp({ children }: { children: ReactNode }) {
   return <div className="harbor-fade-in-up">{children}</div>;
 }
 
+// Only these fields re-render the page; effects that need the whole object read getSettings().
+function selectDetailSettings(s: Settings) {
+  return {
+    detailTrailerAutoplay: s.detailTrailerAutoplay,
+    fanartKey: s.fanartKey,
+    heroBackdropCarousel: s.heroBackdropCarousel,
+    heroFullQuality: s.heroFullQuality,
+    instantPlay: s.instantPlay,
+    mdblistKey: s.mdblistKey,
+    omdbKey: s.omdbKey,
+    playbackSourcePreference: s.playbackSourcePreference,
+    preferredMediaServerId: s.preferredMediaServerId,
+    region: s.region,
+    resumeDetailScroll: s.resumeDetailScroll,
+    scrollUpTrailer: s.scrollUpTrailer,
+    showAnilistComments: s.showAnilistComments,
+    showTraktComments: s.showTraktComments,
+    showWatchedButton: s.showWatchedButton,
+    themePreset: s.theme.preset,
+    tmdbKey: s.tmdbKey,
+    tmdbLanguage: s.tmdbLanguage,
+    tvdbKey: s.tvdbKey,
+    uiLanguage: s.uiLanguage,
+  };
+}
+
 export function DetailView({
   meta,
   liveContext = false,
@@ -232,10 +258,9 @@ export function DetailView({
   episodeHint?: { season: number; episode: number };
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector(selectDetailSettings);
+  const getSettings = useSettingsGetter();
   const contentDrag = useContentDrag();
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
   const [detail, setDetail] = useState<
     (TmdbDetail & Pick<AnimeDetailExtras, "seasonOverviews">) | null
   >(null);
@@ -284,7 +309,7 @@ export function DetailView({
       if (!cachedLogo && sel.name) {
         const entryId = sel.entryId;
         void resolveLogo(
-          settingsRef.current.tmdbKey,
+          getSettings().tmdbKey,
           { id: entryId, type: "series", name: sel.name },
           { preferOwn: true },
         )
@@ -892,7 +917,7 @@ export function DetailView({
       : meta;
     const work = isAnime
       ? animeDetails(
-          settingsRef.current,
+          getSettings(),
           detectedKitsu != null ? { ...meta, id: `kitsu:${detectedKitsu}` } : lookup,
         ).then((res) => {
           if (cancelled) return null;
@@ -938,8 +963,8 @@ export function DetailView({
           setBackdrops(res.backdrops);
           return res.detail;
         })
-      : settingsRef.current.tmdbKey
-        ? tmdbDetails(settingsRef.current.tmdbKey, lookup).then((d) => d ?? cinemetaDetails(lookup))
+      : getSettings().tmdbKey
+        ? tmdbDetails(getSettings().tmdbKey, lookup).then((d) => d ?? cinemetaDetails(lookup))
         : cinemetaDetails(lookup);
     work
       .then((d) => {
@@ -957,25 +982,25 @@ export function DetailView({
             prev &&
             isAnime &&
             !idAnime &&
-            (settingsRef.current.translateTitles || settingsRef.current.translateDescriptions)
+            (getSettings().translateTitles || getSettings().translateDescriptions)
           ) {
-            const lang = settingsRef.current.tmdbLanguage || settingsRef.current.uiLanguage || "en";
-            const pickedTitle = settingsRef.current.translateTitles
+            const lang = getSettings().tmdbLanguage || getSettings().uiLanguage || "en";
+            const pickedTitle = getSettings().translateTitles
               ? pickLocalizedText([{ text: prev.title }, { text: d.title }], {
                   forName: true,
                   lang,
                 })
               : undefined;
-            const pickedOverview = settingsRef.current.translateDescriptions
+            const pickedOverview = getSettings().translateDescriptions
               ? pickLocalizedText([{ text: prev.overview }, { text: d.overview }], { lang })
               : undefined;
             return {
               ...d,
-              title: pickedTitle ?? (settingsRef.current.translateTitles ? prev.title : d.title),
+              title: pickedTitle ?? (getSettings().translateTitles ? prev.title : d.title),
               overview:
                 pickedOverview ??
-                (settingsRef.current.translateDescriptions ? prev.overview : d.overview),
-              tagline: settingsRef.current.translateDescriptions ? prev.tagline : d.tagline,
+                (getSettings().translateDescriptions ? prev.overview : d.overview),
+              tagline: getSettings().translateDescriptions ? prev.tagline : d.tagline,
             };
           }
           return d;
@@ -1180,7 +1205,7 @@ export function DetailView({
     [liveAwards, meta.name, releaseYearNum, bundledAwardsV],
   );
   const heroAwardSummary = pickHeroAwards(awardSummary(awards));
-  const awardsInDescription = (settings.theme.preset as string) === "elegantfin";
+  const awardsInDescription = (settings.themePreset as string) === "elegantfin";
   const renderHeroAwards = () => {
     if (isAnime) {
       const animeName =

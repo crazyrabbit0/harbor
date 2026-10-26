@@ -1,5 +1,5 @@
 import type { Meta } from "@/lib/cinemeta";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { usePosterChain } from "@/components/poster";
 
 export function PortCard({
@@ -17,7 +17,7 @@ export function PortCard({
   index?: number;
   state?: "heading" | "done" | "current";
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const poster = usePosterChain(
     settings.rpdbKey,
     meta.id,

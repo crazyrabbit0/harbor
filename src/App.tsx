@@ -396,6 +396,9 @@ function prefetchAllowed(): boolean {
   return hints.deviceMemory === undefined || hints.deviceMemory >= 4;
 }
 
+const PREFETCH_START_MS = 8000;
+const PREFETCH_GAP_MS = 1500;
+
 function useViewPreloader(tmdbKey: string) {
   const keyRef = useRef(tmdbKey);
   keyRef.current = tmdbKey;
@@ -405,10 +408,17 @@ function useViewPreloader(tmdbKey: string) {
     const win = window as Window & {
       requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number;
     };
-    const schedule = (cb: () => void) =>
+    // Startup fetches own the first seconds; batches then go one per idle slot at least PREFETCH_GAP_MS apart.
+    const idle = (cb: () => void) =>
       typeof win.requestIdleCallback === "function"
         ? win.requestIdleCallback(cb, { timeout: 2500 })
         : window.setTimeout(cb, 1200);
+    let first = true;
+    const schedule = (cb: () => void) => {
+      const delay = first ? PREFETCH_START_MS : PREFETCH_GAP_MS;
+      first = false;
+      window.setTimeout(() => idle(cb), delay);
+    };
     // Prefetch a few views per idle slot, most-visited first; one burst of all of them blocked input for ~150 ms.
     const batches: (() => unknown)[][] = [
       [importDetail, importPlayPicker, importPlayer],

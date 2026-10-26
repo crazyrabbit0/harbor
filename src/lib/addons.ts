@@ -1,4 +1,4 @@
-import { cachedCatalogRow, type CatalogLoad } from "@/lib/addon-catalog-cache";
+import { cachedAddonMeta, cachedCatalogRow, type CatalogLoad } from "@/lib/addon-catalog-cache";
 import { runLanes } from "@/lib/run-lanes";
 import { allowDirectHost, safeFetch as fetch } from "@/lib/safe-fetch";
 import type { AddonOrigin, Meta } from "./cinemeta";
@@ -401,7 +401,8 @@ export function fetchCatalogRow(
   addon: Addon,
   cat: CatalogDef,
 ): Promise<CatalogLoad<AddonRow | null>> {
-  return cachedCatalogRow(`${addon.transportUrl}|${cat.type}|${cat.id}`, () =>
+  const lang = addonAcceptLanguage() ?? "";
+  return cachedCatalogRow(`${addon.transportUrl}|${cat.type}|${cat.id}|${lang}`, () =>
     loadCatalogRow(addon, cat),
   );
 }
@@ -483,15 +484,20 @@ export async function loadAddonRows(
   return dedup ? dedupeAddonRows(rows, cap) : rows.slice(0, cap);
 }
 
-export async function fetchAddonMeta(base: string, type: string, id: string): Promise<Meta | null> {
-  const res = await fetchWithTimeout(`${base}/meta/${type}/${encodeURIComponent(id)}.json`);
-  if (!res || !res.ok) return null;
-  try {
-    const json = await res.json();
-    return (json.meta ?? null) as Meta | null;
-  } catch {
-    return null;
-  }
+export function fetchAddonMeta(base: string, type: string, id: string): Promise<Meta | null> {
+  const url = `${base}/meta/${type}/${encodeURIComponent(id)}.json`;
+  return cachedAddonMeta<Meta>(type, `${url}|${addonAcceptLanguage() ?? ""}`, async () => {
+    const res = await fetchWithTimeout(url);
+    if (!res) return { value: null, cacheable: false };
+    if (!res.ok) return { value: null, cacheable: res.status === 404 };
+    try {
+      const text = await res.text();
+      const json = JSON.parse(text) as { meta?: Meta | null };
+      return { value: json.meta ?? null, cacheable: !!json.meta, chars: text.length };
+    } catch {
+      return { value: null, cacheable: false };
+    }
+  });
 }
 
 export async function fetchAddonCatalogPage(

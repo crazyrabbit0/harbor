@@ -11,7 +11,7 @@ import { formatAirDate } from "@/lib/dates";
 import { distinctAbsolute } from "@/lib/episode-absolute";
 import { useT } from "@/lib/i18n";
 import { useViewActions } from "@/lib/view";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { SPOILER_TEXT_CLASS, SPOILER_THUMB_CLASS, type SpoilerMask } from "@/lib/spoilers";
 import { FillerBadge, UpcomingBadge } from "./badges";
 import type { GridEpisode, Progress } from "./episode-grid-types";
@@ -40,7 +40,10 @@ export function EpisodeGridCard({
   ) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    showEpisodeDescription: s.showEpisodeDescription,
+    showEpisodeRating: s.showEpisodeRating,
+  }));
   const cardMeta = g.meta ?? meta;
   const [imgIdx, setImgIdx] = useState(0);
   useEffect(() => setImgIdx(0), [g.key]);

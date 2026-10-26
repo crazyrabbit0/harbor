@@ -5,7 +5,7 @@ import { StatusPicker } from "@/chrome/sidebar/status-control";
 import { NotificationCenter } from "@/components/notification-center/notification-center";
 import { useAuth } from "@/lib/auth";
 import { useActiveKid, useProfiles } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import {
   anchorFromElement,
   openAccountMenu,
@@ -150,7 +150,7 @@ function StatusPickerFloating() {
 }
 
 export function ThemeChromeBridge() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ harborAvatar: s.harborAvatar, theme: s.theme }));
   const kid = useActiveKid();
   const preview = useThemePreview();
   const { activeProfile } = useProfiles();

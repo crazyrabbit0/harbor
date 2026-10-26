@@ -6,7 +6,7 @@ import {
   tmdbCollection,
   tmdbSearchCollectionId,
 } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 
 export function CollectionCard({
@@ -20,7 +20,7 @@ export function CollectionCard({
   knownBackdrop?: string | null;
   knownCount?: number | null;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openCollection } = useViewActions();
   const t = useT();
   const ref = useRef<HTMLButtonElement>(null);

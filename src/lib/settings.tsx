@@ -86,6 +86,11 @@ function readActiveSource(): SettingsSource {
 const Ctx = createContext<SettingsValue | null>(null);
 const StoreCtx = createContext<SettingsStore | null>(null);
 const UpdateCtx = createContext<SettingsValue["update"] | null>(null);
+type SettingsActions = Pick<
+  SettingsValue,
+  "update" | "toggleStreaming" | "switchProfile" | "setSettingsLinked"
+>;
+const ActionsCtx = createContext<SettingsActions | null>(null);
 
 // Module setters for provider keys; children read them during render and in effects, so the first call precedes them.
 type ProviderKeys = Pick<
@@ -677,13 +682,27 @@ export function SettingsProvider({
     ],
   );
 
+  const actions = useMemo(
+    () => ({ update, toggleStreaming, switchProfile, setSettingsLinked }),
+    [update, toggleStreaming, switchProfile, setSettingsLinked],
+  );
+
   return (
     <StoreCtx.Provider value={store}>
       <UpdateCtx.Provider value={update}>
-        <Ctx.Provider value={value}>{children}</Ctx.Provider>
+        <ActionsCtx.Provider value={actions}>
+          <Ctx.Provider value={value}>{children}</Ctx.Provider>
+        </ActionsCtx.Provider>
       </UpdateCtx.Provider>
     </StoreCtx.Provider>
   );
+}
+
+/** The stable settings actions (update, toggleStreaming, switchProfile, setSettingsLinked); never re-renders its caller. */
+export function useSettingsActions(): SettingsActions {
+  const actions = useContext(ActionsCtx);
+  if (!actions) throw new Error("useSettingsActions outside SettingsProvider");
+  return actions;
 }
 
 export function useSettings() {
@@ -704,6 +723,13 @@ export function useSettingsSelector<T>(select: (s: Settings) => T): T {
   }
   const read = readerRef.current.read;
   return useSyncExternalStore(store.subscribe, read, read);
+}
+
+/** A stable reader of the latest committed settings, for effects and callbacks; never re-renders its caller. */
+export function useSettingsGetter(): () => Settings {
+  const store = useContext(StoreCtx);
+  if (!store) throw new Error("useSettingsGetter outside SettingsProvider");
+  return store.get;
 }
 
 /** The stable settings `update`; never re-renders its caller. */

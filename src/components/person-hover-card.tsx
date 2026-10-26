@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { AwardLogo, laurelColorFor } from "@/components/icons/award-logo";
 import { Laurel } from "@/components/icons/laurel";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { IMG } from "@/lib/providers/tmdb/tmdb-client";
 import {
   tmdbPerson,
@@ -26,7 +26,7 @@ export function PersonHoverCard({
   onEnter: () => void;
   onLeave: () => void;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [person, setPerson] = useState<PersonDetail | null>(
     () => tmdbPersonCached(personId) ?? null,
   );

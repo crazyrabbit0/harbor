@@ -1,3 +1,4 @@
+import { idbCacheGetFresh, idbCacheSet } from "@/lib/idb-cache";
 import { safeFetch } from "@/lib/safe-fetch";
 
 const ENDPOINT = "https://api.ani.zip/mappings";
@@ -85,6 +86,29 @@ export async function aniZipByTmdbTv(tmdbId: number): Promise<AniZipMapping | nu
 
 const TIMEOUT_MS = 4000;
 
+// Mappings and episode lists persist across restarts; a 404 is remembered too, for a shorter time.
+const DISK_PREFIX = "anizip.v1:";
+const DISK_TTL_MS = 12 * 60 * 60 * 1000;
+const DISK_MISS_TTL_MS = 3 * 60 * 60 * 1000;
+const DISK_MAX_CHARS = 1_000_000;
+
+async function readDisk(query: string): Promise<{ hit: boolean; value: AniZipMapping | null }> {
+  try {
+    const entry = await idbCacheGetFresh(DISK_PREFIX + query, DISK_TTL_MS);
+    if (!entry) return { hit: false, value: null };
+    const value = (entry.data ?? null) as AniZipMapping | null;
+    if (value === null && Date.now() - entry.at > DISK_MISS_TTL_MS) return { hit: false, value };
+    return { hit: true, value };
+  } catch {
+    return { hit: false, value: null };
+  }
+}
+
+function writeDisk(query: string, value: AniZipMapping | null, text: string): void {
+  if (text.length > DISK_MAX_CHARS) return;
+  void idbCacheSet(DISK_PREFIX + query, { at: Date.now(), data: value }).catch(() => {});
+}
+
 async function get(query: string): Promise<AniZipMapping | null> {
   if (cache.has(query)) return cache.get(query) ?? null;
   const negAt = negCache.get(query);
@@ -94,15 +118,24 @@ async function get(query: string): Promise<AniZipMapping | null> {
   const p = (async () => {
     const ac = new AbortController();
     try {
+      const stored = await readDisk(query);
+      if (stored.hit) {
+        cache.set(query, stored.value);
+        return stored.value;
+      }
       const res = await throttled(`${ENDPOINT}?${query}`, ac);
       if (!res.ok) {
-        if (res.status === 404) cache.set(query, null);
-        else negCache.set(query, Date.now());
+        if (res.status === 404) {
+          cache.set(query, null);
+          writeDisk(query, null, "");
+        } else negCache.set(query, Date.now());
         return null;
       }
-      const json = (await res.json()) as AniZipMapping;
+      const text = await res.text();
+      const json = JSON.parse(text) as AniZipMapping;
       cache.set(query, json);
       negCache.delete(query);
+      writeDisk(query, json, text);
       return json;
     } catch {
       negCache.set(query, Date.now());
