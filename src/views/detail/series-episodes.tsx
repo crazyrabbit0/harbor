@@ -26,7 +26,7 @@ import {
   preferredVideoName,
   preferredVideoOverview,
 } from "@/lib/meta-resource";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { effectiveOrderProvider, tvdbPanelEnabled } from "@/lib/settings/episode-order";
 import { useTrakt } from "@/lib/trakt/provider";
 import { useSimkl } from "@/lib/simkl/provider";
@@ -77,7 +77,29 @@ export function SeriesEpisodes({
   resumeEpisode?: number;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    aiGroqKey: s.aiGroqKey,
+    aiSearchKey: s.aiSearchKey,
+    aiSearchModel: s.aiSearchModel,
+    episodeArcGroups: s.episodeArcGroups,
+    episodeAutoScroll: s.episodeAutoScroll,
+    episodeHiding: s.episodeHiding,
+    episodeLayout: s.episodeLayout,
+    episodeOrderProvider: s.episodeOrderProvider,
+    episodeSort: s.episodeSort,
+    hideSpoilers: s.hideSpoilers,
+    omdbKey: s.omdbKey,
+    preferCustomMetaAddon: s.preferCustomMetaAddon,
+    spoilerHideDescriptions: s.spoilerHideDescriptions,
+    spoilerHideThumbnails: s.spoilerHideThumbnails,
+    spoilerHideTitles: s.spoilerHideTitles,
+    spoilerSkipNext: s.spoilerSkipNext,
+    tmdbKey: s.tmdbKey,
+    tvdbKey: s.tvdbKey,
+    tvdbOrderPanel: s.tvdbOrderPanel,
+    tvdbSeasonType: s.tvdbSeasonType,
+  }));
+  const update = useSettingsUpdate();
   const { isConnected: traktConnected } = useTrakt();
   const { isConnected: simklConnected } = useSimkl();
   const mwVersion = useSyncExternalStore(subscribeManualWatched, manualWatchedVersion);

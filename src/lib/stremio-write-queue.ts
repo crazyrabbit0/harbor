@@ -7,6 +7,7 @@ type Pending = { authKey: string; item: LibraryItem };
 const queue = new Map<string, Pending>();
 let loaded = false;
 let started = false;
+let retryTimer = 0;
 
 function mtimeMs(item: LibraryItem): number {
   const m = item._mtime as unknown;
@@ -34,6 +35,7 @@ function persist(): void {
   try {
     localStorage.setItem(KEY, JSON.stringify([...queue.values()]));
   } catch {}
+  syncRetryTimer();
 }
 
 export function queuedWatched(
@@ -72,6 +74,7 @@ export async function cloudLibraryPut(authKey: string, item: LibraryItem): Promi
 export async function flushWriteQueue(): Promise<void> {
   load();
   if (queue.size === 0) return;
+  // oxlint-disable-next-line unicorn/no-useless-spread -- the loop deletes entries, so it walks a snapshot
   for (const [id, pending] of [...queue.entries()]) {
     try {
       let remote: LibraryItem | null;
@@ -97,11 +100,22 @@ export async function flushWriteQueue(): Promise<void> {
   persist();
 }
 
+// The retry timer runs only while writes are queued; an empty queue has nothing to retry.
+function syncRetryTimer(): void {
+  if (!started) return;
+  if (queue.size > 0 && !retryTimer) {
+    retryTimer = window.setInterval(() => void flushWriteQueue(), 60000);
+  } else if (queue.size === 0 && retryTimer) {
+    window.clearInterval(retryTimer);
+    retryTimer = 0;
+  }
+}
+
 export function startWriteQueueFlusher(): void {
   if (started || typeof window === "undefined") return;
   started = true;
   load();
   window.addEventListener("online", () => void flushWriteQueue());
-  window.setInterval(() => void flushWriteQueue(), 60000);
+  syncRetryTimer();
   if (queue.size > 0) void flushWriteQueue();
 }

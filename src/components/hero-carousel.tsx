@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { observe, usePageVisible } from "@/lib/visibility";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { isRtl, useT, useUiLanguage } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { Hero } from "./hero";
 import { NavChevron } from "@/components/nav-arrow";
 import type { Meta } from "@/lib/cinemeta";
@@ -51,7 +51,7 @@ export function HeroCarousel({
   const [offset, setOffset] = useState(0);
   const [inViewport, setInViewport] = useState(true);
   const pageVisible = usePageVisible();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ heroTrailerAudio: s.heroTrailerAudio }));
   const t = useT();
   const rtl = isRtl(useUiLanguage());
   const reduce = useReducedMotion();

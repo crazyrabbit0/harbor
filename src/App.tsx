@@ -95,14 +95,9 @@ import { MangaSyncToast } from "@/components/manga/manga-sync-toast";
 import { TogetherLeaveForLiveModal } from "@/components/together-leave-for-live-modal";
 import { ThemeBackdrop } from "@/components/theme-backdrop";
 import { TopRankModal } from "@/components/top-rank-modal";
-import { AuthProvider, useAuth } from "@/lib/auth";
-import { listMangaProgress } from "@/lib/manga-progress";
+import { AuthProvider } from "@/lib/auth";
 import { ProfilesProvider, useProfiles } from "@/lib/profiles";
-import { syncProfileStats } from "@/lib/social/stats-sync";
-import { useFeaturedListsSync } from "@/lib/social/use-featured-sync";
-import { useRatingsSync } from "@/lib/social/use-ratings-sync";
-import { useActivitySync } from "@/lib/social/use-activity-sync";
-import { authToken, currentAuthor } from "@/lib/theme-auth";
+import { currentAuthor } from "@/lib/theme-auth";
 import { startSessionRefresh } from "@/lib/account/session-refresh-runner";
 import { useAutoDownloadRunner } from "@/lib/auto-download/runner";
 import { RemindersRunner } from "@/lib/reminders-runner";
@@ -138,7 +133,7 @@ import { MediaFavoritesProvider } from "@/lib/media-favorites";
 import { CharacterFavoritesProvider } from "@/lib/character-favorites";
 import { MangaFavoritesProvider } from "@/lib/manga-favorites";
 import { LocalWatchlistProvider } from "@/lib/local-watchlist";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import {
   flushPendingTorrentRemovals,
   reconcilePendingTorrentRemovals,
@@ -388,11 +383,24 @@ const BigPictureShell = lazy(() =>
   import("@/views/big-picture/bp-shell").then((m) => ({ default: m.BigPictureShell })),
 );
 
+interface PrefetchHints {
+  readonly connection?: { readonly saveData?: boolean };
+  readonly deviceMemory?: number;
+}
+
+// Data saver or a low-memory device skips idle prefetch; views still load on demand.
+function prefetchAllowed(): boolean {
+  if (typeof navigator === "undefined") return true;
+  const hints: Navigator & PrefetchHints = navigator;
+  if (hints.connection?.saveData === true) return false;
+  return hints.deviceMemory === undefined || hints.deviceMemory >= 4;
+}
+
 function useViewPreloader(tmdbKey: string) {
   const keyRef = useRef(tmdbKey);
   keyRef.current = tmdbKey;
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || !prefetchAllowed()) return;
     let cancelled = false;
     const win = window as Window & {
       requestIdleCallback?: (cb: () => void, opts?: { timeout?: number }) => number;
@@ -542,10 +550,6 @@ export function App({ onReady }: { onReady?: () => void }) {
                                                     <TogetherLocationPublisher />
                                                     <IdleAwayRunner />
                                                     <SessionRefreshRunner />
-                                                    <StatsSyncRunner />
-                                                    <FeaturedListsSyncRunner />
-                                                    <RatingsSyncRunner />
-                                                    <ActivitySyncRunner />
                                                     <MediaServerSyncRunner />
                                                     <AutoDownloadRunner />
                                                     <RemindersRunner />
@@ -622,21 +626,6 @@ function AutoDownloadRunner() {
   return null;
 }
 
-function FeaturedListsSyncRunner() {
-  useFeaturedListsSync();
-  return null;
-}
-
-function RatingsSyncRunner() {
-  useRatingsSync();
-  return null;
-}
-
-function ActivitySyncRunner() {
-  useActivitySync();
-  return null;
-}
-
 const MEDIA_SERVER_SYNC_MS = 15 * 60 * 1000;
 
 function MediaServerSyncRunner() {
@@ -705,39 +694,6 @@ function SessionRefreshRunner() {
 
 function IdleAwayRunner() {
   useEffect(() => startIdleAway(), []);
-  return null;
-}
-
-const STATS_SYNC_FIRST_MS = 4000;
-const STATS_SYNC_EVERY_MS = 600000;
-const STATS_SYNC_MIN_GAP_MS = 120000;
-
-function StatsSyncRunner() {
-  const { authKey } = useAuth();
-  const { activeId } = useProfiles();
-  useEffect(() => {
-    if (!authToken()) return;
-    const pid = activeId ?? "default";
-    let last = 0;
-    let alive = true;
-    const run = (force: boolean) => {
-      if (!alive || !authToken()) return;
-      const now = performance.now();
-      if (!force && now - last < STATS_SYNC_MIN_GAP_MS) return;
-      last = now;
-      syncProfileStats(authKey, listMangaProgress(pid).length).catch(() => {});
-    };
-    const first = window.setTimeout(() => run(true), STATS_SYNC_FIRST_MS);
-    const every = window.setInterval(() => run(false), STATS_SYNC_EVERY_MS);
-    const onFocus = () => run(false);
-    window.addEventListener("focus", onFocus);
-    return () => {
-      alive = false;
-      window.clearTimeout(first);
-      window.clearInterval(every);
-      window.removeEventListener("focus", onFocus);
-    };
-  }, [authKey, activeId]);
   return null;
 }
 
@@ -899,7 +855,30 @@ function Shell({ onReady }: { onReady?: () => void }) {
     stackKinds,
     chromeHidden,
   } = useView();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    uiScale: s.uiScale,
+    streamCacheDir: s.streamCacheDir,
+    streamCacheRetentionHours: s.streamCacheRetentionHours,
+    streamCacheMaxGb: s.streamCacheMaxGb,
+    theme: s.theme,
+    tmdbKey: s.tmdbKey,
+    bigPictureAutoStart: s.bigPictureAutoStart,
+    bigPictureDisplay: s.bigPictureDisplay,
+    bigPictureButton: s.bigPictureButton,
+    tvNavigation: s.tvNavigation,
+    soundTheme: s.soundTheme,
+    sfxVolume: s.sfxVolume,
+    hotkeys: s.hotkeys,
+    hideContent: s.hideContent,
+    musicArtworkAppIcon: s.musicArtworkAppIcon,
+    rdKey: s.rdKey,
+    tbKey: s.tbKey,
+    pmKey: s.pmKey,
+    adKey: s.adKey,
+    showQuickGameLibrary: s.showQuickGameLibrary,
+    sidebarCollapsed: s.sidebarCollapsed,
+  }));
+  const update = useSettingsUpdate();
   const { open: searchOpen, setOpen: setSearchOpen } = useSearch();
   const bigPicture = useBigPicture().active;
   const bigPictureBootChecked = useRef(false);

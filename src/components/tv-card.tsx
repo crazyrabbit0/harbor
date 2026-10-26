@@ -3,7 +3,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { peekCachedLogo, resolveLogo } from "@/lib/logo";
 import { sizeImageUrl } from "@/lib/img-size";
 import { useContextMenu } from "@/lib/context-menu";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { usePosterChain } from "@/components/poster";
 import { ensureStaticHeroArt, peekStaticHeroArt } from "@/lib/providers/anime-hero-art-static";
@@ -18,7 +18,7 @@ const POS = {
 } as const;
 
 function useLogo(meta: Meta): string | undefined {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [logo, setLogo] = useState<string | undefined>(() =>
     peekCachedLogo(settings.tmdbKey, meta),
   );
@@ -53,7 +53,10 @@ export const TvCard = memo(function TvCard({
 }) {
   const { openMeta, openManga } = useViewActions();
   const { open: openContextMenu } = useContextMenu();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    rpdbKey: s.rpdbKey,
+    posterRadius: s.posterRadius,
+  }));
   const logo = useLogo(meta);
   const poster = usePosterChain(
     settings.rpdbKey,
@@ -93,7 +96,7 @@ export const TvCard = memo(function TvCard({
 
 // MAL/Kitsu anime metas carry no backdrop; the TV card would otherwise blur the poster.
 function useAnimeBackdrop(meta: Meta): string | undefined {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const isAnime = ANIME_ID.test(meta.id);
   const [backdrop, setBackdrop] = useState<{ meta: Meta; url?: string }>(() => ({
     meta,
@@ -139,7 +142,7 @@ export function TvCardArtwork({
   onPosterError?: () => void;
   reason?: string;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tvCardLogoPos: s.tvCardLogoPos }));
   const [failedBackdrop, setFailedBackdrop] = useState<string>();
   const animeBackdrop = useAnimeBackdrop(meta);
   const backdrop =

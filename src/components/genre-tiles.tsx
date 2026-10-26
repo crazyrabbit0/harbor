@@ -4,7 +4,7 @@ import { fetchGenreSample } from "@/lib/feed";
 import { MOVIE_GENRES } from "@/lib/feed/tags";
 import { useT } from "@/lib/i18n";
 import { rpdbPoster } from "@/lib/providers/rpdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { claimUniqueArt, releaseUniqueArt } from "@/lib/unique-art";
 import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
@@ -88,7 +88,7 @@ export function GenreTiles({ title }: { title?: string }) {
 }
 
 function GenreTile({ genre }: { genre: string }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey, rpdbKey: s.rpdbKey }));
   const { openFilter } = useViewActions();
   const t = useT();
   const [backdrops, setBackdrops] = useState<Meta[]>([]);

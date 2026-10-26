@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AlertTriangle, Info } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import badge1080i from "@/assets/badges/1080i.png";
 import badge1080p from "@/assets/badges/1080p_fhd.webp";
 import badge2kQhd from "@/assets/badges/2k_qhd.png";
@@ -402,7 +402,7 @@ export function RuleBadges({
   stream: ParsedStream | ScoredStream;
   size?: BadgeSize;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ showQualityBadge: s.showQualityBadge }));
   const matched = useMatchedRules(ruleTextForStream(stream));
   if (matched.length === 0) return null;
   const shown = settings.showQualityBadge ? new Set(streamBadges(stream)) : new Set<BadgeKind>();

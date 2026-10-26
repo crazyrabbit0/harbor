@@ -1,5 +1,5 @@
 import type { Meta } from "@/lib/cinemeta";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { hasListingBadges, listingBadges, listingLine } from "@/views/plugins/listing-badges";
 
 /** The languages and quality a plugin wrote on its listing line, as a strip on the poster.
@@ -11,7 +11,10 @@ import { hasListingBadges, listingBadges, listingLine } from "@/views/plugins/li
  * The whole line is the tooltip. What is badged is a reading of it, and the reading can leave words
  * out; the tooltip is what the provider actually sent. */
 export function ListingBadgeStrip({ meta }: { meta: Meta }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    pluginsPosterLanguages: s.pluginsPosterLanguages,
+    pluginsPosterQuality: s.pluginsPosterQuality,
+  }));
   const want = {
     languages: settings.pluginsPosterLanguages,
     quality: settings.pluginsPosterQuality,

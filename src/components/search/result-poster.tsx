@@ -1,5 +1,5 @@
 import { Poster, usePosterChain } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function ResultPoster({
   id,
@@ -10,7 +10,7 @@ export function ResultPoster({
   poster?: string;
   className?: string;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const chain = usePosterChain(settings.rpdbKey, id, poster, "series");
   return (
     <Poster

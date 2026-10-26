@@ -3,7 +3,7 @@ import type { AddonResultGroup } from "@/lib/search-addons";
 import type { Meta } from "@/lib/cinemeta";
 import { Poster, usePosterChain } from "@/components/poster";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 
 export function AddonResults({
@@ -58,7 +58,7 @@ function AddonGroup({ group, onClose }: { group: AddonResultGroup; onClose: () =
 
 function AddonResultRow({ meta, onClose }: { meta: Meta; onClose: () => void }) {
   const { openMeta } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const poster = usePosterChain(
     settings.rpdbKey,
     meta.id,

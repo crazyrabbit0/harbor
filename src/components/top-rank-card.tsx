@@ -12,7 +12,7 @@ import {
 } from "@/lib/hover-preview/store";
 import { useT } from "@/lib/i18n";
 import { useTmdbImdbId } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useInWatchlist } from "@/lib/watchlist";
 import { Poster, usePosterChain } from "./poster";
@@ -59,7 +59,7 @@ function WatchlistDot({ side = "right" }: { side?: "left" | "right" }) {
 export const TopRankCard = memo(function TopRankCard({ meta, rank }: { meta: Meta; rank: number }) {
   const { openMeta } = useViewActions();
   const { open: openContextMenu } = useContextMenu();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const resolvedImdb = useTmdbImdbId(meta.id);
   const altIds = useMemo(() => [resolvedImdb], [resolvedImdb]);
   const inWatchlist = useInWatchlist(meta.id, altIds);
@@ -145,7 +145,7 @@ export const AnimeRankCard = memo(function AnimeRankCard({
 }) {
   const { openMeta } = useViewActions();
   const { open: openContextMenu } = useContextMenu();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const resolvedImdb = useTmdbImdbId(meta.id);
   const altIds = useMemo(() => [resolvedImdb], [resolvedImdb]);
   const inWatchlist = useInWatchlist(meta.id, altIds);

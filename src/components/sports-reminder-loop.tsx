@@ -1,5 +1,5 @@
 import { useEffect, useRef, useSyncExternalStore } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { fireWebhook } from "@/lib/calendar";
 import { getUiLanguage } from "@/lib/i18n/store";
 import { readSportsReminders, saveSportsReminder } from "@/lib/sports/reminders";
@@ -13,7 +13,7 @@ import {
 /** Local reminders intentionally run only while Harbor is open. No credentials are copied
  * into reminder storage, and a successful destination is not retried with a failed peer. */
 export function SportsReminderLoop() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ webhooks: s.webhooks }));
   const current = useRef(settings.webhooks);
   current.current = settings.webhooks;
   const consent = useSyncExternalStore(

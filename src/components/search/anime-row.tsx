@@ -2,7 +2,7 @@ import { Sparkles, Star } from "lucide-react";
 import { usePosterChain } from "@/components/poster";
 import type { AnimeHit } from "@/lib/search";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import type { Meta } from "@/lib/cinemeta";
 
@@ -50,7 +50,7 @@ export function AnimeRow({ items, onClose }: { items: AnimeHit[]; onClose: () =>
 
 function AnimeRowItem({ hit, onOpen }: { hit: AnimeHit; onOpen: (hit: AnimeHit) => void }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const poster = usePosterChain(
     settings.rpdbKey,
     animeHitMetaId(hit),

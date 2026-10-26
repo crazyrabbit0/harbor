@@ -5,7 +5,7 @@ import { SPOILER_TEXT_CLASS, SPOILER_THUMB_CLASS, type SpoilerMask } from "@/lib
 import type { PlayEpisode } from "@/lib/view";
 import { parseKitsuId } from "@/lib/providers/kitsu";
 import { splitFranchiseDisplaySeason } from "@/lib/streams/anime-identity-core";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { distinctAbsolute } from "@/lib/episode-absolute";
 import { EpisodeRatingBadge } from "@/views/detail/episode-rating-badge";
 import { useT } from "@/lib/i18n";
@@ -40,7 +40,7 @@ export function EpisodeRow({
   absoluteNumber?: number;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ showEpisodeRating: s.showEpisodeRating }));
   const imdbVal = imdbRating != null && imdbRating > 0 ? imdbRating : null;
   const tmdbVal = episode.rating != null && episode.rating > 0 ? episode.rating : null;
   const ratingVal = imdbVal ?? tmdbVal;
