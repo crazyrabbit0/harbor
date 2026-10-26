@@ -1,7 +1,7 @@
 import { activeProfileId } from "@/lib/active-profile-id";
 import { getSession } from "./session";
 import { resolveForMeta } from "@/lib/tracker-resolve";
-import { simklRequest } from "./client";
+import { SimklApiError, simklRequest } from "./client";
 import { isDetectedAnime } from "@/lib/anime-detect";
 import { animeEntryTarget } from "@/lib/anime-entry-target";
 import { kitsuToMal } from "@/lib/providers/anime-mapping";
@@ -22,7 +22,9 @@ async function post(action: ScrobbleAction, body: Record<string, unknown>): Prom
   try {
     await simklRequest(`/scrobble/${action}`, { method: "POST", body });
     return true;
-  } catch {
+  } catch (error) {
+    // Simkl answers a repeated stop with 409 and the watch it already recorded.
+    if (action === "stop" && error instanceof SimklApiError && error.status === 409) return true;
     // Background-safe: live scrobble failures must never break playback.
     return false;
   }

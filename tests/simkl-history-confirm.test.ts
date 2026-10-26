@@ -56,6 +56,21 @@ test("a failed request is not a recorded watch", async () => {
   assert.equal(await api.markAnimeEpisodesWatched({ kitsu: 1444 }, [175]), false);
 });
 
+test("a show episode already in Simkl history counts as recorded", async () => {
+  const { api } = loadHistory(() => ({
+    added: { episodes: 0 },
+    not_found: { movies: [], shows: [], episodes: [] },
+  }));
+  assert.equal(await api.markEpisodesWatched({ imdb: "tt0182576" }, 10, [9]), true);
+});
+
+test("a show history reply without not_found still needs added episodes", async () => {
+  const { api } = loadHistory(() => ({ added: { episodes: 0 } }));
+  assert.equal(await api.markEpisodesWatched({ imdb: "tt0182576" }, 10, [9]), false);
+  const odd = loadHistory(() => ({ added: { episodes: 0 }, not_found: { episodes: {} } }));
+  assert.equal(await odd.api.markEpisodesWatched({ imdb: "tt0182576" }, 10, [9]), false);
+});
+
 test("the TVDB-anime fallback asks Simkl to map TVDB seasons", async () => {
   const { api, bodies } = loadHistory(() => ({ added: { episodes: 1 }, not_found: {} }));
   assert.equal(await api.markTvdbAnimeEpisodesWatched({ imdb: "tt1224144" }, 7, [22]), true);
