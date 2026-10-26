@@ -60,7 +60,7 @@ export function useBpExtraRows(): BpExtraRows {
   const classic = settings.homeMode === "classic";
 
   const animeRows = useAsyncRows(
-    settings.hideContent.anime || classic ? null : () => buildAnimeHomeRows(),
+    settings.hideContent.anime || classic ? null : () => buildAnimeHomeRows(3),
     [settings.hideContent.anime, classic],
   );
 
