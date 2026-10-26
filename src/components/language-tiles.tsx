@@ -3,7 +3,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { tmdbDiscover } from "@/lib/providers/tmdb";
 import { rpdbPoster } from "@/lib/providers/rpdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { claimUniqueArt, releaseUniqueArt } from "@/lib/unique-art";
 import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
@@ -44,7 +44,7 @@ export function LanguageTiles({ title }: { title?: string }) {
 }
 
 function LanguageTile({ lang }: { lang: Lang }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey, rpdbKey: s.rpdbKey }));
   const { openFilter } = useViewActions();
   const t = useT();
   const [backdrops, setBackdrops] = useState<Meta[]>([]);

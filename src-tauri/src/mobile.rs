@@ -93,6 +93,7 @@ pub fn run() {
             settings_store::secrets_write,
             media_server::media_server_request,
             http_fetch::harbor_fetch,
+            http_fetch::harbor_fetch_image,
             http_fetch::harbor_upload,
             subtitle_credentials::subtitle_credential_bind,
             subtitle_credentials::subtitle_credentials_clear,

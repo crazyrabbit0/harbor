@@ -78,6 +78,7 @@ function fixture(failImmediately = false) {
       if (failImmediately && args.track.connectorId === "spotify")
         throw new Error("Spotify unavailable");
     },
+    writeMusicDb: async () => {},
     stopCastOwner: async () => {},
     ensureNativeEvents: async () => {},
     updateMediaSession: () => {},

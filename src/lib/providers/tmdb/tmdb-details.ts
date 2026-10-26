@@ -206,6 +206,15 @@ export async function tmdbDetails(
 
   const settings = loadStoredSettings();
   const metaLang = lang ?? (effectiveTmdbLanguage() || "en");
+  const metaLangBase = metaLang.split("-")[0]?.toLowerCase() ?? "";
+  // English credit names load alongside the detail bundle, not after it.
+  const enCreditsPending =
+    metaLangBase && metaLangBase !== "en"
+      ? Promise.all([
+          get<any>(key, `${kind}/${id}/credits`, { language: "en-US" }),
+          get<any>(key, `${kind}/${id}/aggregate_credits`, { language: "en-US" }),
+        ]).catch(() => [null, null])
+      : null;
   const raw = await get<any>(key, `${kind}/${id}`, {
     append_to_response:
       "credits,aggregate_credits,recommendations,similar,videos,external_ids,images,keywords,translations",
@@ -214,13 +223,9 @@ export async function tmdbDetails(
   });
   if (!raw) return null;
 
-  const metaLangBase = metaLang.split("-")[0]?.toLowerCase() ?? "";
   let enNameById: Map<number, string> | null = null;
-  if (metaLangBase && metaLangBase !== "en") {
-    const [enCredits, enAgg] = await Promise.all([
-      get<any>(key, `${kind}/${id}/credits`, { language: "en-US" }),
-      get<any>(key, `${kind}/${id}/aggregate_credits`, { language: "en-US" }),
-    ]);
+  if (enCreditsPending) {
+    const [enCredits, enAgg] = await enCreditsPending;
     enNameById = new Map();
     for (const list of [enCredits?.cast, enCredits?.crew, enAgg?.cast, enAgg?.crew]) {
       for (const p of list ?? []) {

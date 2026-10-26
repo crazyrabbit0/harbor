@@ -6,7 +6,7 @@ import { MetaAwardsCorner } from "@/components/meta-awards-corner";
 import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { tmdbLogo, tmdbTrailerList, useTmdbImdbId } from "@/lib/providers/tmdb";
 import { useImdbRating } from "@/lib/imdb-rating";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useTitleLogo } from "@/lib/title-logo";
 import { useLocalizedOverview } from "@/lib/use-localized-overview";
 import { smartPlayEpisode } from "@/lib/smart-play";
@@ -213,7 +213,12 @@ function CinemaSlide({
   eyebrow: string;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    tmdbKey: s.tmdbKey,
+    heroTrailers: s.heroTrailers,
+    showImdbBadge: s.showImdbBadge,
+    instantPlay: s.instantPlay,
+  }));
   const { openMeta, openPicker } = useViewActions();
   const description = useLocalizedOverview(meta);
   const resolvedImdb = useTmdbImdbId(meta.id);

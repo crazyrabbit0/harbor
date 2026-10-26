@@ -32,7 +32,7 @@ fn kill_orphan_sidecars() {
 }
 
 pub fn ensure_started_on_setup(_app: &AppHandle) {
-    kill_orphan_sidecars();
+    std::thread::spawn(kill_orphan_sidecars);
 }
 
 #[tauri::command]

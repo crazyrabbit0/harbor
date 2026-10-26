@@ -71,7 +71,7 @@ function artworkFixture() {
   const { TvCardArtwork } = load("src/components/tv-card.tsx", {
     react: h.react,
     "react/jsx-runtime": runtime,
-    "@/lib/settings": { useSettings: () => ({ settings: {} }) },
+    "@/lib/settings": { useSettingsSelector: (select) => select({}) },
     "@/lib/img-size": { sizeImageUrl: (url) => url },
     "@/lib/providers/anime-hero-art-static": {
       peekStaticHeroArt: (id) => cached.get(id),

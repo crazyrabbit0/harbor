@@ -1,6 +1,15 @@
 import { safeFetch } from "@/lib/safe-fetch";
 import { createRequestScheduler } from "@/lib/request-scheduler";
-import { createCatalogCache, createPersistentCatalog, isCatalogPath } from "./tmdb-catalog-cache";
+import {
+  createCatalogCache,
+  createPersistentCatalog,
+  isCatalogPath,
+  isTitlePath,
+  MAX_TITLE_BUNDLES,
+  PERSISTED_TITLE_MAX_CHARS,
+  PERSISTED_TITLE_PREFIX,
+  PERSISTED_TITLE_TTL_MS,
+} from "./tmdb-catalog-cache";
 
 export const TMDB = "https://api.themoviedb.org/3";
 export const IMG = "https://image.tmdb.org/t/p";
@@ -10,6 +19,23 @@ const tmdbRequests = createRequestScheduler({ concurrency: 6 });
 const tmdbInflight = new Map<string, Promise<unknown>>();
 const catalogCache = createCatalogCache();
 const persistentCatalog = createPersistentCatalog();
+const titleCache = createCatalogCache(Date.now, MAX_TITLE_BUNDLES);
+const persistentTitles = createPersistentCatalog({
+  prefix: PERSISTED_TITLE_PREFIX,
+  ttlMs: PERSISTED_TITLE_TTL_MS,
+  maxChars: PERSISTED_TITLE_MAX_CHARS,
+});
+
+type PageLayer = {
+  memory: typeof catalogCache;
+  persistent: typeof persistentCatalog;
+};
+
+function pageLayer(path: string): PageLayer | null {
+  if (isCatalogPath(path)) return { memory: catalogCache, persistent: persistentCatalog };
+  if (isTitlePath(path)) return { memory: titleCache, persistent: persistentTitles };
+  return null;
+}
 
 let tmdbLanguage = "";
 
@@ -131,17 +157,21 @@ function withinDeadline<T>(work: Promise<T | null>, ms: number | undefined): Pro
   return Promise.race([work, expiry]);
 }
 
-async function loadPage<T>(target: string, path: string, cacheable: boolean): Promise<T | null> {
-  if (!cacheable) return fetchWithRetry<T>(target, path);
-  const stored = await persistentCatalog.read<T>(target);
+async function loadPage<T>(
+  target: string,
+  path: string,
+  layer: PageLayer | null,
+): Promise<T | null> {
+  if (!layer) return fetchWithRetry<T>(target, path);
+  const stored = await layer.persistent.read<T>(target);
   if (stored != null) {
-    catalogCache.set(target, stored);
+    layer.memory.set(target, stored);
     return stored;
   }
   const data = await fetchWithRetry<T>(target, path);
   if (data != null) {
-    catalogCache.set(target, data);
-    persistentCatalog.write(target, data);
+    layer.memory.set(target, data);
+    layer.persistent.write(target, data);
   }
   return data;
 }
@@ -163,11 +193,12 @@ export async function get<T>(
   const target = url.toString();
   // The full URL scopes raw pages by API key, language, region, filters and page.
   // User-specific ranking and watched filtering still run afresh after retrieval.
-  const cacheable = isCatalogPath(path);
-  const cached = cacheable ? catalogCache.get<T>(target) : undefined;
+  const layer = pageLayer(path);
+  const cacheable = layer !== null;
+  const cached = layer ? layer.memory.get<T>(target) : undefined;
   if (cached !== undefined) return cached;
   const shared = tmdbInflight.get(target) as Promise<T | null> | undefined;
-  const run = shared ?? loadPage<T>(target, path, cacheable);
+  const run = shared ?? loadPage<T>(target, path, layer);
   if (!shared) {
     tmdbInflight.set(target, run);
     const release = () => {

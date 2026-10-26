@@ -1,7 +1,6 @@
 import { lruSet } from "@/lib/cache";
 import { registerCache } from "@/lib/memory-profiler";
-import { safeFetch as fetch } from "@/lib/safe-fetch";
-import type { Meta } from "./cinemeta";
+import { meta as cinemetaMeta, type Meta } from "./cinemeta";
 import type { PlayEpisode } from "./view";
 import {
   applyTmdbEpisodeNames,
@@ -355,10 +354,10 @@ async function loadCinemetaEpisodes(id: string, tmdbKey?: string): Promise<PlayE
   const prefer = preferCustomMeta();
   const cacheKey = `${prefer ? `${id}:prefer` : id}${tmdbKey ? ":tmdb" : ""}`;
   if (cinemetaListCache.has(cacheKey)) return cinemetaListCache.get(cacheKey)!;
-  const res = await fetch(`https://v3-cinemeta.strem.io/meta/series/${id}.json`);
-  if (!res.ok) return null;
-  const json = await res.json();
-  const raw = (json?.meta?.videos ?? []) as Array<{
+  // Through cinemeta.meta so the list shares its disk cache and a restart doesn't refetch every Continue Watching show.
+  const full = await cinemetaMeta("series", id, true).catch(() => null);
+  if (!full) return null;
+  const raw = (full.videos ?? []) as Array<{
     season?: number;
     episode?: number;
     number?: number;

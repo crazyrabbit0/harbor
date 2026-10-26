@@ -22,6 +22,7 @@ import { Tooltip } from "@/views/detail/tooltip";
 import { useProfiles, sharesStremioStorage } from "@/lib/profiles";
 import { useAuth } from "@/lib/auth";
 import { useSettingsSelector } from "@/lib/settings";
+import { useNow } from "@/lib/use-now";
 import { useViewActions, type PlayEpisode } from "@/lib/view";
 import { getWatchedBy } from "@/lib/watched-by";
 import { resolveLocalPlayVersions } from "@/lib/local-library/playback";
@@ -124,12 +125,7 @@ export const ContinueCard = memo(function ContinueCard({
   const nextAirDate = waitingForAir
     ? ((item as Record<string, unknown>).nextAirDate as string | undefined)
     : undefined;
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (!waitingForAir || !nextAirDate) return;
-    const id = window.setInterval(() => setNow(Date.now()), 60000);
-    return () => window.clearInterval(id);
-  }, [waitingForAir, nextAirDate]);
+  const now = useNow(60000, waitingForAir && !!nextAirDate);
   const countdown = useMemo(() => {
     if (!nextAirDate) return "";
     const diff = Date.parse(nextAirDate) - now;

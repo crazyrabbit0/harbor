@@ -1278,6 +1278,7 @@ fn apply_mac_edr(app: &AppHandle, mpv: &Arc<Mpv>, active: bool) {
 }
 
 const MPV_EVENT_MAX_CONSECUTIVE_ERRORS: u32 = 12;
+const MPV_CACHE_EMIT_INTERVAL: Duration = Duration::from_millis(500);
 
 #[derive(Default)]
 struct EventErrorBackoff {
@@ -1322,13 +1323,18 @@ fn spawn_event_loop(
         let mut error_backoff = EventErrorBackoff::default();
         #[cfg(windows)]
         let mut last_hdr_status: Option<String> = None;
+        #[cfg(windows)]
+        let mut last_hdr_poll: Option<std::time::Instant> = None;
+        let mut last_cache_emit: Option<std::time::Instant> = None;
+        let mut pending_cache: Option<Value> = None;
         loop {
             // display-info publishes user-data/display-info/hdr-status only
             // after the vo window exists, so observing it at init misses the
             // value; poll it and surface changes so the frontend can react to
             // the script's display flips.
             #[cfg(windows)]
-            {
+            if last_hdr_poll.is_none_or(|t| t.elapsed() >= Duration::from_millis(500)) {
+                last_hdr_poll = Some(std::time::Instant::now());
                 let status = mpv_keepalive
                     .get_property::<String>("user-data/display-info/hdr-status")
                     .ok();
@@ -1338,6 +1344,12 @@ fn spawn_event_loop(
                         let _ = app.emit("hdr-stage://display-status", s.as_str());
                     }
                 }
+            }
+            if let Some(p) = pending_cache.take_if(|_| {
+                last_cache_emit.is_none_or(|t| t.elapsed() >= MPV_CACHE_EMIT_INTERVAL)
+            }) {
+                last_cache_emit = Some(std::time::Instant::now());
+                let _ = app.emit("mpv://event", p);
             }
             let res = ctx.wait_event(0.5);
             match res {
@@ -1421,8 +1433,26 @@ fn spawn_event_loop(
                             let _ = app.emit_to("harbor-captions", "captions://text", text);
                         }
                     }
+                    let is_cache = matches!(
+                        &event,
+                        Event::PropertyChange { name: "demuxer-cache-duration", .. }
+                    );
+                    if matches!(event, Event::EndFile(_)) {
+                        if let Some(p) = pending_cache.take() {
+                            let _ = app.emit("mpv://event", p);
+                        }
+                    }
                     let payload = event_to_payload(event);
                     if let Some(p) = payload {
+                        if is_cache {
+                            let now = std::time::Instant::now();
+                            if last_cache_emit.is_some_and(|t| now - t < MPV_CACHE_EMIT_INTERVAL) {
+                                pending_cache = Some(p);
+                                continue;
+                            }
+                            last_cache_emit = Some(now);
+                            pending_cache = None;
+                        }
                         let _ = app.emit("mpv://event", p);
                     }
                     if shutdown {

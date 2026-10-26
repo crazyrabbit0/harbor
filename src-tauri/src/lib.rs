@@ -743,7 +743,7 @@ pub fn run() {
     #[cfg(windows)]
     taskbar::register_app_identity();
     let _ = rustls::crypto::ring::default_provider().install_default();
-    trailer::sweep_cache();
+    std::thread::spawn(trailer::sweep_cache);
     std::thread::spawn(trailer::sweep_ytdlp_extractions);
     std::thread::spawn(temp_prune::sweep_temp);
 
@@ -1461,6 +1461,7 @@ pub fn run() {
             multiview::multiview_visibility,
             multiview::multiview_stop_all,
             http_fetch::harbor_fetch,
+            http_fetch::harbor_fetch_image,
             http_fetch::harbor_upload,
             http_fetch::clear_thumb_cache,
             http_fetch::thumb_cache_size,

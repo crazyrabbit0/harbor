@@ -709,6 +709,7 @@ function playerEntries() {
     filterBlockedTracks: (tracks: MusicTrack[]) => tracks,
     publish: (patch: unknown) => Object.assign(state, patch),
     invoke: async () => {},
+    writeMusicDb: async () => {},
     insertIntoQueue,
     markManuallyQueued,
     queueInsertIndex,

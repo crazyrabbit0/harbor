@@ -78,6 +78,11 @@ function storeKey(kind: keyof typeof PREFIXES): string {
   return id ? PREFIXES[kind] + id : LEGACY_KEYS[kind];
 }
 
+/** Names the watched store the active profile reads, so per-profile memos of applied remote ticks stay separate. */
+export function watchedStoreTag(): string {
+  return storeKey("remote");
+}
+
 function migrateLegacy(): void {
   try {
     const pid = primaryProfileId();

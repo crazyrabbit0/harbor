@@ -128,18 +128,24 @@ fn harbor_temp_dirs() -> Vec<PathBuf> {
 }
 
 #[tauri::command]
-pub fn temp_usage_bytes() -> u64 {
-    harbor_temp_dirs().iter().map(dir_size).sum()
+pub async fn temp_usage_bytes() -> u64 {
+    tauri::async_runtime::spawn_blocking(|| harbor_temp_dirs().iter().map(dir_size).sum())
+        .await
+        .unwrap_or(0)
 }
 
 #[tauri::command]
-pub fn temp_clear() -> u64 {
-    let dirs = harbor_temp_dirs();
-    let before: u64 = dirs.iter().map(dir_size).sum();
-    for path in dirs {
-        let _ = std::fs::remove_dir_all(path);
-    }
-    before
+pub async fn temp_clear() -> u64 {
+    tauri::async_runtime::spawn_blocking(|| {
+        let dirs = harbor_temp_dirs();
+        let before: u64 = dirs.iter().map(dir_size).sum();
+        for path in dirs {
+            let _ = std::fs::remove_dir_all(path);
+        }
+        before
+    })
+    .await
+    .unwrap_or(0)
 }
 
 #[cfg(test)]

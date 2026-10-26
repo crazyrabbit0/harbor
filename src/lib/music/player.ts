@@ -99,6 +99,23 @@ let pendingSpeakerDevice: CastDeviceInfo | null = null;
 let returningToComputer = false;
 let speakerPoll: ReturnType<typeof setTimeout> | null = null;
 let speakerWasActive = false;
+let musicDbWrites: Promise<unknown> | null = null;
+
+// Native music DB commands run concurrently, so a write waits for the previous unfinished one to keep call order.
+function writeMusicDb(command: string, args: Record<string, unknown>): Promise<unknown> {
+  const write = musicDbWrites
+    ? musicDbWrites.then(() => invoke(command, args))
+    : invoke(command, args);
+  const settled: Promise<unknown> = write.then(
+    () => undefined,
+    () => undefined,
+  );
+  musicDbWrites = settled;
+  void settled.then(() => {
+    if (musicDbWrites === settled) musicDbWrites = null;
+  });
+  return write;
+}
 let resumeAt: { key: string; position: number } | null = null;
 // The pause the engine last reported for the load now opening. It arrives while the phase is
 // still "resolving", which is too early to be a phase of its own, so it is kept until the file
@@ -873,7 +890,7 @@ export async function playMusic(
     await ensureNativeEvents();
     if (!ownsRequest()) return;
     queue = state.queue;
-    void invoke("music_set_queue", { tracks: queue }).catch(() => {});
+    void writeMusicDb("music_set_queue", { tracks: queue }).catch(() => {});
     updateMediaSession(track);
     const recents = [track, ...state.recents.filter((item) => !sameMusicTrack(item, track))].slice(
       0,
@@ -887,7 +904,7 @@ export async function playMusic(
         )
       : state.likedTracks;
     void import("./hidden-recents").then(({ unhideMusicRecent }) => unhideMusicRecent(track.id));
-    void invoke("music_add_recent", { track }).catch(() => {});
+    void writeMusicDb("music_add_recent", { track }).catch(() => {});
     if (!ownsRequest()) return;
     publish({ recents, likedTracks });
     const speaker = getMusicSpeakerState();
@@ -994,10 +1011,10 @@ export async function playMusic(
           error: null,
           phase: "resolving",
         });
-        await invoke("music_set_queue", { tracks: queue });
+        await writeMusicDb("music_set_queue", { tracks: queue });
         if (!ownsRequest()) return;
         updateMediaSession(track);
-        await invoke("music_add_recent", { track });
+        await writeMusicDb("music_add_recent", { track });
         if (!ownsRequest()) return;
         publish({
           recents: [
@@ -1117,7 +1134,7 @@ export function setMusicQueue(input: MusicTrack[], automationOwner?: symbol): vo
     ? tracks.findIndex((item) => queueTrackKey(item) === queueTrackKey(current))
     : -1;
   publish({ queue: tracks, queueIndex });
-  void invoke("music_set_queue", { tracks }).catch((error) =>
+  void writeMusicDb("music_set_queue", { tracks }).catch((error) =>
     publish({ error: error instanceof Error ? error.message : String(error) }),
   );
 }
@@ -1258,7 +1275,7 @@ export async function closeMusicPlayer(): Promise<void> {
     await invoke("music_engine_stop", { unpause: false });
     void invoke("music_deck_primary", { deck: 0 }).catch(() => {});
     if (request !== playRequest) return;
-    await invoke("music_set_queue", { tracks: [] });
+    await writeMusicDb("music_set_queue", { tracks: [] });
     if (request !== playRequest) return;
     enginePrimed = false;
     audioReady = null;

@@ -99,6 +99,7 @@ export function useCalendarData({
   const [items, setItems] = useState<CalendarItem[]>(() => readSnapshot(snapshotKey) ?? []);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const viewKey = `${source}|${animeDub}|${year}-${month}|${snapshotKey ?? ""}`;
   const prevKeyRef = useRef(viewKey);
 
@@ -107,13 +108,18 @@ export function useCalendarData({
     setItems(readSnapshot(snapshotKey) ?? []);
     setLoading(true);
     setError(null);
+    setProgress(null);
   }
 
   useEffect(() => {
     let cancelled = false;
     setError(null);
+    setProgress(null);
     const onProgress = (rows: CalendarItem[]) => {
       if (!cancelled && rows.length > 0) setItems(rows);
+    };
+    const onCount = (done: number, total: number) => {
+      if (!cancelled && total > 0) setProgress({ done, total });
     };
     const run = (p: Promise<CalendarItem[]>) => {
       setLoading(true);
@@ -143,6 +149,7 @@ export function useCalendarData({
             tmdbKey: settings.tmdbKey,
             includeTrakt: traktConnected,
             onProgress,
+            onCount,
           }),
         );
       }
@@ -152,7 +159,9 @@ export function useCalendarData({
       }
       if (source === "simkl") {
         if (!simklConnected) return stop();
-        return run(fetchSimklCalendar(year, month, { tmdbKey: settings.tmdbKey, onProgress }));
+        return run(
+          fetchSimklCalendar(year, month, { tmdbKey: settings.tmdbKey, onProgress, onCount }),
+        );
       }
       if (source === "simkl-anticipated") {
         return run(fetchSimklPremieresCalendar(year, month));
@@ -221,5 +230,5 @@ export function useCalendarData({
     animeDub,
   ]);
 
-  return { items, loading, error };
+  return { items, loading, error, progress };
 }

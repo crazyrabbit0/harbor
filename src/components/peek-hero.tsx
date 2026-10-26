@@ -6,7 +6,7 @@ import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { tmdbLogo, useTmdbImdbId } from "@/lib/providers/tmdb";
 import { useImdbRating } from "@/lib/imdb-rating";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useTitleLogo } from "@/lib/title-logo";
 import { smartPlayEpisode } from "@/lib/smart-play";
 import { useViewActions } from "@/lib/view";
@@ -197,7 +197,7 @@ const PeekSlide = memo(function PeekSlide({
 }) {
   const onSelect = () => selectIndex(index);
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey, instantPlay: s.instantPlay }));
   const { openMeta, openPicker } = useViewActions();
   const resolvedImdb = useTmdbImdbId(meta.id);
   const imdbRating = useImdbRating(meta, resolvedImdb);

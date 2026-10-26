@@ -91,10 +91,10 @@ function series(videos: Meta["videos"]) {
       lruSet: (map: Map<unknown, unknown>, key: unknown, value: unknown) => map.set(key, value),
     },
     "@/lib/memory-profiler": { registerCache() {} },
-    "@/lib/safe-fetch": {
-      safeFetch: async () => {
+    "./cinemeta": {
+      meta: async () => {
         requests++;
-        return { ok: true, json: async () => ({ meta: { videos } }) };
+        return { videos };
       },
     },
     "./meta-resource": {

@@ -11,6 +11,7 @@ import {
   mapLimit,
   progressReporter,
   resolveSavedCalendar,
+  type CountReporter,
   type SavedCandidate,
 } from "./calendar-library";
 import { fetchWatchlist as fetchSimklWatchlist, fetchWatchingItems } from "./simkl/watchlist";
@@ -140,7 +141,7 @@ async function mapDubFeedToCalendar(year: number, month: number): Promise<Calend
 export async function fetchSimklCalendar(
   year: number,
   month: number,
-  opts: { tmdbKey: string; onProgress?: (items: CalendarItem[]) => void },
+  opts: { tmdbKey: string; onProgress?: (items: CalendarItem[]) => void; onCount?: CountReporter },
 ): Promise<CalendarItem[]> {
   if (!simklConnected()) return [];
   const cacheKey = `simkl-calendar:${year}-${month}`;

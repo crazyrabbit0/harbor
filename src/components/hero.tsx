@@ -32,7 +32,7 @@ import { omdbPrefetch, useOmdbScores } from "@/lib/providers/omdb";
 import { useImdbRating } from "@/lib/imdb-rating";
 import { tmdbImdbId, tmdbMovieImages, tmdbTrailerList, useTmdbImdbId } from "@/lib/providers/tmdb";
 import { peekCachedLogo, resolveLogo } from "@/lib/logo";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useTitleLogo } from "@/lib/title-logo";
 import { useLocalizedOverview } from "@/lib/use-localized-overview";
 import { fetchTrailer, prefetchTrailer, trailerSrc, type TrailerInfo } from "@/lib/trailer";
@@ -75,7 +75,14 @@ export const Hero = memo(function Hero({
   playSquare?: boolean;
   moreInfo?: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    tmdbKey: s.tmdbKey,
+    omdbKey: s.omdbKey,
+    heroTrailerAudio: s.heroTrailerAudio,
+    heroShadow: s.heroShadow,
+    showImdbBadge: s.showImdbBadge,
+    showRtBadge: s.showRtBadge,
+  }));
   const { openMeta, meta: activeDetail, player, picker, view } = useView();
   const { pickerOpen: profilePickerOpen } = useProfiles();
   const t = useT();

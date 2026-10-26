@@ -121,3 +121,37 @@ test("non-catalog paths and failed reads never touch or block on the persistent 
     false,
   );
 });
+
+test("a detail bundle is read from the persistent title layer after a restart", async () => {
+  const idb = idbStub();
+  const params = { language: "el-GR", append_to_response: "credits,images" };
+  await client({ idb }).module.get("secret-key", "movie/603", params);
+  await settle(0);
+  const [key] = [...idb.store.keys()];
+  assert.ok(key?.startsWith("tmdb.title.v1:"));
+  assert.doesNotMatch(key, /secret-key|api_key/);
+  assert.match(key, /language=el-GR/);
+  const cold = client({ idb });
+  const bundle = await cold.module.get<{ results: unknown[] }>("secret-key", "movie/603", params);
+  assert.deepEqual(bundle?.results, [{ id: 1, title: "Fixture" }]);
+  assert.equal(cold.requests(), 0);
+  await cold.module.get("secret-key", "movie/603", { ...params, language: "en-US" });
+  assert.equal(cold.requests(), 1);
+});
+
+test("a persisted detail bundle older than a day is refetched", async () => {
+  const idb = idbStub();
+  await client({ idb }).module.get("key", "tv/1399/images");
+  await settle(0);
+  const [key] = [...idb.store.keys()];
+  idb.store.set(key, { at: Date.now() - 24 * 60 * 60_000 - 1, data: { results: [{ id: 9 }] } });
+  const cold = client({ idb });
+  const page = await cold.module.get<{ results: { id: number }[] }>("key", "tv/1399/images");
+  assert.equal(page?.results[0].id, 1);
+  assert.equal(cold.requests(), 1);
+});
+
+test("the title cache prefix is trimmable", () => {
+  const source = readSource("src/lib/idb-cache.ts");
+  assert.match(source, /TRIMMABLE_PREFIXES = \[[^\]]*"tmdb\.title\.v1:"/);
+});

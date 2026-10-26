@@ -7,7 +7,7 @@ import {
   type BrandScope,
   type BrandSummary,
 } from "@/lib/providers/tmdb/tmdb-brands";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
 
@@ -40,7 +40,7 @@ export function useBrandRanking(
 
 export function BrandTiles({ kind, title }: { kind: BrandKind; title?: string }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openBrands } = useViewActions();
   const { brands } = useBrandRanking(kind);
   if (!settings.tmdbKey || brands.length === 0) return null;

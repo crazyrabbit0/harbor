@@ -20,4 +20,6 @@ Rust backend notes are in `src-tauri/src/music/AGENTS.md`. UI lives in `src/comp
 
 ## Tests
 
+The native music DB commands are async and run on one `music-db` worker thread, so two unawaited invokes can reach it in either order; queue and recent writes go through `writeMusicDb` in `player.ts`, which chains each write behind the previous unfinished one.
+
 ~120 `tests/music*.test.{ts,mjs}` plus `tests/music/`. A new import in `player.ts` must be added once to `tests/helpers/music-player-dependencies.ts`; `music-player-source-recovery` and `music-surprise` evaluate single functions from `player.ts` and list every free name in their own `scope`.

@@ -17,8 +17,16 @@ export function useSyncQueueStale(): boolean {
     const evaluate = () => setStale(isQueueStale(getSyncStatus(), Date.now()));
     evaluate();
     if (status.queuedSince == null) return;
-    const timer = window.setInterval(evaluate, 10000);
-    return () => window.clearInterval(timer);
+    // A hidden window skips the tick and re-evaluates once it shows again.
+    const tick = () => {
+      if (!document.hidden) evaluate();
+    };
+    const timer = window.setInterval(tick, 10000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, [status.queuedSince, status.queued]);
   return stale;
 }

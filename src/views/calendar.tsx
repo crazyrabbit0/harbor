@@ -2,6 +2,7 @@ import {
   Calendar as CalendarIcon,
   ChevronLeft,
   ChevronRight,
+  Loader2,
   SlidersHorizontal,
   Star,
 } from "lucide-react";
@@ -106,7 +107,7 @@ export function CalendarView({
   const { isConnected: traktConnected } = useTrakt();
   const { isConnected: simklConnected } = useSimkl();
 
-  const { items, loading, error } = useCalendarData({
+  const { items, loading, error, progress } = useCalendarData({
     source,
     authKey,
     accountId: user?._id ?? null,
@@ -260,6 +261,23 @@ export function CalendarView({
             </h1>
           </div>
           <div className="flex shrink-0 items-center gap-2">
+            {loading && source !== "games" && !error && (
+              <div
+                role="status"
+                aria-live="polite"
+                className="mr-1 flex h-10 items-center gap-2 rounded-full border border-edge-soft bg-elevated/30 px-4 text-[12.5px] font-semibold text-ink-muted"
+              >
+                <Loader2 size={14} strokeWidth={2.2} className="animate-spin text-accent" />
+                <span className="tabular-nums">
+                  {progress
+                    ? t("Checking {done} of {total} titles", {
+                        done: progress.done,
+                        total: progress.total,
+                      })
+                    : t("Loading releases…")}
+                </span>
+              </div>
+            )}
             <button
               onClick={goToday}
               className="h-10 rounded-full border border-edge-soft px-4 text-[13px] font-semibold text-ink-muted transition-colors hover:border-edge hover:text-ink"
