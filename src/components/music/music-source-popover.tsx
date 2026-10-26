@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useEscape } from "@/components/modal-shell";
+import { trackReposition } from "@/lib/reposition";
 import "./music-source-popover.css";
 
 export function MusicSourcePopover({
@@ -44,13 +45,11 @@ export function MusicSourcePopover({
     const observer = new ResizeObserver(place);
     const observed = anchor.current ?? document.querySelector<HTMLElement>("[data-music-dock]");
     if (observed) observer.observe(observed);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    const untrack = trackReposition(place);
     document.addEventListener("pointerdown", outside, true);
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      untrack();
       document.removeEventListener("pointerdown", outside, true);
     };
   }, [anchor, onDismiss]);

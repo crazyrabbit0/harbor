@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import { isWindowsDesktop } from "@/lib/platform";
+import { trackReposition } from "@/lib/reposition";
 import { useViewSelector } from "@/lib/view";
 import {
   embedYouTubeMusic,
@@ -109,12 +110,10 @@ export function MusicYouTube({ active, onFellBack }: { active: boolean; onFellBa
     push();
     const observer = new ResizeObserver(push);
     if (host.current) observer.observe(host.current);
-    window.addEventListener("resize", push);
-    window.addEventListener("scroll", push, true);
+    const untrack = trackReposition(push);
     return () => {
       observer.disconnect();
-      window.removeEventListener("resize", push);
-      window.removeEventListener("scroll", push, true);
+      untrack();
     };
   }, [push]);
 

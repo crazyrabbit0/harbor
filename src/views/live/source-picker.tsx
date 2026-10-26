@@ -15,6 +15,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { confirmDialog } from "@/lib/dialog";
 import { useT } from "@/lib/i18n";
+import { trackReposition } from "@/lib/reposition";
 import type { IptvPlaylistSource } from "@/lib/iptv/types";
 import { EMPTY_FORM, PlaylistForm, type PlaylistFormValue } from "./source-picker/playlist-form";
 
@@ -394,12 +395,7 @@ function PortalMenu({
       setPos({ left, top });
     };
     place();
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-    };
+    return trackReposition(place);
   }, [triggerRef]);
 
   useEffect(() => {

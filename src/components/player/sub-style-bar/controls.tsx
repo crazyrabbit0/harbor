@@ -6,6 +6,7 @@ import { previewFamily } from "@/views/settings/player-panel/internals";
 import { type Settings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { noteOverlayDismiss } from "@/lib/player/overlay-dismiss";
+import { trackReposition } from "@/lib/reposition";
 
 export const SWATCHES = ["#FFFFFF", "#FFE45E", "#9AE6B4", "#93C5FD", "#FCA5A5", "#C4B5FD"];
 
@@ -54,13 +55,11 @@ export function FontMenu({
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    const untrack = trackReposition(place);
     window.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey);
     return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      untrack();
       window.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey);
     };

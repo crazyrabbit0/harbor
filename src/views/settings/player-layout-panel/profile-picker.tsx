@@ -5,6 +5,7 @@ import type { LayoutProfile } from "@/lib/player-chrome-profiles";
 import { advanceFocus, captureFocusReturn, tvFocus } from "@/lib/keyboard-navigation";
 import { getDirection, isBackKey, navOwnsFocus } from "@/lib/keyboard-navigation/geometry";
 import { useT } from "@/lib/i18n";
+import { trackReposition } from "@/lib/reposition";
 import { ROW_ACTION, ROW_ACTION_DANGER, ROW_ACTION_PRIMARY, ROW_DESC } from "../kit";
 
 const OVERLAY_LABEL = "text-[13px] font-extrabold uppercase leading-[17px] tracking-[0.72px]";
@@ -84,12 +85,10 @@ export function ProfilePicker({
     };
     place();
     const raf = requestAnimationFrame(place);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    const untrack = trackReposition(place);
     return () => {
       cancelAnimationFrame(raf);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      untrack();
     };
   }, [open]);
 

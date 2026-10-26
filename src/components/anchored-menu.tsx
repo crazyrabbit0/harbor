@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { trackReposition } from "@/lib/reposition";
 
 const GAP = 6;
 const EDGE = 8;
@@ -49,13 +50,6 @@ export function AnchoredMenu({
       raf = null;
       place();
     });
-    const onScroll = () => {
-      if (raf != null) return;
-      raf = requestAnimationFrame(() => {
-        raf = null;
-        place();
-      });
-    };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
@@ -65,13 +59,11 @@ export function AnchoredMenu({
         onClose();
     };
     if (!backdrop) document.addEventListener("pointerdown", onPointer, true);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", onScroll, true);
+    const untrack = trackReposition(place);
     window.addEventListener("keydown", onKey);
     return () => {
       if (raf != null) cancelAnimationFrame(raf);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", onScroll, true);
+      untrack();
       window.removeEventListener("keydown", onKey);
       document.removeEventListener("pointerdown", onPointer, true);
     };

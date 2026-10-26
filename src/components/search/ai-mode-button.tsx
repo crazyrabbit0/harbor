@@ -6,6 +6,7 @@ import { ProviderLogo } from "@/components/ai-provider-logo";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { useT } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
+import { trackReposition } from "@/lib/reposition";
 
 export function AiModeButton({
   active,
@@ -56,13 +57,11 @@ export function AiModeButton({
     };
     window.addEventListener("mousedown", onDoc);
     window.addEventListener("keydown", onKey, true);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    const untrack = trackReposition(place);
     return () => {
       window.removeEventListener("mousedown", onDoc);
       window.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      untrack();
     };
   }, [open]);
 

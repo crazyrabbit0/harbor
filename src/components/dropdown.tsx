@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { advanceFocus } from "@/lib/keyboard-navigation";
 import { pushBackHandler } from "@/lib/back-intercept";
 import { getDirection, isBackKey } from "@/lib/keyboard-navigation/geometry";
+import { trackReposition } from "@/lib/reposition";
 
 export type DropdownOption = {
   value: string;
@@ -116,21 +117,7 @@ export function Dropdown({
       setBox({ top, left, minWidth, maxWidth, maxHeight, up });
     };
     place();
-    let raf = 0;
-    const reflow = () => {
-      if (raf) return;
-      raf = requestAnimationFrame(() => {
-        raf = 0;
-        place();
-      });
-    };
-    window.addEventListener("resize", reflow);
-    window.addEventListener("scroll", reflow, true);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      window.removeEventListener("resize", reflow);
-      window.removeEventListener("scroll", reflow, true);
-    };
+    return trackReposition(place);
   }, [open, options.length, size]);
 
   const placed = box != null;

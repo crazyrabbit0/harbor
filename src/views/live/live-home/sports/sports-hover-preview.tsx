@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Spinner } from "@/components/spinner";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
+import { trackReposition } from "@/lib/reposition";
 import type { SportsGame, SportsMatchDetail } from "@/lib/sports/espn";
 import { fetchMatchSummary } from "@/lib/sports/espn";
 
@@ -86,12 +87,7 @@ function PreviewPortal({
       });
     };
     updatePos();
-    window.addEventListener("scroll", updatePos, true);
-    window.addEventListener("resize", updatePos);
-    return () => {
-      window.removeEventListener("scroll", updatePos, true);
-      window.removeEventListener("resize", updatePos);
-    };
+    return trackReposition(updatePos);
   }, [container]);
 
   if (!container) return null;
