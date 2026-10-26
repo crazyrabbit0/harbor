@@ -155,7 +155,24 @@ async function acquireSlot(method: string): Promise<void> {
   }
 }
 
+// Concurrent identical GETs for one token and profile share a queued request.
+const inflightGets = new Map<string, Promise<unknown>>();
+
 export function simklRequest<T>(path: string, opts: SimklRequestOptions = {}): Promise<T> {
+  if ((opts.method ?? "GET") !== "GET") return queueRequest<T>(path, opts);
+  const usesSession = !opts.token && opts.authed !== false;
+  const token = opts.token || (usesSession ? getSession()?.accessToken : "") || "";
+  const key = `${activeProfileId()}|${token}|${path}`;
+  const pending = inflightGets.get(key);
+  if (pending) return pending as Promise<T>;
+  const p = queueRequest<T>(path, opts).finally(() => {
+    inflightGets.delete(key);
+  });
+  inflightGets.set(key, p);
+  return p;
+}
+
+function queueRequest<T>(path: string, opts: SimklRequestOptions): Promise<T> {
   const profile = activeProfileId();
   const usesSession = !opts.token && opts.authed !== false;
   const session = usesSession ? getSession() : null;

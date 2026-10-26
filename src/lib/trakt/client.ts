@@ -92,7 +92,22 @@ async function doFetch(path: string, opts: TraktRequestOptions): Promise<Respons
   return fetch(`${TRAKT_API_BASE}${path}`, init);
 }
 
-export async function traktRequest<T>(path: string, opts: TraktRequestOptions = {}): Promise<T> {
+// Concurrent identical GETs for one token share a request; Home and the watchlist sync both ask at launch.
+const inflightGets = new Map<string, Promise<unknown>>();
+
+export function traktRequest<T>(path: string, opts: TraktRequestOptions = {}): Promise<T> {
+  if ((opts.method ?? "GET") !== "GET") return sendRequest<T>(path, opts);
+  const key = `${opts.authed === false ? "" : (getSession()?.accessToken ?? "")}|${path}`;
+  const pending = inflightGets.get(key);
+  if (pending) return pending as Promise<T>;
+  const p = sendRequest<T>(path, opts).finally(() => {
+    inflightGets.delete(key);
+  });
+  inflightGets.set(key, p);
+  return p;
+}
+
+async function sendRequest<T>(path: string, opts: TraktRequestOptions): Promise<T> {
   let res = await doFetch(path, opts);
 
   if (res.status === 401 && opts.authed !== false) {
