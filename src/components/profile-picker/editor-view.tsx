@@ -56,7 +56,7 @@ import { fetchAnilistAvatar } from "@/lib/anilist/profile";
 import { useAnilist } from "@/lib/anilist/provider";
 import { fetchSimklAvatar } from "@/lib/simkl/profile";
 import { useSimkl } from "@/lib/simkl/provider";
-import { useSettings } from "@/lib/settings";
+import { useSettingsUpdate } from "@/lib/settings";
 import { AvatarRing } from "@/views/settings/account/avatar-ring";
 import { CatAvatar } from "@/components/icons/cat-avatar";
 import { resizeAvatar } from "@/views/settings/account/avatar-utils";
@@ -97,7 +97,7 @@ export function EditorView({
   const { isConnected: traktConnected } = useTrakt();
   const { isConnected: anilistConnected, avatar: anilistAvatar } = useAnilist();
   const { isConnected: simklConnected } = useSimkl();
-  const { update } = useSettings();
+  const update = useSettingsUpdate();
   const t = useT();
   const [loadingTraktAvatar, setLoadingTraktAvatar] = useState(false);
   const [traktAvatarError, setTraktAvatarError] = useState<string | null>(null);

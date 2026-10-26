@@ -9,7 +9,7 @@ import {
   type AwardSourceId,
 } from "@/lib/anime-awards";
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
@@ -292,7 +292,7 @@ function CategoryBlock({ category, tint }: { category: AnimeAwardCategory; tint:
 }
 
 function WinnerRow({ year, title, tint }: { year: number; title: string; tint: string }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openMeta } = useViewActions();
   const [resolving, setResolving] = useState(false);
   const mappedId = animeAwardId(title);

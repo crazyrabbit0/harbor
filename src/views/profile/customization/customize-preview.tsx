@@ -1,6 +1,6 @@
 import { useAuth } from "@/lib/auth";
 import { useProfiles } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { currentAuthor } from "@/lib/theme-auth";
 import type { CustomizationInput, ProfileSummary } from "../profile-types";
 import { AboutCard } from "../about-card";
@@ -17,7 +17,7 @@ export function CustomizePreview({
 }) {
   const { user } = useAuth();
   const { activeProfile } = useProfiles();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ harborAvatar: s.harborAvatar }));
 
   const preview: ProfileSummary = {
     ...summary,

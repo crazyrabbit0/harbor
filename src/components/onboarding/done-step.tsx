@@ -1,9 +1,9 @@
 import { useMemo } from "react";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function DoneStep() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ streaming: s.streaming, tmdbKey: s.tmdbKey }));
   const t = useT();
   const enabled = useMemo(
     () => Object.values(settings.streaming).filter(Boolean).length,

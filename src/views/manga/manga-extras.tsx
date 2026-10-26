@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Play } from "@/components/icons/play-filled";
 import { t, useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { resolveLogo } from "@/lib/logo";
 import { UiIcon } from "@/components/ui-icon";
 import { MalLogo } from "@/components/icons/mal-logo";
@@ -44,7 +44,7 @@ export function MangaAdaptationCard({
 }) {
   const { openMeta } = useViewActions();
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [adaptation, setAdaptation] = useState<MangaAdaptation | null>(null);
   const [logo, setLogo] = useState<string | null>(null);
   const [malScore, setMalScore] = useState<string | null>(null);

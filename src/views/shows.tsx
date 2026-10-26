@@ -16,7 +16,7 @@ import { publishResumeStates } from "@/lib/hover-preview/store";
 import { listPager } from "@/lib/list-pager";
 import { CATALOG_REQUEST_TIMEOUT_MS, upsertOrdered, withTimeout } from "@/lib/progressive-rows";
 import { hasPageRowChanges, resetPageRows, usePageRows } from "@/lib/page-rows";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import {
   ANIME_CLOUD_ID,
   cwSortKey,
@@ -54,7 +54,11 @@ type ShowRow = {
 };
 
 export function Shows({ active = true }: { active?: boolean }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    cwAdvanceNext: s.cwAdvanceNext,
+    cwPerProfile: s.cwPerProfile,
+    tmdbKey: s.tmdbKey,
+  }));
   const { authKey } = useAuth();
   const { activeProfile, profiles } = useProfiles();
   const hideSharedCw =

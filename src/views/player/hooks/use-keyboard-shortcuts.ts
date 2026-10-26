@@ -13,7 +13,7 @@ import { isWindowsDesktop } from "@/lib/platform";
 import { isRtxHdrBlocked, isRtxVsrBlocked } from "@/lib/player/rtx-video-policy";
 import { mediaKeyGate } from "@/lib/media-session";
 import { setVideoOwnsMediaKeys } from "@/lib/player/media-key-owner";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { isAnyFullscreen, exitAnyFullscreen } from "@/lib/fullscreen-state";
 import { isBigPictureActive } from "@/lib/big-picture";
 import { getLeaveConfirm, openLeaveConfirm } from "@/lib/player/leave-confirm";
@@ -128,7 +128,23 @@ export function useKeyboardShortcuts(params: {
     onLoopClear,
   } = params;
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hotkeys: s.hotkeys,
+    playerConfirmLeave: s.playerConfirmLeave,
+    playerEscExitsFullscreen: s.playerEscExitsFullscreen,
+    playerHdrToSdr: s.playerHdrToSdr,
+    playerRtxHdr: s.playerRtxHdr,
+    playerRtxVsr: s.playerRtxVsr,
+    playerVolumeSfx: s.playerVolumeSfx,
+    seekBackStepLongSec: s.seekBackStepLongSec,
+    seekBackStepSec: s.seekBackStepSec,
+    seekBackStepShortSec: s.seekBackStepShortSec,
+    seekForwardStepLongSec: s.seekForwardStepLongSec,
+    seekForwardStepSec: s.seekForwardStepSec,
+    seekForwardStepShortSec: s.seekForwardStepShortSec,
+    volumeBoostMax: s.volumeBoostMax,
+  }));
+  const update = useSettingsUpdate();
   const overrides = settings.hotkeys ?? {};
   const seekBackStepSec = settings.seekBackStepSec;
   const seekForwardStepSec = settings.seekForwardStepSec;

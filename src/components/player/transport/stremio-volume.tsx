@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import type { PlayerCapabilities, PlayerSnapshot } from "@/lib/player/bridge";
 import type { VolumeStyle } from "@/lib/player-chrome";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { Tooltip } from "./tooltip";
 import { withHotkey } from "./hotkey-label";
 import {
@@ -30,7 +30,7 @@ export function StremioVolume({
   compact?: boolean;
 }) {
   const tr = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ volumeBoostMax: s.volumeBoostMax }));
   const boostMax = Math.max(1, Math.min(VOL_MAX, settings.volumeBoostMax || 2));
   const [hover, setHover] = useState(false);
   const [pinned, setPinned] = useState(false);

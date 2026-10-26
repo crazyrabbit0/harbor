@@ -4,7 +4,7 @@ import { useFilmSoundtrack } from "@/lib/providers/musicbrainz-soundtrack";
 import { tmdbCompanyIdByName, type TmdbDetail } from "@/lib/providers/tmdb";
 import { useCriticism } from "@/lib/providers/podcast-criticism";
 import { useAdaptationFamily } from "@/lib/providers/wikidata-graph";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { AdaptationRow } from "./adaptation-row";
@@ -67,7 +67,7 @@ export function InfoBlock({ detail, isAnime = false }: { detail: TmdbDetail; isA
       ? `$${(n / 1_000_000).toFixed(n >= 1_000_000_000 ? 2 : 0)}${n >= 1_000_000_000 ? "B" : "M"}`
       : null;
 
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const tmdbKey = settings.tmdbKey;
   const networkChips = detail.networksRich.slice(0, 4).map((n) => ({
     label: n.name,

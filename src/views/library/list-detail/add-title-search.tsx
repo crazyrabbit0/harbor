@@ -4,7 +4,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { MAX_ITEMS, sharedLists, type CustomList, type ListStore } from "@/lib/custom-lists";
 import { useT } from "@/lib/i18n";
 import { searchAll, type AnimeHit, type SearchResults } from "@/lib/search";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { emitListToast } from "@/components/lists/list-toast";
 import { Poster } from "@/components/poster";
 
@@ -27,7 +27,7 @@ export function AddTitleSearch({
   store?: ListStore;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);

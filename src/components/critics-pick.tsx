@@ -15,7 +15,7 @@ import {
   type CriticReview,
 } from "@/lib/providers/tmdb";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 import { CastChip } from "./critics-pick/cast-chip";
@@ -31,7 +31,11 @@ import { Poster } from "./poster";
 import { RtBadge } from "./rt-badge";
 
 export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    rpdbKey: s.rpdbKey,
+    showRtBadge: s.showRtBadge,
+    tmdbKey: s.tmdbKey,
+  }));
   const { openMeta, openPicker, openPerson } = useViewActions();
   const t = useT();
   const backdrop = upsizeTmdb(meta.background ?? meta.poster);

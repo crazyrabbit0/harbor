@@ -4,7 +4,7 @@ import { Poster, usePosterChain } from "@/components/poster";
 import { Row } from "@/components/row";
 import { useContextMenu } from "@/lib/context-menu";
 import { creditToMeta, type PersonCredit } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 
 export function FilmRow({
@@ -66,7 +66,7 @@ function FilmCard({
 }) {
   const { openMeta } = useViewActions();
   const { open: openContextMenu } = useContextMenu();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const role = credit.character?.trim() || credit.job?.trim() || "";
   const meta = useMemo(() => creditToMeta(credit), [credit]);
   const poster = usePosterChain(

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { House, Search, Star, X } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { DEFAULT_SPORTS_LEAGUES, getLeagueLabel } from "@/lib/sports/espn";
 import { matchesTeamSearch } from "@/lib/sports/search-text";
 import {
@@ -45,7 +45,7 @@ export function TeamPicker({
 }) {
   const t = useT();
   useUiLanguage();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ sportsLeagues: s.sportsLeagues }));
   const fav = useFavourites();
   const [query, setQuery] = useState("");
   const [byLeague, setByLeague] = useState<Record<string, SportsTeam[]>>({});

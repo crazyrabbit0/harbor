@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { usePageVisible } from "@/lib/visibility";
 
@@ -19,7 +19,7 @@ export function SvpIndicator({
   chromeVisible: boolean;
   suppressed?: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ playerSvp: s.playerSvp }));
   const t = useT();
   const enabled = settings.playerSvp && engine === "mpv" && isTauri;
   const [active, setActive] = useState(false);

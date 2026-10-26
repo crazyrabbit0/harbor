@@ -2,7 +2,7 @@ import { Shuffle } from "lucide-react";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import type { Meta } from "@/lib/cinemeta";
 import type { Season } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
@@ -24,7 +24,10 @@ function pickRandomEpisode(seasons: Season[]): { season: number; episode: number
 export function RandomEpisodeButton({ meta, seasons }: { meta: Meta; seasons: Season[] }) {
   const t = useT();
   const { openPicker } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    instantPlay: s.instantPlay,
+    seasonSourceLock: s.seasonSourceLock,
+  }));
   const onClick = () => {
     const pick = pickRandomEpisode(seasons);
     if (!pick) return;

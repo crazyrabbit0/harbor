@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export type AutoScrollTarget = { episode: number; id?: number | null; first: boolean } | null;
 
@@ -39,7 +39,10 @@ export function useEpisodeAutoScroll({
   ready: boolean;
   beforeScroll?: (episode: number, id?: number | null) => void;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    episodeAutoScroll: s.episodeAutoScroll,
+    episodeLayout: s.episodeLayout,
+  }));
   const enabled = settings.episodeAutoScroll;
   const centered = settings.episodeLayout !== "strip";
   const doneRef = useRef<string | null>(null);

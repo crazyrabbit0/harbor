@@ -24,7 +24,7 @@ import type { MangaTracker } from "@/lib/manga/sync";
 import { activeMangaSourceId, listMangaSources } from "@/lib/manga/sources";
 import { useProfiles } from "@/lib/profiles";
 import { effectiveBinding, formatBindingForDisplay, matchesBinding } from "@/lib/hotkeys";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { toggleWindowFullscreen } from "@/lib/fullscreen-state";
 import { useWindowFullscreen } from "@/lib/use-window-fullscreen";
 import { ReaderBar } from "./manga-reader/reader-bar";
@@ -117,7 +117,7 @@ export function MangaReader({
   const pendingBookPage = useRef<number | null>(null);
   const { activeId } = useProfiles();
   const pid = activeId ?? "default";
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys }));
   const matchBinding = effectiveBinding("mangaMatch", settings.hotkeys);
   const fullscreenBinding = effectiveBinding("mangaFullscreen", settings.hotkeys);
 

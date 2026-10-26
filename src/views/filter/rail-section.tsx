@@ -5,7 +5,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { useClaimSeenIds, useDedupOnSeenIds } from "@/lib/feed/seen-ids";
 import { tmdbDiscover } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { MetaFilter } from "@/lib/view";
 import type { StandardRail } from "./rails-config";
 import { MAX_PAGES, MIN_INITIAL_FILL, SpotlightGateContext } from "./spotlight-gate";
@@ -13,7 +13,7 @@ import { MAX_PAGES, MIN_INITIAL_FILL, SpotlightGateContext } from "./spotlight-g
 export function RailSection({ filter, rail }: { filter: MetaFilter; rail: StandardRail }) {
   const t = useT();
   const posterRow = usePosterRow();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const gate = useContext(SpotlightGateContext);
   const noDedup = rail.noDedup === true;
   const mediaType = rail.mediaType ?? filter.mediaType;

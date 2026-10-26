@@ -11,7 +11,7 @@ import {
 } from "@/lib/catalog-browse";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { CatalogShelf } from "./catalogs/catalog-shelf";
 import { CatalogManageList } from "./catalogs/catalog-manage-list";
 import { AddonFilterSelect } from "./catalogs/addon-filter-select";
@@ -22,7 +22,12 @@ export function Catalogs({ active = true }: { active?: boolean }) {
   const t = useT();
   const { authKey } = useAuth();
   const { setView } = useViewActions();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    catalogsHidden: s.catalogsHidden,
+    catalogsPinned: s.catalogsPinned,
+    pluginsOutsideTab: s.pluginsOutsideTab,
+  }));
+  const update = useSettingsUpdate();
   const contentDrag = useContentDrag();
   const [catalogs, setCatalogs] = useState<BrowseCatalog[]>([]);
   const [loading, setLoading] = useState(true);

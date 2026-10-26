@@ -3,7 +3,7 @@ import { ChevronLeft, ChevronRight, Sparkles } from "lucide-react";
 import { usePosterChain } from "@/components/poster";
 import type { AnimeHit } from "@/lib/search";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import type { Meta } from "@/lib/cinemeta";
 import { kitsuToAnilist } from "@/lib/providers/anime-mapping";
@@ -18,7 +18,7 @@ async function resolveAnilistId(hit: AnimeHit): Promise<number | null> {
 export function AnimeRelations({ anime, onClose }: { anime: AnimeHit; onClose: () => void }) {
   const t = useT();
   const { openMeta } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const [entries, setEntries] = useState<AnimeRelation[] | null>(null);
 
   useEffect(() => {

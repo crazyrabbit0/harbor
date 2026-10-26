@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { detectAnimeForMetas, metaLooksAnime, useDetectedAnimeVersion } from "@/lib/anime-detect";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function useHideAnime(): boolean {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hideContent: s.hideContent }));
   return settings.hideContent.anime === true;
 }
 

@@ -6,7 +6,7 @@ import safetyPoster from "@/assets/settings-preview/safety-last-poster.webp";
 import namakuraStill from "@/assets/settings-preview/namakura-gatana.webp";
 import { useEffect, useSyncExternalStore } from "react";
 import { topSeries, topMovies, meta as cinemetaMeta, type Meta } from "@/lib/cinemeta";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export type SampleArtwork = { poster: string; background: string; logo: string | null };
 
@@ -151,7 +151,7 @@ function refreshSamples(): Promise<void> {
 }
 
 export function useSettingsSamples(): Meta[] {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ cinemetaEnabled: s.cinemetaEnabled }));
   const current = useSyncExternalStore(
     subscribe,
     () => samples,

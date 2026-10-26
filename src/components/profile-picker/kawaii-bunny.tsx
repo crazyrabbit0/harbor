@@ -1,8 +1,8 @@
 import { useEffect, useRef } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function KawaiiBunny() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ theme: s.theme }));
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const active = String(settings.theme.preset) === "kawaii";
 

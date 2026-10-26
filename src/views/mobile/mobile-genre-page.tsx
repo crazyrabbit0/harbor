@@ -3,7 +3,7 @@ import { ChevronLeft, Film } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { topMovies, topSeries } from "@/lib/cinemeta";
 import { tmdbDiscover } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { MobileDetail } from "./mobile-detail";
 import { MediaToggle, type ServiceMedia } from "./mobile-service-filters";
@@ -57,7 +57,7 @@ export function MobileGenrePage({
   onBack: () => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [media, setMedia] = useState<ServiceMedia>("movie");
   const [detailMeta, setDetailMeta] = useState<Meta | null>(null);
 

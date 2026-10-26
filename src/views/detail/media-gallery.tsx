@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { saveImageToDisk, saveTrailerToDisk } from "@/lib/download/save-binary";
 import { t } from "@/lib/i18n";
 import type { TmdbDetail } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { clearTitleBackdrop, setTitleBackdrop, useTitleBackdrop } from "@/lib/title-backdrop";
 import { clearTitleLogo, setTitleLogo, useTitleLogo } from "@/lib/title-logo";
 import { clearTitlePoster, setTitlePoster, useTitlePoster } from "@/lib/title-poster";
@@ -29,7 +29,11 @@ export function MediaGallery({
   logo?: string;
   metaId: string;
 }) {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    theme: s.theme,
+    trailerQuality: s.trailerQuality,
+  }));
+  const update = useSettingsUpdate();
   const videos = useMemo(() => collectVideos(detail), [detail]);
   const backdrops = detail.gallery.backdrops;
   const posters = detail.gallery.posters;

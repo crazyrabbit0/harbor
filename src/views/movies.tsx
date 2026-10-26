@@ -14,7 +14,7 @@ import { useT } from "@/lib/i18n";
 import { listPager } from "@/lib/list-pager";
 import { CATALOG_REQUEST_TIMEOUT_MS, upsertOrdered, withTimeout } from "@/lib/progressive-rows";
 import { hasPageRowChanges, resetPageRows, usePageRows } from "@/lib/page-rows";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { buildLetterboxdHomeRows } from "@/lib/stremboxd/home-rails";
@@ -38,7 +38,7 @@ type MovieRow = {
 const RERUN_KEYS = ["coming-soon"];
 
 export function Movies({ active = true }: { active?: boolean }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ region: s.region, tmdbKey: s.tmdbKey }));
   const { openGrid } = useViewActions();
   const t = useT();
   const letterboxd = useLetterboxd();

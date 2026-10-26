@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import {
   getLocalCache,
@@ -75,7 +75,7 @@ function cacheItemToMeta(item: SimklCacheItem, cache: SimklCache): Meta | null {
 
 export function SimklTab() {
   const tr = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ librarySort: s.librarySort }));
   const [cache, setCache] = useState<SimklCache | null>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
   const [enhancedFranchises, setEnhancedFranchises] = useState<AnimeFranchise[]>([]);

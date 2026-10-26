@@ -24,7 +24,7 @@ import {
   type ParentalCategory,
 } from "@/lib/providers/harbor-imdb";
 import { tmdbImdbCached } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { toggleWatchlist, useInWatchlist } from "@/lib/watchlist";
 import { useT } from "@/lib/i18n";
 import { PreviewBlock } from "./block";
@@ -35,7 +35,7 @@ function titleCase(s: string): string {
 }
 
 function useCrownLogo(meta: Meta): string | undefined {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [logo, setLogo] = useState<string | undefined>(
     () => meta.logo ?? peekCachedLogo(settings.tmdbKey, meta),
   );

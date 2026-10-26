@@ -7,7 +7,7 @@ import { fetchInstalledAddons } from "@/lib/addon-store";
 import { userAddons, type Addon } from "@/lib/addons";
 import { useAuth } from "@/lib/auth";
 import { peekPickerCache, subscribePickerCache } from "@/lib/picker-cache";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import type { ScoredStream } from "@/lib/streams/types";
 import { hasCachedMarker } from "@/lib/streams/cached";
 import { filterStreamsByMode } from "@/lib/streams/mode";
@@ -70,7 +70,13 @@ export function StreamSwitcher({
   const t = useT();
   const kid = useActiveKid();
   const { authKey } = useAuth();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    preferredAudioLangs: s.preferredAudioLangs,
+    preferredLanguages: s.preferredLanguages,
+    requirePreferredLanguage: s.requirePreferredLanguage,
+    streamMode: s.streamMode,
+  }));
+  const update = useSettingsUpdate();
   const baseLangs = settings.preferredLanguages ?? [];
   const isAnimeRequest =
     typeof meta.id === "string" && (meta.id.startsWith("kitsu:") || meta.id.startsWith("mal:"));

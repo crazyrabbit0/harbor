@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
 import { useViewSelector } from "@/lib/view";
 import { scanTheme } from "@/lib/theme-scan";
@@ -23,7 +23,12 @@ function runThemeCleanup(key: "__harborCustomCleanup" | "__harborThemeCleanup") 
 }
 
 export function CustomCodeMount() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    customCss: s.customCss,
+    customHtml: s.customHtml,
+    customJs: s.customJs,
+    theme: s.theme,
+  }));
   const { player } = useViewSelector((v) => ({ player: !!v.player }));
   const [themesTick, setThemesTick] = useState(0);
 

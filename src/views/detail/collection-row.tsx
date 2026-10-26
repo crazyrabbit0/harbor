@@ -5,7 +5,7 @@ import { Row } from "@/components/row";
 import type { Meta } from "@/lib/cinemeta";
 import { tmdbCollection } from "@/lib/providers/tmdb";
 import { useActiveKid } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { dropUnreleased, dropUnsafeGenres } from "@/views/kids/kids-filter";
 
@@ -16,7 +16,7 @@ export function CollectionRow({
   collection: { id: number; name: string };
   currentId: string;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openCollection } = useViewActions();
   const kid = useActiveKid();
   const [parts, setParts] = useState<Meta[]>([]);

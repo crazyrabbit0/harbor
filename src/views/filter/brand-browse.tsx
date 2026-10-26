@@ -4,7 +4,7 @@ import { MOVIE_GENRES, TV_GENRES } from "@/lib/feed/tags";
 import type { Meta } from "@/lib/cinemeta";
 import { browseDiscoverKey } from "@/lib/providers/tmdb/browse-kind";
 import { tmdbDiscover } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { browsedId, type Browsed } from "./browsed";
 
@@ -47,7 +47,7 @@ function Chip({
 
 export function BrandBrowse({ filter }: { filter: Browsed }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const mediaType = filter.mediaType;
   const [sort, setSort] = useState<Sort>("popular");
   const [genre, setGenre] = useState<number | null>(null);

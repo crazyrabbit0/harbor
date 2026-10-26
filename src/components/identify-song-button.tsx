@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AudioLines } from "lucide-react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { identifyNowPlaying } from "@/lib/song-id";
 import { Tooltip } from "@/components/player/transport/tooltip";
 import { useT } from "@/lib/i18n";
@@ -17,7 +17,13 @@ export function IdentifySongButton({
   iconUrl?: string;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    auddKey: s.auddKey,
+    songIdAiKey: s.songIdAiKey,
+    songIdAiModel: s.songIdAiModel,
+    songIdEnabled: s.songIdEnabled,
+    songIdProvider: s.songIdProvider,
+  }));
   const [pending, setPending] = useState(false);
 
   if (!settings.songIdEnabled && !editing) return null;

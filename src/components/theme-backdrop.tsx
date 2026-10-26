@@ -1,11 +1,11 @@
 import { AuroraBokeh } from "@/components/aurora-bokeh";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { getThemeById } from "@/lib/theme";
 import { useThemePreview } from "@/lib/theme-preview";
 import { useViewSelector } from "@/lib/view";
 
 export function ThemeBackdrop() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ theme: s.theme }));
   const { player, onAddons } = useViewSelector((v) => ({
     player: !!v.player,
     onAddons: v.view === "addons",

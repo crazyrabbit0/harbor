@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { omdbScores, type OmdbScores } from "@/lib/providers/omdb";
 import { useMdblistScores } from "@/lib/providers/mdblist";
 import { harborImdbTitle } from "@/lib/providers/harbor-imdb";
 
 export function useModalRatings(imdbId: string | null, mediaType: "movie" | "show") {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ mdblistKey: s.mdblistKey, omdbKey: s.omdbKey }));
   const [scores, setScores] = useState<OmdbScores | null>(null);
   const [harborImdb, setHarborImdb] = useState<string | null>(null);
   const mdblist = useMdblistScores(settings.mdblistKey, imdbId, mediaType);

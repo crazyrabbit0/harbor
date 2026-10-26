@@ -91,6 +91,56 @@ test("Japanese animation needs no mapping request and repeated concurrent IDs sh
   assert.deepEqual(h.mappingCalls, []);
 });
 
+const day = 24 * 60 * 60 * 1000;
+
+async function relaunch(saved: string, afterMs: number, id: string) {
+  const next = fixture({ "harbor.anime.notanime.v3": saved });
+  const realNow = Date.now;
+  Date.now = () => realNow() + afterMs;
+  try {
+    await next.api.detectAnimeForCw([{ _id: id, type: "series" }]);
+  } finally {
+    Date.now = realNow;
+  }
+  return next;
+}
+
+test("a negative saved late in an old list's life outlives that list", async () => {
+  const first = fixture({
+    "harbor.anime.notanime.v2": JSON.stringify({ t: Date.now() - 13 * day, ids: ["tt200"] }),
+  });
+  first.metadata.set("tt201", { genres: ["Animation"], country: "United States" });
+  await first.api.detectAnimeForCw([{ _id: "tt201", type: "series" }]);
+  for (const flush of first.timers.splice(0)) flush();
+  const saved = first.storage.get("harbor.anime.notanime.v3")!;
+  assert.ok(JSON.parse(saved).ids.tt200, "the legacy list is carried over");
+  const next = await relaunch(saved, 2 * day, "tt201");
+  assert.deepEqual(next.metaCalls, []);
+  assert.deepEqual(next.mappingCalls, []);
+  const expired = await relaunch(saved, 2 * day, "tt200");
+  assert.deepEqual(expired.metaCalls, ["tt200"], "the old entry still expires on its own date");
+});
+
+test("migrating the legacy list saves it even when the session finds nothing new", async () => {
+  const h = fixture({
+    "harbor.anime.notanime.v2": JSON.stringify({ t: Date.now() - day, ids: ["tt400"] }),
+  });
+  await h.api.detectAnimeForCw([{ _id: "tt400", type: "series" }]);
+  assert.deepEqual(h.metaCalls, []);
+  assert.equal(h.timers.length, 0);
+  assert.ok(JSON.parse(h.storage.get("harbor.anime.notanime.v3")!).ids.tt400);
+});
+
+test("a title without Cinemeta metadata is remembered for a day, not re-mapped every launch", async () => {
+  const first = fixture();
+  await first.api.detectAnimeForCw([{ _id: "tt300", type: "series" }]);
+  assert.deepEqual(first.mappingCalls, ["tt300"]);
+  for (const flush of first.timers.splice(0)) flush();
+  const saved = first.storage.get("harbor.anime.notanime.v3")!;
+  assert.deepEqual((await relaunch(saved, day / 2, "tt300")).mappingCalls, []);
+  assert.deepEqual((await relaunch(saved, day + 1, "tt300")).mappingCalls, ["tt300"]);
+});
+
 test("old negative classifications cannot suppress the corrected mapping check", async () => {
   const h = fixture({
     "harbor.anime.notanime.v1": JSON.stringify({ t: Date.now(), ids: ["tt105"] }),

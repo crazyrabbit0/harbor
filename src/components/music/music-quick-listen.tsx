@@ -15,7 +15,7 @@ import { ModalShell } from "@/components/modal-shell";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { useT } from "@/lib/i18n";
 import { effectiveBinding, eventToBinding } from "@/lib/hotkeys";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { beginSnippetSession } from "@/lib/music/snippet-session";
 import { loadSnippetGenres, SNIPPET_SECONDS } from "@/lib/music/snippets";
 import { useSnippetFeed } from "@/lib/music/use-snippet-feed";
@@ -41,7 +41,7 @@ type PreviewState = "loading" | "playing" | "paused" | "ended";
 
 export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onClose: () => void }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys }));
   const hotkeysRef = useRef(settings.hotkeys ?? {});
   hotkeysRef.current = settings.hotkeys ?? {};
   const titleId = useId();

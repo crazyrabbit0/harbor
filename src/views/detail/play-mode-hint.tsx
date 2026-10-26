@@ -1,13 +1,13 @@
 import { X } from "lucide-react";
 import { useRef } from "react";
 import { useOnboarding } from "@/lib/onboarding";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function PlayModeHint({ children }: { children: React.ReactNode }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ instantPlay: s.instantPlay }));
   const { isDismissed, dismiss } = useOnboarding();
   const { openSettings } = useViewActions();
   const visible = settings.instantPlay && !isDismissed("play-mode-hint");

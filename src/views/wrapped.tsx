@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useView } from "@/lib/view";
 import { useTrakt } from "@/lib/trakt/provider";
 import { aggregateWrapped } from "@/lib/wrapped/aggregate";
@@ -21,7 +21,7 @@ import {
 
 export function WrappedView({ active }: { active: boolean }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { setView, openMeta, canGoBack, goBack } = useView();
   const { isConnected: traktConnected } = useTrakt();
   const [stats, setStats] = useState<WrappedStats | null>(null);

@@ -2,7 +2,7 @@ import { useEffect, useId } from "react";
 import { Dices, Flag, Undo2 } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { chooseHeading, endVoyage, metaById, rerollHeadings, undoPick } from "@/lib/voyage/store";
 import type { Voyage } from "@/lib/voyage/types";
 import { PortCard } from "./port-card";
@@ -10,7 +10,7 @@ import { PortHoverCard, usePortHover } from "./port-hover-card";
 
 export function VoyagePicker({ voyage, inline = false }: { voyage: Voyage; inline?: boolean }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const tmdbKey = settings.tmdbKey ?? "";
   const headings = voyage.headingIds
     .map((id) => metaById(voyage, id))

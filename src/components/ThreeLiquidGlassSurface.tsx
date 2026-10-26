@@ -1,6 +1,6 @@
 import type { CSSProperties, HTMLAttributes, ReactNode } from "react";
 import { ExperimentalLiquidGlassSurface } from "@/components/ExperimentalLiquidGlassSurface";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export type LiquidGlassSurfaceProps = HTMLAttributes<HTMLDivElement> & {
   children: ReactNode;
@@ -135,7 +135,13 @@ export function ThreeLiquidGlassSurface({
   style,
   ...props
 }: LiquidGlassSurfaceProps) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    defaultLiquidGlassBlur: s.defaultLiquidGlassBlur,
+    defaultLiquidGlassTint: s.defaultLiquidGlassTint,
+    experimentalLiquidGlassEnabled: s.experimentalLiquidGlassEnabled,
+    experimentalLiquidGlassOpacity: s.experimentalLiquidGlassOpacity,
+    liquidGlass: s.liquidGlass,
+  }));
 
   if (!settings.liquidGlass) {
     return <PlainSurface {...props} style={style} />;

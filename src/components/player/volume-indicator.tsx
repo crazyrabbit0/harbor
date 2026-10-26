@@ -1,7 +1,7 @@
 import { Volume1, Volume2, VolumeX } from "lucide-react";
 import { ThreeLiquidGlassSurface } from "@/components/ThreeLiquidGlassSurface";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import {
   NORMAL_FRACTION,
   VOL_MAX,
@@ -36,7 +36,7 @@ export function VolumeIndicator({
   position: VolumeHudPosition;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ volumeBoostMax: s.volumeBoostMax }));
   const boostMax = Math.max(1, Math.min(VOL_MAX, settings.volumeBoostMax || 2));
   const max = allowBoost ? boostMax : 1;
   const volume = Math.max(0, Math.min(max, state.volume));

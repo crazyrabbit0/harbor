@@ -7,10 +7,10 @@ import {
   type Bucket,
   type Category,
 } from "@/lib/providers/service-catalog";
-import { useSettings, type StreamingService } from "@/lib/settings";
+import { type StreamingService, useSettingsSelector } from "@/lib/settings";
 
 export function useServiceCatalog(service: StreamingService, category: Category) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ region: s.region, tmdbKey: s.tmdbKey }));
   const [bucket, setBucket] = useState<Bucket>({ movies: [], series: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);

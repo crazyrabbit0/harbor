@@ -6,7 +6,7 @@ import { useMalAnimeRails } from "@/lib/use-mal-anime-rails";
 import { useAnilistTrending, useAnilistTop } from "@/lib/use-anilist-top";
 import type { HomeRow } from "../home-types";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -18,7 +18,7 @@ function pinnedTitle(desc: PinnedCatalog, t: Translate): string {
 
 export function usePinnedRows(): HomeRow[] {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ pluginsOutsideTab: s.pluginsOutsideTab }));
   const pinned = usePinnedCatalogs();
   const anilistRails = useAnilistAnimeRails();
   const malRails = useMalAnimeRails();

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { suwayomiAuthFor } from "@/lib/manga/sources/suwayomi/auth-registry";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -111,7 +111,7 @@ export function useProxiedImageSrc(
     (opts?.forceProxy
       ? url.startsWith("http://") || url.startsWith("https://")
       : needsImageProxy(url));
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ posterQuality: s.posterQuality }));
   const thumbWidthPx =
     settings.posterQuality === "max" ? undefined : settings.posterQuality === "high" ? 600 : 400;
   const [blob, setBlob] = useState<string | undefined>(() =>

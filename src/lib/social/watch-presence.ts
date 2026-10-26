@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { subscribeActivity, type ActivityState } from "@/lib/discord/presence";
 import { socialPatch } from "./client";
 import { currentAuthor } from "@/lib/theme-auth";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const DEBOUNCE_MS = 2500;
 const HEARTBEAT_MS = 240000;
@@ -89,7 +89,7 @@ function onActivity(s: ActivityState): void {
 }
 
 export function useWatchShare(): void {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ shareWatchPresence: s.shareWatchPresence }));
   const on = settings.shareWatchPresence;
   useEffect(() => {
     enabled = on;

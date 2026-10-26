@@ -4,7 +4,7 @@ import { BrandTile, useBrandRanking } from "@/components/brand-tiles";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/feed/tags";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import type { BrandKind, BrandSummary } from "@/lib/providers/tmdb/tmdb-brands";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useScrollMemory, useViewActions } from "@/lib/view";
 
 type Sort = "popular" | "titles" | "rated" | "alpha";
@@ -57,7 +57,7 @@ function Chip({
 export function BrandsView({ brand }: { brand: BrandKind }) {
   const t = useT();
   const uiLang = useUiLanguage();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openBrands, openFilter } = useViewActions();
   const scrollRef = useRef<HTMLElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);

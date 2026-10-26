@@ -10,7 +10,7 @@ import {
 } from "@/lib/stremboxd/client";
 import { openUrl } from "@/lib/window";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 class ReviewsBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
   state = { failed: false };
@@ -47,7 +47,7 @@ function LetterboxdReviewsInner({ meta, imdbId }: { meta: Meta; imdbId: string |
   const [filmSlug, setFilmSlug] = useState<string | null>(null);
   const [tried, setTried] = useState(false);
   const [showAll, setShowAll] = useState(false); // "Load more" toggle
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ blurComments: s.blurComments }));
   const [blurred, setBlurred] = useState(true);
 
   const effectiveImdbId = imdbId ?? (meta.id.startsWith("tt") ? meta.id : null);

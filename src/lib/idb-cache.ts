@@ -58,6 +58,7 @@ export const TRIMMABLE_PREFIXES = [
   "anizip.v1:",
   "addon.catalog.v1:",
   "addon.meta.v1:",
+  "imdb.rating.v1:",
   "harbor.sa.v1.",
 ];
 
@@ -81,11 +82,22 @@ export async function idbCacheGetFresh(
   return null;
 }
 
+// Upper bound on the store size: the last counted size plus every write since, so a count runs only near the cap.
+let sizeBound: number | null = null;
+
 export async function idbCacheSet(key: string, entry: IdbCacheEntry): Promise<void> {
   await run("readwrite", (store) => store.put(entry, key));
   if (!trimmable(key)) return;
+  if (sizeBound != null && sizeBound < IDB_CACHE_MAX_ENTRIES) {
+    sizeBound += 1;
+    return;
+  }
   const count = await run<number>("readonly", (store) => store.count());
-  if (count != null && count > IDB_CACHE_MAX_ENTRIES) await idbCacheTrim(TRIM_TARGET);
+  sizeBound = count;
+  if (count != null && count > IDB_CACHE_MAX_ENTRIES) {
+    await idbCacheTrim(TRIM_TARGET);
+    sizeBound = null;
+  }
 }
 
 let trimming: Promise<void> | null = null;

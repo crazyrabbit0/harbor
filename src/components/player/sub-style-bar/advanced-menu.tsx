@@ -1,7 +1,7 @@
 import { ChevronDown, Minus, Plus, Settings2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useSettings, type Settings } from "@/lib/settings";
+import { type Settings, useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { noteOverlayDismiss } from "@/lib/player/overlay-dismiss";
 
@@ -19,7 +19,15 @@ const ALIGNS: Array<"left" | "center" | "right"> = ["left", "center", "right"];
 
 export function AdvancedMenu() {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    subAlignX: s.subAlignX,
+    subAssOverride: s.subAssOverride,
+    subBorderSize: s.subBorderSize,
+    subLineSpacing: s.subLineSpacing,
+    subMarginY: s.subMarginY,
+    subStyle: s.subStyle,
+  }));
+  const update = useSettingsUpdate();
   const [open, setOpen] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);

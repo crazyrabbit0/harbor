@@ -6,7 +6,7 @@ import { BackToTop } from "@/components/back-to-top";
 import { LazyMount } from "@/components/lazy-mount";
 import { useMangaDownloadsCount } from "@/lib/manga-downloads";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useScrollMemory, useView } from "@/lib/view";
 import {
   activeMangaSource,
@@ -72,7 +72,8 @@ type Mode =
 
 export function MangaView() {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ mangaEnabled: s.mangaEnabled }));
+  const update = useSettingsUpdate();
   const { activeId } = useProfiles();
   const { mangaId, setChromeHidden, topKind } = useView();
   const [mode, setMode] = useState<Mode>(

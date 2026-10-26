@@ -5,7 +5,7 @@ import {
   type SleepMode,
   type SleepTimerState,
 } from "@/views/player/hooks/use-sleep-timer";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useMenuSide } from "../menu-side";
 import { Tooltip } from "./tooltip";
@@ -43,7 +43,13 @@ export function SpeedMenu({
   iconUrl?: string;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    customPlaybackSpeeds: s.customPlaybackSpeeds,
+    customSleepMinutes: s.customSleepMinutes,
+    defaultPlaybackSpeed: s.defaultPlaybackSpeed,
+    playerSpeedWheel: s.playerSpeedWheel,
+  }));
+  const update = useSettingsUpdate();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);

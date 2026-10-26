@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { fetchFullModeCatalog, fetchStremboxdCatalog } from "@/lib/stremboxd/client";
 import { stremboxdMetaToMeta } from "@/lib/stremboxd/to-meta";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import {
   applyFilter,
@@ -19,7 +19,7 @@ import { useReportFeatured } from "./featured-context";
 export function LetterboxdTab() {
   const tr = useT();
   const lb = useLetterboxd();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ librarySort: s.librarySort }));
   const [items, setItems] = useState<WatchlistMerged[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
 

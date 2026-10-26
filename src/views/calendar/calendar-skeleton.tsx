@@ -1,5 +1,5 @@
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { orderedWeekdayNames } from "./utils";
 
 const CHIPS_PER_CELL = [
@@ -9,7 +9,7 @@ const CHIPS_PER_CELL = [
 
 export function CalendarSkeleton() {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ weekStartsMonday: s.weekStartsMonday }));
   return (
     <div className="flex flex-col gap-2">
       <div className="grid grid-cols-7 gap-2">

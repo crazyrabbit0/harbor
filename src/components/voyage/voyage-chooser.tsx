@@ -4,11 +4,11 @@ import { VOYAGE_THEMES, THEME_PALETTE } from "@/lib/voyage/themes";
 import { startVoyage } from "@/lib/voyage/store";
 import type { VoyageTheme } from "@/lib/voyage/types";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function VoyageChooser({ inline = false }: { inline?: boolean }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [busy, setBusy] = useState<string | null>(null);
   const [len, setLen] = useState(5);
   const [error, setError] = useState<string | null>(null);

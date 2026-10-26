@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { useAnilist } from "@/lib/anilist/provider";
 import { useProfiles } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function AnilistAvatarSync() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ useAnilistAvatar: s.useAnilistAvatar }));
   const { avatar } = useAnilist();
   const { activeProfile, updateProfile } = useProfiles();
 

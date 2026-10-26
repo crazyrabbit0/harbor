@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { captureFrame, captureMpvFrame, saveSnapshot } from "@/lib/snapshots";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { trickplayGet } from "@/lib/trickplay";
 import { getPlaybackPosition } from "@/lib/player/playback-clock";
 import type { PlayerStatus } from "@/lib/player/bridge";
@@ -51,7 +51,10 @@ export function useExitSnapshot(params: {
     resolvedImdbVerified,
     seekPreviewEnabled,
   } = params;
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    cwSnapshotFullQuality: s.cwSnapshotFullQuality,
+    cwSnapshotRetentionDays: s.cwSnapshotRetentionDays,
+  }));
   const fullQuality = settings.cwSnapshotFullQuality;
   const snapshotsOff = settings.cwSnapshotRetentionDays === 0;
   const latest = useRef({

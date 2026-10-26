@@ -3,7 +3,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { discoverCastDevices } from "@/lib/cast";
 import { getPlaybackPosition, subscribePlaybackClock } from "@/lib/player/playback-clock";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useAuth } from "@/lib/auth";
 import { library, libraryMetaType, type LibraryItem } from "@/lib/stremio";
 import { useTrakt } from "@/lib/trakt/provider";
@@ -411,7 +411,18 @@ function useHostLibrary(
  * Relays WS commands to the active player/cast binding and pushes snapshots.
  */
 export function RemoteHostMount() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    libraryBookmarkedOnly: s.libraryBookmarkedOnly,
+    remoteControlEnabled: s.remoteControlEnabled,
+    rpdbKey: s.rpdbKey,
+    serveWebUi: s.serveWebUi,
+    tmdbImageLangs: s.tmdbImageLangs,
+    tmdbKey: s.tmdbKey,
+    tmdbLanguage: s.tmdbLanguage,
+    translateDescriptions: s.translateDescriptions,
+    translateTitles: s.translateTitles,
+    tvdbKey: s.tvdbKey,
+  }));
   const enabled = settings.serveWebUi || settings.remoteControlEnabled;
   const localeKey = `${settings.tmdbLanguage}:${settings.tmdbImageLangs.join(",")}:${settings.translateTitles}:${settings.translateDescriptions}`;
   const hostLibrary = useHostLibrary(

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { Poster, usePosterChain } from "@/components/poster";
 import type { Meta } from "@/lib/cinemeta";
 import { searchAll, searchCinemeta } from "@/lib/search";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { addAutoDownload, isAutoDownloaded } from "@/lib/auto-download";
 import { useT } from "@/lib/i18n";
 
@@ -12,7 +12,7 @@ const MAX_RESULTS = 8;
 
 export function AutoDownloadAdd() {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey, tmdbKey: s.tmdbKey }));
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Meta[]>([]);
   const [loading, setLoading] = useState(false);

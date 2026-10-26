@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { sizeImageUrl } from "@/lib/img-size";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { usePosterChain } from "@/components/poster";
 import { closeVoyage, openVoyage, useVoyage, useVoyageOpen } from "@/lib/voyage/store";
@@ -202,7 +202,7 @@ export function VoyageBanner({ pool }: { pool: Meta[] }) {
 }
 
 function VoyageCapsule({ meta }: { meta: Meta }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const poster = usePosterChain(
     settings.rpdbKey,
     meta.id,

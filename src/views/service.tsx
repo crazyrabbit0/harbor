@@ -8,13 +8,13 @@ import { TopRankCard } from "@/components/top-rank-card";
 import { SERVICES } from "@/lib/providers/streaming";
 import { CATEGORIES, type Category } from "@/lib/providers/service-catalog";
 import { useServiceCatalog } from "@/lib/providers/use-service-catalog";
-import { useSettings, type StreamingService } from "@/lib/settings";
+import { type StreamingService, useSettingsSelector } from "@/lib/settings";
 import { useScrollMemory } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function ServiceView({ service }: { service: StreamingService }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ region: s.region, tmdbKey: s.tmdbKey }));
   const meta = SERVICES[service];
   const [category, setCategory] = useState<Category>(CATEGORIES[0]);
   const scrollRef = useRef<HTMLElement>(null);

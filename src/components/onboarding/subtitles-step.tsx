@@ -1,9 +1,10 @@
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { LanguagesPicker } from "@/views/settings/streaming-panel";
 
 export function SubtitlesStep() {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ preferredSubLangs: s.preferredSubLangs }));
+  const update = useSettingsUpdate();
   const t = useT();
   return (
     <div className="flex flex-col gap-6">

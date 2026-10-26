@@ -2,7 +2,7 @@ import { Flag } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { usePosterChain } from "@/components/poster";
 import { endVoyage } from "@/lib/voyage/store";
 import type { Voyage } from "@/lib/voyage/types";
@@ -17,7 +17,7 @@ export function VoyageSailing({
   onPlay: (meta: Meta) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const poster = usePosterChain(
     settings.rpdbKey,
     next.id,

@@ -3,7 +3,7 @@ import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { shuffle } from "@/lib/feed/tags";
 import { browseFetcher, type BrowseCatalog } from "@/lib/catalog-browse";
 import { HeroCarousel, type Slide } from "@/components/hero-carousel";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { tmdbLogo, tmdbMovieImages } from "@/lib/providers/tmdb/tmdb-images";
 import { loadCapstanDetail } from "@/lib/streams/plugins/extension/detail";
 
@@ -143,7 +143,12 @@ export function PluginHero({
    * several of them: a selection that is one plugin puts up that plugin's items alone. */
   showOrigin?: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    heroFull: s.heroFull,
+    heroFullQuality: s.heroFullQuality,
+    heroTrailers: s.heroTrailers,
+    tmdbKey: s.tmdbKey,
+  }));
   const tmdbKey = settings.tmdbKey;
   const [slides, setSlides] = useState<Slide[]>([]);
   const [active, setActive] = useState(0);

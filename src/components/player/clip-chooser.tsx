@@ -1,7 +1,7 @@
 import { Captions, CaptionsOff, Minus, Plus, Scissors, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { CLIP_LENGTH_OPTIONS, nudgeStep, sanitizeClipLength } from "@/lib/seek-step";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { DEFAULT } from "@/lib/settings/defaults";
 
 const STEP_BTN =
@@ -19,7 +19,8 @@ export function ClipChooser({
   onClose: () => void;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ clipLengthSec: s.clipLengthSec }));
+  const update = useSettingsUpdate();
   const seconds = sanitizeClipLength(settings.clipLengthSec, DEFAULT.clipLengthSec);
   if (saving || !open) return null;
   return (

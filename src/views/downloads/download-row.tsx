@@ -3,7 +3,7 @@ import { BookOpen, Check, FileText, FolderOpen, Trash2 } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { DownloadCancelIcon, DownloadPauseResumeIcon } from "@/components/download-action-icons";
 import { Poster, usePosterChain } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import {
@@ -19,7 +19,7 @@ import { fmtBytes, fmtEta, fmtSpeed } from "./downloads-format";
 export function DownloadRow({ d, compact = false }: { d: DownloadItem; compact?: boolean }) {
   const t = useT();
   const { openPlayer } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const poster = usePosterChain(
     settings.rpdbKey,
     d.metaId,

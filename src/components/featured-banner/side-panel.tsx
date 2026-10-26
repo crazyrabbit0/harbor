@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { pickRandom } from "@/lib/feed/tags";
 import { tmdbMovieImages } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useLocalizedOverview } from "@/lib/use-localized-overview";
 import { useLiveImdbRating } from "@/lib/live-imdb";
 import { useT } from "@/lib/i18n";
@@ -23,7 +23,7 @@ export function SidePanel({
   onOpenLightbox: (state: LightboxState) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [stills, setStills] = useState<string[]>([]);
   const description = useLocalizedOverview(meta);
   const live = useLiveImdbRating(meta);

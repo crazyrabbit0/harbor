@@ -8,7 +8,7 @@ import { topMovies, type Meta } from "@/lib/cinemeta";
 import { recentlyPlayed } from "@/lib/playback-history";
 import { listPager } from "@/lib/list-pager";
 import { hasPageRowChanges, resetPageRows, usePageRows } from "@/lib/page-rows";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useScrollMemory } from "@/lib/view";
 import { KidsDoodles } from "./kids/kids-doodles";
 import { dropUnreleased, dropUnsafeCinemetaKids, dropUnsafeGenres } from "./kids/kids-filter";
@@ -29,7 +29,7 @@ type KidsRow = {
 };
 
 export function Kids({ active = true }: { active?: boolean }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const pageRows = usePageRows("kids");
   const [hero, setHero] = useState<Meta[]>([]);
   const [rows, setRows] = useState<KidsRow[]>([]);

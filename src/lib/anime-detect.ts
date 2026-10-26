@@ -4,8 +4,11 @@ import { imdbToKitsu } from "@/lib/providers/anime-mapping";
 import { setItemWithRecovery } from "@/lib/storage-recovery";
 
 const STORAGE_KEY = "harbor.anime.detected.v2";
-const NEGATIVE_KEY = "harbor.anime.notanime.v2";
+const NEGATIVE_KEY = "harbor.anime.notanime.v3";
+const LEGACY_NEGATIVE_KEY = "harbor.anime.notanime.v2";
 const NEGATIVE_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+// A title Cinemeta has no record of may only be missing for now, so its negative lasts a day.
+const NO_META_NEGATIVE_TTL_MS = 24 * 60 * 60 * 1000;
 const NEGATIVE_MAX = 1500;
 const NEGATIVE_FLUSH_MS = 2000;
 const CONCURRENCY = 6;
@@ -26,33 +29,44 @@ function load(): Set<string> {
   }
 }
 
-let negativesSince = 0;
+function writeNegatives(map: Map<string, number>): void {
+  const now = Date.now();
+  const live = [...map].filter(([, until]) => until > now);
+  live.sort((a, b) => a[1] - b[1]);
+  const kept = live.length > NEGATIVE_MAX ? live.slice(-NEGATIVE_MAX) : live;
+  setItemWithRecovery(NEGATIVE_KEY, JSON.stringify({ ids: Object.fromEntries(kept) }));
+}
 
-function loadNegatives(): Set<string> {
+// Each negative expires on its own (id -> expiry), so the list never lapses all at once and re-checks every title.
+function loadNegatives(): Map<string, number> {
+  const out = new Map<string, number>();
+  const now = Date.now();
   try {
     const raw = localStorage.getItem(NEGATIVE_KEY);
-    const c = raw ? (JSON.parse(raw) as { t?: number; ids?: string[] } | null) : null;
-    if (
-      c &&
-      typeof c.t === "number" &&
-      Date.now() - c.t < NEGATIVE_TTL_MS &&
-      Array.isArray(c.ids)
-    ) {
-      negativesSince = c.t;
-      return new Set(c.ids);
+    const c = raw ? (JSON.parse(raw) as { ids?: Record<string, number> } | null) : null;
+    for (const [id, until] of Object.entries(c?.ids ?? {})) {
+      if (typeof until === "number" && until > now) out.set(id, until);
+    }
+    const legacy = localStorage.getItem(LEGACY_NEGATIVE_KEY);
+    if (legacy) {
+      const l = JSON.parse(legacy) as { t?: number; ids?: string[] } | null;
+      const until = typeof l?.t === "number" ? l.t + NEGATIVE_TTL_MS : 0;
+      if (until > now) for (const id of l?.ids ?? []) if (!out.has(id)) out.set(id, until);
+      // The new key is written before the old one goes, so an idle session cannot lose the list.
+      writeNegatives(out);
+      localStorage.removeItem(LEGACY_NEGATIVE_KEY);
     }
   } catch {
     /* ignore */
   }
-  negativesSince = Date.now();
-  return new Set();
+  return out;
 }
 
 // Both sets load on first use, not at import.
 let detectedSet: Set<string> | null = null;
-let negativeSet: Set<string> | null = null;
+let negativeMap: Map<string, number> | null = null;
 const detectedIds = (): Set<string> => (detectedSet ??= load());
-const negativeIds = (): Set<string> => (negativeSet ??= loadNegatives());
+const negativeIds = (): Map<string, number> => (negativeMap ??= loadNegatives());
 const checked = new Set<string>();
 const pending = new Set<string>();
 const inflight = new Map<string, Promise<void>>();
@@ -73,9 +87,7 @@ function persistNegatives(): void {
   negativeTimer = setTimeout(() => {
     negativeTimer = null;
     try {
-      const all = [...negativeIds()];
-      const ids = all.length > NEGATIVE_MAX ? all.slice(-NEGATIVE_MAX) : all;
-      setItemWithRecovery(NEGATIVE_KEY, JSON.stringify({ t: negativesSince, ids }));
+      writeNegatives(negativeIds());
     } catch {}
   }, NEGATIVE_FLUSH_MS);
 }
@@ -172,7 +184,7 @@ export function isOrphanAnimeCandidate(meta: {
 }
 
 function settled(id: string): boolean {
-  return detectedIds().has(id) || negativeIds().has(id) || checked.has(id);
+  return detectedIds().has(id) || (negativeIds().get(id) ?? 0) > Date.now() || checked.has(id);
 }
 
 async function checkOne(it: DetectItem): Promise<void> {
@@ -196,8 +208,8 @@ async function checkOne(it: DetectItem): Promise<void> {
       detectedIds().add(id);
       persist();
       bump();
-    } else if (m) {
-      negativeIds().add(id);
+    } else {
+      negativeIds().set(id, Date.now() + (m ? NEGATIVE_TTL_MS : NO_META_NEGATIVE_TTL_MS));
       persistNegatives();
     }
   } catch {

@@ -7,7 +7,7 @@ import { LAUNCHER_NAMES } from "@/lib/games/launchers";
 import { MusicGlyph } from "@/components/icons/music-glyph";
 import { useT } from "@/lib/i18n";
 import { pushBackHandler } from "@/lib/back-intercept";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useQuickLibraryArtwork } from "@/hooks/use-quick-library-artwork";
 import { Dropdown } from "@/components/dropdown";
 import { HoverTooltip } from "@/components/hover-tooltip";
@@ -53,7 +53,7 @@ export function GameLibraryDock({ visible: pageVisible }: { visible: boolean }) 
     setView("music");
     run();
   };
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ showQuickGameLibrary: s.showQuickGameLibrary }));
   const visible = pageVisible && settings.showQuickGameLibrary;
   const {
     library,

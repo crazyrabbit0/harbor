@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { CONTENT_ADVISORY_NUDGE, useOnboarding } from "@/lib/onboarding";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import type { ContentAdvisoryPosition } from "./content-advisory-toast";
 
 export function ContentAdvisoryPrompt({
@@ -12,7 +12,8 @@ export function ContentAdvisoryPrompt({
   position?: ContentAdvisoryPosition;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ contentAdvisoryToast: s.contentAdvisoryToast }));
+  const update = useSettingsUpdate();
   const { isDismissed, dismiss } = useOnboarding();
   const [phase, setPhase] = useState<"idle" | "visible" | "exiting">("idle");
   const [hovered, setHovered] = useState(false);

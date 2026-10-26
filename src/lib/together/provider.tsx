@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { randomUuid } from "@/lib/uuid";
 import { TogetherClient, type RoomEvent, type RoomSnapshot } from "./client";
 import { useSelfIdentity } from "./use-self-identity";
@@ -152,7 +152,11 @@ async function resolveShareableAvatar(a: string | null): Promise<string | null> 
 }
 
 export function TogetherProvider({ children }: { children: ReactNode }) {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    togetherGuestsPick: s.togetherGuestsPick,
+    togetherRelayUrl: s.togetherRelayUrl,
+  }));
+  const update = useSettingsUpdate();
   const { avatar: effectiveAvatar, color: effectiveColor } = useSelfIdentity();
   const relayUrl = settings.togetherRelayUrl;
 

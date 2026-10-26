@@ -8,7 +8,7 @@ import { FormatBadge, RuleBadges } from "@/components/format-badge";
 import { HostMatchChip } from "@/components/host-match-chip";
 import { useT } from "@/lib/i18n";
 import { useDebridClients } from "@/lib/debrid/registry";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { ScoredStream } from "@/lib/streams/types";
 import type { PlayEpisode } from "@/lib/view";
 import { EditionChip } from "./edition-chip";
@@ -179,7 +179,7 @@ function SourceRow({
   absoluteEpisode?: number | null;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ pickerShowFilename: s.pickerShowFilename }));
   const cachedDebrids = debrids.filter((d) => stream.cached[d.slug]);
   const libraryDebrids = debrids.filter((d) => stream.inLibrary[d.slug]);
   const addonCached = anyStreamCached(stream);

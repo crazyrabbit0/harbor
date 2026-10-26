@@ -25,7 +25,7 @@ import { usePlayerChromeHold } from "@/lib/player/chrome-hold";
 import { JUMP_FRAME_BUCKET_SEC, jumpTargets, setJumpMarksPinned } from "@/lib/player/jump-marks";
 import { CLIP_LENGTH_OPTIONS, nudgeStep, sanitizeClipLength } from "@/lib/seek-step";
 import { onTrickplayPrefetched, thumbCacheGet } from "@/lib/trickplay";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { DEFAULT } from "@/lib/settings/defaults";
 import { fmtTime } from "./transport-utils";
 import { hotkeyText, KeyChips, withHotkey } from "./hotkey-label";
@@ -266,7 +266,8 @@ function AbLoopButton({ ctx }: { ctx: Ctx }) {
 // Click opens the save chooser; right-click or hold opens a menu that also changes the clip length.
 function ClipButton({ ctx }: { ctx: Ctx }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ clipLengthSec: s.clipLengthSec }));
+  const update = useSettingsUpdate();
   const x = ctx.extras;
   const seconds = sanitizeClipLength(settings.clipLengthSec, DEFAULT.clipLengthSec);
   const [open, setOpen] = useState(false);

@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from "react";
 import { ANIME4K_MODES } from "@/lib/player/anime4k-modes";
 import { SHADER_CATALOG } from "@/lib/player/shader-catalog";
 import type { Anime4kChoice } from "@/views/player/hooks/use-anime4k";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useMenuSide } from "../menu-side";
 import { Tooltip } from "./tooltip";
@@ -30,7 +30,8 @@ export function ShaderMenu({
   iconUrl?: string;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ playerShaders: s.playerShaders }));
+  const update = useSettingsUpdate();
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const { measure } = useMenuSide(wrap, 340);

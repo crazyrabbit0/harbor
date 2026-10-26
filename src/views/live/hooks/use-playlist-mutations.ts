@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { usePlaylists, writePlaylists } from "@/lib/iptv/playlists-store";
 import { clearPlaylistCache } from "@/lib/iptv/store";
 import { clearEpg } from "@/lib/iptv/epg-store";
@@ -22,7 +22,8 @@ export function usePlaylistMutations(params: {
   refresh: () => void;
 }) {
   const { activeId, setActiveId, refresh } = params;
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ showPlaylistsTab: s.showPlaylistsTab }));
+  const update = useSettingsUpdate();
   const favorites = useFavorites();
   const playlists = usePlaylists();
   const t = useT();

@@ -7,7 +7,7 @@ import { subtitleStreamDescriptor } from "@/lib/subtitles/provider-label";
 import { rankSubtitleCandidates, searchSubtitles } from "@/lib/subtitles/search";
 import { resolveAnimeSearchCoords } from "@/lib/subtitles/anime-numbering";
 import type { SubResult } from "@/lib/subtitles/types";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { buildStreamIds } from "@/lib/streams/stream-ids";
 import type { PlayerSrc } from "@/lib/view";
 
@@ -27,7 +27,13 @@ function isJapanese(lang: string): boolean {
 }
 
 export function useSubtitleChoices(src: PlayerSrc) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    preferredLanguages: s.preferredLanguages,
+    preferredSubLangs: s.preferredSubLangs,
+    subProvidersEnabled: s.subProvidersEnabled,
+    subdlApiKey: s.subdlApiKey,
+    subsourceApiKey: s.subsourceApiKey,
+  }));
   const { authKey } = useAuth();
   const [results, setResults] = useState<SubResult[] | null>(null);
   const [loading, setLoading] = useState(true);

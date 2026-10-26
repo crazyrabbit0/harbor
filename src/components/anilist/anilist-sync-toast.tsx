@@ -2,7 +2,7 @@ import { Check, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { subscribeSync, type SyncError, type SyncEvent } from "@/lib/anilist/sync";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { syncToastWrapClass } from "@/lib/sync-toast-position";
 
 const SYNC_ERROR_MESSAGES: Record<SyncError, string> = {
@@ -12,7 +12,10 @@ const SYNC_ERROR_MESSAGES: Record<SyncError, string> = {
 
 export function AnilistSyncToast() {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    syncIndicator: s.syncIndicator,
+    syncIndicatorPosition: s.syncIndicatorPosition,
+  }));
   const [event, setEvent] = useState<SyncEvent | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
 

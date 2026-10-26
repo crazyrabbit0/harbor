@@ -8,7 +8,7 @@ import {
   fetchSeasonList,
   isAnimeId,
 } from "@/lib/series-episodes";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { harborImdbEpisodes } from "@/lib/providers/harbor-imdb";
 import {
   applyTmdbEpisodeNames,
@@ -30,7 +30,7 @@ export function useSeasonBrowser(
   imdbRatings: Map<string, number>;
   absoluteFor: (ep: PlayEpisode) => number | undefined;
 } {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const effMeta = useMemo<Meta>(() => {
     if (!isAnimeId(meta.id)) return meta;
     const base = animeSeriesFromStreamId(current?.kitsuStreamId);

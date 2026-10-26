@@ -21,6 +21,30 @@ test("a stale read deletes the entry and a fresh read keeps it", async () => {
   assert.equal((await idbCacheGet("fresh-key"))?.data, "new");
 });
 
+test("cache writes well under the cap do not count the store each time", async () => {
+  const proto = Object.getPrototypeOf(
+    await new Promise<any>((resolve) => {
+      const req = (globalThis as any).indexedDB.open("probe", 1);
+      req.onsuccess = () =>
+        resolve(req.result.transaction("entries", "readonly").objectStore("entries"));
+    }),
+  );
+  const original = proto.count;
+  let counts = 0;
+  proto.count = function (this: unknown) {
+    counts += 1;
+    return original.call(this);
+  };
+  try {
+    for (let i = 0; i < 20; i += 1) {
+      await idbCacheSet(`harbor.sa.v1.quiet-${i}`, { at: Date.now(), data: i });
+    }
+  } finally {
+    proto.count = original;
+  }
+  assert.ok(counts <= 1, `counted the store ${counts} times for 20 writes`);
+});
+
 test("a write past the cap drops the oldest cache entries and never user data", async () => {
   const base = Date.now() - 1_000_000;
   // Older than every cache entry, so an unscoped trim would delete it first.

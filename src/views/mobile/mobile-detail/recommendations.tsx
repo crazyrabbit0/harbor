@@ -1,6 +1,6 @@
 import { narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { Poster, usePosterChain } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { HIDE_SCROLL } from "./data";
 import { SectionTitle } from "./ui";
@@ -28,7 +28,7 @@ export function RecRail({
 }
 
 function RecCard({ meta, onOpen }: { meta: Meta; onOpen: () => void }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const { src, onError } = usePosterChain(
     settings.rpdbKey,
     meta.id,

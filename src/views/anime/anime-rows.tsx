@@ -13,7 +13,7 @@ import {
   jikanUnderratedGems,
   jikanUpcoming,
 } from "@/lib/providers/jikan";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export type RowPool = "general" | "era" | "genre";
 
@@ -143,7 +143,10 @@ export function RowSkeleton({
   title: string;
   shape?: "portrait" | "landscape";
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    posterRadius: s.posterRadius,
+    posterScale: s.posterScale,
+  }));
   const landscape = shape === "landscape";
   const w = landscape ? 260 : Math.round(144 * settings.posterScale);
   return (

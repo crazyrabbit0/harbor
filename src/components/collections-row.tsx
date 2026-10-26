@@ -1,12 +1,12 @@
 import { CollectionCard } from "@/components/collection-card";
 import { COLLECTIONS_CATALOG } from "@/lib/collections-catalog";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { Row } from "./row";
 
 export function CollectionsRow({ title }: { title?: string }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openCollections } = useViewActions();
   const t = useT();
   if (!settings.tmdbKey) return null;

@@ -38,7 +38,7 @@ import type {
   MediaServerItem,
   MediaServerTitle,
 } from "@/lib/media-server/types";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useViewActions } from "@/lib/view";
 import { hydrateLibraryMeta } from "./hydrate-meta";
@@ -65,7 +65,12 @@ const fallbackMeta = (title: MediaServerTitle): Meta => ({
 
 export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | null> }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    posterScale: s.posterScale,
+    tmdbImageLangs: s.tmdbImageLangs,
+    tmdbKey: s.tmdbKey,
+    tmdbLanguage: s.tmdbLanguage,
+  }));
   const { openMeta, openSettings } = useViewActions();
   const initialProgress = currentMediaServerSyncProgress();
   const [items, setItems] = useState<MediaServerItem[]>([]);

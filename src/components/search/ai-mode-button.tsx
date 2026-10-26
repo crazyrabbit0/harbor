@@ -5,7 +5,7 @@ import { pruneToCatalog, useGroqCatalog, useOpenRouterCatalog } from "@/lib/ai-l
 import { ProviderLogo } from "@/components/ai-provider-logo";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { trackReposition } from "@/lib/reposition";
 
 export function AiModeButton({
@@ -20,7 +20,7 @@ export function AiModeButton({
   onSelectModel: (id: string) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ aiGroqKey: s.aiGroqKey }));
   const [open, setOpen] = useState(false);
   const holdTimer = useRef<number | null>(null);
   const heldRef = useRef(false);

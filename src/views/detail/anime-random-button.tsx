@@ -2,7 +2,7 @@ import { Shuffle } from "lucide-react";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import type { Meta } from "@/lib/cinemeta";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
@@ -15,7 +15,10 @@ export function AnimeRandomButton({
 }) {
   const t = useT();
   const { openPicker } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    instantPlay: s.instantPlay,
+    seasonSourceLock: s.seasonSourceLock,
+  }));
   const onClick = () => {
     const today = new Date().toISOString().slice(0, 10);
     const aired = episodes.filter((e) => !e.airdate || e.airdate.slice(0, 10) <= today);

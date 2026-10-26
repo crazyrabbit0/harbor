@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import basketball from "@/assets/lottie/nav/sports/basketball.svg";
 import "./sports-nav-icon.css";
@@ -11,7 +11,7 @@ export function SportsNavIcon({
   active?: boolean;
   hovered?: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ navIconAnimations: s.navIconAnimations }));
   const reducedMotion = useReducedMotion();
   const [bouncing, setBouncing] = useState(false);
   useEffect(() => {

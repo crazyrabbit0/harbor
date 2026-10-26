@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 import { fetchTrailer, resolveTrailerQuality, trailerSrc, type TrailerInfo } from "@/lib/trailer";
 import { useTrailerVideo } from "@/lib/use-trailer-video";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { usePageVisible } from "@/lib/visibility";
 import { useT } from "@/lib/i18n";
 
@@ -16,7 +16,10 @@ export function DetailHeroTrailer({
   paused?: boolean;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    detailTrailerAudio: s.detailTrailerAudio,
+    trailerQuality: s.trailerQuality,
+  }));
   const [info, setInfo] = useState<TrailerInfo | null>(null);
   const [muted, setMuted] = useState(!settings.detailTrailerAudio);
   const pageVisible = usePageVisible();

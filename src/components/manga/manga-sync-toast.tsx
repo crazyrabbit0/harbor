@@ -2,7 +2,7 @@ import { Check, Loader2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { subscribeMangaSync, type MangaSyncError, type MangaSyncEvent } from "@/lib/manga/sync";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { syncToastWrapClass } from "@/lib/sync-toast-position";
 
 const SYNC_ERROR_MESSAGES: Record<MangaSyncError, string> = {
@@ -13,7 +13,10 @@ const SYNC_ERROR_MESSAGES: Record<MangaSyncError, string> = {
 
 export function MangaSyncToast({ tracker }: { tracker: "anilist" | "mal" }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    syncIndicator: s.syncIndicator,
+    syncIndicatorPosition: s.syncIndicatorPosition,
+  }));
   const [event, setEvent] = useState<MangaSyncEvent | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
 

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { AdSkipIcon } from "@/components/icons/adskip-icon";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import type { Meta } from "@/lib/cinemeta";
 import type { PlayerSrc } from "@/lib/view";
@@ -29,7 +29,13 @@ export function AdReportButton({
   durationSec: number;
   hasNextEp: boolean;
 }) {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    adReportAlwaysShow: s.adReportAlwaysShow,
+    adReportFirstSeen: s.adReportFirstSeen,
+    adSkipEnabled: s.adSkipEnabled,
+    nextEpisodeLeadSec: s.nextEpisodeLeadSec,
+  }));
+  const update = useSettingsUpdate();
   const t = useT();
   const [open, setOpen] = useState(false);
   const positionSec = usePlaybackPosition();

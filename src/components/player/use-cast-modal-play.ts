@@ -1,12 +1,12 @@
 import { useCallback } from "react";
 import type { Meta } from "@/lib/cinemeta";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useTogether } from "@/lib/together/provider";
 import { usePlayerNavigation, type PlayEpisode } from "@/lib/view";
 
 export function useCastModalPlay() {
   const { exitPlayer, openPicker } = usePlayerNavigation();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ instantPlay: s.instantPlay }));
   const { snapshot, claimHost } = useTogether();
   return useCallback(
     (m: Meta, ep?: PlayEpisode) => {

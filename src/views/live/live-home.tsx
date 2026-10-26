@@ -9,7 +9,7 @@ import { flagUrl } from "@/lib/iptv/country-detect";
 import { clearCountries, toggleCountry, useCountryPrefs } from "@/lib/iptv/country-prefs";
 import { useFavorites } from "@/lib/iptv/favorites";
 import { DEFAULT_SPORTS_LEAGUES, LEAGUES } from "@/lib/sports/espn";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useChannelHydration } from "./hooks/use-channel-hydration";
 import { CountryBar } from "./live-home/country-bar";
@@ -58,7 +58,8 @@ export function LiveHome({
   });
   const countryPrefs = useCountryPrefs(sourceId);
   const tvgCounts = useMemo(() => computeTvgIdCounts(channels), [channels]);
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ sportsLeagues: s.sportsLeagues }));
+  const update = useSettingsUpdate();
   const userSportsLeagues = settings.sportsLeagues?.length
     ? settings.sportsLeagues
     : DEFAULT_SPORTS_LEAGUES;

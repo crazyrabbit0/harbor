@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { showHarborError } from "./error-view";
 import { effectiveBinding, eventToBinding } from "@/lib/hotkeys";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function DevErrorTrigger() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys }));
   const triggerKey = effectiveBinding("globalTestError", settings.hotkeys ?? {});
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

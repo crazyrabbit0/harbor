@@ -5,7 +5,7 @@ import { curatedListLogos } from "./curated-list-logos";
 import { tmdbPersonIdByName, tmdbPersonIdCached } from "@/lib/providers/tmdb";
 import type { CanonEntry } from "@/lib/curated/canon";
 import { useCanon } from "@/lib/curated/use-canon";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { type AwardEntry, type AwardType } from "@/lib/providers/wikidata";
 import { useT } from "@/lib/i18n";
@@ -363,7 +363,7 @@ function EntryRow({ entry, won }: { entry: AwardEntry; won: boolean }) {
 }
 
 function PersonLink({ name }: { name: string }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openPerson } = useViewActions();
   const [busy, setBusy] = useState(false);
   const cached = settings.tmdbKey ? tmdbPersonIdCached(name) : null;

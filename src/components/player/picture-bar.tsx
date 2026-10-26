@@ -1,6 +1,6 @@
 import { RotateCcw, X } from "lucide-react";
 import { useEffect } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { PICTURE_DIALS, closePictureBar, usePictureBarOpen } from "@/lib/player/picture-bar";
 
@@ -9,7 +9,8 @@ const IDLE_MS = 12000;
 export function PictureBar() {
   const t = useT();
   const open = usePictureBarOpen();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ mpvTweaks: s.mpvTweaks }));
+  const update = useSettingsUpdate();
   const tweaks = settings.mpvTweaks ?? {};
 
   useEffect(() => {

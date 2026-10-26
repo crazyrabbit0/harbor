@@ -2,7 +2,7 @@ import { Check, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { ORIGIN_OPTIONS } from "@/lib/anime-filter";
 import { GENRE } from "@/lib/providers/jikan";
 import { ANIME_GENRE_ART } from "@/lib/anime-genre-art-map";
@@ -37,7 +37,11 @@ export function AnimeGenrePicker({
   onClose: () => void;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    animeExcludeOrigins: s.animeExcludeOrigins,
+    animeHideWatchedPicks: s.animeHideWatchedPicks,
+  }));
+  const update = useSettingsUpdate();
   const [selected, setSelected] = useState<Set<number>>(() => new Set(initial));
   const [origins, setOrigins] = useState<Set<string>>(() => new Set(settings.animeExcludeOrigins));
   const [hideWatched, setHideWatched] = useState(settings.animeHideWatchedPicks);

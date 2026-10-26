@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { importRatingsBulk } from "@/lib/ratings/import/bulk";
 import { recordImport } from "@/lib/ratings/import/receipts";
 import { resolveItemKey } from "@/lib/ratings/import/resolve";
@@ -119,7 +119,7 @@ async function resolveAll(
 }
 
 export function useRatingsImport(): RatingsImport {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [cancelling, setCancelling] = useState(false);
   const [progress, setProgress] = useState<ImportProgress>(BLANK);

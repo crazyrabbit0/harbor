@@ -5,7 +5,7 @@ import { CopyLinkButton, resolveStreamLink } from "@/components/player/copy-link
 import { DubSubPill, streamDubSub } from "@/components/dub-sub-pill";
 import { FormatBadge, RuleBadges, streamBadges } from "@/components/format-badge";
 import { HostMatchChip } from "@/components/host-match-chip";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import type { ScoredStream } from "@/lib/streams/types";
 import { EditionChip } from "./edition-chip";
@@ -30,7 +30,11 @@ export function StremioRow({
   isAnime?: boolean;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    fullStreamDescription: s.fullStreamDescription,
+    showDubBadge: s.showDubBadge,
+    showQualityBadge: s.showQualityBadge,
+  }));
   const full = settings.fullStreamDescription;
   const addonName = stream.addonName ?? t("Source");
   const headline = stream.name?.trim() || addonName;

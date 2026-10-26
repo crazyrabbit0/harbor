@@ -10,7 +10,7 @@ import {
   useDownloads,
 } from "@/lib/download/downloads-store";
 import { buildDefaultFilename, extensionFromUrl } from "@/lib/download/filename";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { isWindowsDesktop } from "@/lib/platform";
 import type { PlayEpisode } from "@/lib/view";
 
@@ -29,7 +29,7 @@ type Args = {
 };
 
 export function useVideoDownload({ url, meta, episode, headers }: Args) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ downloadDir: s.downloadDir }));
   const downloads = useDownloads();
   const [downloadId, setDownloadId] = useState<string | null>(null);
   const [preparing, setPreparing] = useState(false);

@@ -9,7 +9,7 @@ import { Topbar } from "@/chrome/topbar";
 import { useT } from "@/lib/i18n";
 import { useActiveKid } from "@/lib/profiles";
 import { resolveLogo } from "@/lib/logo";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useTitleLogo } from "@/lib/title-logo";
 import { LoaderLogoOrText } from "./loader-logo-or-text";
 import { readinessScore, type EngineStats } from "@/lib/torrent/engine-stats";
@@ -45,7 +45,7 @@ export function CinematicPlayerLoader({
 }) {
   const t = useT();
   const kid = useActiveKid();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const pinnedLogo = useTitleLogo(src.meta.id);
   const [localizedLogo, setLocalizedLogo] = useState<string | undefined>();
   useEffect(() => {

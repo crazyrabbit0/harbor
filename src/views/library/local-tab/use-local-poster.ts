@@ -4,7 +4,7 @@ import { usePosterChain } from "@/components/poster";
 import { fetchMovieAssets } from "@/lib/providers/tmdb/tmdb-images";
 import { imageLangPriority } from "@/lib/providers/tmdb/tmdb-image-lang";
 import { IMG } from "@/lib/providers/tmdb/tmdb-client";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { LocalEntry } from "@/lib/local-library";
 
 function artSrc(value: string): string {
@@ -12,7 +12,7 @@ function artSrc(value: string): string {
 }
 
 export function useLocalPoster(entry: LocalEntry) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey, tmdbKey: s.tmdbKey }));
   const localPoster = entry.localArt?.poster ? artSrc(entry.localArt.poster) : undefined;
   const [localized, setLocalized] = useState<string | undefined>(undefined);
 

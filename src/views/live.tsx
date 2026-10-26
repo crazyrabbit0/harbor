@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlaylistMutations } from "./live/hooks/use-playlist-mutations";
 import { useLiveActions } from "./live/hooks/use-live-actions";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import { useScrollMemory, useViewActions } from "@/lib/view";
 import { FAVORITES_GROUP_KEY, useFavorites } from "@/lib/iptv/favorites";
@@ -67,7 +67,10 @@ function writeMode(m: ViewMode) {
 
 export function LiveView({ active }: { active: boolean }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    preferredLanguages: s.preferredLanguages,
+    region: s.region,
+  }));
   const { openMeta, setView } = useViewActions();
   const sources = usePlaylists();
 

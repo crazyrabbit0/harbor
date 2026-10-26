@@ -4,7 +4,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { ServiceLogo } from "@/components/service-logo";
 import { SERVICES, providerIdsFor } from "@/lib/providers/streaming";
 import { tmdbDiscover } from "@/lib/providers/tmdb";
-import { useSettings, type StreamingService } from "@/lib/settings";
+import { type StreamingService, useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { MobileDetail } from "./mobile-detail";
 import {
@@ -65,7 +65,7 @@ export function MobileServicePage({
   service: StreamingService;
   onBack: () => void;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ region: s.region, tmdbKey: s.tmdbKey }));
   const meta = SERVICES[service];
   const providerIds = providerIdsFor(meta);
   const [media, setMedia] = useState<ServiceMedia>("movie");

@@ -2,11 +2,12 @@ import { Check, ExternalLink, Key, Loader2, X } from "lucide-react";
 import { useState } from "react";
 import tmdbLogo from "@/assets/addon-logos/tmdb.png";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { openUrl } from "@/lib/window";
 
 export function TmdbStep() {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
+  const update = useSettingsUpdate();
   const t = useT();
   const [draft, setDraft] = useState(settings.tmdbKey);
   const [status, setStatus] = useState<"idle" | "checking" | "ok" | "bad">(

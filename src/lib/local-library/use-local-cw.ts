@@ -5,7 +5,7 @@ import { listLocalCw, subscribeLocalCw } from "@/lib/local-cw";
 import { localToLibraryItem } from "@/lib/continue-watching";
 import { cwSortKey, episodeFromVideoId, isCwMember, type LibraryItem } from "@/lib/stremio";
 import { isCwDismissed } from "@/lib/cw-dismiss";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useProfiles } from "@/lib/profiles";
 
 /** Matches local-cw's own finished threshold. */
@@ -51,7 +51,7 @@ function isFinished(item: LibraryItem): boolean {
  * additions are the on-disk filter and next-episode lookup.
  */
 export function useLocalContinueWatching(): LocalCwCard[] {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ cwPerProfile: s.cwPerProfile }));
   const { activeProfile } = useProfiles();
   const library = useLocalLibrary();
   const [cwVersion, setCwVersion] = useState(0);

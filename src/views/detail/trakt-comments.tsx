@@ -26,7 +26,7 @@ import { traktRequest, TraktApiError } from "@/lib/trakt/client";
 import type { IdResolution } from "@/lib/trakt/ids";
 import { getSession, subscribeSession } from "@/lib/trakt/session";
 import { useViewActions } from "@/lib/view";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { openUrl } from "@/lib/window";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
@@ -386,7 +386,7 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
   const [blurred, setBlurred] = useState(true);
   const sortRef = useRef<HTMLDivElement>(null);
   const { openSettings } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ blurComments: s.blurComments }));
   const [session, setSessionState] = useState(() => getSession());
   const connected = !!session;
   const username = session?.username ?? null;

@@ -1,6 +1,6 @@
 import { MusicArtistGalleryModal } from "./music-artist-gallery-modal";
 import { MusicLinkedBio } from "./music-linked-bio";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Globe2, ShoppingBag, UserRound } from "@/components/icons/music-icons";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -74,7 +74,7 @@ export function MusicArtistStory({
   const t = useT();
   const [expanded, setExpanded] = useState(false);
   const [gallery, setGallery] = useState(false);
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [memberArt, setMemberArt] = useState<Record<string, string>>({});
   // MusicBrainz relations carry no image, so each credited act is resolved for its portrait.
   const memberKey = profile.members.map((member) => member.id).join("|");

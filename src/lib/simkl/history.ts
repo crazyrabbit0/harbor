@@ -164,7 +164,7 @@ export async function markEpisodesWatched(
   const watchedAt = new Date().toISOString();
   try {
     invalidateHistoryCache();
-    const result = await simklRequest<{ added?: { episodes?: number } }>("/sync/history", {
+    const result = await simklRequest<HistoryResult>("/sync/history", {
       method: "POST",
       body: {
         shows: [
@@ -180,7 +180,13 @@ export async function markEpisodesWatched(
         ],
       },
     });
-    return (result?.added?.episodes ?? 0) >= new Set(episodes).size;
+    if ((result?.added?.episodes ?? 0) >= new Set(episodes).size) return true;
+    // Episodes already in history add nothing; an explicit not_found of empty lists still confirms them.
+    const missed = result?.not_found;
+    return (
+      missed != null &&
+      Object.values(missed).every((v) => v == null || (Array.isArray(v) && v.length === 0))
+    );
   } catch {
     return false;
   }

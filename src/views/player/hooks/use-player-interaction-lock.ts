@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { effectiveBinding, eventToBinding } from "@/lib/hotkeys";
 import { setPlayerInteractionLocked } from "@/lib/player/interaction-lock";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const UNLOCK_CONTROL = "[data-player-unlock-control]";
 const LOCK_CONTROL_IDLE_MS = 2_200;
@@ -92,7 +92,10 @@ export function usePlayerInteractionBlocker({
 }
 
 export function usePlayerInteractionLock() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hotkeys: s.hotkeys,
+    playerScreenLockEnabled: s.playerScreenLockEnabled,
+  }));
   const enabled = settings.playerScreenLockEnabled;
   const [locked, setLocked] = useState(false);
   const [controlsVisible, setControlsVisible] = useState(false);
