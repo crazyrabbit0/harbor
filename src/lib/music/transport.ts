@@ -18,13 +18,16 @@ function readTransport(): MusicTransport {
   };
 }
 
-let transport = readTransport();
+// Read on first use rather than at import.
+let transportState: MusicTransport | null = null;
+const currentTransport = (): MusicTransport => (transportState ??= readTransport());
 const queueOrder = new MusicQueueOrder();
 let priorityNext: MusicTrack | null = null;
 const transportListeners = new Set<() => void>();
 
 function publishTransport(patch: Partial<MusicTransport>): void {
-  transport = { ...transport, ...patch };
+  const transport = { ...currentTransport(), ...patch };
+  transportState = transport;
   writeMusicPreference(SHUFFLE_KEY, transport.shuffle ? "1" : "0");
   writeMusicPreference(REPEAT_KEY, transport.repeat);
   if (patch.shuffle !== undefined) queueOrder.reset();
@@ -39,11 +42,11 @@ function subscribeTransport(listener: () => void): () => void {
 }
 
 export function toggleMusicShuffle(): void {
-  publishTransport({ shuffle: !transport.shuffle });
+  publishTransport({ shuffle: !currentTransport().shuffle });
 }
 
 export function cycleMusicRepeat(): void {
-  const at = REPEAT_ORDER.indexOf(transport.repeat);
+  const at = REPEAT_ORDER.indexOf(currentTransport().repeat);
   publishTransport({ repeat: REPEAT_ORDER[(at + 1) % REPEAT_ORDER.length] ?? "off" });
 }
 
@@ -54,6 +57,7 @@ export function musicUpcoming(
   count: number,
   includeRepeats = true,
 ): MusicTrack[] {
+  const transport = currentTransport();
   return queueOrder.upcoming(
     queue,
     index,
@@ -62,14 +66,10 @@ export function musicUpcoming(
   );
 }
 
-export const getMusicTransport = (): MusicTransport => transport;
+export const getMusicTransport = (): MusicTransport => currentTransport();
 
 export function useMusicTransport(): MusicTransport {
-  return useSyncExternalStore(
-    subscribeTransport,
-    () => transport,
-    () => transport,
-  );
+  return useSyncExternalStore(subscribeTransport, currentTransport, currentTransport);
 }
 
 export const musicPriorityNext = () => priorityNext;
@@ -83,13 +83,14 @@ export function setMusicPriorityNext(track: MusicTrack | null): void {
  * module is replaced without the other.
  */
 export function musicAdvance(queue: MusicTrack[], index: number, auto: boolean): MusicTrack | null {
+  const transport = currentTransport();
   const next = queueOrder.next(queue, index, transport, auto, priorityNext);
   if (!(auto && transport.repeat === "one")) priorityNext = null;
   return next;
 }
 
 export function musicPrevious(queue: MusicTrack[], index: number): MusicTrack | null {
-  return queueOrder.previous(queue, index, transport.shuffle);
+  return queueOrder.previous(queue, index, currentTransport().shuffle);
 }
 
 /**
@@ -99,7 +100,7 @@ export function musicPrevious(queue: MusicTrack[], index: number): MusicTrack | 
 export function musicWarmTargets(queue: MusicTrack[], index: number, count: number): MusicTrack[] {
   const ahead = musicUpcoming(queue, index, count);
   const out = priorityNext ? [priorityNext, ...ahead] : ahead;
-  const behind = queueOrder.peekPrevious(queue, index, transport.shuffle);
+  const behind = queueOrder.peekPrevious(queue, index, currentTransport().shuffle);
   if (behind) out.push(behind);
   return out;
 }

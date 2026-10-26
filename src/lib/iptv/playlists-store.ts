@@ -13,6 +13,7 @@ export type StoredPlaylist = {
 const STORAGE_KEY = "harbor.iptv.playlists.v1";
 
 let migrated = false;
+let hydrated = false;
 let cache: StoredPlaylist[] = [];
 let cacheJson = "[]";
 const subs = new Set<() => void>();
@@ -110,7 +111,7 @@ export function migrateLegacyPlaylists(): void {
 export function adoptLegacyPlaylists(legacy: StoredPlaylist[]): boolean {
   if (!Array.isArray(legacy) || legacy.length === 0) return true;
   const merged = new Map<string, StoredPlaylist>();
-  for (const entry of cache) merged.set(entry.id, entry);
+  for (const entry of cachedPlaylists()) merged.set(entry.id, entry);
   for (const entry of legacy) {
     if (entry && typeof entry.id === "string" && !merged.has(entry.id)) {
       merged.set(entry.id, entry);
@@ -120,6 +121,7 @@ export function adoptLegacyPlaylists(legacy: StoredPlaylist[]): boolean {
 }
 
 export function readPlaylists(): StoredPlaylist[] {
+  hydrated = true;
   ensureMigrated();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -138,6 +140,7 @@ export function readPlaylists(): StoredPlaylist[] {
 }
 
 export function writePlaylists(playlists: StoredPlaylist[]): boolean {
+  hydrated = true;
   cache = playlists;
   cacheJson = JSON.stringify(playlists);
   let persisted = false;
@@ -158,14 +161,12 @@ export function subscribePlaylists(cb: () => void): () => void {
   return () => subs.delete(cb);
 }
 
-// Hydrate the module cache at import time so usePlaylists() consumers render the
-// stored playlists without depending on a one-time migration flag being tripped.
-readPlaylists();
+// The first snapshot hydrates the cache, so usePlaylists() renders the stored playlists at once.
+function cachedPlaylists(): StoredPlaylist[] {
+  if (!hydrated) readPlaylists();
+  return cache;
+}
 
 export function usePlaylists(): StoredPlaylist[] {
-  return useSyncExternalStore(
-    subscribePlaylists,
-    () => cache,
-    () => cache,
-  );
+  return useSyncExternalStore(subscribePlaylists, cachedPlaylists, cachedPlaylists);
 }

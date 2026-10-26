@@ -29,7 +29,9 @@ function read(): SportsReminder[] {
     return [];
   }
 }
-let cache = read();
+// Loaded by the first snapshot, not at import.
+let cache: SportsReminder[] | null = null;
+const cachedReminders = () => (cache ??= read());
 function emit() {
   for (const fn of subscribers) fn();
 }
@@ -66,7 +68,7 @@ if (typeof window !== "undefined")
     }
   });
 export function useSportsReminders() {
-  return useSyncExternalStore(subscribe, () => cache);
+  return useSyncExternalStore(subscribe, cachedReminders);
 }
 export function syncSportsReminders(games: SportsGame[]) {
   for (const reminder of read()) {

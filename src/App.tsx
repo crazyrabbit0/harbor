@@ -1,15 +1,21 @@
 import { GAMES_IN_NAV } from "@/chrome/nav-items";
 import { GameAccessProvider } from "@/views/games/game-access-context";
-import { GameLibraryDock as GameLibraryDockImpl } from "@/views/games/game-library-dock";
-import { GameDockWelcome } from "@/views/games/game-dock-welcome";
 import { GameRouteLoading } from "@/views/games/game-route-loading";
 import { hasBackHandlers } from "@/lib/back-intercept";
 import { useSportsEnabled } from "@/lib/sports/enabled";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
-import { SportsAccessGate } from "@/views/sports/access-gate";
 import { SportsEventSkeleton } from "@/views/sports/sports-skeletons";
 import { SportsReminderLoop as SportsReminderLoopImpl } from "@/components/sports-reminder-loop";
-import { memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { lazyView as lazy } from "@/lib/lazy-view";
 import type { GameMediaTarget } from "@/lib/games/cross-media";
 import { startIdleAway } from "@/lib/social/idle-away";
@@ -51,7 +57,7 @@ import { activeLayout } from "@/lib/theme";
 import { useThemePreview } from "@/lib/theme-preview";
 import { DevErrorTrigger } from "@/components/dev-error-trigger";
 import { ErrorView } from "@/components/error-view";
-import { HarborErrorBoundary } from "@/components/error-boundary";
+import { HarborErrorBoundary, SilentBoundary } from "@/components/error-boundary";
 import { ContextMenu } from "@/components/context-menu";
 import { WatchLocalModal } from "@/components/player/watch-local-modal";
 import { LocalEpisodesModal } from "@/components/player/local-episodes-modal";
@@ -156,8 +162,6 @@ import { useDiscordPresence } from "@/lib/discord/use-discord-presence";
 import { useWatchShare } from "@/lib/social/watch-presence";
 import { usePluginCataloguesAvailable } from "@/lib/streams/plugins/available";
 import { SpooktoberHome } from "@/views/spooktober/spooktober-home";
-import { MusicDock as MusicDockImpl } from "@/components/music/music-dock";
-import { MusicSurprisePrompt as MusicSurprisePromptImpl } from "@/components/music/music-surprise-prompt";
 import { ParentalProvider } from "@/lib/parental";
 import { TraktProvider } from "@/lib/trakt/provider";
 import { AnilistProvider } from "@/lib/anilist/provider";
@@ -179,11 +183,10 @@ import { releaseBigPictureFullscreen } from "@/views/big-picture/use-bp-fullscre
 import { getNavFocusTarget } from "@/lib/keyboard-navigation/geometry";
 import { SFX } from "@/lib/sfx";
 import { startMusicTaskbarButtons, syncMusicTaskbarArtwork } from "@/lib/music/taskbar-buttons";
-import { resetMusicForProfile } from "@/lib/music/player";
+import { getMusicState, resetMusicForProfile, subscribeMusic } from "@/lib/music/player";
 import { startMediaSessionWindowTracking } from "@/lib/media-session";
 
 // Shell re-renders on every navigation; these chrome pieces read only what they need, so memo keeps them still.
-const GameLibraryDock = memo(GameLibraryDockImpl);
 const SportsReminderLoop = memo(SportsReminderLoopImpl);
 const FloatingBack = memo(FloatingBackImpl);
 const WindowControls = memo(WindowControlsImpl);
@@ -207,9 +210,76 @@ const MemoryHud = memo(MemoryHudImpl);
 const OfflineBanner = memo(OfflineBannerImpl);
 const WebhookLoopMount = memo(WebhookLoopMountImpl);
 const ThemeChromeBridge = memo(ThemeChromeBridgeImpl);
-const MusicDock = memo(MusicDockImpl);
-const MusicSurprisePrompt = memo(MusicSurprisePromptImpl);
 const BigPictureEntryButton = memo(BigPictureEntryButtonImpl);
+
+// Rarely shown chrome loads its code and CSS on demand; lazyView keeps the memo.
+const MusicDock = lazy(() =>
+  import("@/components/music/music-dock").then((m) => ({ default: m.MusicDock })),
+);
+const MusicSurprisePrompt = lazy(() =>
+  import("@/components/music/music-surprise-prompt").then((m) => ({
+    default: m.MusicSurprisePrompt,
+  })),
+);
+const GameLibraryDock = lazy(() =>
+  import("@/views/games/game-library-dock").then((m) => ({ default: m.GameLibraryDock })),
+);
+const GameDockWelcome = lazy(() =>
+  import("@/views/games/game-dock-welcome").then((m) => ({ default: m.GameDockWelcome })),
+);
+const SportsAccessGate = lazy(() =>
+  import("@/views/sports/access-gate").then((m) => ({ default: m.SportsAccessGate })),
+);
+
+const hasMusicTrack = () => getMusicState().current !== null;
+const MUSIC_SOURCE_REQUIRED = "harbor:music-playback-source-required";
+
+// Runs after the dock's own effects, so a source request caught before it loaded reaches its listener.
+function MusicDockReady({ onReady }: { onReady: () => void }) {
+  useEffect(onReady, [onReady]);
+  return null;
+}
+
+// The dock mounts at the first idle slot, or at once when a track is current, and then stays.
+const MusicChrome = memo(function MusicChrome() {
+  const hasTrack = useSyncExternalStore(subscribeMusic, hasMusicTrack, hasMusicTrack);
+  const [armed, setArmed] = useState(false);
+  const dockReady = useRef(false);
+  const sourceRequested = useRef(false);
+  if (hasTrack && !armed) setArmed(true);
+  useEffect(() => {
+    if (armed) return;
+    if (typeof requestIdleCallback !== "function") {
+      const timer = window.setTimeout(() => setArmed(true), 1200);
+      return () => window.clearTimeout(timer);
+    }
+    const id = requestIdleCallback(() => setArmed(true), { timeout: 2500 });
+    return () => cancelIdleCallback(id);
+  }, [armed]);
+  useEffect(() => {
+    const hold = () => {
+      if (!dockReady.current) sourceRequested.current = true;
+    };
+    window.addEventListener(MUSIC_SOURCE_REQUIRED, hold);
+    return () => window.removeEventListener(MUSIC_SOURCE_REQUIRED, hold);
+  }, []);
+  const onDockReady = useCallback(() => {
+    dockReady.current = true;
+    if (!sourceRequested.current) return;
+    sourceRequested.current = false;
+    window.dispatchEvent(new Event(MUSIC_SOURCE_REQUIRED));
+  }, []);
+  if (!armed) return null;
+  return (
+    <SilentBoundary>
+      <Suspense fallback={null}>
+        <MusicDock />
+        <MusicDockReady onReady={onDockReady} />
+        <MusicSurprisePrompt />
+      </Suspense>
+    </SilentBoundary>
+  );
+});
 
 const importAnime = () => import("@/views/anime");
 const importCalendar = () => import("@/views/calendar");
@@ -1569,6 +1639,9 @@ function Shell({ onReady }: { onReady?: () => void }) {
 
   const gameDockVisible =
     !kid && !kidsTop && !playerActive && !pickerTop && !bigPicture && !immersive && !chromeHidden;
+  // Once shown, the dock stays mounted so turning the setting off still runs its close effect.
+  const [quickLibraryMounted, setQuickLibraryMounted] = useState(false);
+  if (settings.showQuickGameLibrary && !quickLibraryMounted) setQuickLibraryMounted(true);
   return (
     <GameAccessProvider
       profile={activeProfile?.id ?? "default"}
@@ -1670,8 +1743,7 @@ function Shell({ onReady }: { onReady?: () => void }) {
               <WindowControls />
             </div>
           )}
-          <MusicDock />
-          <MusicSurprisePrompt />
+          <MusicChrome />
           {!playerActive && <WindowResizeEdges />}
           <HybridTitleBar suppressed={playerActive || immersive || chromeHidden} />
           <div
@@ -2139,7 +2211,13 @@ function Shell({ onReady }: { onReady?: () => void }) {
             )}
           </div>
         </div>
-        <GameLibraryDock visible={gameDockVisible && !gamesTop} />
+        {quickLibraryMounted && (
+          <SilentBoundary>
+            <Suspense fallback={null}>
+              <GameLibraryDock visible={gameDockVisible && !gamesTop} />
+            </Suspense>
+          </SilentBoundary>
+        )}
         {player && (
           <Suspense fallback={null}>
             <PlayerView

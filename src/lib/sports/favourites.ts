@@ -36,6 +36,7 @@ const EMPTY: SportsFavourites = { leagues: [], teams: [], home: {} };
 
 let cache: SportsFavourites = EMPTY;
 let cacheJson = "";
+let hydrated = false;
 const subs = new Set<() => void>();
 
 function notify(): void {
@@ -80,6 +81,7 @@ function normalise(raw: unknown): SportsFavourites {
 }
 
 export function readFavourites(): SportsFavourites {
+  hydrated = true;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw != null && raw !== cacheJson) {
@@ -93,6 +95,7 @@ export function readFavourites(): SportsFavourites {
 }
 
 export function writeFavourites(next: SportsFavourites): boolean {
+  hydrated = true;
   cache = next;
   cacheJson = JSON.stringify(next);
   let persisted = false;
@@ -112,7 +115,10 @@ export function subscribeFavourites(cb: () => void): () => void {
   };
 }
 
-readFavourites();
+// The first snapshot hydrates the cache instead of a read at import.
+function cachedFavourites(): SportsFavourites {
+  return hydrated ? cache : readFavourites();
+}
 
 export function leagueOf(leagueKey: string): LeagueDef | undefined {
   return (
@@ -185,11 +191,7 @@ export function clearFavouriteTeams(leagueKey?: string): void {
 }
 
 export function useFavourites(): SportsFavourites {
-  return useSyncExternalStore(
-    subscribeFavourites,
-    () => cache,
-    () => cache,
-  );
+  return useSyncExternalStore(subscribeFavourites, cachedFavourites, cachedFavourites);
 }
 
 export function useFavouriteTeams(group?: string): FavouriteTeam[] {

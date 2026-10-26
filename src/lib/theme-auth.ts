@@ -150,13 +150,23 @@ function repairCopiedSessions(): void {
   }
 }
 
-migrateLegacyGlobal();
-repairCopiedSessions();
-let loadedProfile = activeProfileId();
-let session: Session | null = readSession();
+let sessionLoaded = false;
+let loadedProfile = "";
+let session: Session | null = null;
 let sessionGeneration = 0;
 
+// Storage is read on first use, not at import, so startup does not scan localStorage.
+function ensureSession(): void {
+  if (sessionLoaded) return;
+  sessionLoaded = true;
+  migrateLegacyGlobal();
+  repairCopiedSessions();
+  loadedProfile = activeProfileId();
+  session = readSession();
+}
+
 function setSession(next: Session | null): void {
+  ensureSession();
   if (next?.user.id !== session?.user.id) sessionGeneration += 1;
   session = next;
   loadedProfile = activeProfileId();
@@ -171,6 +181,7 @@ function setSession(next: Session | null): void {
 }
 
 function reloadSession(): void {
+  ensureSession();
   const id = activeProfileId();
   if (id === loadedProfile) return;
   sessionGeneration += 1;
@@ -186,14 +197,17 @@ if (typeof window !== "undefined") {
 }
 
 export function currentAuthor(): Author | null {
+  ensureSession();
   return session ? session.user : null;
 }
 
 export function authToken(): string | null {
+  ensureSession();
   return session ? session.token : null;
 }
 
 export function refreshTokenValue(): string | null {
+  ensureSession();
   return session ? (session.refresh ?? null) : null;
 }
 
@@ -202,6 +216,7 @@ export function applyAuthResult(d: {
   refresh?: string | null;
   user: RawUser;
 }): void {
+  ensureSession();
   sessionGeneration += 1;
   setSession({
     token: d.token,
@@ -214,11 +229,13 @@ export function applyAuthResult(d: {
 }
 
 export function applyServerUser(user: RawUser): void {
+  ensureSession();
   if (!session || session.user.id !== user.id) return;
   setSession({ ...session, user: toAuthor(user) });
 }
 
 export function applyAvatarUrl(url: string | null): void {
+  ensureSession();
   if (!session) return;
   setSession({ ...session, user: { ...session.user, avatar: url } });
 }

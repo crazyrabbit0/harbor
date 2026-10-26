@@ -31,18 +31,21 @@ function writeCache(cache: ArmCache) {
   }
 }
 
-const armMem: ArmCache = readCache();
+// Read on first lookup rather than at import.
+let armState: ArmCache | null = null;
+const armMem = (): ArmCache => (armState ??= readCache());
 const armInflight = new Map<number, Promise<ArmEntry | null>>();
 let armFlushTimer = 0;
 
 function armRemember(malId: number, entry: ArmEntry) {
-  armMem[malId] = entry;
+  const mem = armMem();
+  mem[malId] = entry;
   window.clearTimeout(armFlushTimer);
-  armFlushTimer = window.setTimeout(() => writeCache(armMem), 600);
+  armFlushTimer = window.setTimeout(() => writeCache(mem), 600);
 }
 
 async function armLookup(malId: number): Promise<ArmEntry | null> {
-  const hit = armMem[malId];
+  const hit = armMem()[malId];
   if (hit) {
     const age = Date.now() - hit.t;
     if (hit.neg ? age < ARM_NEG_TTL_MS : age < ARM_TTL_MS) return hit.neg ? null : hit;
@@ -110,17 +113,27 @@ function isSearchKey(key: string): boolean {
   return /[?&]q=/.test(key);
 }
 
-evictLocalPrefix(CATALOG_KEY);
+let catalogHydrated = false;
 
-void idbCacheGet(CATALOG_KEY).then((stored) => {
-  const raw = (stored?.data ?? {}) as Record<string, CatalogEntry>;
-  const now = Date.now();
-  for (const [k, e] of Object.entries(raw)) {
-    if (isSearchKey(k) || catalog.has(k)) continue;
-    if (e && Array.isArray(e.metas) && e.metas.length > 0 && now - e.t < JIKAN_CACHE_TTL)
-      catalog.set(k, e);
-  }
-});
+// Runs at idle after load, or on the first catalog read if that comes sooner.
+function hydrateCatalog(): void {
+  if (catalogHydrated) return;
+  catalogHydrated = true;
+  evictLocalPrefix(CATALOG_KEY);
+  void idbCacheGet(CATALOG_KEY).then((stored) => {
+    const raw = (stored?.data ?? {}) as Record<string, CatalogEntry>;
+    const now = Date.now();
+    for (const [k, e] of Object.entries(raw)) {
+      if (isSearchKey(k) || catalog.has(k)) continue;
+      if (e && Array.isArray(e.metas) && e.metas.length > 0 && now - e.t < JIKAN_CACHE_TTL)
+        catalog.set(k, e);
+    }
+  });
+}
+
+if (typeof requestIdleCallback === "function")
+  requestIdleCallback(hydrateCatalog, { timeout: 3000 });
+else setTimeout(hydrateCatalog, 0);
 
 let catalogFlushTimer = 0;
 
@@ -153,6 +166,7 @@ function persistCatalog() {
 }
 
 export function catalogGet(key: string): Meta[] | null {
+  hydrateCatalog();
   const hit = catalog.get(key);
   if (hit && Date.now() - hit.t < JIKAN_CACHE_TTL) return hit.metas;
   return null;

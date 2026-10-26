@@ -87,11 +87,13 @@ function read(): MusicDockLayout {
   }
 }
 
-let layout = read();
+// Read on first use rather than at import.
+let layout: MusicDockLayout | null = null;
+const currentLayout = (): MusicDockLayout => (layout ??= read());
 const listeners = new Set<() => void>();
 
 export function setMusicDockLayout(patch: Partial<MusicDockLayout>): void {
-  layout = { ...layout, ...patch };
+  layout = { ...currentLayout(), ...patch };
   writeMusicPreference(KEY, JSON.stringify(layout));
   listeners.forEach((listener) => listener());
 }
@@ -110,7 +112,7 @@ export function useMusicDockLayout(): MusicDockLayout {
         listeners.delete(listener);
       };
     },
-    () => layout,
-    () => layout,
+    currentLayout,
+    currentLayout,
   );
 }

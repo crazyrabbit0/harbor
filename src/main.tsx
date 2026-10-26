@@ -12,7 +12,6 @@ import { initSubtitleCache } from "@/lib/subtitles/subtitle-cache";
 import { hdrOverlayEmitAction } from "@/lib/hdr-overlay";
 import { ensureBundledAwards } from "@/lib/awards-history";
 import "@/index.css";
-import "flag-icons/css/flag-icons.min.css";
 import { startTaskbarProgress } from "@/lib/download/taskbar-progress";
 import { completeBetaReturnPreferences } from "@/lib/updater/beta-return";
 

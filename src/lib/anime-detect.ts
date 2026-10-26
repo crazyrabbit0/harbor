@@ -48,8 +48,11 @@ function loadNegatives(): Set<string> {
   return new Set();
 }
 
-const detected = load();
-const negatives = loadNegatives();
+// Both sets load on first use, not at import.
+let detectedSet: Set<string> | null = null;
+let negativeSet: Set<string> | null = null;
+const detectedIds = (): Set<string> => (detectedSet ??= load());
+const negativeIds = (): Set<string> => (negativeSet ??= loadNegatives());
 const checked = new Set<string>();
 const pending = new Set<string>();
 const inflight = new Map<string, Promise<void>>();
@@ -59,7 +62,7 @@ const listeners = new Set<() => void>();
 
 function persist(): void {
   try {
-    setItemWithRecovery(STORAGE_KEY, JSON.stringify([...detected]));
+    setItemWithRecovery(STORAGE_KEY, JSON.stringify([...detectedIds()]));
   } catch {}
 }
 
@@ -70,7 +73,7 @@ function persistNegatives(): void {
   negativeTimer = setTimeout(() => {
     negativeTimer = null;
     try {
-      const all = [...negatives];
+      const all = [...negativeIds()];
       const ids = all.length > NEGATIVE_MAX ? all.slice(-NEGATIVE_MAX) : all;
       setItemWithRecovery(NEGATIVE_KEY, JSON.stringify({ t: negativesSince, ids }));
     } catch {}
@@ -83,7 +86,7 @@ function bump(): void {
 }
 
 export function isDetectedAnime(id: string): boolean {
-  return detected.has(id);
+  return detectedIds().has(id);
 }
 
 const ANIME_ID_RE = /^(kitsu|mal|anilist|anidb):/;
@@ -96,7 +99,7 @@ export function metaLooksAnime(m: {
 }): boolean {
   const id = m.id ?? "";
   if (ANIME_ID_RE.test(id)) return true;
-  if (detected.has(id)) return true;
+  if (detectedIds().has(id)) return true;
   return isJapaneseAnime(m);
 }
 
@@ -169,7 +172,7 @@ export function isOrphanAnimeCandidate(meta: {
 }
 
 function settled(id: string): boolean {
-  return detected.has(id) || negatives.has(id) || checked.has(id);
+  return detectedIds().has(id) || negativeIds().has(id) || checked.has(id);
 }
 
 async function checkOne(it: DetectItem): Promise<void> {
@@ -190,11 +193,11 @@ async function checkOne(it: DetectItem): Promise<void> {
       anime = (await imdbToKitsu(id).catch(() => null)) != null;
     }
     if (anime) {
-      detected.add(id);
+      detectedIds().add(id);
       persist();
       bump();
     } else if (m) {
-      negatives.add(id);
+      negativeIds().add(id);
       persistNegatives();
     }
   } catch {
