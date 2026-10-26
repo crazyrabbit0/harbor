@@ -27,8 +27,10 @@ function fixture() {
   const connected = { simkl: true, trakt: true };
   const sessions = { simkl: {}, trakt: {} };
   const detectionBatches: LibraryItem[][] = [];
+  const profile = { id: "a" };
   const mocks: Record<string, unknown> = {
     react: {},
+    "@/lib/active-profile-id": { activeProfileId: () => profile.id },
     "@/lib/simkl/playback": { fetchSimklPlaybackItems: () => providers.simkl() },
     "@/lib/trakt/playback": { fetchTraktPlaybackItems: () => providers.trakt() },
     "@/lib/simkl/session": {
@@ -75,6 +77,7 @@ function fixture() {
   );
   return {
     api,
+    profile,
     providers,
     connected,
     sessions,
@@ -114,6 +117,27 @@ test("a partial tracker failure retains its cards and retries without toggling t
     new Set(["new-simkl", fresh._id]),
   );
   assert.equal(h.timers.size, 0);
+});
+
+test("a profile save that keeps the same profile does not refetch tracker progress", async () => {
+  const h = fixture();
+  let calls = 0;
+  h.providers.simkl = async () => {
+    calls += 1;
+    return [item("simkl", "kept")];
+  };
+  await h.api.refreshExternalCw(true);
+  h.listeners["harbor:profiles-updated"]();
+  await settle();
+  assert.equal(calls, 1);
+  assert.deepEqual(
+    h.api.listExternalCw().map((i) => i._id),
+    ["kept"],
+  );
+  h.profile.id = "b";
+  h.listeners["harbor:profiles-updated"]();
+  await settle();
+  assert.equal(calls, 2, "a real profile switch still refetches");
 });
 
 test("changing linked accounts clears the old account even if its replacement is offline", async () => {

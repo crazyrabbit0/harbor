@@ -1,4 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
+import { activeProfileId } from "@/lib/active-profile-id";
 import { detectAnimeForCw } from "@/lib/anime-detect";
 import { fetchSimklPlaybackItems } from "@/lib/simkl/playback";
 import { fetchTraktPlaybackItems } from "@/lib/trakt/playback";
@@ -198,7 +199,10 @@ function onSessionChange(): void {
   void refreshExternalCw(true);
 }
 
+let lastProfile: string | null = null;
+
 function onProfileChange(): void {
+  lastProfile = activeProfileId();
   lastSimkl = getSimklSession();
   lastTrakt = getTraktSession();
   fetchedAt = 0;
@@ -206,11 +210,19 @@ function onProfileChange(): void {
   void refreshExternalCw(true);
 }
 
+// The profile store announces every save (including its mount), so only a real profile switch resets the cards.
+function onProfilesUpdated(): void {
+  const profile = activeProfileId();
+  if (lastProfile === null) lastProfile = profile;
+  if (profile === lastProfile) return;
+  onProfileChange();
+}
+
 if (typeof window !== "undefined") {
   subscribeSimklSession(onSessionChange);
   subscribeTraktSession(onSessionChange);
   window.addEventListener("harbor:active-profile-changed", onProfileChange);
-  window.addEventListener("harbor:profiles-updated", onProfileChange);
+  window.addEventListener("harbor:profiles-updated", onProfilesUpdated);
 }
 
 export function useExternalCw(enabled = true): LibraryItem[] {

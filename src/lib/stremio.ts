@@ -133,7 +133,23 @@ export function isCwMember(i: LibraryItem): boolean {
   return true;
 }
 
-async function call<T>(path: string, body: object): Promise<T> {
+// Reads that are identical and in flight together share one request; Home, Continue Watching and the watchlist sync all ask at launch.
+const SHARED_READS = new Set(["datastoreMeta", "datastoreGet", "addonCollectionGet", "getUser"]);
+const inflightReads = new Map<string, Promise<unknown>>();
+
+function call<T>(path: string, body: object): Promise<T> {
+  if (!SHARED_READS.has(path)) return send<T>(path, body);
+  const key = `${path}|${JSON.stringify(body)}`;
+  const pending = inflightReads.get(key);
+  if (pending) return pending as Promise<T>;
+  const p = send<T>(path, body).finally(() => {
+    inflightReads.delete(key);
+  });
+  inflightReads.set(key, p);
+  return p;
+}
+
+async function send<T>(path: string, body: object): Promise<T> {
   const res = await fetch(`${API}/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
