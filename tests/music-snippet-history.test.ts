@@ -39,7 +39,8 @@ function harness(files = new Map<string, string>()) {
   const local = moduleOf("local-store", {
     "@tauri-apps/plugin-fs": {
       BaseDirectory: { AppData: 1 },
-      exists: async (path: string) => files.has(path),
+      exists: async (path: string) =>
+        files.has(path) || [...files.keys()].some((f) => f.startsWith(`${path}/`)),
       mkdir: async () => {},
       readTextFile: async (path: string) => files.get(path),
       writeTextFile: async (path: string, value: string) => {

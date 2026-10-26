@@ -15,25 +15,39 @@ function fileFor(name: string): string {
 
 async function ensureDir(): Promise<void> {
   ready ??= (async () => {
-    if (await exists(DIR, { baseDir: BaseDirectory.AppData })) return;
-    await mkdir(DIR, { baseDir: BaseDirectory.AppData, recursive: true });
+    if (!(await exists(DIR, { baseDir: BaseDirectory.AppData })))
+      await mkdir(DIR, { baseDir: BaseDirectory.AppData, recursive: true });
+    dirExists = Promise.resolve(true);
   })().catch(() => {});
   return ready;
 }
 
-export async function readLocalJson<T>(name: string): Promise<T | null> {
-  if (cache.has(name)) return cache.get(name) as T;
-  if (!IS_TAURI) return null;
-  try {
-    const path = fileFor(name);
-    if (!(await exists(path, { baseDir: BaseDirectory.AppData }))) return null;
-    const raw = await readTextFile(path, { baseDir: BaseDirectory.AppData });
-    const value = JSON.parse(raw) as T;
-    cache.set(name, value);
-    return value;
-  } catch {
-    return null;
-  }
+const reads = new Map<string, Promise<unknown>>();
+// Until something is written the store folder does not exist, so one check answers every read as empty.
+let dirExists: Promise<boolean> | null = null;
+
+// One read per name: a missing file throws and reads as null, so no separate exists() round trip is needed.
+export function readLocalJson<T>(name: string): Promise<T | null> {
+  if (cache.has(name)) return Promise.resolve(cache.get(name) as T);
+  if (!IS_TAURI) return Promise.resolve(null);
+  const inflight = reads.get(name);
+  if (inflight) return inflight as Promise<T | null>;
+  const p = (async () => {
+    try {
+      dirExists ??= exists(DIR, { baseDir: BaseDirectory.AppData }).catch(() => true);
+      if (!(await dirExists)) return null;
+      const raw = await readTextFile(fileFor(name), { baseDir: BaseDirectory.AppData });
+      const value = JSON.parse(raw) as T;
+      cache.set(name, value);
+      return value;
+    } catch {
+      return null;
+    }
+  })().finally(() => {
+    reads.delete(name);
+  });
+  reads.set(name, p);
+  return p;
 }
 
 export function cachedLocalJson<T>(name: string): T | null {
