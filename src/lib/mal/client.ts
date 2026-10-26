@@ -1,3 +1,4 @@
+import { safeFetch } from "@/lib/safe-fetch";
 import { MAL_API_BASE } from "./config";
 import { getSession } from "./session";
 import { resolveMalRequestUrl } from "./url";
@@ -11,12 +12,9 @@ export class MalApiError extends Error {
   }
 }
 
-async function tauriFetch(input: string, init?: RequestInit): Promise<Response> {
-  if ("__TAURI_INTERNALS__" in window) {
-    const { fetch: tauriFetchFn } = await import("@tauri-apps/plugin-http");
-    return tauriFetchFn(input, init as Record<string, unknown>) as unknown as Response;
-  }
-  return fetch(input, init);
+// harbor_fetch returns the body in one IPC call; plugin-http streams it in chunks (45 calls for one list page).
+function tauriFetch(input: string, init?: RequestInit): Promise<Response> {
+  return safeFetch(input, init);
 }
 
 export async function malRequest<T>(

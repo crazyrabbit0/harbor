@@ -1,15 +1,10 @@
+import { safeFetch } from "@/lib/safe-fetch";
 import { getSession, setSession } from "./session";
 import { ensureRefreshed } from "./auth";
 
 let inflight: Promise<void> | null = null;
 
-async function tauriFetch(input: string, init?: RequestInit): Promise<Response> {
-  if ("__TAURI_INTERNALS__" in window) {
-    const { fetch: tauriFetchFn } = await import("@tauri-apps/plugin-http");
-    return tauriFetchFn(input, init as Record<string, unknown>) as unknown as Response;
-  }
-  return fetch(input, init);
-}
+const tauriFetch = (input: string, init?: RequestInit): Promise<Response> => safeFetch(input, init);
 
 export function validateMalSession(): Promise<void> {
   if (inflight) return inflight;
