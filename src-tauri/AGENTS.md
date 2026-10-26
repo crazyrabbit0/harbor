@@ -14,7 +14,7 @@ Notes for agents working in this folder.
 - In `[target.'cfg(...)'.dependencies]`, `cfg(desktop)` silently matches nothing. Use `cfg(not(any(target_os = "android", target_os = "ios")))`.
 - In `build.rs`, branch on `CARGO_CFG_TARGET_OS`, not `cfg!(...)` (that evaluates the host).
 - The dev profile uses `opt-level = 2` for the crate and all deps, so the first build is slow. That is intentional.
-- No `[profile.release]` here; local release speedups live in the git-excluded root `.cargo/config.toml` (see the root `AGENTS.md`, "Release builds"). Don't move them into the tracked `Cargo.toml`.
+- `[profile.release]` here is the shipping profile (fat LTO, one codegen unit, `strip = "debuginfo"` so crash-report backtraces keep function names, `panic = "unwind"` because `crash_report.rs` installs a panic hook). Local release speedups live in the git-excluded root `.cargo/config.toml`, whose `[profile.release]` keys override these (see the root `AGENTS.md`, "Release builds"); don't move them into the tracked `Cargo.toml`.
 - Platform files use suffixes (`_windows`, `_win`, `_mac`, `_linux`); follow the suffix already used in the module you're editing.
 
 ## mpv

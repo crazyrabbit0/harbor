@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::OnceLock;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
 use crate::http_redirect::same_origin;
@@ -41,7 +41,7 @@ const THUMB_CACHE_MAX_BYTES: usize = 32 * 1024 * 1024;
 const THUMB_CACHE_MAX_ENTRIES: usize = 256;
 
 struct ThumbEntry {
-    body: String,
+    body: Arc<[u8]>,
     bytes: usize,
     last_used: u64,
 }
@@ -53,7 +53,7 @@ struct ThumbCache {
 }
 
 impl ThumbCache {
-    fn get(&mut self, key: &str) -> Option<String> {
+    fn get(&mut self, key: &str) -> Option<Arc<[u8]>> {
         self.clock = self.clock.wrapping_add(1);
         let tick = self.clock;
         self.entries.get_mut(key).map(|entry| {
@@ -62,7 +62,8 @@ impl ThumbCache {
         })
     }
 
-    fn insert(&mut self, key: String, body: String) {        let bytes = body.len();
+    fn insert(&mut self, key: String, body: Arc<[u8]>) {
+        let bytes = body.len();
         if bytes > THUMB_CACHE_MAX_BYTES {
             return;
         }
@@ -153,15 +154,14 @@ fn make_thumb(bytes: &[u8], width: u32) -> Option<Vec<u8>> {
     Some(buf)
 }
 
-async fn thumb_or_base64(
+async fn thumb_or_original(
     app: &tauri::AppHandle,
     url: &str,
     width: Option<u32>,
-    bytes: &[u8],
-) -> String {
-    let encode_original = || base64::engine::general_purpose::STANDARD.encode(bytes);
+    bytes: Vec<u8>,
+) -> Arc<[u8]> {
     let Some(w) = width.filter(|w| *w > 0) else {
-        return encode_original();
+        return bytes.into();
     };
     let key = format!("{w}\n{url}");
     if let Some(hit) = thumb_cache().lock().await.get(&key) {
@@ -176,30 +176,92 @@ async fn thumb_or_base64(
     .ok()
     .flatten()
     {
-        let body = base64::engine::general_purpose::STANDARD.encode(&disk);
+        let body: Arc<[u8]> = disk.into();
         thumb_cache().lock().await.insert(key, body.clone());
         return body;
     }
-    let owned = bytes.to_vec();
-    let made = tokio::task::spawn_blocking(move || make_thumb(&owned, w))
+    let original: Arc<[u8]> = bytes.into();
+    let source = original.clone();
+    let made = tokio::task::spawn_blocking(move || make_thumb(&source, w))
         .await
         .ok()
         .flatten();
-    match made {
-        Some(buf) => {
-            let body = base64::engine::general_purpose::STANDARD.encode(&buf);
-            let write_app = app.clone();
-            let write_url = url.to_string();
-            tokio::task::spawn_blocking(move || {
-                crate::thumb_cache::write_thumb(&write_app, &write_url, w, &buf);
-            })
-            .await
-            .ok();
-            thumb_cache().lock().await.insert(key, body.clone());
-            body
+    let Some(buf) = made else {
+        return original;
+    };
+    let body: Arc<[u8]> = buf.into();
+    let write_app = app.clone();
+    let write_url = url.to_string();
+    let write_body = body.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::thumb_cache::write_thumb(&write_app, &write_url, w, &write_body);
+    })
+    .await
+    .ok();
+    thumb_cache().lock().await.insert(key, body.clone());
+    body
+}
+
+// Frame: one byte of mime length, the ASCII mime, then the image bytes.
+fn image_frame(mime: &str, body: &[u8]) -> Vec<u8> {
+    let mime = &mime.as_bytes()[..mime.len().min(u8::MAX as usize)];
+    let mut frame = Vec::with_capacity(1 + mime.len() + body.len());
+    frame.push(mime.len() as u8);
+    frame.extend_from_slice(mime);
+    frame.extend_from_slice(body);
+    frame
+}
+
+#[tauri::command]
+pub async fn harbor_fetch_image(
+    app: tauri::AppHandle,
+    args: HarborFetchArgs,
+) -> Result<tauri::ipc::Response, String> {
+    let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS));
+    let _permit = acquire_fetch_permit().await?;
+    run_with_deadline(timeout, harbor_fetch_image_inner(app, args)).await
+}
+
+async fn harbor_fetch_image_inner(
+    app: tauri::AppHandle,
+    mut args: HarborFetchArgs,
+) -> Result<tauri::ipc::Response, String> {
+    let (mut res, original_host) = send_fetch(&mut args).await?;
+    let status = res.status().as_u16();
+    let cf_mitigated = res
+        .headers()
+        .get("cf-mitigated")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.to_lowercase());
+    if is_cloudflare_challenge(status, cf_mitigated.as_deref(), "") {
+        if let Some(h) = original_host.as_deref() {
+            crate::cf_solver::cf_invalidate(h);
         }
-        None => encode_original(),
     }
+    if !res.status().is_success() {
+        return Err(format!("status {status}"));
+    }
+    let mime = res
+        .headers()
+        .get(reqwest::header::CONTENT_TYPE)
+        .and_then(|v| v.to_str().ok())
+        .filter(|v| !v.is_empty())
+        .unwrap_or("image/jpeg")
+        .to_string();
+    if !mime.starts_with("image/") {
+        return Err(format!("type {mime}"));
+    }
+    let final_url = res.url().to_string();
+    let bytes = match args.max_response_bytes {
+        Some(max_bytes) => read_capped(&mut res, max_bytes).await?,
+        None => res
+            .bytes()
+            .await
+            .map_err(|error| format!("read: {error}"))?
+            .to_vec(),
+    };
+    let body = thumb_or_original(&app, &final_url, args.thumb_width_px, bytes).await;
+    Ok(tauri::ipc::Response::new(image_frame(&mime, &body)))
 }
 
 #[tauri::command]
@@ -503,10 +565,9 @@ pub async fn harbor_fetch(
     run_with_deadline(timeout, harbor_fetch_inner(app, args)).await
 }
 
-async fn harbor_fetch_inner(
-    app: tauri::AppHandle,
-    args: HarborFetchArgs,
-) -> Result<HarborFetchResponse, String> {
+async fn send_fetch(
+    args: &mut HarborFetchArgs,
+) -> Result<(reqwest::Response, Option<String>), String> {
     let timeout = Duration::from_millis(args.timeout_ms.unwrap_or(DEFAULT_TIMEOUT_MS));
     let public_network_only = args.public_network_only.unwrap_or(false);
     let allow_local_network = args.allow_local_network.unwrap_or(false);
@@ -532,7 +593,7 @@ async fn harbor_fetch_inner(
     let mut has_user_agent = false;
     let mut has_accept = false;
     let mut has_accept_language = false;
-    if let Some(caller_headers) = args.headers {
+    if let Some(caller_headers) = args.headers.take() {
         for (k, v) in caller_headers {
             let low = k.to_ascii_lowercase();
             if low == "x-harbor-subtitle-credential" {
@@ -577,17 +638,17 @@ async fn harbor_fetch_inner(
         headers.push(("Accept-Language".to_string(), "en-US,en;q=0.9".to_string()));
     }
 
-    let mut body = match args.body_base64 {
+    let mut body = match args.body_base64.take() {
         Some(value) => Some(
             base64::engine::general_purpose::STANDARD
                 .decode(value)
                 .map_err(|error| format!("request base64: {error}"))?,
         ),
-        None => args.body.map(String::into_bytes),
+        None => args.body.take().map(String::into_bytes),
     };
     let mut redirect_count = 0usize;
 
-    let mut res = loop {
+    let res = loop {
         let pinned_client = if public_network_only {
             Some(public_http_client(&current_url).await?)
         } else {
@@ -676,7 +737,32 @@ async fn harbor_fetch_inner(
         }
         current_url = next_url;
     };
+    Ok((res, original_host))
+}
 
+async fn read_capped(res: &mut reqwest::Response, max_bytes: u64) -> Result<Vec<u8>, String> {
+    if res.content_length().is_some_and(|size| size > max_bytes) {
+        return Err("response size limit exceeded".to_string());
+    }
+    let mut bytes = Vec::new();
+    while let Some(chunk) = res
+        .chunk()
+        .await
+        .map_err(|error| format!("read: {error}"))?
+    {
+        if (bytes.len() as u64).saturating_add(chunk.len() as u64) > max_bytes {
+            return Err("response size limit exceeded".to_string());
+        }
+        bytes.extend_from_slice(&chunk);
+    }
+    Ok(bytes)
+}
+
+async fn harbor_fetch_inner(
+    app: tauri::AppHandle,
+    mut args: HarborFetchArgs,
+) -> Result<HarborFetchResponse, String> {
+    let (mut res, original_host) = send_fetch(&mut args).await?;
     let status = res.status().as_u16();
     let ok = res.status().is_success();
     let cf_mitigated = res
@@ -691,29 +777,17 @@ async fn harbor_fetch_inner(
         .map(|s| s.to_string());
     let response_headers = collect_headers(res.headers());
     let final_url = res.url().to_string();
+    let base64 = args.response_type.as_deref() == Some("base64");
     let body = if let Some(max_bytes) = args.max_response_bytes {
-        if res.content_length().is_some_and(|size| size > max_bytes) {
-            return Err("response size limit exceeded".to_string());
-        }
-        let mut bytes = Vec::new();
-        while let Some(chunk) = res
-            .chunk()
-            .await
-            .map_err(|error| format!("read: {error}"))?
-        {
-            if (bytes.len() as u64).saturating_add(chunk.len() as u64) > max_bytes {
-                return Err("response size limit exceeded".to_string());
-            }
-            bytes.extend_from_slice(&chunk);
-        }
-        if args.response_type.as_deref() == Some("base64") {
-            thumb_or_base64(&app, &final_url, args.thumb_width_px, &bytes).await
+        let bytes = read_capped(&mut res, max_bytes).await?;
+        if base64 {
+            base64::engine::general_purpose::STANDARD.encode(&bytes)
         } else {
             String::from_utf8_lossy(&bytes).into_owned()
         }
-    } else if args.response_type.as_deref() == Some("base64") {
+    } else if base64 {
         match res.bytes().await {
-            Ok(bytes) => thumb_or_base64(&app, &final_url, args.thumb_width_px, &bytes).await,
+            Ok(bytes) => base64::engine::general_purpose::STANDARD.encode(&bytes),
             Err(_) => String::new(),
         }
     } else {

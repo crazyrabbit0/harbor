@@ -107,20 +107,26 @@ fn safe_ext(ext: &str) -> Option<&str> {
 }
 
 #[tauri::command]
-pub fn install_sub_font(
+pub async fn install_sub_font(
     app: tauri::AppHandle,
     id: String,
     ext: String,
     base64: String,
 ) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || write_sub_font(&app, &id, &ext, &base64))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+fn write_sub_font(app: &tauri::AppHandle, id: &str, ext: &str, base64: &str) -> Result<(), String> {
     use base64::{engine::general_purpose::STANDARD as B64, Engine as _};
-    let id = safe_id(&id).ok_or("bad font id")?;
-    let ext = safe_ext(&ext).ok_or("libass can only read ttf, otf or ttc")?;
+    let id = safe_id(id).ok_or("bad font id")?;
+    let ext = safe_ext(ext).ok_or("libass can only read ttf, otf or ttc")?;
     let bytes = B64.decode(base64.as_bytes()).map_err(|e| e.to_string())?;
     if bytes.is_empty() || bytes.len() > 32 * 1024 * 1024 {
         return Err("bad font size".into());
     }
-    let dir = sub_fonts_dir(&app).ok_or("no writable fonts dir")?;
+    let dir = sub_fonts_dir(app).ok_or("no writable fonts dir")?;
     std::fs::write(dir.join(format!("harbor-custom-{id}.{ext}")), &bytes).map_err(|e| e.to_string())
 }
 

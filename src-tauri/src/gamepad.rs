@@ -419,7 +419,9 @@ fn run(app: AppHandle) {
         while let Some(Event { id, event, .. }) = gilrs.next_event() {
             handle_event(&app, &gilrs, id, event, &mut dpad);
         }
-        std::thread::sleep(Duration::from_millis(8));
+        let active =
+            GAMEPAD_ENABLED.load(Ordering::Relaxed) && gilrs.gamepads().next().is_some();
+        std::thread::sleep(Duration::from_millis(if active { 8 } else { 250 }));
     }
 }
 

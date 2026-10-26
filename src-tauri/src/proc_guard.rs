@@ -27,15 +27,19 @@ pub fn adopt(child: &Child) {
 }
 
 pub fn reap_orphans() {
+    #[cfg(windows)]
+    std::thread::spawn(reap_platform);
+    #[cfg(not(windows))]
     reap_platform();
 }
 
 #[cfg(windows)]
 fn reap_platform() {
     use std::os::windows::process::CommandExt;
-    let script = "Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessId -ne $PID -and $_.Name -like 'mpv*' -and ($_.CommandLine -like '*harbor-thumbs-*' -or $_.CommandLine -like '*harbor-mv-*') } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }";
+    // Skips this process's own children, since the reap runs off the setup thread.
+    let script = format!("Get-CimInstance Win32_Process -ErrorAction SilentlyContinue | Where-Object {{ $_.ProcessId -ne $PID -and $_.ParentProcessId -ne {} -and $_.Name -like 'mpv*' -and ($_.CommandLine -like '*harbor-thumbs-*' -or $_.CommandLine -like '*harbor-mv-*') }} | ForEach-Object {{ Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }}", std::process::id());
     let _ = std::process::Command::new("powershell")
-        .args(["-NoProfile", "-NonInteractive", "-Command", script])
+        .args(["-NoProfile", "-NonInteractive", "-Command", script.as_str()])
         .creation_flags(0x0800_0000)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())

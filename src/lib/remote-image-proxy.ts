@@ -5,19 +5,12 @@ import { useSettings } from "@/lib/settings";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-type HarborFetchResponse = {
-  status: number;
-  ok: boolean;
-  body: string;
-  contentType?: string | null;
-  headers?: Record<string, string>;
-};
-
-function base64ToBytes(b64: string): Uint8Array {
-  const bin = atob(b64.trim());
-  const out = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
-  return out;
+// harbor_fetch_image frame: one byte of mime length, the ASCII mime, then the image bytes.
+function imageBlobFromFrame(frame: ArrayBuffer): Blob {
+  const bytes = new Uint8Array(frame);
+  const mimeEnd = 1 + (bytes[0] ?? 0);
+  const type = new TextDecoder().decode(bytes.subarray(1, mimeEnd));
+  return new Blob([bytes.subarray(mimeEnd)], { type });
 }
 
 // Remote plain-HTTP images are blocked by the WebView as mixed content: the app
@@ -82,21 +75,17 @@ function proxyImage(url: string, thumbWidthPx?: number): Promise<string | null> 
   const p = (async () => {
     try {
       const auth = suwayomiAuthFor(url);
-      const resp = await invoke<HarborFetchResponse>("harbor_fetch", {
+      const frame = await invoke<ArrayBuffer>("harbor_fetch_image", {
         args: {
           url,
           method: "GET",
-          responseType: "base64",
           timeoutMs: 30000,
           headers: auth ? { authorization: auth } : undefined,
           allowLocalNetwork: Boolean(auth),
           thumbWidthPx,
         },
       });
-      if (!resp.ok) throw new Error(`status ${resp.status}`);
-      const type = resp.headers?.["content-type"] || resp.contentType || "image/jpeg";
-      if (type && !type.startsWith("image/")) throw new Error(`type ${type}`);
-      const created = URL.createObjectURL(new Blob([base64ToBytes(resp.body)], { type }));
+      const created = URL.createObjectURL(imageBlobFromFrame(frame));
       blobCache.set(key, created);
       if (thumbWidthPx != null) thumbKeys.add(key);
       return created;
