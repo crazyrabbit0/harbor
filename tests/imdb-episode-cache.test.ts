@@ -38,8 +38,18 @@ function fixture() {
     json: async () => graphqlEpisodes({ "3:1": 7 }),
   });
   const evictors = new Map<string, (aggressive: boolean) => void>();
+  const disk = new Map<string, { at: number; data: unknown }>();
   const mocks: Record<string, unknown> = {
     "@/lib/cache": { lruSet },
+    "@/lib/idb-cache": {
+      idbCacheGetFresh: async (key: string, maxAge: number) => {
+        const e = disk.get(key);
+        return e && now - e.at <= maxAge ? e : null;
+      },
+      idbCacheSet: async (key: string, entry: { at: number; data: unknown }) => {
+        disk.set(key, entry);
+      },
+    },
     "@/lib/maintenance": {
       registerEvictable: (name: string, evict: (aggressive: boolean) => void) =>
         evictors.set(name, evict),
@@ -69,6 +79,8 @@ function fixture() {
     { now: () => now },
   );
   return {
+    disk,
+    title: exports.harborImdbTitle as (id: string) => Promise<number | null>,
     get: exports.harborImdbEpisodes as (id: string) => Promise<Map<string, number>>,
     cached: exports.harborImdbEpisodesCached as (id: string) => Map<string, number> | undefined,
     advance: (ms: number) => {
@@ -164,6 +176,28 @@ test("cached getter and maintenance preserve bounded per-title ownership", async
   f.evict(true);
   assert.equal(f.cached("tt2"), undefined);
   assert.equal(f.cached("tt201"), undefined);
+});
+
+test("a title rating stored by an earlier launch is used without a request", async () => {
+  const f = fixture();
+  f.disk.set("imdb.rating.v1:tt9", { at: 0, data: 7.4 });
+  assert.equal(await f.title("tt9"), 7.4);
+  assert.equal(f.requests(), 0);
+});
+
+test("a fetched title rating is stored, a failed request is not", async () => {
+  const f = fixture();
+  f.respond(async () => ({
+    ok: true,
+    json: async () => ({ data: { title: { ratingsSummary: { aggregateRating: 8.1 } } } }),
+  }));
+  assert.equal(await f.title("tt5"), 8.1);
+  await Promise.resolve();
+  assert.equal(f.disk.get("imdb.rating.v1:tt5")?.data, 8.1);
+  f.respond(async () => ({ ok: false, json: async () => ({}) }));
+  assert.equal(await f.title("tt6"), null);
+  await Promise.resolve();
+  assert.equal(f.disk.has("imdb.rating.v1:tt6"), false);
 });
 
 test("non-IMDb identifiers make no request and existing invalid-rating filtering remains", async () => {

@@ -1,4 +1,5 @@
 import { lruSet } from "@/lib/cache";
+import { idbCacheGetFresh, idbCacheSet } from "@/lib/idb-cache";
 import { registerEvictable } from "@/lib/maintenance";
 import { safeFetch } from "@/lib/safe-fetch";
 import { fetchCsmAdvisory } from "@/lib/providers/csm";
@@ -135,20 +136,43 @@ export function harborImdbEpisodesCached(seriesTt: string): Map<string, number> 
   return cached.ratings;
 }
 
-export async function harborImdbTitle(tt: string): Promise<number | null> {
-  if (!tt.startsWith("tt")) return null;
-  if (titleCache.has(tt)) return titleCache.get(tt) ?? null;
-  try {
-    const data = await imdbQuery<{
-      title?: { ratingsSummary?: { aggregateRating?: number | null } } | null;
-    }>(TITLE_RATING, { id: tt });
-    const v = Number(data?.title?.ratingsSummary?.aggregateRating);
-    const out = Number.isFinite(v) && v > 0 ? v : null;
-    lruSet(titleCache, tt, out, 2000);
-    return out;
-  } catch {
-    return null;
-  }
+// Title ratings move slowly, so a day-old value is kept on disk and saves one GraphQL call per card per launch.
+const TITLE_DISK_PREFIX = "imdb.rating.v1:";
+const TITLE_DISK_TTL_MS = 24 * 60 * 60 * 1000;
+const titleInflight = new Map<string, Promise<number | null>>();
+
+export function harborImdbTitle(tt: string): Promise<number | null> {
+  if (!tt.startsWith("tt")) return Promise.resolve(null);
+  if (titleCache.has(tt)) return Promise.resolve(titleCache.get(tt) ?? null);
+  const pending = titleInflight.get(tt);
+  if (pending) return pending;
+  const p = (async () => {
+    const stored = await idbCacheGetFresh(TITLE_DISK_PREFIX + tt, TITLE_DISK_TTL_MS).catch(
+      () => null,
+    );
+    if (stored) {
+      const out = typeof stored.data === "number" ? stored.data : null;
+      lruSet(titleCache, tt, out, 2000);
+      return out;
+    }
+    try {
+      const data = await imdbQuery<{
+        title?: { ratingsSummary?: { aggregateRating?: number | null } } | null;
+      }>(TITLE_RATING, { id: tt });
+      if (!data) return null;
+      const v = Number(data.title?.ratingsSummary?.aggregateRating);
+      const out = Number.isFinite(v) && v > 0 ? v : null;
+      lruSet(titleCache, tt, out, 2000);
+      void idbCacheSet(TITLE_DISK_PREFIX + tt, { at: Date.now(), data: out }).catch(() => {});
+      return out;
+    } catch {
+      return null;
+    }
+  })().finally(() => {
+    titleInflight.delete(tt);
+  });
+  titleInflight.set(tt, p);
+  return p;
 }
 
 export function harborImdbTitleCached(tt: string): number | null | undefined {
