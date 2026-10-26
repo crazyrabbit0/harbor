@@ -1,7 +1,7 @@
 import { memo, useEffect, useRef, useState } from "react";
 import { Play } from "@/components/icons/play-filled";
 import { Poster } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { enrichVod } from "@/lib/iptv/vod-enrich";
 
 type Props = {
@@ -23,7 +23,7 @@ export const VodCard = memo(function VodCard({
   subtitle,
   onClick,
 }: Props) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [poster, setPoster] = useState<string | null>(logo);
   const ref = useRef<HTMLButtonElement>(null);
 

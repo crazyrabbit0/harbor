@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import { useProfiles } from "./profiles";
-import { useSettings } from "./settings";
+import { useSettingsActions } from "./settings";
 
 export function SettingsProfileBridge() {
   const { activeProfile } = useProfiles();
-  const { switchProfile } = useSettings();
+  const { switchProfile } = useSettingsActions();
   useEffect(() => {
     if (activeProfile) switchProfile(activeProfile.id, activeProfile.settingsLinked !== false);
   }, [activeProfile?.id, activeProfile?.settingsLinked, switchProfile]);

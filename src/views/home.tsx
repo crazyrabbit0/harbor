@@ -43,7 +43,12 @@ import { useAuth } from "@/lib/auth";
 import { anyProfileSharesStremioWith, useProfiles } from "@/lib/profiles";
 import { type Meta } from "@/lib/cinemeta";
 import { t, useT, useUiLanguage } from "@/lib/i18n";
-import { useSettings, type StreamingService } from "@/lib/settings";
+import {
+  type StreamingService,
+  useSettingsSelector,
+  useSettingsUpdate,
+  useSettingsGetter,
+} from "@/lib/settings";
 import { useContentDrag } from "@/lib/window-drag";
 import { trackEvent } from "@/lib/discover";
 import { publishResumeStates } from "@/lib/hover-preview/store";
@@ -127,7 +132,35 @@ export function Home({
 }) {
   const { authKey, user } = useAuth();
   const { activeProfile, profiles } = useProfiles();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    animeCwEnd: s.animeCwEnd,
+    animeOnlyInAnimeRoom: s.animeOnlyInAnimeRoom,
+    cwAdvanceNext: s.cwAdvanceNext,
+    cwPerProfile: s.cwPerProfile,
+    cwSources: s.cwSources,
+    episodeHiding: s.episodeHiding,
+    heroFeed: s.heroFeed,
+    heroFull: s.heroFull,
+    heroFullQuality: s.heroFullQuality,
+    heroTrailers: s.heroTrailers,
+    hideContent: s.hideContent,
+    hideWatchedInCatalogs: s.hideWatchedInCatalogs,
+    homeLanguages: s.homeLanguages,
+    homeMode: s.homeMode,
+    homeNewEpisodes: s.homeNewEpisodes,
+    homeRows: s.homeRows,
+    homeShowAllAddonRows: s.homeShowAllAddonRows,
+    region: s.region,
+    simklGranularFilters: s.simklGranularFilters,
+    simklHomeRailsEnabled: s.simklHomeRailsEnabled,
+    simklTrendingRailEnabled: s.simklTrendingRailEnabled,
+    simklUpNextRailEnabled: s.simklUpNextRailEnabled,
+    streaming: s.streaming,
+    tmdbKey: s.tmdbKey,
+    tmdbLanguage: s.tmdbLanguage,
+  }));
+  const update = useSettingsUpdate();
+  const getSettings = useSettingsGetter();
   const hideSharedCw =
     settings.cwPerProfile && anyProfileSharesStremioWith(activeProfile, profiles);
   const heroFull = settings.heroFull;
@@ -271,7 +304,7 @@ export function Home({
       let built: BuiltRows = { rows: [], hero: [] };
       if (!isClassic) {
         built = settings.tmdbKey
-          ? await buildTmdbRows(settings).catch(failedBuild)
+          ? await buildTmdbRows(getSettings()).catch(failedBuild)
           : await buildCinemetaRows().catch(failedBuild);
         if (built.rows.length === 0) {
           built = await buildCinemetaRows().catch(failedBuild);
@@ -438,7 +471,7 @@ export function Home({
       return;
     }
     let cancelled = false;
-    buildSimklHomeRows(settings)
+    buildSimklHomeRows(getSettings())
       .then((rs) => {
         if (!cancelled) setSimklRows(rs);
       })

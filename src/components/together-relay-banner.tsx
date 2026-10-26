@@ -1,7 +1,7 @@
 import { TriangleAlert, X } from "lucide-react";
 import { useState } from "react";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useTogether } from "@/lib/together/provider";
 import { isPublicRelay, REQUIRED_RELAY_VERSION } from "@/lib/together/relay-version";
 import { useViewActions } from "@/lib/view";
@@ -10,7 +10,7 @@ const DISMISS_KEY = "harbor.relayBannerDismissed";
 
 export function TogetherRelayBanner() {
   const { relayOutdated, closeModal } = useTogether();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ togetherRelayUrl: s.togetherRelayUrl }));
   const { openSettings } = useViewActions();
   const t = useT();
   const pub = isPublicRelay(settings.togetherRelayUrl);

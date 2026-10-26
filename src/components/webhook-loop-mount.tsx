@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
-import { useSettings } from "@/lib/settings";
+import { useSettingsGetter, useSettingsSelector } from "@/lib/settings";
 import { proactiveStorageCleanup } from "@/lib/storage-recovery";
 import { runWebhookTick } from "@/lib/webhook-engine";
 
@@ -9,10 +9,9 @@ const INITIAL_DELAY_MS = 90 * 1000;
 const STATUS_KEY = "harbor.webhook.lastTick";
 
 export function WebhookLoopMount() {
-  const { settings } = useSettings();
+  const webhooks = useSettingsSelector((s) => s.webhooks);
+  const getSettings = useSettingsGetter();
   const { authKey } = useAuth();
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
   const authRef = useRef(authKey);
   authRef.current = authKey;
   const runningRef = useRef(false);
@@ -23,9 +22,7 @@ export function WebhookLoopMount() {
 
   useEffect(() => {
     const hasDestination =
-      !!settings.webhooks.discordUrl ||
-      !!settings.webhooks.telegramUrl ||
-      settings.webhooks.desktopEnabled;
+      !!webhooks.discordUrl || !!webhooks.telegramUrl || webhooks.desktopEnabled;
     if (!hasDestination) return;
     let cancelled = false;
 
@@ -33,7 +30,7 @@ export function WebhookLoopMount() {
       if (runningRef.current || cancelled) return;
       runningRef.current = true;
       try {
-        const result = await runWebhookTick(settingsRef.current, authRef.current);
+        const result = await runWebhookTick(getSettings(), authRef.current);
         try {
           localStorage.setItem(
             STATUS_KEY,
@@ -79,11 +76,7 @@ export function WebhookLoopMount() {
       window.clearInterval(interval);
       window.removeEventListener("focus", onFocus);
     };
-  }, [
-    settings.webhooks.discordUrl,
-    settings.webhooks.telegramUrl,
-    settings.webhooks.desktopEnabled,
-  ]);
+  }, [webhooks.discordUrl, webhooks.telegramUrl, webhooks.desktopEnabled, getSettings]);
 
   return null;
 }

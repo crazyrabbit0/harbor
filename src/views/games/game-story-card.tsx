@@ -3,7 +3,7 @@ import { observeWithin } from "@/lib/visibility";
 import { ArrowUpRight, BookOpen, Film, Tv } from "lucide-react";
 import { ScoreStack } from "@/components/card-score-stack";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { openUrl } from "@/lib/window";
 import { loadGameBookCover } from "@/lib/games/cross-media-fetch";
 import {
@@ -17,7 +17,10 @@ import {
 import { useBpCardBadges } from "@/views/big-picture/use-bp-card-badges";
 
 function StoryScores({ item }: { item: GameMedia }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    badgePlacement: s.badgePlacement,
+    cardBadgeLimit: s.cardBadgeLimit,
+  }));
   const target = gameMediaTarget(item)!;
   // Use the existing movie/TV provider chain and card preferences, including limits/placement.
   const { badges } = useBpCardBadges(

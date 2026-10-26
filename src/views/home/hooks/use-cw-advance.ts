@@ -32,7 +32,7 @@ import {
 import { isSplitFranchiseKitsu } from "@/lib/providers/anime-franchise-root";
 import { parseKitsuId } from "@/lib/providers/kitsu";
 import { franchiseDedupKey } from "@/lib/providers/jikan";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { isCwDismissed, useCwDismissVersion } from "@/lib/cw-dismiss";
 import { anyProfileSharesStremioWith, useProfiles } from "@/lib/profiles";
 import { listLocalCw } from "@/lib/local-cw";
@@ -182,7 +182,11 @@ export function useCwAdvance(
   animeCwEnd: "hide" | "timer" = "hide",
 ): LibraryItem[] {
   useCwDismissVersion();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    cwHideCaughtUp: s.cwHideCaughtUp,
+    cwPerProfile: s.cwPerProfile,
+    cwSources: s.cwSources,
+  }));
   const hideCaughtUp = settings.cwHideCaughtUp;
   const { activeProfile, profiles } = useProfiles();
   const privacyOwner =

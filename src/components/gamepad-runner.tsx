@@ -6,7 +6,7 @@ import { useGamepadCapture } from "@/lib/gamepad/capture";
 import { useLiveGamepad } from "@/lib/gamepad/live";
 import { useGamepads } from "@/lib/gamepad/store";
 import { useGamepad } from "@/lib/gamepad/use-gamepad";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 
 function hoverCss(rules: CSSRuleList): string {
@@ -44,7 +44,16 @@ const isTextField = (el: unknown): el is TextField =>
 export function GamepadRunner() {
   useGamepad();
   const live = useLiveGamepad();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    controllerCursor: s.controllerCursor,
+    controllerCursorEnabled: s.controllerCursorEnabled,
+    controllerCursorHideMs: s.controllerCursorHideMs,
+    controllerCursorImage: s.controllerCursorImage,
+    controllerCursorSize: s.controllerCursorSize,
+    controllerCursorSpeed: s.controllerCursorSpeed,
+    controllerDeadzone: s.controllerDeadzone,
+    controllerKeyboardSize: s.controllerKeyboardSize,
+  }));
   const cursor = useRef<HTMLDivElement>(null);
   const position = useRef({ x: innerWidth / 2, y: innerHeight / 2 });
   const axes = useRef(live.axes);

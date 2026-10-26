@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { anyProfileSharesStremioWith, useProfiles } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { listLocalCw, subscribeLocalCw } from "@/lib/local-cw";
 import { setExternalCwSources } from "@/lib/feed/external-cw";
 import { useExternalCw } from "@/lib/feed/external-cw";
@@ -101,7 +101,10 @@ let cwCacheItems: LibraryItem[] = [];
 
 export function useContinueWatching(excludeId?: string, limit = 12): CwCard[] {
   const { authKey } = useAuth();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    cwPerProfile: s.cwPerProfile,
+    cwSources: s.cwSources,
+  }));
   const { activeProfile, profiles } = useProfiles();
   const hideSharedCw =
     settings.cwPerProfile && anyProfileSharesStremioWith(activeProfile, profiles);

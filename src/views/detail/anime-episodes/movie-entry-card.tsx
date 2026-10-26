@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import type { Meta } from "@/lib/cinemeta";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { type PlayEpisode, useViewActions } from "@/lib/view";
 
@@ -34,7 +34,7 @@ export function MovieEntryCard({
 }) {
   const t = useT();
   const { openPicker } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ instantPlay: s.instantPlay }));
   const banner = meta.background || meta.poster;
   return (
     <button

@@ -8,7 +8,7 @@ import { createPortal } from "react-dom";
 import { EditFolderImagesModal } from "./edit-folder-images-modal";
 import { useT } from "@/lib/i18n";
 import { useEscape } from "@/components/modal-shell";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { tmdbDiscover, tmdbCollection } from "@/lib/providers/tmdb";
 import { fetchTraktList } from "@/lib/trakt/lists";
 import { hydrateTraktItems } from "@/lib/trakt/hydrate";
@@ -25,7 +25,7 @@ export function SourceFolderCard({
   onEditFolderImages?: (sourceId: string, folderId: string, cover: string, gif: string) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openGrid } = useViewActions();
   const { authKey } = useAuth();
   const [hover, setHover] = useState(false);

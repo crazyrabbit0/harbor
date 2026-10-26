@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { type Meta } from "@/lib/cinemeta";
 import { useContextMenu } from "@/lib/context-menu";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { fetchSeasonEpisodes } from "@/lib/series-episodes";
 import { type HistoryEntry } from "./history-merge";
@@ -18,7 +18,7 @@ export function HistoryEpisodeCard({
 }) {
   const t = useT();
   const { openMeta } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { open: openContextMenu } = useContextMenu();
   const cardRef = useRef<HTMLButtonElement>(null);
   const [still, setStill] = useState<string | undefined>();

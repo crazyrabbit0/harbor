@@ -39,7 +39,7 @@ import { AiModeButton } from "./ai-mode-button";
 import { providerTabFor } from "@/lib/ai-models";
 import { getSearchDisplayState } from "@/lib/search-display-state";
 import { AiExampleHint, SEARCH_EXAMPLES } from "@/components/ai-example-hint";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useExitPresence } from "@/lib/use-exit-presence";
 import { useWindowFullscreen } from "@/lib/use-window-fullscreen";
 import { isMagnetInput, isDirectVideoUrl } from "@/lib/torrent/magnet";
@@ -74,7 +74,15 @@ export function SearchOverlay() {
   const [aiRunSignal, setAiRunSignal] = useState(0);
   const [mediaFilter, setMediaFilter] = useState<SearchFilter>("all");
   const { activeProfile } = useProfiles();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    aiGroqKey: s.aiGroqKey,
+    aiSearchKey: s.aiSearchKey,
+    aiSearchModel: s.aiSearchModel,
+    dragAnywhere: s.dragAnywhere,
+    steamSearchShortcut: s.steamSearchShortcut,
+    tmdbKey: s.tmdbKey,
+  }));
+  const update = useSettingsUpdate();
   const storeQuery = activeProfile?.kid
     ? null
     : steamStoreQuery(query, settings.steamSearchShortcut);

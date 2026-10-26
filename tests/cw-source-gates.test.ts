@@ -36,7 +36,10 @@ function harness(bigPicture: boolean, sources: any, privateProfile = false) {
       useProfiles: () => ({ activeProfile: { id: "test" }, profiles: [] }),
       anyProfileSharesStremioWith: () => true,
     },
-    "@/lib/settings": { useSettings: () => ({ settings }) },
+    "@/lib/settings": {
+      useSettings: () => ({ settings }),
+      useSettingsSelector: (select: (s: unknown) => unknown) => select(settings),
+    },
     "@/lib/local-cw": {
       listLocalCw: () => local,
       subscribeLocalCw: () => noop,

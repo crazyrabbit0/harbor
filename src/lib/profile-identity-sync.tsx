@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useProfiles } from "./profiles";
-import { useSettings, type ContentFilters } from "./settings";
+import { type ContentFilters, useSettingsSelector, useSettingsUpdate } from "./settings";
 import { useTogether } from "./together/provider";
 
 function sameHideContent(a: ContentFilters, b: ContentFilters): boolean {
@@ -9,7 +9,12 @@ function sameHideContent(a: ContentFilters, b: ContentFilters): boolean {
 
 export function ProfileIdentitySync() {
   const { activeProfile } = useProfiles();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    harborAvatar: s.harborAvatar,
+    harborColor: s.harborColor,
+    hideContent: s.hideContent,
+  }));
+  const update = useSettingsUpdate();
   const { displayName, setDisplayName } = useTogether();
 
   useEffect(() => {

@@ -99,7 +99,10 @@ function harness(t, options = {}) {
     "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: Symbol("fragment") },
     "react-dom": { createPortal: (tree) => tree },
     "@/lib/search-context": { useSearch: () => search },
-    "@/lib/settings": { useSettings: () => ({ settings, update() {} }) },
+    "@/lib/settings": {
+      useSettingsSelector: (select) => select(settings),
+      useSettingsUpdate: () => () => {},
+    },
     "@/lib/view": { useView: () => ({}), useViewActions: () => ({}) },
     "@/lib/profiles": { useProfiles: () => ({ activeProfile: null }) },
     "@/lib/games/steam-store-search": { steamStoreQuery: () => null },

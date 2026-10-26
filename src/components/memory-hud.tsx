@@ -10,12 +10,12 @@ import {
 } from "@/lib/memory-profiler";
 import { getNativeMem, getRamTier } from "@/lib/native-memory";
 import { effectiveBinding, eventToBinding } from "@/lib/hotkeys";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const STORAGE_KEY = "harbor.memoryHud.open";
 
 export function MemoryHud() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys }));
   const monitorKey = effectiveBinding("globalMemoryMonitor", settings.hotkeys ?? {});
   const [open, setOpen] = useState(() => {
     try {

@@ -122,7 +122,9 @@ function harness() {
     "@/lib/manual-watched": {
       manualWatchedState: (id: string, s: number, e: number) => manual.get(episodeKey(id, s, e)),
     },
-    "@/lib/settings": { useSettings: () => ({ settings }) },
+    "@/lib/settings": {
+      useSettingsSelector: (select: (s: unknown) => unknown) => select(settings),
+    },
     "@/lib/profiles": {
       useProfiles: () => ({ activeProfile: profile, profiles: [] }),
       anyProfileSharesStremioWith: () => true,

@@ -162,7 +162,8 @@ function advanceHarness(
     },
     "@/lib/cw-dismiss": api,
     "@/lib/settings": {
-      useSettings: () => ({ settings: { cwHideCaughtUp: false, cwSources: { simkl: false } } }),
+      useSettingsSelector: (select: (s: unknown) => unknown) =>
+        select({ cwHideCaughtUp: false, cwSources: { simkl: false } }),
     },
     "@/lib/providers/jikan": { franchiseDedupKey: (name: string) => name.toLowerCase() },
   };

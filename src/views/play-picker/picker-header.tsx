@@ -4,7 +4,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { parseKitsuId } from "@/lib/providers/kitsu";
 import { splitFranchiseDisplaySeason } from "@/lib/streams/anime-identity-core";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { PlayEpisode } from "@/lib/view";
 
 export function PickerNav({
@@ -17,7 +17,9 @@ export function PickerNav({
   refreshing?: boolean;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    pickerRefreshNextToBack: s.pickerRefreshNextToBack,
+  }));
   const groupLeft = settings.pickerRefreshNextToBack;
   return (
     <div className="-mb-9">

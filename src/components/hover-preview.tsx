@@ -40,7 +40,7 @@ import {
   TOPBAR_INSET_PX,
 } from "@/lib/hover-preview/timing";
 import { useSearch } from "@/lib/search-context";
-import { useSettings } from "@/lib/settings";
+import { useSettingsGetter, useSettingsSelector } from "@/lib/settings";
 import { activeLayout } from "@/lib/theme";
 import { useViewActions, useViewSelector } from "@/lib/view";
 import { PreviewBody } from "./hover-preview/marquee";
@@ -48,7 +48,12 @@ import { useMedia, type Scene } from "./hover-preview/scene";
 import { crownHeightFor, panelWidthFor, placePanel } from "./hover-preview/use-preview-position";
 
 export function HoverPreview() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    tmdbKey: s.tmdbKey,
+    hoverPreviewEnabled: s.hoverPreviewEnabled,
+    cardHoverStyle: s.cardHoverStyle,
+  }));
+  const getSettings = useSettingsGetter();
   const view = useViewActions();
   const { viewClear } = useViewSelector((v) => ({
     viewClear: v.player === null && v.picker === null && !v.chromeHidden,
@@ -58,8 +63,6 @@ export function HoverPreview() {
   const finePointer = useMedia("(hover: hover) and (pointer: fine)");
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
 
-  const settingsRef = useRef(settings);
-  settingsRef.current = settings;
   const viewRef = useRef(view);
   viewRef.current = view;
   const menuRef = useRef(menu);
@@ -118,8 +121,8 @@ export function HoverPreview() {
     if (snap.status === "open" && snap.payload) {
       const payload = snap.payload;
       if (snap.openSeq !== prev.openSeq) {
-        const width = panelWidthFor(settingsRef.current.posterScale);
-        const layout = activeLayout(settingsRef.current.theme);
+        const width = panelWidthFor(getSettings().posterScale);
+        const layout = activeLayout(getSettings().theme);
         layerKeyRef.current += 1;
         setScene({
           seq: snap.openSeq,
@@ -160,7 +163,7 @@ export function HoverPreview() {
       scene.width,
       h,
       scene.topInset,
-      settingsRef.current.hoverPreviewPlacement,
+      getSettings().hoverPreviewPlacement,
     );
     setScene((s) => (s && s.seq === scene.seq && !s.pos ? { ...s, pos, height: h } : s));
   }, [scene]);
@@ -205,7 +208,7 @@ export function HoverPreview() {
       scene.width,
       h,
       scene.topInset,
-      settingsRef.current.hoverPreviewPlacement,
+      getSettings().hoverPreviewPlacement,
     );
     setScene((s) => {
       if (!s || !s.incoming || s.incoming.key !== scene.incoming?.key) return s;
@@ -341,7 +344,7 @@ export function HoverPreview() {
         ? { season: resume.season, episode: resume.episode }
         : undefined;
     viewRef.current.openPicker(payload.meta, episode, {
-      autoPlay: settingsRef.current.instantPlay,
+      autoPlay: getSettings().instantPlay,
       resume: true,
     });
   }, []);
@@ -374,7 +377,7 @@ export function HoverPreview() {
           ? { season: resume.season, episode: resume.episode }
           : undefined;
       viewRef.current.openPicker(payload.meta, episode, {
-        autoPlay: settingsRef.current.instantPlay,
+        autoPlay: getSettings().instantPlay,
         resume: true,
       });
     } else {

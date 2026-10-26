@@ -9,7 +9,7 @@ import { formatAirDate } from "@/lib/dates";
 import { distinctAbsolute } from "@/lib/episode-absolute";
 import { formatRelativeWatched } from "@/lib/episode-progress";
 import type { Episode } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { SPOILER_TEXT_CLASS, SPOILER_THUMB_CLASS, type SpoilerMask } from "@/lib/spoilers";
 import { useViewActions } from "@/lib/view";
 import { useLocalAwareSeriesPlay } from "@/lib/local-library/use-series-play";
@@ -41,7 +41,12 @@ export function EpisodeRow({
   const t = useT();
   const { openEpisodeDetail } = useViewActions();
   const playEpisodeLocalAware = useLocalAwareSeriesPlay();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hdEpisodeImages: s.hdEpisodeImages,
+    instantPlay: s.instantPlay,
+    seasonSourceLock: s.seasonSourceLock,
+    showEpisodeRating: s.showEpisodeRating,
+  }));
   const ratingValue = ep.imdbRating ?? ep.voteAverage;
   const ratingIsImdb = ep.imdbRating != null;
   const tmdbStill = ep.stillPath

@@ -4,7 +4,7 @@ import { AnchoredMenu } from "@/components/anchored-menu";
 import { Poster, usePosterChain } from "@/components/poster";
 import { malAnimeToMeta } from "@/lib/mal/to-meta";
 import type { MalListEntry, MalListStatus } from "@/lib/mal/types";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
@@ -38,7 +38,7 @@ export function MalEntryCard({
   onRemove: () => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const { openMeta } = useViewActions();
   const m = entry.anime;
   const name = m.title || t("Untitled");

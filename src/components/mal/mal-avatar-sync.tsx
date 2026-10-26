@@ -2,10 +2,10 @@ import { useEffect } from "react";
 import { fetchMalAvatar } from "@/lib/mal/profile";
 import { useMal } from "@/lib/mal/provider";
 import { useProfiles } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function MalAvatarSync() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ useMalAvatar: s.useMalAvatar }));
   const { isConnected } = useMal();
   const { activeProfile, updateProfile } = useProfiles();
 

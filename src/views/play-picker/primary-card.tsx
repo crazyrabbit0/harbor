@@ -8,7 +8,7 @@ import { HostMatchChip } from "@/components/host-match-chip";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { useDebridClients } from "@/lib/debrid/registry";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { ScoredStream } from "@/lib/streams/types";
 import { directStreamAvailable } from "@/lib/torrent/stremio-stream";
 import type { PlayEpisode } from "@/lib/view";
@@ -53,7 +53,11 @@ export function PrimaryCard({
   match?: "same" | "close" | null;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    pickerShowFilename: s.pickerShowFilename,
+    showDubBadge: s.showDubBadge,
+    showQualityBadge: s.showQualityBadge,
+  }));
   const cachedDebrids = debrids.filter((d) => stream.cached[d.slug]);
   const libraryDebrids = debrids.filter((d) => stream.inLibrary[d.slug]);
   const cachedDebrid = cachedDebrids[0] ?? null;
