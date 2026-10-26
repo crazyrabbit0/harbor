@@ -39,6 +39,7 @@ import {
   type Meta,
 } from "@/lib/cinemeta";
 import { addonBasesForOrigin, fetchAddonMeta, gatherCatalogAddons } from "@/lib/addons";
+import { firstInOrder } from "@/lib/first-in-order";
 import { useCapstanDetail } from "@/lib/streams/plugins/extension/detail-hook";
 import { isCapstanId, titlesAgree } from "@/lib/streams/plugins/extension/detail";
 import { resolveMeta } from "@/lib/meta-resource";
@@ -594,8 +595,21 @@ export function DetailView({
     let cancelled = false;
     setDetectingAnime(true);
     (async () => {
-      let k = tmdbTv != null && Number.isFinite(tmdbTv) ? await tmdbTvToKitsu(tmdbTv) : null;
-      if (k == null && imdb) k = await imdbToKitsu(imdb);
+      // Both mappings and each one's year check start together; the TMDB id still wins over IMDb.
+      const verdictFor = (id: number | null) =>
+        id != null ? kitsuYearVerdict(id, meta.releaseInfo, detail?.year) : null;
+      const tmdbLookup =
+        tmdbTv != null && Number.isFinite(tmdbTv) ? tmdbTvToKitsu(tmdbTv) : Promise.resolve(null);
+      const imdbLookup = imdb ? imdbToKitsu(imdb) : Promise.resolve(null);
+      const tmdbVerdict = tmdbLookup.then(verdictFor);
+      const imdbVerdict = imdbLookup.then(verdictFor);
+      for (const p of [imdbLookup, tmdbVerdict, imdbVerdict]) p.catch(() => {});
+      let k = await tmdbLookup;
+      let mappedVerdict = k != null ? tmdbVerdict : null;
+      if (k == null && imdb) {
+        k = await imdbLookup;
+        mappedVerdict = k != null ? imdbVerdict : null;
+      }
       // Orphan ids (standalone TMDB/IMDb entries with no cross-db mapping --
       // e.g. Bleach TYBW tt14986406): fall back to Kitsu title search and
       // accept the hit only when the year verdict agrees.
@@ -634,7 +648,8 @@ export function DetailView({
       }
       if (cancelled) return;
       if (k != null && k !== failedKitsu.current) {
-        const verdict = await kitsuYearVerdict(k, meta.releaseInfo, detail?.year);
+        const verdict = await (mappedVerdict ??
+          kitsuYearVerdict(k, meta.releaseInfo, detail?.year));
         if (cancelled) return;
         if (verdict === "ok") setDetectedKitsu(k);
         else if (verdict === "reject") {
@@ -713,22 +728,27 @@ export function DetailView({
     addonMetaTriedRef.current = meta.id;
     let cancelled = false;
     void (async () => {
-      const attempt = async (base: string) => {
+      const usable = async (base: string) => {
         const full = await fetchAddonMeta(base, meta.type, meta.id).catch(() => null);
-        if (cancelled || !full?.videos?.length) return false;
-        keepProviderListing(full);
-        return true;
+        return full?.videos?.length ? full : null;
       };
       const direct = origin.base ? origin.base.replace(/\/manifest\.json$/, "") : null;
-      if (direct && (await attempt(direct))) return;
-      if (cancelled) return;
-      const addons = await gatherCatalogAddons(authKey).catch(() => []);
-      if (cancelled) return;
-      for (const base of addonBasesForOrigin(addons, origin)) {
-        if (base === direct) continue;
-        if (await attempt(base)) return;
-        if (cancelled) return;
-      }
+      let directWon = false;
+      const directMeta = (direct ? usable(direct) : Promise.resolve(null)).then((full) => {
+        directWon = full != null;
+        return full;
+      });
+      // All other bases fetch at once; the earliest base in order with a usable meta wins.
+      const others = gatherCatalogAddons(authKey)
+        .catch(() => [])
+        .then((addons) => {
+          if (cancelled || directWon) return null;
+          const bases = addonBasesForOrigin(addons, origin).filter((base) => base !== direct);
+          return firstInOrder(bases.map(usable));
+        });
+      const full = await firstInOrder([directMeta, others]);
+      if (cancelled || !full) return;
+      keepProviderListing(full);
     })();
     return () => {
       cancelled = true;

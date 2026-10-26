@@ -12,6 +12,8 @@ class FakeRequest<T> {
   }
 }
 
+type FakeCursor = { key: string; value: unknown; continue(): void };
+
 class FakeObjectStore {
   data: Map<string, unknown>;
 
@@ -25,9 +27,38 @@ class FakeObjectStore {
     return req;
   }
 
+  openCursor(): FakeRequest<FakeCursor | null> {
+    const req = new FakeRequest<FakeCursor | null>();
+    const entries = [...this.data.entries()];
+    let index = 0;
+    const step = () => {
+      const entry = entries[index];
+      if (!entry) {
+        req.succeed(null);
+        return;
+      }
+      index += 1;
+      req.succeed({ key: entry[0], value: entry[1], continue: step });
+    };
+    step();
+    return req;
+  }
+
   getAll(): FakeRequest<unknown[]> {
     const req = new FakeRequest<unknown[]>();
     req.succeed([...this.data.values()]);
+    return req;
+  }
+
+  getAllKeys(): FakeRequest<string[]> {
+    const req = new FakeRequest<string[]>();
+    req.succeed([...this.data.keys()]);
+    return req;
+  }
+
+  count(): FakeRequest<number> {
+    const req = new FakeRequest<number>();
+    req.succeed(this.data.size);
     return req;
   }
 
@@ -54,7 +85,8 @@ class FakeTransaction {
 
   constructor(stores: Map<string, Map<string, unknown>>) {
     this.stores = stores;
-    queueMicrotask(() => this.oncomplete?.());
+    // A macrotask, so requests queued from earlier request callbacks settle before completion.
+    setTimeout(() => this.oncomplete?.(), 0);
   }
 
   objectStore(name: string): FakeObjectStore {

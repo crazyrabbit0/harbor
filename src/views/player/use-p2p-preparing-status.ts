@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { torrentEngineStats } from "@/lib/torrent/local-engine";
+import { startStatsPoll } from "@/lib/torrent/stats-poll";
 import { isLocalEngineUrl } from "@/lib/stremio-server";
 
 export type P2pPreparingPhase = "searching" | "connected" | "slow" | "no-peers";
@@ -12,7 +13,6 @@ export type P2pPreparingStatus = {
   retry: () => void;
 };
 
-const POLL_MS = 1000;
 const NO_PEERS_MS = 75_000;
 const SLOW_MS = 90_000;
 
@@ -69,11 +69,10 @@ export function useP2pPreparingStatus(params: {
       }
       setPhase(p > 0 ? "connected" : "searching");
     };
-    void tick();
-    const id = window.setInterval(() => void tick(), POLL_MS);
+    const stop = startStatsPoll(tick);
     return () => {
       cancelled = true;
-      window.clearInterval(id);
+      stop();
     };
   }, [enabled, url, infoHash, fileIdx, nonce]);
 
