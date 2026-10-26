@@ -71,14 +71,19 @@ pub fn read_torrents_disabled(app: &tauri::AppHandle) -> bool {
     parse_torrents_disabled(&s)
 }
 
+// A settings file without the key (first launch) defers, matching the frontend default.
 pub fn read_defer_torrent_engine(app: &tauri::AppHandle) -> bool {
     let Ok(path) = settings_path(app) else {
-        return false;
+        return true;
     };
     let Ok(s) = std::fs::read_to_string(&path) else {
-        return false;
+        return true;
     };
-    parse_bool_flag(&s, "deferTorrentEngine")
+    parse_defer_torrent_engine(&s)
+}
+
+fn parse_defer_torrent_engine(json: &str) -> bool {
+    !json.contains("\"deferTorrentEngine\"") || parse_bool_flag(json, "deferTorrentEngine")
 }
 
 fn parse_torrents_disabled(json: &str) -> bool {
@@ -100,4 +105,16 @@ fn parse_bool_flag(json: &str, key: &str) -> bool {
         }
     }
     matches!(chars.next(), Some('t') | Some('T'))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_defer_torrent_engine;
+
+    #[test]
+    fn defer_follows_the_saved_choice_and_defaults_on() {
+        assert!(parse_defer_torrent_engine("{}"));
+        assert!(parse_defer_torrent_engine(r#"{"deferTorrentEngine": true}"#));
+        assert!(!parse_defer_torrent_engine(r#"{"deferTorrentEngine":false}"#));
+    }
 }

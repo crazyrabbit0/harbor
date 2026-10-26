@@ -254,7 +254,7 @@ export const DEFAULT: Settings = {
   torrentsDisabled: false,
   torrentFullDownload: false,
   keepStreamDownloadsInBackground: false,
-  deferTorrentEngine: false,
+  deferTorrentEngine: true,
   p2pAutoConsent: false,
   streamMode: "both",
   queueDrivesNav: true,

@@ -15,7 +15,6 @@ import {
   scheduleAbandonedTorrentRemoval,
   torrentEngineAdd,
   torrentEngineSelect,
-  torrentEngineStatus,
   type AddResult,
 } from "@/lib/torrent/local-engine";
 import { searchCinemeta } from "@/lib/search";
@@ -156,22 +155,7 @@ export function MagnetCard({ raw, onClose }: { raw: string; onClose: () => void 
       return;
     }
 
-    let status = await torrentEngineStatus();
-    if (!status?.ready) {
-      const deadline = Date.now() + 8000;
-      while (Date.now() < deadline && !status?.ready) {
-        await new Promise((r) => window.setTimeout(r, 300));
-        status = await torrentEngineStatus();
-      }
-    }
-    if (!status?.ready) {
-      setMode("error");
-      setError(
-        t("The streaming engine is still starting up. Give it a moment and press Play again."),
-      );
-      return;
-    }
-
+    // torrent_engine_add starts a deferred engine itself, so there is no readiness wait here.
     setEngine(null);
     const added = await torrentEngineAdd(raw, parsed.trackers);
     if (!added || added.files.length === 0) {
