@@ -2222,6 +2222,8 @@ const uiFallback: Record<string, string> = {
     "Save the last seconds of video, set by Clip length, as a clip with audio, choosing subtitles on or off. Saves to the Video clips folder.",
   "How many seconds Save video clip keeps, counting back from where you are.":
     "How many seconds Save video clip keeps, counting back from where you are.",
+  "Loading releases…": "Loading releases…",
+  "Checking {done} of {total} titles": "Checking {done} of {total} titles",
 };
 
 export default uiFallback;

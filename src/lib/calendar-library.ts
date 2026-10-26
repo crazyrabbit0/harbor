@@ -394,7 +394,12 @@ export async function fetchLibraryCalendar(
   authKey: string,
   year: number,
   month: number,
-  opts: { tmdbKey: string; includeTrakt: boolean; onProgress?: (items: CalendarItem[]) => void },
+  opts: {
+    tmdbKey: string;
+    includeTrakt: boolean;
+    onProgress?: (items: CalendarItem[]) => void;
+    onCount?: CountReporter;
+  },
 ): Promise<CalendarItem[]> {
   const local = readLocalEntries();
   let stremioFailed = false;
@@ -416,6 +421,7 @@ export async function fetchLibraryCalendar(
   return resolveSavedCalendar(candidates, year, month, {
     tmdbKey: opts.tmdbKey,
     onProgress: opts.onProgress,
+    onCount: opts.onCount,
   });
 }
 
@@ -474,6 +480,9 @@ function seriesItems(
 
 const PROGRESS_MS = 250;
 
+/** Reports how many saved titles have been looked up so far, out of `total`. */
+export type CountReporter = (done: number, total: number) => void;
+
 /** Calls `onProgress(collect())` at most every 250 ms; `cancel` drops a pending call once the final result is ready. */
 export function progressReporter(
   collect: () => CalendarItem[],
@@ -504,7 +513,7 @@ export async function resolveSavedCalendar(
   candidates: SavedCandidate[],
   year: number,
   month: number,
-  opts: { tmdbKey: string; onProgress?: (items: CalendarItem[]) => void },
+  opts: { tmdbKey: string; onProgress?: (items: CalendarItem[]) => void; onCount?: CountReporter },
 ): Promise<CalendarItem[]> {
   const inMonth = inMonthFactory(year, month);
   const series = candidates
@@ -521,6 +530,10 @@ export async function resolveSavedCalendar(
   const collect = () =>
     dedupeCalendar([...seriesOut.flat(), ...movieOut.filter((m): m is CalendarItem => !!m)]);
   const { report, cancel } = progressReporter(collect, opts.onProgress);
+  const total = series.length + movies.length;
+  let done = 0;
+  const step = () => opts.onCount?.(++done, total);
+  opts.onCount?.(0, total);
 
   const seriesConc = opts.tmdbKey ? TMDB_CONCURRENCY : TVMAZE_CONCURRENCY;
   await Promise.all([
@@ -529,6 +542,7 @@ export async function resolveSavedCalendar(
       seriesConc,
       async ([c, i]) => {
         const r = await resolveSeriesCached(c, opts.tmdbKey);
+        step();
         if (r) {
           seriesOut[i] = seriesItems(c, r, inMonth);
           if (seriesOut[i].length > 0) report();
@@ -540,6 +554,7 @@ export async function resolveSavedCalendar(
       TMDB_CONCURRENCY,
       async ([c, i]) => {
         const mi = await resolveMovieCached(c, opts.tmdbKey);
+        step();
         if (mi && inMonth(mi.releaseDate)) {
           movieOut[i] = mi;
           report();
