@@ -6,12 +6,48 @@ import {
   manualWatchedState,
   remoteWatchedKeys,
   unwatchedAt,
+  watchedStoreTag,
 } from "@/lib/manual-watched";
 import { isMovieWatchedLocal, setMovieWatchedLocal } from "@/lib/movie-watched";
 
 const reconciled = new Set<string>();
 const lastPullMtime = new Map<string, number>();
 const ANIME_ID = /^(kitsu|mal|anilist|anidb):/;
+const PULLED_KEY = "harbor.stremio.watched-pulled.v1";
+const PULLED_MAX = 3000;
+let pulled: Map<string, string> | null = null;
+
+// Series whose remote ticks were applied at a given _mtime; an unchanged item needs no Cinemeta fetch after a restart.
+function pulledMap(): Map<string, string> {
+  if (pulled) return pulled;
+  pulled = new Map();
+  try {
+    const raw: unknown = JSON.parse(localStorage.getItem(PULLED_KEY) ?? "{}");
+    if (raw && typeof raw === "object") {
+      for (const [id, mt] of Object.entries(raw)) if (typeof mt === "string") pulled.set(id, mt);
+    }
+  } catch {}
+  return pulled;
+}
+
+let pulledFlush: ReturnType<typeof setTimeout> | null = null;
+
+function markPulled(id: string, mtime: string): void {
+  const map = pulledMap();
+  map.delete(id);
+  map.set(id, mtime);
+  for (const oldest of map.keys()) {
+    if (map.size <= PULLED_MAX) break;
+    map.delete(oldest);
+  }
+  if (pulledFlush) return;
+  pulledFlush = setTimeout(() => {
+    pulledFlush = null;
+    try {
+      localStorage.setItem(PULLED_KEY, JSON.stringify(Object.fromEntries(map)));
+    } catch {}
+  }, 2000);
+}
 
 function isSeries(i: LibraryItem): boolean {
   return i.type === "series" || i.type === "tv" || i.type === "channel";
@@ -34,9 +70,18 @@ export function reconcileRemoteWatched(items: LibraryItem[]): void {
     }
     const watched = i.state?.watched;
     if (typeof watched === "string" && watched.length > 0) {
+      const mtimeKey = String(i._mtime ?? "");
+      const profileTag = `${mtimeKey}|${watchedStoreTag()}`;
+      if (mtimeKey && pulledMap().get(i._id) === profileTag && remoteWatchedKeys(i._id).size > 0) {
+        continue;
+      }
       const rawMt = i._mtime as unknown;
       const mtime = typeof rawMt === "number" ? rawMt : Date.parse(String(rawMt ?? ""));
-      enqueue(() => applySeries(i._id, watched, Number.isFinite(mtime) ? mtime : 0));
+      const id = i._id;
+      enqueue(async () => {
+        const applied = await applySeries(id, watched, Number.isFinite(mtime) ? mtime : 0);
+        if (applied && mtimeKey) markPulled(id, profileTag);
+      });
     }
   }
 }
@@ -64,14 +109,16 @@ function pump(): void {
   }
 }
 
-async function applySeries(id: string, watched: string, remoteMtime: number): Promise<void> {
-  if (!id.startsWith("tt")) return;
+// Returns true once the ticks were decoded against a Cinemeta episode list (or there were none to apply).
+async function applySeries(id: string, watched: string, remoteMtime: number): Promise<boolean> {
+  if (!id.startsWith("tt")) return true;
   // Stremio indexes the watched bitfield against Cinemeta's list, whatever metadata the user prefers.
   const full = await fetchCinemetaMeta("series", id, true).catch(() => null);
   const videos = full?.videos;
-  if (!videos?.length) return;
-  const keys = await decodeWatchedEpisodes(watched, videos).catch(() => new Set<string>());
-  if (keys.size === 0) return;
+  if (!videos?.length) return false;
+  const keys = await decodeWatchedEpisodes(watched, videos).catch(() => null);
+  if (!keys) return false;
+  if (keys.size === 0) return true;
   const add: Array<{ season: number; episode: number }> = [];
   for (const k of keys) {
     const parts = k.split(":");
@@ -98,4 +145,5 @@ async function applySeries(id: string, watched: string, remoteMtime: number): Pr
   }
   applyRemoteWatched(id, add, unset);
   if (canUnset) lastPullMtime.set(id, remoteMtime);
+  return true;
 }
