@@ -167,8 +167,8 @@ const CONTEXT_STORE = "recent-contexts";
 
 export async function hydrateMusicRecentContexts(): Promise<void> {
   await hydrateJsonStore(CONTEXT_STORE, KEY);
-  store = read();
-  index = buildIndex(store);
+  const store = read();
+  loaded = { store, index: buildIndex(store) };
   for (const listener of listeners) listener();
 }
 
@@ -206,8 +206,16 @@ function buildIndex(store: MusicRecentContextStore): Map<string, MusicRecentCont
   return index;
 }
 
-let store = read();
-let index = buildIndex(store);
+// Read on first use rather than at import.
+let loaded: { store: MusicRecentContextStore; index: Map<string, MusicRecentContext> } | null =
+  null;
+function current() {
+  if (!loaded) {
+    const store = read();
+    loaded = { store, index: buildIndex(store) };
+  }
+  return loaded;
+}
 const listeners = new Set<() => void>();
 
 function subscribe(listener: () => void): () => void {
@@ -218,8 +226,7 @@ function subscribe(listener: () => void): () => void {
 }
 
 function commit(next: MusicRecentContextStore): void {
-  store = next;
-  index = buildIndex(next);
+  loaded = { store: next, index: buildIndex(next) };
   writeLocalJson(CONTEXT_STORE, next);
   for (const listener of listeners) listener();
 }
@@ -240,6 +247,7 @@ export function recordMusicRecentContext(
     artwork: entry.artwork.filter((url) => url.trim().length > 0).slice(0, ARTWORK_LIMIT),
     at: Date.now(),
   };
+  const { store } = current();
   const contexts = [
     context,
     ...store.contexts.filter((item) => contextKey(item.kind, item.id) !== key),
@@ -262,6 +270,7 @@ export function recordMusicRecentContext(
 }
 
 export function refreshMusicRecentContextArtwork(updates: Map<string, string[]>): void {
+  const { store } = current();
   let changed = false;
   const contexts = store.contexts.map((context) => {
     const next = updates.get(context.id);
@@ -286,7 +295,7 @@ export function musicContextArtwork(tracks: readonly MusicTrack[]): string[] {
 }
 
 export function getMusicRecentContexts(): MusicRecentContext[] {
-  return store.contexts;
+  return current().store.contexts;
 }
 
 export function useMusicRecentContexts(): MusicRecentContext[] {
@@ -298,7 +307,7 @@ export function getMusicTrackContext(
 ): MusicRecentContext | null {
   if (!track) return null;
   for (const key of musicTrackKeys(track)) {
-    const found = index.get(key);
+    const found = current().index.get(key);
     if (found) return found;
   }
   return null;

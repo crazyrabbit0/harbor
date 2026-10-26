@@ -3,6 +3,23 @@ import { showHarborError } from "./error-view";
 
 type State = { crashed: boolean };
 
+/** Renders nothing when optional chrome (a lazily loaded dock) fails to load or render, instead of crashing the shell. */
+export class SilentBoundary extends Component<{ children: ReactNode }, State> {
+  state: State = { crashed: false };
+
+  static getDerivedStateFromError(): State {
+    return { crashed: true };
+  }
+
+  componentDidCatch(error: Error) {
+    console.warn("[chrome] optional component failed", error);
+  }
+
+  render() {
+    return this.state.crashed ? null : this.props.children;
+  }
+}
+
 export class HarborErrorBoundary extends Component<{ children: ReactNode }, State> {
   state: State = { crashed: false };
 

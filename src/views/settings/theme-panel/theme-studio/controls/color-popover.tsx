@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { captureFocusReturn, tvFocus } from "@/lib/keyboard-navigation";
 import { isBackKey } from "@/lib/keyboard-navigation/geometry";
 import { useT } from "@/lib/i18n";
+import { trackReposition } from "@/lib/reposition";
 import { CustomColorPanel } from "@/views/settings/color-picker";
 
 const PANEL_W = 280;
@@ -120,12 +121,10 @@ export function ColorPopover({
     };
     place();
     frame = requestAnimationFrame(place);
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
+    const untrack = trackReposition(place);
     return () => {
       cancelAnimationFrame(frame);
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
+      untrack();
     };
   }, [open, align, direction]);
 

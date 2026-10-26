@@ -13,6 +13,7 @@ import {
   stripFranchiseSuffix,
 } from "@/lib/providers/jikan";
 import { tmdbMovieRow, tmdbSeriesRow, tmdbTrending } from "@/lib/providers/tmdb";
+import { withTmdbDeadline } from "@/lib/providers/tmdb/tmdb-client";
 import { type Settings } from "@/lib/settings";
 import type { HomeRow, RowSpec } from "./home-types";
 
@@ -75,29 +76,33 @@ export function buildTmdbSpecs(settings: Settings): RowSpec[] {
   ];
 }
 
+// First pages give up early so an unreachable TMDB reaches the Cinemeta fallback quickly; pagination keeps the full deadline.
+export const TMDB_FIRST_PAGE_TIMEOUT_MS = 5000;
+
 export async function buildTmdbRows(settings: Settings) {
   const specs = buildTmdbSpecs(settings);
   let failed = 0;
   const firstPages = await Promise.all(
     specs.map((s) =>
-      s.fetcher(1).catch(() => {
+      withTmdbDeadline(TMDB_FIRST_PAGE_TIMEOUT_MS, () => s.fetcher(1)).catch(() => {
         failed += 1;
         return [] as Meta[];
       }),
     ),
   );
-  const rows: HomeRow[] = specs
-    .map((spec, i) => ({
-      key: spec.key,
-      type: spec.type,
-      name: spec.name,
-      metas: firstPages[i],
-      page: 1,
-      hasMore: firstPages[i].length > 0,
-      noDedup: spec.noDedup,
-      fetcher: spec.fetcher,
-    }))
-    .filter((r) => r.metas.length > 0);
+  const all: HomeRow[] = specs.map((spec, i) => ({
+    key: spec.key,
+    type: spec.type,
+    name: spec.name,
+    metas: firstPages[i],
+    page: 1,
+    hasMore: firstPages[i].length > 0,
+    noDedup: spec.noDedup,
+    fetcher: spec.fetcher,
+  }));
+  const rows = all.filter((r) => r.metas.length > 0);
+  // Rows that came back empty may only have missed the first-page deadline; Home retries them without it.
+  const pending = all.filter((r) => r.metas.length === 0);
 
   const byKey = (k: string) => rows.find((r) => r.key === k)?.metas ?? [];
   const hero = [
@@ -106,7 +111,26 @@ export async function buildTmdbRows(settings: Settings) {
     byKey("tmdb-now-playing")[0],
     byKey("tmdb-on-the-air")[0],
   ].filter(Boolean) as Meta[];
-  return { rows, hero, failed };
+  return { rows, hero, failed, pending, order: all.map((r) => r.key) };
+}
+
+// Fetches page 1 of rows that missed the first-page deadline; it joins their running requests or reads the cache.
+export async function resolvePendingTmdbRows(pending: HomeRow[]): Promise<HomeRow[]> {
+  const pages = await Promise.all(
+    pending.map((r) => (r.fetcher ? r.fetcher(1).catch(() => [] as Meta[]) : [])),
+  );
+  return pending
+    .map((r, i) => ({ ...r, metas: pages[i], hasMore: pages[i].length > 0 }))
+    .filter((r) => r.metas.length > 0);
+}
+
+// Inserts late rows at their spec position among the rows already built.
+export function insertLateRows(rows: HomeRow[], late: HomeRow[], order: string[]): HomeRow[] {
+  if (late.length === 0) return rows;
+  const rank = new Map(order.map((key, i) => [key, i]));
+  const have = new Set(rows.map((r) => r.key));
+  const merged = [...rows, ...late.filter((r) => !have.has(r.key))];
+  return merged.sort((a, b) => (rank.get(a.key) ?? 1e9) - (rank.get(b.key) ?? 1e9));
 }
 
 export async function buildCinemetaRows() {
@@ -187,83 +211,52 @@ export async function buildCinemetaRows() {
   return { rows, hero, failed };
 }
 
-export async function buildAnimeHomeRows(): Promise<HomeRow[]> {
+// Each anime row holds up to three Jikan pages; only the first loads up front, the rest on scroll.
+const ANIME_ROW_PAGES = 3;
+const ANIME_ROW_MAX = 60;
+
+// `eagerPages` loads that many pages up front, for surfaces without row pagination (Big Picture).
+export async function buildAnimeHomeRows(eagerPages = 1): Promise<HomeRow[]> {
   const cleanMetas = (list: Meta[]): Meta[] =>
     list.map((m) => {
       const cleaned = stripFranchiseSuffix(m.name);
       return cleaned === m.name ? m : { ...m, name: cleaned };
     });
-  const fetchMany = async (
-    fn: (page: number) => Promise<Meta[]>,
-    pages: number,
-  ): Promise<Meta[]> => {
-    const results = await Promise.all(
-      Array.from({ length: pages }, (_, i) => fn(i + 1).catch(() => [] as Meta[])),
-    );
-    const seen = new Set<string>();
-    const out: Meta[] = [];
-    for (const list of results) {
-      for (const m of list) {
-        if (seen.has(m.id)) continue;
-        seen.add(m.id);
-        out.push(m);
-      }
-    }
-    return out;
-  };
+  const pagedFetcher =
+    (fn: (page: number) => Promise<Meta[]>) =>
+    async (page: number): Promise<Meta[]> =>
+      page > ANIME_ROW_PAGES ? [] : cleanMetas(await fn(page));
+  const specs = [
+    { key: "anime-airing", name: "Trending Anime", fn: jikanTopAiring },
+    { key: "anime-new", name: "New Anime Releases", fn: jikanNewReleases },
+    { key: "anime-popular", name: "Popular Anime", fn: jikanTopPopular },
+    { key: "anime-upcoming", name: "Upcoming Anime", fn: jikanUpcoming },
+  ];
   try {
-    const [airing, newest, popular, upcoming] = await Promise.all([
-      fetchMany(jikanTopAiring, 3),
-      fetchMany(jikanNewReleases, 3),
-      fetchMany(jikanTopPopular, 3),
-      fetchMany(jikanUpcoming, 3),
-    ]);
-    const out: HomeRow[] = [];
-    if (airing.length >= 6) {
-      out.push({
-        key: "anime-airing",
-        type: "series",
-        name: "Trending Anime",
-        metas: cleanMetas(airing).slice(0, 60),
-        page: 3,
-        hasMore: false,
-        noDedup: true,
-      });
-    }
-    if (newest.length >= 6) {
-      out.push({
-        key: "anime-new",
-        type: "series",
-        name: "New Anime Releases",
-        metas: cleanMetas(newest).slice(0, 60),
-        page: 3,
-        hasMore: false,
-        noDedup: true,
-      });
-    }
-    if (popular.length >= 6) {
-      out.push({
-        key: "anime-popular",
-        type: "series",
-        name: "Popular Anime",
-        metas: cleanMetas(popular).slice(0, 60),
-        page: 3,
-        hasMore: false,
-        noDedup: true,
-      });
-    }
-    if (upcoming.length >= 6) {
-      out.push({
-        key: "anime-upcoming",
-        type: "series",
-        name: "Upcoming Anime",
-        metas: cleanMetas(upcoming).slice(0, 60),
-        page: 3,
-        hasMore: false,
-        noDedup: true,
-      });
-    }
-    return out;
+    const rows = await Promise.all(
+      specs.map(async (spec): Promise<HomeRow | null> => {
+        const fetcher = pagedFetcher(spec.fn);
+        const pages = Math.max(1, Math.min(eagerPages, ANIME_ROW_PAGES));
+        const lists = await Promise.all(
+          Array.from({ length: pages }, (_, i) => fetcher(i + 1).catch(() => [] as Meta[])),
+        );
+        const seen = new Set<string>();
+        const first = lists.flat().filter((m) => !seen.has(m.id) && (seen.add(m.id), true));
+        if (first.length < 6) return null;
+        return {
+          key: spec.key,
+          type: "series",
+          name: spec.name,
+          metas: first.slice(0, ANIME_ROW_MAX),
+          page: pages,
+          hasMore: pages < ANIME_ROW_PAGES,
+          noDedup: true,
+          fetcher,
+          maxItems: ANIME_ROW_MAX,
+        };
+      }),
+    );
+    return rows.filter((r): r is HomeRow => r !== null);
   } catch {
     return [];
   }

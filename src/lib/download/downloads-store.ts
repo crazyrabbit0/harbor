@@ -110,7 +110,12 @@ function rebuild() {
   listeners.forEach((l) => l());
 }
 
+let hydrated = false;
+
+// Exported entry points load the saved list on first use instead of at import.
 function hydrate() {
+  if (hydrated) return;
+  hydrated = true;
   try {
     const raw = localStorage.getItem(PERSIST_KEY);
     if (!raw) return;
@@ -126,8 +131,6 @@ function hydrate() {
     /* ignore */
   }
 }
-
-hydrate();
 
 function patch(id: string, next: Partial<DownloadItem>) {
   const cur = items.get(id);
@@ -231,6 +234,7 @@ export async function completedTorrentDownloadFor(
   fileIdx?: number,
   hint?: { season?: number | null; episode?: number | null },
 ): Promise<DownloadItem | null> {
+  hydrate();
   const key = infoHash.trim().toLowerCase();
   const candidates = [...items.values()]
     .filter((item) => {
@@ -260,6 +264,7 @@ export async function completedDownloadFor(
   season: number | null,
   episode: number | null,
 ): Promise<DownloadItem | null> {
+  hydrate();
   const candidates = [...items.values()]
     .filter((d) => {
       if (d.status !== "done" || d.metaId !== metaId) return false;
@@ -278,6 +283,7 @@ export function activeDownloadFor(
   season?: number | null,
   episode?: number | null,
 ): DownloadItem | null {
+  hydrate();
   for (const d of items.values()) {
     if (d.metaId !== metaId) continue;
     if (season != null && episode != null) {
@@ -291,6 +297,7 @@ export function activeDownloadFor(
 }
 
 export async function enqueueDownload(args: EnqueueArgs): Promise<string> {
+  hydrate();
   const { meta, episode, streamLabel, url, headers, destinationPath } = args;
   const existing = [...items.values()].find(
     (item) =>
@@ -354,6 +361,7 @@ export async function enqueueDownload(args: EnqueueArgs): Promise<string> {
 }
 
 export function enqueueManagedDownload(args: ManagedDownloadArgs): string {
+  hydrate();
   const existing = [...items.values()].find(
     (item) =>
       item.kind === "ebook" &&
@@ -501,6 +509,7 @@ function beginDownload(id: string): void {
 }
 
 export function cancelDownload(id: string): void {
+  hydrate();
   const item = items.get(id);
   if (!item || (item.status !== "downloading" && item.status !== "paused")) return;
   const wasPaused = item.status === "paused";
@@ -513,6 +522,7 @@ export function cancelDownload(id: string): void {
 }
 
 export function pauseDownload(id: string): void {
+  hydrate();
   const item = items.get(id);
   const handle = handles.get(id);
   if (!item || item.canPause === false || item.status !== "downloading" || !handle) return;
@@ -523,6 +533,7 @@ export function pauseDownload(id: string): void {
 }
 
 export async function resumeDownload(id: string): Promise<void> {
+  hydrate();
   if (items.get(id)?.status !== "paused") return;
   await completions.get(id);
   if (items.get(id)?.status !== "paused" || handles.has(id)) return;
@@ -533,6 +544,7 @@ export async function resumeDownload(id: string): Promise<void> {
 }
 
 export function removeDownload(id: string): void {
+  hydrate();
   const item = items.get(id);
   handles.get(id)?.abort();
   handles.delete(id);
@@ -552,6 +564,7 @@ export function removeDownload(id: string): void {
 }
 
 export async function revealDownload(id: string): Promise<void> {
+  hydrate();
   const d = items.get(id);
   if (!d) return;
   try {
@@ -567,15 +580,12 @@ export function subscribeDownloads(listener: () => void): () => void {
 }
 
 export function downloadsSnapshot(): DownloadItem[] {
+  hydrate();
   return snapshot;
 }
 
 export function useDownloads(): DownloadItem[] {
-  return useSyncExternalStore(
-    subscribeDownloads,
-    () => snapshot,
-    () => snapshot,
-  );
+  return useSyncExternalStore(subscribeDownloads, downloadsSnapshot, downloadsSnapshot);
 }
 
 export function useActiveDownloadCount(): number {

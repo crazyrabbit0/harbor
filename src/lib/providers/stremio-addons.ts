@@ -1,4 +1,4 @@
-import { evictLocalPrefix, idbCacheGet, idbCacheSet } from "@/lib/idb-cache";
+import { evictLocalPrefix, idbCacheGetFresh, idbCacheSet } from "@/lib/idb-cache";
 import { useEffect, useState } from "react";
 import { fetchCommunityAddons } from "@/lib/addons-store/community";
 import { registerEvictable } from "@/lib/maintenance";
@@ -60,13 +60,10 @@ const cache = new Map<string, { at: number; data: unknown }>();
 evictLocalPrefix(LS_PREFIX);
 
 async function storedGet(key: string): Promise<{ at: number; data: unknown } | null> {
-  const entry = await idbCacheGet(LS_PREFIX + key);
-  if (!entry || typeof entry.at !== "number") return null;
-  if (Date.now() - entry.at > STALE_TTL_MS) return null;
-  return entry;
+  return idbCacheGetFresh(LS_PREFIX + key, STALE_TTL_MS);
 }
 
-function writeCache(key: string, data: unknown): void {
+function writeCache(key: string, data: unknown, persist: boolean): void {
   const entry = { at: Date.now(), data };
   cache.delete(key);
   cache.set(key, entry);
@@ -75,26 +72,31 @@ function writeCache(key: string, data: unknown): void {
     if (oldest === undefined) break;
     cache.delete(oldest);
   }
-  void idbCacheSet(LS_PREFIX + key, entry);
+  if (persist) void idbCacheSet(LS_PREFIX + key, entry);
 }
 
 const revalidating = new Set<string>();
 
+// Search results stay in memory: one stored entry per typed query would grow without bound.
+const persistable = (key: string) =>
+  !(key.startsWith("list:") && /(?:^|&)search=/.test(key.slice(5)));
+
 async function cachedFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
-  const entry = cache.get(key) ?? (await storedGet(key));
+  const persist = persistable(key);
+  const entry = cache.get(key) ?? (persist ? await storedGet(key) : null);
   if (entry) {
     if (!cache.has(key)) cache.set(key, entry);
     if (Date.now() - entry.at > CACHE_TTL_MS && !revalidating.has(key)) {
       revalidating.add(key);
       void fetcher()
-        .then((d) => writeCache(key, d))
+        .then((d) => writeCache(key, d, persist))
         .catch(() => {})
         .finally(() => revalidating.delete(key));
     }
     return entry.data as T;
   }
   const data = await fetcher();
-  writeCache(key, data);
+  writeCache(key, data, persist);
   return data;
 }
 

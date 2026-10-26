@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { trackReposition } from "@/lib/reposition";
 
 type Side = "top" | "bottom" | "left" | "right";
 
@@ -71,12 +72,7 @@ export function Tooltip({
       setCoords({ left, top });
     };
     update();
-    window.addEventListener("scroll", update, true);
-    window.addEventListener("resize", update);
-    return () => {
-      window.removeEventListener("scroll", update, true);
-      window.removeEventListener("resize", update);
-    };
+    return trackReposition(update);
   }, [visible, side, label]);
 
   return (

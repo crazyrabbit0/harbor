@@ -10,6 +10,7 @@ import {
   isBackKey,
   navOwnsFocus,
 } from "@/lib/keyboard-navigation/geometry";
+import { trackReposition } from "@/lib/reposition";
 import type { StoreTheme } from "@/lib/theme-store";
 import { MOOD_RAILS, themeMoods, type Mood } from "./color-rank";
 import { MarketCard } from "./market/market-card";
@@ -142,12 +143,7 @@ export function StoreBrowse({
       if (anchor) setFilterBox(measureMenu(anchor));
     };
     updatePlacement();
-    window.addEventListener("resize", updatePlacement);
-    window.addEventListener("scroll", updatePlacement, true);
-    return () => {
-      window.removeEventListener("resize", updatePlacement);
-      window.removeEventListener("scroll", updatePlacement, true);
-    };
+    return trackReposition(updatePlacement);
   }, [filterOpen]);
 
   const onFilterMenuKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {

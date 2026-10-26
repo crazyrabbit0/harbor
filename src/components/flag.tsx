@@ -26,6 +26,8 @@ import flagUkr from "@/assets/flags/flag-ukr.svg";
 import flagVie from "@/assets/flags/flag-vie.svg";
 import flagZho from "@/assets/flags/flag-zho.svg";
 import { regionFlagSrc } from "@/lib/region-flags";
+// Only FiFlag uses these classes; the sheet inlines every flag, so it loads with this module.
+import "flag-icons/css/flag-icons.min.css";
 
 const FLAG: Record<string, string> = {
   English: flagEng,

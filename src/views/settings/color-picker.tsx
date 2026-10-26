@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { captureFocusReturn } from "@/lib/keyboard-navigation";
 import { getDirection, isBackKey, isRtl } from "@/lib/keyboard-navigation/geometry";
 import { useT } from "@/lib/i18n";
+import { trackReposition } from "@/lib/reposition";
 
 const SV_STEP = 0.02;
 const HUE_STEP = 3;
@@ -182,12 +183,7 @@ export function ColorPopoverTrigger({
       setPos({ top, left });
     };
     place();
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-    return () => {
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-    };
+    return trackReposition(place);
   }, [open, portal, align, direction]);
 
   const panel = (

@@ -12,21 +12,25 @@ function read(): string[] {
   }
 }
 
-let hidden = read();
+// Read on first use rather than at import.
+let hiddenIds: string[] | null = null;
+const currentHidden = (): string[] => (hiddenIds ??= read());
 const listeners = new Set<() => void>();
 
 function commit(next: string[]): void {
-  hidden = next.slice(-200);
-  writeMusicPreference(KEY, JSON.stringify(hidden));
+  hiddenIds = next.slice(-200);
+  writeMusicPreference(KEY, JSON.stringify(hiddenIds));
   listeners.forEach((listener) => listener());
 }
 
 export function hideMusicRecent(id: string): void {
+  const hidden = currentHidden();
   if (!id || hidden.includes(id)) return;
   commit([...hidden, id]);
 }
 
 export function unhideMusicRecent(id: string): void {
+  const hidden = currentHidden();
   if (!id || !hidden.includes(id)) return;
   commit(hidden.filter((entry) => entry !== id));
 }
@@ -39,11 +43,11 @@ export function useHiddenMusicRecents(): string[] {
         listeners.delete(listener);
       };
     },
-    () => hidden,
-    () => hidden,
+    currentHidden,
+    currentHidden,
   );
 }
 
 export function isMusicRecentHidden(id: string): boolean {
-  return hidden.includes(id);
+  return currentHidden().includes(id);
 }

@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { pushBackHandler } from "@/lib/back-intercept";
 import { isBackKey } from "@/lib/keyboard-navigation/geometry";
+import { trackReposition } from "@/lib/reposition";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import {
   eveName,
@@ -113,16 +114,11 @@ export function EveSystemField({
         transform: up ? "translateY(-100%)" : "none",
       });
     };
-    const scroll = (event: Event) => {
-      if (!menu.current?.contains(event.target as Node)) place();
-    };
     place();
-    window.addEventListener("resize", place);
-    document.addEventListener("scroll", scroll, true);
-    return () => {
-      window.removeEventListener("resize", place);
-      document.removeEventListener("scroll", scroll, true);
-    };
+    return trackReposition(
+      place,
+      (event) => !(event.target instanceof Node && menu.current?.contains(event.target)),
+    );
   }, [open]);
   useEffect(() => {
     if (open && index >= 0)

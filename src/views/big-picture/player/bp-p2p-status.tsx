@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { isBundledEngineUrl, isLocalEngineUrl } from "@/lib/stremio-server";
 import { parseEngineStats, readinessScore, type EngineStats } from "@/lib/torrent/engine-stats";
 import { torrentEngineStats } from "@/lib/torrent/local-engine";
+import { startStatsPoll } from "@/lib/torrent/stats-poll";
 import { useBpT } from "../bp-i18n";
 
 export type BpP2pPhase = "searching" | "connected" | "slow" | "no-peers";
@@ -19,8 +20,6 @@ export type BpP2pStatus = {
   attempt: number;
   retry: () => void;
 };
-
-const POLL_MS = 1000;
 
 // These two windows decide when a torrent is declared dead, and the windowed
 // player judges the same torrent from src/views/player/use-p2p-preparing-status.ts.
@@ -80,7 +79,7 @@ export function useBpP2pStatus(params: {
     const startAt = Date.now();
     let cancelled = false;
     let prev: EngineStats | null = null;
-    let poll = 0;
+    let stop: (() => void) | null = null;
 
     const tick = async () => {
       const raw = await torrentEngineStats(infoHash, idx);
@@ -115,17 +114,16 @@ export function useBpP2pStatus(params: {
         readiness: readinessScore(s, true),
         elapsedMs,
       });
-      if (failedRef.current && poll) {
-        window.clearInterval(poll);
-        poll = 0;
+      if (failedRef.current && stop) {
+        stop();
+        stop = null;
       }
     };
 
-    void tick();
-    poll = window.setInterval(() => void tick(), POLL_MS);
+    stop = startStatsPoll(tick);
     return () => {
       cancelled = true;
-      if (poll) window.clearInterval(poll);
+      stop?.();
     };
   }, [live, url, infoHash, fileIdx, attempt]);
 

@@ -54,12 +54,15 @@ function read(): Appearance {
     };
   }
 }
-let appearance = read();
+// Read on first use rather than at import.
+let appearanceState: Appearance | null = null;
+const currentAppearance = (): Appearance => (appearanceState ??= read());
 const listeners = new Set<() => void>();
 const APPEARANCE_CHANNEL = "harbor://music-appearance";
 
 subscribeWindowState<Appearance>(APPEARANCE_CHANNEL, (value) => {
-  appearance = {
+  const appearance = currentAppearance();
+  appearanceState = {
     ...appearance,
     ...value,
     mikuModel: normalizeMikuModel(value?.mikuModel ?? appearance.mikuModel),
@@ -68,7 +71,8 @@ subscribeWindowState<Appearance>(APPEARANCE_CHANNEL, (value) => {
 });
 
 export function setMusicAppearance(patch: Partial<Appearance>) {
-  appearance = { ...appearance, ...patch };
+  const appearance = { ...currentAppearance(), ...patch };
+  appearanceState = appearance;
   writeMusicPreference(KEY, JSON.stringify(appearance));
   broadcastWindowState(APPEARANCE_CHANNEL, appearance);
   listeners.forEach((listener) => listener());
@@ -81,8 +85,8 @@ export function useMusicAppearance() {
         listeners.delete(listener);
       };
     },
-    () => appearance,
-    () => appearance,
+    currentAppearance,
+    currentAppearance,
   );
 }
 

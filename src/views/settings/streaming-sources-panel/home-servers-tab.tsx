@@ -29,6 +29,7 @@ import type {
 import { MEDIA_SERVER_QUALITIES } from "@/lib/media-server/quality";
 import { signInWithPlex } from "@/lib/media-server/plex-auth";
 import { useT } from "@/lib/i18n";
+import { trackReposition } from "@/lib/reposition";
 import { Dropdown } from "@/components/dropdown";
 import { MediaServerBrand, mediaServerProviderName } from "@/components/media-server-brand";
 import { openUrl } from "@/lib/window";
@@ -516,12 +517,7 @@ function TokenHelpButton({ open, setOpen }: { open: boolean; setOpen: (open: boo
     if (!open) return;
     const update = () => place();
     update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
+    return trackReposition(update);
   }, [open]);
   useEffect(() => {
     if (!open) return;

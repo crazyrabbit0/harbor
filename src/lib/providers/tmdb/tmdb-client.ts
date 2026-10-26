@@ -1,6 +1,6 @@
 import { safeFetch } from "@/lib/safe-fetch";
 import { createRequestScheduler } from "@/lib/request-scheduler";
-import { createCatalogCache, isCatalogPath } from "./tmdb-catalog-cache";
+import { createCatalogCache, createPersistentCatalog, isCatalogPath } from "./tmdb-catalog-cache";
 
 export const TMDB = "https://api.themoviedb.org/3";
 export const IMG = "https://image.tmdb.org/t/p";
@@ -9,6 +9,7 @@ const tmdbRequests = createRequestScheduler({ concurrency: 6 });
 
 const tmdbInflight = new Map<string, Promise<unknown>>();
 const catalogCache = createCatalogCache();
+const persistentCatalog = createPersistentCatalog();
 
 let tmdbLanguage = "";
 
@@ -108,11 +109,50 @@ function fetchTmdbOnce<T>(url: string, path: string): Promise<{ status: number; 
   });
 }
 
+export type TmdbGetOptions = { timeoutMs?: number };
+
+let scopedTimeoutMs: number | undefined;
+
+// Applies a deadline to every get() that `work` starts synchronously, e.g. through the row helpers in tmdb-catalogs.
+export function withTmdbDeadline<T>(timeoutMs: number, work: () => Promise<T>): Promise<T> {
+  const previous = scopedTimeoutMs;
+  scopedTimeoutMs = timeoutMs;
+  try {
+    return work();
+  } finally {
+    scopedTimeoutMs = previous;
+  }
+}
+
+// The caller stops waiting at its deadline; the request runs on and still fills the caches.
+function withinDeadline<T>(work: Promise<T | null>, ms: number | undefined): Promise<T | null> {
+  if (!ms || ms <= 0) return work;
+  const expiry = new Promise<null>((resolve) => setTimeout(() => resolve(null), ms));
+  return Promise.race([work, expiry]);
+}
+
+async function loadPage<T>(target: string, path: string, cacheable: boolean): Promise<T | null> {
+  if (!cacheable) return fetchWithRetry<T>(target, path);
+  const stored = await persistentCatalog.read<T>(target);
+  if (stored != null) {
+    catalogCache.set(target, stored);
+    return stored;
+  }
+  const data = await fetchWithRetry<T>(target, path);
+  if (data != null) {
+    catalogCache.set(target, data);
+    persistentCatalog.write(target, data);
+  }
+  return data;
+}
+
 export async function get<T>(
   key: string,
   path: string,
   params: Record<string, string> = {},
+  options: TmdbGetOptions = {},
 ): Promise<T | null> {
+  const timeoutMs = options.timeoutMs ?? scopedTimeoutMs;
   if (!key) return null;
   const url = new URL(`${TMDB}/${path}`);
   url.searchParams.set("api_key", key);
@@ -126,20 +166,18 @@ export async function get<T>(
   const cacheable = isCatalogPath(path);
   const cached = cacheable ? catalogCache.get<T>(target) : undefined;
   if (cached !== undefined) return cached;
-  const shared = tmdbInflight.get(target);
-  if (shared) {
-    const data = await (shared as Promise<T | null>);
-    return cacheable ? structuredClone(data) : data;
+  const shared = tmdbInflight.get(target) as Promise<T | null> | undefined;
+  const run = shared ?? loadPage<T>(target, path, cacheable);
+  if (!shared) {
+    tmdbInflight.set(target, run);
+    const release = () => {
+      if (tmdbInflight.get(target) === run) tmdbInflight.delete(target);
+    };
+    run.then(release, release);
   }
-  const run = fetchWithRetry<T>(target, path);
-  tmdbInflight.set(target, run);
-  try {
-    const data = await run;
-    if (cacheable) catalogCache.set(target, data);
-    return data;
-  } finally {
-    tmdbInflight.delete(target);
-  }
+  const data = await withinDeadline(run, timeoutMs);
+  // Every catalog caller gets its own copy, since joined callers resolve with the same object.
+  return cacheable && data != null ? structuredClone(data) : data;
 }
 
 async function fetchWithRetry<T>(target: string, path: string): Promise<T | null> {

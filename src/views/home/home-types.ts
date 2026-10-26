@@ -9,6 +9,8 @@ export type HomeRow = {
   hasMore: boolean;
   noDedup?: boolean;
   fetcher?: (page: number) => Promise<Meta[]>;
+  // Pagination stops at this many items; rows without it use MAX_PER_ROW.
+  maxItems?: number;
   sourceRow?: import("@/lib/custom-sources").SourceRow;
 };
 

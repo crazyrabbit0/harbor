@@ -2,7 +2,13 @@ import { bridgeRows, formatBridgeSection } from "../fetch-bridge-stats";
 import { getInstrumentationSupport } from "../memory-profiler";
 
 const CONSOLE_RING_MAX = 400;
-const consoleRing: string[] = [];
+type ConsoleEntry = { at: number; method: string; args: unknown[] };
+// Primitives are kept as-is and joined only at collection; objects become text at log time, so none stay referenced.
+const consoleRing: ConsoleEntry[] = [];
+
+function snapshotArg(a: unknown): unknown {
+  return a === null || (typeof a !== "object" && typeof a !== "function") ? a : stringifyArg(a);
+}
 let patched = false;
 
 function stringifyArg(a: unknown): string {
@@ -23,7 +29,7 @@ function patchConsole(): void {
     const orig = console[m].bind(console);
     console[m] = (...args: unknown[]) => {
       try {
-        consoleRing.push(`${new Date().toISOString()} [${m}] ${args.map(stringifyArg).join(" ")}`);
+        consoleRing.push({ at: Date.now(), method: m, args: args.map(snapshotArg) });
         if (consoleRing.length > CONSOLE_RING_MAX) consoleRing.shift();
       } catch {}
       orig(...args);
@@ -32,6 +38,16 @@ function patchConsole(): void {
 }
 
 patchConsole();
+
+function formatConsoleEntry(entry: ConsoleEntry): string {
+  let text: string;
+  try {
+    text = entry.args.map(stringifyArg).join(" ");
+  } catch {
+    text = "";
+  }
+  return `${new Date(entry.at).toISOString()} [${entry.method}] ${text}`;
+}
 
 function collectRedactionValues(): string[] {
   const out = new Set<string>();
@@ -110,7 +126,7 @@ export function collectRuntime(): string {
     serializeProfiler(),
     "",
     "===== APP CONSOLE =====",
-    consoleRing.join("\n") || "(no console entries)",
+    consoleRing.map(formatConsoleEntry).join("\n") || "(no console entries)",
   ];
   return scrubClient(sections.join("\n"));
 }

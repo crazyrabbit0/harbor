@@ -104,9 +104,11 @@ import {
   buildAnimeHomeRows,
   buildCinemetaRows,
   buildTmdbRows,
+  insertLateRows,
   isStreamingServiceRow,
   MAX_PER_ROW,
   mergeRows,
+  resolvePendingTmdbRows,
 } from "./home/home-rows";
 import type { HomeRow } from "./home/home-types";
 import { mergeLoadedHomeRows } from "./home/merge-loaded-rows";
@@ -173,31 +175,38 @@ export function Home({
   const { isConnected: anilistConnected } = useAnilist();
   const letterboxd = useLetterboxd();
   const rowsRef = useRef<HomeRow[]>([]);
+  const animeRowsRef = useRef<HomeRow[]>([]);
   const loadingRef = useRef(new Map<string, NonNullable<HomeRow["fetcher"]>>());
   useEffect(() => {
     rowsRef.current = rows;
   }, [rows]);
+  useEffect(() => {
+    animeRowsRef.current = animeRows;
+  }, [animeRows]);
 
   const loadMore = useCallback((rowKey: string) => {
-    const row = rowsRef.current.find((r) => r.key === rowKey);
+    const inMain = rowsRef.current.find((r) => r.key === rowKey);
+    const row = inMain ?? animeRowsRef.current.find((r) => r.key === rowKey);
+    const setOwner = inMain ? setRows : setAnimeRows;
     if (!row || !row.fetcher || !row.hasMore || row.metas.length === 0) return;
     if (loadingRef.current.get(rowKey) === row.fetcher) return;
-    if (row.metas.length >= MAX_PER_ROW) return;
+    const cap = row.maxItems ?? MAX_PER_ROW;
+    if (row.metas.length >= cap) return;
     loadingRef.current.set(rowKey, row.fetcher);
     const next = row.page + 1;
     row
       .fetcher(next)
       .then((more) => {
-        setRows((rs) =>
+        setOwner((rs) =>
           rs.map((r) => {
             if (r.key !== rowKey || r.fetcher !== row.fetcher) return r;
             const ids = new Set(r.metas.map((m) => m.id));
             const fresh = more.filter((m) => !ids.has(m.id));
             const combined = [...r.metas, ...fresh];
-            const reachedCap = combined.length >= MAX_PER_ROW;
+            const reachedCap = combined.length >= cap;
             return {
               ...r,
-              metas: reachedCap ? combined.slice(0, MAX_PER_ROW) : combined,
+              metas: reachedCap ? combined.slice(0, cap) : combined,
               page: next,
               hasMore: !reachedCap && fresh.length > 0,
             };
@@ -226,7 +235,13 @@ export function Home({
     let retryTimer: number | null = null;
     (async () => {
       const isClassic = settings.homeMode === "classic";
-      type BuiltRows = { rows: HomeRow[]; hero: Meta[]; failed?: number };
+      type BuiltRows = {
+        rows: HomeRow[];
+        hero: Meta[];
+        failed?: number;
+        pending?: HomeRow[];
+        order?: string[];
+      };
       const failedBuild = (): BuiltRows => ({ rows: [], hero: [], failed: 1 });
 
       let heroFeedApplied = false;
@@ -272,10 +287,24 @@ export function Home({
       if (!heroFeedApplied && (!degraded || built.hero.length > 0)) setHeroPool(built.hero);
       setHeroReady(true);
 
+      let usable: AddonRow[] = [];
+      // TMDB rows that missed the first-page deadline join in place once their requests finish.
+      const pending = built.pending ?? [];
+      if (pending.length > 0) {
+        const order = built.order ?? [];
+        void resolvePendingTmdbRows(pending).then((late) => {
+          if (cancelled || late.length === 0) return;
+          built = { ...built, rows: insertLateRows(built.rows, late, order) };
+          startTransition(() => {
+            commitRows(mergeRows(built.rows, usable, { dedup: dedupRows }));
+          });
+        });
+      }
+
       const addons = await addonsPending;
       if (addonsFailed) degraded = true;
       if (cancelled) return;
-      const usable = isClassic
+      usable = isClassic
         ? addons
         : addons.filter((a) => !isAnimeRow(a) && !isStreamingServiceRow(a.name));
       const nextRows = mergeRows(built.rows, usable, { dedup: dedupRows });

@@ -4,6 +4,7 @@ import { Bell, Check, Loader2, X } from "../../../../icons";
 import { useT } from "@/lib/i18n";
 import { advanceFocus } from "@/lib/keyboard-navigation";
 import { isBackKey } from "@/lib/keyboard-navigation/geometry";
+import { trackReposition } from "@/lib/reposition";
 import { useNotifications } from "./use-notifications";
 import { NotificationItem } from "./notification-item";
 
@@ -66,13 +67,6 @@ export function NotificationBell({ onOpenTheme }: { onOpenTheme: (themeId: strin
       raf = null;
       place();
     });
-    const schedule = () => {
-      if (raf != null) return;
-      raf = requestAnimationFrame(() => {
-        raf = null;
-        place();
-      });
-    };
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node;
       if (btnRef.current?.contains(target) || panelRef.current?.contains(target)) return;
@@ -86,14 +80,12 @@ export function NotificationBell({ onOpenTheme }: { onOpenTheme: (themeId: strin
     };
     document.addEventListener("mousedown", onDown);
     document.addEventListener("keydown", onKey, true);
-    window.addEventListener("resize", schedule);
-    window.addEventListener("scroll", schedule, true);
+    const untrack = trackReposition(place);
     return () => {
       if (raf != null) cancelAnimationFrame(raf);
       document.removeEventListener("mousedown", onDown);
       document.removeEventListener("keydown", onKey, true);
-      window.removeEventListener("resize", schedule);
-      window.removeEventListener("scroll", schedule, true);
+      untrack();
     };
   }, [open, refresh, closePanel]);
 
