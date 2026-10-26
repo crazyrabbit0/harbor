@@ -51,7 +51,12 @@ export const IDB_CACHE_MAX_ENTRIES = 2000;
 // Trimming below the cap leaves headroom, so a full store is not rescanned on every write.
 const TRIM_TARGET = Math.floor(IDB_CACHE_MAX_ENTRIES * 0.9);
 // Only these refetchable caches count toward the cap and get trimmed; pins, indexes and snapshots are never evicted.
-export const TRIMMABLE_PREFIXES = ["cinemeta.meta.v1:", "tmdb.catalog.v1:", "harbor.sa.v1."];
+export const TRIMMABLE_PREFIXES = [
+  "cinemeta.meta.v1:",
+  "tmdb.catalog.v1:",
+  "tmdb.title.v1:",
+  "harbor.sa.v1.",
+];
 
 function trimmable(key: string): boolean {
   return TRIMMABLE_PREFIXES.some((prefix) => key.startsWith(prefix));

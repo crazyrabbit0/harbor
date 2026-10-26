@@ -8,7 +8,7 @@ import { imageLangParam, imageLangPriority, imageLangRank } from "./tmdb-image-l
 export type LogoEntry = { file_path: string; iso_639_1: string | null; vote_average?: number };
 
 export type RawImages = {
-  backdrops?: Array<{ file_path: string; vote_average?: number }>;
+  backdrops?: Array<{ file_path: string; vote_average?: number; iso_639_1?: string | null }>;
   logos?: LogoEntry[];
   posters?: Array<{ file_path: string; vote_average?: number; iso_639_1?: string | null }>;
 };
@@ -19,19 +19,49 @@ const movieAssetsInflight = new Map<string, Promise<RawImages | null>>();
 
 registerCache("tmdb:movieAssets", () => movieAssetsCache.size);
 
-export async function fetchMovieAssets(
+const langTokens = (param: string): Set<string> => new Set(param.split(","));
+
+// Any request for the same title whose languages cover `param` already holds every image a narrower request would.
+function coveringAssets<V>(store: Map<string, V>, metaId: string, param: string): V | undefined {
+  const wanted = langTokens(param);
+  for (const [cacheKey, value] of store) {
+    const [id, covered] = cacheKey.split("|");
+    if (id !== metaId || covered === undefined) continue;
+    const tokens = langTokens(covered);
+    if ([...wanted].every((t) => tokens.has(t))) return value;
+  }
+  return undefined;
+}
+
+export function fetchMovieAssets(
   key: string,
   metaId: string,
   originalLang?: string | null,
 ): Promise<RawImages | null> {
+  return loadMovieAssets(key, metaId, originalLang, false);
+}
+
+async function loadMovieAssets(
+  key: string,
+  metaId: string,
+  originalLang: string | null | undefined,
+  reuseWider: boolean,
+): Promise<RawImages | null> {
   if (!key) return null;
   const match = metaId.match(/^tmdb:(movie|tv):(\d+)$/);
   if (!match) return null;
-  const cacheKey = `${metaId}|${originalLang ?? ""}|${imageLangParam(originalLang)}`;
+  const param = imageLangParam(originalLang);
+  const cacheKey = `${metaId}|${param}`;
   const cached = movieAssetsCache.get(cacheKey);
   if (cached) return cached;
   const inflight = movieAssetsInflight.get(cacheKey);
   if (inflight) return inflight;
+  if (reuseWider) {
+    const covering =
+      coveringAssets(movieAssetsCache, metaId, param) ??
+      coveringAssets(movieAssetsInflight, metaId, param);
+    if (covering) return covering;
+  }
   const [, kind, id] = match;
   const p = get<RawImages>(key, `${kind}/${id}/images`, {
     include_image_language: imageLangParam(originalLang),
@@ -119,13 +149,20 @@ export async function tmdbDefaultPoster(key: string, metaId: string): Promise<st
   return url;
 }
 
-export async function tmdbMovieImages(key: string, metaId: string): Promise<string[]> {
-  const data = await fetchMovieAssets(key, metaId);
+// Shares the logo call's request when one is loaded; backdrops stay limited to the artwork languages.
+export async function tmdbMovieImages(
+  key: string,
+  metaId: string,
+  originalLang?: string | null,
+): Promise<string[]> {
+  const data = await loadMovieAssets(key, metaId, originalLang, true);
+  const allowed = langTokens(imageLangParam());
+  const backdrops = (data?.backdrops ?? []).filter((b) =>
+    allowed.has(b.iso_639_1 == null || b.iso_639_1 === "" ? "null" : b.iso_639_1),
+  );
   const seen = new Set<string>();
   const out: string[] = [];
-  for (const b of (data?.backdrops ?? []).sort(
-    (a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0),
-  )) {
+  for (const b of backdrops.sort((a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0))) {
     const url = tmdbBackdropUrl(b.file_path);
     if (!url || seen.has(b.file_path)) continue;
     seen.add(b.file_path);
