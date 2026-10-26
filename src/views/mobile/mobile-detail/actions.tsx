@@ -6,7 +6,7 @@ import type { Meta } from "@/lib/cinemeta";
 import type { TmdbDetail } from "@/lib/providers/tmdb";
 import type { RemoteLibraryAction, RemoteLibraryItem } from "@/lib/remote/protocol";
 import { resolveTrailerId } from "@/lib/trailer";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useMobileRemote } from "../mobile-remote";
 import { HIDE_SCROLL, prefersReducedMotion } from "./data";
@@ -28,7 +28,7 @@ export function DetailActions({
   onPlay: () => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [sheetOpen, setSheetOpen] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
   const [trailer, setTrailer] = useState<string | null>(trailerId);

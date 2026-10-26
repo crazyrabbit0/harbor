@@ -12,7 +12,7 @@ import { Check, WifiOff } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import type { RemoteCommand, RemoteSnapshot } from "@/lib/remote/protocol";
 import { useRemoteClient } from "@/lib/remote/use-remote-client";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 
 type PlayOpts = { season?: number; episode?: number; resume?: boolean };
 
@@ -28,7 +28,16 @@ const Ctx = createContext<MobileRemoteValue | null>(null);
 
 export function MobileRemoteProvider({ children }: { children: ReactNode }) {
   const { status, snapshot, sendCommand } = useRemoteClient();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    rpdbKey: s.rpdbKey,
+    tmdbImageLangs: s.tmdbImageLangs,
+    tmdbKey: s.tmdbKey,
+    tmdbLanguage: s.tmdbLanguage,
+    translateDescriptions: s.translateDescriptions,
+    translateTitles: s.translateTitles,
+    tvdbKey: s.tvdbKey,
+  }));
+  const update = useSettingsUpdate();
   const [flash, setFlash] = useState<{ ok: boolean; text: string } | null>(null);
   const timer = useRef<number>(0);
 

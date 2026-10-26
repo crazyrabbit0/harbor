@@ -4,7 +4,7 @@ import { MoviesIcon } from "@/components/icons/movies-icon";
 import { TvIcon } from "@/components/icons/tv-icon";
 import { AnimeIcon } from "@/components/icons/anime-icon";
 import { DiscoverIcon } from "@/components/icons/discover-icon";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import type { View } from "./mobile-browse";
 
@@ -50,7 +50,7 @@ export function MobileViewSwitcher({
   onSelect: (v: View) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hideContent: s.hideContent }));
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const views = settings.hideContent.anime ? VIEWS.filter((v) => v.id !== "anime") : VIEWS;

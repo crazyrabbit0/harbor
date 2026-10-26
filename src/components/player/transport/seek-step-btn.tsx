@@ -4,7 +4,7 @@ import { useT } from "@/lib/i18n";
 import type { HotkeyId } from "@/lib/hotkeys";
 import { usePlayerChromeHold } from "@/lib/player/chrome-hold";
 import { SEEK_STEP_OPTIONS, nudgeStep, sanitizeSeekStep } from "@/lib/seek-step";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import type { Settings } from "@/lib/settings/types";
 import { DEFAULT } from "@/lib/settings/defaults";
 import { KeyChips } from "./hotkey-label";
@@ -55,7 +55,15 @@ export function SeekStepBtn({
   onFrameStep?: (dir: 1 | -1) => void;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    seekBackStepLongSec: s.seekBackStepLongSec,
+    seekBackStepSec: s.seekBackStepSec,
+    seekBackStepShortSec: s.seekBackStepShortSec,
+    seekForwardStepLongSec: s.seekForwardStepLongSec,
+    seekForwardStepSec: s.seekForwardStepSec,
+    seekForwardStepShortSec: s.seekForwardStepShortSec,
+  }));
+  const update = useSettingsUpdate();
   const back = direction === "back";
   const sign = back ? -1 : 1;
   const seconds = back

@@ -9,7 +9,7 @@ import {
   type BrandStats,
   type BrandTitle,
 } from "@/lib/providers/tmdb/tmdb-brands";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { openUrl } from "@/lib/window";
 import { compactMoney } from "./brand-rails";
@@ -19,7 +19,7 @@ export function useBrandStats(filter: Browsed): {
   details: BrandDetails | null;
   stats: BrandStats | null;
 } {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [details, setDetails] = useState<BrandDetails | null>(null);
   const [stats, setStats] = useState<BrandStats | null>(null);
   const browseId = browsedId(filter);

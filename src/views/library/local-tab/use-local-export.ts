@@ -1,14 +1,19 @@
 import { useCallback, useMemo } from "react";
 import { exportMovie, exportSeries, type ExportSizes } from "@/lib/local-library/export";
 import { updateLocalEntries, updateLocalEntry, type LocalEntry } from "@/lib/local-library";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 
 export type ExportResult = { ok: number; fail: number; reason?: string };
 
 export function useLocalExport(setToast: (msg: string) => void) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    nfoBackdropSize: s.nfoBackdropSize,
+    nfoLogoSize: s.nfoLogoSize,
+    nfoPosterSize: s.nfoPosterSize,
+    tmdbKey: s.tmdbKey,
+  }));
 
   const exportSizes: ExportSizes = useMemo(
     () => ({

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useTogether, type RemoteCursor } from "@/lib/together/provider";
 import { useViewSelector } from "@/lib/view";
 
@@ -60,7 +60,7 @@ export function TogetherCursors() {
     chromeHidden: v.chromeHidden,
     topPath: v.topPath,
   }));
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ togetherShareCursors: s.togetherShareCursors }));
 
   const lastSentRef = useRef(0);
   const lastMoveRef = useRef(0);

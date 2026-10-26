@@ -29,7 +29,7 @@ const TV_GENRE_FOR_MOVIE: Record<string, number> = {
 import { useParental } from "@/lib/parental";
 import { useT } from "@/lib/i18n";
 import { useSearch } from "@/lib/search-context";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { surpriseMe } from "@/lib/surprise-me";
 import { tmdbDiscover } from "@/lib/providers/tmdb";
 import { SERVICES, providerIdsFor } from "@/lib/providers/streaming";
@@ -89,7 +89,12 @@ export function EmptyState({
   const { recent, removeRecent, clearRecent, setQuery } = useSearch();
   const { setView, openMeta } = useViewActions();
   const { hiddenTabs } = useParental();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    mangaEnabled: s.mangaEnabled,
+    region: s.region,
+    streaming: s.streaming,
+    tmdbKey: s.tmdbKey,
+  }));
   const t = useT();
   const [surpriseBusy, setSurpriseBusy] = useState(false);
   const [genreBrowse, setGenreBrowse] = useState<string | null>(null);

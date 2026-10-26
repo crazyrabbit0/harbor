@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
 
 export function usePipMode(params: {
@@ -12,7 +12,7 @@ export function usePipMode(params: {
   onReattach?: () => void;
 }) {
   const { bridgeRef, setChromeHidden, onDetach, onReattach } = params;
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ pipBehavior: s.pipBehavior }));
   const onDetachRef = useRef(onDetach);
   onDetachRef.current = onDetach;
   const onReattachRef = useRef(onReattach);

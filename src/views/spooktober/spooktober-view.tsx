@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { useViewActions } from "@/lib/view";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useSectionBack } from "@/lib/section-back";
 import { openExternalUrlStrict } from "@/lib/window";
 import { SPOOKTOBER_PLAYLISTS } from "@/lib/spooktober-navigation";
@@ -54,7 +54,7 @@ export function SpooktoberView(props: SpooktoberViewProps) {
 function SpooktoberContent({ active, onBack, playlistRequest, entryToken }: SpooktoberViewProps) {
   const t = useT();
   const { openMeta } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ showImdbBadge: s.showImdbBadge }));
   const { play, playVideo } = useSpooktoberMusicPlayback();
   const host = useRef<HTMLDivElement>(null);
   const playlistReturnFocus = useRef<HTMLElement | null>(null);

@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Download as DownloadIcon } from "lucide-react";
 import { Poster, usePosterChain } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useDownloads, type DownloadItem } from "@/lib/download/downloads-store";
 import { useT } from "@/lib/i18n";
 import { StreamingNowButton } from "./downloads/streaming-now";
@@ -231,7 +231,7 @@ function EmptyState() {
 }
 
 function ShowGroup({ group }: { group: Extract<DownloadGroup, { kind: "show" }> }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const t = useT();
   const poster = usePosterChain(
     settings.rpdbKey,

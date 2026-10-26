@@ -3,7 +3,7 @@ import { Poster } from "@/components/poster";
 import { topMovies, topSeries, type Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { tmdbDiscover, tmdbTrending } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export const TASTE_MAX = 5;
 const CAP = 40;
@@ -79,7 +79,7 @@ export function TasteStep({
   onToggle: (m: Meta) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [items, setItems] = useState<Meta[] | null>(null);
 
   useEffect(() => {

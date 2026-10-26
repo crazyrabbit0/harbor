@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useActiveKid } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 type Props = {
   text: string;
@@ -15,7 +15,23 @@ export const SubtitleOverlay = memo(function SubtitleOverlay({
   scale = 1,
   secondaryText = "",
 }: Props) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    subAlignX: s.subAlignX,
+    subBold: s.subBold,
+    subBorderColor: s.subBorderColor,
+    subBorderSize: s.subBorderSize,
+    subBoxColor: s.subBoxColor,
+    subBoxOpacity: s.subBoxOpacity,
+    subFontColor: s.subFontColor,
+    subFontFamily: s.subFontFamily,
+    subFontSize: s.subFontSize,
+    subLineSpacing: s.subLineSpacing,
+    subMarginY: s.subMarginY,
+    subOpacity: s.subOpacity,
+    subSecondaryPlacement: s.subSecondaryPlacement,
+    subSecondaryScale: s.subSecondaryScale,
+    subStyle: s.subStyle,
+  }));
   const kid = useActiveKid();
   const wrapRef = useRef<HTMLDivElement>(null);
   const [boxH, setBoxH] = useState(0);

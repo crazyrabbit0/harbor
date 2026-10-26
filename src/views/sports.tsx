@@ -5,7 +5,7 @@ import { lazy, Suspense, useMemo, useRef, useState, useEffect } from "react";
 import { ArrowUp, ArrowRight, CalendarDays, Star } from "lucide-react";
 import { SportsRefreshButton } from "./sports/refresh-button";
 import { useT, useUiLanguage } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useScrollMemory, useView, useViewActions } from "@/lib/view";
 import type { EsportsMatch } from "@/lib/sports/esports-feeds";
 import { officialBroadcastSource } from "@/lib/sports/esports-streams";
@@ -89,7 +89,7 @@ function LinkedEsportsEvent({ match, active }: { match: EsportsMatch; active: bo
 function SportsHubView({ active = false }: { active?: boolean }) {
   const t = useT();
   const locale = useUiLanguage();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ sportsLeagues: s.sportsLeagues }));
   const fav = useFavourites();
   const { openMatchDetail } = useViewActions();
   const scrollRef = useRef<HTMLElement>(null);

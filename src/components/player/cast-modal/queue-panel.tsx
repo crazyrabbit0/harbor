@@ -3,7 +3,7 @@ import { Play } from "@/components/icons/play-filled";
 import { useEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { fetchUpcomingEpisodes } from "@/lib/series-episodes";
 import { useContinueWatching, type CwCard } from "@/lib/continue-watching";
 import {
@@ -121,7 +121,7 @@ export function QueuePanel({
   currentEpisode?: PlayEpisode | null;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const queue = useQueue();
   const sleepAtEnd = useSleepAtEnd();
   const [upcoming, setUpcoming] = useState<PlayEpisode[]>([]);

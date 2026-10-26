@@ -6,7 +6,7 @@ import { readAwardHistory, type CategoryHistory } from "@/lib/awards-history";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 import { tmdbCompanyIdByName, tmdbPersonIdByName } from "@/lib/providers/tmdb";
 import type { AwardType } from "@/lib/providers/wikidata";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
@@ -219,7 +219,7 @@ function WinnerRow({
   tint: string;
   preferTv: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openMeta, openPerson, openFilter } = useViewActions();
   const [resolving, setResolving] = useState(false);
 

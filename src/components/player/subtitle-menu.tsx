@@ -10,7 +10,7 @@ import {
 import { openStyleBar } from "@/lib/player/sub-presets";
 import { setSecondarySub } from "@/lib/player/secondary-sub";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { wasLimitReached } from "@/lib/subtitles/limit-signal";
 import { wasPendingSub } from "@/lib/subtitles/pending-subs";
 import { bindSubtitleDownloadAuth } from "@/lib/subtitles/provider-auth";
@@ -30,7 +30,13 @@ type Props = SubtitleMenuProps;
 
 export function SubtitleMenu(props: Props) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    preferredLanguages: s.preferredLanguages,
+    preferredSubLangs: s.preferredSubLangs,
+    showSubtitleIndicator: s.showSubtitleIndicator,
+    subdlApiKey: s.subdlApiKey,
+    subsourceApiKey: s.subsourceApiKey,
+  }));
   const [open, setOpen] = useState(false);
   const [forceInline, setForceInline] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);

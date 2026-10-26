@@ -19,7 +19,7 @@ import { useChannelFilter } from "@/views/live/hooks/use-channel-filter";
 import { useEpg, useNowTick } from "@/views/live/hooks/use-epg";
 import { useIptvPlaylist } from "@/views/live/hooks/use-iptv-playlist";
 import { useScrollMemory } from "@/lib/view";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { CurrentChannelInfo } from "./current-channel-info";
 import { InlineSourceSwitcher } from "./inline-source-switcher";
@@ -48,7 +48,10 @@ export function LiveChannelOverlay({
   setQuery: (q: string) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    preferredLanguages: s.preferredLanguages,
+    region: s.region,
+  }));
   const { state } = useIptvPlaylist(source);
   const { index: epg } = useEpg(source);
   const nowMs = useNowTick(30_000);

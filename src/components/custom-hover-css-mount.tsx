@@ -1,11 +1,15 @@
 import { useEffect, useSyncExternalStore } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { customHoverVersion, getCustomHover, subscribeCustomHovers } from "@/lib/custom-hover";
 
 const STYLE_ID = "harbor-custom-hover-css";
 
 export function CustomHoverCssMount() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    cardHoverStyle: s.cardHoverStyle,
+    customHoverId: s.customHoverId,
+    hoverPreviewEnabled: s.hoverPreviewEnabled,
+  }));
   const version = useSyncExternalStore(
     subscribeCustomHovers,
     customHoverVersion,

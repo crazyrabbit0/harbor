@@ -1,12 +1,13 @@
 import { Contrast } from "lucide-react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { StremioBtn } from "./stremio-btn";
 import { BigButton } from "./big-button";
 import { Tooltip } from "./tooltip";
 
 function useHdrToSdr() {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ playerHdrToSdr: s.playerHdrToSdr }));
+  const update = useSettingsUpdate();
   const on = settings.playerHdrToSdr;
   return { on, toggle: () => update({ playerHdrToSdr: !on }) };
 }

@@ -6,7 +6,7 @@ import type { FeedItem } from "@/lib/feed";
 import { useT } from "@/lib/i18n";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { useTmdbImdbId } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useLocalizedOverview } from "@/lib/use-localized-overview";
 import { smartPlayEpisode } from "@/lib/smart-play";
 import { useViewActions } from "@/lib/view";
@@ -29,7 +29,7 @@ export function FeedHero({
   onSkip: () => void;
   onNotInterested?: () => void;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ instantPlay: s.instantPlay }));
   const { openMeta, openPicker } = useViewActions();
   const t = useT();
   const meta = item.meta;

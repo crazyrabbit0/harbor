@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Music2, Pause, Play, Volume2, VolumeX } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { openLinkOut } from "@/lib/social/link-out";
 import {
   fetchAudioMeta,
@@ -32,7 +32,8 @@ function saveVolume(v: number): void {
 
 export function ProfileAudioCard({ audioUrl }: { audioUrl?: string }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ profileAudio: s.profileAudio }));
+  const update = useSettingsUpdate();
   const mode = settings.profileAudio ?? "auto";
   const [meta, setMeta] = useState<AudioMeta | null>(null);
   const [playing, setPlaying] = useState(false);

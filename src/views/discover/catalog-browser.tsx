@@ -9,7 +9,7 @@ import {
   type BrowseCatalog,
 } from "@/lib/catalog-browse";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -150,7 +150,7 @@ function PillSelect({
 export function CatalogBrowser() {
   const t = useT();
   const { authKey } = useAuth();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ pluginsOutsideTab: s.pluginsOutsideTab }));
   const { openGrid } = useViewActions();
   const [catalogs, setCatalogs] = useState<BrowseCatalog[]>([]);
   const [type, setType] = useState("");

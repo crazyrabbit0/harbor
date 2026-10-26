@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { fetchTrailer, resolveTrailerQuality, trailerSrc } from "@/lib/trailer";
 import { isMacDesktop } from "@/lib/platform";
 import { openUrl } from "@/lib/window";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { NativeTrailerPlayer } from "./native-trailer-player";
@@ -23,7 +23,7 @@ export function TrailerOverlay({
 }) {
   const t = useT();
   const { setChromeHidden } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ trailerQuality: s.trailerQuality }));
   const [open, setOpen] = useState(false);
   const [streamUrl, setStreamUrl] = useState<string | null>(null);
   const [extractFailed, setExtractFailed] = useState(false);

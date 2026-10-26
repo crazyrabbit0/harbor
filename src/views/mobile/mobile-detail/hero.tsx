@@ -3,7 +3,7 @@ import { narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { Poster, usePosterChain } from "@/components/poster";
 import { ImdbIcon } from "@/components/icons/imdb-icon";
 import { HeroAwardsCorner } from "@/views/detail/hero-awards";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import type { TmdbDetail } from "@/lib/providers/tmdb";
 import { LocalLibraryBrand } from "@/components/local-library-brand";
@@ -112,7 +112,7 @@ export function Hero({
 }
 
 function HeroPoster({ meta, detail }: { meta: Meta; detail: TmdbDetail | null }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const { src, onError } = usePosterChain(
     settings.rpdbKey,
     meta.id,

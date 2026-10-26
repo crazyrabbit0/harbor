@@ -3,7 +3,7 @@ import { Bookmark, Clock, FolderOpen, Server, Star, WifiOff } from "lucide-react
 import type { LucideIcon } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { Poster, usePosterChain } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import type { RemoteLibraryItem } from "@/lib/remote/protocol";
 import { useMobileRemote } from "./mobile-remote";
@@ -171,7 +171,7 @@ function Section({
 
 function GridTile({ meta, onOpenDetail }: { meta: Meta; onOpenDetail: (m: Meta) => void }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const { src, onError } = usePosterChain(
     settings.rpdbKey,
     meta.id,

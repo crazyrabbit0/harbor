@@ -1,11 +1,12 @@
 import harborStyleImg from "@/assets/onboarding/harborstyle.webp";
 import traditionalStyleImg from "@/assets/onboarding/traditional.webp";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { PreviewImage } from "@/views/settings/preview-image";
 
 export function LayoutStep() {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ homeMode: s.homeMode }));
+  const update = useSettingsUpdate();
   const t = useT();
   const choice = settings.homeMode;
   const options: Array<{

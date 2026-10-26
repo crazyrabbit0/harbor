@@ -7,7 +7,7 @@ import { HarborLoader } from "@/components/harbor-loader";
 import { COLLECTION_CATEGORIES, COLLECTIONS_CATALOG } from "@/lib/collections-catalog";
 import { layoutHasGlobalBack } from "@/lib/theme";
 import { tmdbSearchCollections, type CollectionHit } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { useCategoryFeed } from "./collections/use-category-feed";
@@ -20,7 +20,7 @@ function stripSuffix(name: string): string {
 
 export function CollectionsView() {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { goBack } = useViewActions();
   const scrollRef = useRef<HTMLElement>(null);
   useScrollMemory("collections", scrollRef);

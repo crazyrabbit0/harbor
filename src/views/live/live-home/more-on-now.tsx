@@ -3,7 +3,7 @@ import { Play } from "@/components/icons/play-filled";
 import type { Meta } from "@/lib/cinemeta";
 import { Poster, usePosterChain } from "@/components/poster";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { IptvChannel } from "@/lib/iptv/types";
 import { hydrationKey, type NowItem } from "./use-live-home";
 
@@ -45,7 +45,7 @@ function Pick({
   onPlay: (ch: IptvChannel) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const { channel, current } = item;
   const [programmeFailed, setProgrammeFailed] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);

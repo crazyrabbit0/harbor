@@ -1,5 +1,5 @@
 import { usePlaylists, type StoredPlaylist } from "@/lib/iptv/playlists-store";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useSyncExternalStore } from "react";
 import {
   getSportsConsentSnapshot,
@@ -21,7 +21,7 @@ export function hasSportsSource(sources: readonly StoredPlaylist[]) {
 }
 export function useSportsEnabled() {
   const sources = usePlaylists();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ sportsWithoutProvider: s.sportsWithoutProvider }));
   const consent = useSyncExternalStore(
     subscribeSportsConsent,
     getSportsConsentSnapshot,

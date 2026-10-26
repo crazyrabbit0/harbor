@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { type Meta } from "@/lib/cinemeta";
 import { library, libraryMetaType, removeStremioBookmark, type LibraryItem } from "@/lib/stremio";
 import { fetchWatchlist } from "@/lib/trakt/watchlist";
@@ -46,7 +46,10 @@ export function WatchlistTab({
 }) {
   const tr = useT();
   const { authKey } = useAuth();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    libraryBookmarkedOnly: s.libraryBookmarkedOnly,
+    librarySort: s.librarySort,
+  }));
   const { isConnected: traktConnected } = useTrakt();
   const [stremio, setStremio] = useState<LibraryItem[]>([]);
   const [rawCount, setRawCount] = useState(0);

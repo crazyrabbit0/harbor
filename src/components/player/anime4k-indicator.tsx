@@ -1,7 +1,7 @@
 import { Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { Anime4kMode } from "@/lib/player/anime4k-modes";
 import { usePageVisible } from "@/lib/visibility";
 import type { Anime4kChoice } from "@/views/player/hooks/use-anime4k";
@@ -21,7 +21,13 @@ export function Anime4kIndicator({
   chromeVisible: boolean;
   suppressed?: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    playerAnime4k: s.playerAnime4k,
+    playerAnime4kFolder: s.playerAnime4kFolder,
+    playerAnime4kIndicator: s.playerAnime4kIndicator,
+    playerAnime4kMode: s.playerAnime4kMode,
+    playerAnime4kOverride: s.playerAnime4kOverride,
+  }));
   const enabled = settings.playerAnime4kIndicator && engine === "mpv" && isTauri;
   const [active, setActive] = useState(false);
   const pageVisible = usePageVisible();

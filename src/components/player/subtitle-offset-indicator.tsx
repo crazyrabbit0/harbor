@@ -5,7 +5,7 @@ import {
   type SubtitleOffsetPosition,
   type SubtitleOffsetSize,
 } from "@/lib/player/subtitle-offset";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const PLAYER_POSITION_CLASSES: Record<SubtitleOffsetPosition, string> = {
   "top-left": "left-8 top-24",
@@ -66,7 +66,11 @@ export function SubtitleOffsetIndicator({
   preview?: boolean;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    subOffsetIndicatorEnabled: s.subOffsetIndicatorEnabled,
+    subOffsetIndicatorPosition: s.subOffsetIndicatorPosition,
+    subOffsetIndicatorSize: s.subOffsetIndicatorSize,
+  }));
   const enabled = preview || settings.subOffsetIndicatorEnabled;
   const visible = enabled && (preview || delaySec != null);
   const position = settings.subOffsetIndicatorPosition;

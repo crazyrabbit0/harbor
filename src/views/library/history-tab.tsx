@@ -4,7 +4,7 @@ import { useAuth } from "@/lib/auth";
 import { library, removeStremioLibraryItem, type LibraryItem } from "@/lib/stremio";
 import { fetchWatchedHistory, type HistoryItem } from "@/lib/trakt/history";
 import { useTrakt } from "@/lib/trakt/provider";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import {
   applyFilter,
@@ -27,7 +27,7 @@ type HistoryView = "posters" | "episodes";
 export function HistoryTab() {
   const t = useT();
   const { authKey } = useAuth();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ librarySort: s.librarySort }));
   const { isConnected: traktConnected } = useTrakt();
   const [stremio, setStremio] = useState<LibraryItem[]>([]);
   const [trakt, setTrakt] = useState<HistoryItem[]>([]);

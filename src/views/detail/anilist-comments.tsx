@@ -28,7 +28,7 @@ import {
 } from "@/lib/anilist/threads";
 import { AnilistApiError } from "@/lib/anilist/client";
 import { useViewActions } from "@/lib/view";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { openUrl } from "@/lib/window";
 
 function extractAnilistError(e: unknown, fallback: string): string {
@@ -279,7 +279,7 @@ const THREADS_PAGE_SIZE = 20;
 export function AnilistComments({ harborId }: { harborId: string | null }) {
   const t = useT();
   const { openSettings } = useViewActions();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ anilistBlurComments: s.anilistBlurComments }));
   const { session } = useAnilist();
   const [authed, setAuthed] = useState(() => isAuthenticated());
   const [mediaId, setMediaId] = useState<number | null>(null);

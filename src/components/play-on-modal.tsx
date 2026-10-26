@@ -4,7 +4,7 @@ import { createPortal } from "react-dom";
 import { APP_VERSION } from "@/lib/build-info";
 import { useT } from "@/lib/i18n";
 import { queueAdd } from "@/lib/queue";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import {
   HarborDeviceCard,
@@ -38,7 +38,11 @@ import { closePlayOn, usePlayOnRequest, type PlayOnRequest } from "./play-on-tri
 
 export function PlayOnModal() {
   const request = usePlayOnRequest();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    remoteControlEnabled: s.remoteControlEnabled,
+    serveWebUi: s.serveWebUi,
+    theme: s.theme,
+  }));
   const commandable = settings.serveWebUi || settings.remoteControlEnabled;
   const themeId = settings.theme.preset;
 

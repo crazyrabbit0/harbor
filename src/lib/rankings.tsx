@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { useSettings } from "./settings";
+import { useSettingsSelector } from "./settings";
 
 const TMDB = "https://api.themoviedb.org/3";
 const STALE_MS = 6 * 60 * 60 * 1000;
@@ -124,7 +124,7 @@ const Ctx = createContext<RankingsValue>({
 });
 
 export function RankingsProvider({ children }: { children: ReactNode }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [ready, setReady] = useState(!!cache);
 
   useEffect(() => {

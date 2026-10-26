@@ -1,6 +1,6 @@
 import { RotateCw, X } from "lucide-react";
 import { Poster, usePosterChain } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { removeAutoDownload, updateAutoDownload, type AutoDlSeries } from "@/lib/auto-download";
 import { useIsChecking, useNextRunAt } from "@/lib/auto-download/runner";
 import { useT } from "@/lib/i18n";
@@ -20,7 +20,7 @@ import {
 
 export function AutoDownloadRow({ series }: { series: AutoDlSeries }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const now = useNow();
   const checking = useIsChecking(series.id);
   const nextRunAt = useNextRunAt();

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
 import { get, IMG } from "@/lib/providers/tmdb/tmdb-client";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { parseFilename, type LocalEntry } from "@/lib/local-library";
 
@@ -72,7 +72,7 @@ export function IdentifyModal({
   onResolved: (ids: string[], res: IdentifyResolution) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const key = settings.tmdbKey?.trim() || "";
   const head = target && target.length ? target[0] : null;
   const [kind, setKind] = useState<"movie" | "tv">("movie");

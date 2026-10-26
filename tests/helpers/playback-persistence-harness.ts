@@ -91,6 +91,8 @@ export function playbackPersistenceHarness(kind: "local" | "cloud" = "local") {
       return () => listeners.delete(fn);
     },
     useSettings: () => ({ settings: { anilistAutoSync: false, malAutoSync: false } }),
+    useSettingsSelector: (select: (s: any) => unknown) =>
+      select(dependencies.useSettings().settings),
     ANIME_CLOUD_ID: /^(kitsu|mal|anilist|anidb):/,
     CLOUD_OK: /^(tt|tmdb:)/,
     syncSeriesWatchedToStremio: (...args: any[]) => {

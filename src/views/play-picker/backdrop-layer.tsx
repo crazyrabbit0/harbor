@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 function BlurUpBackdrop({ src, forceBlur }: { src: string; forceBlur: boolean }) {
   const [loaded, setLoaded] = useState(false);
@@ -30,7 +30,7 @@ function BlurUpBackdrop({ src, forceBlur }: { src: string; forceBlur: boolean })
 }
 
 export function BackdropLayer({ src }: { src?: string }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ streamBackdropBlur: s.streamBackdropBlur }));
   return (
     <div
       aria-hidden

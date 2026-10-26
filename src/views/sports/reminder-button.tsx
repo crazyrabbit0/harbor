@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Bell, BellRing, Clock } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import type { SportsGame } from "@/lib/sports/espn-types";
 import { reminderId, saveSportsReminder, useSportsReminders } from "@/lib/sports/reminders";
@@ -10,7 +10,7 @@ import { ReminderDialog } from "./reminder-dialog";
 export function SportsReminderButton({ game }: { game: SportsGame }) {
   const t = useT();
   const locale = useUiLanguage();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ webhooks: s.webhooks }));
   const { openSettings } = useViewActions();
   const reminders = useSportsReminders();
   const id = reminderId(game);

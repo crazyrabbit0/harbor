@@ -12,7 +12,7 @@ import {
 } from "@/lib/awards/award-page";
 import type { Meta } from "@/lib/cinemeta";
 import type { AwardType } from "@/lib/providers/wikidata";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useScrollMemory } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { AwardHero } from "./award/award-hero";
@@ -36,7 +36,7 @@ function readMode(): AwardMode {
 export function AwardView({ awardType }: { awardType: AwardType }) {
   const t = useT();
   const meta = AWARD_CATALOG[awardType];
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const scrollRef = useRef<HTMLElement>(null);
 
   const [mode, setMode] = useState<AwardMode>(readMode);

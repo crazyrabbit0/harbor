@@ -2,7 +2,7 @@ import { Check, Copy, LogOut, MousePointer2, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Meta } from "@/lib/cinemeta";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useKnobAnim } from "@/lib/knob-anim";
 import { useTogether } from "@/lib/together/provider";
 import { useSelfIdentity } from "@/lib/together/use-self-identity";
@@ -71,7 +71,12 @@ export function TogetherPopover({
     clientId,
   } = useTogether();
   const { openSettings, openPicker, topKind } = useView();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    liquidGlass: s.liquidGlass,
+    togetherRelayUrl: s.togetherRelayUrl,
+    togetherShareCursors: s.togetherShareCursors,
+  }));
+  const update = useSettingsUpdate();
   const { avatar: selfAvatar, color: selfColor } = useSelfIdentity();
   const t = useT();
   const [joinCode, setJoinCode] = useState("");

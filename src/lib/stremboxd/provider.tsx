@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import {
   loginLetterboxd,
   StremboxdLoginError,
@@ -69,7 +69,8 @@ function buildServerPreferences(
 }
 
 export function LetterboxdProvider({ children }: { children: ReactNode }) {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ letterboxd: s.letterboxd }));
+  const update = useSettingsUpdate();
   const lb = settings.letterboxd;
   const [session, setLocalSession] = useState<LetterboxdSession | null>(() =>
     getLetterboxdSession(),

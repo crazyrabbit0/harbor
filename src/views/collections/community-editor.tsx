@@ -14,7 +14,7 @@ import { Search } from "@/components/icons/search-icon";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { ResultPoster } from "@/components/search/result-poster";
 import { BackToTop } from "@/components/back-to-top";
 import { searchAll } from "@/lib/search";
@@ -77,7 +77,7 @@ export function CommunityCollectionEditor({
   onViewPage: (id: string) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const collection = useCollection(id);
   const scrollRef = useRef<HTMLElement>(null);
 

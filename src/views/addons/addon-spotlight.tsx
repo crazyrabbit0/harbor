@@ -7,7 +7,7 @@ import {
   listRising,
   type SAAddon,
 } from "@/lib/providers/stremio-addons";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { fetchManifestAt, installAddon, manifestToConfigureUrl } from "@/lib/addon-store";
 import { rememberPendingAddon } from "@/lib/addons-store/pending-detail";
 import { openInstallerViewport } from "@/components/installer-viewport";
@@ -25,7 +25,7 @@ export function AddonSpotlight({
   onOpen?: (manifestId: string) => void;
   onChange?: () => void;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ showAdultAddons: s.showAdultAddons }));
   const showAdult = settings.showAdultAddons;
   const [pick, setPick] = useState<{ addon: SAAddon; trending: boolean } | null>(null);
   const [failed, setFailed] = useState(false);

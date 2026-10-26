@@ -1,13 +1,13 @@
 import { ArrowRight } from "lucide-react";
 import { Row } from "@/components/row";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { dropUnreleased, dropUnsafeGenres } from "./kids-filter";
 import { franchiseFetcher, KIDS_FRANCHISES, type Franchise } from "./kids-franchises";
 
 export function KidsFranchiseRail() {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const t = useT();
   const key = settings.tmdbKey;
   if (!key) return null;

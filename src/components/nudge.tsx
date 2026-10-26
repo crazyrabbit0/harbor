@@ -2,13 +2,13 @@ import { ArrowRight, X } from "lucide-react";
 import tmdbLogo from "@/assets/addon-logos/tmdb.png";
 import { useT } from "@/lib/i18n";
 import { useOnboarding } from "@/lib/onboarding";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 
 const KEY = "tmdb-nudge";
 
 export function TmdbNudge({ suppress }: { suppress?: boolean } = {}) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { isDismissed, dismiss } = useOnboarding();
   const { openSettings } = useViewActions();
   const t = useT();

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const GOLD = new Set(["HDR", "HDR10+", "DV"]);
 const STABLE_MS = 1500;
@@ -88,7 +88,7 @@ export function QualityInfo({
   labels: (string | null | undefined)[];
   show?: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ qualityBadgeStyle: s.qualityBadgeStyle }));
   const items = labels.filter((l): l is string => !!l);
   const key = items.join("|");
   const [settledKey, setSettledKey] = useState<string | null>(null);

@@ -3,7 +3,7 @@ import { UiIcon } from "@/components/ui-icon";
 import type { Meta } from "@/lib/cinemeta";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import type { CastEntry } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { fetch as tauriHttpFetch } from "@tauri-apps/plugin-http";
 import { useFaceId } from "@/lib/face/use-face-id";
@@ -38,7 +38,11 @@ export function XrayOverlay({
   isPaused: boolean;
   bridgeRef?: RefObject<PlayerBridge | null>;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    tmdbKey: s.tmdbKey,
+    xrayEnabled: s.xrayEnabled,
+    xrayLiveScan: s.xrayLiveScan,
+  }));
   const t = useT();
   const pageVisible = usePageVisible();
   const [view, setView] = useState<View>("closed");

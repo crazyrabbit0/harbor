@@ -25,7 +25,7 @@ import { setViewedSeason } from "@/lib/season-view-pref";
 import { animeTrackerTarget } from "@/lib/tracker-progress";
 import type { PlayerSnapshot } from "@/lib/player/bridge";
 import { getPlaybackPosition, subscribePlaybackClock } from "@/lib/player/playback-clock";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useProfiles } from "@/lib/profiles";
 import type { PlayerSrc, PlayEpisode } from "@/lib/view";
 import { ANIME_CLOUD_ID, CLOUD_OK } from "@/lib/stremio";
@@ -81,7 +81,10 @@ type ResumeSession = {
 
 export function useResumeAutosave(params: ResumeAutosaveParams) {
   const { src, snap, season, episode } = params;
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    anilistAutoSync: s.anilistAutoSync,
+    malAutoSync: s.malAutoSync,
+  }));
   const { activeProfile } = useProfiles();
   const ownerId = activeProfile?.id;
   const taughtRef = useRef<Set<string>>(new Set());

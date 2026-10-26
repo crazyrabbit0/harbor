@@ -29,7 +29,7 @@ import { LAUNCHER_NAMES } from "@/lib/games/launchers";
 import { MusicGlyph } from "@/components/icons/music-glyph";
 import { useT } from "@/lib/i18n";
 import { useSectionBack } from "@/lib/section-back";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { activeLayout } from "@/lib/theme";
 import { useThemePreview } from "@/lib/theme-preview";
 import { useQuickLibraryArtwork } from "@/hooks/use-quick-library-artwork";
@@ -103,7 +103,11 @@ export function GameLibrarySidebar({
       customLibrary: custom,
       emulation,
     } = access;
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    sidebarCollapsed: s.sidebarCollapsed,
+    theme: s.theme,
+  }));
+  const update = useSettingsUpdate();
   const preview = useThemePreview();
   const layout = preview?.layout ?? activeLayout(settings.theme);
   const sharedSidebar = ["sidebar", "nord", "dracula", "forest", "rail"].includes(layout);

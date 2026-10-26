@@ -9,7 +9,7 @@ import {
 } from "@/lib/music/sources";
 import { ArrowLeft, Disc3, Plus, RefreshCw, X } from "@/components/icons/music-icons";
 import { UiIcon } from "@/components/ui-icon";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useMusicAppearance } from "@/lib/music/appearance";
 import { openDjDeck } from "@/lib/music/dj-deck";
 import djDeckPreview from "@/assets/settings-preview/dj-deck.png";
@@ -570,7 +570,8 @@ function SpeedSection({
   live: (value: Partial<MusicAudioSettingsValue>) => void;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ musicSpeedPresets: s.musicSpeedPresets }));
+  const update = useSettingsUpdate();
   const [naming, setNaming] = useState(false);
   const [name, setName] = useState("");
   const saved = settings.musicSpeedPresets;

@@ -85,7 +85,7 @@ import {
 import { useAnnouncement } from "@/lib/announcements";
 import { AnnouncementHero } from "@/components/announcement-hero";
 import { fetchAnilistTrendingAnime } from "@/lib/anilist/browse";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useCollectionRowsForPage } from "@/lib/page-collection-rows";
 import { useContentDrag } from "@/lib/window-drag";
 import { isAdultAnime } from "@/lib/addons-store/adult-filter";
@@ -126,7 +126,20 @@ function cleanMeta(m: Meta): Meta {
 
 export function AnimeView({ active = true }: { active?: boolean }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    animeCwEnd: s.animeCwEnd,
+    animeExcludeOrigins: s.animeExcludeOrigins,
+    animeFavoriteGenres: s.animeFavoriteGenres,
+    animeHideWatchedPicks: s.animeHideWatchedPicks,
+    animeRows: s.animeRows,
+    cwAdvanceNext: s.cwAdvanceNext,
+    cwPerProfile: s.cwPerProfile,
+    cwSources: s.cwSources,
+    episodeHiding: s.episodeHiding,
+    hideContent: s.hideContent,
+    tmdbKey: s.tmdbKey,
+  }));
+  const update = useSettingsUpdate();
   const { activeProfile, profiles } = useProfiles();
   const hideSharedCw =
     settings.cwPerProfile && anyProfileSharesStremioWith(activeProfile, profiles);

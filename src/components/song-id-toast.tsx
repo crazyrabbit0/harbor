@@ -2,12 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { SongIdCard, type SongCardStyle } from "./song-id-card";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@tauri-apps/plugin-opener";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { onSongIdToast, type SongIdToastMsg } from "@/lib/song-id";
 
 export function SongIdToast() {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    songCardDetails: s.songCardDetails,
+    songCardStyle: s.songCardStyle,
+    songIdEnabled: s.songIdEnabled,
+  }));
   const style = (settings.songCardStyle ?? "cinematic") as SongCardStyle;
   const showDetails = settings.songCardDetails ?? true;
 

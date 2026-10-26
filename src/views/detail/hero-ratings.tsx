@@ -5,7 +5,7 @@ import { MalLogo } from "@/components/icons/mal-logo";
 import { RtBadge } from "@/components/rt-badge";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { OmdbScores } from "@/lib/providers/omdb";
 import type { MdblistScores } from "@/lib/providers/mdblist";
 import { useSimklCommunityRating } from "@/lib/simkl/ratings";
@@ -91,7 +91,19 @@ export function HeroRatings({
   tmdbRating?: string | null;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    showDetailRatings: s.showDetailRatings,
+    showImdbDetail: s.showImdbDetail,
+    showLetterboxdDetail: s.showLetterboxdDetail,
+    showMalDetail: s.showMalDetail,
+    showMdblistDetail: s.showMdblistDetail,
+    showMetacriticDetail: s.showMetacriticDetail,
+    showRtAudienceDetail: s.showRtAudienceDetail,
+    showRtDetail: s.showRtDetail,
+    showSimklDetail: s.showSimklDetail,
+    showTmdbDetail: s.showTmdbDetail,
+    showTraktDetail: s.showTraktDetail,
+  }));
   const metacritic = mdblist?.metacritic ?? scores?.metascore ?? null;
   const showPrimary = settings.showDetailRatings;
   const primaryProviderOn = isAnime

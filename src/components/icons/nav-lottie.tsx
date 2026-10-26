@@ -2,7 +2,7 @@ import type { AnimationItem } from "lottie-web";
 import { withLottie } from "@/lib/lottie";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 export function NavLottie({
   data,
@@ -17,7 +17,7 @@ export function NavLottie({
 }) {
   const host = useRef<HTMLSpanElement | null>(null);
   const anim = useRef<AnimationItem | null>(null);
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ navIconAnimations: s.navIconAnimations }));
   const reduce = useReducedMotion() || !settings.navIconAnimations;
   const [ready, setReady] = useState(false);
   const play = !reduce && !!hovered;

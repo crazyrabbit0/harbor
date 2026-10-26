@@ -2,10 +2,11 @@ import { Check } from "lucide-react";
 import { ServiceLogo } from "@/components/service-logo";
 import { useT } from "@/lib/i18n";
 import { SERVICES } from "@/lib/providers/streaming";
-import { useSettings, type StreamingService } from "@/lib/settings";
+import { type StreamingService, useSettingsSelector, useSettingsActions } from "@/lib/settings";
 
 export function StreamingStep() {
-  const { settings, toggleStreaming } = useSettings();
+  const settings = useSettingsSelector((s) => ({ streaming: s.streaming, tmdbKey: s.tmdbKey }));
+  const { toggleStreaming } = useSettingsActions();
   const t = useT();
   const tmdbReady = !!settings.tmdbKey;
   return (

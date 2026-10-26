@@ -12,7 +12,7 @@ import {
   formatBindingForDisplay,
   isTypingTarget,
 } from "@/lib/hotkeys";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useNow } from "@/lib/use-now";
 
 const RECENT_WINDOW_MS = 7000;
@@ -44,7 +44,7 @@ export function ChatOverlay({
   hidden?: boolean;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys }));
   const composeKey = effectiveBinding("playerChatCompose", settings.hotkeys ?? {});
   const selfIdentity = useSelfIdentity();
   const [composing, setComposing] = useState(false);

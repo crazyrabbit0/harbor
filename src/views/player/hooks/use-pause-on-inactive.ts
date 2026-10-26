@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -11,7 +11,10 @@ export function usePauseOnInactive({
   bridgeRef: React.RefObject<PlayerBridge | null>;
   snapRef: React.RefObject<PlayerSnapshot>;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    pauseMinimized: s.pauseMinimized,
+    pauseUnfocused: s.pauseUnfocused,
+  }));
   const pauseMinimized = settings.pauseMinimized;
   const pauseUnfocused = settings.pauseUnfocused;
   const autoPausedRef = useRef(false);

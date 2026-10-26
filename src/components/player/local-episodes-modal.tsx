@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useLocalLibrary, type LocalEntry } from "@/lib/local-library";
 import { sortVersions } from "@/lib/local-library/versions";
 import { LocalVersionBadges } from "@/components/local-version-badges";
@@ -43,7 +43,8 @@ type SeasonMap = Map<number, Map<number, LocalEntry[]>>;
 
 function GridModal({ payload }: { payload: LocalEpisodesPayload }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ localEpisodeSortDesc: s.localEpisodeSortDesc }));
+  const update = useSettingsUpdate();
   const { tmdbId, imdbId } = payload;
   const localLibrary = useLocalLibrary();
   const all = payload.entries ?? localLibrary;

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { topMovies } from "@/lib/cinemeta";
 import { recentlyPlayed } from "@/lib/playback-history";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useHideAnimeMetas, useHideAnimeRows } from "@/lib/anime-hide";
 import {
@@ -48,7 +48,7 @@ function dedupeMetas(metas: Meta[]): Meta[] {
 
 export function MobileMovies() {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ region: s.region, tmdbKey: s.tmdbKey }));
   const [hero, setHero] = useState<Meta[]>([]);
   const [rows, setRows] = useState<RowData[]>([]);
   const [loading, setLoading] = useState(true);

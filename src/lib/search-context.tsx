@@ -36,7 +36,7 @@ import { searchSportsEvents, type SportsEventHit } from "@/lib/sports/search-eve
 import { anilistCharacterSearch, type CharacterHit } from "@/lib/anilist/character";
 import { gatherCatalogAddons, type Addon } from "@/lib/addons";
 import { useAuth } from "@/lib/auth";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { effectiveBinding, eventToBinding } from "@/lib/hotkeys";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import { isMagnetInput, isDirectVideoUrl } from "@/lib/torrent/magnet";
@@ -187,7 +187,14 @@ function saveRecent(items: string[]): void {
 }
 
 export function SearchProvider({ children }: { children: ReactNode }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    hideContent: s.hideContent,
+    hotkeys: s.hotkeys,
+    mangaEnabled: s.mangaEnabled,
+    tmdbKey: s.tmdbKey,
+    tmdbLanguage: s.tmdbLanguage,
+    translateTitles: s.translateTitles,
+  }));
   const playlists = usePlaylists();
   const { authKey } = useAuth();
   const { hiddenTabs } = useParental();

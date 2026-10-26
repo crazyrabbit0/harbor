@@ -1,7 +1,7 @@
 import { useEffect, useRef, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import { t } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import type { ActionFeedback } from "@/components/player/action-indicator";
 
 type CropMode = {
@@ -55,7 +55,8 @@ export function useVideoFill(
   loaded: boolean,
   flash: (feedback: ActionFeedback) => void,
 ) {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ cropMode: s.cropMode }));
+  const update = useSettingsUpdate();
   const index = useRef(modeIndex(settings.cropMode));
   const zoom = useRef(0);
   const appliedSrc = useRef<string | null>(null);

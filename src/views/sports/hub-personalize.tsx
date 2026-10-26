@@ -17,13 +17,14 @@ import {
 import { SportIcon } from "./sport-icon";
 import { LeagueLogo } from "./league-logo";
 import { SportsSelect } from "./sports-select";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { PolymarketLogo } from "./polymarket-logo";
 import { matchesTeamSearch, normalizeSportsSearch } from "@/lib/sports/search-text";
 
 export function HubPersonalize({ selected, onClose }: { selected: string[]; onClose: () => void }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ sportsShowOdds: s.sportsShowOdds }));
+  const update = useSettingsUpdate();
   const fav = useFavourites();
   const [showOdds, setShowOdds] = useState(settings.sportsShowOdds);
   const [step, setStep] = useState(0);

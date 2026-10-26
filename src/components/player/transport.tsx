@@ -9,7 +9,7 @@ import type { DownloadStatus } from "@/views/player/hooks/use-video-download";
 import { TransportStremio } from "./transport-stremio";
 import { TransportKids } from "./transport-kids";
 import { useActiveKid } from "@/lib/profiles";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { usePlayerNavigation } from "@/lib/view";
 import { resolveChromeTheme } from "@/lib/theme";
@@ -167,7 +167,14 @@ export function Transport({
   extras?: PlayerExtras;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    playerChromeTheme: s.playerChromeTheme,
+    playerTitleScale: s.playerTitleScale,
+    playerTitleSeriesFirst: s.playerTitleSeriesFirst,
+    seekBackStepSec: s.seekBackStepSec,
+    seekForwardStepSec: s.seekForwardStepSec,
+    theme: s.theme,
+  }));
   const kid = useActiveKid();
   const isStremioLayout =
     resolveChromeTheme(settings.theme, settings.playerChromeTheme) === "stremio";

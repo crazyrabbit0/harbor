@@ -3,7 +3,7 @@ import { Play } from "@/components/icons/play-filled";
 import { useT } from "@/lib/i18n";
 import { endVoyage, metaById } from "@/lib/voyage/store";
 import type { Meta } from "@/lib/cinemeta";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { usePosterChain } from "@/components/poster";
 import type { Voyage } from "@/lib/voyage/types";
 
@@ -70,7 +70,7 @@ export function VoyageReady({
 }
 
 function ReadyPoster({ meta }: { meta: Meta }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const poster = usePosterChain(
     settings.rpdbKey,
     meta.id,

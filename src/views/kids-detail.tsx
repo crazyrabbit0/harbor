@@ -5,7 +5,7 @@ import { Row } from "@/components/row";
 import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { tmdbDetails, type TmdbDetail } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { CollectionRow } from "./detail/collection-row";
 import { dropUnreleased, dropUnsafeGenres } from "./kids/kids-filter";
@@ -19,7 +19,7 @@ export function KidsDetailView({
   episodeHint?: { season: number; episode: number };
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openPicker } = useViewActions();
   const [base, setBase] = useState<Meta | null>(null);
   const [detail, setDetail] = useState<TmdbDetail | null>(null);

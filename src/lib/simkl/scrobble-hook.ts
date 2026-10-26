@@ -4,7 +4,7 @@ import { simklScrobble, buildBody, type ScrobbleInfo } from "./scrobble";
 import { clearPendingWatch, recordPendingWatch } from "./pending-sync";
 import { recordWatchedFallback } from "./record-watched";
 import { getPlaybackPosition, subscribePlaybackClock } from "@/lib/player/playback-clock";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { PlayerSrc } from "@/lib/view";
 import {
   SIMKL_API_BASE,
@@ -39,7 +39,7 @@ function srcInfo(src: PlayerSrc): ScrobbleInfo {
 
 export function useSimklScrobble({ src, snap }: { src: PlayerSrc; snap: Snap }): void {
   const { isConnected } = useSimkl();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ simklScrobbleEnabled: s.simklScrobbleEnabled }));
   const enabled = isConnected && settings.simklScrobbleEnabled;
   const lastActionRef = useRef<LastAction>(null);
   const lastKeyRef = useRef<string | null>(null);

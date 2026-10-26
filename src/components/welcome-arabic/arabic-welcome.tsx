@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useMedia } from "@/components/hover-preview/scene";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import {
   BODY_AR,
   BODY_EN,
@@ -14,7 +14,11 @@ import {
 } from "./copy";
 
 export default function ArabicWelcome({ onFeedback }: { onFeedback?: () => void }) {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    arabicWelcomeSeen: s.arabicWelcomeSeen,
+    uiLanguage: s.uiLanguage,
+  }));
+  const update = useSettingsUpdate();
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
   const show = settings.uiLanguage === "ar" && !settings.arabicWelcomeSeen;
 

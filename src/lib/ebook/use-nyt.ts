@@ -1,5 +1,5 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import {
   NYT_PRIMARY_LIST,
   nytList,
@@ -17,7 +17,7 @@ import {
 } from "./nyt-availability";
 
 export function useNytSnapshot(): NytSnapshot | null {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ nytKey: s.nytKey }));
   const key = settings.nytKey?.trim() ?? "";
   const [snap, setSnap] = useState<NytSnapshot | null>(() => readNytSnapshot());
 

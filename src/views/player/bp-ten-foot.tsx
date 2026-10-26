@@ -4,7 +4,7 @@ import { AllAddonsIcon } from "@/components/icons/harbor-glyphs";
 import type { SubtitleMenuProps } from "@/components/player/subtitle-menu/types";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import { writePlayerPrefs } from "@/lib/player-prefs";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import type { SkipSegment } from "@/lib/skip-intro";
 import type { SpoilerMask } from "@/lib/spoilers";
 import type { ScoredStream } from "@/lib/streams/types";
@@ -281,7 +281,8 @@ function BpTenFoot(props: BpTenFootProps) {
 // The adapter, so the overlay list stays a list. The back edge to
 // PlayerOverlayLayersProps is type-only and erases at compile time.
 export function BpTenFootLayer({ p }: { p: PlayerOverlayLayersProps }) {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ playerConfirmLeave: s.playerConfirmLeave }));
+  const update = useSettingsUpdate();
   const closeRef = useRef<() => void>(() => {});
   closeRef.current = () => {
     if (p.src.sportsDocked === false && !p.drawMode) {

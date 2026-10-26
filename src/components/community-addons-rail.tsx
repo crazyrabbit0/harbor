@@ -9,7 +9,7 @@ import {
   listRising,
   type SAAddon,
 } from "@/lib/providers/stremio-addons";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { fetchManifestAt, installAddon, manifestToConfigureUrl } from "@/lib/addon-store";
 import { rememberPendingAddon } from "@/lib/addons-store/pending-detail";
 import { openInstallerViewport } from "@/components/installer-viewport";
@@ -37,7 +37,7 @@ export function CommunityAddonsRail({
   onOpen?: (manifestId: string) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ showAdultAddons: s.showAdultAddons }));
   const showAdult = settings.showAdultAddons;
   const [sortMode, setSortMode] = useState<SortMode>("trending");
   const [items, setItems] = useState<SAAddon[] | null>(null);

@@ -4,7 +4,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { awardSummary, pickHeroAwards, useAwards } from "@/lib/providers/wikidata";
 import { mergeBundledAwards } from "@/lib/awards-history";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useHideAnimeMetas } from "@/lib/anime-hide";
 import { useMobileRemote } from "../mobile-remote";
@@ -104,7 +104,7 @@ function DetailBody({
   onOpenMeta: (m: Meta) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { playOnHost, openOnHost, snapshot } = useMobileRemote();
   const key = settings.tmdbKey;
   const isAnime = isAnimeId(meta.id);

@@ -2,7 +2,7 @@ import { Star } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { CARD_GAP_X, CARD_GAP_Y, formatTimeLabel, PX_PER_MS } from "./guide-utils";
 import { useProgramMeta } from "./use-program-meta";
 import { ProgramCastRow } from "./program-cast-row";
@@ -252,7 +252,7 @@ function ProgramTooltip({
   const startTime = formatTimeLabel(program.startMs);
   const endTime = formatTimeLabel(program.endMs);
   const durationMin = Math.round((program.endMs - program.startMs) / 60_000);
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { data: enriched } = useProgramMeta(program.title, settings.tmdbKey, true);
   const meta = enriched?.meta;
   const score = meta?.tmdbScore ?? (meta?.imdbRating ? Number(meta.imdbRating) : null);

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { tmdbDetails, type CastEntry, type TmdbDetail } from "@/lib/providers/tmdb";
 import { fetchTvdbCast } from "@/lib/providers/tvdb-cast";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 function kitsuIdOf(meta: Meta): number | null {
   const m = meta.id?.match(/^kitsu:(\d+)/);
@@ -13,7 +13,7 @@ export function useXrayCast(
   meta: Meta | null,
   open: boolean,
 ): { cast: CastEntry[] | null; details: TmdbDetail | null; loading: boolean } {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [details, setDetails] = useState<TmdbDetail | null>(null);
   const [cast, setCast] = useState<CastEntry[] | null>(null);
   const [loading, setLoading] = useState(false);

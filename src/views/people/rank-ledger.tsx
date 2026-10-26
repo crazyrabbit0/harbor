@@ -1,7 +1,7 @@
 import { Award } from "lucide-react";
 import { useEffect, useState } from "react";
 import { usePosterChain } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import type { Meta } from "@/lib/cinemeta";
 import {
@@ -257,7 +257,7 @@ function ProofRow({
   onOpen: () => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const meta = titleToMeta(title);
   const raw = title.posterPath ? `https://image.tmdb.org/t/p/w92${title.posterPath}` : undefined;
   const poster = usePosterChain(

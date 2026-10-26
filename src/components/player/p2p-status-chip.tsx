@@ -1,5 +1,5 @@
 import { Check, Loader2, Share2 } from "lucide-react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import type { EngineStats } from "@/lib/torrent/engine-stats";
 
@@ -16,7 +16,7 @@ export function P2pStatusChip({
   stats: EngineStats | null | undefined;
   visible: boolean;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ playerP2pChip: s.playerP2pChip }));
   const t = useT();
   if (!visible || !stats || !settings.playerP2pChip) return null;
   const peers = stats.unchoked > 0 ? stats.unchoked : stats.peers;

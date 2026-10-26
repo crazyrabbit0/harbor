@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { get } from "@/lib/providers/tmdb/tmdb-client";
 import { tmdbPerson, type PersonCredit } from "@/lib/providers/tmdb";
@@ -46,7 +46,7 @@ async function creditsFor(key: string, name: string) {
 }
 
 export function MusicArtistFilmography({ name }: { name: string }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const t = useT();
   const key = `${settings.tmdbKey}:${nameKey(name)}`;
   const [result, setResult] = useState<{ key: string; credits: PersonCredit[] } | null>(null);

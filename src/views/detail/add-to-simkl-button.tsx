@@ -17,7 +17,7 @@ import {
   type WatchlistStatus,
 } from "@/lib/simkl/list-status";
 import type { SimklTarget } from "@/lib/simkl/types";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { SimklRatingPicker } from "./simkl-rating-picker";
 
@@ -43,7 +43,9 @@ export function AddToSimklButton({
 }) {
   const t = useT();
   const { isConnected } = useSimkl();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    simklEnableUserRatings: s.simklEnableUserRatings,
+  }));
   const [target, setTarget] = useState<SimklTarget | null>(null);
   const [status, setStatus] = useState<WatchlistStatus | null>(null);
   const [ready, setReady] = useState(false);

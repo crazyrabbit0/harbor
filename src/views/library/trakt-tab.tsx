@@ -4,7 +4,7 @@ import { fetchWatchlist } from "@/lib/trakt/watchlist";
 import { traktItemToMeta } from "@/lib/trakt/to-meta";
 import type { TraktItem } from "@/lib/trakt/types";
 import { historyItemsToDated } from "./history-merge";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import {
   applyFilter,
@@ -21,7 +21,7 @@ import { useReportFeatured } from "./featured-context";
 
 export function TraktTab() {
   const tr = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ librarySort: s.librarySort }));
   const [watchlist, setWatchlist] = useState<TraktItem[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");

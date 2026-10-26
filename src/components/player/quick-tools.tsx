@@ -4,7 +4,7 @@ import type { AbLoopState } from "@/views/player/hooks/use-ab-loop";
 import type { FrameGrabToast } from "@/views/player/hooks/use-frame-grab";
 import { useT } from "@/lib/i18n";
 import { effectiveBinding, formatBindingForDisplay } from "@/lib/hotkeys";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 function formatTime(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
@@ -40,7 +40,7 @@ export function QuickTools({
 
 function AbLoopChip({ ab, visible }: { ab: AbLoopState; visible: boolean }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys }));
   const nextKey = effectiveBinding(
     ab.a == null ? "playerLoopStart" : "playerLoopEnd",
     settings.hotkeys ?? {},

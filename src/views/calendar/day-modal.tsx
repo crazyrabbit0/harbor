@@ -4,7 +4,7 @@ import { Clock, X } from "lucide-react";
 import { Poster, usePosterChain } from "@/components/poster";
 import type { CalendarItem } from "@/lib/calendar";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { AiringCountdown } from "./airing-countdown";
 import { formatDateLong, isUpcoming } from "./utils";
 
@@ -82,7 +82,10 @@ function DayModalRow({
   hideTypeTag: boolean;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    calendarPosterSize: s.calendarPosterSize,
+    rpdbKey: s.rpdbKey,
+  }));
   const tier = settings.calendarPosterSize;
   const poster = usePosterChain(
     settings.rpdbKey,

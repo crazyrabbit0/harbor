@@ -15,7 +15,7 @@ import { awardSummary, type AwardType, useAwards } from "@/lib/providers/wikidat
 import { mergeBundledPersonAwards } from "@/lib/awards-history";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 import { useRankings } from "@/lib/rankings";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useTopRankModal, type TopRankDept } from "@/lib/top-rank-modal";
 import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
@@ -46,7 +46,7 @@ import {
 
 export function PersonView({ personId }: { personId: number }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { rank } = useRankings();
   const { openMeta } = useViewActions();
   const { open: openTopRank } = useTopRankModal();

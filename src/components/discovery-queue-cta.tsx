@@ -3,7 +3,7 @@ import { useRef } from "react";
 import type { FeedItem } from "@/lib/feed";
 import { useT } from "@/lib/i18n";
 import { rpdbPoster } from "@/lib/providers/rpdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { useViewActions } from "@/lib/view";
 import { artAtWidth } from "@/lib/image-rung";
@@ -11,7 +11,7 @@ import { artAtWidth } from "@/lib/image-rung";
 const DEPTH = [12, 21, 9, 23, 14, 17];
 
 export function DiscoveryQueueCta({ items, title }: { items: FeedItem[]; title?: string }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const { openQueue } = useViewActions();
   const t = useT();
   const reduce = useReducedMotion();

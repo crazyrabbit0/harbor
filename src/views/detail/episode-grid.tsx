@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { SpoilerMask } from "@/lib/spoilers";
 import { EpisodeGridCard } from "./episode-grid-card";
 import type { GridEpisode, Progress } from "./episode-grid-types";
@@ -27,7 +27,10 @@ export function EpisodeGrid({
     sourceMetaId?: string,
   ) => void;
 }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    episodeCardScale: s.episodeCardScale,
+    episodeSort: s.episodeSort,
+  }));
   const sort = settings.episodeSort;
   const wrapRef = useRef<HTMLDivElement>(null);
   const displayed = useMemo(

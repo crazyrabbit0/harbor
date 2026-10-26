@@ -1,11 +1,11 @@
 import { useEffect, useState } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { GamesIcon } from "./games-icon";
 import "./games-nav-icon.css";
 
 export function GamesNavIcon({ hovered = false }: { hovered?: boolean }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ navIconAnimations: s.navIconAnimations }));
   const reducedMotion = useReducedMotion();
   const enabled = settings.navIconAnimations && !reducedMotion;
   const [pressing, setPressing] = useState(false);

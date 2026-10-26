@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useRankings, type PersonEntry } from "./rankings";
-import { useSettings } from "./settings";
+import { useSettingsSelector } from "./settings";
 import {
   fetchRankList,
   peekRankSnapshot,
@@ -47,7 +47,7 @@ export function usePeopleRankings({
   country: string | null;
   nonce?: number;
 }): PeopleRankState {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const rankings = useRankings();
   const [state, setState] = useState<PeopleRankState>({
     status: "loading",

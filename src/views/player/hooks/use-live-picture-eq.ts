@@ -1,10 +1,10 @@
 import { useEffect, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { PICTURE_KEYS } from "@/views/settings/mpv-panel/dials";
 
 export function useLivePictureEq(bridgeRef: RefObject<PlayerBridge | null>, srcKey: string) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ mpvTweaks: s.mpvTweaks }));
   const mpvTweaks = settings.mpvTweaks;
   useEffect(() => {
     const bridge = bridgeRef.current;

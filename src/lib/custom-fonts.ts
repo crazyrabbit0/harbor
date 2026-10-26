@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSettings } from "./settings";
+import { useSettingsSelector, useSettingsUpdate } from "./settings";
 import { deleteFontData, saveFontData } from "./font-storage";
 import { randomUuid } from "./uuid";
 
@@ -13,7 +13,8 @@ const EXT_FORMAT: Record<string, string> = {
 const MAX_BYTES = 32 * 1024 * 1024;
 
 export function useCustomFonts() {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ customFonts: s.customFonts }));
+  const update = useSettingsUpdate();
   const fonts = settings.customFonts ?? [];
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);

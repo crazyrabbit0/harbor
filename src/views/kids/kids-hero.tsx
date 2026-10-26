@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { tmdbLogo } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 
 export function KidsHero({ featured }: { featured: Meta[] }) {
@@ -57,7 +57,7 @@ export function KidsHero({ featured }: { featured: Meta[] }) {
 }
 
 function KidsHeroCard({ meta, index, onOpen }: { meta: Meta; index: number; onOpen: () => void }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const art = upsizeCard(meta.background) || meta.poster;
   const [logo, setLogo] = useState<string | undefined>(meta.logo);
   useEffect(() => {

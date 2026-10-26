@@ -6,13 +6,13 @@ import { type Topic } from "@/lib/feed/genre-topics";
 import { useT } from "@/lib/i18n";
 import { useDedupOnSeenIds } from "@/lib/feed/seen-ids";
 import { tmdbDiscover, tmdbResolveKeywordIds } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { MAX_PAGES, MIN_INITIAL_FILL, SpotlightGateContext } from "./spotlight-gate";
 
 export function TopicSection({ topic, mediaType }: { topic: Topic; mediaType: "movie" | "tv" }) {
   const t = useT();
   const posterRow = usePosterRow();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const dedup = useDedupOnSeenIds(`topic:${mediaType}:${topic.id}`);
   const gate = useContext(SpotlightGateContext);
   const [items, setItems] = useState<Meta[] | null>(null);

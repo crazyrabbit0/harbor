@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useGamepads, type GamepadInfo } from "@/lib/gamepad/store";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 // The controller art is ~230 KB and only shows when a pad connects, so it stays out of the startup bundle.
 const ControllerArt = lazy(() =>
@@ -21,7 +21,9 @@ function trimName(name: string): string {
 
 export function ControllerConnectedToast() {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    controllerSupportEnabled: s.controllerSupportEnabled,
+  }));
   const pads = useGamepads();
   const [pad, setPad] = useState<GamepadInfo | null>(null);
   const [shown, setShown] = useState(false);

@@ -6,7 +6,7 @@ import type { ScoredStream } from "@/lib/streams/types";
 import { StremioRow } from "./stremio-row";
 import { FACET_DIMS, facetOptions, matchesFacets, type FacetState } from "./stream-facets";
 import { addonInstanceKey, buildAddonOptions } from "./picker-utils";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import type { CustomStreamFilter } from "@/lib/streams/custom-filters";
 import { FacetMenuRow } from "./facet-menu-row";
@@ -41,7 +41,11 @@ export function StremioLayout({
   const [filter, setFilter] = useState<string>("all");
   const [filterOpen, setFilterOpen] = useState(false);
   const [facet, setFacet] = useState<FacetState>({});
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    activeStreamFilterId: s.activeStreamFilterId,
+    customStreamFilters: s.customStreamFilters,
+  }));
+  const update = useSettingsUpdate();
   const customFilters = settings.customStreamFilters;
   const activeFilterId = settings.activeStreamFilterId;
   const setActiveFilterId = (id: string | null) => update({ activeStreamFilterId: id });

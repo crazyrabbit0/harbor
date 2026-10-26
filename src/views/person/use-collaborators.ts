@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createRequestScheduler } from "@/lib/request-scheduler";
 import { tmdbTitleCredits } from "@/lib/providers/tmdb/tmdb-title-credits";
 import type { PersonCredit, PersonDetail } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { readCollaborators, writeCollaborators } from "./collaborator-cache";
 import { rankCollaborators, type Collaborator, type CollaboratorTitle } from "./collaborator-rank";
 import { dedupeByMedia, isCameoOrGuest, notableScore } from "./person-utils";
@@ -31,7 +31,7 @@ function onIdle(cb: () => void): () => void {
 }
 
 export function useCollaborators(person: PersonDetail | null): Collaborator[] {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const personId = person?.id ?? 0;
   const sample = useMemo(() => (person ? pickSample(person) : []), [person]);
   const [people, setPeople] = useState<Collaborator[]>(

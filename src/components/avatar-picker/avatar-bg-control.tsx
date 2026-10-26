@@ -1,6 +1,6 @@
 import { Star } from "lucide-react";
 import { ColorPopoverTrigger } from "@/views/settings/color-picker";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 
 const PRESETS = [
@@ -23,7 +23,7 @@ export function AvatarBgControl({
   onChange: (color: string) => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ harborColor: s.harborColor }));
   const harborColor = settings.harborColor;
   const usingHarbor = !!harborColor && value.toLowerCase() === harborColor.toLowerCase();
   const isPreset = PRESETS.includes(value.toLowerCase());

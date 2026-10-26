@@ -1,10 +1,11 @@
 import { ListChecks } from "lucide-react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useKnobAnim } from "@/lib/knob-anim";
 import { useT } from "@/lib/i18n";
 
 export function GuestPickToggle() {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ togetherGuestsPick: s.togetherGuestsPick }));
+  const update = useSettingsUpdate();
   const t = useT();
   const on = settings.togetherGuestsPick;
   const knob = useKnobAnim(on);

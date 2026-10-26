@@ -9,7 +9,7 @@ import {
 } from "@/lib/manual-watched";
 import { pushAnimeMarks } from "@/lib/anime-tracker-marks";
 import { syncAnimeWatchedToStremio } from "@/lib/anime-stremio-watched";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { airedOnly } from "../helpers";
 import { animeSeasonKey } from "./anime-season-key";
 
@@ -19,7 +19,10 @@ export function useAnimeWatchedRouting(
   trackId?: string,
   imdbId?: string | null,
 ) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    anilistAutoSync: s.anilistAutoSync,
+    malAutoSync: s.malAutoSync,
+  }));
   const byId = useMemo(() => {
     const m = new Map<string, Meta>();
     for (const f of franchise) m.set(f.meta.id, f.meta);

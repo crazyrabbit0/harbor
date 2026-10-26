@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { type MetaFilter, useViewSelector } from "@/lib/view";
 import { useTogether } from "@/lib/together/provider";
 import { SERVICES } from "@/lib/providers/streaming";
@@ -85,7 +85,17 @@ function personBrowse(name: string, profilePath: string | null): BrowsePresence 
 }
 
 export function useDiscordPresence(): void {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    discordHideTitle: s.discordHideTitle,
+    discordMusicPresence: s.discordMusicPresence,
+    discordRichPresence: s.discordRichPresence,
+    discordShowPartyJoin: s.discordShowPartyJoin,
+    discordShowPoster: s.discordShowPoster,
+    discordShowTimestamp: s.discordShowTimestamp,
+    discordShowWhenBrowsing: s.discordShowWhenBrowsing,
+    discordShowWhenPaused: s.discordShowWhenPaused,
+    tmdbKey: s.tmdbKey,
+  }));
   const { topKind, service, meta, awardType, animeAwardSource, filter, personId } = useViewSelector(
     (v) => ({
       topKind: v.topKind,

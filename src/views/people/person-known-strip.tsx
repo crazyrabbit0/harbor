@@ -1,7 +1,7 @@
 import { AwardLogo, laurelColorFor } from "@/components/icons/award-logo";
 import { usePosterChain } from "@/components/poster";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import type { Meta } from "@/lib/cinemeta";
 import type { TopTitle } from "@/lib/harbor-rank";
 import type { KnownForEntry } from "@/lib/rankings";
@@ -120,7 +120,7 @@ export function PersonKnownStrip({
 
 function KnownTile({ tile, size, onOpen }: { tile: Tile; size: StripSize; onOpen: () => void }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const dwell = useHoverDwell();
   const raw = tile.posterPath
     ? `https://image.tmdb.org/t/p/${RAW_SIZE[size]}${tile.posterPath}`

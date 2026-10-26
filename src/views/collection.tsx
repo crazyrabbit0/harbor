@@ -3,13 +3,13 @@ import { PickCard } from "@/components/pick-card";
 import { ScaledBlur } from "@/components/scaled-blur";
 import type { Meta } from "@/lib/cinemeta";
 import { tmdbCollection, type TmdbCollection } from "@/lib/providers/tmdb";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useScrollMemory } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 
 export function CollectionView({ collectionId }: { collectionId: number }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [data, setData] = useState<TmdbCollection | null>(null);
   const [loading, setLoading] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);

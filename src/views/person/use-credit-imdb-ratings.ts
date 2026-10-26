@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { harborImdbTitle, harborImdbTitleCached } from "@/lib/providers/harbor-imdb";
 import { creditToMeta, tmdbImdbCached, tmdbImdbId, type PersonCredit } from "@/lib/providers/tmdb";
 import { createRequestScheduler } from "@/lib/request-scheduler";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 
 const scheduler = createRequestScheduler({ concurrency: 4 });
 
@@ -18,7 +18,7 @@ function seedFromCache(ids: string[]): Map<string, string> {
 }
 
 export function useCreditImdbRatings(credits: PersonCredit[]): Map<string, string> {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const idKey = credits.map((c) => creditToMeta(c).id).join("|");
   const ids = useMemo(() => (idKey ? idKey.split("|") : []), [idKey]);
   const [ratings, setRatings] = useState<Map<string, string>>(() => seedFromCache(ids));

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import cfTokenTutorial from "@/assets/cf-token-tutorial.png";
 import cloudflareLogoPng from "@/assets/cloudflare.png";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { deployRelay, listAccounts, type CfAccount } from "@/lib/together/cf-deploy";
 import { openUrl } from "@/lib/window";
 
@@ -17,7 +17,11 @@ export function TogetherDeployModal({
   inline?: boolean;
 }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    togetherCfAccountId: s.togetherCfAccountId,
+    togetherCfToken: s.togetherCfToken,
+  }));
+  const update = useSettingsUpdate();
   const [phase, setPhase] = useState<Phase>(settings.togetherCfToken ? "deploying" : "intro");
   const [token, setToken] = useState(settings.togetherCfToken);
   const [accounts, setAccounts] = useState<CfAccount[]>([]);

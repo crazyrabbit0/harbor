@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Loader2, X } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { searchAll } from "@/lib/search";
 import { mediaTag } from "@/lib/social/bbcode";
 import { Poster } from "@/components/poster";
@@ -25,7 +25,7 @@ export function MediaPicker({
   onClose: () => void;
 }) {
   const t = useT();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
   const [busy, setBusy] = useState(false);

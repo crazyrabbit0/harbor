@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { AgeGateModal } from "@/components/age-gate-modal";
 import { HarborLoader } from "@/components/harbor-loader";
 import { useScrollMemory, useView } from "@/lib/view";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { AddonsMosaicBackdrop } from "@/components/addons-mosaic-backdrop";
 import { useAddonsCatalog, type ResolvedAddon } from "@/lib/addons-store/store";
@@ -67,7 +67,8 @@ void Library;
 
 export function AddonsView({ active = true }: { active?: boolean }) {
   const t = useT();
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ showAdultAddons: s.showAdultAddons }));
+  const update = useSettingsUpdate();
   const { authKey } = useAuth();
   const { byId, installedIds, installedAddons, loading, refetch } = useAddonsCatalog(
     settings.showAdultAddons,

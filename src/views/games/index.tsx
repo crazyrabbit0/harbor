@@ -15,7 +15,7 @@ import { GameDiscoveryCollection, GameMilestones } from "./game-discovery-collec
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useSectionBack } from "@/lib/section-back";
 import {
   enrichGameDiscovery,
@@ -166,7 +166,7 @@ function GamesViewContent({
   const externalReturn = useRef(false);
   const mediaReturn = useRef<ReturnFocus | null>(null);
   const [leavingExternal, setLeavingExternal] = useState(false);
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ gamesOpenInLibrary: s.gamesOpenInLibrary }));
   const gamesHomeTab = settings.gamesOpenInLibrary ? "library" : "explore";
   const [tab, setTab] = useState<GameDestination>(gamesHomeTab);
   useEffect(() => {

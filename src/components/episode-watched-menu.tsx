@@ -10,7 +10,7 @@ import {
   type ManualWatchedMeta,
 } from "@/lib/manual-watched";
 import { isEpisodeHidden, setEpisodeHidden } from "@/lib/hidden-episodes";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { clearResume, readResumeEntry } from "@/lib/resume";
 import { markEpisodesWatched, unmarkEpisodeWatched } from "@/lib/simkl/history";
 import { stremioIdToSimklTarget } from "@/lib/simkl/ids";
@@ -49,7 +49,7 @@ export function EpisodeWatchedMenu({
 }) {
   const t = useT();
   const { isConnected: simklConnected } = useSimkl();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ episodeHiding: s.episodeHiding }));
   const hidden = isEpisodeHidden(metaId, target.season, target.episode);
 
   useEffect(() => {

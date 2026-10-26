@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import { useMemo } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { usePosterChain } from "@/components/poster";
 import { metaById } from "@/lib/voyage/store";
 import { isVoyageWatched, voyageProgress } from "@/lib/voyage/progress";
@@ -97,7 +97,7 @@ export function RouteRail({ voyage, onPlay }: { voyage: Voyage; onPlay?: (meta: 
 }
 
 function SlotPoster({ meta, dim }: { meta: Meta; dim: boolean }) {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
   const poster = usePosterChain(
     settings.rpdbKey,
     meta.id,

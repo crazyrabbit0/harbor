@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { isRtl, LANGUAGES, setUiLanguage, useT, type UiLanguage } from "@/lib/i18n";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 const GREETING_HOLD_MS = 3000;
 
 export function LanguageStep() {
-  const { settings, update } = useSettings();
+  const settings = useSettingsSelector((s) => ({ uiLanguage: s.uiLanguage }));
+  const update = useSettingsUpdate();
   const t = useT();
   const reduce = useReducedMotion();
   const [drift, setDrift] = useState(0);

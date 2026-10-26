@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
-import { useSettings } from "@/lib/settings";
+import { useSettingsSelector } from "@/lib/settings";
 import { useViewSelector } from "@/lib/view";
 import { dispatchTvNav } from "@/lib/keyboard-navigation";
 import { isGamepadCaptured } from "./capture";
@@ -91,7 +91,13 @@ function seedList(): void {
 }
 
 export function useGamepad(): void {
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    controllerBackgroundInput: s.controllerBackgroundInput,
+    controllerDeadzone: s.controllerDeadzone,
+    controllerInitialDelayMs: s.controllerInitialDelayMs,
+    controllerRepeatMs: s.controllerRepeatMs,
+    controllerSupportEnabled: s.controllerSupportEnabled,
+  }));
   const { player } = useViewSelector((v) => ({ player: !!v.player }));
   const enabled = settings.controllerSupportEnabled;
   const backgroundInput = settings.controllerBackgroundInput;
