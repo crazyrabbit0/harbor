@@ -87,7 +87,8 @@ export function VideoPipApp() {
         if (!payload || payload.event !== "property-change") return;
         const { name, data } = payload;
         if (name === "time-pos" && typeof data === "number") {
-          if (!scrubbing.current) setPosition(data);
+          // The reused window stays alive while hidden; pip://detached-entered re-reads the position.
+          if (!scrubbing.current && !document.hidden) setPosition(data);
         } else if (name === "duration" && typeof data === "number") {
           setDuration(data);
         } else if (name === "pause" && typeof data === "boolean") {
@@ -123,6 +124,10 @@ export function VideoPipApp() {
           .catch(() => {});
       }
     };
+    const onVisible = () => {
+      if (!document.hidden) refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
     void listen("pip://detached-entered", refresh).then((stop) => {
       if (cancelled) stop();
       else {
@@ -132,6 +137,7 @@ export function VideoPipApp() {
     });
     return () => {
       cancelled = true;
+      document.removeEventListener("visibilitychange", onVisible);
       off?.();
     };
   }, []);

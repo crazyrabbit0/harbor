@@ -20,7 +20,10 @@ async function renderStats(values: Record<string, number>) {
       readFileSync("src/components/player/stats-overlay.tsx", "utf8"),
       {
         react: {
-          useState: (initial: unknown) => [stats ?? initial, (next: unknown) => (stats = next)],
+          useState: (initial: unknown) => [
+            stats ?? initial,
+            (next: unknown) => (stats = typeof next === "function" ? next(stats ?? initial) : next),
+          ],
           useEffect: (fn: () => void) => (effect = fn),
         },
         "react/jsx-runtime": {

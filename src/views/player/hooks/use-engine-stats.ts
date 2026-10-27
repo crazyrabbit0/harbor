@@ -11,6 +11,20 @@ import { isBundledEngineUrl, isLocalEngineUrl } from "@/lib/stremio-server";
 const POLL_MS = 2000;
 const GROWTH_THRESHOLD = 64 * 1024;
 
+// A stalled or finished torrent repeats the same numbers; keeping the old object skips the player re-render.
+function sameStats(a: EngineStats, b: EngineStats): boolean {
+  return (
+    a.peers === b.peers &&
+    a.unchoked === b.unchoked &&
+    a.downloaded === b.downloaded &&
+    a.downloadSpeed === b.downloadSpeed &&
+    a.streamProgress === b.streamProgress &&
+    a.streamLen === b.streamLen &&
+    a.peerSearchRunning === b.peerSearchRunning &&
+    a.sawData === b.sawData
+  );
+}
+
 export function useEngineStats(args: {
   url: string;
   infoHash: string | null;
@@ -62,7 +76,7 @@ export function useEngineStats(args: {
 
       const next = res.stats;
       prevRef.current = next;
-      setStats(next);
+      setStats((current) => (current && sameStats(current, next) ? current : next));
 
       if ((next.peers > 0 || next.unchoked > 0) && firstPeerSeenAtRef.current == null) {
         firstPeerSeenAtRef.current = now;
