@@ -30,7 +30,8 @@ export function SvpIndicator({
       setActive(false);
       return;
     }
-    if (!pageVisible) return;
+    // The badge is only seen with the chrome up, so hidden chrome skips the IPC poll and showing it re-reads once.
+    if (!pageVisible || !chromeVisible) return;
     let cancelled = false;
     const tick = async () => {
       const vf = await invoke("mpv_get_property", { name: "vf" }).catch(() => null);
@@ -45,7 +46,7 @@ export function SvpIndicator({
       window.clearInterval(id);
       window.removeEventListener("harbor:svp-failed", onFailed);
     };
-  }, [enabled, pageVisible]);
+  }, [enabled, pageVisible, chromeVisible]);
 
   if (!enabled || !active) return null;
 

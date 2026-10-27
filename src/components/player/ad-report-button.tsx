@@ -8,7 +8,7 @@ import { submitAdReport, type AdRange } from "@/lib/ad-report/submit";
 import { withinAdWindow } from "@/lib/ad-report/window";
 import { sourceKey } from "@/lib/skip-intro/fingerprint";
 import { activeSegment, type SkipSegment } from "@/lib/skip-intro";
-import { usePlaybackPosition } from "@/lib/player/playback-clock";
+import { usePlaybackPositionGated } from "@/lib/player/playback-clock";
 import { nextEpisodeLead } from "@/views/player/skip-pill-container";
 import { shouldShowAdReport } from "@/views/player/should-show-adreport";
 import { AdReportModal } from "./ad-report-modal";
@@ -38,7 +38,6 @@ export function AdReportButton({
   const update = useSettingsUpdate();
   const t = useT();
   const [open, setOpen] = useState(false);
-  const positionSec = usePlaybackPosition();
 
   const source = sourceKey(src.streamRef, src.url);
   const isDirectStream = !!src.isLive || source.startsWith("u_");
@@ -48,6 +47,7 @@ export function AdReportButton({
     isDirectStream,
     recentRelease: withinAdWindow(meta),
   });
+  const positionSec = usePlaybackPositionGated(show);
   if (!show) return null;
 
   const leadSec = nextEpisodeLead(settings.nextEpisodeLeadSec, durationSec);

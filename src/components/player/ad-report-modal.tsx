@@ -1,7 +1,7 @@
 import { createPortal } from "react-dom";
 import { HelpCircle, Plus, X } from "lucide-react";
 import { useState } from "react";
-import { usePlaybackPosition } from "@/lib/player/playback-clock";
+import { usePlaybackPositionGated } from "@/lib/player/playback-clock";
 import { useT } from "@/lib/i18n";
 import { useEscape } from "@/components/modal-shell";
 import type { AdRange } from "@/lib/ad-report/submit";
@@ -19,7 +19,7 @@ export function AdReportModal({
 }) {
   const t = useT();
   useEscape(onClose, open);
-  const position = usePlaybackPosition();
+  const position = usePlaybackPositionGated(open);
   const [view, setView] = useState<"report" | "about">("report");
   const [ranges, setRanges] = useState<AdRange[]>([]);
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
