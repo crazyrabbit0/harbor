@@ -1,6 +1,6 @@
 [package]
 name = "harbor-setup"
-version = "0.9.219"
+version = "0.9.220"
 edition = "2021"
 rust-version = "1.77"
 default-run = "harbor-setup"
