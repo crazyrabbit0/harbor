@@ -524,6 +524,40 @@ function webStringFetch(input: string, init?: RequestInit): Promise<Response> {
   return fetch(rewritten.url, rewritten.init);
 }
 
+const inflightGets = new Map<string, Promise<Response>>();
+
+// Identical concurrent GETs share one IPC request; a signal or body opts out, since one caller's abort must not cancel another.
+function sharedGetKey(url: string, init?: RequestInit): string | null {
+  if (init?.signal || init?.body != null) return null;
+  if ((init?.method ?? "GET").toUpperCase() !== "GET") return null;
+  if (init?.cache === "no-store" || init?.cache === "reload") return null;
+  let headers: string;
+  try {
+    headers = [...new Headers(init?.headers as HeadersInit | undefined)]
+      .map(([k, v]) => `${k}:${v}`)
+      .sort()
+      .join("\n");
+  } catch {
+    return null;
+  }
+  return `${url}\n${init?.redirect ?? ""}\n${headers}`;
+}
+
+export function dedupedGet(
+  url: string,
+  init: RequestInit | undefined,
+  run: (url: string, init?: RequestInit) => Promise<Response>,
+): Promise<Response> {
+  const key = sharedGetKey(url, init);
+  if (key == null) return run(url, init);
+  let shared = inflightGets.get(key);
+  if (!shared) {
+    shared = run(url, init).finally(() => inflightGets.delete(key));
+    inflightGets.set(key, shared);
+  }
+  return shared.then((res) => res.clone());
+}
+
 export const safeFetch: typeof fetch = (input, init) => {
   const target = urlOf(input);
   if (isBlockedUrl(target)) {
@@ -535,7 +569,7 @@ export const safeFetch: typeof fetch = (input, init) => {
     return Promise.reject(new TrackerBlockedError(host));
   }
   if (isTauri) {
-    if (typeof input === "string") return tauriStringFetch(input, init);
+    if (typeof input === "string") return dedupedGet(input, init, tauriStringFetch);
     if (input instanceof URL) return tauriStringFetch(input.href, init);
     return materializeRequest(input, init).then((request) =>
       tauriStringFetch(request.url, request.init),
