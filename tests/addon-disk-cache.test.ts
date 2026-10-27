@@ -57,6 +57,18 @@ test("a stored meta serves the first read of a session and later reads refetch",
   assert.equal(loads, 1);
 });
 
+test("a series meta past its freshness limit is served at once and refreshed later", async () => {
+  const hours = 60 * 60 * 1000;
+  await idbCacheSet(`${META_DISK_PREFIX}u-stale`, { at: Date.now() - 5 * hours, data: { v: 1 } });
+  let loads = 0;
+  const value = await cachedAddonMeta("series", "u-stale", async () => {
+    loads += 1;
+    return { value: { v: 2 }, cacheable: true, chars: 5 };
+  });
+  assert.deepEqual(value, { v: 1 });
+  assert.equal(loads, 0, "the stale copy answers without waiting on the network");
+});
+
 test("non-video meta types bypass the disk cache", async () => {
   let loads = 0;
   const load = async () => {
