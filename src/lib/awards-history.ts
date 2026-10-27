@@ -70,6 +70,19 @@ export function subscribeBundledAwards(fn: () => void): () => void {
   return () => listeners.delete(fn);
 }
 
+/** Requests the table in an idle slot; consumers call it on mount so a launch with no award UI never parses it. */
+export function ensureBundledAwardsIdle(): void {
+  if (requested || idleQueued) return;
+  idleQueued = true;
+  const run = () => {
+    idleQueued = false;
+    ensureBundledAwards();
+  };
+  if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 2000 });
+  else setTimeout(run, 0);
+}
+let idleQueued = false;
+
 export function ensureBundledAwards(): void {
   if (requested) return;
   requested = true;
