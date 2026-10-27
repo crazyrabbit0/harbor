@@ -1140,8 +1140,15 @@ pub struct TorrentListItem {
     pub state: String,
 }
 
+// Async so Tauri runs it off the main thread; the Downloads view polls it every 1.5 s.
 #[tauri::command]
-pub fn torrent_engine_list() -> Vec<TorrentListItem> {
+pub async fn torrent_engine_list() -> Vec<TorrentListItem> {
+    tokio::task::spawn_blocking(list_items)
+        .await
+        .unwrap_or_default()
+}
+
+fn list_items() -> Vec<TorrentListItem> {
     let Some(session) = current_session() else {
         return Vec::new();
     };
