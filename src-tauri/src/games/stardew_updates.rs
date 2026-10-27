@@ -56,8 +56,10 @@ fn short(value: &Value, key: &str, max: usize) -> Option<String> {
         .map(|s| s.trim().into())
 }
 fn note(value: &str) -> String {
-    let re = regex::Regex::new(r"(?s)<[^>]*>").expect("static markup expression");
-    let text = re.replace_all(value, " ").replace("&nbsp;", " ");
+    static RE: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| {
+        regex::Regex::new(r"(?s)<[^>]*>").expect("static markup expression")
+    });
+    let text = RE.replace_all(value, " ").replace("&nbsp;", " ");
     quick_xml::escape::unescape(&text)
         .unwrap_or(std::borrow::Cow::Borrowed(&text))
         .split_whitespace()

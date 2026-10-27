@@ -33,6 +33,17 @@ pub fn file(v: &Value, path: String) -> Result<File> {
     Ok(File { path, sha1, url, size })
 }
 
+// Every library in a version manifest repeats the same few os rule patterns, so compile each once.
+fn rule_regex(test: &str) -> Result<regex::Regex> {
+    static CACHE: std::sync::Mutex<Option<HashMap<String, regex::Regex>>> = std::sync::Mutex::new(None);
+    let mut guard = CACHE.lock().unwrap_or_else(|e| e.into_inner());
+    let cache = guard.get_or_insert_with(HashMap::new);
+    if let Some(re) = cache.get(test) { return Ok(re.clone()); }
+    let re = regex::Regex::new(test).map_err(|_| "runtime_rules")?;
+    if cache.len() < 64 { cache.insert(test.to_string(), re.clone()); }
+    Ok(re)
+}
+
 // Mojang rules are ordered; the last matching action wins. Unknown rule kinds
 // fail closed instead of accidentally enabling unsupported launch features.
 pub fn allowed(value: &Value, os: &str, arch: &str, version: &str) -> Result<bool> {
@@ -51,7 +62,7 @@ pub fn allowed(value: &Value, os: &str, arch: &str, version: &str) -> Result<boo
                 if let Some(test) = spec.get(key) {
                     let test = test.as_str().filter(|v| v.len() <= 128).ok_or("runtime_rules")?;
                     if key == "name" { matches &= test == current; }
-                    else { matches &= regex::Regex::new(test).map_err(|_| "runtime_rules")?.is_match(current); }
+                    else { matches &= rule_regex(test)?.is_match(current); }
                 }
             }
         }
