@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 
-function harness() {
+function harness(disk = new Map<string, { marker: string; body: unknown }>()) {
   let marker: string | null = "revision-1";
   let reset: () => void = () => {};
   let response: unknown = null;
@@ -11,6 +11,13 @@ function harness() {
   let requests = 0;
   const mocks: Record<string, unknown> = {
     "./activities/gate": { currentActivitiesAll: () => (gate ? gate() : Promise.resolve(marker)) },
+    "./activities/disk": {
+      readSimklSnapshot: async (path: string, mark: string | null) =>
+        mark !== null && disk.get(path)?.marker === mark ? disk.get(path)!.body : undefined,
+      writeSimklSnapshot: (path: string, mark: string | null, body: unknown) => {
+        if (mark !== null) disk.set(path, { marker: mark, body });
+      },
+    },
     "./client": {
       simklRequest: async (path: string, opts?: any) => {
         requests++;
@@ -114,6 +121,31 @@ test("concurrent status and watched readers share a request and reuse unchanged 
   assert.equal(h.requests, 1);
 });
 
+test("a restart with an unchanged activity watermark reuses the stored library without a pull", async () => {
+  const disk = new Map<string, { marker: string; body: unknown }>();
+  const first = harness(disk);
+  first.setResponse(shows);
+  await first.loadSimklWatchedMap();
+  assert.equal(first.requests, 1);
+  const next = harness(disk);
+  next.setResponse(new Error("must not pull"));
+  assert.deepEqual([...(await next.loadSimklWatchedMap()).get("tt100")], ["1:1"]);
+  assert.equal(next.requests, 0);
+  next.setMarker("revision-2");
+  next.reset();
+  next.setResponse(null);
+  assert.equal((await next.loadSimklWatchedMap()).size, 0);
+  assert.equal(next.requests, 1);
+});
+
+test("a failed pull is never stored for the next launch", async () => {
+  const disk = new Map<string, { marker: string; body: unknown }>();
+  const first = harness(disk);
+  first.setResponse(new Error("offline"));
+  await assert.rejects(first.loadSimklWatchedMap(), /offline/);
+  assert.equal(disk.size, 0);
+});
+
 test("a session change while waiting for activities cannot seed the new account's cache", async () => {
   const h = harness();
   let release!: (value: string) => void;
@@ -160,6 +192,7 @@ test("completion times stay attached to their snapshot and all provider aliases"
   assert.equal(data.watchedAt.get("tt100").get("1:1"), Date.parse(watchedAt));
   assert.equal(data.watchedAt.get("tt100"), data.watchedAt.get("tmdb:tv:100"));
   h.reset();
+  h.setMarker("other-account-revision");
   h.setResponse(null);
   assert.equal((await h.loadSimklProgress()).watchedAt.size, 0);
   assert.equal(data.watchedAt.get("tt100").get("1:1"), Date.parse(watchedAt));

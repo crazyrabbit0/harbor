@@ -50,6 +50,10 @@ function harness(responses = []) {
       SIMKL_USER_AGENT: "Harbor/Test",
     },
     [path.join(root, "activities/gate.ts")]: { currentActivitiesAll: async () => "unchanged" },
+    [path.join(root, "activities/disk.ts")]: {
+      readSimklSnapshot: async () => undefined,
+      writeSimklSnapshot: () => {},
+    },
     [path.join(root, "ids.ts")]: { simklTargetIds: (value) => value },
   };
   const cache = new Map();

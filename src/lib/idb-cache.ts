@@ -59,6 +59,8 @@ export const TRIMMABLE_PREFIXES = [
   "addon.catalog.v1:",
   "addon.meta.v1:",
   "imdb.rating.v1:",
+  "simkl.allitems.v1:",
+  "trakt.sync.v1:",
   "harbor.sa.v1.",
 ];
 

@@ -1,3 +1,4 @@
+import { readSimklSnapshot, writeSimklSnapshot } from "./activities/disk";
 import { currentActivitiesAll } from "./activities/gate";
 import { simklRequest } from "./client";
 import { simklTargetIds } from "./ids";
@@ -52,15 +53,24 @@ async function fetchByStatus(status: string): Promise<SimklItem[]> {
     if (all !== null && all === hit.marker) return hit.val;
     if (all === null && Date.now() - hit.at < WATCHLIST_TTL_MS) return hit.val;
   }
-  const val = fetchByStatusRaw(status);
+  const val = fetchByStatusRaw(status, all);
   statusCache.set(status, { at: Date.now(), marker: all, val });
   return val;
 }
 
-async function fetchByStatusRaw(status: string): Promise<SimklItem[]> {
-  const data = await simklRequest<RawAllItems>(`/sync/all-items/all/${status}?extended=full`).catch(
-    () => ({}) as RawAllItems,
-  );
+async function fetchByStatusRaw(status: string, marker: string | null): Promise<SimklItem[]> {
+  const path = `/sync/all-items/all/${status}?extended=full`;
+  const stored = (await readSimklSnapshot(path, marker)) as RawAllItems | null | undefined;
+  let data: RawAllItems;
+  if (stored !== undefined) data = stored ?? {};
+  else {
+    const fetched = await simklRequest<RawAllItems | null>(path).then(
+      (body) => ({ ok: true as const, body }),
+      () => ({ ok: false as const, body: null }),
+    );
+    if (fetched.ok) writeSimklSnapshot(path, marker, fetched.body);
+    data = fetched.body ?? {};
+  }
   const out: SimklItem[] = [];
   for (const e of data.movies ?? []) {
     const m = e.movie;

@@ -158,8 +158,19 @@ async function acquireSlot(method: string): Promise<void> {
 // Concurrent identical GETs for one token and profile share a queued request.
 const inflightGets = new Map<string, Promise<unknown>>();
 
+const writeListeners = new Set<() => void>();
+
+/** Runs after every Simkl write, so caches keyed on the activities watermark re-read it. */
+export function onSimklWrite(fn: () => void): () => void {
+  writeListeners.add(fn);
+  return () => writeListeners.delete(fn);
+}
+
 export function simklRequest<T>(path: string, opts: SimklRequestOptions = {}): Promise<T> {
-  if ((opts.method ?? "GET") !== "GET") return queueRequest<T>(path, opts);
+  if ((opts.method ?? "GET") !== "GET")
+    return queueRequest<T>(path, opts).finally(() => {
+      for (const fn of writeListeners) fn();
+    });
   const usesSession = !opts.token && opts.authed !== false;
   const token = opts.token || (usesSession ? getSession()?.accessToken : "") || "";
   const key = `${activeProfileId()}|${token}|${path}`;

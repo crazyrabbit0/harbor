@@ -1,4 +1,4 @@
-import { simklRequest } from "../client";
+import { onSimklWrite, simklRequest } from "../client";
 import { getSession, subscribeSession } from "../session";
 
 // SIMKL rule: never call /sync/all-items without first checking /sync/activities.
@@ -39,6 +39,7 @@ export async function currentActivitiesAll(): Promise<string | null> {
 }
 
 subscribeSession(resetActivitiesGate);
+onSimklWrite(resetActivitiesGate);
 
 export function resetActivitiesGate(): void {
   generation += 1;
