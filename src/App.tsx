@@ -686,7 +686,12 @@ function MediaServerSyncRunner() {
       if (document.visibilityState === "visible") void refresh();
     };
     const timer = window.setInterval(() => void refresh(), MEDIA_SERVER_SYNC_MS);
-    const initial = window.setTimeout(() => void refresh(), 2500);
+    // Starts in an idle slot after launch so a library sync never competes with the first screen's fetches.
+    let idleId: number | null = null;
+    const initial = window.setTimeout(() => {
+      if (typeof requestIdleCallback !== "function") return void refresh();
+      idleId = requestIdleCallback(() => void refresh(), { timeout: 5000 });
+    }, 2500);
     const onProfile = () => {
       launchSynced.clear();
       void refresh();
@@ -698,6 +703,7 @@ function MediaServerSyncRunner() {
       cancelled = true;
       window.clearInterval(timer);
       window.clearTimeout(initial);
+      if (idleId != null) cancelIdleCallback(idleId);
       window.removeEventListener("harbor:active-profile-changed", onProfile);
       window.removeEventListener("online", refresh);
       document.removeEventListener("visibilitychange", onWake);
