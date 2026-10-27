@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -210,11 +211,28 @@ function batchWrite(fn: () => void): void {
   });
 }
 
-function Skeleton({ shape }: { shape: RowShape }) {
-  const { posterRadius: radius, hidePosterTitles } = useSettingsSelector((s) => ({
-    posterRadius: s.posterRadius,
+type SkeletonLook = { radius: number; hidePosterTitles: boolean };
+// One settings subscription per row instead of one per off-screen card.
+const SkeletonLookContext = createContext<SkeletonLook | null>(null);
+
+function useSkeletonLook(): SkeletonLook {
+  return useSettingsSelector((s) => ({
+    radius: s.posterRadius,
     hidePosterTitles: s.hidePosterTitles,
   }));
+}
+
+function Skeleton({ shape }: { shape: RowShape }) {
+  const shared = useContext(SkeletonLookContext);
+  return shared ? <SkeletonBody shape={shape} look={shared} /> : <OwnSkeleton shape={shape} />;
+}
+
+function OwnSkeleton({ shape }: { shape: RowShape }) {
+  return <SkeletonBody shape={shape} look={useSkeletonLook()} />;
+}
+
+function SkeletonBody({ shape, look }: { shape: RowShape; look: SkeletonLook }) {
+  const { radius, hidePosterTitles } = look;
   if (shape === "service") {
     return <div className="h-20 w-full rounded-xl bg-elevated/40" />;
   }
@@ -290,7 +308,12 @@ export function Row({
     posterDockMagnification: s.posterDockMagnification,
     posterDockTransitionMs: s.posterDockTransitionMs,
     rowTitleScale: s.rowTitleScale,
+    posterRadius: s.posterRadius,
   }));
+  const skeletonLook = useMemo<SkeletonLook>(
+    () => ({ radius: settings.posterRadius, hidePosterTitles: settings.hidePosterTitles }),
+    [settings.posterRadius, settings.hidePosterTitles],
+  );
   const t = useT();
   const { rememberRowScroll, recallRowScroll } = useViewActions();
   const lang = useUiLanguage();
@@ -818,85 +841,87 @@ export function Row({
       )}
       <div ref={containerRef} className="group/row relative min-w-0">
         <RowTrackContext.Provider value={trackEl}>
-          <div
-            ref={trackCb}
-            onPointerDown={onPointerDown}
-            onPointerMove={onPointerMove}
-            onPointerUp={(event) => {
-              endDrag(event);
-              if (dockEnabled && event.pointerType !== "touch") schedulePosterDock(event.clientX);
-            }}
-            onPointerCancel={(event) => {
-              endDrag(event);
-              dockPointerXRef.current = null;
-              resetPosterDock();
-            }}
-            onPointerLeave={() => {
-              dockPointerXRef.current = null;
-              resetPosterDock();
-            }}
-            onClickCapture={onClickCapture}
-            onDragStart={(e) => e.preventDefault()}
-            data-far={near ? undefined : ""}
-            className={`harbor-row-track items-start gap-5 overflow-x-auto overflow-y-hidden ${trackPad} [scroll-snap-type:x_mandatory] [&>*]:[scroll-snap-align:start] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [overflow-anchor:none] [overscroll-behavior-x:contain] [&_img]:select-none [&_img]:[-webkit-user-drag:none] ${
-              expandingCards
-                ? "harbor-expanding-card-scope harbor-expanding-row flex flex-nowrap"
-                : "grid grid-flow-col"
-            }`}
-            style={
-              {
-                "--row-poster-height": `${(cellWidth ?? effMin) * posterHeightRatio}px`,
-                ...(expandingCards
-                  ? {}
-                  : { gridAutoColumns: cellWidth != null ? `${cellWidth}px` : `${effMin}px` }),
-                transform: near ? "translateZ(0)" : undefined,
-                contain: expandingCards ? "style" : "layout style",
-              } as React.CSSProperties
-            }
-          >
-            {Children.map(children, (child, i) => {
-              const span = isValidElement(child)
-                ? (child.props as { style?: { gridColumn?: string } }).style?.gridColumn
-                : undefined;
-              const spanCount = columnSpan(span);
-              const baseWidth = (cellWidth ?? effMin) * spanCount + GAP * (spanCount - 1);
-              const expanded = expandedCard?.index === i;
-              const desiredExpandedWidth =
-                expanded && expandedCard
-                  ? (cellWidth ?? effMin) * expandedCard.widthScale
+          <SkeletonLookContext.Provider value={skeletonLook}>
+            <div
+              ref={trackCb}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={(event) => {
+                endDrag(event);
+                if (dockEnabled && event.pointerType !== "touch") schedulePosterDock(event.clientX);
+              }}
+              onPointerCancel={(event) => {
+                endDrag(event);
+                dockPointerXRef.current = null;
+                resetPosterDock();
+              }}
+              onPointerLeave={() => {
+                dockPointerXRef.current = null;
+                resetPosterDock();
+              }}
+              onClickCapture={onClickCapture}
+              onDragStart={(e) => e.preventDefault()}
+              data-far={near ? undefined : ""}
+              className={`harbor-row-track items-start gap-5 overflow-x-auto overflow-y-hidden ${trackPad} [scroll-snap-type:x_mandatory] [&>*]:[scroll-snap-align:start] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [overflow-anchor:none] [overscroll-behavior-x:contain] [&_img]:select-none [&_img]:[-webkit-user-drag:none] ${
+                expandingCards
+                  ? "harbor-expanding-card-scope harbor-expanding-row flex flex-nowrap"
+                  : "grid grid-flow-col"
+              }`}
+              style={
+                {
+                  "--row-poster-height": `${(cellWidth ?? effMin) * posterHeightRatio}px`,
+                  ...(expandingCards
+                    ? {}
+                    : { gridAutoColumns: cellWidth != null ? `${cellWidth}px` : `${effMin}px` }),
+                  transform: near ? "translateZ(0)" : undefined,
+                  contain: expandingCards ? "style" : "layout style",
+                } as React.CSSProperties
+              }
+            >
+              {Children.map(children, (child, i) => {
+                const span = isValidElement(child)
+                  ? (child.props as { style?: { gridColumn?: string } }).style?.gridColumn
                   : undefined;
-              const viewportLimit = Math.max(
-                baseWidth,
-                (trackEl?.clientWidth ?? desiredExpandedWidth ?? baseWidth) - GAP * 2,
-              );
-              const expandedWidth =
-                desiredExpandedWidth === undefined
-                  ? undefined
-                  : Math.max(baseWidth, Math.min(desiredExpandedWidth, viewportLimit));
-              return (
-                <LazyChild
-                  eager={alwaysActive || i < EAGER_COUNT}
-                  rowSeen={seen}
-                  shape={effShape}
-                  span={span}
-                  expansion={
-                    expandingCards
-                      ? {
-                          index: i,
-                          baseWidth,
-                          expandedWidth,
-                          expanded,
-                          onExpand: expandRowCard,
-                          onCollapse: collapseRowCard,
-                        }
-                      : undefined
-                  }
-                >
-                  {child}
-                </LazyChild>
-              );
-            })}
-          </div>
+                const spanCount = columnSpan(span);
+                const baseWidth = (cellWidth ?? effMin) * spanCount + GAP * (spanCount - 1);
+                const expanded = expandedCard?.index === i;
+                const desiredExpandedWidth =
+                  expanded && expandedCard
+                    ? (cellWidth ?? effMin) * expandedCard.widthScale
+                    : undefined;
+                const viewportLimit = Math.max(
+                  baseWidth,
+                  (trackEl?.clientWidth ?? desiredExpandedWidth ?? baseWidth) - GAP * 2,
+                );
+                const expandedWidth =
+                  desiredExpandedWidth === undefined
+                    ? undefined
+                    : Math.max(baseWidth, Math.min(desiredExpandedWidth, viewportLimit));
+                return (
+                  <LazyChild
+                    eager={alwaysActive || i < EAGER_COUNT}
+                    rowSeen={seen}
+                    shape={effShape}
+                    span={span}
+                    expansion={
+                      expandingCards
+                        ? {
+                            index: i,
+                            baseWidth,
+                            expandedWidth,
+                            expanded,
+                            onExpand: expandRowCard,
+                            onCollapse: collapseRowCard,
+                          }
+                        : undefined
+                    }
+                  >
+                    {child}
+                  </LazyChild>
+                );
+              })}
+            </div>
+          </SkeletonLookContext.Provider>
         </RowTrackContext.Provider>
         <EdgeArrow side="left" visible={canPrev} always={arrowsAlways} onClick={scrollPrev} />
         <EdgeArrow side="right" visible={canNext} always={arrowsAlways} onClick={scrollNext} />
