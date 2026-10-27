@@ -140,6 +140,70 @@ test("a profile save that keeps the same profile does not refetch tracker progre
   assert.equal(calls, 2, "a real profile switch still refetches");
 });
 
+test("re-reading the same account's session (secrets loading) does not refetch progress", async () => {
+  const h = fixture();
+  h.sessions.simkl = { accessToken: "tok" };
+  h.listeners.simkl();
+  await settle();
+  let calls = 0;
+  h.providers.simkl = async () => {
+    calls += 1;
+    return [item("simkl", "kept")];
+  };
+  await h.api.refreshExternalCw(true);
+  h.sessions.simkl = { accessToken: "tok" };
+  h.listeners.simkl();
+  await settle();
+  assert.equal(calls, 1);
+  assert.deepEqual(
+    h.api.listExternalCw().map((i) => i._id),
+    ["kept"],
+  );
+  h.sessions.simkl = { accessToken: "other" };
+  h.listeners.simkl();
+  await settle();
+  assert.equal(calls, 2, "a different token is a different account");
+});
+
+test("a session event carrying the tokens the last refresh used does not refetch", async () => {
+  const h = fixture();
+  let calls = 0;
+  h.providers.simkl = async () => {
+    calls += 1;
+    return [item("simkl", "kept")];
+  };
+  h.sessions.simkl = { accessToken: "tok" };
+  await h.api.refreshExternalCw(true);
+  h.sessions.simkl = { accessToken: "tok" };
+  h.listeners.simkl();
+  await settle();
+  assert.equal(calls, 1);
+});
+
+test("one tracker's account change reuses the other tracker's fresh list", async () => {
+  const h = fixture();
+  let simklCalls = 0;
+  let traktCalls = 0;
+  h.providers.simkl = async () => {
+    simklCalls += 1;
+    return [item("simkl", "s")];
+  };
+  h.providers.trakt = async () => {
+    traktCalls += 1;
+    return [item("trakt", "t")];
+  };
+  h.sessions.simkl = { accessToken: "s1" };
+  h.sessions.trakt = { accessToken: "t1" };
+  await h.api.refreshExternalCw(true);
+  h.sessions.simkl = { accessToken: "s2" };
+  h.listeners.simkl();
+  await settle();
+  assert.equal(simklCalls, 2);
+  assert.equal(traktCalls, 1);
+  await h.api.refreshExternalCw(true);
+  assert.equal(traktCalls, 2, "a plain forced refresh still asks every tracker");
+});
+
 test("changing linked accounts clears the old account even if its replacement is offline", async () => {
   const h = fixture();
   h.providers.simkl = async () => [item("simkl", "old-account")];
