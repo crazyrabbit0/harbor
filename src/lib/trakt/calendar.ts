@@ -1,4 +1,13 @@
+import { HISTORY_MARK, WATCHLIST_MARK, withTraktActivityCache } from "./activities";
 import { traktRequest } from "./client";
+
+// The personal calendar follows watched and watchlisted shows; airing times change within a day at most.
+const CALENDAR_MARK = (a: Parameters<typeof HISTORY_MARK>[0]) => {
+  const watched = HISTORY_MARK(a);
+  const listed = WATCHLIST_MARK(a);
+  return watched && listed ? `${watched}|${listed}` : null;
+};
+const CALENDAR_MAX_AGE_MS = 6 * 60 * 60 * 1000;
 import type { TraktItem } from "./types";
 
 export type CalendarEpisode = TraktItem & {
@@ -25,9 +34,10 @@ export async function fetchUpcomingEpisodes(days = 14): Promise<CalendarEpisode[
     };
   };
   const today = new Date().toISOString().slice(0, 10);
-  const rows = await traktRequest<Raw[]>(`/calendars/my/shows/${today}/${days}`).catch(
-    () => [] as Raw[],
-  );
+  const path = `/calendars/my/shows/${today}/${days}`;
+  const rows = await withTraktActivityCache(path, CALENDAR_MARK, CALENDAR_MAX_AGE_MS, () =>
+    traktRequest<Raw[]>(path),
+  ).catch(() => [] as Raw[]);
   return rows.map((r) => ({
     type: "show" as const,
     title: r.show.title,

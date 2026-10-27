@@ -189,6 +189,10 @@ test("new episode identity does not reuse an old same-title cache entry", async 
 test("history success requires an acknowledged write, not HTTP success alone", async () => {
   let response: any = { not_found: { episodes: [{}] } };
   const api = load("src/lib/trakt/history.ts", {
+    "./activities": {
+      HISTORY_MARK: () => null,
+      withTraktActivityCache: (_n: string, _m: unknown, _a: number, load: () => unknown) => load(),
+    },
     "./client": { traktRequest: async () => response },
     "./session": {},
     "./watched-keys": {},
@@ -258,6 +262,10 @@ test("Simkl preserves cached history on failure, clears it on empty success and 
       "./session": { getSession: () => session, subscribeSession: (f: any) => (reset = f) },
       "@/lib/active-profile-id": { activeProfileId: () => "a" },
       "./activities/gate": { currentActivitiesAll: async () => marker },
+      "./activities/disk": {
+        readSimklSnapshot: async () => undefined,
+        writeSimklSnapshot: () => {},
+      },
       "./ids": {},
       "./client": {
         simklRequest: async () => {

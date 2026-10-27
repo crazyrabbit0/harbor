@@ -1,7 +1,10 @@
 import { activeProfileId } from "@/lib/active-profile-id";
 import { getSession } from "./session";
 import { rememberTraktWatched } from "./watched-keys";
+import { HISTORY_MARK, withTraktActivityCache } from "./activities";
 import { traktRequest } from "./client";
+
+const HISTORY_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 import type { TraktTarget } from "./types";
 
 export type HistoryItem = {
@@ -40,7 +43,12 @@ export async function fetchWatchedHistory(limit = 200, strict = false): Promise<
       ids: { imdb?: string; tmdb?: number };
     };
   };
-  const rows = await traktRequest<Raw[]>(`/sync/history?limit=${limit}`).catch((error) => {
+  const rows = await withTraktActivityCache(
+    `history:${limit}`,
+    HISTORY_MARK,
+    HISTORY_MAX_AGE_MS,
+    () => traktRequest<Raw[]>(`/sync/history?limit=${limit}`),
+  ).catch((error) => {
     if (strict) throw error;
     return [] as Raw[];
   });
