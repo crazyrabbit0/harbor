@@ -1,4 +1,3 @@
-import { extensionPluginStreams } from "../adapter";
 import type { InstalledStreamPlugin, PluginStream, StreamPluginRequest } from "../types";
 import type { BridgeProvider } from "./bridge";
 import {
@@ -146,6 +145,7 @@ async function fromProvider(
         );
         if (!set.links.length && set.note) outage(provider, set.note, hooks);
         const track = media.episodes?.find((e) => e.data === data)?.track ?? "";
+        const { extensionPluginStreams } = await import("../adapter");
         const made = extensionPluginStreams(set, {
           media: media.name,
           track,

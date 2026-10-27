@@ -8,11 +8,14 @@ import {
   type SpooktoberPlaylistRequest,
 } from "@/lib/spooktober-navigation";
 import { SpooktoberInvitation } from "./spooktober-entry";
-import { SpooktoberLoadingScene } from "./spooktober-loading";
 import { useOnboarding } from "@/lib/onboarding";
 
 const Festival = lazy(() =>
   import("./spooktober-view").then((module) => ({ default: module.SpooktoberView })),
+);
+const loadLoadingScene = () => import("./spooktober-loading");
+const SpooktoberLoadingScene = lazy(() =>
+  loadLoadingScene().then((module) => ({ default: module.SpooktoberLoadingScene })),
 );
 
 export const SpooktoberHome = memo(function SpooktoberHome({
@@ -38,8 +41,12 @@ export const SpooktoberHome = memo(function SpooktoberHome({
         ?.focus({ preventScroll: true }),
     );
   }, []);
-  const prepareFestival = useCallback(() => setFestivalOpened(true), []);
+  const prepareFestival = useCallback(() => {
+    void loadLoadingScene();
+    setFestivalOpened(true);
+  }, []);
   const openFestival = useCallback(() => {
+    void loadLoadingScene();
     setFestivalOpened(true);
     setEntryToken((value) => value + 1);
     setScreen("festival");
@@ -61,6 +68,7 @@ export const SpooktoberHome = memo(function SpooktoberHome({
     const receive = () => {
       const request = takeSpooktoberPlaylistRequest();
       if (!request) return;
+      void loadLoadingScene();
       setPlaylistRequest(request);
       setFestivalOpened(true);
       setScreen("festival");
@@ -109,9 +117,11 @@ export const SpooktoberHome = memo(function SpooktoberHome({
         >
           <Suspense
             fallback={
-              <SpooktoberLoadingScene
-                onBack={active && screen === "festival" ? close : undefined}
-              />
+              <Suspense fallback={null}>
+                <SpooktoberLoadingScene
+                  onBack={active && screen === "festival" ? close : undefined}
+                />
+              </Suspense>
             }
           >
             <Festival
