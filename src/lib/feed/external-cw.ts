@@ -17,6 +17,7 @@ const STALE_MS = 300_000;
 const FOCUS_STALE_MS = 30_000;
 const RETRY_DELAYS_MS = [1000, 4000, 10000];
 const EMPTY: LibraryItem[] = [];
+type SessionLike = { accessToken?: string } | null;
 
 let items: LibraryItem[] = EMPTY;
 let fetchedAt = 0;
@@ -85,16 +86,47 @@ export function setExternalCwSources(mask: { trakt: boolean; simkl: boolean }): 
   void refreshExternalCw(true);
 }
 
+// Sessions the latest refresh ran with; a session event carrying the same tokens needs no second fetch.
+let refreshSessions: { simkl: SessionLike; trakt: SessionLike } | null = null;
+
+// Last successful list per tracker and the token it came from, reused when another tracker's session changes.
+let lastBySource: Partial<
+  Record<"simkl" | "trakt", { token: string; at: number; items: LibraryItem[] }>
+> = {};
+let reuseUnchanged = false;
+
 async function runRefresh(gen: number): Promise<boolean> {
-  const enabled: Array<{ source: "simkl" | "trakt"; fetch: () => Promise<LibraryItem[]> }> = [];
-  if (getSimklSession() && sourceMask.simkl)
-    enabled.push({ source: "simkl", fetch: fetchSimklPlaybackItems });
-  if (getTraktSession() && sourceMask.trakt)
-    enabled.push({ source: "trakt", fetch: fetchTraktPlaybackItems });
+  const simklSession = getSimklSession();
+  const traktSession = getTraktSession();
+  refreshSessions = { simkl: simklSession, trakt: traktSession };
+  const reuse = reuseUnchanged;
+  reuseUnchanged = false;
+  const enabled: Array<{
+    source: "simkl" | "trakt";
+    token: string;
+    fetch: () => Promise<LibraryItem[]>;
+  }> = [];
+  if (simklSession && sourceMask.simkl)
+    enabled.push({
+      source: "simkl",
+      token: simklSession.accessToken,
+      fetch: fetchSimklPlaybackItems,
+    });
+  if (traktSession && sourceMask.trakt)
+    enabled.push({
+      source: "trakt",
+      token: traktSession.accessToken,
+      fetch: fetchTraktPlaybackItems,
+    });
   const results = await Promise.all(
-    enabled.map(async ({ fetch }) => {
+    enabled.map(async ({ source, token, fetch }) => {
+      const held = lastBySource[source];
+      if (reuse && token && held?.token === token && Date.now() - held.at < FOCUS_STALE_MS)
+        return held.items;
       try {
-        return await fetch();
+        const fetched = await fetch();
+        lastBySource[source] = { token, at: Date.now(), items: fetched };
+        return fetched;
       } catch {
         return null;
       }
@@ -153,6 +185,7 @@ export function refreshExternalCw(force = false): Promise<void> {
     refreshGen += 1;
     cancelRetry();
     fetchedAt = 0;
+    refreshSessions = null;
     setItems(EMPTY);
     return Promise.resolve();
   }
@@ -181,21 +214,34 @@ export function subscribeExternalCw(fn: () => void): () => void {
 let lastSimkl = getSimklSession();
 let lastTrakt = getTraktSession();
 
+// Secrets loading re-reads each session as a new object; only a different token is a different account.
+const sameSession = (a: SessionLike, b: SessionLike) =>
+  a === b || (!!a?.accessToken && a.accessToken === b?.accessToken);
+
 function onSessionChange(): void {
   const simkl = getSimklSession();
   const trakt = getTraktSession();
-  if (simkl === lastSimkl && trakt === lastTrakt) return;
+  const simklSame = sameSession(simkl, lastSimkl);
+  const traktSame = sameSession(trakt, lastTrakt);
+  const covered =
+    !!refreshSessions &&
+    sameSession(simkl, refreshSessions.simkl) &&
+    sameSession(trakt, refreshSessions.trakt);
+  if ((simklSame && traktSame) || covered) {
+    lastSimkl = simkl;
+    lastTrakt = trakt;
+    return;
+  }
   setItems(
     items.filter(
-      (i) =>
-        (i.external !== "simkl" || simkl === lastSimkl) &&
-        (i.external !== "trakt" || trakt === lastTrakt),
+      (i) => (i.external !== "simkl" || simklSame) && (i.external !== "trakt" || traktSame),
     ),
   );
   lastSimkl = simkl;
   lastTrakt = trakt;
   fetchedAt = 0;
   if (!externalCwConnected()) setItems(EMPTY);
+  reuseUnchanged = true;
   void refreshExternalCw(true);
 }
 
@@ -205,6 +251,7 @@ function onProfileChange(): void {
   lastProfile = activeProfileId();
   lastSimkl = getSimklSession();
   lastTrakt = getTraktSession();
+  lastBySource = {};
   fetchedAt = 0;
   setItems(EMPTY);
   void refreshExternalCw(true);

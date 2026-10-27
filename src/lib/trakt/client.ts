@@ -95,8 +95,19 @@ async function doFetch(path: string, opts: TraktRequestOptions): Promise<Respons
 // Concurrent identical GETs for one token share a request; Home and the watchlist sync both ask at launch.
 const inflightGets = new Map<string, Promise<unknown>>();
 
+const writeListeners = new Set<() => void>();
+
+/** Runs after every Trakt write, so caches keyed on activity timestamps re-read them. */
+export function onTraktWrite(fn: () => void): () => void {
+  writeListeners.add(fn);
+  return () => writeListeners.delete(fn);
+}
+
 export function traktRequest<T>(path: string, opts: TraktRequestOptions = {}): Promise<T> {
-  if ((opts.method ?? "GET") !== "GET") return sendRequest<T>(path, opts);
+  if ((opts.method ?? "GET") !== "GET")
+    return sendRequest<T>(path, opts).finally(() => {
+      for (const fn of writeListeners) fn();
+    });
   const key = `${opts.authed === false ? "" : (getSession()?.accessToken ?? "")}|${path}`;
   const pending = inflightGets.get(key);
   if (pending) return pending as Promise<T>;

@@ -83,12 +83,49 @@ export function cachedCatalogRow<T>(
 // Movie and series metas share the disk layer; only a found meta or a definitive 404 is stored.
 export const META_DISK_PREFIX = "addon.meta.v1:";
 const META_TTL_MS = { movie: 3 * 60 * 60 * 1000, series: 30 * 60 * 1000 };
-const META_MISS_TTL_MS = 30 * 60 * 1000;
+// An addon that has no entry for an id rarely gains one within a day.
+const META_MISS_TTL_MS = 12 * 60 * 60 * 1000;
 const META_MAX_CHARS = 1_000_000;
 const metaInflight = new Map<string, Promise<unknown>>();
 const metaDiskRead = new Set<string>();
 
 export type MetaFetch<T> = { value: T | null; cacheable: boolean; chars?: number };
+
+// A meta past its freshness limit is still shown at once and refreshed after startup, one request at a time.
+const META_STALE_MS = 24 * 60 * 60 * 1000;
+const META_REFRESH_DELAY_MS = 20_000;
+const META_REFRESH_GAP_MS = 400;
+const refreshQueue = new Map<string, () => Promise<MetaFetch<unknown>>>();
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+function storeMeta<T>(url: string, r: MetaFetch<T>): T | null {
+  if (r.cacheable && (r.chars ?? 0) <= META_MAX_CHARS) {
+    void idbCacheSet(META_DISK_PREFIX + url, { at: Date.now(), data: r.value }).catch(() => {});
+  }
+  return r.value;
+}
+
+function drainRefreshes(): void {
+  refreshTimer = null;
+  const next = refreshQueue.entries().next();
+  if (next.done) return;
+  const [url, load] = next.value;
+  refreshQueue.delete(url);
+  void load()
+    .then((r) => storeMeta(url, r))
+    .catch(() => {})
+    .finally(() => {
+      if (refreshQueue.size > 0 && refreshTimer == null)
+        refreshTimer = setTimeout(drainRefreshes, META_REFRESH_GAP_MS);
+    });
+}
+
+function scheduleMetaRefresh<T>(url: string, load: () => Promise<MetaFetch<T>>): void {
+  refreshQueue.set(url, load);
+  if (refreshTimer != null) return;
+  refreshTimer = setTimeout(drainRefreshes, META_REFRESH_DELAY_MS);
+  (refreshTimer as { unref?: () => void }).unref?.();
+}
 
 export function cachedAddonMeta<T>(
   type: string,
@@ -102,16 +139,14 @@ export function cachedAddonMeta<T>(
     try {
       const entry = metaDiskRead.has(url)
         ? null
-        : await idbCacheGetFresh(META_DISK_PREFIX + url, META_TTL_MS[type]).catch(() => null);
+        : await idbCacheGetFresh(META_DISK_PREFIX + url, META_STALE_MS).catch(() => null);
       metaDiskRead.add(url);
       if (entry && (entry.data != null || Date.now() - entry.at < META_MISS_TTL_MS)) {
+        if (entry.data != null && Date.now() - entry.at > META_TTL_MS[type])
+          scheduleMetaRefresh(url, load);
         return (entry.data ?? null) as T | null;
       }
-      const r = await load();
-      if (r.cacheable && (r.chars ?? 0) <= META_MAX_CHARS) {
-        void idbCacheSet(META_DISK_PREFIX + url, { at: Date.now(), data: r.value }).catch(() => {});
-      }
-      return r.value;
+      return storeMeta(url, await load());
     } finally {
       metaInflight.delete(url);
     }

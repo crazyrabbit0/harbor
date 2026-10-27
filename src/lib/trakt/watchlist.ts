@@ -1,3 +1,4 @@
+import { WATCHLIST_MARK, withTraktActivityCache } from "./activities";
 import { traktRequest } from "./client";
 import type { TraktItem, TraktTarget } from "./types";
 
@@ -17,9 +18,11 @@ type RawWatchlistRow = {
   };
 };
 
+const WATCHLIST_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
 export async function fetchWatchlist(): Promise<TraktItem[]> {
-  const rows = await traktRequest<RawWatchlistRow[]>(
-    "/sync/watchlist?sort_by=added&sort_how=desc",
+  const rows = await withTraktActivityCache("watchlist", WATCHLIST_MARK, WATCHLIST_MAX_AGE_MS, () =>
+    traktRequest<RawWatchlistRow[]>("/sync/watchlist?sort_by=added&sort_how=desc"),
   ).catch(() => [] as RawWatchlistRow[]);
   const out: TraktItem[] = [];
   for (const r of rows) {

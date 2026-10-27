@@ -153,7 +153,7 @@ export function useGamepad(): void {
       repeats.set(id, r);
     };
     const stopAll = () => {
-      for (const id of [...repeats.keys()]) stopRepeat(id);
+      for (const id of Array.from(repeats.keys())) stopRepeat(id);
     };
 
     const fireButton = (button: GpButton, repeat = false) => {

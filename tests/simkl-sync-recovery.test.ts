@@ -145,6 +145,7 @@ test("activities are cleared on account changes and failures do not masquerade a
       },
     },
     "../client": {
+      onSimklWrite: () => () => {},
       simklRequest: async () => {
         if (response instanceof Error) throw response;
         return response;

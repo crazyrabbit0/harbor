@@ -1,4 +1,5 @@
 import { activeProfileId } from "@/lib/active-profile-id";
+import { readSimklSnapshot, writeSimklSnapshot } from "./activities/disk";
 import { currentActivitiesAll } from "./activities/gate";
 import { simklRequest } from "./client";
 import { simklTargetIds } from "./ids";
@@ -91,10 +92,16 @@ subscribeSession(() => {
   cacheMarker = null;
 });
 
-async function pull(): Promise<SimklProgress> {
-  const data = await simklRequest<RawAllItems | null>(
-    "/sync/all-items/all/all?extended=full_anime_seasons&episode_watched_at=yes",
-  );
+const ALL_ITEMS_PATH = "/sync/all-items/all/all?extended=full_anime_seasons&episode_watched_at=yes";
+
+async function pull(marker: string | null): Promise<SimklProgress> {
+  const stored = (await readSimklSnapshot(ALL_ITEMS_PATH, marker)) as
+    | RawAllItems
+    | null
+    | undefined;
+  const data =
+    stored !== undefined ? stored : await simklRequest<RawAllItems | null>(ALL_ITEMS_PATH);
+  if (stored === undefined) writeSimklSnapshot(ALL_ITEMS_PATH, marker, data);
   const statuses = new Map<string, WatchlistStatus>();
   const watched = new Map<string, Set<string>>();
   const watchedAt = new Map<string, Map<string, number>>();
@@ -193,7 +200,7 @@ async function loadData(): Promise<SimklProgress> {
   const all = await currentActivitiesAll();
   if (generation !== sessionGeneration) throw new Error("SIMKL session changed");
   if (!cache || (all !== null && all !== cacheMarker)) {
-    const request = pull()
+    const request = pull(all)
       .then((data) => {
         if (generation !== sessionGeneration) throw new Error("SIMKL session changed");
         rememberSimklWatched(data.watched);

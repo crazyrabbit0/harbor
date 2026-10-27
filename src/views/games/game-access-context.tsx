@@ -22,6 +22,8 @@ const GameSteamShortcutDetails = lazy(() =>
 
 type Intent = { id: number; target: GameAccessTarget; external: boolean; origin?: HTMLElement };
 
+const PRIME_DELAY_MS = 15_000;
+
 function useAccess(
   profile: string,
   enabled: boolean,
@@ -42,7 +44,14 @@ function useAccess(
     origin?: HTMLElement;
   } | null>(null);
   const [activity, setActivity] = useState({ custom: false, retro: false });
-  const library = useSteamLibrary(enabled && (gamesActive || dockOpen || !primed));
+  // The background Steam scan that warms Games waits until startup has settled.
+  const [primeReady, setPrimeReady] = useState(false);
+  useEffect(() => {
+    if (primeReady) return;
+    const timer = window.setTimeout(() => setPrimeReady(true), PRIME_DELAY_MS);
+    return () => window.clearTimeout(timer);
+  }, [primeReady]);
+  const library = useSteamLibrary(enabled && (gamesActive || dockOpen || (primeReady && !primed)));
   const shortcuts = useSteamShortcuts(
     profile,
     enabled && (gamesActive || dockOpen || shortcutDetails?.profile === profile),

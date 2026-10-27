@@ -197,7 +197,8 @@ function fetchAddonMeta(addon: Addon, type: string, id: string): Promise<Meta | 
       if (!res.ok) return { value: null, cacheable: res.status === 404 };
       const text = await res.text();
       const json = JSON.parse(text) as { meta?: Meta | null };
-      return { value: json.meta ?? null, cacheable: !!json.meta, chars: text.length };
+      // An explicit {"meta": null} is the addon saying it has nothing, so it is remembered like a 404.
+      return { value: json.meta ?? null, cacheable: json.meta !== undefined, chars: text.length };
     } catch {
       return { value: null, cacheable: false };
     } finally {
