@@ -41,6 +41,8 @@ Notes for agents working in this folder.
 ## vendor/ and patches
 
 - `vendor/leveldb-sys` builds via CMake from `src/build.rs` (not a root `build.rs`), with `CMAKE_POLICY_VERSION_MINIMUM=3.10` and `HAVE_CLANG_THREAD_SAFETY=OFF` pinned for CMake 4.x. On Windows it finds CMake via `vswhere`. Paths with spaces are quoted; keep it that way.
+- `vendor/rust_cast` is built without its `thread_safe` feature, so a `CastDevice` is `!Send`. `cast_status` polls through one worker thread that owns its connection (30 s max age, 6 s read timeout via the vendored `set_read_timeout`); the LOAD session thread in `cast.rs` keeps blocking reads.
+- `transcode::locate_ffmpeg`/`locate_ffprobe` cache the first path they find for the process, and `thumbs::is_hdr_source` caches each URL's probe.
 - `[patch.crates-io]` patches `librespot-core` and `librqbit`. Read the comments in `Cargo.toml` before bumping either.
 
 ## Tests
