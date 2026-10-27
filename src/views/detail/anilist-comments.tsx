@@ -75,7 +75,7 @@ function sanitizeHtml(html: string): string {
     .querySelectorAll("script, style, iframe, object, embed, link, meta, form, input, button, svg")
     .forEach((el) => el.remove());
   doc.querySelectorAll("*").forEach((el) => {
-    for (const attr of [...el.attributes]) {
+    for (const attr of Array.from(el.attributes)) {
       const name = attr.name.toLowerCase();
       const value = attr.value.replace(/\s+/g, "").toLowerCase();
       if (
