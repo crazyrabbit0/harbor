@@ -12,7 +12,7 @@ Notes for agents working in this folder.
 
 - Write keys as string literals in `t("...")`. `tests/i18n-coverage.test.ts` only scans literal first arguments, and dynamic keys are invisible to it.
 - English goes in `locales/en/<feature>.ts`, and that file must be imported AND spread into `locales/en.ts`. A feature file that isn't spread is silently dead.
-- Each translated locale (`locales/<lang>/<feature>.ts`, spread into `<lang>.ts`) must contain every literal key; `i18n-coverage` enforces this for all 15 non-English locales. `ui-fallback.ts` holds English placeholder values that satisfy the test without translating. Every `<lang>.ts` spreads it FIRST in its catalog object, so any real translation spread or listed after it wins; a key added there never hides one.
+- Each translated locale (`locales/<lang>/<feature>.ts`, spread into `<lang>.ts`) must contain every literal key; `i18n-coverage` enforces this for all 15 non-English locales. `locales/ui-fallback.ts` holds English placeholder values that satisfy the test without translating. Every `<lang>.ts` spreads it FIRST in its catalog object, so any real translation spread or listed after it wins; a key added there never hides one.
 - Barrels are `Record<string, string>` object spreads: later spreads win, and tsc catches neither typos nor duplicate keys.
 
 ## Checks

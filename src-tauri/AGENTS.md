@@ -4,8 +4,8 @@ Notes for agents working in this folder.
 
 ## Commands and windows
 
-- Desktop commands are registered in `src/lib.rs` (`generate_handler!` around L999, ~520 entries). Android has its own builder and list in `src/mobile.rs` (L80, ~64 entries: torrent engine, proxy, web server, settings, fetch bridge); it inherits nothing, so add a command there only if Android needs it. Games, music, mpv, casting and ffmpeg features are desktop-only. Gate platform-only entries with `#[cfg(...)]` inside the list.
-- `run()` in `src/lib.rs` first checks `music::try_run_connector_worker` and the `games::try_run_*_worker`s (L723-726): the same exe doubles as a worker subprocess, so a new worker mode needs a check there, before the Tauri builder.
+- Desktop commands are registered in `src/lib.rs` (`generate_handler!` around L1003, ~530 entries). Android has its own builder and list in `src/mobile.rs` (L80, ~65 entries: torrent engine, proxy, web server, settings, fetch bridge); it inherits nothing, so add a command there only if Android needs it. Games, music, mpv, casting and ffmpeg features are desktop-only. Gate platform-only entries with `#[cfg(...)]` inside the list.
+- `run()` in `src/lib.rs` first checks `music::try_run_connector_worker` and the `games::try_run_*_worker`s (L725-728): the same exe doubles as a worker subprocess, so a new worker mode needs a check there, before the Tauri builder.
 - App commands need no capability entry, but plugin APIs do (`capabilities/*.json`), and capabilities match windows by label. A new window label needs adding to a capability's `windows` list; e.g. `harbor-video-pip` is only in `video-pip.json`.
 - Secondary windows load the frontend with a `?harbor-*=1` query that `src/main.tsx` dispatches on.
 

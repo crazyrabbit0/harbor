@@ -6,7 +6,7 @@ Rust backend notes are in `src-tauri/src/music/AGENTS.md`. UI lives in `src/comp
 
 | Task                            | Location                                                                |
 | ------------------------------- | ----------------------------------------------------------------------- |
-| Player store and every `invoke` | `player.ts` (~1460 lines; listens to `music://event`, `music://lastfm`) |
+| Player store and every `invoke` | `player.ts` (~1480 lines; listens to `music://event`, `music://lastfm`) |
 | Search across sources           | `sources.ts` (`searchMusic` → `music_search`)                           |
 | React binding                   | `use-music-playback.ts`                                                 |
 | Main window ↔ DJ deck sync      | `deck-sync.ts`                                                          |
