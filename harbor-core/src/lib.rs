@@ -18,6 +18,14 @@ fn to_js_err<E: std::fmt::Display>(e: E) -> JsValue {
     JsValue::from_str(&format!("{e}"))
 }
 
+fn options_or_default<T: Default + serde::de::DeserializeOwned>(v: JsValue) -> Result<T, JsValue> {
+    if v.is_undefined() || v.is_null() {
+        Ok(T::default())
+    } else {
+        serde_wasm_bindgen::from_value(v).map_err(to_js_err)
+    }
+}
+
 #[wasm_bindgen]
 pub fn harbor_core_version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
@@ -49,11 +57,7 @@ pub fn parse_streams_js(streams: JsValue) -> Result<JsValue, JsValue> {
 #[wasm_bindgen(js_name = applyTrust)]
 pub fn apply_trust_js(streams: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     let v: Vec<ParsedStream> = serde_wasm_bindgen::from_value(streams).map_err(to_js_err)?;
-    let opts: TrustOptions = if opts.is_undefined() || opts.is_null() {
-        TrustOptions::default()
-    } else {
-        serde_wasm_bindgen::from_value(opts).map_err(to_js_err)?
-    };
+    let opts: TrustOptions = options_or_default(opts)?;
     let result = trust::apply_trust(v, &opts);
     let out = TrustResultJs {
         keep: result.keep,
@@ -66,11 +70,7 @@ pub fn apply_trust_js(streams: JsValue, opts: JsValue) -> Result<JsValue, JsValu
 #[wasm_bindgen(js_name = computeCorpusStats)]
 pub fn compute_corpus_stats_js(streams: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
     let v: Vec<ParsedStream> = serde_wasm_bindgen::from_value(streams).map_err(to_js_err)?;
-    let opts: ScoreOptions = if opts.is_undefined() || opts.is_null() {
-        ScoreOptions::default()
-    } else {
-        serde_wasm_bindgen::from_value(opts).map_err(to_js_err)?
-    };
+    let opts: ScoreOptions = options_or_default(opts)?;
     let stats = scoring::compute_corpus_stats(&v, &opts);
     serde_wasm_bindgen::to_value(&CorpusStatsJs::from(stats)).map_err(to_js_err)
 }
@@ -83,11 +83,7 @@ pub fn score_stream_js(
     corpus: JsValue,
 ) -> Result<JsValue, JsValue> {
     let parsed: ParsedStream = serde_wasm_bindgen::from_value(parsed).map_err(to_js_err)?;
-    let opts: ScoreOptions = if opts.is_undefined() || opts.is_null() {
-        ScoreOptions::default()
-    } else {
-        serde_wasm_bindgen::from_value(opts).map_err(to_js_err)?
-    };
+    let opts: ScoreOptions = options_or_default(opts)?;
     let stats: scoring::CorpusStats = if corpus.is_undefined() || corpus.is_null() {
         scoring::CorpusStats::default()
     } else {
@@ -108,16 +104,8 @@ pub fn run_pipeline_pure_js(
     score_opts: JsValue,
 ) -> Result<JsValue, JsValue> {
     let raw: Vec<Stream> = serde_wasm_bindgen::from_value(streams).map_err(to_js_err)?;
-    let trust_opts: TrustOptions = if trust_opts.is_undefined() || trust_opts.is_null() {
-        TrustOptions::default()
-    } else {
-        serde_wasm_bindgen::from_value(trust_opts).map_err(to_js_err)?
-    };
-    let score_opts: ScoreOptions = if score_opts.is_undefined() || score_opts.is_null() {
-        ScoreOptions::default()
-    } else {
-        serde_wasm_bindgen::from_value(score_opts).map_err(to_js_err)?
-    };
+    let trust_opts: TrustOptions = options_or_default(trust_opts)?;
+    let score_opts: ScoreOptions = options_or_default(score_opts)?;
 
     let parsed: Vec<ParsedStream> = raw.into_iter().map(parser::parse_stream).collect();
     let trust_result = trust::apply_trust(parsed, &trust_opts);
@@ -127,7 +115,11 @@ pub fn run_pipeline_pure_js(
         .into_iter()
         .map(|p| scoring::score_stream(p, &score_opts, &corpus))
         .collect();
-    let picker = scoring::rank_and_pick(scored, &score_opts.active_debrids, score_opts.respect_addon_order);
+    let picker = scoring::rank_and_pick(
+        scored,
+        &score_opts.active_debrids,
+        score_opts.respect_addon_order,
+    );
 
     let out = PipelineResultJs {
         picker,

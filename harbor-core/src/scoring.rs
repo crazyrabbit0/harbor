@@ -1,7 +1,5 @@
 //! Stream scoring. Mirror of `src/lib/streams/scoring.ts`.
 
-#![allow(dead_code)]
-
 use crate::types::*;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -257,16 +255,6 @@ fn percentile_u32(sorted: &[u32], q: f64) -> Option<u32> {
     let n = sorted.len();
     let idx = ((n as f64 - 1.0) * q).floor() as usize;
     sorted.get(idx).copied()
-}
-
-fn resolution_label(r: Resolution) -> &'static str {
-    match r {
-        Resolution::UHD => "4K",
-        Resolution::P1080 => "1080p",
-        Resolution::P720 => "720p",
-        Resolution::P480 => "480p",
-        Resolution::SD => "SD",
-    }
 }
 
 fn hdr_label(h: HdrFormat) -> &'static str {

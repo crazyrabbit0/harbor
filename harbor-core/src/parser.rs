@@ -1,5 +1,3 @@
-#![allow(dead_code)]
-
 use crate::types::*;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -416,8 +414,6 @@ static FN_CONTAINER_RX: Lazy<Regex> =
 static SEASON_PACK_RX: Lazy<Regex> = Lazy::new(|| {
     Regex::new(r"(?i)\b(complete|season[\s\.]?pack|s\d{1,2})\b").unwrap()
 });
-static SEASON_PACK_BARE_S_RX: Lazy<Regex> =
-    Lazy::new(|| Regex::new(r"(?i)\bs\d{1,2}E").unwrap());
 
 static EPTITLE_TRIM_LEAD_RX: Lazy<Regex> =
     Lazy::new(|| Regex::new(r"^[\.\-_\s]+").unwrap());
