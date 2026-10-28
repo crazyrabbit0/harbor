@@ -42,8 +42,21 @@ function readAll(key: string): Record<string, Entry> {
   return { ...readShared(key) };
 }
 
+// The player rewrites the whole map every tick, so its size is the cost; the oldest positions go first.
+const MAX_ENTRIES = 1500;
+
+function capEntries(all: Record<string, Entry>): Record<string, Entry> {
+  const keys = Object.keys(all);
+  if (keys.length <= MAX_ENTRIES) return all;
+  keys.sort((a, b) => (all[b].t ?? 0) - (all[a].t ?? 0));
+  const kept: Record<string, Entry> = {};
+  for (const k of keys.slice(0, MAX_ENTRIES)) kept[k] = all[k];
+  return kept;
+}
+
 function writeAll(all: Record<string, Entry>, key: string): void {
   try {
+    all = capEntries(all);
     const raw = JSON.stringify(all);
     localStorage.setItem(key, raw);
     parsed.set(key, { raw, all });

@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import test from "node:test";
+import test, { before } from "node:test";
 import { strToU8, zipSync } from "fflate";
 import {
   extractSafeSubtitleEntries,
+  loadSubtitleUnzip,
   prepareRankedSubtitleCandidates,
   prepareSubtitleBytes,
   SubtitlePreparationError,
@@ -51,6 +52,8 @@ const manyCues = Array.from(
   (_, index) =>
     `${index + 1}\n00:00:${String(index).padStart(2, "0")},000 --> 00:00:${String(index).padStart(2, "0")},700\nDialogue line ${index + 1}\n`,
 ).join("\n");
+
+before(loadSubtitleUnzip);
 
 function reasonOf(error: unknown): string | undefined {
   return error instanceof SubtitlePreparationError ? error.reason : undefined;

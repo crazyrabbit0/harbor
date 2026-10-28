@@ -125,6 +125,9 @@ const EPISODE_NUMBER_WORDS = [
   "tập",
 ];
 
+const EPISODE_NAME_PUNCT = /[\s\-–—:.,()[\]'"،،]/g;
+const LONGEST_EPISODE_WORD = Math.max(...EPISODE_NUMBER_WORDS.map((word) => word.length));
+
 export function isGenericEpisodeName(text: string | null | undefined): boolean {
   if (!text) return false;
   const t = text.trim();
@@ -134,9 +137,13 @@ export function isGenericEpisodeName(text: string | null | undefined): boolean {
   if (/^第\s*\d+\s*[話话集]$/.test(t)) return true;
   if (/^\d+\s*화$/.test(t)) return true;
   const lower = t.toLowerCase();
+  // A placeholder is one number word plus digits, so more letters than the longest word rule it out.
+  if (lower.replace(EPISODE_NAME_PUNCT, "").replace(/\d+/g, "").length > LONGEST_EPISODE_WORD) {
+    return false;
+  }
   for (const word of EPISODE_NUMBER_WORDS) {
     if (!lower.includes(word)) continue;
-    const rest = lower.replace(word, "").replace(/[\s\-–—:.,()\[\]'"،،]/g, "");
+    const rest = lower.replace(word, "").replace(EPISODE_NAME_PUNCT, "");
     if (/^\d*$/.test(rest)) return true;
   }
   return false;

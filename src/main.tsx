@@ -7,10 +7,10 @@ import { getUiLanguage } from "@/lib/i18n/store";
 import { ensureUiLocale } from "@/lib/i18n/load-locale";
 import { applyOsDataset } from "@/lib/platform";
 import { loadSecrets } from "@/lib/secret-store";
+import { storedSettings } from "@/lib/stored-settings";
 import { initializeMusic } from "@/lib/music/player";
 import { initSubtitleCache } from "@/lib/subtitles/subtitle-cache";
 import { hdrOverlayEmitAction } from "@/lib/hdr-overlay";
-import { ensureBundledAwards } from "@/lib/awards-history";
 import "@/index.css";
 import { startTaskbarProgress } from "@/lib/download/taskbar-progress";
 import { completeBetaReturnPreferences } from "@/lib/updater/beta-return";
@@ -188,15 +188,13 @@ function MainRoot() {
   return <App onReady={markAppReady} />;
 }
 
+function activePresetIsCustom(): boolean {
+  const theme = storedSettings().theme as { preset?: unknown } | undefined;
+  return typeof theme?.preset !== "string" || theme.preset.startsWith("user:");
+}
+
 // A translated catalog that arrives later re-renders useT() callers through subscribeUiCatalog.
 const LOCALE_WAIT_MS = 150;
-
-function afterFirstPaint(run: () => void): void {
-  requestAnimationFrame(() => {
-    if (typeof requestIdleCallback === "function") requestIdleCallback(run, { timeout: 2000 });
-    else setTimeout(run, 0);
-  });
-}
 
 async function mount() {
   const localeReady = ensureUiLocale(getUiLanguage());
@@ -217,7 +215,10 @@ async function mount() {
   }
   await Promise.all([
     loadSecrets(),
-    hydrateCustomThemes().catch(() => {}),
+    // Only a user theme as the active preset needs IndexedDB before the first paint; others hydrate in the background.
+    activePresetIsCustom()
+      ? hydrateCustomThemes().catch(() => {})
+      : void hydrateCustomThemes().catch(() => {}),
     Promise.race([localeReady, new Promise((resolve) => setTimeout(resolve, LOCALE_WAIT_MS))]),
   ]);
   if (!isHdrOverlay && !isModal && !isCaptions && !isDjDeck) void initSubtitleCache();
@@ -243,7 +244,6 @@ async function mount() {
       {(isModal || isPip || isVideoPip || isCaptions || isDjDeck) && <StartupReady />}
     </StrictMode>,
   );
-  if (!isHdrOverlay && !isCaptions) afterFirstPaint(ensureBundledAwards);
 }
 void mount().catch(() => {
   if (isHdrOverlay) {

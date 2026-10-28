@@ -1,4 +1,4 @@
-import { Unzip, UnzipInflate } from "fflate";
+import type * as Fflate from "fflate";
 import { safeFetchBytes } from "@/lib/safe-fetch";
 import { languageName, normalizeLang } from "./language";
 import { decodeSubtitleBytesDetailed, type SubtitleDecodeResult } from "./encoding";
@@ -176,10 +176,19 @@ function concatChunks(chunks: Uint8Array[], total: number): Uint8Array {
   return out;
 }
 
+let fflate: Pick<typeof Fflate, "Unzip" | "UnzipInflate"> | null = null;
+
+/** Loads fflate (~88 KB) on the first zipped subtitle; extractSafeSubtitleEntries needs it loaded. */
+export async function loadSubtitleUnzip(): Promise<void> {
+  fflate ??= await import("fflate");
+}
+
 export function extractSafeSubtitleEntries(
   bytes: Uint8Array,
   limitOverrides?: Partial<SubtitlePreparationLimits>,
 ): ArchiveEntry[] {
+  if (!fflate) throw new Error("call loadSubtitleUnzip() before extractSafeSubtitleEntries()");
+  const { Unzip, UnzipInflate } = fflate;
   const limits = limitsOf(limitOverrides);
   if (!isZip(bytes) || !hasZipEndRecord(bytes)) {
     throw new SubtitlePreparationError(
@@ -530,6 +539,7 @@ export async function prepareSubtitleBytes(
       `subtitle file exceeds ${limits.subtitleFileBytes} bytes`,
     );
   }
+  if (archive) await loadSubtitleUnzip();
   const entries = archive
     ? extractSafeSubtitleEntries(bytes, limits)
     : [{ name: hints.filename || originalUrl, bytes }];

@@ -23,6 +23,19 @@ test("heavy libraries load on first use, not with the app", () => {
   ]) {
     assert.doesNotMatch(read(file), /^import lottie\b/m, file);
   }
+  assert.doesNotMatch(read("src/lib/subtitles/prepare.ts"), /^import \{[^}]*\} from "fflate"/m);
+  assert.match(read("src/lib/subtitles/prepare.ts"), /await import\("fflate"\)/);
+  for (const file of ["src/lib/manga/plugins/host-http.ts", "src/lib/streams/plugins/addon.ts"]) {
+    assert.doesNotMatch(read(file), /^import .*(same-site-host|\.\/adapter)";/m, file);
+  }
+  assert.doesNotMatch(
+    read("src/lib/streams/plugins/extension/run.ts"),
+    /^import .*"\.\.\/adapter";/m,
+  );
+  assert.doesNotMatch(
+    read("src/views/spooktober/spooktober-home.tsx"),
+    /^import .*"\.\/spooktober-loading";/m,
+  );
   assert.doesNotMatch(read("src/views/settings/set-icon.tsx"), /\bicons\b.*from "lucide-react"/);
   assert.doesNotMatch(read("src/views/settings/section-cards.tsx"), /\bicons\[/);
 });

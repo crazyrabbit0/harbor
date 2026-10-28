@@ -1158,36 +1158,121 @@ pub async fn cast_status(proxy_state: tauri::State<'_, ProxyState>) -> Result<Op
         Err(_) => return Ok(None),
     };
     let (host, port, transport_id, msid, seek_start) = snap;
-    tokio::task::spawn_blocking(move || -> Result<Option<CastStatus>, String> {
-        let device = connect_device(&host, port)?;
-        device
-            .connection
-            .connect(transport_id.clone())
-            .map_err(|e| format!("{e}"))?;
-        if let Some(msid) = msid {
-            let status = device.media.get_status(&transport_id, Some(msid))
-                .map_err(|error| format!("status: {error}"))?;
-            if let Some(entry) = status.entries.first() {
-                let raw_state = format!("{:?}", entry.player_state);
-                let cast_pos = entry.current_time.map(|v| v as f64).unwrap_or(0.0);
-                return Ok(Some(CastStatus {
-                    position_sec: cast_pos + seek_start,
-                    player_state: normalize_player_state(&raw_state),
-                    connected: true,
-                    transport_codec: None,
-                }));
-            }
-            return Ok(None);
-        }
-        Ok(Some(CastStatus {
+    let (reply, rx) = tokio::sync::oneshot::channel();
+    status_worker()
+        .lock()
+        .map_err(|e| format!("lock: {e}"))?
+        .send(StatusRequest { host, port, transport_id, msid, reply })
+        .map_err(|_| "cast status worker stopped".to_string())?;
+    let polled = rx.await.map_err(|e| format!("status reply: {e}"))??;
+    Ok(match (msid, polled) {
+        (Some(_), Some((raw_state, cast_pos))) => Some(CastStatus {
+            position_sec: cast_pos + seek_start,
+            player_state: normalize_player_state(&raw_state),
+            connected: true,
+            transport_codec: None,
+        }),
+        (Some(_), None) => None,
+        (None, _) => Some(CastStatus {
             position_sec: 0.0,
             player_state: "UNKNOWN".to_string(),
             connected: true,
             transport_codec: None,
-        }))
+        }),
     })
-    .await
-    .map_err(|e| format!("join: {e}"))?
+}
+
+type PolledStatus = Result<Option<(String, f64)>, String>;
+
+struct StatusRequest {
+    host: String,
+    port: u16,
+    transport_id: String,
+    msid: Option<i32>,
+    reply: tokio::sync::oneshot::Sender<PolledStatus>,
+}
+
+// CastDevice is !Send (Rc inside), so one thread owns the polling connection instead of a TLS handshake per 1 s poll.
+const STATUS_CONNECTION_MAX_AGE: Duration = Duration::from_secs(30);
+const STATUS_READ_TIMEOUT: Duration = Duration::from_secs(6);
+
+fn status_worker() -> &'static Mutex<std::sync::mpsc::Sender<StatusRequest>> {
+    static WORKER: std::sync::OnceLock<Mutex<std::sync::mpsc::Sender<StatusRequest>>> =
+        std::sync::OnceLock::new();
+    WORKER.get_or_init(|| {
+        let (tx, rx) = std::sync::mpsc::channel::<StatusRequest>();
+        std::thread::spawn(move || {
+            let mut held: Option<((String, u16, String), CastDevice<'static>, std::time::Instant)> =
+                None;
+            for req in rx {
+                let key = (req.host.clone(), req.port, req.transport_id.clone());
+                let stale = held.as_ref().is_none_or(|(k, _, opened)| {
+                    *k != key || opened.elapsed() > STATUS_CONNECTION_MAX_AGE
+                });
+                if stale {
+                    held = None;
+                }
+                let mut result = Err(String::new());
+                for attempt in 0..2 {
+                    if held.is_none() {
+                        match open_status_connection(&req.host, req.port, &req.transport_id) {
+                            Ok(d) => held = Some((key.clone(), d, std::time::Instant::now())),
+                            Err(e) => {
+                                result = Err(e);
+                                break;
+                            }
+                        }
+                    }
+                    let (_, device, _) = held.as_ref().expect("connection opened above");
+                    result = poll_status(device, &req.transport_id, req.msid);
+                    if result.is_ok() || attempt == 1 {
+                        break;
+                    }
+                    held = None;
+                }
+                if result.is_err() {
+                    held = None;
+                }
+                let _ = req.reply.send(result);
+            }
+        });
+        Mutex::new(tx)
+    })
+}
+
+fn open_status_connection(
+    host: &str,
+    port: u16,
+    transport_id: &str,
+) -> Result<CastDevice<'static>, String> {
+    let device = connect_device(host, port)?;
+    // A held socket can go half-open when the device drops off; without this a read blocks the worker for minutes.
+    device
+        .set_read_timeout(Some(STATUS_READ_TIMEOUT))
+        .map_err(|e| format!("read timeout: {e}"))?;
+    device
+        .connection
+        .connect(transport_id.to_string())
+        .map_err(|e| format!("{e}"))?;
+    Ok(device)
+}
+
+fn poll_status(device: &CastDevice<'_>, transport_id: &str, msid: Option<i32>) -> PolledStatus {
+    // Unprompted PONGs keep the receiver from closing a connection whose PINGs get buffered unanswered.
+    device.heartbeat.pong().map_err(|e| format!("pong: {e}"))?;
+    let Some(msid) = msid else {
+        return Ok(None);
+    };
+    let status = device
+        .media
+        .get_status(transport_id, Some(msid))
+        .map_err(|error| format!("status: {error}"))?;
+    Ok(status.entries.first().map(|entry| {
+        (
+            format!("{:?}", entry.player_state),
+            entry.current_time.map(|v| v as f64).unwrap_or(0.0),
+        )
+    }))
 }
 
 #[derive(Debug, Clone, Serialize)]

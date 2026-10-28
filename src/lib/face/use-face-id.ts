@@ -171,11 +171,12 @@ export function useFaceId({ metaKey, cast, liveScan, isPaused, loadBitmap }: Arg
     };
   }, [ready, liveScan, metaKey, cast, loadBitmap, runScan]);
 
+  // A paused frame never changes, so the one scan on pause below covers it; capturing it again every tick is wasted work.
   useEffect(() => {
-    if (!ready || !liveScan) return;
+    if (!ready || !liveScan || isPaused) return;
     const t = setInterval(() => void runScan(), SCAN_MS);
     return () => clearInterval(t);
-  }, [ready, liveScan, runScan]);
+  }, [ready, liveScan, isPaused, runScan]);
 
   useEffect(() => {
     if (ready && liveScan && isPaused) void runScan();

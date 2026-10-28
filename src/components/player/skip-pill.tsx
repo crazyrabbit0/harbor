@@ -1,7 +1,7 @@
 import { ChevronsRight, FastForward, Undo2, X } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { AdSkipIcon } from "@/components/icons/adskip-icon";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { SkipSegment } from "@/lib/skip-intro";
 import type { SpoilerMask } from "@/lib/spoilers";
 import type { PlayEpisode } from "@/lib/view";
@@ -74,22 +74,27 @@ export function SkipPill({
     hasNextEpisodeTarget,
   ]);
 
+  const counting = shouldCountdown && timeLeft > 0 && !hovered && !!mounted;
+  const onDismissRef = useRef(onDismiss);
+  onDismissRef.current = onDismiss;
+  // One interval per countdown run; depending on timeLeft would recreate it on every 50 ms step.
   useEffect(() => {
-    if (!shouldCountdown || timeLeft <= 0 || hovered || !mounted) return;
+    if (!counting) return;
     const intervalMs = 50;
     const timer = window.setInterval(() => {
       setTimeLeft((previous) => {
+        if (previous <= 0) return 0;
         const next = previous - intervalMs / 1000;
         if (next <= 0) {
           window.clearInterval(timer);
-          onDismiss?.();
+          onDismissRef.current?.();
           return 0;
         }
         return next;
       });
     }, intervalMs);
     return () => window.clearInterval(timer);
-  }, [hovered, mounted, onDismiss, shouldCountdown, timeLeft]);
+  }, [counting]);
 
   const hasUndo = !!onUndo;
   useEffect(() => {

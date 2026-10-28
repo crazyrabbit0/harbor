@@ -60,6 +60,8 @@ function harness(layout: "list" | "grid" | "strip", videos: NonNullable<Meta["vi
     "@/components/poster": { Poster: "Poster" },
     "@/lib/settings": {
       useSettings: () => ({ settings: { episodeLayout: layout, instantPlay: false }, update() {} }),
+      useSettingsSelector: (pick: (s: any) => unknown) =>
+        pick({ episodeLayout: layout, instantPlay: false }),
     },
     "@/lib/local-library/use-series-play": {
       useLocalAwareSeriesPlay: () => (input: any) => picked.push(input),

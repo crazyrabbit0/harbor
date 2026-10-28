@@ -62,7 +62,18 @@ impl DvrState {
     }
 }
 
+// Only a found path is cached, so an mpv installed after launch is still picked up.
+static MPV_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
 pub(crate) fn locate_mpv() -> Option<PathBuf> {
+    if let Some(p) = MPV_PATH.get() {
+        return Some(p.clone());
+    }
+    let found = probe_mpv()?;
+    Some(MPV_PATH.get_or_init(|| found).clone())
+}
+
+fn probe_mpv() -> Option<PathBuf> {
     let candidates = if cfg!(windows) {
         vec![PathBuf::from("mpv.exe"), PathBuf::from("mpv")]
     } else if cfg!(target_os = "macos") {

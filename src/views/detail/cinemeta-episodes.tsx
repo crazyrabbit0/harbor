@@ -11,7 +11,7 @@ import {
   subscribeManualWatched,
 } from "@/lib/manual-watched";
 import { Poster } from "@/components/poster";
-import { useSettings } from "@/lib/settings";
+import { useSettings, useSettingsSelector } from "@/lib/settings";
 import { useLocalAwareSeriesPlay } from "@/lib/local-library/use-series-play";
 import { useT } from "@/lib/i18n";
 import { EpisodeDownloadButton } from "./episode-download-button";
@@ -298,7 +298,10 @@ export function CinemetaEpisodeRow({
 }) {
   const t = useT();
   const playLocalAware = useLocalAwareSeriesPlay();
-  const { settings } = useSettings();
+  const settings = useSettingsSelector((s) => ({
+    instantPlay: s.instantPlay,
+    seasonSourceLock: s.seasonSourceLock,
+  }));
   const aired = ep.released ?? ep.firstAired ?? null;
   const epNumber = ep.episode ?? ep.number ?? flatIndex ?? 1;
   const season = ep.season ?? 0;
@@ -319,6 +322,7 @@ export function CinemetaEpisodeRow({
       data-no-card-ring
       onContextMenu={onContextMenu ? (e) => onContextMenu(e, season, epNumber, watched) : undefined}
       className="group flex items-center gap-4 rounded-lg px-4 py-5 transition-colors hover:bg-elevated/30"
+      style={{ contentVisibility: "auto", containIntrinsicSize: "auto 160px" }}
     >
       <button
         onClick={() =>

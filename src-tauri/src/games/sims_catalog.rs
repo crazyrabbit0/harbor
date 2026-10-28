@@ -118,7 +118,9 @@ fn expression(value: &str) -> Regex {
     Regex::new(value).expect("static creator expression")
 }
 fn plain(value: &str) -> String {
-    let text = expression(r"(?s)<[^>]*>")
+    static TAGS: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| expression(r"(?s)<[^>]*>"));
+    let text = TAGS
         .replace_all(value, " ")
         .replace("&nbsp;", " ");
     quick_xml::escape::unescape(&text)

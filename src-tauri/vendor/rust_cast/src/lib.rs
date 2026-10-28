@@ -128,6 +128,13 @@ impl<'a> CastDevice<'a> {
         CastDevice::connect_to_device(stream)
     }
 
+    /// Sets the socket read timeout, so a half-open connection fails a read instead of blocking.
+    pub fn set_read_timeout(&self, timeout: Option<std::time::Duration>) -> Result<(), Error> {
+        self.message_manager
+            .with_stream(|stream| stream.sock.set_read_timeout(timeout))?;
+        Ok(())
+    }
+
     /// Connects to the cast device using host name and port _without_ host verification. Use on
     /// your own risk!
     ///

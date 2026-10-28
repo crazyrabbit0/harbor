@@ -76,8 +76,9 @@ pub fn inspect(root: &Path, name: &str, bytes: &[u8]) -> Result<DownloadReview> 
 }
 fn links(base: &Url, bytes: &[u8]) -> DownloadReview {
     let text=String::from_utf8_lossy(bytes);
-    let pattern=regex::Regex::new(r#"(?is)<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a>"#).unwrap();
-    let tags=regex::Regex::new(r"<[^>]+>").unwrap();
+    static PATTERN: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r#"(?is)<a\b[^>]*href\s*=\s*["']([^"']+)["'][^>]*>(.*?)</a>"#).unwrap());
+    static TAGS: std::sync::LazyLock<regex::Regex> = std::sync::LazyLock::new(|| regex::Regex::new(r"<[^>]+>").unwrap());
+    let (pattern, tags) = (&*PATTERN, &*TAGS);
     let mut found=vec![];
     for capture in pattern.captures_iter(&text) {
         let Ok(link)=base.join(&capture[1].replace("&amp;","&")) else {continue};

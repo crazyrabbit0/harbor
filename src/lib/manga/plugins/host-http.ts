@@ -1,7 +1,6 @@
 import { FINAL_URL_HEADER, safeFetch, safeFetchBase64, safeFetchBytes } from "@/lib/safe-fetch";
 import { isBlockedUrl } from "@/lib/privacy/blocklist";
 import { SUBTITLE_PUBLIC_NETWORK_HEADER } from "@/lib/subtitles/provider-url";
-import { sameSiteHost } from "@/lib/same-site-host";
 import type { PluginGrpcOpts, PluginGrpcResult, PluginHttpOpts, PluginHttpResult } from "./types";
 
 export type PluginHttpPolicy = {
@@ -119,8 +118,20 @@ type HeaderGate = {
   allowRefererHost: string | null;
   allowCookieHost: string | null;
 };
+type SameSite = (a: string | null, b: string | null) => boolean;
 
-function keepReferer(value: string, gate: HeaderGate): boolean {
+// tldts (~180 KB) loads only when a plugin asks to keep a Referer, Origin or Cookie.
+async function sameSiteFor(
+  headers: Record<string, string> | undefined,
+  gate: HeaderGate,
+): Promise<SameSite> {
+  const needed =
+    (gate.allowRefererHost || gate.allowCookieHost) &&
+    Object.keys(headers ?? {}).some((k) => /^(referer|origin|cookie)$/i.test(k));
+  return needed ? (await import("@/lib/same-site-host")).sameSiteHost : () => false;
+}
+
+function keepReferer(value: string, gate: HeaderGate, sameSiteHost: SameSite): boolean {
   if (!gate.allowRefererHost) return false;
   const vh = hostOf(value);
   if (!vh) return false;
@@ -131,17 +142,18 @@ function keepReferer(value: string, gate: HeaderGate): boolean {
   );
 }
 
-function keepCookie(gate: HeaderGate): boolean {
+function keepCookie(gate: HeaderGate, sameSiteHost: SameSite): boolean {
   return !!gate.allowCookieHost && sameSiteHost(gate.host, gate.allowCookieHost);
 }
 
-function filterHeaders(
+async function filterHeaders(
   headers: Record<string, string> | undefined,
   gate: HeaderGate,
   open = false,
-): Record<string, string> {
+): Promise<Record<string, string>> {
   const out: Record<string, string> = {};
   if (!headers) return out;
+  const sameSiteHost = open ? () => false : await sameSiteFor(headers, gate);
   for (const k of Object.keys(headers)) {
     const raw = headers[k];
     if (raw == null) continue;
@@ -149,11 +161,11 @@ function filterHeaders(
     const val = String(raw);
     if (low === "accept-encoding" || low.startsWith("x-harbor")) continue;
     if (low === "referer" || low === "origin") {
-      if (open || keepReferer(val, gate)) out[k] = val;
+      if (open || keepReferer(val, gate, sameSiteHost)) out[k] = val;
       continue;
     }
     if (low === "cookie") {
-      if (open || keepCookie(gate)) out[k] = val;
+      if (open || keepCookie(gate, sameSiteHost)) out[k] = val;
       continue;
     }
     if (open && (low === "authorization" || low.startsWith("sec-"))) {
@@ -248,7 +260,7 @@ export async function runPluginHttp(
   const target = assertSafeUrl(url);
   const method = (opts.method || "GET").toUpperCase();
   const timeout = Math.min(Math.max(opts.timeoutMs || DEFAULT_TIMEOUT, 1_000), MAX_TIMEOUT);
-  const headers = filterHeaders(
+  const headers = await filterHeaders(
     opts.headers,
     {
       host: hostOf(target) ?? "",
@@ -313,7 +325,7 @@ export async function runPluginGrpc(
   const mode = opts.mode === "grpc-web" ? "grpc-web" : "grpc";
   const contentType = mode === "grpc-web" ? "application/grpc-web+proto" : "application/grpc";
   const timeout = Math.min(Math.max(opts.timeoutMs || DEFAULT_TIMEOUT, 1_000), MAX_TIMEOUT);
-  const headers = filterHeaders(opts.headers, {
+  const headers = await filterHeaders(opts.headers, {
     host: hostOf(target) ?? "",
     allowRefererHost: hostOf(opts.allowReferer),
     allowCookieHost: hostOf(opts.allowCookie),

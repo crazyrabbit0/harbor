@@ -34,7 +34,19 @@ fn default_max_height() -> u32 {
     1080
 }
 
+// Only a found path is cached, so an ffmpeg installed after launch is still picked up.
+static FFMPEG_PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+static FFPROBE_PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();
+
 pub fn locate_ffmpeg() -> Option<std::path::PathBuf> {
+    if let Some(p) = FFMPEG_PATH.get() {
+        return Some(p.clone());
+    }
+    let found = probe_ffmpeg()?;
+    Some(FFMPEG_PATH.get_or_init(|| found).clone())
+}
+
+fn probe_ffmpeg() -> Option<std::path::PathBuf> {
     let mut owned: Vec<String> = Vec::new();
     if cfg!(windows) {
         owned.push("ffmpeg.exe".into());
@@ -201,6 +213,14 @@ pub fn ffmpeg_present() -> bool {
 }
 
 pub fn locate_ffprobe() -> Option<std::path::PathBuf> {
+    if let Some(p) = FFPROBE_PATH.get() {
+        return Some(p.clone());
+    }
+    let found = probe_ffprobe()?;
+    Some(FFPROBE_PATH.get_or_init(|| found).clone())
+}
+
+fn probe_ffprobe() -> Option<std::path::PathBuf> {
     let name = if cfg!(windows) {
         "ffprobe.exe"
     } else {

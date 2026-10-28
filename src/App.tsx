@@ -1,6 +1,5 @@
 import { GAMES_IN_NAV } from "@/chrome/nav-items";
 import { GameAccessProvider } from "@/views/games/game-access-context";
-import { GameRouteLoading } from "@/views/games/game-route-loading";
 import { hasBackHandlers } from "@/lib/back-intercept";
 import { useSportsEnabled } from "@/lib/sports/enabled";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
@@ -26,16 +25,7 @@ import { ensureAwardMaster } from "@/lib/anime-awards-source";
 import { WindowControls as WindowControlsImpl } from "@/chrome/window-controls";
 import { HybridTitleBar as HybridTitleBarImpl } from "@/chrome/hybrid-title-bar";
 import { WindowResizeEdges as WindowResizeEdgesImpl } from "@/chrome/window-resize-edges";
-import { MinUIDock as MinUIDockImpl } from "@/chrome/minui-dock";
 import { Sidebar as SidebarImpl } from "@/chrome/sidebar";
-import { DraculaSidebar as DraculaSidebarImpl } from "@/chrome/dracula-sidebar";
-import { NordSidebar as NordSidebarImpl } from "@/chrome/nord-sidebar";
-import { ForestSidebar as ForestSidebarImpl } from "@/chrome/forest-sidebar";
-import { RoyalTopbar as RoyalTopbarImpl } from "@/chrome/royal-topbar";
-import { SideRail as SideRailImpl } from "@/chrome/siderail";
-import { StremioRail as StremioRailImpl } from "@/chrome/stremio-rail";
-import { TopDock as TopDockImpl } from "@/chrome/topdock";
-import { CinematicOverlay as CinematicOverlayImpl } from "@/chrome/cinematic-overlay";
 import { Topbar as TopbarImpl, TogetherButton as TogetherButtonImpl } from "@/chrome/topbar";
 import { TabHotkeys as TabHotkeysImpl } from "@/chrome/tab-hotkeys";
 import { startMaintenance, subscribeMemoryPressure } from "@/lib/maintenance";
@@ -187,16 +177,7 @@ const FloatingBack = memo(FloatingBackImpl);
 const WindowControls = memo(WindowControlsImpl);
 const HybridTitleBar = memo(HybridTitleBarImpl);
 const WindowResizeEdges = memo(WindowResizeEdgesImpl);
-const MinUIDock = memo(MinUIDockImpl);
 const Sidebar = memo(SidebarImpl);
-const DraculaSidebar = memo(DraculaSidebarImpl);
-const NordSidebar = memo(NordSidebarImpl);
-const ForestSidebar = memo(ForestSidebarImpl);
-const RoyalTopbar = memo(RoyalTopbarImpl);
-const SideRail = memo(SideRailImpl);
-const StremioRail = memo(StremioRailImpl);
-const TopDock = memo(TopDockImpl);
-const CinematicOverlay = memo(CinematicOverlayImpl);
 const Topbar = memo(TopbarImpl);
 const TogetherButton = memo(TogetherButtonImpl);
 const TabHotkeys = memo(TabHotkeysImpl);
@@ -224,6 +205,34 @@ const GameDockWelcome = lazy(() =>
 );
 const SportsAccessGate = lazy(() =>
   import("@/views/sports/access-gate").then((m) => ({ default: m.SportsAccessGate })),
+);
+// Its six games stylesheets are ~190 KB; it only shows while the Games route chunk loads.
+const importGameRouteLoading = () => import("@/views/games/game-route-loading");
+const GameRouteLoading = lazy(() =>
+  importGameRouteLoading().then((m) => ({ default: m.GameRouteLoading })),
+);
+
+// A theme uses one layout, so only the default Sidebar ships with the app; the others load when picked.
+const MinUIDock = lazy(() => import("@/chrome/minui-dock").then((m) => ({ default: m.MinUIDock })));
+const DraculaSidebar = lazy(() =>
+  import("@/chrome/dracula-sidebar").then((m) => ({ default: m.DraculaSidebar })),
+);
+const NordSidebar = lazy(() =>
+  import("@/chrome/nord-sidebar").then((m) => ({ default: m.NordSidebar })),
+);
+const ForestSidebar = lazy(() =>
+  import("@/chrome/forest-sidebar").then((m) => ({ default: m.ForestSidebar })),
+);
+const RoyalTopbar = lazy(() =>
+  import("@/chrome/royal-topbar").then((m) => ({ default: m.RoyalTopbar })),
+);
+const SideRail = lazy(() => import("@/chrome/siderail").then((m) => ({ default: m.SideRail })));
+const StremioRail = lazy(() =>
+  import("@/chrome/stremio-rail").then((m) => ({ default: m.StremioRail })),
+);
+const TopDock = lazy(() => import("@/chrome/topdock").then((m) => ({ default: m.TopDock })));
+const CinematicOverlay = lazy(() =>
+  import("@/chrome/cinematic-overlay").then((m) => ({ default: m.CinematicOverlay })),
 );
 
 const hasMusicTrack = () => getMusicState().current !== null;
@@ -428,7 +437,7 @@ function useViewPreloader(tmdbKey: string) {
       [importPerson, importPeople, importFilter, importCalendar],
       [importQueue, importAward, importAnimeAward, importService],
       [importOnboarding, importPlugins, importCommunityCollections, importDownloads],
-      [importGrid, importWrapped, importKids],
+      [importGrid, importWrapped, importKids, importGameRouteLoading],
     ];
     const next = () => {
       if (cancelled) return;
@@ -677,7 +686,12 @@ function MediaServerSyncRunner() {
       if (document.visibilityState === "visible") void refresh();
     };
     const timer = window.setInterval(() => void refresh(), MEDIA_SERVER_SYNC_MS);
-    const initial = window.setTimeout(() => void refresh(), 2500);
+    // Starts in an idle slot after launch so a library sync never competes with the first screen's fetches.
+    let idleId: number | null = null;
+    const initial = window.setTimeout(() => {
+      if (typeof requestIdleCallback !== "function") return void refresh();
+      idleId = requestIdleCallback(() => void refresh(), { timeout: 5000 });
+    }, 2500);
     const onProfile = () => {
       launchSynced.clear();
       void refresh();
@@ -689,6 +703,7 @@ function MediaServerSyncRunner() {
       cancelled = true;
       window.clearInterval(timer);
       window.clearTimeout(initial);
+      if (idleId != null) cancelIdleCallback(idleId);
       window.removeEventListener("harbor:active-profile-changed", onProfile);
       window.removeEventListener("online", refresh);
       document.removeEventListener("visibilitychange", onWake);
@@ -1671,37 +1686,43 @@ function Shell({ onReady }: { onReady?: () => void }) {
             !standaloneLive &&
             !pickerTop &&
             layout === "sidebar" && <Sidebar />}
-          {!settingsTop &&
-            !playerActive &&
-            !standaloneLive &&
-            !pickerTop &&
-            layout === "dracula" && <DraculaSidebar />}
-          {!settingsTop && !playerActive && !standaloneLive && !pickerTop && layout === "nord" && (
-            <NordSidebar />
-          )}
-          {!settingsTop &&
-            !playerActive &&
-            !standaloneLive &&
-            !pickerTop &&
-            layout === "forest" && <ForestSidebar />}
-          {!settingsTop &&
-            !playerActive &&
-            !standaloneLive &&
-            !pickerTop &&
-            layout === "stremio" && <StremioRail />}
-          {!settingsTop && !playerActive && !pickerTop && layout === "topdock" && !immersive && (
-            <TopDock />
-          )}
-          {!settingsTop && !playerActive && !pickerTop && layout === "cinematic" && !immersive && (
-            <CinematicOverlay />
-          )}
-          {!settingsTop && !playerActive && !pickerTop && layout === "royal" && !immersive && (
-            <RoyalTopbar />
-          )}
-          {!settingsTop && !playerActive && !pickerTop && layout === "rail" && !immersive && (
-            <SideRail />
-          )}
-          {!playerActive && !pickerTop && layout === "minui" && !immersive && <MinUIDock />}
+          <Suspense fallback={null}>
+            {!settingsTop &&
+              !playerActive &&
+              !standaloneLive &&
+              !pickerTop &&
+              layout === "dracula" && <DraculaSidebar />}
+            {!settingsTop &&
+              !playerActive &&
+              !standaloneLive &&
+              !pickerTop &&
+              layout === "nord" && <NordSidebar />}
+            {!settingsTop &&
+              !playerActive &&
+              !standaloneLive &&
+              !pickerTop &&
+              layout === "forest" && <ForestSidebar />}
+            {!settingsTop &&
+              !playerActive &&
+              !standaloneLive &&
+              !pickerTop &&
+              layout === "stremio" && <StremioRail />}
+            {!settingsTop && !playerActive && !pickerTop && layout === "topdock" && !immersive && (
+              <TopDock />
+            )}
+            {!settingsTop &&
+              !playerActive &&
+              !pickerTop &&
+              layout === "cinematic" &&
+              !immersive && <CinematicOverlay />}
+            {!settingsTop && !playerActive && !pickerTop && layout === "royal" && !immersive && (
+              <RoyalTopbar />
+            )}
+            {!settingsTop && !playerActive && !pickerTop && layout === "rail" && !immersive && (
+              <SideRail />
+            )}
+            {!playerActive && !pickerTop && layout === "minui" && !immersive && <MinUIDock />}
+          </Suspense>
           {!playerActive && !pickerTop && layout === "topdock" && !immersive && (
             <div className={gamesTop ? "games-library-back" : "contents"}>
               <FloatingBack offsetTop={92} />
@@ -1835,7 +1856,13 @@ function Shell({ onReady }: { onReady?: () => void }) {
             )}
             {gamesAlive && (
               <div {...layerProps(gamesTop)}>
-                <Suspense fallback={<GameRouteLoading />}>
+                <Suspense
+                  fallback={
+                    <Suspense fallback={null}>
+                      <GameRouteLoading />
+                    </Suspense>
+                  }
+                >
                   <GameDockWelcome eligible={gamesTop && gameDockVisible && !gamesNavigationOpen} />
                   <GamesView
                     harborNavigationOpen={gamesNavigationOpen}

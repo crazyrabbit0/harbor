@@ -185,7 +185,7 @@ export function savePlayback(
   const key = entryKey(metaId, season, episode);
   const prev = all[key];
   const thin = !entry.infoHash && !entry.addonId && !entry.url;
-  all[key] =
+  const next: PlaybackEntry =
     thin && prev
       ? {
           ...prev,
@@ -194,7 +194,25 @@ export function savePlayback(
           savedAt: Date.now(),
         }
       : { ...entry, savedAt: Date.now() };
+  // Player ticks resave the same stream; only the 30-day TTL and recency read savedAt, so a minute's drift is harmless.
+  if (prev && next.savedAt - prev.savedAt < RESAVE_MS && sameEntry(prev, next)) return;
+  all[key] = next;
   writeAll(all);
+}
+
+const RESAVE_MS = 60_000;
+
+function sameEntry(a: PlaybackEntry, b: PlaybackEntry): boolean {
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  keys.delete("savedAt");
+  for (const k of keys) {
+    const x = a[k as keyof PlaybackEntry];
+    const y = b[k as keyof PlaybackEntry];
+    if (Array.isArray(x) || Array.isArray(y)) {
+      if (JSON.stringify(x) !== JSON.stringify(y)) return false;
+    } else if ((x ?? null) !== (y ?? null)) return false;
+  }
+  return true;
 }
 
 export function readPlayback(

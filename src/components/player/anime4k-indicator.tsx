@@ -37,7 +37,8 @@ export function Anime4kIndicator({
       setActive(false);
       return;
     }
-    if (!pageVisible) return;
+    // The badge is only seen with the chrome up, so hidden chrome skips the IPC poll and showing it re-reads once.
+    if (!pageVisible || !chromeVisible) return;
     let cancelled = false;
     const tick = async () => {
       const shaders = await invoke("mpv_get_property", { name: "glsl-shaders" }).catch(() => null);
@@ -49,7 +50,7 @@ export function Anime4kIndicator({
       cancelled = true;
       window.clearInterval(id);
     };
-  }, [enabled, pageVisible]);
+  }, [enabled, pageVisible, chromeVisible]);
 
   if (!active) return null;
 

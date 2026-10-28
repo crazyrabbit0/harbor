@@ -64,7 +64,7 @@ export function StatsOverlay({ snap, engine }: { snap: PlayerSnapshot; engine: "
         getProp<number>("cache-buffering-state"),
       ]);
       if (cancelled) return;
-      setStats({
+      const next: MpvStats = {
         videoBitrate: vb,
         audioBitrate: ab,
         frameDropDecoder: fdd,
@@ -75,7 +75,10 @@ export function StatsOverlay({ snap, engine }: { snap: PlayerSnapshot; engine: "
         hwdec: hw,
         containerFps: cfps,
         cacheBufferingState: cb,
-      });
+      };
+      setStats((prev) =>
+        (Object.keys(next) as (keyof MpvStats)[]).every((k) => prev[k] === next[k]) ? prev : next,
+      );
     };
     void tick();
     const id = window.setInterval(() => void tick(), 1000);

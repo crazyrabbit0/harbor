@@ -2,7 +2,6 @@ import type { Addon } from "@/lib/addons";
 import { dwarn } from "@/lib/debug";
 import type { StreamRequest } from "../addons";
 import type { Stream } from "../types";
-import { toStreams } from "./adapter";
 import { repoKey } from "./manifest";
 import { PRELUDE_VERSION } from "./provider-compat/prelude";
 import { buildPluginRequest } from "./request";
@@ -162,6 +161,7 @@ export async function runPluginAddon(
       }
       const budget = plugin.timeoutMs ? Math.min(plugin.timeoutMs, timeoutMs) : timeoutMs;
       const raw = await runStreamPlugin(plugin, request, signal, budget);
+      const { toStreams } = await import("./adapter");
       return toStreams(raw, {
         req: request,
         addonId: addon.manifest.id,

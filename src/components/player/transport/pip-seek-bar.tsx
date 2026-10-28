@@ -1,17 +1,19 @@
 import { useRef, useState } from "react";
-import { usePlaybackPosition, usePlaybackBuffered } from "@/lib/player/playback-clock";
+import { usePlaybackPositionGated, usePlaybackBufferedGated } from "@/lib/player/playback-clock";
 
 export function PipSeekBar({
   durationSec,
   onSeek,
+  active = true,
 }: {
   durationSec: number;
   onSeek: (s: number) => void;
+  active?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [scrub, setScrub] = useState<number | null>(null);
-  const position = usePlaybackPosition();
-  const buffered = usePlaybackBuffered();
+  const position = usePlaybackPositionGated(active || scrub != null);
+  const buffered = usePlaybackBufferedGated(active || scrub != null);
   const dur = durationSec || 1;
   const value = scrub ?? position;
   const pct = Math.max(0, Math.min(1, value / dur)) * 100;

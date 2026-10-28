@@ -162,7 +162,18 @@ impl ThumbsState {
     }
 }
 
+// Only a found path is cached, so an mpv installed after launch is still picked up.
+static MPV_PATH: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+
 pub(crate) fn locate_mpv() -> Option<PathBuf> {
+    if let Some(p) = MPV_PATH.get() {
+        return Some(p.clone());
+    }
+    let found = probe_mpv()?;
+    Some(MPV_PATH.get_or_init(|| found).clone())
+}
+
+fn probe_mpv() -> Option<PathBuf> {
     let mut candidates: Vec<String> = Vec::new();
     if cfg!(windows) {
         if let Ok(exe) = std::env::current_exe() {
@@ -711,10 +722,33 @@ pub(crate) fn shutdown(app: &tauri::AppHandle) {
     tauri::async_runtime::block_on(state.stop());
 }
 
+// Every prefetch batch and shadow spawn asks again for the same url; a finished probe answers them.
+static HDR_PROBES: std::sync::Mutex<Option<HashMap<String, bool>>> = std::sync::Mutex::new(None);
+const HDR_PROBE_CACHE_MAX: usize = 32;
+
 async fn is_hdr_source(url: &str) -> bool {
-    let Some(ffprobe) = crate::transcode::locate_ffprobe() else {
+    if let Some(hit) = HDR_PROBES
+        .lock()
+        .ok()
+        .and_then(|m| m.as_ref().and_then(|m| m.get(url).copied()))
+    {
+        return hit;
+    }
+    let Some(hdr) = probe_hdr_source(url).await else {
         return false;
     };
+    if let Ok(mut guard) = HDR_PROBES.lock() {
+        let map = guard.get_or_insert_with(HashMap::new);
+        if map.len() >= HDR_PROBE_CACHE_MAX {
+            map.clear();
+        }
+        map.insert(url.to_string(), hdr);
+    }
+    hdr
+}
+
+async fn probe_hdr_source(url: &str) -> Option<bool> {
+    let ffprobe = crate::transcode::locate_ffprobe()?;
     let mut cmd = tokio::process::Command::new(&ffprobe);
     cmd.args([
         "-v",
@@ -738,10 +772,10 @@ async fn is_hdr_source(url: &str) -> bool {
     let probe =
         tokio::time::timeout(Duration::from_secs(8), crate::child_pipe::output(&mut cmd)).await;
     let Ok(Ok(out)) = probe else {
-        return false;
+        return None;
     };
     let s = String::from_utf8_lossy(&out.stdout).to_ascii_lowercase();
-    s.contains("smpte2084") || s.contains("arib-std-b67") || s.contains("bt2020")
+    Some(s.contains("smpte2084") || s.contains("arib-std-b67") || s.contains("bt2020"))
 }
 
 fn thumb_filter(hdr: bool) -> String {

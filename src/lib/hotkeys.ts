@@ -1,3 +1,5 @@
+import { storedSettings } from "./stored-settings";
+
 export type HotkeyScope = "Player" | "Global" | "Manga";
 
 export type HotkeyId =
@@ -786,17 +788,10 @@ export function matchesBinding(e: KeyboardEvent, binding: string): boolean {
   return eventToBinding(e) === binding;
 }
 
-/** Overrides for windows that run without SettingsProvider (PiP, video PiP); read from the settings mirror on each press. */
+/** Overrides for windows that run without SettingsProvider (PiP, video PiP), from the settings mirror parsed once per change. */
 export function storedHotkeyOverrides(): Record<string, string> {
-  try {
-    const parsed = JSON.parse(localStorage.getItem("harbor.settings") ?? "{}") as {
-      hotkeys?: unknown;
-    };
-    const hotkeys = parsed.hotkeys;
-    return hotkeys && typeof hotkeys === "object" ? (hotkeys as Record<string, string>) : {};
-  } catch {
-    return {};
-  }
+  const hotkeys = storedSettings().hotkeys;
+  return hotkeys && typeof hotkeys === "object" ? (hotkeys as Record<string, string>) : {};
 }
 
 /** The player hotkey a press matches, for players outside the main view that reuse its keys. */

@@ -105,6 +105,11 @@ where
         }
     }
 
+    /// Runs `f` with the underlying stream, e.g. to set socket options.
+    pub fn with_stream<R>(&self, f: impl FnOnce(&mut S) -> R) -> R {
+        f(&mut *self.stream.borrow_mut())
+    }
+
     /// Sends `message` to the Cast Device.
     ///
     /// # Arguments
