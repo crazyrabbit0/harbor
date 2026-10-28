@@ -25,10 +25,7 @@ function BpEpisodesHeading() {
 }
 
 // A twenty four episode strip that always opens on episode one is unusable from
-// a couch, the same thing BpAnimeEpisodeStrip fixed at bp-anime-seasons.tsx:268,
-// and a twenty season chip row that always opens on S1 was the identical bug one
-// row up: the strip below it was already showing season fifteen while the only
-// chip on screen said S1. Two halves, and one without the other is worse than
+// a couch, and so is a twenty season chip row that opens on S1 above a strip on season fifteen. Two halves, and one without the other is worse than
 // neither: the track parks so the viewer SEES where they left off, and the row
 // memory is seeded so the first Down lands there instead of on cell one and
 // gliding the track straight back to the start.

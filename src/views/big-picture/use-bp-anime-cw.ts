@@ -113,8 +113,8 @@ export function useBpAnimeCwBase(): BpAnimeCwBase {
     return () => window.removeEventListener("focus", refresh);
   }, [authKey, hideSharedCw]);
 
-  // Catalogs do not depend on cwPerProfile, so this used to re-sweep every installed
-  // addon whenever that toggle moved. Keyed on authKey alone, and the returned canceller
+  // Catalogs do not depend on cwPerProfile, so keying on it would re-sweep every installed
+  // addon whenever that toggle moves. Keyed on authKey alone, and the returned canceller
   // is what stops a stale sign-in's rows from landing after a switch.
   useEffect(() => {
     if (!authKey) {

@@ -37,8 +37,8 @@ export function needsImageProxy(url: string): boolean {
 }
 
 const blobCache = new Map<string, string>();
-// Module scoped, like the blob cache beside it. A failure used to live in
-// component state, so every remount re-invoked harbor_fetch for a url already
+// Module scoped, like the blob cache beside it. A failure kept in
+// component state is lost on every remount, re-invoking harbor_fetch for a url already
 // known to be dead, and each of those is a bridge crossing carrying a base64
 // image body. The in-flight map is for the row where twenty cells share a logo.
 const deadUrls = new Set<string>();

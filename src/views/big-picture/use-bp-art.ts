@@ -53,13 +53,12 @@ function pickArt(
   return { url: bpCardArt(raw, coverWidth), wide: raw === background, raw };
 }
 
-// Module scoped, and it has to be. This was component state wiped on every id
-// change, so one dead url was re-requested by every tile showing that title and
-// again by all of them after every route change. The escalation is what made it
+// Module scoped, and it has to be: component state would be wiped on every id
+// change, so one dead url would be re-requested by every tile showing that title and
+// again by all of them after every route change. The escalation is what makes it
 // expensive rather than merely wasteful: live() answering NONE flips `missing`,
 // which fires animeKitsuMeta or hydrateLibraryMeta, so a broken poster costs an
-// image AND a follow-up fetch, per tile, per visit. A failure costs once per
-// session now. Do not move it back inside the hook.
+// image AND a follow-up fetch, per tile, per visit. A failure costs once per session. Do not move it inside the hook.
 const DEAD_CAP = 400;
 const dead = new Set<string>();
 
@@ -80,8 +79,7 @@ export function markBpArtDead(url: string): void {
 }
 
 // A sized url is a GUESS about what the host serves at that path, and a guess
-// that misses used to cost a permanently blank card plus a hydrate round trip
-// for art the tile already had. So a broken sized url falls back to the
+// that misses would cost a permanently blank card plus a hydrate round trip for art the tile already has. So a broken sized url falls back to the
 // untransformed original first, and only a raw url that also fails counts as
 // missing art.
 function live(picked: Picked): Picked {

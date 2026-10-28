@@ -292,7 +292,7 @@ export const ContinueCard = memo(function ContinueCard({
       }
       const looksEpisodic = item.type === "movie" && episodeFromVideoId(item.state?.video_id);
       // resolveMeta honours a custom metadata addon before Cinemeta, so disabling the Cinemeta
-      // toggle (to use another addon) no longer leaves this card with a blank/stretched thumbnail.
+      // toggle (to use another addon) does not leave this card with a blank/stretched thumbnail.
       resolveMeta(authKey, looksEpisodic ? "series" : narrowMediaType(item.type), item._id)
         .then((full) => {
           if (cancelled || !full) return;

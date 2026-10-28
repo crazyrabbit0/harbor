@@ -343,10 +343,10 @@ export function BpAnimeEpisodeStrip({
   );
 }
 
-// A single-slot BpAnimeSeasons wrapper used to live here. It is deleted, not
-// deprecated: it put both sections in one div, and a wrapper between a rail row
+// No single-slot BpAnimeSeasons wrapper, on purpose:
+// it would put both sections in one div, and a wrapper between a rail row
 // and its sections is exactly what bpRailStep cannot navigate, because it
 // resolves the rail as row.parentElement and takes the first focusable in the
-// index. Down landed on a season chip and the next Down left for index+1, so on
-// every multi-season title the episode cards were unreachable by D-pad. Mount
+// index. Down would land on a season chip and the next Down leave for index+1, so on
+// every multi-season title the episode cards would be unreachable by D-pad. Mount
 // BpAnimeSeasonChips and BpAnimeEpisodeStrip as two adjacent rail rows.

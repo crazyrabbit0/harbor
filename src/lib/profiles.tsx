@@ -560,12 +560,11 @@ export function ProfilesProvider({ children }: { children: ReactNode }) {
   unlockedRef.current = sessionUnlockedIds;
 
   const selectProfile = useCallback((id: string, opts?: { unlocked?: boolean }) => {
-    // THE GATE LIVES HERE, not in the UI. It used to be duplicated in picker-modal and
-    // use-account-menu, and RemoteOpenBridge has neither: it calls selectProfile(id)
-    // straight off a harbor:remote-set-profile event, so a paired phone walked past
+    // THE GATE LIVES HERE, not in the UI, so picker-modal and use-account-menu can't drift.
+    // RemoteOpenBridge has no gate of its own: it calls selectProfile(id)
+    // straight off a harbor:remote-set-profile event, so a paired phone would walk past
     // every profile PIN including a kid profile's parent PIN. Gated callers already
-    // pass { unlocked: true } after verifying, so they are unaffected and the remote
-    // now fails closed.
+    // pass { unlocked: true } after verifying, so they are unaffected and the remote fails closed.
     const target = profilesRef.current.find((p) => p.id === id) ?? null;
     if (refuseProfileSelect(target, unlockedRef.current, opts)) return false;
     if (opts?.unlocked) {

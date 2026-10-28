@@ -28,4 +28,4 @@ The module root is `../music.rs` (no `mod.rs`): `MusicState`, `initialize`, `shu
 
 - Don't resolve YouTube Music streams from raw innertube URLs: YouTube serves ~1 MB and then 403s ffmpeg's `Range: bytes=0-`. Keep yt-dlp (`connectors/youtube_music/ytdlp.rs`).
 - librespot's access token expires within the hour and nothing renews it; every playback path goes through `ensure_session` (`spotify/mod.rs`). Browsing working does not mean playback will.
-- Process-wide statics (`audio_fx.rs` `ACTIVE`, `cable_win/select.rs` `HELD`, `commands/cable_pipewire.rs` `CHILD`) are process-wide and shared by every window and deck; check who else holds them before changing their lifecycle.
+- Process-wide statics (`audio_fx.rs` `ACTIVE`, `cable_win/select.rs` `HELD`, `commands/cable_pipewire.rs` `CHILD`) are shared by every window and deck; check who else holds them before changing their lifecycle.

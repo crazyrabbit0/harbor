@@ -23,4 +23,5 @@ Pure Rust parse → trust → score → rank, built as `cdylib` + `rlib`. `src-t
 ## Checks
 
 - Inside `harbor-core/`: `cargo test --all-targets`, `cargo clippy --all-targets -- -D warnings`, `cargo check --target wasm32-unknown-unknown`. CI also runs `wasm-pack build --target bundler` on Linux, macOS and Windows.
+- CI never runs `cargo fmt`, and only `src/lib.rs` is rustfmt-clean; formatting the rest rewrites ~750 lines and unpacks the hand-aligned language and group tables, so don't run it inside a feature diff.
 - Release profile is `opt-level = "z"` for the wasm size; it doesn't apply when `src-tauri` builds the crate, which uses the app's profile.

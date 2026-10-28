@@ -248,11 +248,11 @@ export async function runPull(signal?: AbortSignal): Promise<PullOutcome> {
     return { ok: false, reason };
   }
 
-  // AFTER the request, never before it. This used to run at the top of runPull on every
-  // attempt while the account was unbound, and resetSyncState clears the queue, the
-  // parked copies and the tombstones. A TV that could not reach the server therefore
-  // deleted the user's offline edits every eight seconds, on a pull that never happened,
-  // and a profile deleted offline lost its tombstone so the delete never propagated.
+  // AFTER the request, never before it. Running at the top of runPull on every
+  // attempt while the account is unbound would be wrong: resetSyncState clears the queue, the
+  // parked copies and the tombstones. A TV that could not reach the server would therefore
+  // delete the user's offline edits every eight seconds, on a pull that never happened,
+  // and a profile deleted offline would lose its tombstone so the delete never propagated.
   //
   // Only an account SWITCH discards pending work, because that work belongs to somebody
   // else's data. Binding an account for the first time keeps it: those are this user's
@@ -265,8 +265,8 @@ export async function runPull(signal?: AbortSignal): Promise<PullOutcome> {
 
   const applied = applyDocs(state.docs, firstPull);
   // settleRoster before markHydrationAfterPull: the syncIds are minted inside settleRoster
-  // and hydration is computed from knownSyncIds(), so the old order left every
-  // profile-scoped key unhydrated on a brand new account and withheld the user's very
+  // and hydration is computed from knownSyncIds(), so the reverse order would leave every
+  // profile-scoped key unhydrated on a brand new account and withhold the user's very
   // first customisation until the next scheduled pull.
   settleRoster(state.docs);
   markHydrationAfterPull(state.docs, applied);

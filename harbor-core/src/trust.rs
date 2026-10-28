@@ -1,7 +1,5 @@
 //! Trust filter. Mirror of `src/lib/streams/trust.ts`.
 
-#![allow(dead_code)]
-
 use crate::types::*;
 use once_cell::sync::Lazy;
 use regex::Regex;
@@ -110,7 +108,6 @@ static PART_WORD_RX: Lazy<Regex> =
 
 static WORD_RX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[a-z0-9]+").unwrap());
 
-static ANIME_JA_RX: Lazy<Regex> = Lazy::new(|| Regex::new(r"(?i)^(ja|jp|jap|japanese)").unwrap());
 
 static TITLE_STOPWORDS: Lazy<HashSet<&'static str>> = Lazy::new(|| {
     [

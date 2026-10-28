@@ -165,7 +165,7 @@ export function BpCollections({ onOpen }: { onOpen: (target: BpCollectionTarget)
   }, [setSource]);
 
   // Collections is TMDB's surface, so with no key there is nothing to show and
-  // the tab used to be hidden outright. Hiding it left a TV-only viewer with no
+  // the tab is not hidden: hiding it would leave a TV-only viewer with no
   // route to the key at all, so the tab stays and explains itself instead.
   if (!settings.tmdbKey.trim()) {
     return (

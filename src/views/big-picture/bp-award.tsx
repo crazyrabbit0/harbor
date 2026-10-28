@@ -235,11 +235,11 @@ function BpAwardWinner({
   const [busy, setBusy] = useState(false);
   const [missing, setMissing] = useState(false);
   const [, redraw] = useState(0);
-  // The url is unchanged: which metahub tier actually exists is an open question
+  // The url is not retried at another tier: which metahub tier actually exists is an open question
   // that only a probe on the device can answer, and guessing a different one here
-  // would just manufacture a different failing url. What is fixed is the memory.
-  // A miss used to live in component state, so the same dead url was requested
-  // again by every later mount of this row. The dead set is the shared one, so a
+  // would just manufacture a different failing url. The memory of misses is what matters.
+  // A miss lives in the shared dead set, not component state, which would request the
+  // same dead url again on every later mount of this row. So a
   // failure costs once per session rather than once per visit.
   const raw = entry.imdb ? `https://images.metahub.space/poster/small/${entry.imdb}/img` : null;
   const sized = raw ? (bpCardArt(raw, POSTER_ART_W) ?? null) : null;
@@ -265,9 +265,9 @@ function BpAwardWinner({
       } as Meta);
       return;
     }
-    // One press, one answer. This used to return here, so a keyless winner lit
-    // up under the ring, made a sound and changed nothing, which is the worst
-    // thing a remote can do. The press now goes to the surface that fixes it.
+    // One press, one answer. Returning here would let a keyless winner light
+    // up under the ring, make a sound and change nothing, which is the worst
+    // thing a remote can do. The press goes to the surface that fixes it.
     if (!settings.tmdbKey) {
       pushBigPicture({ kind: "settings" });
       return;

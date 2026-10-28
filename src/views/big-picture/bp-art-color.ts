@@ -8,7 +8,7 @@ const inflight = new Map<string, Promise<string | null>>();
 const SAMPLE = 14;
 
 // The ring passes through every cell of a rail on the way somewhere, and each
-// cell it touches used to start its own host fetch and decode. Sampling waits
+// cell it touches would start its own host fetch and decode. Sampling waits
 // for the ring to rest, so a sweep costs one extraction rather than one per cell.
 const SETTLE_MS = 200;
 
@@ -255,7 +255,7 @@ function hydrate(): void {
 
 // One sample at a time, off idle, and never before the stored tints have landed:
 // without that gate every cold start resamples the entire home screen it already
-// has the colours for, which is the traffic this was built to avoid.
+// has the colours for, which is the traffic this queue exists to avoid.
 //
 // Nothing in this queue is urgent. A sample taken on load cannot help the tile
 // that produced it, only the next cold start and the focus bloom, so it yields

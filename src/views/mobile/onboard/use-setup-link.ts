@@ -8,7 +8,7 @@ export type LinkStatus = "connecting" | "connected" | "unreachable";
 export type DeliveryState = "idle" | "sending" | "confirmed" | "rejected" | "timeout" | "offline";
 
 /**
- * A live socket whose TV never broadcasts an offer used to spin forever while
+ * A live socket whose TV never broadcasts an offer would otherwise spin forever while
  * the header claimed it was connected. After this the phone says so and offers
  * the retry, because the TV having left the setup screen is the ordinary case.
  */

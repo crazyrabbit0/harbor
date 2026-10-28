@@ -88,17 +88,13 @@ export function BpLiveRow({ lead, autofocusFirst }: { lead: BpRowLead; autofocus
 
   if (!live.hasPlaylists) return null;
 
-  // This branch used to carry the focusable label tile, which is what held the
-  // rail index reachable during the playlist fetch. The tile is gone and the
-  // skeletons below are not focusable, so for the length of the fetch this is a
-  // rail index with nothing in it and bpRailStep steps over it. That is correct:
+  // The skeletons below are not focusable, so for the length of the playlist
+  // fetch this is a rail index with nothing in it and bpRailStep steps over it. That is correct:
   // a row of placeholders is not something a remote can act on.
   //
-  // The one thing it costs is home's provisional live seed. That seed was
-  // already inert here, because autofocusFirst lands on BpGuideCell i === 0 and
-  // there are no cells yet, so no data-bp-autofocus has ever existed in this
-  // branch. Do NOT add one to a skeleton: a focus stop that does nothing on
-  // Enter is the exact failure the addon lead tile was.
+  // The one thing it costs is home's provisional live seed. That seed is inert here, because autofocusFirst lands on BpGuideCell i === 0 and
+  // there are no cells yet, so no data-bp-autofocus exists in this branch. Do NOT add one to a skeleton: a focus stop that does nothing on
+  // Enter is a dead end for a remote.
   if (live.loading && live.channels.length === 0) {
     return (
       <section data-bp-row data-bp-row-key="live" data-bp-row-tab={lead.tab} className="relative">

@@ -239,10 +239,9 @@ export function BpCwRow({
   // reflowing under the ring. Empty and settled still collapses, so the rail
   // wrapper hides it and the index is skipped rather than missing.
   //
-  // The placeholders below are NOT focusable, and the label tile that used to
-  // stand beside them was. So for the length of the library resolve this row is
-  // a rail index holding nothing focusable, which bpRailStep skips: Down out of
-  // it steps to the catalog instead of stopping on cards that are not there yet.
+  // The placeholders below are NOT focusable, and no label tile stands beside them.
+  // So for the length of the library resolve this row is a rail index holding nothing focusable, which bpRailStep skips:
+  // Down out of it steps to the catalog instead of stopping on cards that are not there yet.
   // That is the right answer for a row you cannot act on, and it is only safe
   // because home never seeds the ring here (seedRow is "cw" only once cwReady
   // and cw.length > 0). Do not aim an autofocus at this row before it settles.
@@ -280,7 +279,7 @@ export function BpCwRow({
           //
           // Nothing in here is focusable, before or after. The row stays a rail
           // index holding no focusable, which bpRailStep steps over, which is
-          // the documented behaviour of this branch and not a regression.
+          // the documented behaviour of this branch.
           <div aria-hidden className="relative flex shrink-0 gap-[var(--bp-track-gap)]">
             {Array.from({ length: CW_PLACEHOLDERS }).map((_, i) => (
               <div

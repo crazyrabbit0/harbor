@@ -15,11 +15,11 @@ const COOLDOWN_MS = 30000;
  * 10,000 combinations, and a cool-down held in component state would reset every
  * time they backed out to the roster and came straight back in.
  *
- * THE ATTEMPT COUNT LIVES HERE TOO, not just the deadline. It used to be a useRef
- * inside BpWhoPin, and the Back chevron unmounts this component: two wrong guesses,
- * back out, return, and the counter was zero again. The map was only ever written
- * once three consecutive in-view tries had failed, which never happened, so the
- * throttle it documents did not exist.
+ * THE ATTEMPT COUNT LIVES HERE TOO, not just the deadline. A useRef inside BpWhoPin
+ * would not hold it: the Back chevron unmounts this component, so after two wrong
+ * guesses, backing out and returning the counter would be zero again. The map would
+ * only be written once three consecutive in-view tries had failed, which never
+ * happens, so the throttle would not exist.
  */
 type BpPinAttempt = { tries: number; until: number };
 const attempts = new Map<string, BpPinAttempt>();
