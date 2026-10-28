@@ -125,6 +125,8 @@ function persistUnwatchedAt(): void {
 }
 
 function persistRemote(): void {
+  // Every change to the remote set persists through here, so this is where its per-id index goes stale.
+  remoteIndex = null;
   persistCritical(storeKey("remote"), JSON.stringify([...(remoteCache ?? [])]));
 }
 
@@ -342,15 +344,27 @@ export function unwatchedAt(metaId: string, season: number, episode: number): nu
   return unwatchedAtMap()[key(metaId, season, episode)];
 }
 
-export function remoteWatchedKeys(metaId: string): Set<string> {
-  const prefix = `${metaId}|`;
-  const out = new Set<string>();
-  for (const k of remoteSet()) {
-    if (!k.startsWith(prefix)) continue;
+// Built from the remote set on demand; the library pull asks once per series, so a full scan each time was quadratic.
+let remoteIndex: { source: Set<string>; byId: Map<string, string[]> } | null = null;
+
+function remoteKeysById(): Map<string, string[]> {
+  const rem = remoteSet();
+  if (remoteIndex && remoteIndex.source === rem) return remoteIndex.byId;
+  const byId = new Map<string, string[]>();
+  for (const k of rem) {
     const parts = k.split("|");
-    if (parts.length === 3) out.add(`${parts[1]}:${parts[2]}`);
+    if (parts.length !== 3) continue;
+    const list = byId.get(parts[0]);
+    const ep = `${parts[1]}:${parts[2]}`;
+    if (list) list.push(ep);
+    else byId.set(parts[0], [ep]);
   }
-  return out;
+  remoteIndex = { source: rem, byId };
+  return byId;
+}
+
+export function remoteWatchedKeys(metaId: string): Set<string> {
+  return new Set(remoteKeysById().get(metaId));
 }
 
 export function applyRemoteWatched(
