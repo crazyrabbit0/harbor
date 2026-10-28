@@ -288,6 +288,7 @@ jobs:
 
       - name: Preserve macOS startup diagnostics
         if: always() && contains(matrix.platform.runner, 'macos')
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: startup-${{ matrix.platform.target }}
