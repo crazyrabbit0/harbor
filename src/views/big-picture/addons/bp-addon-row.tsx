@@ -77,8 +77,8 @@ export function BpAddonRow() {
   // this row falls through to the plain active-tab landing, which is honest.
   // When a surface is built this gains an action and a tab and nothing else.
   //
-  // This row used to open with a lead tile carrying exactly that missing
-  // destination: it took focus, played a click on Enter, and did nothing. On a
+  // No lead tile either: it would carry exactly that missing
+  // destination, take focus, play a click on Enter and do nothing. On a
   // remote there is nothing more expensive than a rectangle that lights up and
   // does not answer.
 

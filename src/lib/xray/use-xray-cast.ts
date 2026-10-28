@@ -20,8 +20,7 @@ export function useXrayCast(
   const key = settings.tmdbKey;
 
   useEffect(() => {
-    // Without a TMDB key this used to bail before setting any state, so the rail
-    // skipped "Reading the cast" and sat on "Looking for who is on screen"
+    // Bailing before setting any state without a TMDB key would leave the rail on "Looking for who is on screen"
     // forever with an empty gallery. TVDB needs no key, so try it either way.
     if (!open || !meta) return;
     let cancelled = false;

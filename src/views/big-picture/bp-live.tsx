@@ -133,7 +133,7 @@ export function BpLive() {
   // First run only, when nothing has ever been added. Once a provider exists,
   // switching and adding both happen in the sources sheet OVER the live guide,
   // never by replacing it. Do NOT fold an add flag back into showSetup: routing
-  // "Add" through here is what used to blank the guide.
+  // "Add" through here would blank the guide.
   const showSetup = !live.loading && !live.hasPlaylists;
   const activeSource = live.sources.find((s) => s.id === live.activeId) ?? live.sources[0] ?? null;
   const emptyCopy = bpLiveEmptyCopy({ error: live.error, favorites: catKey === FAV_KEY, t });
@@ -179,7 +179,7 @@ export function BpLive() {
 
       {showSetup && (
         // First run stands alone with no band above it, so it owns the top-bar
-        // clearance the band used to provide. pt-14 here would lay the heading
+        // clearance the band provides elsewhere. pt-14 here would lay the heading
         // under the nav.
         <div
           data-bp-scroll-y
@@ -214,9 +214,7 @@ export function BpLive() {
             </BpGridScroller>
           ) : (
             // One setup entry point, and it is the branch above with a scroller.
-            // A second BpLiveSetup used to sit here as a third arm that showSetup
-            // had already made unreachable, and it had no overflow-y-auto, so had
-            // anything ever reached it the fields would have run off a 641px panel.
+            // No second BpLiveSetup here: showSetup makes it unreachable, and it has no overflow-y-auto.
             <BpLiveEmpty
               title={emptyCopy.title}
               body={emptyCopy.body}

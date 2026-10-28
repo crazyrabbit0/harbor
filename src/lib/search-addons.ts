@@ -265,7 +265,7 @@ export async function searchAddonGroups(
       }
       const group = { id: origin.id, name: origin.name, logo: origin.logo, metas };
       // Publish the moment this addon answers. A catalog scanning tens of thousands
-      // of titles can take ~9s, and waiting for it used to hide every fast addon too.
+      // of titles can take ~9s, and waiting for it would hide every fast addon too.
       if (metas.length > 0) onGroup?.(group);
       // Partial success is still success. "failed" means not one catalog on this
       // addon came back ok, which is the only case a viewer should be told about.

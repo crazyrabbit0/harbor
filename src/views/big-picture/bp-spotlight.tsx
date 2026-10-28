@@ -30,10 +30,8 @@ const TITLE =
 export function BpSpotlight(_props: { phase?: BpPagePhase }) {
   // The copy is NOT settled. It updates on the frame focus lands.
   //
-  // This file used to hold it on BP_META_SETTLE_MS so it could never arrive
-  // ahead of its own artwork. Two things were tried and both are worse than
-  // simply being fast. Holding the old copy leaves the previous title's logo,
-  // score and synopsis describing a card the ring already left, for the settle
+  // Holding it on BP_META_SETTLE_MS so it never arrives ahead of its artwork is worse than simply being fast. Holding the old copy leaves the
+  // previous title's logo, score and synopsis describing a card the ring already left, for the settle
   // plus the backdrop's decode plus the cross-fade. Blanking it for the same
   // window reads as even slower, because now nothing is there at all.
   //

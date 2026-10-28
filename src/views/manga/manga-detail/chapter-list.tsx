@@ -72,7 +72,7 @@ function chapterLabel(chapter: string | null): string {
   return chapter == null ? t("Oneshot") : t("Chapter {n}", { n: chapter });
 }
 
-// Scanlator labels used to arrive prefixed with the server name ("My Server ·
+// Scanlator labels can arrive prefixed with the server name ("My Server ·
 // Webtoon") via the aggregate provider; strip that prefix for display and for
 // the scanlator filter so the scanlator alone is compared and shown.
 function displayGroup(group?: string | null): string {

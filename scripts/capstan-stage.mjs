@@ -32,7 +32,7 @@
  *
  * A jlink image runs on one platform only, and which one comes from the jmods jlink is handed
  * rather than from the machine running it. capstan-jdk.mjs finds the right JDK for a target and
- * fetches it when it is not already here, so a macOS or Linux build no longer ships a Windows
+ * fetches it when it is not already here, so a macOS or Linux build never ships a Windows
  * runtime it cannot start.
  *
  * The module list is measured, not guessed. jdeps over capstan.jar plus libs/ named
@@ -161,7 +161,7 @@ const jarsIn = (dir) =>
     .sort();
 
 // capstan.jar is built from these and nothing else, so a change here with no rebuild is the
-// stale jar that used to reach an installer unnoticed.
+// stale jar that would reach an installer unnoticed.
 function layerSourceHash() {
   const inputs = [];
   for (const file of walk(join(src, "src"))) {

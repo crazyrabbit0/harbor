@@ -35,9 +35,9 @@ const STRIP =
 
 const PLATE_SIZE = { width: "clamp(52px, 4.2vw, 78px)", height: "clamp(32px, 2.6vw, 48px)" };
 
-// subscribeBpTick, never a second interval of its own. This file used to run
-// one, also at 10s, so Live damaged a frame twice per window at two phases that
-// could never align, and the guide's clocks stepped at a different instant from
+// subscribeBpTick, never a second interval of its own: two tickers would damage a frame
+// twice per window at two phases that
+// can never align, and the guide's clocks would step at a different instant from
 // the cards' progress bars. One ticker for the feature.
 
 // The bar is written straight to the node. Ticking it through state would

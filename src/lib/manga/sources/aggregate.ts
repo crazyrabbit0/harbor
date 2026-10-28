@@ -150,8 +150,8 @@ function labelChapters(chs: MangaChapter[], p: MangaProvider): MangaChapter[] {
   return chs.map((c) => ({
     ...c,
     id: prefixId(p.id, c.id),
-    // The scanlator group stands alone: the server name was previously
-    // prepended here ("My Server · Webtoon"), which is noise on the details
+    // The scanlator group stands alone: the server name is not
+    // prepended ("My Server · Webtoon"), which would be noise on the details
     // page. Server identity is retained in the prefixed chapter id.
     group: c.group,
   }));

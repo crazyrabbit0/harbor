@@ -21,13 +21,13 @@ const QR_SIDE = "clamp(190px,30vh,250px)";
 /**
  * The phone route, stated as one card.
  *
- * No URL chip. The address used to print here as a truncated monospace string
+ * No URL chip: a printed address would be a truncated monospace string
  * beside the code, which on a television is an instruction to go and find a
  * laptop, set in the least legible type on the screen. The QR carries the same
  * address and a phone camera reads it from the sofa.
  *
  * grid, never flex-wrap: at 1140 the code column has only a few px of slack, and
- * a locale that widens either half used to drop the text under the QR and take
+ * a locale that widens either half would drop the text under the QR and take
  * the page's height with it.
  */
 export function BpConnectQr({

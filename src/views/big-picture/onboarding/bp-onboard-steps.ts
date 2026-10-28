@@ -51,7 +51,7 @@ export const BP_ONBOARD_STEPS: readonly BpOnboardStep[] = [
     headline: "Finish setup on your phone",
     body: "The next three screens need typing. Scan this and your phone does it for you.",
     // One button, and it changes meaning when the phone lands. Parking the ring
-    // on a decline is how the first OK press used to leave the one feature the
+    // on a decline would make the first OK press leave the one feature the
     // flow exists for.
     focus: "decision",
     primary: "Set this up on the TV instead",

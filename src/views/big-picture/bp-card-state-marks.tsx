@@ -32,10 +32,9 @@ export type BpCardLift = "none" | "focus" | "always";
 // nothing can land on anything else. The watched check takes whichever corner
 // the scores did not.
 //
-// This used to take a hasRank flag that forced the scores off the top-end corner
-// whenever a ranked row printed a position pill there. There is no pill any
-// more: a ranked cell draws the numeral OUTSIDE the poster, so it cannot collide
-// with anything in the corners and the placement setting is free again.
+// No hasRank flag forces the scores off the top-end corner for a ranked row's
+// position pill: a ranked cell draws the numeral OUTSIDE the poster, so it cannot collide
+// with anything in the corners and the placement setting stays free.
 export function bpCardZones(settings: Settings): BpCardZones {
   const scores: BpCardZones["scores"] = settings.badgePlacement === "top" ? "topEnd" : "bottomEnd";
   return {
@@ -138,10 +137,10 @@ export function BpCardStateMarks({
   const { settings } = useSettings();
   const topTenSide = settings.top10RibbonSide === "left" ? "left" : "right";
   const scores = badges.length > 0 ? <BpScoreRow badges={badges} limit={limit} /> : null;
-  // The real ribbon, the same art desktop uses. This used to be swapped for a
-  // text pill on any card carrying a position string, which is how the one row
-  // named Top 10 became the only place the ribbon could never appear. The pill
-  // rendered at clamp(9.5px, 1.2vh, 13px), which on the 641px television canvas
+  // The real ribbon, the same art desktop uses, never swapped for a
+  // text pill on a card carrying a position string, which would make the one row
+  // named Top 10 the only place the ribbon could never appear. A pill
+  // renders at clamp(9.5px, 1.2vh, 13px), which on the 641px television canvas
   // resolves to its 9.5px floor: the smallest glyph Big Picture draws anywhere,
   // on the row whose entire purpose is the number. A mark is read before a word
   // at ten feet, and 9.5px is neither.
@@ -151,8 +150,8 @@ export function BpCardStateMarks({
   // four pixels tall. NEEDS AN EYE at 1140x641 rather than another derivation.
   //
   // No drop-shadow. It is a CSS filter, so it opens a render surface on every
-  // card that carries the mark, and this mark now ships on Home, Search,
-  // Discover, Library and More Like This rather than nowhere. A saturated orange
+  // card that carries the mark, and this mark ships on Home, Search,
+  // Discover, Library and More Like This. A saturated orange
   // tab on a poster does not need a shadow to separate.
   const topTen = state.top10 ? (
     <img

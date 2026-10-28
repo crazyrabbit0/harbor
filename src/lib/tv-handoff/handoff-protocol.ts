@@ -151,7 +151,7 @@ function parseCommand(v: unknown): HandoffClientCommand | null {
 /**
  * A frame addressed to us whose command did not survive validation. Kept
  * distinct from "not our frame" so the host can answer `badPayload` instead of
- * dropping it, which used to leave the phone waiting out an ack timeout with no
+ * dropping it, which would leave the phone waiting out an ack timeout with no
  * idea that the shape of the value it typed was the problem.
  */
 export type HandoffEnvelope =

@@ -106,9 +106,9 @@ const PERSIST_DESC_MAX = 500;
 const catalog = new Map<string, CatalogEntry>();
 
 // Derived from the key, never from a flag a caller has to remember to pass.
-// Title searches used to share the 40 slots with the 20 row catalogs the anime
-// page is built from, and one crawl of a few hundred searches evicted every one
-// of them, so every row refetched on the next cold boot.
+// Title searches must not share the 40 slots with the 20 row catalogs the anime
+// page is built from: one crawl of a few hundred searches would evict every one
+// of them, so every row would refetch on the next cold boot.
 function isSearchKey(key: string): boolean {
   return /[?&]q=/.test(key);
 }
@@ -173,7 +173,7 @@ export function catalogGet(key: string): Meta[] | null {
 }
 
 // An empty result is never stored. catalogGet answers with the array itself and
-// [] is truthy, so a single empty 200 used to short-circuit the network for six
+// [] is truthy, so a single empty 200 would short-circuit the network for six
 // hours across cold boots, and a row that settles empty is dropped from the page
 // rather than drawn empty. Refetching a genuinely empty row is the cheap side.
 export function catalogSet(key: string, metas: Meta[]): void {

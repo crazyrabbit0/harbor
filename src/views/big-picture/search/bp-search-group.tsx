@@ -39,7 +39,7 @@ const HEAD =
 
 const MARK = "h-[clamp(22px,2.7vh,38px)] w-[clamp(22px,2.7vh,38px)] shrink-0";
 
-// A QUIET plate. This was animate-pulse, and search is the one surface that
+// A QUIET plate, not animate-pulse, because search is the one surface that
 // rebuilds every skeleton on every debounced keystroke: buildBpSearchSlots
 // declares nine fixed rows plus one per installed addon before a request goes
 // out, so ten addons put well past a hundred group opacities on screen at once

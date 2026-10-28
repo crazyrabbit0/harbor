@@ -56,7 +56,7 @@ export function SetupHeading({ title, body }: { title: string; body?: string }) 
 
 /**
  * The keyboard's Go and Next keys are painted by enterKeyHint on every field
- * here and used to do nothing at all, which bites hardest on iOS Safari where
+ * here and would do nothing at all without a submit control, which bites hardest on iOS Safari where
  * the keyboard overlays the docked action button rather than shrinking the
  * page. Implicit submission needs a submit control inside the form, and the
  * real one lives in the shell's action bar outside it, so this carries a

@@ -36,10 +36,8 @@ function BpIntroColumn({ idx, posters }: { idx: number; posters: string[] }) {
     <div className="h-full flex-1 overflow-hidden">
       <div
         className="flex flex-col gap-[clamp(10px,1vw,20px)] will-change-transform"
-        // This was the only unguarded infinite animation under [data-bp-root],
-        // and the reduced-motion blanket in bp-tokens made it worse rather than
-        // better: it sets animation-duration to 1ms, which for a loop is a
-        // thousand cycles a second, so the columns thrashed instead of stopping.
+        // Guarded by `reduce` rather than left to the reduced-motion blanket in bp-tokens, which
+        // sets animation-duration to 1ms: for a loop a thousand cycles a second, so the columns would thrash.
         style={
           reduce
             ? undefined

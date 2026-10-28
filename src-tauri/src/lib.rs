@@ -711,9 +711,7 @@ fn harbor_take_pending_file() -> Option<String> {
     pending_open_file().lock().ok().and_then(|mut g| g.take())
 }
 
-// Android runs an entirely separate builder in `mobile.rs`. Desktop keeps this
-// one verbatim: the `cfg_attr(mobile, ...)` that used to sit here expanded to
-// nothing on desktop, so the emitted code is unchanged.
+// Android runs an entirely separate builder in `mobile.rs`; the desktop `run` below shares nothing with it.
 #[cfg(mobile)]
 #[tauri::mobile_entry_point]
 pub fn run() {

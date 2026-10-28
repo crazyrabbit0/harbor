@@ -3,12 +3,10 @@ import type { BpBandId } from "./use-bp-sections";
 
 export type BpRailEntry = { key: string; band?: BpBandId; node: ReactNode };
 
-// One expression of the number, which is the whole point of the token. The
-// non-TV half used to be a parallel clamp, which is exactly the bug class
-// --bp-page-top was created to end: at a 1080 tall window --bp-bar-h resolves to
-// 97.2px and --bp-page-top to 112.3px while that clamp resolved to 79.9px, so
-// the page padded 17px LESS than the bar is tall and the first row sat under it.
-// Android TV never caught it because both halves land on 82px at 641px of
+// One expression of the number, which is the whole point of the token. A parallel clamp for the non-TV half is exactly the bug class
+// --bp-page-top exists to end: at a 1080 tall window --bp-bar-h resolves to
+// 97.2px and --bp-page-top to 112.3px while such a clamp resolves to 79.9px, so the first row sits under the bar.
+// Android TV cannot show it because both halves land on 82px at 641px of
 // height. If desktop ever wants a shorter offset, redefine --bp-page-top under a
 // media query in bp-tokens rather than restating it here.
 export const BP_PAGE_TOP = "pt-[var(--bp-page-top)]";

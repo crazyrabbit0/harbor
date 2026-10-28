@@ -257,8 +257,8 @@ function releaseFar(): void {
         far.push(el);
         continue;
       }
-      // Re-arming used to happen right here, in this loop, for every element the
-      // move brought back inside the window. That is the twenty-simultaneous-
+      // Re-arming must not happen right here, in this loop, for every element the
+      // move brings back inside the window. That is the twenty-simultaneous-
       // decode regression recorded below arriving through the other door: a row
       // change promotes a whole row at once (CHUNK is 10), and arm() ends with
       // queued.delete(el), so a re-arm could never reach the flush that exists to

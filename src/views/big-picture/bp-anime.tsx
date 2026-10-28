@@ -46,10 +46,10 @@ export function BpAnime({ onSelect }: { onSelect: (m: Meta) => void }) {
   // The settings search deep-links into a named anime row. Without this the
   // link resolves to nothing once the surface is Big Picture.
   //
-  // Resolved by the row's own key rather than by a rail index. The index used to
-  // be computed as a fixed prefix plus the row's position, which is the same
-  // arithmetic-over-conditionals that made Discover's ordering drift: every row
-  // now stamps data-bp-row-key, so there is nothing left to keep in step.
+  // Resolved by the row's own key rather than by a rail index. An index computed as
+  // a fixed prefix plus the row's position is the same
+  // arithmetic-over-conditionals that makes Discover's ordering drift: every row
+  // stamps data-bp-row-key, so there is nothing to keep in step.
   useEffect(() => {
     const handler = (e: Event) => {
       const anchor = (e as CustomEvent<{ anchor?: string }>).detail?.anchor ?? "";

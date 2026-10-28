@@ -32,9 +32,9 @@ const CV = "content-visibility";
 
 let interactionSeq = 0;
 
-// The column a horizontal move left off at. Vertical entry no longer reads it:
-// the nearest-centre scan that did threw the ring into whatever card happened to
-// sit below, and per-row memory replaced it. Do not restore that scan, and do
+// The column a horizontal move left off at. Vertical entry does not read it:
+// a nearest-centre scan would throw the ring into whatever card happens to
+// sit below, so per-row memory decides. Do not add that scan, and do
 // not delete the variable to satisfy noUnusedLocals either, because that turns
 // setBpAnchorFrom into a silent no-op. The accessor below is its only read.
 let anchorX: number | null = null;
@@ -229,9 +229,9 @@ function chromeInset(): number {
 
 // The bottom twin of chromeInset, cached the same way and for the same reason.
 //
-// The bottom term used to reserve bpSafeAreaPx().y and nothing else. --bp-hint-h
+// Reserving bpSafeAreaPx().y alone is not enough for the bottom term. --bp-hint-h
 // is 65px at 1140x641 with the 2 percent default overscan while safe-y alone is
-// 13, so a focused cell settled 28px behind Harbor's own OK / Back footer and
+// 13, so a focused cell would settle 28px behind Harbor's own OK / Back footer and
 // well inside its 180 percent scrim. Only bp-detail and bp-person reach the line
 // that uses this: every other page returns at the self-rail guard below.
 //
@@ -261,24 +261,21 @@ function centerScroll(el: HTMLElement): void {
   const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
   const behavior: ScrollBehavior = reduce ? "auto" : "smooth";
 
-  // The ring's own rect, read ONCE for both axes. It used to be read twice,
-  // once for the track and once for the page. A rect is a forced layout, and
-  // this whole function was attributed at 3 to 6ms per press on a Fire TV Stick
+  // The ring's own rect, read ONCE for both axes. Reading it twice,
+  // once for the track and once for the page, buys an identical answer at full price: a rect is a forced layout, and
+  // this whole function costs 3 to 6ms per press on a Fire TV Stick
   // 4K Max, with the press as a whole spending 45.5ms across 16.2 rect reads.
-  // Nothing between the two reads moves the element, so the second was buying
-  // an identical answer at full price.
+  // Nothing between the two reads moves the element.
   const e = el.getBoundingClientRect();
 
   // Horizontal is handled explicitly. scrollIntoView cannot be limited to one
   // axis, and using it here fought the surface's own row alignment.
   //
-  // Never behavior:"smooth". That was rejected for the right reason, which is
-  // that the browser owns a duration we cannot shorten, so the row was still
-  // gliding under a ring that had already landed. What the old code then did
-  // instead was jump in one frame, and it named the correct answer for the
-  // vertical rail one line later without applying it here: it is ours to time.
-  // glideBpTrack is that, on the axis ninety percent of presses travel along.
-  // It snaps during a hold, so a held key costs exactly what it always did.
+  // Never behavior:"smooth": the browser owns a duration we cannot shorten, so the row is still
+  // gliding under a ring that has already landed. Jumping in one frame is no answer either:
+  // the timing is ours to own.
+  // glideBpTrack does that timing, on the axis ninety percent of presses travel along.
+  // It snaps during a hold, so a held key costs a single jump per press.
   const track = el.closest<HTMLElement>("[data-bp-scroll-x]");
   if (track) {
     const t = track.getBoundingClientRect();
@@ -296,11 +293,9 @@ function centerScroll(el: HTMLElement): void {
   // which is the direct parent of every [data-bp-rail-row] because bpRailStep
   // resolves a rail exactly that way. Driving it would fight the transform.
   //
-  // This used to bail for anything inside a [data-bp-rail-row] at all, which
-  // silently killed vertical scrolling on bp-detail and bp-person: they are the
+  // Bailing for anything inside a [data-bp-rail-row] at all would kill vertical scrolling on bp-detail and bp-person: they are the
   // two pages that put rail rows deeper inside a real overflow-y-auto scroller,
-  // so the ring walked off the bottom of the screen with nothing moving. A mouse
-  // wheel still worked, so it was invisible on desktop and total on a remote.
+  // so the ring would walk off the bottom of the screen with nothing moving.
   if (e.height < 2) return;
   // Opt-in keep-centred surfaces (the onboarding decision column) hold the ring
   // in the vertical middle so the bottom row never lands under the fade.
@@ -321,11 +316,11 @@ function centerScroll(el: HTMLElement): void {
   const railRow = el.closest<HTMLElement>("[data-bp-rail-row]");
   if (railRow && railRow.parentElement === page) return;
   // The page rect is read HERE, and separately inside the centred branch above,
-  // rather than once before both. It used to be hoisted, and on home, anime,
-  // shows, movies and discover the guard one line up returns on EVERY press, so
-  // the rect was computed and thrown away every time. A rect is a forced layout
+  // rather than once before both. Hoisted, it would run on home, anime,
+  // shows, movies and discover, where the guard one line up returns on EVERY press, so
+  // the rect would be computed and thrown away every time. A rect is a forced layout
   // and this one lands on the rail, a permanently promoted 2280x14328 layer.
-  // Do NOT hoist it back to save a line: the two readers are on branches that
+  // Do NOT hoist it to save a line: the two readers are on branches that
   // are mutually exclusive, and the guards must keep their order (the comment
   // above records why data-bp-center has to be tested first).
   const p = page.getBoundingClientRect();
@@ -632,10 +627,10 @@ export function bpRailStep(from: HTMLElement, dir: BpDir): BpRailPick | null {
     if (wantKey) best = cells.find((c) => c.el.dataset.bpRestoreKey === wantKey);
     // Landing on a lead tile every time would mean repeated Down never reaches
     // content, so the first-card fallback steps over it. Both namespaces, from
-    // one predicate: this used to test the "label:" prefix alone, so Discover's
-    // five "bp-lead:" tiles were never skipped and every Down into a band parked
+    // one predicate: testing the "label:" prefix alone would never skip Discover's
+    // five "bp-lead:" tiles, and every Down into a band would park
     // on "Genres, Surprise me" rather than on a genre. Do NOT add a second
-    // string literal here when a third prefix appears; the two drifted once.
+    // string literal here when a third prefix appears; two literals drift apart.
     if (!best) best = cells.find((c) => !isBpLeadKey(c.el.dataset.bpRestoreKey)) ?? cells[0];
     anchorX = best.rect.cx;
     return { el: best.el, revert };

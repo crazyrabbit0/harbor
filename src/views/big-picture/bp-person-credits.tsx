@@ -18,8 +18,8 @@ import { BP_DETAIL_HEADING, BP_DETAIL_TRACK } from "./detail/bp-detail-chrome";
 const CREDIT: BpArtBox = { min: 146, vw: 11.6, max: 230 };
 const CREDIT_CELL_W = bpBoxCss(CREDIT);
 
-// Only the IMDb Top row pays for real IMDb lookups, so every other card used to
-// show no score at all while a rating it already held sat unread on the credit.
+// Only the IMDb Top row pays for real IMDb lookups, so every other card shows the
+// rating already held on the credit rather than no score at all.
 // The fallback is free: voteAverage arrives with the filmography.
 //
 // Gated on the same card settings every BpTile reads. Printing a TMDB score on
@@ -166,10 +166,8 @@ export function BpCreditRow({
   );
 }
 
-// Plates, the trade bp-page-skeleton.tsx:6-15 records. This was nine
-// animate-pulse blocks, which is nine group opacities strictly between 0
-// and 1, so nine live offscreen passes against a cliff that saturates at eight,
-// and they ran for as long as the person page was loading.
+// Plates, the trade bp-page-skeleton.tsx:6-15 records. Nine animate-pulse blocks are nine group opacities strictly between 0
+// and 1, so nine live offscreen passes against a cliff that saturates at eight, for as long as the person page loads.
 export function BpCreditRowSkeleton() {
   return (
     <section>

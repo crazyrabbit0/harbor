@@ -30,8 +30,8 @@ subscribeBigPicture(() => {
   if (key === routeAt) return;
   routeAt = key;
   decoded.clear();
-  // `queue` too. It used to survive, and pump() drains three at a time off
-  // whatever page came next, so the anime page's cold load competed with home's
+  // `queue` too. Surviving, it would feed pump(), which drains three at a time off
+  // whatever page comes next, so the anime page's cold load would compete with home's
   // leftover backdrops for both the connection pool and the decoder.
   //
   // `inflight` and `seen` deliberately do NOT get cleared here. inflight is owned

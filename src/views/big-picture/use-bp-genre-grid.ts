@@ -85,10 +85,8 @@ export function useBpGenreGrid(genre: string): BpGenreFeed {
     restart();
   }, [restart, genre]);
 
-  // The page counter advances only when a load can actually start. It used to
-  // advance first and then be swallowed by load()'s own busy guard, which SKIPS
-  // that page for good, and the only reason nothing noticed is that the sentinel
-  // was gated on there already being tiles.
+  // The page counter advances only when a load can actually start. Advancing it
+  // first lets load()'s own busy guard swallow the call, which SKIPS that page for good.
   const more = () => {
     if (busyRef.current || doneRef.current) return;
     pageRef.current += 1;

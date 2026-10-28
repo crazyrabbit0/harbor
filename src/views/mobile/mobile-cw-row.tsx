@@ -57,8 +57,8 @@ function localToLibraryItem(e: LocalCwEntry): LibraryItem {
 let cwReady = false;
 const readySubs = new Set<() => void>();
 
-// The latch is global but items is per mount, so a remount used to arrive with
-// ready already true and an empty list, and home rendered the local-only merge
+// The latch is global but items is per mount, so a remount would otherwise arrive with
+// ready already true and an empty list, and home would render the local-only merge
 // for a frame before the cloud library landed. Holding the last resolved list
 // here means a remount starts correct instead of starting wrong.
 let cloudCache: LibraryItem[] = [];

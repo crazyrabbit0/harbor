@@ -122,7 +122,7 @@ export function BpAmbient({ pool, still }: { pool: Meta[]; still?: boolean }) {
   useEffect(() => {
     if (!ownsTitle || candidates.length === 0) return;
     // The grace timer flips tier 2 to 1 with no new art having arrived, and this
-    // effect lists tier, so the identical list used to be walked twice: a second
+    // effect lists tier, so walking the identical list again costs a second
     // Image, request and decode for a src already committed and on screen. List
     // identity is the honest question, so an unchanged one only records the tier.
     const walked =
@@ -133,8 +133,8 @@ export function BpAmbient({ pool, still }: { pool: Meta[]; still?: boolean }) {
     }
     if (walked && committedTier.current <= tier) return;
     let alive = true;
-    // The cleanup used to set `alive` and nothing else, so an abandoned walk kept
-    // downloading a full backdrop for a title the ring had already left.
+    // The cleanup must abort `pending` as well as clear `alive`: an abandoned walk would keep
+    // downloading a full backdrop for a title the ring has already left.
     let pending: HTMLImageElement | null = null;
 
     // Pass one rejects anything portrait, because bpHeroArt happily upscales a

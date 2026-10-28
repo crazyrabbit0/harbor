@@ -1,9 +1,8 @@
-// Four different outcomes used to share one sentence. TMDB being down, a filter
+// Four different outcomes, four different messages. TMDB being down, a filter
 // that outlived its results, nothing existing anywhere, and every source
 // answering with something Big Picture has no route for are separate facts, and
-// the screen has to say which one happened. The last of those is what made the
-// owner file this: manga and the addon index counted toward hasResults while
-// nothing on screen rendered them, so a search that had found plenty reported
+// the screen has to say which one happened. In the last case manga and the addon index count toward hasResults while
+// nothing on screen renders them, so a search that found plenty would report
 // "Nothing Big Picture can play".
 export function bpSearchEmptyMessage(params: {
   t: (key: string, vars?: Record<string, string | number>) => string;

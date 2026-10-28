@@ -1224,8 +1224,8 @@ export function previousMusic(): void {
   if (previous) void playMusic(previous, state.queue, new Set(), true).catch(() => {});
 }
 
-/** Saved songs once recorded only the id they played under, so one saved before a substitute
- *  was swapped in no longer matched itself. Re-add each saved track's full identity on load. */
+/** Saved songs may record only the id they played under, so one saved before a substitute
+ *  was swapped in would not match itself. Re-add each saved track's full identity on load. */
 function completeLikedIds(likedIds: string[], likedTracks: MusicTrack[]): string[] {
   const ids = new Set(likedIds);
   for (const track of likedTracks) for (const id of likedIdsFor(track)) ids.add(id);

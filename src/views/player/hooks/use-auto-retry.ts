@@ -174,7 +174,7 @@ export function useAutoRetry(params: {
       }
       // An explicitly selected source must not be killed by a short startup
       // timer. Signed playback URLs often reject browser probes (CORS) even
-      // though mpv can read them, which previously produced a false
+      // though mpv can read them, which would otherwise produce a false
       // "No response" error. Keep mpv alive and let the longer startup ceiling
       // or a genuine mpv error own the visible failure state.
       if (!instantPlay && !inRoom) {

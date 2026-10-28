@@ -50,7 +50,7 @@ export function BpLibrarySections({
   // browser finds, before React had laid out the page just added: the sentinel
   // still measured close, which paged again, which re-observed. That is the
   // shape recorded at bp-streams.tsx:208. onMore changes identity on every
-  // parent render, so it used to re-arm on renders that had nothing to do with
+  // parent render, so a dependency on it would re-arm on renders that have nothing to do with
   // paging at all.
   useEffect(() => {
     const el = sentinelRef.current;
@@ -62,7 +62,7 @@ export function BpLibrarySections({
     });
   }, []);
 
-  // The case the re-observe used to cover: a page that lands without pushing
+  // The case a re-observe would cover: a page that lands without pushing
   // the sentinel out of the band crosses no threshold, so nothing would ask for
   // the next one. The delay lets the browser deliver the crossing this page's
   // own cells caused, so a grid that grew past the sentinel stops here, and the
