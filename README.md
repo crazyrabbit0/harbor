@@ -44,7 +44,7 @@ Offering things like a native player, a stream ranking engine, Wikidata, watch p
 > <br/>
 
 > [!NOTE]
-> Unofficial Linux `.deb`, `.rpm`, and Flatpak packages are maintained at [AdityaHebballe/harbor-linux-builds](https://github.com/AdityaHebballe/harbor-linux-builds). Official Linux packages are coming soon.
+> Every release ships Linux `.deb`, `.AppImage` and Flatpak packages for x86_64 and arm64. Unofficial `.rpm` packages are maintained at [AdityaHebballe/harbor-linux-builds](https://github.com/AdityaHebballe/harbor-linux-builds).
 
 ATTENTION: HARBOR DOES NOT AND WILL NOT ASK YOU FOR DONATIONS! If someone claims to be us and asks you for donations, IT IS NOT US. Have an issue? Open it on GitHub so everyone can see the report and follow its resolution. Want to donate to a good cause? Consider the National Pediatric Cancer Foundation (https://nationalpcf.org/), Electronic Frontier Foundation (https://www.eff.org/), or St. Jude's (https://www.stjude.org/). You can also find a charity at https://www.charitynavigator.org/.
 <br/>
@@ -198,7 +198,7 @@ Per title flows add **Detail**, **Person**, **Award**, **Service**, and **Filter
 
 ### The stream engine
 
-When you press play, Harbor collects stream offers from every installed addon in parallel and runs them through a four stage pipeline. Inside the desktop app this runs in **harbor-core**, a pure Rust crate the Tauri shell runs natively, with a TypeScript fallback in the browser build or if the native call fails.
+When you press play, Harbor collects stream offers from every installed addon in parallel and runs them through a four stage pipeline. Inside the desktop app the trust, score and rank stages run in **harbor-core**, a pure Rust crate the Tauri shell runs natively; parsing, the browser build and any failed native call use the TypeScript implementation.
 
 ```
 parse  ->  trust  ->  score  ->  rank
@@ -248,7 +248,7 @@ A native libmpv player, with HLS and MPEG-TS engines for live and broadcast sour
 | **Subtitles**       | OpenSubtitles v3 and Wyzie plus your subtitle addons, deduped and language ranked; SRT/VTT/ASS/SUB with encoding detection; **dual tracks**; full styling (font, size, color, outline, box, margin, alignment, custom font upload); SDH and forced flags; ASS override; per item delay; and a show/hide toggle in picture in picture |
 | **Resume and sync** | Picks up from your saved position, merged with Stremio library mtime; writes progress back every few seconds and flags watched at 85%                                                                                                                                                                                                |
 | **Windows taskbar** | Thumbnail buttons for seek, previous/next episode, play/pause and mute; watch progress on the taskbar button; title, artwork and a seekable timeline in the Windows media overlay                                                                                                                                                    |
-| **Convenience**     | Picture in picture, A/B loop, sleep timer, frame grab, stream download via bundled yt-dlp, next/previous episode with auto advance, and a fully remappable set of 54 player hotkeys, each confirmed on screen (seek, subtitle track, aspect, Anime4K and the rest)                                                                   |
+| **Convenience**     | Picture in picture, A/B loop, sleep timer, frame grab, stream download via bundled yt-dlp, next/previous episode with auto advance, and a fully remappable set of 59 player hotkeys, each confirmed on screen (seek, subtitle track, aspect, Anime4K and the rest)                                                                   |
 | **Seek bar**        | Flat, glass, pinstripe, rainbow, or custom image styles; adjustable height, color, and dot shape, or use custom JS, all with a live preview                                                                                                                                                                                          |
 | **Player Editor**   | Change your players UI layout, style, and more with a 1:1 player editor                                                                                                                                                                                                                                                              |
 
@@ -433,7 +433,7 @@ Harbor is a Tauri 2 app: a React + TypeScript frontend and a Rust shell, with th
 - [Node.js](https://nodejs.org/) 24 LTS and [pnpm](https://pnpm.io/)
 - The [Rust toolchain](https://rustup.rs/) (stable)
 - The [Tauri 2 system prerequisites](https://v2.tauri.app/start/prerequisites/) for your OS
-- [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) (only needed to rebuild the WASM stream core)
+- [`wasm-pack`](https://rustwasm.github.io/wasm-pack/) (optional: only CI's WASM build check of `harbor-core` uses it; the app links the crate natively)
 
 > [!IMPORTANT]
 > Before your first build, run `pnpm run setup`. It fetches the native sidecars (libmpv, mpv, yt-dlp, ffmpeg, ffprobe) and bundled fonts into `src-tauri/`. These are platform specific and not committed, so a fresh clone will not build without this step. On Linux, extracting the ffmpeg static build needs `tar` and `xz`; on Windows, extracting mpv needs [7-Zip](https://www.7-zip.org/) (`7z` on `PATH`).
@@ -479,7 +479,7 @@ Bundles are emitted for your platform (dmg on macOS, NSIS on Windows, and deb, r
 
 ```bash
 cargo test --manifest-path harbor-core/Cargo.toml
-wasm-pack build harbor-core --target web
+wasm-pack build harbor-core --target bundler
 ```
 
 </details>
@@ -541,7 +541,7 @@ src/                       React frontend (views, chrome, components, lib)
 src-tauri/                 Rust shell, player, casting, sidecars
   src/                     cast.rs, dlna.rs, roku.rs, airplay.rs, transcode.rs, discord_rp.rs, ...
   src/games/, src/music/   game library and music backends
-harbor-core/               pure Rust stream engine (parse, trust, score), run natively by the shell
+harbor-core/               pure Rust stream engine; the shell runs its trust, score and rank stages natively
 android-extension-compat/  JVM bridge that runs Android streaming extensions
 data/                      static feeds and the community theme library
 tests/                     Node test suite (pnpm test)

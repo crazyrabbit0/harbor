@@ -4,14 +4,14 @@ Desktop Big Picture mode and the whole Android TV app. Flat `bp-*.tsx`/`use-bp-*
 
 ## Where to look
 
-| Task                | Location                                                                                                                              |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| Routes / back stack | `src/lib/big-picture.ts` (`BigPictureRoute`, `pushBigPicture`, `popBigPicture`, `goBigPictureTab`, `exitBigPicture`), `bp-routes.tsx` |
-| Shell, tabs, hints  | `bp-shell.tsx`, `bp-top-bar.tsx`, `bp-hint-bar.tsx`                                                                                   |
-| Focus engine        | `bp-focus-core.ts` (`applyBpFocus`, `bpRailStep`, `centerScroll`), `use-bp-focus.ts`, styling in `bp-tokens.ts`                       |
-| Desktop entry       | `App.tsx` lazy-loads `BigPictureShell`; auto-start/offer logic in `bp-logic.ts`                                                       |
-| Android TV entry    | `src/main-tv.tsx` → `bp-tv-app.tsx` (`BP_TV_PROVIDERS`, `setBpTvShell(true)`, overscan default)                                       |
-| Player              | `player/` (`bp-player-shell.tsx`, `use-bp-playback.ts`), separate from `views/player/`                                                |
+| Task                | Location                                                                                                                               |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Routes / back stack | `src/lib/big-picture.tsx` (`BigPictureRoute`, `pushBigPicture`, `popBigPicture`, `goBigPictureTab`, `exitBigPicture`), `bp-routes.tsx` |
+| Shell, tabs, hints  | `bp-shell.tsx`, `bp-top-bar.tsx`, `bp-hint-bar.tsx`                                                                                    |
+| Focus engine        | `bp-focus-core.ts` (`applyBpFocus`, `bpRailStep`, `centerScroll`), `use-bp-focus.ts`, styling in `bp-tokens.ts`                        |
+| Desktop entry       | `App.tsx` lazy-loads `BigPictureShell`; auto-start/offer logic in `bp-logic.ts`                                                        |
+| Android TV entry    | `src/main-tv.tsx` → `bp-tv-app.tsx` (`BP_TV_PROVIDERS`, `setBpTvShell(true)`, overscan default)                                        |
+| Player              | `player/` (`bp-player-shell.tsx`, `use-bp-playback.ts`), separate from `views/player/`                                                 |
 
 ## Conventions
 
@@ -19,7 +19,7 @@ Desktop Big Picture mode and the whole Android TV app. Flat `bp-*.tsx`/`use-bp-*
 - Focus lives in DOM attributes, not React state. The engine only sees `data-bp-*`: `focusable`, `focus`, `disabled`, `autofocus`, `row`, `row-key`, `rail-row`, `scroll-x`, `scroll-y`, `center`, `grid`, `tab`, `root`, `overlay`, `dialog`, `restore-key`, `tv`. Mark new layouts with these.
 - Playback mounts a second hidden `[data-bp-root]`, so look elements up with `bpFirstVisible` (`bp-visible.ts`), never a bare `querySelector`.
 - Lead-tile keys go through `isBpLeadKey` (`label:`, `bp-lead:` prefixes); don't add a third literal prefix.
-- `main-tv.tsx` skips `App.tsx`'s bootstrap: it only runs `loadSecrets` → `hydrateCustomThemes` → `ensureUiLocale`. Anything the TV needs at startup must be added there.
+- `main-tv.tsx` skips `App.tsx`'s bootstrap: it only runs `loadSecrets` and `hydrateCustomThemes` together, then `ensureUiLocale`. Anything the TV needs at startup must be added there.
 - The TV bundle has a `chrome87` syntax floor (`vite.config.ts`, `build.target`); nothing checks it, so review new syntax by hand.
 
 ## Anti-patterns
