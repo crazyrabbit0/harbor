@@ -31,10 +31,7 @@ export function PluginSettingsModal({
   onClose: () => void;
 }) {
   const t = useT();
-  // `useT` hands back a new function on every render, so it cannot be a dependency of the read
-  // below: showing what came back renders again, that new function is a changed dependency, and the
-  // read starts over — which puts the form back to its loading state and never settles. Held in a
-  // ref instead, since it is only needed to report a failure that has already happened.
+  // `t` changes on a language switch, which must not restart the read below; the ref keeps its error in the current language.
   const tRef = useRef(t);
   tRef.current = t;
   const [fields, setFields] = useState<SettingsField[] | null>(null);
