@@ -1,8 +1,22 @@
+import { activeProfileId } from "@/lib/active-profile-id";
 import { malRequest } from "./client";
+import { getSession } from "./session";
 import type { MalListEntry, MalListGroup, MalListStatus } from "./types";
 
-const CACHE_KEY = "harbor.mal.list.v1";
-let memValue: MalListGroup[] | null = null;
+// Sessions are per profile, so the list cache is keyed by profile and MAL account too.
+let legacyCleared = false;
+function cacheKey(): string | null {
+  if (!legacyCleared) {
+    legacyCleared = true;
+    // The unscoped key may hold another profile's list, so it is never kept.
+    try {
+      localStorage.removeItem("harbor.mal.list.v1");
+    } catch {}
+  }
+  const user = getSession()?.userName;
+  return user ? `harbor.mal.list.v1.${activeProfileId()}.${user}` : null;
+}
+let memValue: { key: string; groups: MalListGroup[] } | null = null;
 
 type RawNode = {
   id: number;
@@ -44,13 +58,15 @@ function parseNode(n: RawNode): MalListEntry | null {
 }
 
 export function readCachedMalList(): MalListGroup[] | null {
-  if (memValue) return memValue;
+  const key = cacheKey();
+  if (!key) return null;
+  if (memValue?.key === key) return memValue.groups;
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(key);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as MalListGroup[];
     if (!Array.isArray(parsed)) return null;
-    memValue = parsed;
+    memValue = { key, groups: parsed };
     return parsed;
   } catch {
     return null;
@@ -58,9 +74,11 @@ export function readCachedMalList(): MalListGroup[] | null {
 }
 
 function writeCache(groups: MalListGroup[]): void {
-  memValue = groups;
+  const key = cacheKey();
+  if (!key) return;
+  memValue = { key, groups };
   try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(groups));
+    localStorage.setItem(key, JSON.stringify(groups));
   } catch {}
 }
 

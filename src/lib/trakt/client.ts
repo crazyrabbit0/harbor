@@ -51,7 +51,8 @@ async function refreshAccessToken(): Promise<TraktSession | null> {
     }),
   });
   if (!res.ok) {
-    setSession(null);
+    // Only a rejected refresh token ends the session; a 429 or 5xx is retried on the next request.
+    if (res.status === 400 || res.status === 401) setSession(null);
     return null;
   }
   const data = (await res.json()) as TokenResponse;
