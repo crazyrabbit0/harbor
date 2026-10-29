@@ -190,6 +190,7 @@ pub fn initialize(app: &tauri::AppHandle) -> Result<(), String> {
         .engine
         .initialize_audio(directory.join("music-audio.json"));
     state.spotify.initialize(app, directory.join("spotify"));
+    connectors::local::grant_saved_folder(app);
     worker::initialize(app)
 }
 

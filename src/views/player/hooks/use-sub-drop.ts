@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
+import { allowFsPaths } from "@/lib/fs-scope";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import { t } from "@/lib/i18n";
 import { writePlayerPrefs } from "@/lib/player-prefs";
@@ -28,16 +29,19 @@ export function useSubDrop(
           if (!path) return;
           const name = path.split(/[\\/]/).pop() ?? "Subtitle";
           const title = name.replace(SUB_EXT, "");
-          void bridgeRef.current?.addSubtitle(path, undefined, title, true).then((ok) => {
-            if (ok) {
-              writePlayerPrefs(metaId, { subsOff: false });
-              markImportedSub(title);
-              writeRememberedSub(mediaKey, { source: path, title, imported: true });
-            }
-            setToast(ok ? t("Loaded {name}", { name }) : t("Couldn't load {name}", { name }));
-            if (timer.current) window.clearTimeout(timer.current);
-            timer.current = window.setTimeout(() => setToast(null), 2200);
-          });
+          // A drop grants the fs scope only; the HTML5 engine loads the file through the asset protocol.
+          void allowFsPaths([path])
+            .then(() => bridgeRef.current?.addSubtitle(path, undefined, title, true))
+            .then((ok) => {
+              if (ok) {
+                writePlayerPrefs(metaId, { subsOff: false });
+                markImportedSub(title);
+                writeRememberedSub(mediaKey, { source: path, title, imported: true });
+              }
+              setToast(ok ? t("Loaded {name}", { name }) : t("Couldn't load {name}", { name }));
+              if (timer.current) window.clearTimeout(timer.current);
+              timer.current = window.setTimeout(() => setToast(null), 2200);
+            });
         });
         if (cancelled) {
           unlisten();

@@ -213,8 +213,14 @@ async function mount() {
   ) {
     returnPreferencesReady = completeBetaReturnPreferences(__APP_VERSION__);
   }
+  const isMainWindow =
+    !isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck && !isRemote;
   await Promise.all([
     loadSecrets(),
+    // Saved folders outside the static fs/asset scope are re-allowed before any view reads them.
+    isMainWindow
+      ? import("@/lib/fs-scope").then((m) => m.allowStoredFsPaths()).catch(() => {})
+      : undefined,
     // Only a user theme as the active preset needs IndexedDB before the first paint; others hydrate in the background.
     activePresetIsCustom()
       ? hydrateCustomThemes().catch(() => {})

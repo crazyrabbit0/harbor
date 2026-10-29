@@ -36,6 +36,7 @@ Notes for agents working in this folder. Root rules live in `../AGENTS.md`.
 ## Tauri bridge
 
 - There is no wrapper module; files import `@tauri-apps/api/core` `invoke`/`listen` directly, and every call needs a non-Tauri guard (`isTauri()` or `"__TAURI_INTERNALS__" in window`), since the same code runs in a browser.
+- plugin-fs and `convertFileSrc` reach only the standard dirs plus folders granted at runtime (`src-tauri/AGENTS.md`). A user-chosen folder or file kept outside settings.json must be listed in `collectStoredPaths` (`lib/fs-scope.ts`), and a folder read recursively needs `allowFsPaths([picked])` right after the dialog: the dialog grants the fs scope only the folder's direct children, and a drag-drop grants no asset access.
 - mpv state arrives only via `listen("mpv://event")` in `lib/player/mpv.ts` (`property-change`, `end-file`, `file-loaded`, `playback-restart`, synthetic `player-failure`). The UI contract is `PlayerBridge`/`PlayerSnapshot` in `lib/player/bridge.ts`.
 
 ## Player and streams

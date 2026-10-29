@@ -23,6 +23,13 @@ use tauri::Manager;
 
 const ARTIST_TRACK_LIMIT: usize = 24;
 
+/// Re-allows the saved music folder in the asset scope at startup, before any collection command serves sidecar covers.
+pub fn grant_saved_folder(app: &tauri::AppHandle) {
+    if let Some(folder) = store::load_folder(app) {
+        crate::fs_scope::allow_asset_directory(app, &folder);
+    }
+}
+
 pub struct LocalConnector {
     health: HealthCell,
     folder: RwLock<Option<String>>,
@@ -63,6 +70,9 @@ impl LocalConnector {
             return;
         }
         let stored = store::load_folder(app);
+        if let Some(folder) = &stored {
+            crate::fs_scope::allow_asset_directory(app, folder);
+        }
         self.remember(stored);
     }
 
@@ -227,6 +237,7 @@ impl MusicConnector for LocalConnector {
     ) -> Result<MusicConnection, String> {
         let folder = chosen_folder(fields)?;
         store::save_folder(app, Some(&folder))?;
+        crate::fs_scope::allow_asset_directory(app, &folder);
         self.remember(Some(folder));
         self.health.set(ConnectorHealth::Healthy);
         Ok(self.connection())
@@ -251,6 +262,7 @@ impl MusicConnector for LocalConnector {
             return Err(format!("{folder} is not a folder"));
         }
         store::save_folder(app, Some(&folder))?;
+        crate::fs_scope::allow_asset_directory(app, &folder);
         self.remember(Some(folder.clone()));
         let result = scan::run(app, &folder).await;
         self.record(&result);

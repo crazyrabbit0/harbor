@@ -20,6 +20,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import { allowFsPaths } from "@/lib/fs-scope";
 import "./ebook-sources-panel.css";
 import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
@@ -550,8 +551,10 @@ function LocalFolder() {
         multiple: false,
         title: t("Choose eBook folder"),
       });
-      if (typeof path === "string" && !addEBookFolder(path))
-        setError(t("Could not add that folder"));
+      if (typeof path !== "string") return;
+      // The dialog grants only the folder's direct children; the eBook walk reads subfolders too.
+      await allowFsPaths([path]);
+      if (!addEBookFolder(path)) setError(t("Could not add that folder"));
     } catch {
       setError(t("Folder selection is available in the Harbor app"));
     }

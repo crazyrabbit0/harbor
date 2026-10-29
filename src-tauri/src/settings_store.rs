@@ -30,7 +30,10 @@ fn write_atomic(path: &std::path::Path, content: &str) -> Result<(), String> {
 
 #[tauri::command]
 pub fn settings_write(app: tauri::AppHandle, content: String) -> Result<(), String> {
-    write_atomic(&settings_path(&app)?, &content)
+    write_atomic(&settings_path(&app)?, &content)?;
+    #[cfg(desktop)]
+    crate::fs_scope::allow_settings_content(&app, &content);
+    Ok(())
 }
 
 fn secrets_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {

@@ -1029,10 +1029,19 @@ fn scan() -> steam_scan::Scan {
 }
 
 #[tauri::command]
-pub async fn games_scan_steam() -> Result<SteamScan, String> {
+pub async fn games_scan_steam(app: tauri::AppHandle) -> Result<SteamScan, String> {
     let result = tauri::async_runtime::spawn_blocking(scan)
         .await
         .map_err(|_| "scan_failed")?;
+    crate::fs_scope::allow_asset_files(
+        &app,
+        result.apps.iter().flat_map(|game| {
+            let art = &game.artwork;
+            [&art.capsule, &art.portrait, &art.library_hero, &art.logo]
+                .into_iter()
+                .flatten()
+        }),
+    );
     Ok(SteamScan {
         steam_found: result.steam_root.is_some(),
         libraries: result

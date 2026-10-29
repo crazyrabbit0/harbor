@@ -78,6 +78,8 @@ mod dlna;
 #[cfg(desktop)]
 mod dvr;
 #[cfg(desktop)]
+mod fs_scope;
+#[cfg(desktop)]
 mod fullscreen;
 #[cfg(desktop)]
 mod games;
@@ -844,6 +846,7 @@ pub fn run() {
             proc_guard::init();
             proc_guard::reap_orphans();
             games::initialize_download_preparation(app.handle());
+            fs_scope::allow_saved_settings(app.handle());
             music::initialize(app.handle()).map_err(std::io::Error::other)?;
             #[cfg(windows)]
             {
@@ -1260,6 +1263,7 @@ pub fn run() {
             settings_store::settings_write,
             settings_store::secrets_read,
             settings_store::secrets_write,
+            fs_scope::fs_scope_allow,
             media_server::media_server_request,
             proc_mem::harbor_process_memory,
             diagnostics::diagnostics_collect,

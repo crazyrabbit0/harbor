@@ -8,6 +8,7 @@ import {
   Server,
   Trash2,
 } from "lucide-react";
+import { allowFsPaths } from "@/lib/fs-scope";
 import { useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import { LocalFolderTutorial } from "./manga-sources-panel/local-tutorial";
 import {
@@ -178,8 +179,10 @@ function ByosOption({
         multiple: false,
         title: t("Choose manga folder"),
       });
-      if (typeof dir === "string" && !addMangaSource("", dir, "local"))
-        setError(t("Could not add that folder"));
+      if (typeof dir !== "string") return;
+      // The dialog grants only the folder's direct children; series and chapter folders sit deeper.
+      await allowFsPaths([dir]);
+      if (!addMangaSource("", dir, "local")) setError(t("Could not add that folder"));
     } catch {
       setError(t("Folder picker is only available in the desktop app"));
     }

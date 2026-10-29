@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { allowFsPaths } from "@/lib/fs-scope";
 import { CoverImg } from "@/components/cover-img";
 import { BookOpen, ChevronLeft, FolderOpen, HardDrive, Pause, Play, Trash2, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -232,7 +233,10 @@ function LocationCard() {
     try {
       const { open } = await import("@tauri-apps/plugin-dialog");
       const picked = await open({ directory: true, title: t("Choose manga download folder") });
-      if (typeof picked === "string" && picked) setMangaDownloadDir(picked);
+      if (typeof picked !== "string" || !picked) return;
+      // Chapters are written into subfolders, which the dialog's own grant does not reach.
+      await allowFsPaths([picked]);
+      setMangaDownloadDir(picked);
     } catch {
       return;
     }

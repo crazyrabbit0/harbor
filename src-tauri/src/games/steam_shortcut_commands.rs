@@ -246,11 +246,24 @@ pub fn prepare_launch(
 }
 
 #[tauri::command]
-pub async fn games_scan_steam_shortcuts(root: Option<String>) -> Result<Snapshot, String> {
-    tauri::async_runtime::spawn_blocking(move || snapshot(root))
+pub async fn games_scan_steam_shortcuts(
+    app: tauri::AppHandle,
+    root: Option<String>,
+) -> Result<Snapshot, String> {
+    let snapshot = tauri::async_runtime::spawn_blocking(move || snapshot(root))
         .await
         .map_err(|_| "shortcut_read")?
-        .map_err(String::from)
+        .map_err(String::from)?;
+    crate::fs_scope::allow_asset_files(
+        &app,
+        snapshot.games.iter().flat_map(|game| {
+            let art = &game.artwork;
+            [&art.capsule, &art.portrait, &art.hero, &art.icon]
+                .into_iter()
+                .flatten()
+        }),
+    );
+    Ok(snapshot)
 }
 
 #[tauri::command]
