@@ -865,7 +865,6 @@ export function startUpdateWatcher(): void {
   if (import.meta.env.DEV) return;
   if (started || !IS_TAURI) return;
   started = true;
-  void refreshBetaReturnContext();
   subscribeExperimentalAccess(() => {
     if (!currentExperimentalAccess()) revokeExperimentalAccess();
   });
