@@ -261,6 +261,7 @@ pub async fn probe_codecs(url: &str, headers: &HashMap<String, String>) -> Probe
         return ProbedCodecs::default();
     };
     let mut cmd = tokio::process::Command::new(&ffprobe);
+    cmd.kill_on_drop(true);
     cmd.arg("-v").arg("error");
     let mut has_ua = false;
     if let Some((_, ua)) = headers
@@ -556,8 +557,11 @@ pub async fn handle_transcode(
     });
 
     let reader = tokio_util::io::ReaderStream::with_capacity(stdout, 64 * 1024);
-    let body = Body::from_stream(reader);
+    transcode_response(Body::from_stream(reader))
+}
 
+/// Headers a transcoded MPEG-TS stream is served with; a HEAD probe gets them without starting ffmpeg.
+pub fn transcode_response(body: Body) -> Response {
     let mut hmap = HeaderMap::new();
     hmap.insert("Content-Type", HeaderValue::from_static("video/mp2t"));
     hmap.insert("Cache-Control", HeaderValue::from_static("no-cache"));

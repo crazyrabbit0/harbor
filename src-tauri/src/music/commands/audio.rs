@@ -90,13 +90,19 @@ pub async fn music_export_filtered(
         .unwrap_or("m4a")
         .to_string();
     let target = source.with_extension(format!("filtered.{extension}"));
-    let status = tokio::process::Command::new(&ffmpeg)
+    let mut command = tokio::process::Command::new(&ffmpeg);
+    command
         .args(["-hide_banner", "-loglevel", "error", "-y", "-i"])
         .arg(&source)
         .args(["-af", &chain, "-vn", "-map_metadata", "0"])
         .arg(&target)
-        .status()
+        .stdin(std::process::Stdio::null())
+        .kill_on_drop(true);
+    #[cfg(windows)]
+    command.creation_flags(0x0800_0000);
+    let status = tokio::time::timeout(std::time::Duration::from_secs(600), command.status())
         .await
+        .map_err(|_| "music.download.filterFailed".to_string())?
         .map_err(|error| format!("ffmpeg: {error}"))?;
     if !status.success() {
         let _ = std::fs::remove_file(&target);

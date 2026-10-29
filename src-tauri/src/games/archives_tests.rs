@@ -487,6 +487,40 @@ fn tar_rejects_traversal_links_and_corrupt_compression() {
     assert_eq!(review(&source).err(), Some("archive_checksum"));
 }
 #[test]
+fn tar_accepts_pax_and_gnu_long_name_metadata() {
+    let _guard = crate::games::test_lock::hold();
+    let f = Fixture::new();
+    let long = format!("Game/{}/play", "d".repeat(120));
+    let mut builder = tar::Builder::new(Vec::new());
+    let mut global = tar::Header::new_ustar();
+    global.set_entry_type(tar::EntryType::XGlobalHeader);
+    let comment = b"52 comment=0123456789012345678901234567890123456789\n";
+    global.set_size(comment.len() as u64);
+    global.set_path("pax_global_header").unwrap();
+    global.set_cksum();
+    builder.append(&global, &comment[..]).unwrap();
+    let mut gnu = tar::Header::new_gnu();
+    gnu.set_mode(0o644);
+    gnu.set_size(4);
+    builder.append_data(&mut gnu, &long, &b"game"[..]).unwrap();
+    let pax_path = "Game/pax/file";
+    builder.append_pax_extensions([("path", pax_path.as_bytes())]).unwrap();
+    let mut short = tar::Header::new_ustar();
+    short.set_mode(0o644);
+    short.set_size(4);
+    short.set_path("truncated").unwrap();
+    short.set_cksum();
+    builder.append(&short, &b"game"[..]).unwrap();
+    let path = f.0.join("Game.tar");
+    fs::write(&path, builder.into_inner().unwrap()).unwrap();
+    let plan = review(&path).unwrap();
+    let mut paths: Vec<_> = plan.entries.iter().map(|e| e.path.clone()).collect();
+    paths.sort();
+    let mut expected = vec![pax_path.to_string(), long];
+    expected.sort();
+    assert_eq!(paths, expected);
+}
+#[test]
 fn tar_revalidates_reviewed_content_and_does_not_publish_on_cancel() {
     let _guard = crate::games::test_lock::hold();
     let f = Fixture::new();

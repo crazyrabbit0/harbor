@@ -2,6 +2,28 @@
 use super::*;
 use flate2::read::MultiGzDecoder;
 
+const MAX_METADATA_RECORD: u64 = 64 * 1024;
+
+/// The `path` value of a PAX record set ("<len> path=<value>\n" lines), if present.
+fn pax_path(record: &[u8]) -> Result<Option<Vec<u8>>> {
+    let mut rest = record;
+    let mut path = None;
+    while !rest.is_empty() {
+        let space = rest.iter().position(|b| *b == b' ').ok_or("archive_format")?;
+        let len: usize = std::str::from_utf8(&rest[..space])
+            .ok()
+            .and_then(|s| s.parse().ok())
+            .filter(|n| *n > space + 1 && *n <= rest.len())
+            .ok_or("archive_format")?;
+        let field = &rest[space + 1..len - 1];
+        if let Some(value) = field.strip_prefix(b"path=") {
+            path = Some(value.to_vec());
+        }
+        rest = &rest[len..];
+    }
+    Ok(path)
+}
+
 /// Iterate raw headers to bound metadata allocation and reject links, devices and sparse files.
 pub(super) fn visit(
     file: &mut File,
@@ -21,6 +43,7 @@ pub(super) fn visit(
     let mut parents = HashSet::new();
     let mut expanded = 0u64;
     let mut buffer = [0; 64 * 1024];
+    let mut long_name: Option<Vec<u8>> = None;
     for (index, item) in archive
         .entries()
         .map_err(|_| "archive_format")?
@@ -32,8 +55,31 @@ pub(super) fn visit(
             return Err("archive_limit");
         }
         let mut item = item.map_err(|_| "archive_format")?;
+        let kind = item.header().entry_type();
+        // git archive, GNU tar and PAX writers add metadata records; read them, bounded, instead of calling them links.
+        if kind.is_pax_global_extensions()
+            || kind.is_pax_local_extensions()
+            || kind.is_gnu_longname()
+        {
+            let size = item.header().size().map_err(|_| "archive_format")?;
+            if size > MAX_METADATA_RECORD {
+                return Err("archive_limit");
+            }
+            let mut record = Vec::with_capacity(size as usize);
+            item.read_to_end(&mut record).map_err(|_| "archive_checksum")?;
+            if kind.is_gnu_longname() {
+                while record.last() == Some(&0) {
+                    record.pop();
+                }
+                long_name = Some(record);
+            } else if kind.is_pax_local_extensions() {
+                if let Some(path) = pax_path(&record)? {
+                    long_name = Some(path);
+                }
+            }
+            continue;
+        }
         let header = item.header();
-        let kind = header.entry_type();
         if !kind.is_file() && !kind.is_dir() {
             return Err("archive_links");
         }
@@ -43,7 +89,8 @@ pub(super) fn visit(
         if expanded > MAX_EXPANDED || (kind.is_dir() && bytes != 0) {
             return Err("archive_limit");
         }
-        let name = item.path_bytes();
+        let header_name = item.path_bytes().into_owned();
+        let name = long_name.take().unwrap_or(header_name);
         let name = std::str::from_utf8(&name).map_err(|_| "archive_path")?;
         let name = name.trim_start_matches("./");
         // Many Unix archives start with a harmless ./ directory header.

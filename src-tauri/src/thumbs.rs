@@ -763,7 +763,8 @@ async fn probe_hdr_source(url: &str) -> Option<bool> {
     ])
     .stdin(Stdio::null())
     .stdout(Stdio::piped())
-    .stderr(Stdio::null());
+    .stderr(Stdio::null())
+    .kill_on_drop(true);
     #[cfg(windows)]
     {
         cmd.creation_flags(CREATE_NO_WINDOW);
@@ -774,6 +775,10 @@ async fn probe_hdr_source(url: &str) -> Option<bool> {
     let Ok(Ok(out)) = probe else {
         return None;
     };
+    // child_pipe::output is Ok on any exit; a failed probe is unknown, not SDR, so it stays uncached.
+    if !out.status.success() {
+        return None;
+    }
     let s = String::from_utf8_lossy(&out.stdout).to_ascii_lowercase();
     Some(s.contains("smpte2084") || s.contains("arib-std-b67") || s.contains("bt2020"))
 }
