@@ -11,6 +11,7 @@ import {
   setSecret,
 } from "@/lib/secret-store";
 import { setItemWithRecovery } from "@/lib/storage-recovery";
+import { isSettingsSecretsKey, migrateBlobSecrets } from "@/lib/settings/profile-store";
 import { localLibraryReady, readLocalLibrary, restoreLocalLibrary } from "@/lib/local-library";
 
 declare const __APP_VERSION__: string;
@@ -526,13 +527,18 @@ export async function applyBackup(backup: Backup): Promise<void> {
   // after this restore so they come back regardless of where the backup was made.
   const targetProfile = activeProfileId();
   for (const [k, v] of Object.entries(backup.data)) {
-    if (!isPortable(k) || !isSecretKey(k)) continue;
+    if (!isPortable(k) || !isSecretKey(k) || isSettingsSecretsKey(k)) continue;
     try {
       setSecret(secretKeyForProfile(k, targetProfile), v);
     } catch {
       /* keep restoring the rest even if one entry is rejected */
     }
   }
+  // Settings secrets follow their blob's scope, so they take the same retargeted keys as the blobs.
+  for (const [k, v] of Object.entries(data)) {
+    if (isPortable(k) && isSettingsSecretsKey(k)) setSecret(k, v);
+  }
+  for (const k of Object.keys(data)) migrateBlobSecrets(k, true);
   const restoresTheme =
     backup.sections == null || backup.sections.length === 0 || backup.sections.includes("theme");
   if (restoresTheme) {

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { SETTINGS_SECRETS_PREFIX } from "@/lib/settings/secret-fields";
 
 const SECRET_PREFIXES = [
   "harbor.lastfm.v1",
@@ -10,12 +11,50 @@ const SECRET_PREFIXES = [
   "harbor.media-server.token.v1",
   "harbor.plex-auth.device.v1",
   "harbor.lastfm.v1",
+  SETTINGS_SECRETS_PREFIX,
 ];
 
 let store: Record<string, string> = {};
 let rustAvailable = false;
 let loaded = false;
+let settled = false;
 let persistTimer: number | null = null;
+let retryTimer: number | null = null;
+let retryIndex = 0;
+let writeChain: Promise<void> = Promise.resolve();
+
+// A failed secrets_write retries after each delay in turn, then every last delay until one succeeds.
+const RETRY_DELAYS_MS = [1000, 5000, 30_000];
+
+export type SecretsWriteStatus =
+  | { ok: true; at: number }
+  | { ok: false; error: string; at: number };
+
+let writeStatus: SecretsWriteStatus = { ok: true, at: 0 };
+const writeStatusListeners = new Set<() => void>();
+
+export function getSecretsWriteStatus(): SecretsWriteStatus {
+  return writeStatus;
+}
+
+export function subscribeSecretsWriteStatus(listener: () => void): () => void {
+  writeStatusListeners.add(listener);
+  return () => {
+    writeStatusListeners.delete(listener);
+  };
+}
+
+function recordSecretsWrite(error: string | null): void {
+  const at = Date.now();
+  writeStatus = error == null ? { ok: true, at } : { ok: false, error, at };
+  for (const listener of Array.from(writeStatusListeners)) {
+    try {
+      listener();
+    } catch (error) {
+      console.error("[secrets] write status listener failed", error);
+    }
+  }
+}
 
 export function isSecretKey(key: string): boolean {
   return SECRET_PREFIXES.some((p) => key === p || key.startsWith(`${p}.`));
@@ -23,6 +62,8 @@ export function isSecretKey(key: string): boolean {
 
 /** Rewrites a session key so it targets a specific profile, used when restoring a backup. */
 export function secretKeyForProfile(key: string, profileId: string): string {
+  // Settings secrets follow the blob's scope (shared or per profile), which the backup retargets itself.
+  if (key.startsWith(`${SETTINGS_SECRETS_PREFIX}.`)) return key;
   for (const prefix of SECRET_PREFIXES) {
     if (key === prefix || key.startsWith(`${prefix}.`)) return `${prefix}.${profileId}`;
   }
@@ -34,13 +75,40 @@ export function getAllSecrets(): Record<string, string> {
   return { ...store };
 }
 
-async function persist(): Promise<void> {
+function scheduleRetry(): void {
+  if (retryTimer != null) return;
+  const delay = RETRY_DELAYS_MS[Math.min(retryIndex, RETRY_DELAYS_MS.length - 1)];
+  retryIndex += 1;
+  retryTimer = window.setTimeout(() => {
+    retryTimer = null;
+    void persist();
+  }, delay);
+}
+
+function clearRetry(): void {
+  if (retryTimer != null) window.clearTimeout(retryTimer);
+  retryTimer = null;
+}
+
+async function writeOnce(): Promise<void> {
   if (!rustAvailable) return;
   try {
     await invoke("secrets_write", { content: JSON.stringify(store) });
-  } catch {
-    void 0;
+  } catch (e) {
+    console.error("[secrets] secrets_write failed", e);
+    recordSecretsWrite(e instanceof Error ? e.message : String(e));
+    scheduleRetry();
+    return;
   }
+  retryIndex = 0;
+  clearRetry();
+  recordSecretsWrite(null);
+}
+
+// Writes run one at a time, so an older snapshot can never land after a newer one.
+function persist(): Promise<void> {
+  writeChain = writeChain.then(writeOnce);
+  return writeChain;
 }
 
 function schedulePersist(): void {
@@ -57,7 +125,33 @@ export async function flushSecrets(): Promise<void> {
     window.clearTimeout(persistTimer);
     persistTimer = null;
   }
+  clearRetry();
   await persist();
+}
+
+const settledListeners = new Set<() => void>();
+
+function markSettled(): void {
+  if (settled) return;
+  settled = true;
+  const listeners = Array.from(settledListeners);
+  settledListeners.clear();
+  for (const fn of listeners) fn();
+}
+
+/** True once loadSecrets has finished, so getSecret answers from the persisted store (or its browser fallback). */
+export function secretsSettled(): boolean {
+  return settled;
+}
+
+/** Runs fn once secrets are settled, at once when they already are; returns an unsubscribe. */
+export function subscribeSecretsSettled(fn: () => void): () => void {
+  if (settled) {
+    fn();
+    return () => {};
+  }
+  settledListeners.add(fn);
+  return () => settledListeners.delete(fn);
 }
 
 export async function loadSecrets(): Promise<void> {
@@ -72,6 +166,7 @@ export async function loadSecrets(): Promise<void> {
     }
   } catch {
     rustAvailable = false;
+    markSettled();
     return;
   }
 
@@ -90,8 +185,9 @@ export async function loadSecrets(): Promise<void> {
     void 0;
   }
 
-  if (migrated) {
-    await persist();
+  // The localStorage copies stay until secrets.json holds the keys, since they are the only durable copy.
+  if (migrated) await persist();
+  if (migrated && writeStatus.ok) {
     try {
       for (const key of Object.keys(store)) {
         if (isSecretKey(key)) localStorage.removeItem(key);
@@ -101,6 +197,7 @@ export async function loadSecrets(): Promise<void> {
     }
   }
 
+  markSettled();
   // Readers that mounted before this resolved saw an empty store, and migration has
   // already removed the localStorage copies they would have fallen back to, so every
   // connected account read as signed out until something re-read it. Tell them now.

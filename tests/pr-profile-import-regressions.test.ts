@@ -15,11 +15,12 @@ const profileImportSource = readFileSync(
   new URL("../src/lib/profile-import.ts", import.meta.url),
   "utf8",
 ).replace(
-  /^import[^\n]+profile-store";\r?\n/,
+  /^import[^;]+profile-store";\r?\n/,
   `const MIRROR_KEY = "harbor.settings";
 const SHARED_KEY = "harbor.settings.shared";
 const profileKey = (id: string) => \`harbor.settings.\${id}\`;
 const sourceKeyFor = (id: string, linked: boolean) => linked ? SHARED_KEY : profileKey(id);
+const copyBlobToProfile = (_from: string, blob: string, id: string) => localStorage.setItem(profileKey(id), blob);
 `,
 );
 const compiledProfileImport = ts.transpileModule(profileImportSource, {

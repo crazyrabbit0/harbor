@@ -1,4 +1,9 @@
-import { MIRROR_KEY, SHARED_KEY, profileKey, sourceKeyFor } from "@/lib/settings/profile-store";
+import {
+  MIRROR_KEY,
+  SHARED_KEY,
+  copyBlobToProfile,
+  sourceKeyFor,
+} from "@/lib/settings/profile-store";
 
 const PROFILES_KEY = "harbor.profiles.v1";
 
@@ -272,11 +277,9 @@ export function importDomains(
         // Copy the source's effective blob into the target's own blob. The
         // caller unlinks settings on the target so this copy is what loads.
         const src = sourceKeyFor(fromProfileId, profileSettingsLinked(fromProfileId));
-        const blob =
-          localStorage.getItem(src) ??
-          localStorage.getItem(SHARED_KEY) ??
-          localStorage.getItem(MIRROR_KEY);
-        if (blob != null) localStorage.setItem(profileKey(toProfileId), blob);
+        const blobKey = [src, SHARED_KEY, MIRROR_KEY].find((k) => localStorage.getItem(k) != null);
+        const blob = blobKey ? localStorage.getItem(blobKey) : null;
+        if (blobKey && blob != null) copyBlobToProfile(blobKey, blob, toProfileId);
         continue;
       }
 

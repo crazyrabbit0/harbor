@@ -974,6 +974,10 @@ test("backups neither enroll another device nor erase this device's channel or s
         isSecretKey: () => false,
         flushSecrets: async () => {},
       },
+      "@/lib/settings/profile-store": {
+        isSettingsSecretsKey: () => false,
+        migrateBlobSecrets() {},
+      },
       "@/lib/storage-recovery": h.recovery,
       "@/lib/local-library": {
         localLibraryReady: async () => {},

@@ -32,9 +32,19 @@ import {
   forkToProfile,
   loadEffective,
   persistEffective,
+  readSettingsSecrets,
   seedSharedFromLegacy,
   sourceKeyFor,
+  writeSettingsSecrets,
 } from "./settings/profile-store";
+import { changedSecrets, mergeSecrets } from "./settings/secret-fields";
+import { setTmdbKey } from "./settings/tmdb-key";
+import {
+  flushSecrets,
+  getSecretsWriteStatus,
+  subscribeSecretsSettled,
+  subscribeSecretsWriteStatus,
+} from "./secret-store";
 import type { Settings, StreamingService } from "./settings/types";
 import { markSectionDirty } from "./profile-sync/scheduler";
 import { configureLayoutStore } from "./layout-sync/store";
@@ -95,6 +105,7 @@ const ActionsCtx = createContext<SettingsActions | null>(null);
 // Module setters for provider keys; children read them during render and in effects, so the first call precedes them.
 type ProviderKeys = Pick<
   Settings,
+  | "tmdbKey"
   | "tvdbKey"
   | "traktClientId"
   | "traktClientSecret"
@@ -104,6 +115,7 @@ type ProviderKeys = Pick<
 >;
 
 function applyProviderKeys(s: ProviderKeys): void {
+  setTmdbKey(s.tmdbKey ?? "");
   setTvdbKey(s.tvdbKey ?? "");
   setTraktCredentials(s.traktClientId ?? "", s.traktClientSecret ?? "");
   setMalClientId(s.malClientId ?? "");
@@ -248,6 +260,37 @@ export function SettingsProvider({
       }
     }
   }, [flushFile]);
+  // Settling merges stored secrets (store wins) and bumps the epoch, so one persist moves blob-only keys to the store.
+  const [secretsEpoch, setSecretsEpoch] = useState(0);
+  useEffect(
+    () =>
+      subscribeSecretsSettled(() => {
+        const { profileId, linked } = sourceRef.current;
+        setSettings((s) => mergeSecrets(s, readSettingsSecrets(profileId, linked)));
+        setSecretsEpoch((n) => n + 1);
+      }),
+    [],
+  );
+  // The blob carries its secrets while secrets.json writes fail, so each change of write health re-persists it.
+  useEffect(() => {
+    let ok = getSecretsWriteStatus().ok;
+    return subscribeSecretsWriteStatus(() => {
+      if (getSecretsWriteStatus().ok === ok) return;
+      ok = !ok;
+      setSecretsEpoch((n) => (n === 0 ? 0 : n + 1));
+    });
+  }, []);
+  // Secret edits reach the store only after settling and only within one scope, so a profile switch never copies keys.
+  const secretBaselineRef = useRef<{ settings: Settings; scope: string } | null>(null);
+  useEffect(() => {
+    if (secretsEpoch === 0) return;
+    const { profileId, linked } = sourceRef.current;
+    const scope = sourceKeyFor(profileId, linked);
+    const prev = secretBaselineRef.current;
+    secretBaselineRef.current = { settings, scope };
+    if (prev?.scope !== scope) return;
+    writeSettingsSecrets(profileId, linked, changedSecrets(prev.settings, settings));
+  }, [settings, secretsEpoch]);
   // A lone change persists at once; a burst (slider drag) persists its latest value at most every PERSIST_BURST_MS.
   useEffect(() => {
     if (!settingsReady) return;
@@ -256,12 +299,13 @@ export function SettingsProvider({
     if (wait <= 0) flushPersist();
     else if (!persistTimerRef.current)
       persistTimerRef.current = window.setTimeout(flushPersist, wait);
-  }, [settings, settingsReady, flushPersist]);
+  }, [settings, settingsReady, flushPersist, secretsEpoch]);
   useEffect(() => {
-    // Leaving the page writes settings.json now too, since Rust reads it at the next launch.
+    // Leaving the page writes settings.json and secrets.json at once, since Rust reads them at the next launch.
     const flushAll = () => {
       flushPersist();
       flushFile();
+      void flushSecrets();
     };
     const onHidden = () => {
       if (document.visibilityState === "hidden") flushAll();
@@ -364,6 +408,7 @@ export function SettingsProvider({
 
   // Same as tmdbLanguage: applied during render, only when one of the keys changes.
   const providerKeysSig = JSON.stringify([
+    settings.tmdbKey,
     settings.tvdbKey,
     settings.traktClientId,
     settings.traktClientSecret,
