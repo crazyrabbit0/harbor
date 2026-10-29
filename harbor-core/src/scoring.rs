@@ -1233,8 +1233,23 @@ fn tier_key(t: Tier) -> &'static str {
     }
 }
 
+// Mirror of UNCACHED_MARKER_RX in src/lib/streams/cached.ts.
+static UNCACHED_MARKER_RX: Lazy<Regex> = Lazy::new(|| {
+    Regex::new(r"(?i)\b(?:rd|ad|pm|dl|tb|oc)\s*download\b|\buncached\b|[⬇⏳⌛⏬🔽📥☁]").unwrap()
+});
+
+fn has_uncached_marker(s: &Stream) -> bool {
+    let haystack = format!(
+        "{} {} {}",
+        s.name.as_deref().unwrap_or(""),
+        s.title.as_deref().unwrap_or(""),
+        s.description.as_deref().unwrap_or("")
+    );
+    UNCACHED_MARKER_RX.is_match(&haystack)
+}
+
 fn is_cached_scored(s: &ScoredStream, active: &[String]) -> bool {
-    s.parsed.stream.url.is_some()
+    (s.parsed.stream.url.is_some() && !has_uncached_marker(&s.parsed.stream))
         || active
             .iter()
             .any(|slug| s.parsed.cached.get(slug).copied().unwrap_or(false))
@@ -1256,6 +1271,8 @@ pub fn rank_and_pick(
                 .then(ra.cmp(&rb))
                 .then(b.score.total_cmp(&a.score))
         });
+    } else {
+        cached_first.sort_by(|a, b| b.score.total_cmp(&a.score));
     }
     cached_first.sort_by(|a, b| {
         let ac = if is_cached_scored(a, active_debrids) { 1 } else { 0 };
@@ -1269,17 +1286,10 @@ pub fn rank_and_pick(
         by_tier_map.entry(key).or_insert_with(|| s.clone());
     }
 
-    let cached_non_theater = || {
-        cached_first
-            .iter()
-            .filter(|s| is_cached_scored(s, active_debrids) && !is_theater_source(s.parsed.source))
-    };
-    let picked = if respect_addon_order {
-        cached_non_theater().next()
-    } else {
-        cached_non_theater().max_by(|a, b| a.score.total_cmp(&b.score))
-    };
-    let primary = picked
+    // The list is already in pick order (score or addon order), so the first match wins ties, as in scoring-rank.ts.
+    let primary = cached_first
+        .iter()
+        .find(|s| is_cached_scored(s, active_debrids) && !is_theater_source(s.parsed.source))
         .or_else(|| cached_first.iter().find(|s| !is_theater_source(s.parsed.source)))
         .or_else(|| cached_first.first())
         .cloned();
@@ -1634,7 +1644,7 @@ mod tests {
     }
 
     #[test]
-    fn rank_and_pick_preserves_addon_order_when_no_cached() {
+    fn rank_and_pick_orders_uncached_by_score_like_ts() {
         let mut p1 = base_parsed();
         p1.resolution = Resolution::P1080;
         let s1 = ScoredStream {
@@ -1653,8 +1663,61 @@ mod tests {
         };
         let active = vec!["rd".to_string()];
         let picker = rank_and_pick(vec![s1, s2], &active, false);
-        let primary = picker.primary.as_ref().unwrap();
-        assert_eq!(primary.tier, Tier::P1080);
+        assert_eq!(picker.primary.as_ref().unwrap().tier, Tier::Uhd);
+        assert_eq!(picker.all[0].tier, Tier::Uhd);
+    }
+
+    #[test]
+    fn rank_and_pick_breaks_score_ties_by_first_in_order_and_never_picks_a_cam_by_choice() {
+        let mk = |score: f64, source: Source, cached: bool, priority: u32| {
+            let mut p = base_parsed();
+            p.source = source;
+            p.stream.addon_priority = Some(priority);
+            if cached {
+                p.cached.insert("rd".to_string(), true);
+            }
+            ScoredStream { parsed: p, score, reasons: vec![], tier: Tier::P1080 }
+        };
+        let active = vec!["rd".to_string()];
+        let picker = rank_and_pick(
+            vec![mk(50.0, Source::WebDl, true, 0), mk(50.0, Source::WebDl, true, 1)],
+            &active,
+            false,
+        );
+        assert_eq!(picker.primary.unwrap().parsed.stream.addon_priority, Some(0));
+        let picker = rank_and_pick(
+            vec![mk(90.0, Source::CAM, false, 0), mk(10.0, Source::WebDl, false, 1)],
+            &active,
+            false,
+        );
+        assert_eq!(picker.primary.unwrap().parsed.source, Source::WebDl);
+        assert_eq!(picker.all[0].parsed.source, Source::CAM);
+    }
+
+    #[test]
+    fn rank_and_pick_does_not_count_uncached_debrid_url_as_cached() {
+        let mut fake = base_parsed();
+        fake.stream.name = Some("[RD download] Torrentio 4k".to_string());
+        fake.stream.url = Some("https://x/resolve/rd/abc".to_string());
+        let s_fake = ScoredStream {
+            parsed: fake,
+            score: 60.0,
+            reasons: vec![],
+            tier: Tier::Uhd,
+        };
+        let mut real = base_parsed();
+        real.stream.name = Some("[RD+] Torrentio 1080p".to_string());
+        real.stream.url = Some("https://x/resolve/rd/def".to_string());
+        let s_real = ScoredStream {
+            parsed: real,
+            score: 40.0,
+            reasons: vec![],
+            tier: Tier::P1080,
+        };
+        let active = vec!["rd".to_string()];
+        let picker = rank_and_pick(vec![s_fake, s_real], &active, false);
+        assert_eq!(picker.primary.as_ref().unwrap().tier, Tier::P1080);
+        assert_eq!(picker.all[0].tier, Tier::P1080);
     }
 
     #[test]

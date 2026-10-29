@@ -160,6 +160,30 @@ pub fn apply_trust(streams: Vec<ParsedStream>, opts: &TrustOptions) -> TrustResu
     TrustResult { keep, rejected }
 }
 
+// Mirror of withoutTitleWords in trust.ts: a title's own trailer-like words ("Extras") are blanked before matching.
+fn without_title_words(haystack: &str, opts: &TrustOptions) -> String {
+    let mut words: Vec<String> = Vec::new();
+    for title in opts.expected_title.iter().chain(opts.expected_titles.iter()) {
+        for w in WORD_RX.find_iter(&title.to_lowercase()) {
+            if TRAILER_RX.is_match(w.as_str()) {
+                words.push(w.as_str().to_string());
+            }
+        }
+    }
+    if words.is_empty() {
+        return haystack.to_string();
+    }
+    let mut out = String::with_capacity(haystack.len());
+    let mut last = 0;
+    for m in WORD_RX.find_iter(haystack) {
+        out.push_str(&haystack[last..m.start()]);
+        out.push_str(if words.iter().any(|w| w == m.as_str()) { " " } else { m.as_str() });
+        last = m.end();
+    }
+    out.push_str(&haystack[last..]);
+    out
+}
+
 fn check_one(
     s: &ParsedStream,
     opts: &TrustOptions,
@@ -222,7 +246,7 @@ fn check_one(
         }
     }
 
-    if TRAILER_RX.is_match(&haystack) {
+    if TRAILER_RX.is_match(&without_title_words(&haystack, opts)) {
         return Some("trailer-or-extra".to_string());
     }
 
@@ -964,6 +988,19 @@ mod tests {
         s.stream.name = Some("⏳ Cloud only".into());
         let result = apply_trust(vec![s], &opts_strict());
         assert!(result.rejected.iter().all(|r| r.reason != "addon-uncached-emoji"));
+    }
+
+    #[test]
+    fn keeps_title_that_contains_a_trailer_word() {
+        let mut s = base_stream();
+        s.stream.behavior_hints = Some(json!({ "filename": "Extra.Ordinary.2019.1080p.mkv" }));
+        let mut opts = opts_strict();
+        opts.expected_title = Some("Extra Ordinary".into());
+        let result = apply_trust(vec![s.clone()], &opts);
+        assert!(result.rejected.iter().all(|r| r.reason != "trailer-or-extra"));
+        s.stream.behavior_hints = Some(json!({ "filename": "Extra.Ordinary.2019.trailer.mkv" }));
+        let result = apply_trust(vec![s], &opts);
+        assert_eq!(result.rejected[0].reason, "trailer-or-extra");
     }
 
     #[test]
