@@ -258,9 +258,9 @@ function decode(s: string): string {
 }
 
 export function parseXmltvTime(s: string): number {
-  const m = s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})\s*([+-]\d{4})?/);
+  const m = s.match(/^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})?\s*([+-]\d{4})?/);
   if (!m) return Number.NaN;
-  const [, y, mo, d, h, mi, sec, tz] = m;
+  const [, y, mo, d, h, mi, sec = "0", tz] = m;
   let offsetMin = 0;
   if (tz) {
     const sign = tz[0] === "-" ? -1 : 1;
