@@ -1,0 +1,88 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "capabilities": [
+    {
+      "identifier": "app-pip",
+      "description": "Detached HTML5 and broadcast PiP window (src/views/pip.tsx). Bundled app content only.",
+      "windows": ["harbor-pip"],
+      "permissions": [
+        "core:default",
+        "core:window:allow-start-dragging",
+        "core:window:allow-set-size",
+        {
+          "identifier": "opener:allow-open-url",
+          "allow": [{ "url": "https://*" }, { "url": "https://*/**" }]
+        }
+      ]
+    },
+    {
+      "identifier": "app-modal-overlay",
+      "description": "Audio and subtitle menu overlay (src/views/modal-overlay-app.tsx). Bundled app content only.",
+      "windows": ["harbor-modal-overlay"],
+      "permissions": [
+        "core:default",
+        "core:window:allow-set-decorations",
+        "core:webview:allow-set-webview-zoom",
+        "dialog:allow-open",
+        "dialog:allow-save",
+        {
+          "identifier": "fs:allow-exists",
+          "allow": [{ "path": "$APPDATA/subtitle-cache.json" }]
+        },
+        {
+          "identifier": "fs:allow-read-text-file",
+          "allow": [{ "path": "$APPDATA/subtitle-cache.json" }]
+        },
+        {
+          "identifier": "fs:allow-write-text-file",
+          "allow": [{ "path": "$APPDATA/subtitle-cache.json" }]
+        },
+        {
+          "identifier": "fs:allow-mkdir",
+          "allow": [{ "path": "$APPDATA" }, { "path": "$TEMP/harbor-subs/**" }]
+        },
+        {
+          "identifier": "fs:allow-write-file",
+          "allow": [{ "path": "$TEMP/harbor-subs/**" }]
+        },
+        {
+          "identifier": "fs:allow-remove",
+          "allow": [{ "path": "$TEMP/harbor-subs/**" }]
+        }
+      ]
+    },
+    {
+      "identifier": "app-dj",
+      "description": "DJ deck window (src/views/dj-deck-app.tsx). Bundled app content only.",
+      "windows": ["harbor-dj"],
+      "permissions": [
+        "core:default",
+        "core:window:allow-minimize",
+        "core:window:allow-close",
+        "core:window:allow-toggle-maximize",
+        "core:window:allow-maximize",
+        "core:window:allow-unmaximize",
+        "core:window:allow-set-fullscreen",
+        "core:window:allow-set-size",
+        "core:window:allow-set-decorations",
+        "core:window:allow-start-dragging",
+        {
+          "identifier": "fs:allow-exists",
+          "allow": [{ "path": "$APPDATA/music-store" }, { "path": "$APPDATA/music-store/**" }]
+        },
+        {
+          "identifier": "fs:allow-mkdir",
+          "allow": [{ "path": "$APPDATA/music-store" }]
+        },
+        {
+          "identifier": "fs:allow-read-text-file",
+          "allow": [{ "path": "$APPDATA/music-store/**" }]
+        },
+        {
+          "identifier": "fs:allow-write-text-file",
+          "allow": [{ "path": "$APPDATA/music-store/**" }]
+        }
+      ]
+    }
+  ]
+}

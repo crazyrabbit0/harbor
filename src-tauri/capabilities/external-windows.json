@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "external-windows",
+  "description": "Windows that load third-party pages (WebviewUrl::External). No permissions and no remote block: a remote page gets no IPC unless a capability lists its URL, and these pages are arbitrary third-party hosts.",
+  "windows": ["harbor-browser", "harbor-cf-solver", "source-verification-*"],
+  "permissions": []
+}
