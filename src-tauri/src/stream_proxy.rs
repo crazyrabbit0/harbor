@@ -865,6 +865,7 @@ fn prepared_prefix_response(session: &Session, headers: &HeaderMap) -> Option<Re
 async fn handle_stream(
     State(state): State<ProxyState>,
     Path(id_with_ext): Path<String>,
+    method: axum::http::Method,
     headers: HeaderMap,
 ) -> Response {
     let id = id_with_ext.trim_end_matches(".ts").to_string();
@@ -888,6 +889,10 @@ async fn handle_stream(
     };
 
     if session.transcode {
+        // DLNA renderers send HEAD before GET; answering it must not spawn a second transcode.
+        if method == axum::http::Method::HEAD {
+            return crate::transcode::transcode_response(Body::empty());
+        }
         return handle_transcode(
             &session.url,
             &session.headers,

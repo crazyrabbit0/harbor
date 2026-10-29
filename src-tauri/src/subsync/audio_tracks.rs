@@ -187,6 +187,7 @@ pub async fn probe_audio_streams(
 ) -> Result<Vec<AudioStream>, String> {
     let ffprobe = locate_ffprobe().ok_or("ffprobe not found")?;
     let mut cmd = Command::new(&ffprobe);
+    cmd.kill_on_drop(true);
     cmd.arg("-v").arg("error");
     cmd.arg("-user_agent")
         .arg(url_guard::user_agent(headers).unwrap_or_else(|| "Harbor".into()));

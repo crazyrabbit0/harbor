@@ -42,13 +42,13 @@ function readAll(key: string): Record<string, Entry> {
   return { ...readShared(key) };
 }
 
-// The player rewrites the whole map every tick, so its size is the cost; the oldest positions go first.
-const MAX_ENTRIES = 1500;
+// The player rewrites the whole map every tick; past this many positions the oldest go, far beyond a normal history.
+const MAX_ENTRIES = 10_000;
 
 function capEntries(all: Record<string, Entry>): Record<string, Entry> {
   const keys = Object.keys(all);
   if (keys.length <= MAX_ENTRIES) return all;
-  keys.sort((a, b) => (all[b].t ?? 0) - (all[a].t ?? 0));
+  keys.sort((a, b) => (all[b]?.t ?? 0) - (all[a]?.t ?? 0));
   const kept: Record<string, Entry> = {};
   for (const k of keys.slice(0, MAX_ENTRIES)) kept[k] = all[k];
   return kept;
@@ -56,7 +56,6 @@ function capEntries(all: Record<string, Entry>): Record<string, Entry> {
 
 function writeAll(all: Record<string, Entry>, key: string): void {
   try {
-    all = capEntries(all);
     const raw = JSON.stringify(all);
     localStorage.setItem(key, raw);
     parsed.set(key, { raw, all });
@@ -92,7 +91,7 @@ export function saveResumeMs(
   for (const key of ownerId ? [KEY, PRIVATE_PREFIX + ownerId] : [KEY]) {
     const all = readAll(key);
     all[entryKey(id, season, episode)] = entry;
-    writeAll(all, key);
+    writeAll(capEntries(all), key);
   }
 }
 

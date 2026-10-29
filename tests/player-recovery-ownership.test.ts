@@ -325,14 +325,15 @@ test("a rejected debrid request falls back only while its source is current", as
   }
 });
 
-test("server transcoding still activates for the current failed source", async () => {
+test("server transcoding activates for the current failed source and keeps its bridge", async () => {
   const h = recoveryHarness();
   h.render({ src: { ...h.params.src, url: "http://127.0.0.1:11470/a" } });
   h.fail();
   h.cycle();
   h.probes[0].resolve(true);
   await settle();
-  assert.equal(h.bridge.destroyed, 1);
+  // usePlayerBridge never rebuilds for a transcoded URL, so the existing bridge must survive to load it.
+  assert.equal(h.bridge.destroyed, 0);
   assert.equal(h.render().transcodedUrl, "transcode:http://127.0.0.1:11470/a");
 });
 

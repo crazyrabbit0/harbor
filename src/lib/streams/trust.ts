@@ -121,6 +121,22 @@ function pickFloor(
   return normal;
 }
 
+// Titles such as "Extras" or "Extra Ordinary" contain trailer words; blank the title's own words before matching.
+function withoutTitleWords(haystack: string, opts: TrustOptions): string {
+  const titles = [opts.expectedTitle, ...(opts.expectedTitles ?? [])].filter(
+    (t): t is string => typeof t === "string" && t.length > 0,
+  );
+  let out = haystack;
+  for (const title of titles) {
+    for (const word of title.toLowerCase().match(/[a-z0-9]+/g) ?? []) {
+      if (TRAILER_RX.test(word)) {
+        out = out.replace(new RegExp(`(?<![a-z0-9])${word}(?![a-z0-9])`, "g"), " ");
+      }
+    }
+  }
+  return out;
+}
+
 function checkOne(
   s: ParsedStream,
   opts: TrustOptions,
@@ -153,7 +169,7 @@ function checkOne(
     if (filename.endsWith(ext)) return `suspicious-extension:${ext}`;
   }
 
-  if (TRAILER_RX.test(haystack)) {
+  if (TRAILER_RX.test(withoutTitleWords(haystack, opts))) {
     return "trailer-or-extra";
   }
 
@@ -308,7 +324,11 @@ function checkOne(
     !s.seasonPack &&
     opts.expectedEpisode != null &&
     s.episode != null &&
-    !episodeSpanContains(s, opts.expectedSeason ?? s.season ?? 0, opts.expectedEpisode)
+    !episodeSpanContains(
+      { ...s, season: s.season ?? opts.expectedSeason ?? 0 },
+      opts.expectedSeason ?? s.season ?? 0,
+      opts.expectedEpisode,
+    )
   ) {
     return `episode-mismatch:${s.episode}-vs-${opts.expectedEpisode}`;
   }

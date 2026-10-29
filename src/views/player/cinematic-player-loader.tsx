@@ -3,6 +3,7 @@ import { HarborLoader } from "@/components/harbor-loader";
 import { CustomArtwork } from "@/components/custom-artwork";
 import type { PlayerSnapshot } from "@/lib/player/bridge";
 import { isLocalUrl } from "@/lib/player/local-url";
+import { usePlaybackPositionGated } from "@/lib/player/playback-clock";
 import type { PlayerSrc } from "@/lib/view";
 import { Topbar } from "@/chrome/topbar";
 import { useT } from "@/lib/i18n";
@@ -87,6 +88,8 @@ export function CinematicPlayerLoader({
   const showing =
     forceShow ||
     (!everPlayedRef.current && !failed && snap.errorCode == null && snap.status !== "ended");
+  // The refs above update only on render; while showing, the clock keeps re-rendering so a session reset cannot stick.
+  usePlaybackPositionGated(showing);
   const done = !showing && snap.errorCode == null;
   const [mounted, setMounted] = useState(showing);
   useEffect(() => {

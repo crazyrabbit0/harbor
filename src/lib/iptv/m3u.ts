@@ -61,12 +61,18 @@ export function* iterateM3uChannels(text: string, baseId: string): Generator<Ipt
       logo: pending.attrs["tvg-logo"] || pending.attrs["logo"] || null,
       group: pending.attrs["group-title"] || pending.attrs["group"] || stickyGroup || null,
       url,
-      catchupSource: pending.attrs["catchup-source"] || pending.attrs["catchup"] || null,
+      catchupSource: pending.attrs["catchup-source"] || catchupTemplate(pending.attrs["catchup"]),
       durationSec: pending.durationSec,
       attrs: pending.attrs,
     };
     pending = null;
   }
+}
+
+// `catchup` usually names a type ("shift", "default"); only a URL or query template is a usable source.
+function catchupTemplate(value: string | undefined): string | null {
+  if (!value) return null;
+  return /^https?:\/\//i.test(value) || /^[?&]/.test(value) || value.includes("{") ? value : null;
 }
 
 function isDecorativeRow(name: string): boolean {
@@ -130,6 +136,8 @@ function countQuotes(s: string): number {
 }
 
 function attrTitleSplit(s: string): number {
+  const first = firstUnquotedComma(s, 0);
+  if (first >= 0) return first;
   let inQuote = false;
   let lastQuoteClose = -1;
   for (let i = 0; i < s.length; i++) {
@@ -137,9 +145,7 @@ function attrTitleSplit(s: string): number {
     if (inQuote) lastQuoteClose = i;
     inQuote = !inQuote;
   }
-  const after = firstUnquotedComma(s, lastQuoteClose >= 0 ? lastQuoteClose + 1 : 0);
-  if (after >= 0) return after;
-  return firstUnquotedComma(s, 0);
+  return firstUnquotedComma(s, lastQuoteClose >= 0 ? lastQuoteClose + 1 : 0);
 }
 
 function firstUnquotedComma(s: string, start: number): number {

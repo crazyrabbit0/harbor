@@ -44,6 +44,70 @@ const HEALTHY_SCORE = 0.72;
 const ARABIC_LANGUAGE_TAGS = new Set(["ar", "ara", "arabic"]);
 const ARABIC_SINGLE_BYTE_ENCODINGS = ["windows-1256", "iso-8859-6", "windows-1252"];
 const GENERAL_SINGLE_BYTE_ENCODINGS = ["windows-1252", "windows-1256", "iso-8859-6"];
+const LEGACY_CODEPAGE_BY_LANGUAGE: Record<string, string> = {
+  ru: "windows-1251",
+  rus: "windows-1251",
+  russian: "windows-1251",
+  uk: "windows-1251",
+  ukr: "windows-1251",
+  ukrainian: "windows-1251",
+  bg: "windows-1251",
+  bul: "windows-1251",
+  bulgarian: "windows-1251",
+  // Serbian subtitles are mostly Latin script; only an explicit Cyrillic tag picks 1251.
+  sr: "windows-1250",
+  srp: "windows-1250",
+  serbian: "windows-1250",
+  "sr-cyrl": "windows-1251",
+  mk: "windows-1251",
+  mkd: "windows-1251",
+  mac: "windows-1251",
+  macedonian: "windows-1251",
+  be: "windows-1251",
+  bel: "windows-1251",
+  belarusian: "windows-1251",
+  el: "windows-1253",
+  ell: "windows-1253",
+  gre: "windows-1253",
+  greek: "windows-1253",
+  tr: "windows-1254",
+  tur: "windows-1254",
+  turkish: "windows-1254",
+  he: "windows-1255",
+  heb: "windows-1255",
+  hebrew: "windows-1255",
+  pl: "windows-1250",
+  pol: "windows-1250",
+  polish: "windows-1250",
+  cs: "windows-1250",
+  ces: "windows-1250",
+  cze: "windows-1250",
+  czech: "windows-1250",
+  sk: "windows-1250",
+  slk: "windows-1250",
+  slo: "windows-1250",
+  slovak: "windows-1250",
+  hu: "windows-1250",
+  hun: "windows-1250",
+  hungarian: "windows-1250",
+  ro: "windows-1250",
+  ron: "windows-1250",
+  rum: "windows-1250",
+  romanian: "windows-1250",
+  hr: "windows-1250",
+  hrv: "windows-1250",
+  croatian: "windows-1250",
+  sl: "windows-1250",
+  slv: "windows-1250",
+  slovenian: "windows-1250",
+};
+
+function legacyCodepageFor(lang: string | undefined): string | undefined {
+  const normalized = (lang ?? "").trim().toLowerCase().replace(/_/g, "-");
+  return (
+    LEGACY_CODEPAGE_BY_LANGUAGE[normalized] ?? LEGACY_CODEPAGE_BY_LANGUAGE[normalized.split("-")[0]]
+  );
+}
 const COMMON_ARABIC_WORDS = new Set([
   "أنا",
   "أنت",
@@ -183,6 +247,7 @@ function assessCandidate(
   const declaredEncoding = options.encoding ? normalizeEncodingLabel(options.encoding) : undefined;
   if (declaredEncoding === encoding) score += 0.07;
   if (encoding === "utf-8" && validUtf8) score += 0.08;
+  if (encoding === legacyCodepageFor(options.lang)) score += 0.04;
   if (arabicLanguage) {
     if (arabicRatio >= 0.25) score += 0.05;
     else if (letterCount >= 8) score -= 0.18;
@@ -274,7 +339,12 @@ export function decodeSubtitleBytesDetailed(
     const fallbackEncodings = isArabicLanguage(options.lang)
       ? ARABIC_SINGLE_BYTE_ENCODINGS
       : GENERAL_SINGLE_BYTE_ENCODINGS;
-    const encodings = [requested, "utf-8", ...fallbackEncodings].filter(
+    const encodings = [
+      requested,
+      "utf-8",
+      legacyCodepageFor(options.lang),
+      ...fallbackEncodings,
+    ].filter(
       (encoding, index, all): encoding is string =>
         Boolean(encoding) && all.indexOf(encoding) === index,
     );

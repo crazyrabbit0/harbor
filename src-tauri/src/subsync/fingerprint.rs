@@ -112,6 +112,7 @@ async fn decode_window_wav(
     ));
 
     let mut cmd = Command::new(&ff);
+    cmd.kill_on_drop(true);
     cmd.arg("-hide_banner").arg("-nostats").arg("-y");
     cmd.arg("-user_agent")
         .arg(url_guard::user_agent(headers).unwrap_or_else(|| "Harbor".into()));
@@ -176,6 +177,7 @@ fn parse_fpcalc_json(bytes: &[u8]) -> Result<Fingerprint, String> {
 async fn run_fpcalc(path: &Path, len_sec: f64) -> Result<Fingerprint, String> {
     let fp = locate_fpcalc().ok_or("fpcalc not found")?;
     let mut cmd = Command::new(&fp);
+    cmd.kill_on_drop(true);
     cmd.arg("-json")
         .arg("-raw")
         .arg("-length")

@@ -19,6 +19,7 @@ Pure Rust parse → trust → score → rank, built as `cdylib` + `rlib`. `src-t
 | `scoring.rs` penalty helpers                                         | one file per family: `scoring-size.ts`, `scoring-bitrate.ts`, `scoring-audio.ts`, `scoring-addons.ts`, `scoring-recency.ts`, `scoring-debrid.ts`, `scoring-resolution.ts` |
 
 - No parity test exists: `tests/` covers only the TS side. A trust or scoring change made on one side must be ported by hand, or desktop and browser rank differently.
+- Shared rules that must match: `rank_and_pick` / `rankAndPick` sort by score (or addon order), put cached streams first in `all`, and take the first cached non-cinema stream as primary, then the first non-cinema stream, so a CAM/TS/HDTS/TC is the pick only when nothing else exists; ties go to the earlier stream. A stream with a URL counts as cached only without an uncached marker (`UNCACHED_MARKER_RX`, mirrored from `cached.ts`, Unicode flag on both). The trailer filter ignores words that belong to the expected title (`without_title_words` / `withoutTitleWords`). Only the browser build applies the AAC preference.
 
 ## Checks
 

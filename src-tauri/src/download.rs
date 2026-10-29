@@ -157,11 +157,23 @@ async fn run_download(
     );
 
     if status == reqwest::StatusCode::RANGE_NOT_SATISFIABLE && start_byte > 0 {
-        let _ = tokio::fs::rename(&part, dest).await;
-        let _ = on_event.send(DownloadEvent::Done {
-            received: start_byte,
-        });
-        return Ok(());
+        let total = resp
+            .headers()
+            .get(reqwest::header::CONTENT_RANGE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(total_from_content_range);
+        // A 416 total that differs from the bytes on disk means the link changed; servers that omit it keep the old trust.
+        if total.is_none_or(|n| n == start_byte) {
+            let _ = tokio::fs::rename(&part, dest).await;
+            let _ = on_event.send(DownloadEvent::Done {
+                received: start_byte,
+            });
+            return Ok(());
+        }
+        let _ = tokio::fs::remove_file(&part).await;
+        return Err(DownloadEnd::Failed(
+            "HTTP 416: partial file no longer matches the source".into(),
+        ));
     }
     if !status.is_success() {
         eprintln!(

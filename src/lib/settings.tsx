@@ -220,6 +220,13 @@ export function SettingsProvider({
   const persistTimerRef = useRef(0);
   const lastPersistAtRef = useRef(0);
   const pendingPersistRef = useRef<({ settings: Settings } & SettingsSource) | null>(null);
+  const pendingFileJsonRef = useRef<string | null>(null);
+  const flushFile = useCallback(() => {
+    window.clearTimeout(fileTimerRef.current);
+    const json = pendingFileJsonRef.current;
+    pendingFileJsonRef.current = null;
+    if (json != null) void writeSettingsFile(json);
+  }, []);
   const flushPersist = useCallback(() => {
     window.clearTimeout(persistTimerRef.current);
     persistTimerRef.current = 0;
@@ -229,8 +236,9 @@ export function SettingsProvider({
     lastPersistAtRef.current = Date.now();
     try {
       const json = persistEffective(pending.settings, pending.profileId, pending.linked);
+      pendingFileJsonRef.current = json;
       window.clearTimeout(fileTimerRef.current);
-      fileTimerRef.current = window.setTimeout(() => void writeSettingsFile(json), 600);
+      fileTimerRef.current = window.setTimeout(flushFile, 600);
     } catch (e) {
       if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22)) {
         console.warn("[settings] localStorage quota exceeded, dropping avatar");
@@ -239,7 +247,7 @@ export function SettingsProvider({
         }
       }
     }
-  }, []);
+  }, [flushFile]);
   // A lone change persists at once; a burst (slider drag) persists its latest value at most every PERSIST_BURST_MS.
   useEffect(() => {
     if (!settingsReady) return;
@@ -250,19 +258,24 @@ export function SettingsProvider({
       persistTimerRef.current = window.setTimeout(flushPersist, wait);
   }, [settings, settingsReady, flushPersist]);
   useEffect(() => {
-    const onHidden = () => {
-      if (document.visibilityState === "hidden") flushPersist();
+    // Leaving the page writes settings.json now too, since Rust reads it at the next launch.
+    const flushAll = () => {
+      flushPersist();
+      flushFile();
     };
-    window.addEventListener("pagehide", flushPersist);
-    window.addEventListener("beforeunload", flushPersist);
+    const onHidden = () => {
+      if (document.visibilityState === "hidden") flushAll();
+    };
+    window.addEventListener("pagehide", flushAll);
+    window.addEventListener("beforeunload", flushAll);
     document.addEventListener("visibilitychange", onHidden);
     return () => {
-      window.removeEventListener("pagehide", flushPersist);
-      window.removeEventListener("beforeunload", flushPersist);
+      window.removeEventListener("pagehide", flushAll);
+      window.removeEventListener("beforeunload", flushAll);
       document.removeEventListener("visibilitychange", onHidden);
-      flushPersist();
+      flushAll();
     };
-  }, [flushPersist]);
+  }, [flushPersist, flushFile]);
 
   useEffect(() => {
     if (!syncTorrentEnginePolicy || !settingsReady || !("__TAURI_INTERNALS__" in window)) return;

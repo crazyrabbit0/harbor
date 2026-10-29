@@ -238,7 +238,7 @@ where
 
             match self.parse(message)? {
                 ReceiverResponse::Status(mut status) => {
-                    if status.request_id == request_id {
+                    if status.request_id == request_id && !status.applications.is_empty() {
                         return Ok(Some(status.applications.remove(0)));
                     }
                 }

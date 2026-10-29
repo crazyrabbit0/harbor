@@ -1074,7 +1074,7 @@ pub async fn torrent_engine_hard_reset(app: AppHandle) -> Result<EngineStatusDto
     tokio::time::sleep(Duration::from_millis(800)).await;
     let cfg = read_config(&app);
     if let Ok(dir) = engine_dir(&app, &cfg) {
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = tokio::task::spawn_blocking(move || std::fs::remove_dir_all(&dir)).await;
     }
     engine().lock().unwrap().last_error = None;
     if lifecycle().is_enabled() {
@@ -1098,11 +1098,16 @@ pub async fn torrent_engine_set_options(
         max_gb: Some(max_gb),
     };
     if let Some(p) = config_path(&app) {
-        if let Some(parent) = p.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        std::fs::write(&p, serde_json::to_string(&cfg).map_err(|e| e.to_string())?)
-            .map_err(|e| e.to_string())?;
+        let json = serde_json::to_string(&cfg).map_err(|e| e.to_string())?;
+        tokio::task::spawn_blocking(move || {
+            if let Some(parent) = p.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            std::fs::write(&p, json)
+        })
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())?;
     }
     if restart {
         stop_locked().await;

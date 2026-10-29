@@ -478,6 +478,15 @@ fn connect_device<'a>(host: &str, port: u16) -> Result<CastDevice<'a>, String> {
     }
 }
 
+// Control commands wait for a reply under TRANSPORT_OPS; a device that never answers must not hold it forever.
+fn connect_control_device<'a>(host: &str, port: u16) -> Result<CastDevice<'a>, String> {
+    let device = connect_device(host, port)?;
+    device
+        .set_read_timeout(Some(STATUS_READ_TIMEOUT))
+        .map_err(|e| format!("read timeout: {e}"))?;
+    Ok(device)
+}
+
 fn launch_receiver_app<'a>(
     device: &CastDevice<'a>,
     app_id: &str,
@@ -545,7 +554,13 @@ pub async fn cast_load(
         Some(ref s) if !s.off => {
             let style = sub_style.unwrap_or_default();
             let seek = start_time_sec.unwrap_or(0.0).max(0.0);
-            cast_subs::prepare(s, &style, &url, &req_headers, seek).await
+            // Extracting an embedded track reads the whole file under TRANSPORT_OPS, so a slow source casts without it.
+            tokio::time::timeout(
+                Duration::from_secs(180),
+                cast_subs::prepare(s, &style, &url, &req_headers, seek),
+            )
+            .await
+            .unwrap_or(None)
         }
         _ => None,
     };
@@ -786,7 +801,7 @@ async fn cast_load_chromecast(
         };
         if let Some((h, p, sid)) = prior {
             let _ = tokio::task::spawn_blocking(move || {
-                if let Ok(d) = connect_device(&h, p) {
+                if let Ok(d) = connect_control_device(&h, p) {
                     let _ = d.receiver.stop_app(&sid);
                 }
             })
@@ -803,7 +818,8 @@ async fn cast_load_chromecast(
         tokio::sync::oneshot::channel::<Result<(String, String, Option<i32>), String>>();
 
     std::thread::spawn(move || {
-        let device = match connect_device(&host_clone, port) {
+        // LAUNCH and LOAD wait with a read timeout; the long-lived receive loop below clears it again.
+        let device = match connect_control_device(&host_clone, port) {
             Ok(d) => d,
             Err(e) => {
                 eprintln!("[harbor::cast] connect err: {}", e);
@@ -864,11 +880,15 @@ async fn cast_load_chromecast(
             };
         let media_session_id = status.entries.first().map(|e| e.media_session_id);
         eprintln!("[harbor::cast] LOAD ok msid={:?}", media_session_id);
-        let _ = result_tx.send(Ok((
-            transport_id.clone(),
-            session_id.clone(),
-            media_session_id,
-        )));
+        if result_tx
+            .send(Ok((transport_id.clone(), session_id.clone(), media_session_id)))
+            .is_err()
+        {
+            // The command already gave up on this LOAD; stop the receiver it started instead of leaving it orphaned.
+            let _ = device.receiver.stop_app(&session_id);
+            return;
+        }
+        let _ = device.set_read_timeout(None);
 
         eprintln!(
             "[harbor::cast] receive loop entering for {}:{}",
@@ -900,8 +920,9 @@ async fn cast_load_chromecast(
         }
     });
 
-    let (transport_id, session_id, msid) = result_rx
+    let (transport_id, session_id, msid) = tokio::time::timeout(Duration::from_secs(45), result_rx)
         .await
+        .map_err(|_| "The Chromecast did not answer the load request".to_string())?
         .map_err(|e| format!("cast result channel: {e}"))??;
 
     Ok(ActiveSession::Chromecast {
@@ -982,7 +1003,7 @@ pub async fn cast_play() -> Result<(), String> {
     }
     let (host, port, transport_id, msid, _seek_start) = snapshot_chromecast()?;
     tokio::task::spawn_blocking(move || -> Result<(), String> {
-        let device = connect_device(&host, port)?;
+        let device = connect_control_device(&host, port)?;
         device
             .connection
             .connect(transport_id.clone())
@@ -1017,7 +1038,7 @@ pub async fn cast_pause() -> Result<(), String> {
     }
     let (host, port, transport_id, msid, _seek_start) = snapshot_chromecast()?;
     tokio::task::spawn_blocking(move || -> Result<(), String> {
-        let device = connect_device(&host, port)?;
+        let device = connect_control_device(&host, port)?;
         device
             .connection
             .connect(transport_id.clone())
@@ -1055,7 +1076,7 @@ pub async fn cast_seek(proxy_state: tauri::State<'_, ProxyState>, sec: f64) -> R
     let (host, port, transport_id, msid, seek_start) = snapshot_chromecast()?;
     let cast_relative = (sec - seek_start).max(0.0);
     tokio::task::spawn_blocking(move || -> Result<(), String> {
-        let device = connect_device(&host, port)?;
+        let device = connect_control_device(&host, port)?;
         device
             .connection
             .connect(transport_id.clone())
@@ -1098,7 +1119,7 @@ pub async fn cast_stop(proxy_state: tauri::State<'_, ProxyState>) -> Result<(), 
         }) => {
             let (host, port, session_id) = (host.clone(), *port, session_id.clone());
             tokio::task::spawn_blocking(move || -> Result<(), String> {
-                let device = connect_device(&host, port)?;
+                let device = connect_control_device(&host, port)?;
                 device.receiver.stop_app(&session_id).map_err(|error| format!("stop: {error}"))?;
                 Ok(())
             })

@@ -42,7 +42,10 @@ Notes for agents working in this folder.
 
 - `vendor/leveldb-sys` builds via CMake from `src/build.rs` (not a root `build.rs`), with `CMAKE_POLICY_VERSION_MINIMUM=3.10` and `HAVE_CLANG_THREAD_SAFETY=OFF` pinned for CMake 4.x. On Windows it finds CMake via `vswhere`. Paths with spaces are quoted; keep it that way.
 - `vendor/rust_cast` is built without its `thread_safe` feature, so a `CastDevice` is `!Send`. `cast_status` polls through one worker thread that owns its connection (30 s max age, 6 s read timeout via the vendored `set_read_timeout`); the LOAD session thread in `cast.rs` keeps blocking reads.
-- `transcode::locate_ffmpeg`/`locate_ffprobe` cache the first path they find for the process, and `thumbs::is_hdr_source` caches each URL's probe.
+- `transcode::locate_ffmpeg`/`locate_ffprobe` cache the first path they find for the process, and `thumbs::is_hdr_source` caches each URL's successful probe (a timeout or non-zero ffprobe exit stays uncached).
+- An ffmpeg/ffprobe/fpcalc run under `tokio::time::timeout` needs `kill_on_drop(true)`: tokio leaves a dropped `Child` running, so a timed-out probe keeps downloading. Cast control commands (`connect_control_device` in `cast.rs`) set a read timeout, since they hold `TRANSPORT_OPS` while waiting for the device.
+- `web_server.rs` listens on `0.0.0.0`; its `/manga-img` proxy fetches through `http_fetch::public_http_client` and checks every redirect hop, so LAN clients cannot reach local addresses through it.
+- Open item: the LAN-facing servers have no authentication. Any device on the network can add a magnet to the torrent engine's LAN server (`torrent_engine.rs`, `0.0.0.0:11470`, `/{hash}/create`) and send commands over `/api/remote` (`web_server.rs`). Phones and TVs rely on this, so a fix needs a pairing token those clients also learn.
 - `[patch.crates-io]` patches `librespot-core` and `librqbit`. Read the comments in `Cargo.toml` before bumping either.
 
 ## Tests

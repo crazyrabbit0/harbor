@@ -27,7 +27,11 @@ export async function fetchAndParse(
 }
 
 export function parseSubtitle(raw: string, format?: SubFormat): SubCue[] {
-  const text = raw.replace(/^﻿/, "").replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const text = raw
+    .replace(/^﻿/, "")
+    .replace(/\r\n/g, "\n")
+    .replace(/\r/g, "\n")
+    .replace(/[ \t]+$/gm, "");
   const fmt = format ?? detectFormat(text);
   if (fmt === "vtt") return parseVtt(text);
   if (fmt === "ass" || fmt === "ssa") return parseAss(text);
@@ -51,7 +55,7 @@ function parseSrt(text: string): SubCue[] {
     if (/^\d+$/.test(lines[0].trim())) timingIdx = 1;
     const timing = lines[timingIdx];
     const m = timing?.match(
-      /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{1,3})/,
+      /(\d{1,3}):(\d{2}):(\d{2})[,.](\d{1,3})\s*-->\s*(\d{1,3}):(\d{2}):(\d{2})[,.](\d{1,3})/,
     );
     if (!m) continue;
     const start = toSec(m[1], m[2], m[3], m[4]);
@@ -179,16 +183,35 @@ function toSec(h: string, m: string, s: string, ms: string): number {
   );
 }
 
+// Running max of cue ends per sorted cue list, so the backward scan stops once no earlier cue can still be showing.
+const maxEndCache = new WeakMap<SubCue[], Float64Array>();
+
+function runningMaxEnd(cues: SubCue[]): Float64Array {
+  let max = maxEndCache.get(cues);
+  if (max && max.length === cues.length) return max;
+  max = new Float64Array(cues.length);
+  let m = -Infinity;
+  for (let i = 0; i < cues.length; i++) max[i] = m = Math.max(m, cues[i].end);
+  maxEndCache.set(cues, max);
+  return max;
+}
+
+// Cues are sorted by start but may overlap, so take the last cue starting at or before t, then look back.
 export function findActiveCue(cues: SubCue[], timeSec: number): SubCue | null {
-  if (cues.length === 0) return null;
   let lo = 0;
   let hi = cues.length - 1;
+  let last = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
-    const c = cues[mid];
-    if (timeSec < c.start) hi = mid - 1;
-    else if (timeSec >= c.end) lo = mid + 1;
-    else return c;
+    if (cues[mid].start <= timeSec) {
+      last = mid;
+      lo = mid + 1;
+    } else hi = mid - 1;
+  }
+  if (last < 0) return null;
+  const maxEnd = runningMaxEnd(cues);
+  for (let i = last; i >= 0 && maxEnd[i] > timeSec; i--) {
+    if (timeSec < cues[i].end) return cues[i];
   }
   return null;
 }

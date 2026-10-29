@@ -23,6 +23,7 @@ fn is_tauri_dev() -> bool {
 
 static RUNNING: AtomicBool = AtomicBool::new(false);
 static NEXT_CLIENT_ID: AtomicU64 = AtomicU64::new(1);
+static SERVE_GENERATION: AtomicU64 = AtomicU64::new(0);
 
 #[derive(Clone)]
 struct ServeState {
@@ -168,6 +169,29 @@ fn blocked_host(url: &str) -> bool {
                 .unwrap_or(false))
 }
 
+// LAN clients reach this route, so every hop is resolved and checked as a public address, redirects included.
+async fn fetch_public_image(url: &str) -> Option<reqwest::Response> {
+    let mut current = reqwest::Url::parse(url).ok()?;
+    for _ in 0..5 {
+        let client = crate::http_fetch::public_http_client(&current).await.ok()?;
+        let resp = client
+            .get(current.clone())
+            .header(
+                "User-Agent",
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
+            )
+            .send()
+            .await
+            .ok()?;
+        if !resp.status().is_redirection() {
+            return Some(resp);
+        }
+        let location = resp.headers().get(header::LOCATION)?.to_str().ok()?;
+        current = current.join(location).ok()?;
+    }
+    None
+}
+
 async fn manga_img_proxy(uri: axum::http::Uri) -> Response<Body> {
     let query = uri.query().unwrap_or("");
     let target = query
@@ -184,18 +208,9 @@ async fn manga_img_proxy(uri: axum::http::Uri) -> Response<Body> {
                 .unwrap()
         }
     };
-    let client = reqwest::Client::new();
-    let upstream = match client
-        .get(&url)
-        .header(
-            "User-Agent",
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-        )
-        .send()
-        .await
-    {
-        Ok(r) => r,
-        Err(_) => {
+    let upstream = match fetch_public_image(&url).await {
+        Some(r) => r,
+        None => {
             return Response::builder()
                 .status(StatusCode::BAD_GATEWAY)
                 .body(Body::empty())
@@ -327,14 +342,18 @@ pub async fn web_serve_start(app: AppHandle) -> Result<u16, String> {
         .fallback(serve_http)
         .with_state(state);
 
+    let generation = SERVE_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
     tauri::async_runtime::spawn(async move {
         let _ = axum::serve(listener, router)
             .with_graceful_shutdown(async {
                 let _ = rx.await;
             })
             .await;
-        RUNNING.store(false, Ordering::SeqCst);
-        *serve_state_slot().lock().unwrap() = None;
+        // A server started after this one stopped owns the shared state now; leave it alone.
+        if SERVE_GENERATION.load(Ordering::SeqCst) == generation {
+            RUNNING.store(false, Ordering::SeqCst);
+            *serve_state_slot().lock().unwrap() = None;
+        }
     });
     if is_tauri_dev() {
         eprintln!(

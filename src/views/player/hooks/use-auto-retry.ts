@@ -53,6 +53,7 @@ export function useAutoRetry(params: {
   engineFailure: boolean;
   isP2pEngine: boolean;
   engineStats: EngineStats | null;
+  activeUrlRef?: RefObject<string | null>;
 }) {
   const {
     bridgeRef,
@@ -67,7 +68,13 @@ export function useAutoRetry(params: {
     engineFailure,
     isP2pEngine,
     engineStats,
+    activeUrlRef,
   } = params;
+  // A same-source reload targets what is playing now (a manual swap or transcode), sending src headers only to src.url.
+  const reloadTarget = () => {
+    const url = activeUrlRef?.current ?? src.url;
+    return { url, headers: url === src.url ? src.headers : undefined };
+  };
   const isLocal = isLocalUrl(src.url);
   const isLive = src.meta.id.startsWith("iptv:");
   const ENGINE_FIRST_FRAME_GRACE_MS = 20_000;
@@ -294,11 +301,10 @@ export function useAutoRetry(params: {
       if (b) {
         console.warn(`[player] error "${snap.errorCode}" before playback — reloading same URL`);
         void b.load({
-          url: src.url,
+          ...reloadTarget(),
           subtitles: src.subtitles,
           notWebReady: src.notWebReady,
           isLive,
-          headers: src.headers,
         });
         return;
       }
@@ -360,8 +366,7 @@ export function useAutoRetry(params: {
           if (!current()) return;
           if (ok) {
             console.warn("[player] decode error — retrying via p2p transcoding");
-            recoveryBridge.destroy();
-            bridgeRef.current = null;
+            // useBridgeLoad reloads the same bridge once transcodedUrl changes; no new bridge would replace a destroyed one.
             setTranscodedUrl(buildTranscodedUrl(src.url));
           } else {
             retry();
@@ -409,11 +414,11 @@ export function useAutoRetry(params: {
         `[player] stream ended prematurely at ${pos.toFixed(1)}s of ${snap.durationSec.toFixed(1)}s — reloading same URL for a fresh session`,
       );
       void b.load({
-        url: src.url,
+        ...reloadTarget(),
         subtitles: src.subtitles,
         notWebReady: src.notWebReady,
         isLive,
-        headers: src.headers,
+        startAtSec: pos > 5 ? pos : undefined,
       });
       return;
     }
@@ -608,10 +613,9 @@ export function useAutoRetry(params: {
             p2pCompleteReloadedAtRef.current = now;
             console.warn("[player] completed P2P file produced no frame — reloading local stream");
             void bridge.load({
-              url: src.url,
+              ...reloadTarget(),
               subtitles: src.subtitles,
               notWebReady: src.notWebReady,
-              headers: src.headers,
             });
             return;
           }
