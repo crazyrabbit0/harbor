@@ -222,6 +222,7 @@ async fn convert_to_srt(input: &Path, dir: &Path) -> Option<PathBuf> {
     let ffmpeg = crate::transcode::locate_ffmpeg()?;
     let out = dir.join(format!("{}.srt", Uuid::new_v4()));
     let mut cmd = tokio::process::Command::new(&ffmpeg);
+    cmd.kill_on_drop(true);
     cmd.arg("-hide_banner")
         .arg("-loglevel")
         .arg("error")
@@ -253,6 +254,7 @@ async fn extract_embedded(
     let ffmpeg = crate::transcode::locate_ffmpeg()?;
     let out = dir.join(format!("{}.srt", Uuid::new_v4()));
     let mut cmd = tokio::process::Command::new(&ffmpeg);
+    cmd.kill_on_drop(true);
     cmd.arg("-hide_banner")
         .arg("-loglevel")
         .arg("error")
@@ -340,6 +342,7 @@ async fn shift_subtitle(input: &Path, seek_start: f64, dir: &Path) -> Option<Pat
     let ffmpeg = crate::transcode::locate_ffmpeg()?;
     let out = dir.join(format!("{}.srt", Uuid::new_v4()));
     let mut cmd = tokio::process::Command::new(&ffmpeg);
+    cmd.kill_on_drop(true);
     cmd.arg("-hide_banner")
         .arg("-loglevel")
         .arg("error")
