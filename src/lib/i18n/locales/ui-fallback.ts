@@ -2238,6 +2238,8 @@ const uiFallback: Record<string, string> = {
     "Enter the address of a community sync server you run. Leave it blank to turn community corrections off.",
   "Enter a full http:// or https:// address, or leave it blank to turn community corrections off.":
     "Enter a full http:// or https:// address, or leave it blank to turn community corrections off.",
+  "This remote isn't paired. Scan the QR code in Harbor's settings on your computer again.":
+    "This remote isn't paired. Scan the QR code in Harbor's settings on your computer again.",
 };
 
 export default uiFallback;

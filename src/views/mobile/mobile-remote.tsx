@@ -8,11 +8,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { Check, WifiOff } from "lucide-react";
+import { Check, QrCode, WifiOff } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import type { RemoteCommand, RemoteSnapshot } from "@/lib/remote/protocol";
 import { useRemoteClient } from "@/lib/remote/use-remote-client";
 import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
+import { useT } from "@/lib/i18n";
 
 type PlayOpts = { season?: number; episode?: number; resume?: boolean };
 
@@ -27,7 +28,8 @@ type MobileRemoteValue = {
 const Ctx = createContext<MobileRemoteValue | null>(null);
 
 export function MobileRemoteProvider({ children }: { children: ReactNode }) {
-  const { status, snapshot, sendCommand } = useRemoteClient();
+  const t = useT();
+  const { status, snapshot, sendCommand, unauthorized } = useRemoteClient();
   const settings = useSettingsSelector((s) => ({
     rpdbKey: s.rpdbKey,
     tmdbImageLangs: s.tmdbImageLangs,
@@ -132,6 +134,20 @@ export function MobileRemoteProvider({ children }: { children: ReactNode }) {
   return (
     <Ctx.Provider value={value}>
       {children}
+      {unauthorized && (
+        <div
+          role="alert"
+          className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center px-4"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 84px)" }}
+        >
+          <div className="flex max-w-[420px] items-center gap-2.5 rounded-2xl bg-danger/90 px-4 py-3 text-[13.5px] font-semibold text-white shadow-[0_8px_28px_-8px_rgba(0,0,0,0.6)] backdrop-blur-xl">
+            <QrCode size={18} strokeWidth={2.4} className="shrink-0" />
+            {t(
+              "This remote isn't paired. Scan the QR code in Harbor's settings on your computer again.",
+            )}
+          </div>
+        </div>
+      )}
       {flash && (
         <div
           className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex justify-center px-4"

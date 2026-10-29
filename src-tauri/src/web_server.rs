@@ -1,6 +1,6 @@
 use axum::body::Body;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
-use axum::extract::State;
+use axum::extract::{RawQuery, State};
 use axum::http::{header, HeaderMap, HeaderName, HeaderValue, Response, StatusCode};
 use axum::response::IntoResponse;
 use axum::routing::get;
@@ -254,31 +254,148 @@ async fn serve_http(State(state): State<ServeState>, uri: axum::http::Uri) -> Re
     serve_bundled_asset(&state.app, uri.path())
 }
 
+const TOKEN_FILE: &str = "web-remote-token.txt";
+const TOKEN_HEX_LEN: usize = 64;
+// Frames a socket without the pairing key may still receive: probes, Play-on acks and the TV hand-off.
+const UNAUTHED_OUTBOUND: [&str; 5] = ["hello", "pong", "error", "ack", "harborSetup"];
+const UNAUTHORIZED_FRAME: &str = r#"{"t":"error","code":"unauthorized","message":"Scan the QR code in Harbor again to pair this remote."}"#;
+
+fn token_slot() -> &'static Mutex<Option<String>> {
+    static S: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+    S.get_or_init(|| Mutex::new(None))
+}
+
+// Two v4 UUIDs give 244 random bits from the OS generator without another dependency.
+fn generate_token() -> String {
+    format!(
+        "{}{}",
+        uuid::Uuid::new_v4().simple(),
+        uuid::Uuid::new_v4().simple()
+    )
+}
+
+fn is_valid_token(token: &str) -> bool {
+    token.len() == TOKEN_HEX_LEN
+        && token
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+}
+
+fn token_path(app: &AppHandle) -> Option<std::path::PathBuf> {
+    use tauri::Manager;
+    let dir = app.path().app_data_dir().ok()?;
+    std::fs::create_dir_all(&dir).ok()?;
+    Some(dir.join(TOKEN_FILE))
+}
+
+// Flushed before the rename, so a crash leaves the old token or the new one, never a torn file.
+fn write_token_file(path: &std::path::Path, token: &str) -> std::io::Result<()> {
+    use std::io::Write;
+    let tmp = path.with_extension("txt.tmp");
+    let mut file = std::fs::File::create(&tmp)?;
+    file.write_all(token.as_bytes())?;
+    file.sync_all()?;
+    drop(file);
+    std::fs::rename(&tmp, path)
+}
+
+/// The pairing token, loaded from disk once, created on first use; an unwritable disk keeps it in memory.
+fn remote_token(app: &AppHandle) -> String {
+    let mut slot = token_slot().lock().unwrap();
+    if let Some(token) = slot.as_ref() {
+        return token.clone();
+    }
+    let path = token_path(app);
+    let stored = path
+        .as_ref()
+        .and_then(|p| std::fs::read_to_string(p).ok())
+        .map(|s| s.trim().to_string())
+        .filter(|s| is_valid_token(s));
+    let token = match stored {
+        Some(token) => token,
+        None => {
+            let token = generate_token();
+            if let Some(p) = path.as_ref() {
+                if let Err(e) = write_token_file(p, &token) {
+                    eprintln!("[web-serve] could not save the remote pairing token: {e}");
+                }
+            }
+            token
+        }
+    };
+    *slot = Some(token.clone());
+    token
+}
+
+fn query_key(query: Option<&str>) -> Option<String> {
+    query?
+        .split('&')
+        .find_map(|pair| pair.strip_prefix("k=").map(pct_decode))
+        .filter(|k| !k.is_empty())
+}
+
+fn key_matches(provided: Option<&str>, expected: &str) -> bool {
+    let Some(provided) = provided else {
+        return false;
+    };
+    if expected.is_empty() || provided.len() != expected.len() {
+        return false;
+    }
+    provided
+        .bytes()
+        .zip(expected.bytes())
+        .fold(0u8, |acc, (a, b)| acc | (a ^ b))
+        == 0
+}
+
+fn outbound_allowed_unauthed(frame: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(frame)
+        .ok()
+        .and_then(|v| v.get("t").and_then(|t| t.as_str()).map(str::to_string))
+        .is_some_and(|t| UNAUTHED_OUTBOUND.contains(&t.as_str()))
+}
+
+#[tauri::command]
+pub fn web_remote_token(app: AppHandle) -> String {
+    remote_token(&app)
+}
+
 async fn remote_ws_handler(
     ws: WebSocketUpgrade,
     State(state): State<ServeState>,
+    RawQuery(query): RawQuery,
 ) -> impl IntoResponse {
-    ws.on_upgrade(move |socket| handle_remote_socket(socket, state))
+    let expected = remote_token(&state.app);
+    let authed = key_matches(query_key(query.as_deref()).as_deref(), &expected);
+    ws.on_upgrade(move |socket| handle_remote_socket(socket, state, authed))
 }
 
-async fn handle_remote_socket(socket: WebSocket, state: ServeState) {
+async fn handle_remote_socket(socket: WebSocket, state: ServeState, authed: bool) {
     let client_id = NEXT_CLIENT_ID.fetch_add(1, Ordering::SeqCst);
     {
         let mut clients = state.clients.lock().await;
         clients.insert(client_id);
     }
-    let _ = state.app.emit(
-        "remote://client",
-        serde_json::json!({ "action": "join", "clientId": client_id }),
-    );
 
     let (mut sender, mut receiver) = socket.split();
+    if !authed {
+        let _ = sender
+            .send(Message::Text(UNAUTHORIZED_FRAME.to_string().into()))
+            .await;
+    }
     let mut outbound_rx = state.outbound.subscribe();
+    let _ = state.app.emit(
+        "remote://client",
+        serde_json::json!({ "action": "join", "clientId": client_id, "authed": authed }),
+    );
 
     let send_task = tauri::async_runtime::spawn(async move {
         loop {
             match outbound_rx.recv().await {
                 Ok(msg) => {
+                    if !authed && !outbound_allowed_unauthed(&msg) {
+                        continue;
+                    }
                     if sender.send(Message::Text(msg.into())).await.is_err() {
                         break;
                     }
@@ -297,6 +414,7 @@ async fn handle_remote_socket(socket: WebSocket, state: ServeState) {
                     serde_json::json!({
                         "clientId": client_id,
                         "raw": text.to_string(),
+                        "authed": authed,
                     }),
                 );
             }
@@ -312,7 +430,7 @@ async fn handle_remote_socket(socket: WebSocket, state: ServeState) {
     }
     let _ = state.app.emit(
         "remote://client",
-        serde_json::json!({ "action": "leave", "clientId": client_id }),
+        serde_json::json!({ "action": "leave", "clientId": client_id, "authed": authed }),
     );
 }
 
@@ -405,4 +523,63 @@ pub async fn remote_ws_client_count() -> Result<usize, String> {
     };
     let count = state.clients.lock().await.len();
     Ok(count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{generate_token, is_valid_token, key_matches, outbound_allowed_unauthed, query_key};
+
+    const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
+
+    #[test]
+    fn query_key_reads_k_among_other_params() {
+        assert_eq!(query_key(Some("k=abc")), Some("abc".to_string()));
+        assert_eq!(query_key(Some("x=1&k=a%62c&y=2")), Some("abc".to_string()));
+        assert_eq!(query_key(Some("kk=abc&key=1")), None);
+        assert_eq!(query_key(Some("")), None);
+        assert_eq!(query_key(None), None);
+    }
+
+    #[test]
+    fn key_matches_only_the_exact_token() {
+        assert!(key_matches(Some(TOKEN), TOKEN));
+        assert!(!key_matches(None, TOKEN));
+        assert!(!key_matches(Some(""), TOKEN));
+        assert!(!key_matches(Some(&TOKEN[..63]), TOKEN));
+        let mut wrong = TOKEN.to_string();
+        wrong.replace_range(63..64, "0");
+        assert!(!key_matches(Some(&wrong), TOKEN));
+        assert!(!key_matches(Some(TOKEN), ""));
+    }
+
+    #[test]
+    fn missing_or_wrong_k_in_the_upgrade_query_is_unauthed() {
+        let authed = |q: Option<&str>| key_matches(query_key(q).as_deref(), TOKEN);
+        assert!(authed(Some(&format!("k={TOKEN}"))));
+        assert!(!authed(None));
+        assert!(!authed(Some("k=")));
+        assert!(!authed(Some("k=deadbeef")));
+        assert!(!authed(Some(&format!("key={TOKEN}"))));
+    }
+
+    #[test]
+    fn generated_tokens_are_64_hex_and_distinct() {
+        let a = generate_token();
+        let b = generate_token();
+        assert!(is_valid_token(&a));
+        assert!(is_valid_token(&b));
+        assert_ne!(a, b);
+        assert!(!is_valid_token("xyz"));
+        assert!(!is_valid_token(&TOKEN.to_uppercase()));
+    }
+
+    #[test]
+    fn unauthed_sockets_get_no_snapshots() {
+        assert!(!outbound_allowed_unauthed(r#"{"t":"snapshot","snapshot":{"tmdbKey":"x"}}"#));
+        assert!(outbound_allowed_unauthed(r#"{"t":"hello","proto":1,"server":"harbor-remote"}"#));
+        assert!(outbound_allowed_unauthed(r#"{"t":"pong","at":1}"#));
+        assert!(outbound_allowed_unauthed(r#"{"t":"harborSetup","proto":1,"offer":null}"#));
+        assert!(outbound_allowed_unauthed(r#"{"t":"ack","id":"c1","ok":true}"#));
+        assert!(!outbound_allowed_unauthed("not json"));
+    }
 }

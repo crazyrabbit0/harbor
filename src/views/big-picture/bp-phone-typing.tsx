@@ -6,8 +6,8 @@ import { useSettings } from "@/lib/settings";
 import { SFX } from "@/lib/sfx";
 import { useBpT } from "./bp-i18n";
 import { bpPlatform } from "./bp-platform";
-
-const WEB_PORT = 11471;
+import { remoteUiUrl } from "@/lib/remote/protocol";
+import { useWebRemoteKey } from "@/lib/remote/use-web-remote-key";
 
 // [data-bp-row] carries the page gutter as padding plus a matching negative
 // margin, which would push the header outside the dialog panel.
@@ -24,7 +24,8 @@ export function BpPhoneTyping({ onClose }: { onClose: () => void }) {
   const [png, setPng] = useState<string | null>(null);
 
   const serving = settings.serveWebUi || settings.remoteControlEnabled;
-  const url = lanIp ? `http://${lanIp}:${WEB_PORT}/remote` : null;
+  const remoteKey = useWebRemoteKey();
+  const url = lanIp && remoteKey !== undefined ? remoteUiUrl(lanIp, remoteKey) : null;
 
   useEffect(() => {
     let alive = true;

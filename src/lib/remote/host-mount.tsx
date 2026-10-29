@@ -44,6 +44,7 @@ import {
 } from "./manga-session";
 import { subscribeMangaBookmarks } from "@/lib/manga-bookmarks";
 import { installTextEntryListeners } from "./text-entry";
+import { remoteFrameAllowed } from "./remote-auth";
 import {
   REMOTE_PROTO,
   parseClientMessage,
@@ -486,7 +487,7 @@ export function RemoteHostMount() {
     let cancelled = false;
     const unsubs: Array<() => void> = [];
 
-    void listen<{ clientId: number; raw: string }>("remote://cmd", (e) => {
+    void listen<{ clientId: number; raw: string; authed?: boolean }>("remote://cmd", (e) => {
       const raw = e.payload?.raw;
       if (!raw) return;
       const msg = parseClientMessage(raw);
@@ -494,6 +495,7 @@ export function RemoteHostMount() {
         broadcast({ t: "error", message: "invalid message" });
         return;
       }
+      if (!remoteFrameAllowed(msg, e.payload.authed === true)) return;
       if (msg.t === "hello") {
         broadcast({ t: "hello", proto: REMOTE_PROTO, server: "harbor-remote" });
         pushSnapshot(true);

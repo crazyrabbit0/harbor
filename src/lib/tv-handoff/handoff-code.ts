@@ -1,4 +1,5 @@
 import { WEB_PORT } from "@/lib/remote/protocol";
+import { withRemoteKey } from "@/lib/remote/remote-auth";
 import { HANDOFF_PARAM } from "./handoff-protocol";
 
 /**
@@ -75,8 +76,14 @@ export function isHandoffCode(input: string): boolean {
  * along so the phone can claim the pairing, but the path is what selects the
  * surface.
  */
-export function handoffUrl(host: string, token: string, port = WEB_PORT): string {
-  return `http://${host}:${port}/setup?${HANDOFF_PARAM}=${encodeURIComponent(token)}`;
+export function handoffUrl(
+  host: string,
+  token: string,
+  port = WEB_PORT,
+  remoteKey: string | null = null,
+): string {
+  const url = `http://${host}:${port}/setup?${HANDOFF_PARAM}=${encodeURIComponent(token)}`;
+  return withRemoteKey(url, remoteKey);
 }
 
 export function readHandoffCodeFromLocation(): string | null {

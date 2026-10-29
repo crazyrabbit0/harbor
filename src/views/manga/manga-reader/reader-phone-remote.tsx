@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { Check, Copy, Smartphone, X } from "lucide-react";
 import { mangaRemoteUiUrl } from "@/lib/remote/protocol";
+import { useWebRemoteKey } from "@/lib/remote/use-web-remote-key";
 import { QR_DARK, QR_LIGHT, buildHandoffQr } from "@/lib/tv-handoff/handoff-qr";
 import { Tooltip } from "@/views/detail/tooltip";
 import { useT } from "@/lib/i18n";
@@ -50,6 +51,7 @@ function PhoneRemoteModal({ onClose }: { onClose: () => void }) {
   const [lanIp, setLanIp] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const remoteKey = useWebRemoteKey();
 
   useEffect(() => {
     let alive = true;
@@ -76,7 +78,7 @@ function PhoneRemoteModal({ onClose }: { onClose: () => void }) {
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
-  const url = lanIp ? mangaRemoteUiUrl(lanIp) : null;
+  const url = lanIp && remoteKey !== undefined ? mangaRemoteUiUrl(lanIp, remoteKey) : null;
   const copy = async () => {
     if (!url) return;
     try {

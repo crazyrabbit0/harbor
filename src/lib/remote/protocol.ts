@@ -1,3 +1,5 @@
+import { withRemoteKey } from "./remote-auth";
+
 export const REMOTE_PROTO = 1;
 export const REMOTE_WS_PATH = "/api/remote";
 export const WEB_PORT = 11471;
@@ -265,7 +267,7 @@ export type RemoteServerMessage =
   | { t: "snapshot"; snapshot: RemoteSnapshot }
   | { t: "hello"; proto: number; server: "harbor-remote" }
   | { t: "pong"; at: number }
-  | { t: "error"; message: string };
+  | { t: "error"; message: string; code?: "unauthorized" };
 
 export type RemoteClientMessage =
   | { t: "cmd"; command: RemoteCommand }
@@ -310,15 +312,20 @@ export function parseClientMessage(raw: string): RemoteClientMessage | null {
   }
 }
 
-export function remoteWsUrl(host: string, port = WEB_PORT): string {
+export function remoteWsUrl(host: string, port = WEB_PORT, key?: string | null): string {
   const proto = typeof location !== "undefined" && location.protocol === "https:" ? "wss" : "ws";
-  return `${proto}://${host}:${port}${REMOTE_WS_PATH}`;
+  return withRemoteKey(`${proto}://${host}:${port}${REMOTE_WS_PATH}`, key);
 }
 
-export function remoteUiUrl(host: string, port = WEB_PORT): string {
-  return `http://${host}:${port}/remote`;
+export function remoteUiUrl(host: string, key: string | null, port = WEB_PORT): string {
+  return withRemoteKey(`http://${host}:${port}/remote`, key);
 }
 
-export function mangaRemoteUiUrl(host: string, port = WEB_PORT): string {
-  return `http://${host}:${port}/reader`;
+export function mangaRemoteUiUrl(host: string, key: string | null, port = WEB_PORT): string {
+  return withRemoteKey(`http://${host}:${port}/reader`, key);
+}
+
+/** Any served path (web app root, `/remote`, `/reader`) with the pairing key attached. */
+export function webUiUrl(host: string, path: string, key: string | null, port = WEB_PORT): string {
+  return withRemoteKey(`http://${host}:${port}${path || "/"}`, key);
 }
