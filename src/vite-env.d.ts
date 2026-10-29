@@ -9,11 +9,6 @@ interface ImportMetaEnv {
   readonly VITE_HARBOR_API_BASE?: string;
   readonly VITE_HARBOR_DATA_BASE?: string;
   readonly VITE_HARBOR_BUGS_BASE?: string;
-  readonly VITE_HARBOR_SYNC_BASE?: string;
-  readonly VITE_HARBOR_RELAY_BASE?: string;
-  readonly VITE_HARBOR_TRAKT_BASE?: string;
-  readonly VITE_HARBOR_MAL_BASE?: string;
-  readonly VITE_HARBOR_TVDB_BASE?: string;
   readonly VITE_TRAKT_CLIENT_ID?: string;
   readonly VITE_TRAKT_CLIENT_SECRET?: string;
   readonly VITE_MAL_CLIENT_ID?: string;

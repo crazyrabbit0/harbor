@@ -55,7 +55,9 @@ export function AutoSyncPanel() {
   const serverDesc = urlSaved
     ? t("Saved.")
     : storedUrl ||
-      t("Harbor uses its own community server. You can point it at a server you run yourself.");
+      t(
+        "No community server is set. Enter the address of a server you run to use community corrections.",
+      );
 
   return (
     <div className="hset-form-page">
@@ -138,7 +140,7 @@ export function AutoSyncPanel() {
           label={t("Community sync server")}
           desc={serverDesc}
           tip={t(
-            "Leave blank to use Harbor's own community server. Enter a URL to point at your own server instead. Private mode below stops all contact either way.",
+            "Community corrections need a server you run. Leave blank to keep them off. Private mode below stops all contact either way.",
           )}
         >
           <button type="button" onClick={openServer} className={ROW_ACTION}>
@@ -159,7 +161,7 @@ export function AutoSyncPanel() {
           onClose={() => setServerOpen(false)}
           title={t("Community sync server")}
           sub={t(
-            "Leave this blank to use Harbor's own community server, or enter the address of a server you run yourself.",
+            "Enter the address of a community sync server you run. Leave it blank to turn community corrections off.",
           )}
           actions={
             <>
@@ -186,7 +188,7 @@ export function AutoSyncPanel() {
                   saveServer();
                 }
               }}
-              placeholder={t("https://sync.harbor.site")}
+              placeholder="https://sync.example.com"
               spellCheck={false}
               autoComplete="off"
               className="h-11 w-full min-w-0 max-w-[520px] rounded-[10px] border border-edge-soft bg-elevated px-4 text-[16.5px] text-ink outline-none placeholder:text-ink-subtle/55 focus-visible:border-edge focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
@@ -194,7 +196,7 @@ export function AutoSyncPanel() {
             {urlError && (
               <p role="alert" className="text-[15px] text-danger">
                 {t(
-                  "Enter a full http:// or https:// address, or leave blank to use Harbor's server.",
+                  "Enter a full http:// or https:// address, or leave it blank to turn community corrections off.",
                 )}
               </p>
             )}

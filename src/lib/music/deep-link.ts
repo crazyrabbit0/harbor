@@ -1,5 +1,3 @@
-import { HARBOR_RELAY_BASE } from "@/lib/config/endpoints";
-
 export type MusicDeepLink = {
   kind: "track" | "album" | "artist";
   artist: string;
@@ -42,7 +40,7 @@ export function musicDeepLinkUrl(path: string): string {
 }
 
 export function musicBounceUrl(path: string): string {
-  const url = `${HARBOR_RELAY_BASE}/?${BOUNCE_PARAM}=${path}`;
+  const url = musicDeepLinkUrl(path);
   return url.length <= MAX_URL ? url : "";
 }
 
