@@ -118,9 +118,10 @@ async fn download_inner(root: &Path, input: String) -> Result<DownloadReview> {
         let result=super::source_public_files::prepare(super::source_public_files::Request {url:input,file}).await.map_err(|_|"patch_download_failed")?;
         target=url(&result.url)?;
     }
-    let client=reqwest::Client::builder().timeout(Duration::from_secs(90)).redirect(Policy::none()).user_agent("Harbor/0.9 (ROM patch download)").build().map_err(|_|"patch_download_failed")?;
     for _ in 0..6 {
-        crate::http_fetch::validate_target(&target,false).await.map_err(|_|"patch_download_url")?;
+        let addresses=crate::http_fetch::validate_target(&target,false).await.map_err(|_|"patch_download_url")?;
+        let builder=reqwest::Client::builder().timeout(Duration::from_secs(90)).redirect(Policy::none()).user_agent("Harbor/0.9 (ROM patch download)");
+        let client=crate::http_fetch::pinned_client(builder,&target,&addresses).map_err(|_|"patch_download_failed")?;
         let mut response=client.get(target.clone()).send().await.map_err(|_|"patch_download_failed")?;
         if response.status().is_redirection() {
             target=url(target.join(response.headers().get("location").and_then(|v|v.to_str().ok()).ok_or("patch_download_failed")?).map_err(|_|"patch_download_url")?.as_str())?;continue;

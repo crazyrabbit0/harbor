@@ -80,9 +80,12 @@ test("provider download policy is marked internally and pinned natively", () => 
   );
   assert.match(safeFetchSource, /publicNetworkOnly/);
   assert.match(safeFetchSource, /policyHeaders\.delete\(SUBTITLE_PUBLIC_NETWORK_HEADER\)/);
-  assert.match(nativeSource, /public_http_client\(&current_url\)/);
-  assert.match(nativeSource, /let addresses = resolve_public_target\(url\)/);
-  assert.match(nativeSource, /resolve_to_addrs\(host, &addresses\)/);
+  assert.match(
+    nativeSource,
+    /hop_client\(&current_url, allow_local_network, public_network_only\)/,
+  );
+  assert.match(nativeSource, /resolve_public_target\(url\)\.await\?/);
+  assert.match(nativeSource, /resolve_to_addrs\(host, addresses\)/);
 });
 
 test("public-network policy applies only to provider-derived subtitle tracks", () => {
