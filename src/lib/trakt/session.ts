@@ -5,6 +5,7 @@ import { REFRESH_THRESHOLD_SEC } from "./config";
 import type { TraktSession } from "./types";
 
 const BASE_KEY = "harbor.trakt.session.v1";
+const LEGACY_MIGRATED_KEY = "harbor.trakt.legacy-migrated.v1";
 
 function keyFor(): string {
   return `${BASE_KEY}.${activeProfileId()}`;
@@ -14,8 +15,17 @@ const subscribers = new Set<() => void>();
 let cached: TraktSession | null = null;
 let loaded = false;
 
+// The settings-blob tokens are a one-time import, so a disconnect is never undone by a later read.
+function takeLegacyMigration(): boolean {
+  if (!activeProfileIsPrimary()) return false;
+  if (localStorage.getItem(LEGACY_MIGRATED_KEY)) return false;
+  localStorage.setItem(LEGACY_MIGRATED_KEY, "1");
+  return true;
+}
+
 function read(): TraktSession | null {
   try {
+    const migrateLegacy = takeLegacyMigration();
     const key = keyFor();
     let raw = getSecret(key);
     if (!raw) {
@@ -37,7 +47,7 @@ function read(): TraktSession | null {
         return parsed;
       }
     }
-    const settingsRaw = activeProfileIsPrimary() ? localStorage.getItem("harbor.settings") : null;
+    const settingsRaw = migrateLegacy ? localStorage.getItem("harbor.settings") : null;
     if (settingsRaw) {
       const s = JSON.parse(settingsRaw);
       if (
