@@ -2224,6 +2224,20 @@ const uiFallback: Record<string, string> = {
     "How many seconds Save video clip keeps, counting back from where you are.",
   "Loading releases…": "Loading releases…",
   "Checking {done} of {total} titles": "Checking {done} of {total} titles",
+  "This theme's script is turned off": "This theme's script is turned off",
+  "This theme's script is running": "This theme's script is running",
+  "Theme scripts get full access to Harbor and your files. Only run a script from a theme you trust.":
+    "Theme scripts get full access to Harbor and your files. Only run a script from a theme you trust.",
+  "Run this theme's script": "Run this theme's script",
+  "Turn off script": "Turn off script",
+  "No community server is set. Enter the address of a server you run to use community corrections.":
+    "No community server is set. Enter the address of a server you run to use community corrections.",
+  "Community corrections need a server you run. Leave blank to keep them off. Private mode below stops all contact either way.":
+    "Community corrections need a server you run. Leave blank to keep them off. Private mode below stops all contact either way.",
+  "Enter the address of a community sync server you run. Leave it blank to turn community corrections off.":
+    "Enter the address of a community sync server you run. Leave it blank to turn community corrections off.",
+  "Enter a full http:// or https:// address, or leave it blank to turn community corrections off.":
+    "Enter a full http:// or https:// address, or leave it blank to turn community corrections off.",
 };
 
 export default uiFallback;

@@ -4,6 +4,7 @@ import { getThemeById } from "@/lib/theme";
 import { useViewSelector } from "@/lib/view";
 import { scanTheme } from "@/lib/theme-scan";
 import { subscribeCustomThemes, type CustomTheme } from "@/lib/custom-themes";
+import { canRunThemeJs, subscribeThemeJsConsent } from "@/lib/theme-js-consent";
 
 const STYLE_ID = "harbor-custom-css";
 const THEME_STYLE_ID = "harbor-theme-css";
@@ -33,12 +34,15 @@ export function CustomCodeMount() {
   const [themesTick, setThemesTick] = useState(0);
 
   useEffect(() => subscribeCustomThemes(() => setThemesTick((t) => t + 1)), []);
+  useEffect(() => subscribeThemeJsConsent(() => setThemesTick((t) => t + 1)), []);
 
   const themeExt = useMemo(() => {
     if (settings.theme.preset === "custom") return null;
     const t = getThemeById(settings.theme.preset) as CustomTheme | null;
     if (!t) return null;
-    const payload = { css: t.css ?? "", js: t.js ?? "", html: t.html ?? "" };
+    // Imported and community scripts run only after the user allows them for this exact script.
+    const js = canRunThemeJs(t) ? (t.js ?? "") : "";
+    const payload = { css: t.css ?? "", js, html: t.html ?? "" };
     const scan = scanTheme(payload);
     if (scan.verdict === "block") {
       console.warn(
