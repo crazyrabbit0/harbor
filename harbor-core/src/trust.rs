@@ -431,13 +431,9 @@ fn check_one(
         }
     }
 
-    if strict && !opts.is_anime && !has_file_idx && !s.season_pack {
+    if episode_out_of_span(s, opts, strict) {
         if let (Some(expected_episode), Some(episode)) = (opts.expected_episode, s.episode) {
-            if expected_episode < episode || expected_episode > s.episode_end.unwrap_or(episode) {
-                return Some(format!(
-                    "episode-mismatch:{episode}-vs-{expected_episode}"
-                ));
-            }
+            return Some(format!("episode-mismatch:{episode}-vs-{expected_episode}"));
         }
     }
 
@@ -446,6 +442,21 @@ fn check_one(
     }
 
     None
+}
+
+fn episode_out_of_span(s: &ParsedStream, opts: &TrustOptions, strict: bool) -> bool {
+    if !strict || opts.is_anime || s.stream.file_idx.is_some() || s.season_pack {
+        return false;
+    }
+    let (Some(expected_episode), Some(episode)) = (opts.expected_episode, s.episode) else {
+        return false;
+    };
+    // Mirror of episodeSpanContains in trust.ts: a missing season on either side takes the other side's value.
+    let span_season = s.season.or(opts.expected_season).unwrap_or(0);
+    let target_season = opts.expected_season.or(s.season).unwrap_or(0);
+    span_season != target_season
+        || expected_episode < episode
+        || expected_episode > s.episode_end.unwrap_or(episode)
 }
 
 fn behavior_hint_filename(s: &ParsedStream) -> Option<&str> {
@@ -789,6 +800,68 @@ mod tests {
             strict: true,
             ..Default::default()
         }
+    }
+
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ParityStream {
+        season: Option<i32>,
+        episode: Option<i32>,
+        episode_end: Option<i32>,
+        season_pack: bool,
+        file_idx: Option<i64>,
+    }
+
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ParityOpts {
+        expected_season: Option<i32>,
+        expected_episode: Option<i32>,
+        is_anime: bool,
+        strict: Option<bool>,
+    }
+
+    #[derive(serde::Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct ParityCase {
+        name: String,
+        stream: ParityStream,
+        opts: ParityOpts,
+        expect_episode_mismatch: bool,
+        expect_reason: Option<String>,
+    }
+
+    // Shared with tests/stream-trust-episode-parity.test.ts, which runs the same cases through the TS applyTrust.
+    #[test]
+    fn episode_rule_matches_ts_fixture() {
+        let cases: Vec<ParityCase> =
+            serde_json::from_str(include_str!("../tests/fixtures/trust-episode-parity.json")).unwrap();
+        assert!(cases.len() >= 12);
+        let mut failures = Vec::new();
+        for c in cases {
+            let mut s = base_stream();
+            s.season = c.stream.season;
+            s.episode = c.stream.episode;
+            s.episode_end = c.stream.episode_end;
+            s.season_pack = c.stream.season_pack;
+            s.stream.file_idx = c.stream.file_idx;
+            let opts = TrustOptions {
+                strict: c.opts.strict.unwrap_or(true),
+                is_anime: c.opts.is_anime,
+                expected_season: c.opts.expected_season,
+                expected_episode: c.opts.expected_episode,
+                ..Default::default()
+            };
+            let rule = episode_out_of_span(&s, &opts, opts.strict);
+            if rule != c.expect_episode_mismatch {
+                failures.push(format!("{}: episode rule {rule}, expected {}", c.name, c.expect_episode_mismatch));
+            }
+            let reason = apply_trust(vec![s], &opts).rejected.into_iter().next().map(|r| r.reason);
+            if reason != c.expect_reason {
+                failures.push(format!("{}: reason {reason:?}, expected {:?}", c.name, c.expect_reason));
+            }
+        }
+        assert!(failures.is_empty(), "{failures:#?}");
     }
 
     #[test]

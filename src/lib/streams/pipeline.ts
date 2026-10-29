@@ -448,6 +448,8 @@ export async function runPipeline(
   };
 }
 
+let nativeFailureWarned = false;
+
 async function runCorePipeline(
   parsed: ReturnType<typeof parseStream>[],
   trustOpts: TrustOptions,
@@ -465,6 +467,10 @@ async function runCorePipeline(
     })) as { picker: RankedPicker; rejected: Rejection[] };
     return result;
   } catch (e) {
+    if (!nativeFailureWarned) {
+      nativeFailureWarned = true;
+      console.warn("[pipeline] native stream core failed; using the TypeScript ranking", e);
+    }
     dlog(`[pipeline] core pipeline failed, falling back to JS: ${e}`);
     return null;
   }

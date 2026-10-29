@@ -1,0 +1,212 @@
+[
+  {
+    "name": "same season and episode",
+    "stream": {
+      "season": 1,
+      "episode": 3,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "same season, other episode",
+    "stream": {
+      "season": 1,
+      "episode": 4,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": true,
+    "expectReason": "episode-mismatch:4-vs-3"
+  },
+  {
+    "name": "cross-season, same episode number",
+    "stream": {
+      "season": 2,
+      "episode": 3,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": true,
+    "expectReason": "season-mismatch:2-vs-1"
+  },
+  {
+    "name": "cross-season range covering the episode number",
+    "stream": { "season": 2, "episode": 2, "episodeEnd": 4, "seasonPack": false, "fileIdx": null },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": true,
+    "expectReason": "season-mismatch:2-vs-1"
+  },
+  {
+    "name": "same-season range containing the episode",
+    "stream": { "season": 1, "episode": 2, "episodeEnd": 4, "seasonPack": false, "fileIdx": null },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "same-season range after the episode",
+    "stream": { "season": 1, "episode": 4, "episodeEnd": 5, "seasonPack": false, "fileIdx": null },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": true,
+    "expectReason": "episode-mismatch:4-vs-3"
+  },
+  {
+    "name": "season pack of another season without episode",
+    "stream": {
+      "season": 2,
+      "episode": null,
+      "episodeEnd": null,
+      "seasonPack": true,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "season pack carrying a cross-season episode",
+    "stream": {
+      "season": 2,
+      "episode": 3,
+      "episodeEnd": null,
+      "seasonPack": true,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "fileIdx selects the file, cross-season label ignored",
+    "stream": { "season": 2, "episode": 7, "episodeEnd": null, "seasonPack": false, "fileIdx": 2 },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "anime skips the season and episode rules",
+    "stream": {
+      "season": 2,
+      "episode": 4,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": true },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "stream without season, matching episode",
+    "stream": {
+      "season": null,
+      "episode": 3,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "stream without season, other episode",
+    "stream": {
+      "season": null,
+      "episode": 4,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": true,
+    "expectReason": "episode-mismatch:4-vs-3"
+  },
+  {
+    "name": "no expected season, matching episode",
+    "stream": {
+      "season": 2,
+      "episode": 3,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": null, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "no expected season, other episode",
+    "stream": {
+      "season": 2,
+      "episode": 4,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": null, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": true,
+    "expectReason": "episode-mismatch:4-vs-3"
+  },
+  {
+    "name": "no season on either side, range containing the episode",
+    "stream": {
+      "season": null,
+      "episode": 3,
+      "episodeEnd": 5,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": null, "expectedEpisode": 4, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "balanced mode skips the rules",
+    "stream": {
+      "season": 2,
+      "episode": 4,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false, "strict": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "no expected episode",
+    "stream": {
+      "season": 1,
+      "episode": 4,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": null, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  },
+  {
+    "name": "stream without episode",
+    "stream": {
+      "season": 1,
+      "episode": null,
+      "episodeEnd": null,
+      "seasonPack": false,
+      "fileIdx": null
+    },
+    "opts": { "expectedSeason": 1, "expectedEpisode": 3, "isAnime": false },
+    "expectEpisodeMismatch": false,
+    "expectReason": null
+  }
+]
