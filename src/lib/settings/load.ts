@@ -443,10 +443,14 @@ function parseStoredSettings(raw: string | null): Settings {
         ...DEFAULT.letterboxd,
         ...parsed.letterboxd,
       },
-      preferredSubLangs: (parsed.preferredSubLangs ?? DEFAULT.preferredSubLangs).map(languageName),
-      preferredAudioLangs: (parsed.preferredAudioLangs ?? DEFAULT.preferredAudioLangs).map(
-        languageName,
-      ),
+      preferredSubLangs: (Array.isArray(parsed.preferredSubLangs)
+        ? parsed.preferredSubLangs.filter((l): l is string => typeof l === "string")
+        : DEFAULT.preferredSubLangs
+      ).map(languageName),
+      preferredAudioLangs: (Array.isArray(parsed.preferredAudioLangs)
+        ? parsed.preferredAudioLangs.filter((l): l is string => typeof l === "string")
+        : DEFAULT.preferredAudioLangs
+      ).map(languageName),
       castAlwaysTranscode: parsed.castAlwaysTranscode ?? DEFAULT.castAlwaysTranscode,
       showMalBadge: parsed.showMalBadge ?? DEFAULT.showMalBadge,
       badgePlacement:
@@ -526,14 +530,16 @@ function parseStoredSettings(raw: string | null): Settings {
         },
       },
       webhookRules: Array.isArray(parsed.webhookRules)
-        ? parsed.webhookRules.map((r) => ({
-            ...r,
-            channels: {
-              discord: r.channels?.discord ?? false,
-              telegram: r.channels?.telegram ?? false,
-              desktop: r.channels?.desktop ?? false,
-            },
-          }))
+        ? parsed.webhookRules
+            .filter((r) => r != null && typeof r === "object")
+            .map((r) => ({
+              ...r,
+              channels: {
+                discord: r.channels?.discord ?? false,
+                telegram: r.channels?.telegram ?? false,
+                desktop: r.channels?.desktop ?? false,
+              },
+            }))
         : [],
       customStreamFilters: Array.isArray(parsed.customStreamFilters)
         ? parsed.customStreamFilters

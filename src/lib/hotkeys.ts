@@ -695,7 +695,15 @@ export const HOTKEY_MAP: Record<HotkeyId, HotkeyDef> = Object.fromEntries(
 ) as Record<HotkeyId, HotkeyDef>;
 
 export function eventToBinding(e: KeyboardEvent): string {
-  return bindingFor(e.key, e);
+  return bindingFor(layoutIndependentKey(e), e);
+}
+
+// Greek, Cyrillic and other non-Latin layouts report their own letter in `key`; fall back to the physical Latin key.
+function layoutIndependentKey(e: Pick<KeyboardEvent, "key" | "code">): string {
+  const key = e.key;
+  if (key.length !== 1 || !/\p{L}/u.test(key) || /[a-zA-Z]/.test(key)) return key;
+  const physical = /^Key([A-Z])$/.exec(e.code ?? "");
+  return physical ? physical[1].toLowerCase() : key;
 }
 
 type Modifiers = Pick<KeyboardEvent, "ctrlKey" | "shiftKey" | "altKey" | "metaKey">;
@@ -804,9 +812,29 @@ export function matchPlayerKey(
   return ids.find((id) => effectiveBinding(id, overrides) === binding) ?? null;
 }
 
+// Physical QWERTY letter for each letter of the standard Russian, Ukrainian, Greek and Hebrew layouts.
+const LAYOUT_LETTER_TO_LATIN: Record<string, string> = Object.fromEntries(
+  [
+    ["qwertyuiopasdfghjklzxcvbnm", "йцукенгшщзфывапролдячсмить"],
+    ["s", "і"],
+    ["wertyuiopasdfghjklzxcvbnm", "ςερτυθιοπασδφγηξκλζχψωβνμ"],
+    ["ertyuiopasdfghjklzxcvbnm", "קראטוןםפשדגכעיחלךזסבהנמצ"],
+  ].flatMap(([latin, local]) => [...local].map((ch, i) => [ch, latin[i]])),
+);
+
+// A binding captured on a non-Latin layout before letters were stored by physical key still matches that key.
+function latinBinding(binding: string): string {
+  const parts = binding.split("+");
+  const last = parts.at(-1)!.toLowerCase();
+  const latin = LAYOUT_LETTER_TO_LATIN[last];
+  if (!latin) return binding;
+  parts[parts.length - 1] = latin;
+  return parts.join("+");
+}
+
 export function effectiveBinding(id: HotkeyId, overrides: Record<string, string>): string {
   const ov = overrides[id];
-  if (typeof ov === "string" && ov.length > 0) return ov;
+  if (typeof ov === "string" && ov.length > 0) return latinBinding(ov);
   const def = HOTKEY_MAP[id];
   // Digit groups run last in the player, so one digit taken by another action never disables the rest.
   if (digitGroup(id)) return def.defaultBinding;

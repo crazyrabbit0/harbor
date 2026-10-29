@@ -94,15 +94,14 @@ export async function idbCacheSet(key: string, entry: IdbCacheEntry): Promise<vo
     sizeBound += 1;
     return;
   }
-  const count = await run<number>("readonly", (store) => store.count());
+  const keys = await run<IDBValidKey[]>("readonly", (store) => store.getAllKeys());
+  const count = keys == null ? null : keys.filter((k) => trimmable(String(k))).length;
   sizeBound = count;
   if (count != null && count > IDB_CACHE_MAX_ENTRIES) {
-    await idbCacheTrim(TRIM_TARGET);
-    sizeBound = null;
+    // A trim that skipped rewritten keys or failed leaves more behind; track what actually remains.
+    sizeBound = (await trimTo(TRIM_TARGET)) ?? null;
   }
 }
-
-let trimming: Promise<void> | null = null;
 
 // Walks the store with a cursor, keeping only each trimmable key and its `at`, so large values are not collected.
 function readTrimmableAges(): Promise<Array<[string, number]> | null> {
@@ -138,15 +137,16 @@ function readTrimmableAges(): Promise<Array<[string, number]> | null> {
   );
 }
 
-// Deletes each key in one transaction, skipping any whose `at` changed since the scan (rewritten meanwhile).
-function deleteIfUnchanged(doomed: Array<[string, number]>): Promise<void> {
+// Deletes each key in one transaction, skipping any rewritten since the scan; resolves to how many it deleted.
+function deleteIfUnchanged(doomed: Array<[string, number]>): Promise<number> {
   return openDb().then(
     (db) =>
-      new Promise<void>((resolve) => {
+      new Promise<number>((resolve) => {
         if (!db) {
-          resolve();
+          resolve(0);
           return;
         }
+        let deleted = 0;
         try {
           const tx = db.transaction(STORE, "readwrite");
           const store = tx.objectStore(STORE);
@@ -154,30 +154,43 @@ function deleteIfUnchanged(doomed: Array<[string, number]>): Promise<void> {
             const req = store.get(key);
             req.onsuccess = () => {
               const value = req.result as Partial<IdbCacheEntry> | undefined;
-              if (value && (Number(value.at) || 0) === at) store.delete(key);
+              if (value && (Number(value.at) || 0) === at) {
+                store.delete(key).onsuccess = () => {
+                  deleted += 1;
+                };
+              }
             };
           }
-          tx.oncomplete = () => resolve();
-          tx.onerror = () => resolve();
-          tx.onabort = () => resolve();
+          tx.oncomplete = () => resolve(deleted);
+          tx.onerror = () => resolve(0);
+          tx.onabort = () => resolve(0);
         } catch {
-          resolve();
+          resolve(0);
         }
       }),
   );
 }
 
+let trimmingResult: Promise<number | null> | null = null;
+
+// Resolves to how many trimmable entries remain, or null when the store could not be read.
+function trimTo(keep: number): Promise<number | null> {
+  trimmingResult ??= (async () => {
+    const ages = await readTrimmableAges();
+    if (!ages) return null;
+    if (ages.length <= keep) return ages.length;
+    ages.sort((a, b) => a[1] - b[1]);
+    const deleted = await deleteIfUnchanged(ages.slice(0, ages.length - Math.max(0, keep)));
+    return ages.length - deleted;
+  })().finally(() => {
+    trimmingResult = null;
+  });
+  return trimmingResult;
+}
+
 /** Deletes the oldest trimmable cache entries (by `at`) until at most `keep` remain. */
 export function idbCacheTrim(keep: number): Promise<void> {
-  trimming ??= (async () => {
-    const ages = await readTrimmableAges();
-    if (!ages || ages.length <= keep) return;
-    ages.sort((a, b) => a[1] - b[1]);
-    await deleteIfUnchanged(ages.slice(0, ages.length - Math.max(0, keep)));
-  })().finally(() => {
-    trimming = null;
-  });
-  return trimming;
+  return trimTo(keep).then(() => undefined);
 }
 
 export function idbCacheDelete(key: string): Promise<void> {

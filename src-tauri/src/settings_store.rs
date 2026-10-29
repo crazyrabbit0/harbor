@@ -16,12 +16,21 @@ pub fn settings_read(app: tauri::AppHandle) -> Result<Option<String>, String> {
     }
 }
 
+// Flushed before the rename, so a power loss leaves the old file or the new one, never an empty one.
+fn write_atomic(path: &std::path::Path, content: &str) -> Result<(), String> {
+    use std::io::Write;
+    let tmp = path.with_extension("json.tmp");
+    let mut file = std::fs::File::create(&tmp).map_err(|e| e.to_string())?;
+    file.write_all(content.as_bytes())
+        .and_then(|_| file.sync_all())
+        .map_err(|e| e.to_string())?;
+    drop(file);
+    std::fs::rename(&tmp, path).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 pub fn settings_write(app: tauri::AppHandle, content: String) -> Result<(), String> {
-    let path = settings_path(&app)?;
-    let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, content.as_bytes()).map_err(|e| e.to_string())?;
-    std::fs::rename(&tmp, &path).map_err(|e| e.to_string())
+    write_atomic(&settings_path(&app)?, &content)
 }
 
 fn secrets_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
@@ -42,10 +51,7 @@ pub fn secrets_read(app: tauri::AppHandle) -> Result<Option<String>, String> {
 
 #[tauri::command]
 pub fn secrets_write(app: tauri::AppHandle, content: String) -> Result<(), String> {
-    let path = secrets_path(&app)?;
-    let tmp = path.with_extension("json.tmp");
-    std::fs::write(&tmp, content.as_bytes()).map_err(|e| e.to_string())?;
-    std::fs::rename(&tmp, &path).map_err(|e| e.to_string())
+    write_atomic(&secrets_path(&app)?, &content)
 }
 
 pub(crate) fn secret_value(app: &tauri::AppHandle, key: &str) -> Result<Option<String>, String> {
