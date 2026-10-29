@@ -218,10 +218,11 @@ export function useResumeAutosave(params: ResumeAutosaveParams) {
     }
     if (typeof cs === "number") setViewedSeason(id, cs);
     if (isExternalPlaylistId(id)) return;
+    // Playback history is keyed by the raw season, like the picker, switcher and exit hook that read and clear it.
     if (s.streamRef) {
-      savePlayback(id, { ...s.streamRef, url: s.historyUrl ?? s.url, title: s.meta.name }, cs, ep);
+      savePlayback(id, { ...s.streamRef, url: s.historyUrl ?? s.url, title: s.meta.name }, se, ep);
     } else {
-      savePlayback(id, { title: s.meta.name, parsedTitle: s.meta.name }, cs, ep);
+      savePlayback(id, { title: s.meta.name, parsedTitle: s.meta.name }, se, ep);
     }
     const seriesFinished =
       (s.meta.type === "series" || s.meta.type === "anime" || isAnimeId(id)) &&

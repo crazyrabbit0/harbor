@@ -214,6 +214,8 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   );
   const videoMountRef = useRef<HTMLDivElement>(null);
   const bridgeRef = useRef<PlayerBridge | null>(null);
+  // The URL actually playing (manual swap, transcode or src.url); recovery reloads read it, set below once known.
+  const activeUrlRef = useRef<string | null>(null);
   const selfFrameReadyRef = useRef(false);
   const { fullscreen, toggleFullscreen } = useFullscreen();
   const { snap, engine, bridgeReady, bridgeKey, embedActive, svpActive } = usePlayerBridge({
@@ -315,9 +317,10 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     engineFailure: genuineFailure,
     isP2pEngine,
     engineStats,
+    activeUrlRef,
   });
 
-  useWakeReconnect({ bridgeRef, src, snap });
+  useWakeReconnect({ bridgeRef, src, snap, activeUrlRef });
 
   useEffect(() => {
     if (roomSnapshot.state !== "joined") return;
@@ -498,6 +501,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     snap,
     debrids,
   });
+  activeUrlRef.current = liveUrl !== src.url ? liveUrl : (transcodedUrl ?? src.url);
   const activeMediaSrc = useMemo(
     () =>
       liveUrl === src.url && liveStreamRef === src.streamRef

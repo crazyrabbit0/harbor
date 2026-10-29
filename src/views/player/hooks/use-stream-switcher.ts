@@ -24,6 +24,9 @@ export function useStreamSwitcher(params: {
   const { bridgeRef, src, snap, debrids } = params;
   const snapRef = useRef(snap);
   snapRef.current = snap;
+  // An in-place episode change keeps this hook mounted, so a swap reads the current episode, not the one it began with.
+  const srcRef = useRef(src);
+  srcRef.current = src;
 
   const checkShownRef = useRef(false);
   const [streamCheckOpen, setStreamCheckOpen] = useState(false);
@@ -82,6 +85,7 @@ export function useStreamSwitcher(params: {
 
   const onSwitchStream = useCallback(
     async (stream: ScoredStream) => {
+      const src = srcRef.current;
       const key = stream.infoHash ?? stream.url ?? `${stream.addonId}:${stream.title ?? ""}`;
       setSwapResolvingKey(key);
       swapAcRef.current?.abort();

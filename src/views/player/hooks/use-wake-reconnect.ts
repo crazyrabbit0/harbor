@@ -12,8 +12,9 @@ export function useWakeReconnect(params: {
   bridgeRef: RefObject<PlayerBridge | null>;
   src: PlayerSrc;
   snap: PlayerSnapshot;
+  activeUrlRef?: RefObject<string | null>;
 }) {
-  const { bridgeRef, src, snap } = params;
+  const { bridgeRef, src, snap, activeUrlRef } = params;
   const srcRef = useRef(src);
   srcRef.current = src;
   const snapRef = useRef(snap);
@@ -40,15 +41,17 @@ export function useWakeReconnect(params: {
       console.warn(
         `[player] system resumed after ${Math.round(gap / 1000)}s asleep — reconnecting stream`,
       );
+      // Reconnect what is playing now; a manual swap's own headers live in its proxy URL, so src headers stay with src.url.
+      const url = activeUrlRef?.current ?? s.url;
       void b.load({
-        url: s.url,
+        url,
         subtitles: s.subtitles,
         notWebReady: s.notWebReady,
         isLive: live,
-        headers: s.headers,
+        headers: url === s.url ? s.headers : undefined,
         startAtSec: !live && pos > 1 ? pos : undefined,
       });
     }, TICK_MS);
     return () => window.clearInterval(id);
-  }, [bridgeRef]);
+  }, [bridgeRef, activeUrlRef]);
 }

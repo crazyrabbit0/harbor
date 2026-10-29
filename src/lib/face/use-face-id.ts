@@ -3,6 +3,7 @@ import { buildGallery, galleryPoolSize } from "./cast-embeddings";
 import { captureFaceFrame } from "./face-capture";
 import { ensureFaceEngine, releaseFaceEngine, scanFrame } from "./face-engine";
 import { classify } from "./match";
+import { getPlaybackPosition } from "@/lib/player/playback-clock";
 import type { CastEntry } from "@/lib/providers/tmdb";
 import type { GalleryEntry, WireFace } from "./match";
 
@@ -171,15 +172,27 @@ export function useFaceId({ metaKey, cast, liveScan, isPaused, loadBitmap }: Arg
     };
   }, [ready, liveScan, metaKey, cast, loadBitmap, runScan]);
 
-  // A paused frame never changes, so the one scan on pause below covers it; capturing it again every tick is wasted work.
+  // While paused a tick rescans only when a seek, frame step or newly loaded headshot changed what a scan would see.
+  const pausedScanKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!ready || !liveScan || isPaused) return;
-    const t = setInterval(() => void runScan(), SCAN_MS);
+    if (!ready || !liveScan) return;
+    const tick = () => {
+      if (!isPaused) {
+        pausedScanKeyRef.current = null;
+        void runScan();
+        return;
+      }
+      if (inFlightRef.current) return;
+      const key = `${getPlaybackPosition()}|${galleryRef.current.length}`;
+      if (key === pausedScanKeyRef.current) return;
+      pausedScanKeyRef.current = key;
+      void runScan().then(() => {
+        if (captureFailuresRef.current > 0) pausedScanKeyRef.current = null;
+      });
+    };
+    if (isPaused) tick();
+    const t = setInterval(tick, SCAN_MS);
     return () => clearInterval(t);
-  }, [ready, liveScan, isPaused, runScan]);
-
-  useEffect(() => {
-    if (ready && liveScan && isPaused) void runScan();
   }, [ready, liveScan, isPaused, runScan]);
 
   return { people, ready, galleryReady, progress, error };

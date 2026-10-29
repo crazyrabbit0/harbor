@@ -1279,6 +1279,7 @@ fn apply_mac_edr(app: &AppHandle, mpv: &Arc<Mpv>, active: bool) {
 
 const MPV_EVENT_MAX_CONSECUTIVE_ERRORS: u32 = 12;
 const MPV_CACHE_EMIT_INTERVAL: Duration = Duration::from_millis(500);
+const MPV_TIMEPOS_EMIT_INTERVAL: Duration = Duration::from_millis(200);
 
 #[derive(Default)]
 struct EventErrorBackoff {
@@ -1327,7 +1328,15 @@ fn spawn_event_loop(
         let mut last_hdr_poll: Option<std::time::Instant> = None;
         let mut last_cache_emit: Option<std::time::Instant> = None;
         let mut pending_cache: Option<Value> = None;
+        // A throttled time-pos is held, not dropped; a paused seek or frame step sends no later update to replace it.
+        let mut pending_timepos: Option<Value> = None;
         loop {
+            if let Some(p) = pending_timepos.take_if(|_| {
+                last_timepos.is_none_or(|t| t.elapsed() >= MPV_TIMEPOS_EMIT_INTERVAL)
+            }) {
+                last_timepos = Some(std::time::Instant::now());
+                let _ = app.emit("mpv://event", p);
+            }
             // display-info publishes user-data/display-info/hdr-status only
             // after the vo window exists, so observing it at init misses the
             // value; poll it and surface changes so the frontend can react to
@@ -1351,7 +1360,7 @@ fn spawn_event_loop(
                 last_cache_emit = Some(std::time::Instant::now());
                 let _ = app.emit("mpv://event", p);
             }
-            let res = ctx.wait_event(0.5);
+            let res = ctx.wait_event(if pending_timepos.is_some() { 0.2 } else { 0.5 });
             match res {
                 Some(Ok(event)) => {
                     record_event_poll_success(&mut error_backoff);
@@ -1365,12 +1374,12 @@ fn spawn_event_loop(
                     if let Event::PropertyChange { name, .. } = &event {
                         if *name == "time-pos" {
                             let now = std::time::Instant::now();
-                            if let Some(prev) = last_timepos {
-                                if now.duration_since(prev).as_millis() < 200 {
-                                    continue;
-                                }
+                            if last_timepos.is_some_and(|prev| now - prev < MPV_TIMEPOS_EMIT_INTERVAL) {
+                                pending_timepos = event_to_payload(event);
+                                continue;
                             }
                             last_timepos = Some(now);
+                            pending_timepos = None;
                         }
                     }
                     #[cfg(windows)]
@@ -1439,6 +1448,9 @@ fn spawn_event_loop(
                     );
                     if matches!(event, Event::EndFile(_)) {
                         if let Some(p) = pending_cache.take() {
+                            let _ = app.emit("mpv://event", p);
+                        }
+                        if let Some(p) = pending_timepos.take() {
                             let _ = app.emit("mpv://event", p);
                         }
                     }
