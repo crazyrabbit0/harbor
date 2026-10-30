@@ -75,7 +75,7 @@ Notes for agents working in this folder. Root rules live in `../AGENTS.md`.
 
 ## Settings
 
-- A new setting touches `lib/settings/types.ts` (type), `lib/settings/defaults.ts` (`DEFAULT`), and usually a sanitizer in `lib/settings/load.ts`. If user-facing, also add a `SETTINGS_OPTIONS` entry in `views/settings/nav.tsx`.
+- A new setting touches `lib/settings/types.ts` (type), `lib/settings/defaults.ts` (`DEFAULT`), and usually a sanitizer in `lib/settings/load.ts`. A one-time change to existing users' values is a new entry appended to `SETTINGS_MIGRATIONS` (`lib/settings/migrations.ts`); the blob records `_schemaVersion` plus each migration's flag, which older builds still read, so never reorder or remove an entry. If user-facing, also add a `SETTINGS_OPTIONS` entry in `views/settings/nav.tsx`.
 - `SETTINGS_OPTIONS` is parsed by `scripts/settings-search-entries.mjs` via the TS AST: keep it a static array of string-literal objects (no spreads, no computed values).
 - Settings dialogs must portal and sit above the title bar's z-index 140; `pnpm check:settings` enforces this. Run `check:search` after changing labels or keywords.
 - A new settings page needs a `SectionId` (`views/settings/shared.tsx`), a `lazy()` panel plus `SECTION_PRELOAD` entry in `views/settings.tsx`, a group in `views/settings/groups.ts` (`TOP_GROUPS`), and tabs, if any, in `tab-registry.ts` (`SECTION_TABS`).

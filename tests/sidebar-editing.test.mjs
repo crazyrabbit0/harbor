@@ -57,15 +57,12 @@ test("move preserves hidden and renamed items and only changes order", () => {
   assert.equal(new Set(moved.order).size, nav.NAV_ITEMS.length);
 });
 
+const migrations = load("src/lib/settings/migrations.ts", {
+  "@/lib/iptv/playlists-store": { readPlaylists: () => [] },
+  "./defaults": { DEFAULT: {} },
+});
 function migrate(parsed) {
-  const source = read("src/lib/settings/load.ts");
-  const begin = source.indexOf("if (!parsed._navThemeRepairV1)");
-  const end = source.indexOf("if (parsed.cwSources", begin);
-  assert.ok(begin > 0 && end > begin);
-  const code = ts.transpileModule(source.slice(begin, end), {
-    compilerOptions: { target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  new Function("parsed", code)(parsed);
+  migrations.runSettingsMigrations(parsed);
   return parsed;
 }
 test("settings repair no longer wipes saved hidden tabs", () => {
