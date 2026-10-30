@@ -39,7 +39,6 @@ const RETIRED_GEMINI = new Set([
 ]);
 import { DEFAULT, STORAGE_KEY } from "./defaults";
 import type { Settings } from "./types";
-import { adoptLegacyPlaylists } from "@/lib/iptv/playlists-store";
 import { runSettingsMigrations, type StoredSettings } from "./migrations";
 import { sanitizeDisplaySelection } from "@/lib/monitors";
 
@@ -188,13 +187,6 @@ function parseStoredSettings(raw: string | null): Settings {
     delete parsed.scrapers;
     delete parsed.scrapersAcknowledged;
     delete parsed._scrapersV2;
-    // Playlists now live in their own store; adopt any stranded legacy field and
-    // only drop it once it has been persisted, so a failed write never loses data.
-    if ("iptvPlaylists" in parsed) {
-      if (adoptLegacyPlaylists(Array.isArray(parsed.iptvPlaylists) ? parsed.iptvPlaylists : [])) {
-        delete parsed.iptvPlaylists;
-      }
-    }
     if (parsed.cwSources == null) {
       const ext = parsed.externalContinueWatching === true;
       parsed.cwSources = { library: true, trakt: ext, simkl: ext, local: true };

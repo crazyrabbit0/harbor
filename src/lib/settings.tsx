@@ -55,6 +55,7 @@ import {
   createSettingsStore,
   type SettingsStore,
 } from "./settings/selector-store";
+import { createSettingsWriter } from "./settings/settings-writer";
 import { applySettingsPatch, changedSettingsKeys } from "./settings/patch";
 
 export type {
@@ -121,16 +122,31 @@ export function SettingsProvider({
   syncTorrentEnginePolicy?: boolean;
 }) {
   const sourceRef = useRef<SettingsSource>({ profileId: "default", linked: true });
-  const [settings, setSettings] = useState<Settings>(() => {
-    seedSharedFromLegacy();
-    const src = readActiveSource();
-    sourceRef.current = src;
-    const s = loadEffective(src.profileId, src.linked);
-    setUiLanguage(s.uiLanguage, s.region);
-    setTmdbLanguage(s.tmdbLanguage);
-    applyProviderKeys(s);
-    return s;
-  });
+  // The latest settings outside React: every change goes through setSettings, which also feeds the module setters.
+  const initialRef = useRef<Settings | null>(null);
+  const initial =
+    initialRef.current ??
+    (initialRef.current = (() => {
+      seedSharedFromLegacy();
+      const src = readActiveSource();
+      sourceRef.current = src;
+      const s = loadEffective(src.profileId, src.linked);
+      setUiLanguage(s.uiLanguage, s.region);
+      setTmdbLanguage(s.tmdbLanguage);
+      applyProviderKeys(s);
+      return s;
+    })());
+  const [settings, setReactSettings] = useState<Settings>(initial);
+  const writerRef = useRef<ReturnType<typeof createSettingsWriter> | null>(null);
+  if (!writerRef.current) {
+    writerRef.current = createSettingsWriter(
+      initial,
+      { tmdbLanguage: setTmdbLanguage, providerKeys: applyProviderKeys },
+      setReactSettings,
+    );
+  }
+  const writer = writerRef.current;
+  const setSettings = writer.set;
   const storeRef = useRef<SettingsStore | null>(null);
   if (!storeRef.current) storeRef.current = createSettingsStore(settings);
   const store = storeRef.current;
@@ -142,21 +158,10 @@ export function SettingsProvider({
   }, [settingsReady]);
   const [torrentEnginePolicyPending, setTorrentEnginePolicyPending] = useState(false);
   const [torrentEnginePolicyError, setTorrentEnginePolicyError] = useState(false);
-  const settingsRef = useRef(settings);
-  useEffect(() => {
-    settingsRef.current = settings;
-  }, [settings]);
 
   useEffect(() => {
     setUiLanguage(settings.uiLanguage, settings.region);
   }, [settings.uiLanguage, settings.region]);
-
-  // Set during render, only on change, so children rendering in the same pass read the new value.
-  const tmdbLanguageSetRef = useRef(settings.tmdbLanguage);
-  if (tmdbLanguageSetRef.current !== settings.tmdbLanguage) {
-    tmdbLanguageSetRef.current = settings.tmdbLanguage;
-    setTmdbLanguage(settings.tmdbLanguage);
-  }
 
   const lastSavedImageRef = useRef<{ profileId: string; image: string | null }>({
     profileId: sourceRef.current.profileId,
@@ -395,22 +400,6 @@ export function SettingsProvider({
     setMdblistBatchKey(settings.mdblistKey);
   }, [settings.mdblistKey]);
 
-  // Same as tmdbLanguage: applied during render, only when one of the keys changes.
-  const providerKeysSig = JSON.stringify([
-    settings.tmdbKey,
-    settings.tvdbKey,
-    settings.traktClientId,
-    settings.traktClientSecret,
-    settings.malClientId,
-    settings.igdbClientId,
-    settings.igdbClientSecret,
-  ]);
-  const providerKeysSetRef = useRef(providerKeysSig);
-  if (providerKeysSetRef.current !== providerKeysSig) {
-    providerKeysSetRef.current = providerKeysSig;
-    applyProviderKeys(settings);
-  }
-
   useEffect(() => {
     if (typeof document === "undefined" || !("fonts" in document)) return;
     const fonts = settings.customFonts ?? [];
@@ -629,7 +618,7 @@ export function SettingsProvider({
       activeProfileId: () => sourceRef.current.profileId,
       isLinked: (profileId) =>
         profileId === sourceRef.current.profileId ? sourceRef.current.linked : true,
-      readActive: () => settingsRef.current,
+      readActive: () => writer.get(),
       writeActive: (patch) => setSettings((s) => ({ ...s, ...patch })),
     });
     return () => configureLayoutStore(null);
@@ -639,7 +628,7 @@ export function SettingsProvider({
     try {
       if (localStorage.getItem("harbor.migrate.tvdbpanel.v1")) return;
       localStorage.setItem("harbor.migrate.tvdbpanel.v1", "1");
-      if (!settingsRef.current.tvdbOrderPanel) {
+      if (!writer.get().tvdbOrderPanel) {
         update({ tvdbOrderPanel: true, episodeOrderProvider: "tvdb" });
       }
     } catch {
@@ -665,8 +654,7 @@ export function SettingsProvider({
         sourceRef.current = { profileId, linked };
       } else {
         flushPersist();
-        if (settingsReadyRef.current)
-          persistEffective(settingsRef.current, cur.profileId, cur.linked);
+        if (settingsReadyRef.current) persistEffective(writer.get(), cur.profileId, cur.linked);
         const next = loadEffective(profileId, linked);
         setUiLanguage(next.uiLanguage, next.region);
         setTmdbLanguage(next.tmdbLanguage);
@@ -674,28 +662,19 @@ export function SettingsProvider({
         imgLangRef.current = next.tmdbImageLangs.join(",");
         sourceRef.current = { profileId, linked };
         if (settingsReadyRef.current) persistEffective(next, profileId, linked);
-        settingsRef.current = next;
         setSettings(next);
       }
 
       lastSavedImageRef.current = { profileId, image: null };
-      settingsRef.current = {
-        ...settingsRef.current,
-        theme: { ...settingsRef.current.theme, backgroundImage: null },
-      };
       setSettings((s) => ({ ...s, theme: { ...s.theme, backgroundImage: null } }));
 
       void loadBgImage(profileId).then((img) => {
         if (sourceRef.current.profileId !== profileId) return;
         lastSavedImageRef.current = { profileId, image: img };
-        settingsRef.current = {
-          ...settingsRef.current,
-          theme: { ...settingsRef.current.theme, backgroundImage: img },
-        };
         setSettings((s) => ({ ...s, theme: { ...s.theme, backgroundImage: img } }));
       });
     },
-    [flushPersist],
+    [flushPersist, setSettings],
   );
 
   const setSettingsLinked = useCallback(

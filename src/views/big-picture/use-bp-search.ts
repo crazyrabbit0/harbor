@@ -14,6 +14,7 @@ import type { AddonQuery, AddonQueryState } from "@/lib/search-addons";
 import type { AddonHit } from "@/lib/search-addon-index";
 import type { MangaSummary } from "@/lib/manga/model";
 import { useBpT } from "./bp-i18n";
+import { usePlaylists } from "@/lib/iptv/playlists-store";
 
 type BpT = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -346,6 +347,7 @@ export function useBpSearch(filter: BpSearchFilter): BpSearchState {
   );
   const collections = useCollectionHits(query.trim());
   const { settings } = useSettings();
+  const playlistCount = usePlaylists().length;
   const { hiddenTabs } = useParental();
 
   // Mirrors search-context's own gating exactly. Read it from there if these ever
@@ -355,7 +357,7 @@ export function useBpSearch(filter: BpSearchFilter): BpSearchState {
     () => ({
       anime: !hiddenTabs.anime && !settings.hideContent.anime,
       manga: settings.mangaEnabled,
-      liveTv: !hiddenTabs.liveTv && settings.iptvPlaylists.length > 0,
+      liveTv: !hiddenTabs.liveTv && playlistCount > 0,
     }),
     // length, not the array. Only the count is read, and depending on the array
     // identity would rebuild every slot on any unrelated settings write.
@@ -364,7 +366,7 @@ export function useBpSearch(filter: BpSearchFilter): BpSearchState {
       hiddenTabs.liveTv,
       settings.hideContent.anime,
       settings.mangaEnabled,
-      settings.iptvPlaylists.length,
+      playlistCount,
     ],
   );
 

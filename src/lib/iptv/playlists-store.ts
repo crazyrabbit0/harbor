@@ -45,18 +45,16 @@ function ensureMigrated(): void {
   if (!migrated) migrateLegacyPlaylists();
 }
 
-/**
- * Moves playlists out of the settings blob (harbor.settings.*) into their own
- * key. Runs once per session. Legacy lists are merged from every settings blob
- * (deduped by id, stored entries win) and the legacy field is stripped only
- * after the dedicated key has been persisted, so a failed write never destroys
- * the only surviving copy.
- */
+// Runs once at startup (main.tsx): merges playlists left in any settings blob into the store, then strips them.
 export function migrateLegacyPlaylists(): void {
   if (migrated) return;
   migrated = true;
+  let stored: StoredPlaylist[] = [];
   try {
-    if (localStorage.getItem(STORAGE_KEY) != null) return;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    const parsed = raw == null ? [] : JSON.parse(raw);
+    if (!Array.isArray(parsed)) return;
+    stored = parsed as StoredPlaylist[];
   } catch {
     return;
   }
@@ -80,6 +78,9 @@ export function migrateLegacyPlaylists(): void {
     /* localStorage enumeration is best-effort */
   }
   const merged = new Map<string, StoredPlaylist>();
+  for (const entry of stored)
+    if (entry && typeof entry.id === "string") merged.set(entry.id, entry);
+  const storedCount = merged.size;
   const dirty: Array<{ key: string; obj: Record<string, unknown> }> = [];
   for (const key of candidates) {
     let blob: unknown;
@@ -90,27 +91,25 @@ export function migrateLegacyPlaylists(): void {
     }
     if (!blob || typeof blob !== "object") continue;
     const obj = blob as Record<string, unknown>;
-    if (!("iptvPlaylists" in obj)) continue;
-    if (Array.isArray(obj.iptvPlaylists)) {
-      for (const entry of obj.iptvPlaylists as StoredPlaylist[]) {
-        if (entry && typeof entry.id === "string" && !merged.has(entry.id)) {
-          merged.set(entry.id, entry);
-        }
+    // The settings default writes back an empty list, which holds nothing to move.
+    if (!Array.isArray(obj.iptvPlaylists) || obj.iptvPlaylists.length === 0) continue;
+    for (const entry of obj.iptvPlaylists as StoredPlaylist[]) {
+      if (entry && typeof entry.id === "string" && !merged.has(entry.id)) {
+        merged.set(entry.id, entry);
       }
     }
     dirty.push({ key, obj });
   }
-  if (merged.size === 0) return;
-  const lists = [...merged.values()];
-  const json = JSON.stringify(lists);
-  try {
-    if (!setItemWithRecovery(STORAGE_KEY, json)) return;
-  } catch {
-    return;
+  if (dirty.length === 0) return;
+  if (merged.size > storedCount) {
+    const lists = [...merged.values()];
+    try {
+      if (!setItemWithRecovery(STORAGE_KEY, JSON.stringify(lists))) return;
+    } catch {
+      return;
+    }
   }
-  cache = lists;
-  // Strip the legacy field only now that the dedicated key is persisted, so the
-  // playlists no longer export under Settings.
+  // Strip the legacy field only once the store holds every entry, so a failed write never loses the only copy.
   for (const { key, obj } of dirty) {
     try {
       delete obj.iptvPlaylists;
@@ -119,23 +118,6 @@ export function migrateLegacyPlaylists(): void {
       /* best-effort */
     }
   }
-}
-
-/**
- * Adopts a stranded legacy iptvPlaylists array into the dedicated store key,
- * merging with anything already stored (stored entries win). Returns whether
- * the result was persisted; callers should only drop the legacy field on true.
- */
-export function adoptLegacyPlaylists(legacy: StoredPlaylist[]): boolean {
-  if (!Array.isArray(legacy) || legacy.length === 0) return true;
-  const merged = new Map<string, StoredPlaylist>();
-  for (const entry of cachedPlaylists()) merged.set(entry.id, entry);
-  for (const entry of legacy) {
-    if (entry && typeof entry.id === "string" && !merged.has(entry.id)) {
-      merged.set(entry.id, entry);
-    }
-  }
-  return writePlaylists([...merged.values()]);
 }
 
 export function readPlaylists(): StoredPlaylist[] {

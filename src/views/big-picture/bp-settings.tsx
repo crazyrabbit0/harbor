@@ -30,6 +30,7 @@ import {
   BpPushRow,
   BpSettingsColumnBox,
 } from "./bp-settings-parts";
+import { usePlaylists } from "@/lib/iptv/playlists-store";
 
 type Pane = "root" | BpPane;
 
@@ -47,6 +48,7 @@ export function BpSettings() {
   const t = useBpT();
   const facts = useBpOnboardFacts();
   const { settings, overscan, commit, auditionSound } = useBpSettingsWriter();
+  const playlistCount = usePlaylists().length;
   const [pane, setPane] = useState<Pane>("root");
   const [depth, setDepth] = useState(1);
   const [active, setActive] = useState(0);
@@ -195,8 +197,8 @@ export function BpSettings() {
                         ? connected.length > 0
                           ? t("Connected: {list}", { list: connected.join(", ") })
                           : control.detail
-                        : settings.iptvPlaylists.length > 0
-                          ? t("{count} added", { count: settings.iptvPlaylists.length })
+                        : playlistCount > 0
+                          ? t("{count} added", { count: playlistCount })
                           : control.detail
                     }
                     autofocus={i === 0}

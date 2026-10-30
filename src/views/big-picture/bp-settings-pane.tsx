@@ -11,6 +11,7 @@ import {
   type BpCatId,
   type BpT,
 } from "./bp-settings-catalog";
+import { usePlaylists } from "@/lib/iptv/playlists-store";
 
 const STILL = "https://image.tmdb.org/t/p/w780/eGX66zonvc4bXg3rM08RUxdYSDx.jpg";
 
@@ -226,6 +227,7 @@ export function BpSettingsPane({
   connected: string[];
 }) {
   const version = useAppVersion();
+  const playlistCount = usePlaylists().length;
   const language = LANGUAGES.find((l) => l.code === s.uiLanguage);
 
   return (
@@ -290,7 +292,7 @@ export function BpSettingsPane({
         <Lines
           rows={[
             ["TMDB", s.tmdbKey.trim() ? t("On") : t("None")],
-            [t("Live TV playlists"), String(s.iptvPlaylists.length)],
+            [t("Live TV playlists"), String(playlistCount)],
             [t("Setup"), connected.length > 0 ? connected.join(", ") : t("None")],
           ]}
         />

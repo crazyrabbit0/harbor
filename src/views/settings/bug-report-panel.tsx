@@ -23,6 +23,7 @@ import { DiagnosticsCard } from "./bug-report/diagnostics-card";
 import { FileDrop } from "./bug-report/file-drop";
 import { SeverityPicker } from "./bug-report/severity-picker";
 import { SuccessCard } from "./bug-report/success-card";
+import { usePlaylists } from "@/lib/iptv/playlists-store";
 
 const QUAL =
   "inline-flex h-[22px] shrink-0 items-center rounded-[6px] px-2 text-[13px] font-bold uppercase leading-[17px] tracking-[0.72px]";
@@ -36,6 +37,7 @@ const AREA =
 export function BugReportPanel() {
   const t = useT();
   const { settings } = useSettings();
+  const playlistCount = usePlaylists().length;
   const auth = useAuth();
   const [summary, setSummary] = useState("");
   const [severity, setSeverity] = useState<Severity>("normal");
@@ -81,7 +83,7 @@ export function BugReportPanel() {
           settings.dlKey,
         ].filter(Boolean).length,
         addonCount: null,
-        iptvCount: settings.iptvPlaylists.length,
+        iptvCount: playlistCount,
       }),
       addonCount,
     ]).then(([d, count]) => {
@@ -96,7 +98,7 @@ export function BugReportPanel() {
     settings.tmdbKey,
     settings.rpdbKey,
     settings.traktAccessToken,
-    settings.iptvPlaylists.length,
+    playlistCount,
     settings.rdKey,
     settings.tbKey,
     settings.adKey,
