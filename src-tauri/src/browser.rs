@@ -3,32 +3,24 @@ use tauri::Emitter;
 use tauri::{AppHandle, Manager, Url, WebviewUrl, WebviewWindowBuilder};
 
 const BROWSER_LABEL: &str = "harbor-browser";
+const CLOSE_SCHEME: &str = "harbor-close";
 
+// Remote pages get no IPC, so Escape navigates to a sentinel URL that on_navigation cancels and turns into a close.
 const CHROME_INIT_SCRIPT: &str = r#"
 (function () {
   if (window.__harborBrowserBooted) return;
   window.__harborBrowserBooted = true;
 
-  const close = () => {
-    try {
-      if (window.__TAURI_INTERNALS__ && typeof window.__TAURI_INTERNALS__.invoke === 'function') {
-        window.__TAURI_INTERNALS__.invoke('browser_close');
-      }
-    } catch (_) {}
-  };
-
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       e.preventDefault();
-      close();
+      try { window.location.href = 'harbor-close://now'; } catch (_) {}
     }
   }, true);
 })();
 "#;
 
-// Linux only: WebKitGTK can't open stremio:// or navigate to a raw manifest.json,
-// so an addon's "Install" button dies with "URL can't be shown". We funnel those
-// intents into a top-level location change, which on_navigation then captures.
+// WebKitGTK can't open stremio:// or a raw manifest.json, so install intents become top-level navigations on_navigation captures.
 #[cfg(target_os = "linux")]
 const STREMIO_CAPTURE_SCRIPT: &str = r#"
 (function () {
@@ -56,12 +48,45 @@ const STREMIO_CAPTURE_SCRIPT: &str = r#"
 })();
 "#;
 
+fn is_close_request(url: &Url) -> bool {
+    url.scheme() == CLOSE_SCHEME
+}
+
+// Runs inside the webview's navigation callback, so the close is dispatched instead of destroying the webview inline.
+fn close_browser_later(app: &AppHandle) {
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Some(window) = app.get_webview_window(BROWSER_LABEL) {
+            let _ = window.close();
+        }
+    });
+}
+
+#[cfg(target_os = "linux")]
+fn is_stremio_install(url: &Url) -> bool {
+    url.scheme() == "stremio" || url.as_str().contains("/manifest.json")
+}
+
+fn allow_navigation(app: &AppHandle, url: &Url) -> bool {
+    if is_close_request(url) {
+        close_browser_later(app);
+        return false;
+    }
+    #[cfg(target_os = "linux")]
+    if is_stremio_install(url) {
+        eprintln!("[browser] captured install link: {}", url.as_str());
+        let _ = app.emit("harbor://browser-stremio-capture", url.as_str().to_string());
+        return false;
+    }
+    true
+}
+
 #[tauri::command]
 pub async fn browser_open(app: AppHandle, url: String) -> Result<(), String> {
     let parsed = Url::parse(&url).map_err(|e| format!("parse url: {}", e))?;
 
     if let Some(existing) = app.get_webview_window(BROWSER_LABEL) {
-        let _ = existing.eval(&format!(
+        let _ = existing.eval(format!(
             "window.location.href = {};",
             serde_json::to_string(&url).unwrap_or_else(|_| "''".to_string())
         ));
@@ -98,8 +123,8 @@ pub async fn browser_open(app: AppHandle, url: String) -> Result<(), String> {
             "[browser] building {} at ({:.0}, {:.0}) size {:.0}x{:.0}",
             BROWSER_LABEL, target_x, target_y, target_w, target_h
         );
-        #[allow(unused_mut)]
-        let mut builder =
+        let nav_app = app_for_window.clone();
+        let builder =
             WebviewWindowBuilder::new(&app_for_window, BROWSER_LABEL, WebviewUrl::External(parsed))
                 .title("Harbor Browser")
                 .inner_size(target_w, target_h)
@@ -108,21 +133,8 @@ pub async fn browser_open(app: AppHandle, url: String) -> Result<(), String> {
                 .decorations(true)
                 .shadow(true)
                 .focused(true)
-                .initialization_script(&init_script);
-
-        #[cfg(target_os = "linux")]
-        {
-            let nav_app = app_for_window.clone();
-            builder = builder.on_navigation(move |url| {
-                let s = url.as_str();
-                if url.scheme() == "stremio" || s.contains("/manifest.json") {
-                    eprintln!("[browser] captured install link: {}", s);
-                    let _ = nav_app.emit("harbor://browser-stremio-capture", s.to_string());
-                    return false;
-                }
-                true
-            });
-        }
+                .initialization_script(&init_script)
+                .on_navigation(move |url| allow_navigation(&nav_app, url));
 
         let result = crate::browser_args::match_main(&app_for_window, builder).build();
         match result {
@@ -152,4 +164,27 @@ pub async fn browser_close(app: AppHandle) -> Result<(), String> {
         let _ = w.close();
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{is_close_request, CHROME_INIT_SCRIPT};
+    use tauri::Url;
+
+    #[test]
+    fn browser_escape_sentinel_is_a_close_request() {
+        let sentinel = CHROME_INIT_SCRIPT
+            .split('\'')
+            .find(|part| part.contains("://"))
+            .expect("init script navigates to a sentinel URL");
+        assert!(is_close_request(&Url::parse(sentinel).unwrap()));
+        assert!(!CHROME_INIT_SCRIPT.contains("__TAURI_INTERNALS__"));
+    }
+
+    #[test]
+    fn browser_ordinary_navigation_is_not_a_close_request() {
+        for value in ["https://example.com/", "http://harbor-close.example/", "stremio://x/manifest.json"] {
+            assert!(!is_close_request(&Url::parse(value).unwrap()), "{value}");
+        }
+    }
 }
