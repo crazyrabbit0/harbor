@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::{Arc, OnceLock};
-use std::time::Duration;
+use std::sync::{Arc, Mutex as StdMutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use crate::http_redirect::same_origin;
 use base64::Engine;
@@ -437,7 +437,96 @@ pub(crate) fn pinned_client(
     builder.build().map_err(|error| format!("client: {error}"))
 }
 
-// Validates one request hop and builds a client that connects only to the validated addresses.
+const CLIENT_CACHE_TTL: Duration = Duration::from_secs(60);
+const CLIENT_CACHE_MAX_ENTRIES: usize = 64;
+
+// A client is reused only for the exact origin and validated address set it was pinned to.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct ClientKey {
+    scheme: String,
+    host: String,
+    port: u16,
+    addresses: Vec<SocketAddr>,
+}
+
+impl ClientKey {
+    fn new(url: &reqwest::Url, addresses: &[SocketAddr]) -> Self {
+        let mut addresses = addresses.to_vec();
+        addresses.sort_unstable();
+        addresses.dedup();
+        Self {
+            scheme: url.scheme().to_string(),
+            host: url.host_str().unwrap_or_default().to_ascii_lowercase(),
+            port: url.port_or_known_default().unwrap_or(0),
+            addresses,
+        }
+    }
+}
+
+struct CachedClient<T> {
+    client: T,
+    created: Instant,
+    last_used: Instant,
+}
+
+struct ClientCache<T> {
+    entries: HashMap<ClientKey, CachedClient<T>>,
+}
+
+impl<T: Clone> ClientCache<T> {
+    fn new() -> Self {
+        Self { entries: HashMap::new() }
+    }
+
+    fn get(&mut self, key: &ClientKey, now: Instant) -> Option<T> {
+        self.entries
+            .retain(|_, entry| now.duration_since(entry.created) < CLIENT_CACHE_TTL);
+        let entry = self.entries.get_mut(key)?;
+        entry.last_used = now;
+        Some(entry.client.clone())
+    }
+
+    // Keeps a fresh entry another caller inserted meanwhile, so concurrent misses share one client.
+    fn insert(&mut self, key: ClientKey, client: T, now: Instant) -> T {
+        if let Some(existing) = self.get(&key, now) {
+            return existing;
+        }
+        while self.entries.len() >= CLIENT_CACHE_MAX_ENTRIES {
+            let oldest = self
+                .entries
+                .iter()
+                .min_by_key(|(_, entry)| entry.last_used)
+                .map(|(key, _)| key.clone());
+            match oldest {
+                Some(oldest) => self.entries.remove(&oldest),
+                None => break,
+            };
+        }
+        let entry = CachedClient { client: client.clone(), created: now, last_used: now };
+        self.entries.insert(key, entry);
+        client
+    }
+}
+
+fn client_cache() -> &'static StdMutex<ClientCache<reqwest::Client>> {
+    static CACHE: OnceLock<StdMutex<ClientCache<reqwest::Client>>> = OnceLock::new();
+    CACHE.get_or_init(|| StdMutex::new(ClientCache::new()))
+}
+
+fn cached_pinned_client(
+    url: &reqwest::Url,
+    addresses: &[SocketAddr],
+) -> Result<reqwest::Client, String> {
+    let key = ClientKey::new(url, addresses);
+    let lock = || client_cache().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(client) = lock().get(&key, Instant::now()) {
+        return Ok(client);
+    }
+    let client = pinned_client(http_client_builder(), url, addresses)?;
+    Ok(lock().insert(key, client, Instant::now()))
+}
+
+// Validates every hop; only the client pinned to an identical validated address set is reused.
 async fn hop_client(
     url: &reqwest::Url,
     allow_local: bool,
@@ -448,7 +537,7 @@ async fn hop_client(
     } else {
         validate_target(url, allow_local).await?
     };
-    pinned_client(http_client_builder(), url, &addresses)
+    cached_pinned_client(url, &addresses)
 }
 
 fn is_https_downgrade(a: &reqwest::Url, b: &reqwest::Url) -> bool {
@@ -926,8 +1015,83 @@ mod tests {
     use super::{
         apply_redirect_method, cross_origin_redirect_forwards_body, hop_client,
         host_is_blocked_literal, is_https_downgrade, is_public_network_ip, same_origin,
-        validate_target,
+        validate_target, ClientCache, ClientKey, CLIENT_CACHE_MAX_ENTRIES, CLIENT_CACHE_TTL,
     };
+    use std::net::SocketAddr;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    fn key(url: &str, addresses: &[&str]) -> ClientKey {
+        let url: reqwest::Url = url.parse().unwrap();
+        let addresses: Vec<SocketAddr> = addresses.iter().map(|a| a.parse().unwrap()).collect();
+        ClientKey::new(&url, &addresses)
+    }
+
+    #[test]
+    fn client_cache_reuses_client_for_same_host_and_addresses() {
+        let mut cache = ClientCache::new();
+        let now = Instant::now();
+        let first = cache.insert(key("https://a.test/x", &["1.1.1.1:443", "1.0.0.1:443"]), Arc::new(1), now);
+        let reordered = key("https://a.test/y", &["1.0.0.1:443", "1.1.1.1:443"]);
+        let hit = cache.get(&reordered, now).expect("same address set hits");
+        assert!(Arc::ptr_eq(&first, &hit));
+        let raced = cache.insert(reordered, Arc::new(2), now);
+        assert!(Arc::ptr_eq(&first, &raced));
+    }
+
+    #[test]
+    fn client_cache_misses_when_addresses_or_origin_differ() {
+        let mut cache = ClientCache::new();
+        let now = Instant::now();
+        cache.insert(key("https://a.test/", &["1.1.1.1:443"]), Arc::new(1), now);
+        assert!(cache.get(&key("https://a.test/", &["8.8.8.8:443"]), now).is_none());
+        assert!(cache.get(&key("https://a.test/", &["1.1.1.1:443", "8.8.8.8:443"]), now).is_none());
+        assert!(cache.get(&key("http://a.test:443/", &["1.1.1.1:443"]), now).is_none());
+        assert!(cache.get(&key("https://b.test/", &["1.1.1.1:443"]), now).is_none());
+    }
+
+    #[test]
+    fn client_cache_expires_entries_after_ttl() {
+        let mut cache = ClientCache::new();
+        let now = Instant::now();
+        let k = key("https://a.test/", &["1.1.1.1:443"]);
+        cache.insert(k.clone(), Arc::new(1), now);
+        assert!(cache.get(&k, now + CLIENT_CACHE_TTL - Duration::from_secs(1)).is_some());
+        assert!(cache.get(&k, now + CLIENT_CACHE_TTL).is_none());
+        assert!(cache.entries.is_empty());
+    }
+
+    #[test]
+    fn client_cache_evicts_least_recently_used_beyond_bound() {
+        let mut cache = ClientCache::new();
+        let now = Instant::now();
+        let first = key("https://h0.test/", &["1.1.1.1:443"]);
+        cache.insert(first.clone(), Arc::new(0), now);
+        for i in 1..CLIENT_CACHE_MAX_ENTRIES {
+            let at = now + Duration::from_millis(i as u64);
+            cache.insert(key(&format!("https://h{i}.test/"), &["1.1.1.1:443"]), Arc::new(i), at);
+        }
+        let touched = now + Duration::from_millis(500);
+        assert!(cache.get(&first, touched).is_some());
+        let extra = key("https://extra.test/", &["1.1.1.1:443"]);
+        cache.insert(extra.clone(), Arc::new(99), touched + Duration::from_millis(1));
+        assert_eq!(cache.entries.len(), CLIENT_CACHE_MAX_ENTRIES);
+        assert!(cache.entries.contains_key(&first));
+        assert!(cache.entries.contains_key(&extra));
+        assert!(!cache.entries.contains_key(&key("https://h1.test/", &["1.1.1.1:443"])));
+    }
+
+    #[tokio::test]
+    async fn hop_client_reuses_pinned_client_after_revalidation() {
+        let url: reqwest::Url = "http://127.0.0.1:4568/".parse().unwrap();
+        let first = hop_client(&url, true, false).await.unwrap();
+        let second = hop_client(&url, true, false).await.unwrap();
+        let addresses = validate_target(&url, true).await.unwrap();
+        let cached = super::client_cache().lock().unwrap().get(&ClientKey::new(&url, &addresses), Instant::now());
+        assert!(cached.is_some());
+        drop((first, second));
+        assert!(hop_client(&url, false, false).await.is_err(), "validation still runs on a cached host");
+    }
 
     #[test]
     fn cross_host_redirects_strip_credentials() {
