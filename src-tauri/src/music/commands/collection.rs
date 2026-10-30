@@ -37,7 +37,7 @@ fn db_queue() -> &'static Sender<DbJob> {
     })
 }
 
-async fn with_music<T: Send + 'static>(
+pub(super) async fn with_music<T: Send + 'static>(
     app: tauri::AppHandle,
     operation: impl FnOnce(&MusicState) -> Result<T, String> + Send + 'static,
 ) -> Result<T, String> {

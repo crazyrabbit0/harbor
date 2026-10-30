@@ -587,6 +587,8 @@ pub fn transcode_response(body: Body) -> Response {
 }
 
 #[tauri::command]
-pub fn cast_ffmpeg_present() -> bool {
-    ffmpeg_present()
+pub async fn cast_ffmpeg_present() -> bool {
+    tauri::async_runtime::spawn_blocking(ffmpeg_present)
+        .await
+        .unwrap_or(false)
 }

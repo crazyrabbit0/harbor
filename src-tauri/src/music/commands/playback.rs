@@ -123,11 +123,11 @@ pub async fn music_engine_stop(
 }
 
 #[tauri::command]
-pub fn music_import_m3u(
-    state: tauri::State<'_, MusicState>,
+pub async fn music_import_m3u(
+    app: tauri::AppHandle,
     path: String,
 ) -> Result<Vec<MusicTrack>, String> {
-    m3u::import(&state.db, &path)
+    super::collection::with_music(app, move |state| m3u::import(&state.db, &path)).await
 }
 
 #[tauri::command]

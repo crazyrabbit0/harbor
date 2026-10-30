@@ -90,7 +90,7 @@ pub fn dismiss(app: &tauri::AppHandle) -> Result<(), String> {
 }
 
 fn secrets(app: &tauri::AppHandle) -> serde_json::Map<String, Value> {
-    let Ok(Some(raw)) = crate::settings_store::secrets_read(app.clone()) else {
+    let Ok(Some(raw)) = crate::settings_store::read_secrets_file(app.clone()) else {
         return serde_json::Map::new();
     };
     serde_json::from_str::<Value>(&raw)
