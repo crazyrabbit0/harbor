@@ -118,6 +118,7 @@ pub fn run() {
             web_server::web_serve_stop,
             web_server::web_serve_status,
             web_server::remote_ws_broadcast,
+            web_server::remote_ws_send,
             web_server::remote_ws_client_count,
             web_server::web_remote_token,
             streams::streams_run_pipeline,

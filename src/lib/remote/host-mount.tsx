@@ -45,7 +45,13 @@ import {
 import { subscribeMangaBookmarks } from "@/lib/manga-bookmarks";
 import { installTextEntryListeners } from "./text-entry";
 import { remoteFrameAllowed } from "./remote-auth";
-import { hostHello, hostPairing, isTrustFrame, playOnRouter, type TrustAck } from "./play-on-route";
+import {
+  hostHello,
+  hostPairing,
+  isTrustFrame,
+  playOnRouter,
+  sendToRemoteClient,
+} from "./play-on-route";
 import {
   parseClientMessage,
   type RemoteCommand,
@@ -56,21 +62,20 @@ import {
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-function broadcast(msg: RemoteServerMessage | TrustAck) {
+function broadcast(msg: RemoteServerMessage) {
   if (!isTauri) return;
   void invoke("remote_ws_broadcast", { payload: JSON.stringify(msg) }).catch(() => {});
 }
 
-// queueMeta is acked here and applied by PlayOnReceiver, which runs the same verification.
+// Acks go to the requesting socket only; queueMeta is acked here and applied by PlayOnReceiver.
 async function routeTrustFrame(msg: unknown, clientId: number, authed: boolean): Promise<void> {
   try {
-    const route = await playOnRouter().handle(msg, clientId, authed);
-    if (route?.ack) broadcast(route.ack);
-    if (route?.dispatch?.action !== "playMeta") return;
-    await dispatchRemoteCommand(route.dispatch as unknown as RemoteCommand);
+    const dispatch = await playOnRouter().route(msg, clientId, authed);
+    if (dispatch?.action !== "playMeta") return;
+    await dispatchRemoteCommand(dispatch as unknown as RemoteCommand);
     pushSnapshot();
   } catch (err) {
-    broadcast({
+    sendToRemoteClient(clientId, {
       t: "error",
       message: err instanceof Error ? err.message : "remote command failed",
     });
@@ -507,19 +512,20 @@ export function RemoteHostMount() {
     void listen<{ clientId: number; raw: string; authed?: boolean }>("remote://cmd", (e) => {
       const raw = e.payload?.raw;
       if (!raw) return;
+      const clientId = e.payload.clientId;
       const msg = parseClientMessage(raw);
       if (!msg) {
-        broadcast({ t: "error", message: "invalid message" });
+        sendToRemoteClient(clientId, { t: "error", message: "invalid message" });
         return;
       }
       const authed = e.payload.authed === true;
       if (isTrustFrame(msg)) {
-        void routeTrustFrame(msg, e.payload.clientId, authed);
+        void routeTrustFrame(msg, clientId, authed);
         return;
       }
       if (!remoteFrameAllowed(msg, authed)) return;
       if (msg.t === "hello") {
-        broadcast(hostHello());
+        sendToRemoteClient(clientId, hostHello());
         pushSnapshot(true);
         return;
       }
@@ -539,7 +545,7 @@ export function RemoteHostMount() {
               return;
             }
             if (msg.command.action === "ping") {
-              broadcast({ t: "pong", at: Date.now() });
+              sendToRemoteClient(clientId, { t: "pong", at: Date.now() });
               return;
             }
             if (isMangaCommand(msg.command.action)) {
@@ -551,7 +557,7 @@ export function RemoteHostMount() {
             if (!SKIP_SNAPSHOT.has(msg.command.action)) pushSnapshot();
           } catch (err) {
             const message = err instanceof Error ? err.message : "remote command failed";
-            broadcast({ t: "error", message });
+            sendToRemoteClient(clientId, { t: "error", message });
             pushSnapshot();
           }
         })();
@@ -563,7 +569,8 @@ export function RemoteHostMount() {
 
     void listen<{ action: string; clientId?: number }>("remote://client", (e) => {
       if (e.payload?.action === "join") {
-        broadcast(hostHello());
+        if (typeof e.payload.clientId === "number")
+          sendToRemoteClient(e.payload.clientId, hostHello());
         pushSnapshot(true);
       }
       if (e.payload?.action === "leave" && typeof e.payload.clientId === "number") {

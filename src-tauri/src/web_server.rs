@@ -5,13 +5,13 @@ use axum::http::{header, HeaderMap, HeaderName, HeaderValue, Response, StatusCod
 use axum::response::IntoResponse;
 use axum::routing::get;
 use futures_util::{SinkExt, StreamExt};
-use std::collections::HashSet;
+use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use tauri::{AppHandle, Emitter};
 use tokio::net::TcpListener;
-use tokio::sync::{broadcast, oneshot, Mutex as AsyncMutex};
+use tokio::sync::{broadcast, mpsc, oneshot};
 
 pub const WEB_PORT: u16 = 11471;
 const DEV_FRONTEND: &str = "http://127.0.0.1:1420";
@@ -29,7 +29,49 @@ static SERVE_GENERATION: AtomicU64 = AtomicU64::new(0);
 struct ServeState {
     app: AppHandle,
     outbound: broadcast::Sender<String>,
-    clients: Arc<AsyncMutex<HashSet<u64>>>,
+    clients: Arc<ClientRegistry>,
+}
+
+struct ClientSlot {
+    tx: mpsc::UnboundedSender<String>,
+    authed: bool,
+}
+
+/// Connected /api/remote sockets by client id, each with a direct channel into its send task.
+#[derive(Default)]
+struct ClientRegistry {
+    slots: Mutex<HashMap<u64, ClientSlot>>,
+}
+
+impl ClientRegistry {
+    fn register(&self, client_id: u64, authed: bool) -> mpsc::UnboundedReceiver<String> {
+        let (tx, rx) = mpsc::unbounded_channel();
+        self.slots
+            .lock()
+            .unwrap()
+            .insert(client_id, ClientSlot { tx, authed });
+        rx
+    }
+
+    fn remove(&self, client_id: u64) {
+        self.slots.lock().unwrap().remove(&client_id);
+    }
+
+    /// Queues `payload` for one socket; false when it is gone or the frame is not allowed for an unauthed socket.
+    fn send(&self, client_id: u64, payload: String) -> bool {
+        let slots = self.slots.lock().unwrap();
+        let Some(slot) = slots.get(&client_id) else {
+            return false;
+        };
+        if !slot.authed && !direct_allowed_unauthed(&payload) {
+            return false;
+        }
+        slot.tx.send(payload).is_ok()
+    }
+
+    fn len(&self) -> usize {
+        self.slots.lock().unwrap().len()
+    }
 }
 
 fn shutdown_slot() -> &'static Mutex<Option<oneshot::Sender<()>>> {
@@ -256,8 +298,10 @@ async fn serve_http(State(state): State<ServeState>, uri: axum::http::Uri) -> Re
 
 const TOKEN_FILE: &str = "web-remote-token.txt";
 const TOKEN_HEX_LEN: usize = 64;
-// Frames a socket without the pairing key may still receive: probes, Play-on acks and the TV hand-off.
-const UNAUTHED_OUTBOUND: [&str; 5] = ["hello", "pong", "error", "ack", "harborSetup"];
+// Broadcast frames a socket without the pairing key may still receive: probes and the TV hand-off.
+const UNAUTHED_OUTBOUND: [&str; 4] = ["hello", "pong", "error", "harborSetup"];
+// Frames remote_ws_send may address to one unauthed socket: the broadcast set plus its own acks.
+const UNAUTHED_DIRECT: [&str; 5] = ["hello", "pong", "error", "ack", "harborSetup"];
 const UNAUTHORIZED_FRAME: &str = r#"{"t":"error","code":"unauthorized","message":"Scan the QR code in Harbor again to pair this remote."}"#;
 
 fn token_slot() -> &'static Mutex<Option<String>> {
@@ -348,11 +392,18 @@ fn key_matches(provided: Option<&str>, expected: &str) -> bool {
         == 0
 }
 
-fn outbound_allowed_unauthed(frame: &str) -> bool {
+fn frame_type(frame: &str) -> Option<String> {
     serde_json::from_str::<serde_json::Value>(frame)
         .ok()
         .and_then(|v| v.get("t").and_then(|t| t.as_str()).map(str::to_string))
-        .is_some_and(|t| UNAUTHED_OUTBOUND.contains(&t.as_str()))
+}
+
+fn outbound_allowed_unauthed(frame: &str) -> bool {
+    frame_type(frame).is_some_and(|t| UNAUTHED_OUTBOUND.contains(&t.as_str()))
+}
+
+fn direct_allowed_unauthed(frame: &str) -> bool {
+    frame_type(frame).is_some_and(|t| UNAUTHED_DIRECT.contains(&t.as_str()))
 }
 
 #[tauri::command]
@@ -372,10 +423,7 @@ async fn remote_ws_handler(
 
 async fn handle_remote_socket(socket: WebSocket, state: ServeState, authed: bool) {
     let client_id = NEXT_CLIENT_ID.fetch_add(1, Ordering::SeqCst);
-    {
-        let mut clients = state.clients.lock().await;
-        clients.insert(client_id);
-    }
+    let mut direct_rx = state.clients.register(client_id, authed);
 
     let (mut sender, mut receiver) = socket.split();
     if !authed {
@@ -391,17 +439,19 @@ async fn handle_remote_socket(socket: WebSocket, state: ServeState, authed: bool
 
     let send_task = tauri::async_runtime::spawn(async move {
         loop {
-            match outbound_rx.recv().await {
-                Ok(msg) => {
-                    if !authed && !outbound_allowed_unauthed(&msg) {
-                        continue;
-                    }
-                    if sender.send(Message::Text(msg.into())).await.is_err() {
-                        break;
-                    }
-                }
-                Err(broadcast::error::RecvError::Lagged(_)) => continue,
-                Err(broadcast::error::RecvError::Closed) => break,
+            let msg = tokio::select! {
+                direct = direct_rx.recv() => match direct {
+                    Some(msg) => msg,
+                    None => break,
+                },
+                shared = outbound_rx.recv() => match shared {
+                    Ok(msg) if authed || outbound_allowed_unauthed(&msg) => msg,
+                    Ok(_) | Err(broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(broadcast::error::RecvError::Closed) => break,
+                },
+            };
+            if sender.send(Message::Text(msg.into())).await.is_err() {
+                break;
             }
         }
     });
@@ -424,10 +474,7 @@ async fn handle_remote_socket(socket: WebSocket, state: ServeState, authed: bool
     }
 
     send_task.abort();
-    {
-        let mut clients = state.clients.lock().await;
-        clients.remove(&client_id);
-    }
+    state.clients.remove(client_id);
     let _ = state.app.emit(
         "remote://client",
         serde_json::json!({ "action": "leave", "clientId": client_id, "authed": authed }),
@@ -449,7 +496,7 @@ pub async fn web_serve_start(app: AppHandle) -> Result<u16, String> {
     let state = ServeState {
         app: app.clone(),
         outbound,
-        clients: Arc::new(AsyncMutex::new(HashSet::new())),
+        clients: Arc::new(ClientRegistry::default()),
     };
     *serve_state_slot().lock().unwrap() = Some(state.clone());
     RUNNING.store(true, Ordering::SeqCst);
@@ -512,22 +559,28 @@ pub fn remote_ws_broadcast(payload: String) -> Result<(), String> {
     Ok(())
 }
 
+/// Push a JSON text frame to one remote client; false when it has disconnected or may not receive that frame.
+#[tauri::command]
+pub fn remote_ws_send(client_id: u64, payload: String) -> Result<bool, String> {
+    let guard = serve_state_slot().lock().unwrap();
+    let Some(state) = guard.as_ref() else {
+        return Ok(false);
+    };
+    Ok(state.clients.send(client_id, payload))
+}
+
 #[tauri::command]
 pub async fn remote_ws_client_count() -> Result<usize, String> {
-    let state = {
-        let guard = serve_state_slot().lock().unwrap();
-        guard.clone()
-    };
-    let Some(state) = state else {
-        return Ok(0);
-    };
-    let count = state.clients.lock().await.len();
-    Ok(count)
+    let guard = serve_state_slot().lock().unwrap();
+    Ok(guard.as_ref().map_or(0, |state| state.clients.len()))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{generate_token, is_valid_token, key_matches, outbound_allowed_unauthed, query_key};
+    use super::{
+        direct_allowed_unauthed, generate_token, is_valid_token, key_matches,
+        outbound_allowed_unauthed, query_key, ClientRegistry,
+    };
 
     const TOKEN: &str = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef";
 
@@ -579,7 +632,56 @@ mod tests {
         assert!(outbound_allowed_unauthed(r#"{"t":"hello","proto":1,"server":"harbor-remote"}"#));
         assert!(outbound_allowed_unauthed(r#"{"t":"pong","at":1}"#));
         assert!(outbound_allowed_unauthed(r#"{"t":"harborSetup","proto":1,"offer":null}"#));
-        assert!(outbound_allowed_unauthed(r#"{"t":"ack","id":"c1","ok":true}"#));
         assert!(!outbound_allowed_unauthed("not json"));
+    }
+
+    #[test]
+    fn broadcast_acks_never_reach_unauthed_sockets() {
+        assert!(!outbound_allowed_unauthed(r#"{"t":"ack","id":"c1","ok":true,"token":"x"}"#));
+    }
+
+    #[test]
+    fn direct_sends_to_unauthed_sockets_allow_acks_but_not_snapshots() {
+        assert!(direct_allowed_unauthed(r#"{"t":"ack","id":"c1","ok":true}"#));
+        assert!(direct_allowed_unauthed(r#"{"t":"hello","proto":1}"#));
+        assert!(!direct_allowed_unauthed(r#"{"t":"snapshot","snapshot":{}}"#));
+    }
+
+    #[test]
+    fn per_client_send_reaches_only_the_target_client() {
+        let registry = ClientRegistry::default();
+        let mut a = registry.register(1, true);
+        let mut b = registry.register(2, true);
+        assert!(registry.send(2, r#"{"t":"ack","id":"x","ok":true}"#.to_string()));
+        assert_eq!(b.try_recv().unwrap(), r#"{"t":"ack","id":"x","ok":true}"#);
+        assert!(a.try_recv().is_err());
+        assert_eq!(registry.len(), 2);
+    }
+
+    #[test]
+    fn per_client_send_to_an_unknown_or_removed_client_returns_false() {
+        let registry = ClientRegistry::default();
+        assert!(!registry.send(9, "{}".to_string()));
+        let _rx = registry.register(3, true);
+        registry.remove(3);
+        assert!(!registry.send(3, r#"{"t":"ack","id":"x","ok":true}"#.to_string()));
+        assert_eq!(registry.len(), 0);
+    }
+
+    #[test]
+    fn per_client_send_to_an_unauthed_client_drops_frames_outside_the_allowlist() {
+        let registry = ClientRegistry::default();
+        let mut rx = registry.register(4, false);
+        assert!(!registry.send(4, r#"{"t":"snapshot","snapshot":{}}"#.to_string()));
+        assert!(rx.try_recv().is_err());
+        assert!(registry.send(4, r#"{"t":"ack","id":"p","ok":true}"#.to_string()));
+        assert!(rx.try_recv().is_ok());
+    }
+
+    #[test]
+    fn per_client_send_to_a_closed_socket_returns_false() {
+        let registry = ClientRegistry::default();
+        drop(registry.register(5, true));
+        assert!(!registry.send(5, r#"{"t":"ack","id":"x","ok":true}"#.to_string()));
     }
 }

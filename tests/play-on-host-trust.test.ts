@@ -2,7 +2,12 @@ import "./_localstorage-stub.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { HostTrustStore, verifyPlayOnFrame } from "../src/lib/lan-trust-host.ts";
-import { HostPairing, PAIR_HOST_TTL_MS } from "../src/lib/lan-pair-host.ts";
+import {
+  HostPairing,
+  PAIR_BEGIN_LIMIT,
+  PAIR_FAILURE_LIMIT,
+  PAIR_HOST_TTL_MS,
+} from "../src/lib/lan-pair-host.ts";
 import { createPlayOnRouter, hostHello } from "../src/lib/remote/play-on-route.ts";
 import {
   normalizePairCode,
@@ -33,7 +38,7 @@ function rig(start = 1_000_000) {
   let clock = start;
   const store = new HostTrustStore(memoryStorage());
   const pairing = new HostPairing({ store, now: () => clock, identity: async () => SELF });
-  const router = createPlayOnRouter({ store, pairing });
+  const router = createPlayOnRouter({ store, pairing, reply: () => {} });
   return {
     store,
     pairing,
@@ -179,6 +184,71 @@ test("a second sender is told busy while a pairing is open, and cannot submit th
   const stolen = await r.router.handle(code(shown, "c9"), 9, false);
   assert.equal(ackOf(stolen).code, "busy");
   assert.equal(r.store.peers().length, 0);
+});
+
+test("a fourth begin within a minute answers busy without showing a code, even from a new socket", async () => {
+  const r = rig();
+  let shown = 0;
+  r.pairing.subscribe(() => {
+    if (r.pairing.current()) shown++;
+  });
+  for (let i = 0; i < 3; i++) {
+    const res = await r.router.handle(begin(`b${i}`), 10 + i, false);
+    assert.equal(ackOf(res).ok, true);
+    r.pairing.release(10 + i);
+  }
+  const fourth = await r.router.handle(begin("b4"), 20, false);
+  assert.equal(ackOf(fourth).code, "busy");
+  assert.equal(r.pairing.current(), null);
+  assert.equal(shown, 3);
+  r.advance(PAIR_BEGIN_LIMIT.windowMs);
+  assert.equal(ackOf(await r.router.handle(begin("b5"), 21, false)).ok, true);
+});
+
+test("failed codes count across reconnects, and the fifteenth closes pairing until the window slides", async () => {
+  const r = rig();
+  let socket = 30;
+  for (let round = 0; round < 3; round++) {
+    socket++;
+    await r.router.handle(begin(`b${round}`), socket, false);
+    for (let i = 0; i < 4; i++) await r.router.handle(code("ZZZZZZZZ", `w${i}`), socket, false);
+    r.pairing.release(socket);
+    r.advance(PAIR_BEGIN_LIMIT.windowMs);
+  }
+  socket++;
+  await r.router.handle(begin("b9"), socket, false);
+  for (let i = 0; i < 2; i++) {
+    assert.equal(ackOf(await r.router.handle(code("ZZZZZZZZ"), socket, false)).code, "badCode");
+  }
+  const fifteenth = await r.router.handle(code("ZZZZZZZZ"), socket, false);
+  assert.equal(ackOf(fifteenth).code, "busy");
+  assert.equal(r.pairing.current(), null);
+  r.advance(PAIR_BEGIN_LIMIT.windowMs);
+  assert.equal(ackOf(await r.router.handle(begin("b10"), socket + 1, false)).code, "busy");
+  assert.equal(r.pairing.current(), null);
+  r.advance(PAIR_FAILURE_LIMIT.windowMs);
+  assert.equal(ackOf(await r.router.handle(begin("b11"), socket + 2, false)).ok, true);
+});
+
+test("a successful pairing or a cancel leaves the failure budget spent", async () => {
+  const r = rig();
+  await r.router.handle(begin(), 7, false);
+  for (let i = 0; i < 4; i++) await r.router.handle(code("ZZZZZZZZ"), 7, false);
+  assert.equal(
+    ackOf(await r.router.handle(code(r.pairing.current()?.code ?? ""), 7, false)).ok,
+    true,
+  );
+  r.advance(PAIR_BEGIN_LIMIT.windowMs);
+  for (let round = 0; round < 2; round++) {
+    await r.router.handle(begin(`b${round}`), 7, false);
+    for (let i = 0; i < 4; i++) await r.router.handle(code("ZZZZZZZZ"), 7, false);
+    r.pairing.cancel();
+  }
+  r.advance(PAIR_BEGIN_LIMIT.windowMs);
+  await r.router.handle(begin("b3"), 7, false);
+  for (let i = 0; i < 2; i++) await r.router.handle(code("ZZZZZZZZ"), 7, false);
+  assert.equal(ackOf(await r.router.handle(code("ZZZZZZZZ"), 7, false)).code, "busy");
+  assert.equal(ackOf(await r.router.handle(begin("b4"), 8, false)).code, "busy");
 });
 
 test("cancelling on the host ends the pairing", async () => {

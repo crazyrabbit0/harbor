@@ -3,6 +3,9 @@ import { randomHex, sameSecret, type HostTrustStore, type PeerIdentity } from ".
 
 export const PAIR_HOST_TTL_MS = 2 * 60 * 1000;
 export const PAIR_HOST_MAX_MISSES = 5;
+// Host-wide budgets across all sockets, so reconnecting never resets them.
+export const PAIR_BEGIN_LIMIT = { max: 3, windowMs: 60 * 1000 };
+export const PAIR_FAILURE_LIMIT = { max: 15, windowMs: 10 * 60 * 1000 };
 
 // Digits and capitals without I, L and O, which normalizePairCode folds into 1 and 0.
 const CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTUVWXYZ";
@@ -58,12 +61,33 @@ export function readPeer(raw: unknown): PeerIdentity | null {
   };
 }
 
+/** Counts events in a sliding window; `full(now)` is true once `max` events fall inside the last `windowMs`. */
+export class SlidingWindow {
+  private readonly times: number[] = [];
+  private readonly limit: { max: number; windowMs: number };
+
+  constructor(limit: { max: number; windowMs: number }) {
+    this.limit = limit;
+  }
+
+  full(now: number): boolean {
+    while (this.times.length > 0 && now - this.times[0] >= this.limit.windowMs) this.times.shift();
+    return this.times.length >= this.limit.max;
+  }
+
+  record(now: number): void {
+    this.times.push(now);
+  }
+}
+
 /** One pairing at a time, bound to the socket that began it; the host shows `current().code` to the user. */
 export class HostPairing {
   private pending: PendingPairing | null = null;
   private readonly listeners = new Set<() => void>();
   private readonly now: () => number;
   private readonly deps: Deps;
+  private readonly begins = new SlidingWindow(PAIR_BEGIN_LIMIT);
+  private readonly failures = new SlidingWindow(PAIR_FAILURE_LIMIT);
 
   constructor(deps: Deps) {
     this.deps = deps;
@@ -96,7 +120,10 @@ export class HostPairing {
     if (!peer) return { ok: false, code: "refused" };
     const open = this.current();
     if (open && open.clientId !== clientId) return { ok: false, code: "busy" };
-    const expiresAt = this.now() + PAIR_HOST_TTL_MS;
+    const now = this.now();
+    if (this.begins.full(now) || this.failures.full(now)) return { ok: false, code: "busy" };
+    this.begins.record(now);
+    const expiresAt = now + PAIR_HOST_TTL_MS;
     this.set({ clientId, peer, code: randomPairCode(), expiresAt, misses: 0 });
     return { ok: true, expiresAt, len: PAIR_CODE_LEN };
   }
@@ -107,7 +134,13 @@ export class HostPairing {
     if (open.clientId !== clientId) return { ok: false, code: "busy" };
     const typed = typeof rawCode === "string" ? normalizePairCode(rawCode) : "";
     if (!sameSecret(typed, open.code)) {
+      this.failures.record(this.now());
       open.misses += 1;
+      // The miss that exhausts the host-wide budget closes the dialog; begin then answers busy until the window slides.
+      if (this.failures.full(this.now())) {
+        this.set(null);
+        return { ok: false, code: "busy" };
+      }
       if (open.misses < PAIR_HOST_MAX_MISSES) return { ok: false, code: "badCode" };
       this.set(null);
       return { ok: false, code: "expired" };
