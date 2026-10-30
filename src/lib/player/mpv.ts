@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { mpvFailureSnapshot } from "./mpv-failure";
 import { startGeometryTracking, type GeometryTracker } from "./mpv-geometry";
+import { createMpvAudio } from "./mpv-audio";
 import { createMpvSubtitles } from "./mpv-subtitles";
 import { applyMpvProperty } from "./mpv-tracks";
 import { isLinuxDesktop, isMacDesktop, isWindowsDesktop } from "@/lib/platform";
@@ -123,13 +124,6 @@ function mpvReuseConfigKey(options: MpvOptions | undefined, hdrToSdr: boolean): 
   });
 }
 
-const AUDIO_PROFILE_AF: Record<string, string> = {
-  bass: "lavfi=[bass=g=7:f=110:w=0.6]",
-  voice: "lavfi=[equalizer=f=300:t=q:w=1:g=-3,equalizer=f=2800:t=q:w=1:g=5]",
-  "bass-reduce": "lavfi=[bass=g=-8:f=110:w=0.6]",
-  night: "lavfi=[acompressor=ratio=3:threshold=-20dB:attack=20:release=300:makeup=4dB]",
-};
-
 const DEFAULT_UA = "VLC/3.0.20 LibVLC/3.0.20";
 
 type BufferPhase = "startup" | "steady";
@@ -169,33 +163,6 @@ async function resetSubtitleFpsBeforeMpvTransition(): Promise<void> {
   await resetMpvSubtitleFpsForTransition();
 }
 
-// Module-level on purpose: Rust runs one mpv instance, so every bridge shares its audio device.
-let appliedAudioDevice: string | null = null;
-
-async function applyAudioDevice(want: string): Promise<void> {
-  let target = want;
-  if (target !== "auto") {
-    try {
-      const devices = await invoke<Array<{ name: string }>>("mpv_audio_devices");
-      if (devices.length > 0 && !devices.some((d) => d.name === target)) {
-        console.warn(`[audio] device "${target}" is no longer present, falling back to auto`);
-        target = "auto";
-        appliedAudioDevice = "auto";
-      }
-    } catch {
-      /* device list unavailable, try the stored value anyway */
-    }
-  }
-  try {
-    await invoke("mpv_set_property", { name: "audio-device", value: target });
-  } catch (e) {
-    if (target === "auto") return;
-    console.warn(`[audio] could not select "${target}", falling back to auto`, e);
-    appliedAudioDevice = "auto";
-    await invoke("mpv_set_property", { name: "audio-device", value: "auto" }).catch(() => {});
-  }
-}
-
 async function applyHeaderProps(headers?: Record<string, string>): Promise<void> {
   let ua = DEFAULT_UA;
   const fields: string[] = [];
@@ -216,23 +183,12 @@ function normalizeMediaPath(path: string): string {
 export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
   let host: HTMLElement | null = null;
   let snap: PlayerSnapshot = initialPlayerSnapshot();
-  let profileAf = "";
   let hdrToSdr = mpvOptions?.hdrToSdr ?? true;
-  let appliedAf: string | null = null;
-  const applyAudioFilters = () => {
-    const parts: string[] = [];
-    // Frame length × window size sets the look-ahead audio waits on at every start and seek; 250 ms × 15 is ~4× shorter than 500 × 31.
-    if (snap.audioNormalize) parts.push("dynaudnorm=f=250:g=15:p=0.9:m=4:b=1");
-    if (profileAf) parts.push(profileAf);
-    if (parts.length > 0) parts.push("lavfi=[alimiter=limit=0.97]");
-    const chain = parts.join(",");
-    // Every `af set` rebuilds the chain and refills dynaudnorm's look-ahead, holding audio (and so playback) for seconds.
-    if (chain === appliedAf) return;
-    appliedAf = chain;
-    invoke("mpv_command", { cmd: ["af", "set", chain] }).catch(() => {
-      if (appliedAf === chain) appliedAf = null;
-    });
-  };
+  const audio = createMpvAudio({
+    snap: () => snap,
+    mpvStarted: () => mpvStarted,
+  });
+  const { scheduleAudioDeviceReload } = audio;
   const listeners = new Set<(s: PlayerSnapshot) => void>();
   let unlistenEvent: UnlistenFn | null = null;
   let geometry: GeometryTracker | null = null;
@@ -310,76 +266,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
     const next: PlayerSnapshot = { ...snap };
     listeners.forEach((l) => l(next));
   };
-
-  // mpv's WASAPI output re-roots to the OS default audio device via its own
-  // hotplug notification. For device-topology changes (e.g. HDMI <-> Bluetooth,
-  // which differ in sample rate and format) that internal reload is unreliable
-  // and can leave audio routed to a now-unavailable endpoint, producing silence
-  // until the stream is restarted. When `audio-device-list` changes (mpv fires
-  // a property-change on every hotplug / default-device switch) we re-assert the
-  // device and force an `ao-reload`, which re-initializes the audio output onto
-  // the current default device — the same re-init a stream restart performs.
-  //
-  // After screensaver / system sleep, Windows can release the WASAPI endpoint
-  // without firing a hotplug event, leaving mpv with a stale device ID.  The
-  // `visibilitychange` listener below catches that case: when the app becomes
-  // visible again we schedule the same device re-assertion + ao-reload and
-  // re-select whichever audio track was active before the failure.
-  let audioDeviceReloadTimer: number | null = null;
-  const scheduleAudioDeviceReload = () => {
-    if (!isWindowsDesktop()) return;
-    if (!mpvStarted) return;
-    if (snap.status !== "playing" && snap.status !== "paused") return;
-    if (audioDeviceReloadTimer != null) window.clearTimeout(audioDeviceReloadTimer);
-    audioDeviceReloadTimer = window.setTimeout(() => {
-      audioDeviceReloadTimer = null;
-      void (async () => {
-        // Remember the selected audio track so we can restore it after the
-        // output reload deselects it (mpv drops the track on ao init failure).
-        const prevAid = snap.audioTracks.find((t) => t.selected)?.id ?? null;
-        await applyAudioDevice(appliedAudioDevice ?? "auto").catch(() => {});
-        await invoke("mpv_command", { cmd: ["ao-reload"] }).catch(() => {});
-        if (prevAid) {
-          await invoke("mpv_set_property", { name: "aid", value: prevAid }).catch(() => {});
-        }
-        // dynaudnorm's look-ahead restarts audio ahead of video after a reload; an exact seek in place refills it.
-        if (snap.audioNormalize) {
-          await invoke("mpv_command", { cmd: ["seek", 0, "relative+exact"] }).catch(() => {});
-        }
-      })();
-    }, 300);
-  };
-
-  // After screensaver / system sleep Windows may silently release the WASAPI
-  // audio endpoint without firing a device-list hotplug event.  When the app
-  // becomes visible again we schedule an audio output reload so mpv re-binds
-  // to the current default device and restores audio.
-  const onVisibilityRestore = () => {
-    if (document.visibilityState !== "visible") return;
-    scheduleAudioDeviceReload();
-  };
-  if (typeof document !== "undefined") {
-    document.addEventListener("visibilitychange", onVisibilityRestore);
-  }
-
-  // A Windows screensaver paints over the window without hiding the document,
-  // so `visibilitychange` never fires for it. Dismissing the screensaver does
-  // return activation to the app window, so a refocus after a long absence is
-  // the wake signal here. The absence gate keeps ordinary alt-tab returns
-  // from paying for an `ao-reload` they don't need.
-  const FOCUS_RELOAD_MIN_ABSENT_MS = 60_000;
-  let lastWindowBlur = Date.now();
-  const onWindowBlur = () => {
-    lastWindowBlur = Date.now();
-  };
-  const onWindowFocusRestore = () => {
-    if (Date.now() - lastWindowBlur < FOCUS_RELOAD_MIN_ABSENT_MS) return;
-    scheduleAudioDeviceReload();
-  };
-  if (typeof window !== "undefined") {
-    window.addEventListener("blur", onWindowBlur);
-    window.addEventListener("focus", onWindowFocusRestore);
-  }
 
   const handleEvent = (raw: MpvEvent) => {
     if (raw.event === "log") {
@@ -595,7 +481,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
           }
         }
         retainedMpv = null;
-        appliedAf = null;
+        audio.resetAppliedFilters();
         await invoke("mpv_start", {
           args: {
             url: src.url,
@@ -723,12 +609,11 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
     },
     setAudioNormalize(on) {
       snap.audioNormalize = on;
-      applyAudioFilters();
+      audio.applyAudioFilters();
       emit();
     },
     setAudioProfile(profile) {
-      profileAf = AUDIO_PROFILE_AF[profile] ?? "";
-      applyAudioFilters();
+      audio.setAudioProfile(profile);
     },
     setHdrToSdr(on, oled) {
       hdrToSdr = on;
@@ -763,10 +648,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       }
     },
     setAudioDevice(name) {
-      const want = name && name !== "auto" ? name : "auto";
-      if (want === appliedAudioDevice) return;
-      appliedAudioDevice = want;
-      void applyAudioDevice(want);
+      audio.setAudioDevice(name);
     },
     setMediaInfo(info) {
       invoke("mpv_set_property", { name: "force-media-title", value: info.title }).catch(() => {});
@@ -855,13 +737,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
         markMpvSubtitleFpsSessionRecreated();
         invoke("mpv_stop").catch(() => {});
       }
-      document.removeEventListener("visibilitychange", onVisibilityRestore);
-      window.removeEventListener("blur", onWindowBlur);
-      window.removeEventListener("focus", onWindowFocusRestore);
-      if (audioDeviceReloadTimer != null) {
-        window.clearTimeout(audioDeviceReloadTimer);
-        audioDeviceReloadTimer = null;
-      }
+      audio.stop();
       mpvStarted = false;
       currentIsLive = null;
       currentStartupProfile = null;

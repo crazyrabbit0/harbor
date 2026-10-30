@@ -139,6 +139,10 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
   const frames = new Map<number, FrameRequestCallback>();
   let frameId = 0;
   const documentEvents = new EventTarget();
+  const fakeDocument = {
+    addEventListener: documentEvents.addEventListener.bind(documentEvents),
+    removeEventListener: documentEvents.removeEventListener.bind(documentEvents),
+  };
   const fakeWindow = {
     requestAnimationFrame: (callback: FrameRequestCallback) => {
       frames.set(++frameId, callback);
@@ -154,9 +158,17 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
   };
   dependencies["./mpv-tracks"] = tracks;
   // The bridge's own sub-modules run for real against the same fake window and native bridge.
-  for (const name of ["mpv-geometry", "mpv-subtitles"]) {
+  for (const name of ["mpv-geometry", "mpv-subtitles", "mpv-audio"]) {
     const sibling = { exports: {} };
-    new Function("require", "module", "exports", "window", "console", compileSibling(name))(
+    new Function(
+      "require",
+      "module",
+      "exports",
+      "window",
+      "console",
+      "document",
+      compileSibling(name),
+    )(
       (id: string) => {
         if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
         return dependencies[id];
@@ -165,6 +177,7 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
       sibling.exports,
       fakeWindow,
       { warn() {}, info() {} },
+      fakeDocument,
     );
     dependencies[`./${name}`] = sibling.exports;
   }
@@ -177,10 +190,7 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
     module.exports,
     fakeWindow,
     { warn() {}, info() {} },
-    {
-      addEventListener: documentEvents.addEventListener.bind(documentEvents),
-      removeEventListener: documentEvents.removeEventListener.bind(documentEvents),
-    },
+    fakeDocument,
   );
   const bridge = module.exports.createMpvBridge(options);
   let snapshot: PlayerSnapshot = snapshots.emptySnapshot;
