@@ -177,8 +177,11 @@ export function persistEffective(settings: Settings, profileId: string, linked: 
 /** Gives a profile its own copy of a scope's secrets, filling only what it lacks. */
 function copyScopeSecrets(fromSecretKey: string, toProfileId: string): void {
   const from = readSecretsAt(fromSecretKey);
-  if (Object.keys(from).length > 0)
-    fillMissingSecrets(settingsSecretsKey(toProfileId, false), from);
+  if (Object.keys(from).length === 0) return;
+  const toSecretKey = settingsSecretsKey(toProfileId, false);
+  const stored = readSecretsAt(toSecretKey);
+  const merged = { ...from, ...stored };
+  if (Object.keys(merged).length > Object.keys(stored).length) writeSecretsAt(toSecretKey, merged);
 }
 
 /** Copies a settings blob into a profile's own blob, bringing the secrets of its scope along. */

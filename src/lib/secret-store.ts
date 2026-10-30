@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { SETTINGS_SECRETS_PREFIX } from "@/lib/settings/secret-fields";
 
+// Xtream logins by playlist id; global like the playlists list itself, so a restore never retargets it to a profile.
+export const IPTV_CREDENTIALS_KEY = "harbor.iptv.credentials.v1";
+
 const SECRET_PREFIXES = [
   "harbor.lastfm.v1",
   "harbor.sports.api-sports.v1",
@@ -10,7 +13,7 @@ const SECRET_PREFIXES = [
   "harbor.anilist.session.v1",
   "harbor.media-server.token.v1",
   "harbor.plex-auth.device.v1",
-  "harbor.lastfm.v1",
+  IPTV_CREDENTIALS_KEY,
   SETTINGS_SECRETS_PREFIX,
 ];
 
@@ -63,7 +66,7 @@ export function isSecretKey(key: string): boolean {
 /** Rewrites a session key so it targets a specific profile, used when restoring a backup. */
 export function secretKeyForProfile(key: string, profileId: string): string {
   // Settings secrets follow the blob's scope (shared or per profile), which the backup retargets itself.
-  if (key.startsWith(`${SETTINGS_SECRETS_PREFIX}.`)) return key;
+  if (key.startsWith(`${SETTINGS_SECRETS_PREFIX}.`) || key === IPTV_CREDENTIALS_KEY) return key;
   for (const prefix of SECRET_PREFIXES) {
     if (key === prefix || key.startsWith(`${prefix}.`)) return `${prefix}.${profileId}`;
   }

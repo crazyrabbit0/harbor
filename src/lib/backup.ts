@@ -47,12 +47,7 @@ type BackupSection = {
   patterns: string[];
 };
 
-/**
- * How localStorage keys map to user-facing export sections.
- * Order matters: the first section whose pattern prefixes a key wins,
- * so `harbor.discover.libImported` (homeLayout) must be checked before
- * the broader `harbor.discover.` (feedDiscover).
- */
+/** How localStorage and secret keys map to user-facing export sections; the longest matching pattern wins. */
 export const BACKUP_SECTIONS: readonly BackupSection[] = [
   {
     key: "theme",
@@ -173,7 +168,7 @@ export const BACKUP_SECTIONS: readonly BackupSection[] = [
     label: "Xtream credentials",
     description: "Usernames and passwords for Xtream playlists.",
     warning: true,
-    patterns: [],
+    patterns: ["harbor.iptv.credentials.v1"],
   },
   {
     key: "feedDiscover",
@@ -235,10 +230,17 @@ export function isSectionKey(value: unknown): value is BackupSectionKey {
 
 /** The section a localStorage key belongs to; "other" is the catch-all. */
 export function sectionOf(key: string): BackupSectionKey {
+  let best: BackupSectionKey = "other";
+  let bestLength = 0;
   for (const section of BACKUP_SECTIONS) {
-    if (section.patterns.some((p) => key.startsWith(p))) return section.key;
+    for (const p of section.patterns) {
+      if (p.length > bestLength && key.startsWith(p)) {
+        best = section.key;
+        bestLength = p.length;
+      }
+    }
   }
-  return "other";
+  return best;
 }
 
 export function backupSectionLabel(key: BackupSectionKey): string {

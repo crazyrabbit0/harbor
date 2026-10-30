@@ -20,12 +20,14 @@ let secretsFile: string | null = JSON.stringify({
   "harbor.settings-secrets.v1.shared": JSON.stringify({ rdKey: "stored-rd" }),
 });
 let secretWrites = 0;
+let failSecretWrites = false;
 const events = new EventTarget();
 (globalThis as { window?: unknown }).window = {
   __TAURI_INTERNALS__: {
     invoke: async (cmd: string, args: { content?: string }) => {
       if (cmd === "secrets_read") return secretsFile;
       if (cmd === "secrets_write") {
+        if (failSecretWrites) throw new Error("disk full");
         secretWrites++;
         secretsFile = args.content ?? null;
         return null;
@@ -245,4 +247,104 @@ test("code outside SettingsProvider reads the TMDB key from the store once the m
   assert.equal(await letterboxdSource.available(), true);
   tmdb.setTmdbKey("live-tmdb");
   assert.equal(tmdb.getTmdbKey(), "live-tmdb");
+});
+
+const HOOKS = {
+  ...DEFAULT.webhooks,
+  discordUrl: "https://discord.com/api/webhooks/1/discord-token",
+  telegramUrl: "https://api.telegram.org/botTG-TOKEN/sendMessage?chat_id=42",
+  desktopEnabled: true,
+};
+
+function leaksWebhookTokens(text: string | null): boolean {
+  return (text ?? "").includes("discord-token") || (text ?? "").includes("TG-TOKEN");
+}
+
+test("the serialized blob carries no webhook URLs but keeps the other webhook settings", () => {
+  const json = profileStore.serializeSettings(settingsWith({ webhooks: HOOKS }));
+  const hooks = (JSON.parse(json) as { webhooks: Record<string, unknown> }).webhooks;
+  assert.equal("discordUrl" in hooks, false);
+  assert.equal("telegramUrl" in hooks, false);
+  assert.equal(hooks.desktopEnabled, true);
+  assert.deepEqual(hooks.sources, DEFAULT.webhooks.sources);
+});
+
+test("webhook URLs persist to the profile's secret scope and load back into settings", async () => {
+  profileStore.persistEffective(settingsWith({ webhooks: HOOKS }), "p_wh_wh", false);
+  await secretStore.flushSecrets();
+  assert.equal(leaksWebhookTokens(localStorage.getItem(profileStore.profileKey("p_wh_wh"))), false);
+  const scope = fileSecrets("harbor.settings-secrets.v1.p_wh_wh");
+  assert.equal(scope["webhooks.discordUrl"], HOOKS.discordUrl);
+  assert.equal(scope["webhooks.telegramUrl"], HOOKS.telegramUrl);
+  const loaded = profileStore.loadEffective("p_wh_wh", false);
+  assert.equal(loaded.webhooks.discordUrl, HOOKS.discordUrl);
+  assert.equal(loaded.webhooks.telegramUrl, HOOKS.telegramUrl);
+  assert.equal(loaded.webhooks.desktopEnabled, true);
+});
+
+test("webhook URLs left in a legacy blob move into the store and leave the blob", async () => {
+  localStorage.setItem(
+    profileStore.profileKey("p_wl_wl"),
+    JSON.stringify({
+      posterRadius: 5,
+      webhooks: { discordUrl: HOOKS.discordUrl, notifyTv: false },
+    }),
+  );
+  const loaded = profileStore.loadEffective("p_wl_wl", false);
+  assert.equal(loaded.webhooks.discordUrl, HOOKS.discordUrl);
+  profileStore.persistEffective(loaded, "p_wl_wl", false);
+  await secretStore.flushSecrets();
+  const blob = blobOf(profileStore.profileKey("p_wl_wl")) as { webhooks: Record<string, unknown> };
+  assert.equal("discordUrl" in blob.webhooks, false);
+  assert.equal(blob.webhooks.notifyTv, false);
+  assert.equal(
+    fileSecrets("harbor.settings-secrets.v1.p_wl_wl")["webhooks.discordUrl"],
+    HOOKS.discordUrl,
+  );
+  assert.equal(profileStore.loadEffective("p_wl_wl", false).webhooks.discordUrl, HOOKS.discordUrl);
+});
+
+test("clearing a webhook URL in settings deletes it from the secret scope", async () => {
+  const before = profileStore.loadEffective("p_wh_wh", false);
+  const after = settingsWith({ webhooks: { ...before.webhooks, discordUrl: "" } });
+  const changes = fields.changedSecrets(before, after);
+  assert.deepEqual(changes, { "webhooks.discordUrl": "" });
+  profileStore.writeSettingsSecrets("p_wh_wh", false, changes);
+  await secretStore.flushSecrets();
+  const scope = fileSecrets("harbor.settings-secrets.v1.p_wh_wh");
+  assert.equal("webhooks.discordUrl" in scope, false);
+  assert.equal(scope["webhooks.telegramUrl"], HOOKS.telegramUrl);
+});
+
+test("while secrets.json writes fail the blob keeps webhook URLs, and drops them once a write succeeds", async () => {
+  failSecretWrites = true;
+  secretStore.setSecret("harbor.settings-secrets.v1.p_wf_wf", JSON.stringify({ rdKey: "x" }));
+  await secretStore.flushSecrets();
+  assert.equal(secretStore.getSecretsWriteStatus().ok, false);
+  profileStore.persistEffective(settingsWith({ webhooks: HOOKS }), "p_wf_wf", false);
+  assert.equal(leaksWebhookTokens(localStorage.getItem(profileStore.profileKey("p_wf_wf"))), true);
+  failSecretWrites = false;
+  await secretStore.flushSecrets();
+  assert.equal(secretStore.getSecretsWriteStatus().ok, true);
+  profileStore.persistEffective(settingsWith({ webhooks: HOOKS }), "p_wf_wf", false);
+  assert.equal(leaksWebhookTokens(localStorage.getItem(profileStore.profileKey("p_wf_wf"))), false);
+  await secretStore.flushSecrets();
+  assert.equal(
+    fileSecrets("harbor.settings-secrets.v1.p_wf_wf")["webhooks.discordUrl"],
+    HOOKS.discordUrl,
+  );
+});
+
+test("forking a linked profile gives it its own copy of the webhook URLs", async () => {
+  profileStore.writeSettingsSecrets("default", true, { "webhooks.telegramUrl": HOOKS.telegramUrl });
+  localStorage.removeItem(profileStore.SHARED_KEY);
+  localStorage.removeItem(profileStore.MIRROR_KEY);
+  profileStore.forkToProfile("p_fk_fk");
+  await secretStore.flushSecrets();
+  const forked = profileStore.loadEffective("p_fk_fk", false);
+  assert.equal(forked.webhooks.telegramUrl, HOOKS.telegramUrl);
+  assert.equal(
+    fileSecrets("harbor.settings-secrets.v1.p_fk_fk").rdKey,
+    fileSecrets(SHARED_SCOPE).rdKey,
+  );
 });

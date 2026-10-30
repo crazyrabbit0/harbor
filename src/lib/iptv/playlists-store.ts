@@ -1,5 +1,21 @@
 import { useSyncExternalStore } from "react";
 import { setItemWithRecovery } from "@/lib/storage-recovery";
+import {
+  IPTV_CREDENTIALS_KEY,
+  getSecret,
+  getSecretsWriteStatus,
+  secretsSettled,
+  setSecret,
+  subscribeSecretsSettled,
+  subscribeSecretsWriteStatus,
+} from "@/lib/secret-store";
+import {
+  hasPlaintextCredentials,
+  joinCredentials,
+  parseCredentials,
+  serializeCredentials,
+  splitCredentials,
+} from "./playlist-credentials";
 
 export type StoredPlaylist = {
   id: string;
@@ -15,7 +31,8 @@ const STORAGE_KEY = "harbor.iptv.playlists.v1";
 let migrated = false;
 let hydrated = false;
 let cache: StoredPlaylist[] = [];
-let cacheJson = "[]";
+let cacheSignature = "";
+let subscribed = false;
 const subs = new Set<() => void>();
 
 function notify(): void {
@@ -90,7 +107,6 @@ export function migrateLegacyPlaylists(): void {
     return;
   }
   cache = lists;
-  cacheJson = json;
   // Strip the legacy field only now that the dedicated key is persisted, so the
   // playlists no longer export under Settings.
   for (const { key, obj } of dirty) {
@@ -123,32 +139,90 @@ export function adoptLegacyPlaylists(legacy: StoredPlaylist[]): boolean {
 export function readPlaylists(): StoredPlaylist[] {
   hydrated = true;
   ensureMigrated();
+  ensureSubscribed();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw == null) return [];
     const parsed = JSON.parse(raw);
     if (!Array.isArray(parsed)) return [];
-    const lists = parsed as StoredPlaylist[];
-    if (raw !== cacheJson) {
-      cache = lists;
-      cacheJson = raw;
+    const credRaw = getSecret(IPTV_CREDENTIALS_KEY);
+    const signature = `${credRaw ?? ""}\n${raw}`;
+    if (signature !== cacheSignature) {
+      cache = joinCredentials(parsed as StoredPlaylist[], parseCredentials(credRaw));
+      cacheSignature = signature;
     }
-    return lists;
+    if (canHoldCredentials() && hasPlaintextCredentials(parsed as StoredPlaylist[])) {
+      persistLists(cache);
+    }
+    return cache;
   } catch {
     return [];
   }
 }
 
-export function writePlaylists(playlists: StoredPlaylist[]): boolean {
-  hydrated = true;
+// Logins go to the secret store only once it is settled and writing; until then the list keeps them so no write loses the only copy.
+function canHoldCredentials(): boolean {
+  return secretsSettled() && getSecretsWriteStatus().ok;
+}
+
+function persistLists(playlists: StoredPlaylist[]): boolean {
   cache = playlists;
-  cacheJson = JSON.stringify(playlists);
-  let persisted = false;
+  let json = JSON.stringify(playlists);
+  if (canHoldCredentials()) {
+    const credRaw = getSecret(IPTV_CREDENTIALS_KEY);
+    const { stripped, credentials } = splitCredentials(playlists, parseCredentials(credRaw));
+    const nextCredRaw = serializeCredentials(credentials);
+    if (nextCredRaw !== credRaw) setSecret(IPTV_CREDENTIALS_KEY, nextCredRaw);
+    json = JSON.stringify(stripped);
+    cacheSignature = `${nextCredRaw ?? ""}\n${json}`;
+  } else {
+    cacheSignature = `${getSecret(IPTV_CREDENTIALS_KEY) ?? ""}\n${json}`;
+  }
   try {
-    persisted = setItemWithRecovery(STORAGE_KEY, cacheJson);
+    if (localStorage.getItem(STORAGE_KEY) === json) return true;
+    return setItemWithRecovery(STORAGE_KEY, json);
   } catch (e) {
     console.warn("[playlists] storage write failed", e);
+    return false;
   }
+}
+
+// Settling, and every change of secrets.json write health, re-stores the list so logins move in or back out of localStorage.
+function ensureSubscribed(): void {
+  if (subscribed) return;
+  subscribed = true;
+  let writable = canHoldCredentials();
+  const resync = () => {
+    writable = canHoldCredentials();
+    if (!hydrated) return;
+    persistLists(readStoredLists());
+    notify();
+  };
+  if (!secretsSettled()) subscribeSecretsSettled(resync);
+  subscribeSecretsWriteStatus(() => {
+    if (canHoldCredentials() !== writable) resync();
+  });
+}
+
+function readStoredLists(): StoredPlaylist[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw == null) return cache;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return cache;
+    return joinCredentials(
+      parsed as StoredPlaylist[],
+      parseCredentials(getSecret(IPTV_CREDENTIALS_KEY)),
+    );
+  } catch {
+    return cache;
+  }
+}
+
+export function writePlaylists(playlists: StoredPlaylist[]): boolean {
+  hydrated = true;
+  ensureSubscribed();
+  const persisted = persistLists(playlists);
   if (!persisted) {
     console.warn(`[playlists] storage is full; not persisted (${playlists.length} playlists)`);
   }
