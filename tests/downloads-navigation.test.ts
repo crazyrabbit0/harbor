@@ -70,6 +70,46 @@ function fixture(initial: any[]) {
   return { ...nav, stackRef, scrollMem, rowScrollMem, forwardStackRef };
 }
 
+test("every room starts a fresh root and clears scroll memory; Settings stacks on top", () => {
+  const rooms = [
+    "home",
+    "anime",
+    "discover",
+    "catalogs",
+    "plugins",
+    "addons",
+    "calendar",
+    "wrapped",
+    "movies",
+    "shows",
+    "music",
+    "games",
+    "kids",
+    "library",
+    "collections-hub",
+    "live",
+    "sports",
+    "vod",
+    "manga",
+    "ebook",
+  ];
+  for (const room of rooms) {
+    const h = fixture([{ kind: "home" }, { kind: "meta", meta: { id: "x" } }]);
+    h.setView(room);
+    assert.deepEqual(h.stackRef.current, [{ kind: room }], room);
+    assert.equal(h.scrollMem.current.size, 0, room);
+  }
+  const people = fixture([{ kind: "home" }]);
+  people.setView("people");
+  assert.equal(people.stackRef.current[0].kind, "people");
+  assert.equal(typeof people.stackRef.current[0].nonce, "number");
+  const settings = fixture([{ kind: "home" }]);
+  settings.setView("settings");
+  settings.setView("settings");
+  assert.deepEqual(settings.stackRef.current, [{ kind: "home" }, { kind: "settings" }]);
+  assert.equal(settings.scrollMem.current.size, 1, "opening Settings keeps scroll memory");
+});
+
 test("Downloads returns to the previous detail with its page and row scroll memories intact", () => {
   const previous = [{ kind: "home" }, { kind: "meta", meta: { id: "movie" } }];
   const h = fixture(previous);

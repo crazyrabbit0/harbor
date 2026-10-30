@@ -1,6 +1,7 @@
-import type { SportsGame } from "./sports/espn";
 import type { SectionId } from "@/lib/settings/section-id";
+import type { SportsGame } from "./sports/espn";
 import type { EsportsMatch } from "./sports/esports-feeds";
+import type { PeopleDept, RankSource } from "./harbor-rank";
 import {
   navigateUnderPreview,
   previewPageStack,
@@ -23,7 +24,6 @@ import { subscribeOpenProfile } from "@/lib/social/open-profile";
 import { subscribeOpenGroup } from "@/lib/social/open-group";
 import { useBigPicture } from "@/lib/big-picture";
 import type { Meta } from "./cinemeta";
-import type { PeopleDept, RankSource } from "./harbor-rank";
 import { profileFromMeta, trackEvent } from "./discover";
 import type { StreamingService } from "./settings";
 import { useSettings } from "./settings";
@@ -32,214 +32,55 @@ import { useTogether } from "./together/provider";
 import { beginMarathonAdvance } from "./fullscreen-state";
 import { consumeBack } from "./back-intercept";
 import { useSectionBackActive } from "./section-back";
-import type { SubtitleLoadMetadata } from "./subtitles/types";
 
-export type View =
-  | "home"
-  | "settings"
-  | "anime"
-  | "discover"
-  | "catalogs"
-  | "plugins"
-  | "addons"
-  | "calendar"
-  | "movies"
-  | "shows"
-  | "music"
-  | "games"
-  | "kids"
-  | "library"
-  | "collections-hub"
-  | "live"
-  | "sports"
-  | "vod"
-  | "downloads"
-  | "wrapped"
-  | "manga"
-  | "ebook"
-  | "people";
+export type {
+  View,
+  PlayEpisode,
+  EpisodeDetailPlayback,
+  PlayerSrc,
+  PlayerStreamRef,
+  GridSpec,
+  MetaFilter,
+  Frame,
+} from "./view-types";
+import type {
+  View,
+  PlayEpisode,
+  EpisodeDetailPlayback,
+  PlayerSrc,
+  GridSpec,
+  MetaFilter,
+  Frame,
+} from "./view-types";
 
-export type PlayEpisode = {
-  season: number;
-  episode: number;
-  name?: string;
-  imdbId?: string;
-  imdbSeason?: number;
-  imdbEpisode?: number;
-  absoluteNumber?: number;
-  tvdbEpisodeId?: number;
-  kitsuStreamId?: string;
-  sourceMetaId?: string;
-  videoId?: string;
-  still?: string;
-  overview?: string;
-  rating?: number;
-  airDate?: string;
-  runtime?: number;
+// The room each frame belongs to; frames missing here (detail pages, players) inherit the room below them.
+const VIEW_OF_FRAME: Partial<Record<Frame["kind"], View>> = {
+  settings: "settings",
+  anime: "anime",
+  addons: "addons",
+  "addon-detail": "addons",
+  discover: "discover",
+  queue: "discover",
+  catalogs: "catalogs",
+  plugins: "plugins",
+  calendar: "calendar",
+  wrapped: "wrapped",
+  movies: "movies",
+  shows: "shows",
+  music: "music",
+  games: "games",
+  kids: "kids",
+  library: "library",
+  "collections-hub": "collections-hub",
+  live: "live",
+  sports: "sports",
+  vod: "vod",
+  downloads: "downloads",
+  manga: "manga",
+  ebook: "ebook",
+  people: "people",
+  home: "home",
 };
-
-/** Source identity stays separate from the provider coordinates used for episode details. */
-export type EpisodeDetailPlayback = { meta: Meta; episode: PlayEpisode };
-
-export type PlayerSrc = {
-  /** true: corner preview; false: expanded preview (Back restores it); absent: regular player. */
-  sportsDocked?: boolean;
-  /** The video moved to its own window, so the player keeps the session but yields the page. */
-  pipDocked?: boolean;
-  /** Official provider iframe; handled separately from native/media stream playback. */
-  officialBroadcast?: import("./sports/esports-streams").EsportsStream;
-  meta: Meta;
-  playbackTraceId?: string;
-  proxySessionId?: string;
-  historyUrl?: string;
-  imdbId?: string;
-  imdbIdVerified?: boolean;
-  episode?: PlayEpisode;
-  /** Last logical episode covered by the physical source. */
-  episodeEnd?: number;
-  episodeSpan?: import("./episode-span").EpisodeSpan;
-  url: string;
-  title: string;
-  subtitle?: string;
-  notWebReady?: boolean;
-  isAnime?: boolean;
-  subtitles?: Array<{
-    url: string;
-    lang?: string;
-    id?: string;
-    /** The path came from the user's local library or a configured home server, not an addon. */
-    trustedSource?: boolean;
-  }>;
-  subtitlePreselect?: {
-    off: boolean;
-    url?: string;
-    lang?: string;
-    title?: string;
-    metadata?: SubtitleLoadMetadata;
-  };
-  attempt?: number;
-  autoFired?: boolean;
-  resume?: boolean;
-  startFromZero?: boolean;
-  streamRef?: PlayerStreamRef;
-  liveProgram?: string;
-  isLive?: boolean;
-  headers?: Record<string, string>;
-  homeServer?: {
-    connectionId: string;
-    itemId: string;
-    versionId: string;
-    quality: import("./media-server/types").MediaServerQuality;
-    playbackSessionId?: string;
-  };
-  startPositionMs?: number;
-  startPaused?: boolean;
-};
-
-export type PlayerStreamRef = {
-  /** Exact media filename selected after local/torrent/debrid resolution. */
-  resolvedFilename?: string | null;
-  infoHash?: string | null;
-  fileIdx?: number | null;
-  addonId?: string | null;
-  title?: string | null;
-  parsedTitle?: string | null;
-  resolution?: string | null;
-  quality?: string | null;
-  releaseGroup?: string | null;
-  source?: string | null;
-  size?: number | null;
-  bingeGroup?: string | null;
-  cachedSlugs?: string[];
-};
-
-export type GridSpec = {
-  title: string;
-  fetcher: (page: number, loaded?: number) => Promise<Meta[]>;
-  initial?: Meta[];
-  /** Last complete page in initial; use 0 for a capped/filtered row preview. */
-  initialPage?: number;
-  kidsHero?: { grad: string; art: string; name: string };
-};
-
-export type MetaFilter =
-  | { kind: "year"; mediaType: "movie" | "tv"; value: number }
-  | { kind: "runtime"; mediaType: "movie" | "tv"; value: number }
-  | { kind: "genre"; mediaType: "movie" | "tv"; name: string; id: number }
-  | { kind: "studio"; mediaType: "movie" | "tv"; name: string; id: number }
-  | { kind: "country"; mediaType: "movie" | "tv"; name: string; iso: string }
-  | { kind: "language"; mediaType: "movie" | "tv"; name: string; iso: string }
-  | { kind: "network"; mediaType: "movie" | "tv"; name: string; id: number };
-
-export type Frame =
-  | { kind: "home" }
-  | { kind: "settings" }
-  | { kind: "anime" }
-  | { kind: "discover" }
-  | { kind: "catalogs" }
-  | { kind: "plugins" }
-  | { kind: "addons" }
-  | { kind: "addon-detail"; id: string }
-  | { kind: "calendar" }
-  | { kind: "wrapped" }
-  | { kind: "queue" }
-  | { kind: "movies" }
-  | { kind: "shows" }
-  | { kind: "music" }
-  | { kind: "games" }
-  | { kind: "kids" }
-  | { kind: "library" }
-  | { kind: "live" }
-  | { kind: "sports"; esportsEvent?: EsportsMatch }
-  | { kind: "vod" }
-  | { kind: "downloads" }
-  | { kind: "manga"; mangaId?: string }
-  | { kind: "ebook"; ebookId?: string }
-  | { kind: "people"; source?: RankSource; dept?: PeopleDept; focusSource?: boolean; nonce: number }
-  | { kind: "service"; service: StreamingService }
-  | {
-      kind: "meta";
-      meta: Meta;
-      liveContext?: boolean;
-      episodeHint?: { season: number; episode: number };
-      seasonEntryId?: string;
-    }
-  | { kind: "addon-collection"; meta: Meta }
-  | {
-      kind: "episode-detail";
-      seriesId: string;
-      season: number;
-      episode: number;
-      seriesMeta?: Meta;
-      playback?: EpisodeDetailPlayback;
-    }
-  | { kind: "person"; id: number }
-  | { kind: "profile"; handle: string }
-  | { kind: "feed" }
-  | { kind: "groups" }
-  | { kind: "group"; id: string }
-  | { kind: "list"; handle: string; listId: string }
-  | { kind: "collection"; id: number }
-  | { kind: "collections" }
-  | { kind: "collections-hub" }
-  | { kind: "filter"; filter: MetaFilter }
-  | { kind: "brands"; brand: "studio" | "network" }
-  | { kind: "grid"; grid: GridSpec }
-  | { kind: "award"; awardType: import("./providers/wikidata").AwardType }
-  | { kind: "anime-award"; sourceId: import("./anime-awards").AwardSourceId }
-  | { kind: "curated-list"; listId: string }
-  | {
-      kind: "picker";
-      meta: Meta;
-      episode?: PlayEpisode;
-      autoPlay?: boolean;
-      attempt?: number;
-      intent?: "play" | "download";
-      seasonEpisodes?: PlayEpisode[];
-      resume?: boolean;
-    }
-  | { kind: "player"; src: PlayerSrc }
-  | { kind: "match-detail"; game: SportsGame; eventGames?: SportsGame[] };
 
 export type ScrollSnapshot = {
   anchor?: string;
@@ -664,30 +505,8 @@ export function ViewProvider({ children }: { children: ReactNode }) {
 
   const view: View = (() => {
     for (let i = stack.length - 1; i >= 0; i--) {
-      const f = stack[i];
-      if (f.kind === "settings") return "settings";
-      if (f.kind === "anime") return "anime";
-      if (f.kind === "addons" || f.kind === "addon-detail") return "addons";
-      if (f.kind === "discover" || f.kind === "queue") return "discover";
-      if (f.kind === "catalogs") return "catalogs";
-      if (f.kind === "plugins") return "plugins";
-      if (f.kind === "calendar") return "calendar";
-      if (f.kind === "wrapped") return "wrapped";
-      if (f.kind === "movies") return "movies";
-      if (f.kind === "shows") return "shows";
-      if (f.kind === "music") return "music";
-      if (f.kind === "games") return "games";
-      if (f.kind === "kids") return "kids";
-      if (f.kind === "library") return "library";
-      if (f.kind === "collections-hub") return "collections-hub";
-      if (f.kind === "live") return "live";
-      if (f.kind === "sports") return "sports";
-      if (f.kind === "vod") return "vod";
-      if (f.kind === "downloads") return "downloads";
-      if (f.kind === "manga") return "manga";
-      if (f.kind === "ebook") return "ebook";
-      if (f.kind === "people") return "people";
-      if (f.kind === "home") return "home";
+      const owner = VIEW_OF_FRAME[stack[i].kind];
+      if (owner) return owner;
     }
     return "home";
   })();
@@ -901,117 +720,13 @@ export function ViewProvider({ children }: { children: ReactNode }) {
       }
       setNavStack((s) => {
         const t = s[s.length - 1];
-        if (v === "home") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "home" }];
-        }
-        if (v === "anime") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "anime" }];
-        }
-        if (v === "discover") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "discover" }];
-        }
-        if (v === "catalogs") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "catalogs" }];
-        }
-        if (v === "plugins") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "plugins" }];
-        }
-        if (v === "addons") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "addons" }];
-        }
-        if (v === "calendar") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "calendar" }];
-        }
-        if (v === "wrapped") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "wrapped" }];
-        }
-        if (v === "downloads") {
-          if (t.kind === "downloads") return s;
-          return pushFrame(s, { kind: "downloads" });
-        }
-        if (v === "movies") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "movies" }];
-        }
-        if (v === "shows") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "shows" }];
-        }
-        if (v === "music") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "music" }];
-        }
-        if (v === "games") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "games" }];
-        }
-        if (v === "kids") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "kids" }];
-        }
-        if (v === "library") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "library" }];
-        }
-        if (v === "collections-hub") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "collections-hub" }];
-        }
-        if (v === "live") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "live" }];
-        }
-        if (v === "sports") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "sports" }];
-        }
-        if (v === "vod") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "vod" }];
-        }
-        if (v === "manga") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "manga" }];
-        }
-        if (v === "ebook") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "ebook" }];
-        }
-        if (v === "people") {
-          scrollMem.current.clear();
-          rowScrollMem.current.clear();
-          return [{ kind: "people", nonce: Date.now() }];
-        }
-        if (t.kind === "settings") return s;
-        return pushFrame(s, { kind: "settings" });
+        // Downloads and Settings stack on top of the current page; every other view starts a fresh root.
+        if (v === "downloads")
+          return t.kind === "downloads" ? s : pushFrame(s, { kind: "downloads" });
+        if (v === "settings") return t.kind === "settings" ? s : pushFrame(s, { kind: "settings" });
+        scrollMem.current.clear();
+        rowScrollMem.current.clear();
+        return [v === "people" ? { kind: "people", nonce: Date.now() } : { kind: v }];
       });
     },
     [setNavStack],

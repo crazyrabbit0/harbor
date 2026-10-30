@@ -147,6 +147,7 @@ export function SettingsProvider({
   }
   const writer = writerRef.current;
   const setSettings = writer.set;
+  // The writer holds the latest value; this store holds the committed one, so selectors never read a render-in-progress.
   const storeRef = useRef<SettingsStore | null>(null);
   if (!storeRef.current) storeRef.current = createSettingsStore(settings);
   const store = storeRef.current;
