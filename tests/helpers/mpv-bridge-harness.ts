@@ -6,6 +6,7 @@ import * as selection from "../../src/lib/player/subtitle-selection.ts";
 import * as cleanups from "../../src/lib/player/prepared-subtitle-cleanups.ts";
 import * as seeds from "../../src/lib/subtitles/seed-batch.ts";
 import * as failures from "../../src/lib/player/mpv-failure.ts";
+import * as tracks from "../../src/lib/player/mpv-tracks.ts";
 import * as language from "../../src/lib/subtitles/language.ts";
 import * as translationJobs from "../../src/lib/subtitles/translation-jobs.ts";
 import type { PlayerBridge, PlayerSnapshot } from "../../src/lib/player/bridge.ts";
@@ -165,6 +166,7 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
     fakeWindow,
   );
   dependencies["./mpv-geometry"] = geometryModule.exports;
+  dependencies["./mpv-tracks"] = tracks;
   new Function("require", "module", "exports", "window", "console", "document", compiled)(
     (id: string) => {
       if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
