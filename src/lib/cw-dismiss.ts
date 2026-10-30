@@ -1,3 +1,4 @@
+import { readRoster } from "@/lib/profile-roster";
 import { useSyncExternalStore } from "react";
 import { clearResume, readResumeEntry } from "./resume";
 import { setItemWithRecovery } from "./storage-recovery";
@@ -19,8 +20,8 @@ let version = 0;
 function migratePrivateDismissals(): void {
   try {
     if (localStorage.getItem(MIGRATION_KEY)) return;
-    const roster = JSON.parse(localStorage.getItem("harbor.profiles.v1") ?? "null");
-    if (!Array.isArray(roster?.profiles) || !roster.profiles.length) return;
+    const roster = readRoster();
+    if (!roster.profiles.length) return;
     // The old store applied to every existing profile. Snapshot it once for
     // those profiles, preserving newer private stores (including explicit {}).
     // Profiles created after migration must not inherit someone else's choices.

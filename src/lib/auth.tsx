@@ -1,3 +1,4 @@
+import { readRoster } from "@/lib/profile-roster";
 import {
   createContext,
   useCallback,
@@ -48,10 +49,8 @@ function writeProfileSession(id: string, session: Session | null): void {
 
 export function readActiveStremioAuthKey(): string | null {
   try {
-    const raw = localStorage.getItem("harbor.profiles.v1");
-    if (!raw) return null;
-    const state = JSON.parse(raw) as { profiles?: Profile[]; activeId?: string | null };
-    const profiles = Array.isArray(state.profiles) ? state.profiles : [];
+    const state = readRoster();
+    const profiles = state.profiles as unknown as Profile[];
     const active = profiles.find((p) => p.id === state.activeId) ?? null;
     const sourceId = stremioSourceProfileId(active, profiles);
     if (!sourceId) return null;

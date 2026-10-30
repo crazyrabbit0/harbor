@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 import "./_localstorage-stub.ts";
+import { profileRosterFor } from "./helpers/profile-roster.ts";
 
 // A Rust secrets.json behind a fake Tauri bridge; the modules read the bridge only at call time.
 let secretsFile: string | null = null;
@@ -214,6 +215,7 @@ async function loadBackup(): Promise<typeof import("../src/lib/backup.ts")> {
     "@/lib/profile-sync/backup-payload": { buildSyncBackup: () => ({}) },
     "@/lib/theme-storage": { loadBgImage: async () => null, saveBgImage: async () => {} },
     "@/lib/profiles": { readAllProfilesIdentity: () => [] },
+    "@/lib/profile-roster": profileRosterFor(localStorage),
     "@/lib/active-profile-id": { activeProfileId: () => "p_ab_cd" },
     "@/lib/secret-store": secretStore,
     "@/lib/settings/profile-store": await import("../src/lib/settings/profile-store.ts"),

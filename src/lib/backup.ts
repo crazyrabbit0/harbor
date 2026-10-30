@@ -1,3 +1,4 @@
+import { PROFILES_KEY } from "@/lib/profile-roster";
 import { downloadText } from "@/lib/download-text";
 import { buildSyncBackup, type SyncBackup } from "@/lib/profile-sync/backup-payload";
 import { loadBgImage, saveBgImage } from "@/lib/theme-storage";
@@ -98,7 +99,7 @@ export const BACKUP_SECTIONS: readonly BackupSection[] = [
     key: "profiles",
     label: "Profiles",
     description: "Your profiles, the active profile, and the profile picker.",
-    patterns: ["harbor.profiles.v1", "harbor.profile.lastSelectAt", "harbor.pickerShown"],
+    patterns: [PROFILES_KEY, "harbor.profile.lastSelectAt", "harbor.pickerShown"],
   },
   {
     key: "sessions",
@@ -429,7 +430,7 @@ export function backupSections(backup: Backup): BackupSectionKey[] {
  * generated id like "p_mqxx2agk_ez1zro" (see createProfile in profiles.tsx).
  */
 const PROFILE_ID_RE = /^(?:default|p_[a-z0-9]+_[a-z0-9]+)$/;
-const PROFILES_STATE_KEY = "harbor.profiles.v1";
+const PROFILES_STATE_KEY = PROFILES_KEY;
 
 function profileSuffixOf(key: string): string | null {
   const dot = key.lastIndexOf(".");

@@ -1,11 +1,10 @@
+import { readRoster } from "@/lib/profile-roster";
 import {
   MIRROR_KEY,
   SHARED_KEY,
   copyBlobToProfile,
   sourceKeyFor,
 } from "@/lib/settings/profile-store";
-
-const PROFILES_KEY = "harbor.profiles.v1";
 
 // Addons pre-selected when seeding a fresh separate profile. Matched against the
 // stored transportUrl first; the name check is a fallback for forks of these
@@ -153,24 +152,8 @@ export function analyzeOverlaps(
   return result;
 }
 
-type MinimalProfilesState = {
-  profiles?: Array<{ id?: string; isPrimary?: boolean; settingsLinked?: boolean }>;
-  activeId?: string | null;
-};
-
-function readProfilesState(): MinimalProfilesState | null {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as MinimalProfilesState;
-  } catch {
-    return null;
-  }
-}
-
 function profileSettingsLinked(profileId: string): boolean {
-  const state = readProfilesState();
-  const profile = state?.profiles?.find((p) => p?.id === profileId);
+  const profile = readRoster().profiles.find((p) => p.id === profileId);
   return profile ? profile.settingsLinked !== false : true;
 }
 

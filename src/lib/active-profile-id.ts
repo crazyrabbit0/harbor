@@ -1,26 +1,10 @@
-const KEY = "harbor.profiles.v1";
-
-type MinimalProfile = { id: string; isPrimary?: boolean };
-type MinimalState = { profiles?: MinimalProfile[]; activeId?: string | null };
-
-function readState(): MinimalState | null {
-  try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as MinimalState;
-  } catch {
-    return null;
-  }
-}
+import { activeStoredProfile, readRoster } from "@/lib/profile-roster";
 
 export function activeProfileId(): string {
-  const s = readState();
-  return s?.activeId || "default";
+  return readRoster().activeId || "default";
 }
 
 export function activeProfileIsPrimary(): boolean {
-  const s = readState();
-  if (!s || !Array.isArray(s.profiles) || s.profiles.length === 0) return true;
-  const active = s.profiles.find((p) => p.id === s.activeId);
-  return active?.isPrimary === true;
+  if (readRoster().profiles.length === 0) return true;
+  return activeStoredProfile()?.isPrimary === true;
 }

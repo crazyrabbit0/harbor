@@ -1,3 +1,4 @@
+import { activeSettingsSource } from "@/lib/profile-roster";
 import { loadStoredSettings } from "./load";
 import { setItemWithRecovery } from "@/lib/storage-recovery";
 import {
@@ -164,19 +165,7 @@ export function recoverableLegacyBlob(): string | null {
 
 /** The active profile's settings scope as stored in the roster; for code outside SettingsProvider. */
 export function readActiveSettingsSource(): { profileId: string; linked: boolean } {
-  try {
-    const raw = localStorage.getItem("harbor.profiles.v1");
-    if (!raw) return { profileId: "default", linked: true };
-    const s = JSON.parse(raw) as {
-      profiles?: Array<{ id: string; settingsLinked?: boolean }>;
-      activeId?: string | null;
-    };
-    const id = s.activeId || "default";
-    const p = s.profiles?.find((x) => x.id === id);
-    return { profileId: id, linked: p?.settingsLinked !== false };
-  } catch {
-    return { profileId: "default", linked: true };
-  }
+  return activeSettingsSource();
 }
 
 export function applyLegacyToActive(): boolean {

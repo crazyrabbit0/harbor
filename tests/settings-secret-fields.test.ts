@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 import "./_localstorage-stub.ts";
+import { profileRosterFor } from "./helpers/profile-roster.ts";
 
 const secretStore = await import("../src/lib/secret-store.ts");
 const profileStore = await import("../src/lib/settings/profile-store.ts");
@@ -167,6 +168,7 @@ function loadBackup(): typeof import("../src/lib/backup.ts") {
     "@/lib/profile-sync/backup-payload": { buildSyncBackup: () => ({}) },
     "@/lib/theme-storage": { loadBgImage: async () => null, saveBgImage: async () => {} },
     "@/lib/profiles": { readAllProfilesIdentity: () => [] },
+    "@/lib/profile-roster": profileRosterFor(localStorage),
     "@/lib/active-profile-id": { activeProfileId: () => "default" },
     "@/lib/secret-store": secretStore,
     "@/lib/settings/profile-store": profileStore,

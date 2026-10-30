@@ -1,3 +1,4 @@
+import { stremioDataProfileId, primaryOrStremioProfileId } from "@/lib/profile-roster";
 import { useEffect, useMemo, useState } from "react";
 import {
   addToWatchlist as traktAdd,
@@ -25,7 +26,6 @@ const KEY_PREFIX = "harbor.watchlist.v1.";
 const LEGACY_KEY = "harbor.watchlist.v1";
 const AGG_KEY_PREFIX = "harbor.watchlist.aggregate.v1.";
 const LEGACY_AGG_KEY = "harbor.watchlist.aggregate.v1";
-const PROFILES_KEY = "harbor.profiles.v1";
 const subs = new Set<() => void>();
 
 export type LocalEntry = {
@@ -52,38 +52,11 @@ export type WatchlistInput = {
 let memoryFallback: Map<string, LocalEntry> | null = null;
 
 function activeProfileId(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    if (!raw) return "";
-    const s = JSON.parse(raw) as {
-      activeId?: string;
-      profiles?: Array<{ id?: string; isPrimary?: boolean; shareStremioWith?: string | null }>;
-    };
-    const profiles = Array.isArray(s.profiles) ? s.profiles : [];
-    const active = profiles.find((p) => p.id === s.activeId) ?? null;
-    const own = active?.id ?? profiles.find((p) => p?.isPrimary)?.id ?? "";
-    if (!own) return "";
-    if (active && typeof active.shareStremioWith === "string" && active.shareStremioWith) {
-      const shared = profiles.find((p) => p.id === active.shareStremioWith);
-      if (shared?.id) return shared.id;
-    }
-    return own;
-  } catch {
-    return "";
-  }
+  return stremioDataProfileId();
 }
 
 function primaryProfileId(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    const s = raw
-      ? (JSON.parse(raw) as { profiles?: Array<{ id?: string; isPrimary?: boolean }> })
-      : null;
-    const primary = s?.profiles?.find((p) => p?.isPrimary);
-    return (primary && typeof primary.id === "string" && primary.id) || activeProfileId();
-  } catch {
-    return activeProfileId();
-  }
+  return primaryOrStremioProfileId();
 }
 
 function storeKey(): string {

@@ -968,6 +968,7 @@ test("backups neither enroll another device nor erase this device's channel or s
       "@/lib/profile-sync/backup-payload": { buildSyncBackup: () => ({}) },
       "@/lib/theme-storage": empty,
       "@/lib/profiles": { readAllProfilesIdentity: () => [] },
+      "@/lib/profile-roster": { PROFILES_KEY: "harbor.profiles.v1" },
       "@/lib/active-profile-id": { activeProfileId: () => "local" },
       "@/lib/secret-store": {
         getAllSecrets: () => ({}),

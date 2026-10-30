@@ -1,3 +1,4 @@
+import { activeSettingsSource } from "@/lib/profile-roster";
 import {
   createContext,
   useCallback,
@@ -78,19 +79,7 @@ type SettingsValue = {
 type SettingsSource = { profileId: string; linked: boolean };
 
 function readActiveSource(): SettingsSource {
-  try {
-    const raw = localStorage.getItem("harbor.profiles.v1");
-    if (!raw) return { profileId: "default", linked: true };
-    const s = JSON.parse(raw) as {
-      profiles?: Array<{ id: string; settingsLinked?: boolean }>;
-      activeId?: string | null;
-    };
-    const id = s.activeId || "default";
-    const p = s.profiles?.find((x) => x.id === id);
-    return { profileId: id, linked: p?.settingsLinked !== false };
-  } catch {
-    return { profileId: "default", linked: true };
-  }
+  return activeSettingsSource();
 }
 
 const Ctx = createContext<SettingsValue | null>(null);

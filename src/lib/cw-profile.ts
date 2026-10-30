@@ -1,3 +1,5 @@
+import { readRoster, type StoredProfile } from "@/lib/profile-roster";
+
 type CwProfile = {
   id: string;
   isPrimary?: boolean;
@@ -5,8 +7,6 @@ type CwProfile = {
   settingsLinked?: boolean;
 };
 
-let rosterRaw: string | null = null;
-let roster: { activeId?: string; profiles?: CwProfile[] } | null = null;
 let settingsRaw: string | null = null;
 let privateEnabled = false;
 
@@ -17,14 +17,10 @@ export function cwProfileScope(ownerId?: string): {
   private: boolean;
 } {
   try {
-    const rawRoster = localStorage.getItem("harbor.profiles.v1");
-    if (rawRoster !== rosterRaw) {
-      roster = JSON.parse(rawRoster ?? "null");
-      rosterRaw = rawRoster;
-    }
-    const profiles = Array.isArray(roster?.profiles) ? roster.profiles : [];
+    const roster = readRoster();
+    const profiles: CwProfile[] = roster.profiles as Array<StoredProfile & CwProfile>;
     const active =
-      profiles.find((p) => p.id === (ownerId ?? roster?.activeId)) ??
+      profiles.find((p) => p.id === (ownerId ?? roster.activeId)) ??
       profiles.find((p) => p.isPrimary);
     const profileId = ownerId ?? active?.id ?? "";
     const source = (p: CwProfile) =>

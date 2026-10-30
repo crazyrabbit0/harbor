@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import vm from "node:vm";
 import ts from "typescript";
+import { profileRosterFor } from "./helpers/profile-roster.ts";
 
 const HOUR = 3_600_000;
 const deferred = () => {
@@ -82,6 +83,7 @@ function fixture(options = {}) {
   const modules = {
     "@/lib/config/endpoints": { HARBOR_API_BASE: "https://example.invalid" },
     "@/lib/safe-fetch": { safeFetch: transport },
+    "@/lib/profile-roster": profileRosterFor({ getItem: (key) => storage.get(key) ?? null }),
   };
   function load(path) {
     const source = ts.transpileModule(readFileSync(path, "utf8"), {

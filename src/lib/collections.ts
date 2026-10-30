@@ -1,3 +1,4 @@
+import { separateProfileKey } from "@/lib/profile-roster";
 import { useEffect, useMemo, useState } from "react";
 import { setItemWithRecovery, freeStorageSpace } from "@/lib/storage-recovery";
 import { randomUuid } from "@/lib/uuid";
@@ -12,25 +13,10 @@ export function absCollectionImage(u: string | undefined): string | undefined {
 }
 
 const KEY = "harbor.collections.v1";
-const PROFILES_KEY = "harbor.profiles.v1";
 const subs = new Set<() => void>();
 
 function activeCollectionsKey(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    if (!raw) return KEY;
-    const s = JSON.parse(raw) as {
-      profiles?: Array<{ id: string; settingsLinked?: boolean }>;
-      activeId?: string | null;
-    };
-    const id = s.activeId;
-    if (!id) return KEY;
-    const p = s.profiles?.find((x) => x.id === id);
-    if (!p || p.settingsLinked !== false) return KEY;
-    return `harbor.collections.${id}`;
-  } catch {
-    return KEY;
-  }
+  return separateProfileKey(KEY, "harbor.collections");
 }
 
 if (typeof window !== "undefined") {

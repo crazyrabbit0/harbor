@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
+import { profileRosterFor } from "./helpers/profile-roster.ts";
 
 function load(file, dependencies, globals = {}) {
   const compiled = ts.transpileModule(
@@ -36,6 +37,7 @@ function addonsHarness(response) {
   };
   const store = load("src/lib/addon-store.ts", {
     ...shared,
+    "@/lib/profile-roster": profileRosterFor({ getItem: () => null }),
     "./auth": {},
     "./addons": {},
     "./addons-store/reorder": {},
