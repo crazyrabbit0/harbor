@@ -224,6 +224,7 @@ async function resetSubtitleFpsBeforeMpvTransition(): Promise<void> {
   await resetMpvSubtitleFpsForTransition();
 }
 
+// Module-level on purpose: Rust runs one mpv instance, so every bridge shares its audio device.
 let appliedAudioDevice: string | null = null;
 
 async function applyAudioDevice(want: string): Promise<void> {
@@ -289,8 +290,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
   };
   const listeners = new Set<(s: PlayerSnapshot) => void>();
   let unlistenEvent: UnlistenFn | null = null;
-  let unlistenLog: UnlistenFn | null = null;
-  let pendingTracks: Record<string, unknown[]> = {};
   let stopGeometryTracking: (() => void) | null = null;
   let moveEmbeddedSurface: PlayerBridge["moveEmbeddedSurface"];
   let geomKickHandler: ((e?: Event) => void) | null = null;
@@ -762,7 +761,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       if (name === "audio-device-list") scheduleAudioDeviceReload();
       if (name === "track-list" && Array.isArray(data)) {
         const list = data as Array<Record<string, unknown>>;
-        pendingTracks["track-list"] = list;
         const audio: TrackInfo[] = [];
         const subs: TrackInfo[] = [];
         for (const t of list) {
@@ -1004,7 +1002,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       snap.buffering = false;
       snap.firstFrameReady = false;
       snap.hdrGamma = "";
-      pendingTracks = {};
       urlByExternalFilename.clear();
       emit();
       try {
@@ -1021,9 +1018,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
         unlistenEvent = makeSafeTauriUnlisten(
           await listen<MpvEvent>("mpv://event", (ev) => handleEvent(ev.payload)),
         );
-      }
-      if (!unlistenLog) {
-        unlistenLog = makeSafeTauriUnlisten(await listen<string>("mpv://log", () => {}));
       }
       try {
         const opts = mpvOptions ?? { anime4k: false, hdrToSdr: true };
@@ -1657,10 +1651,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       if (unlistenEvent) {
         unlistenEvent();
         unlistenEvent = null;
-      }
-      if (unlistenLog) {
-        unlistenLog();
-        unlistenLog = null;
       }
       if (host) {
         while (host.firstChild) host.removeChild(host.firstChild);
