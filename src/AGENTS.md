@@ -32,6 +32,7 @@ Notes for agents working in this folder. Root rules live in `../AGENTS.md`.
 
 - Adding a view: add it to the `View` union (`lib/view.tsx`), add a `frameKey()` case there, then add an import fn plus a `lazyView(...)` wrapper in `App.tsx` and its render branch in `Shell`. Optionally add it to the `useViewPreloader` idle-prefetch list, which starts 8 s after launch and loads one batch per idle slot at least 1.5 s apart, so view chunks never compete with startup fetches.
 - `setView` pushes a `Frame` onto a stack and resets scroll memory. Use the existing frame kinds (`meta`, `person`, `player`, ...) for detail-like pages instead of new views.
+- In `ViewProvider`, `stackRef`/`forwardStackRef` are the source of truth: `setNavStack`, `pop` and `goForward` compute the next stack from them at call time and then `setStack` the result. Never pass React a functional updater for the stack, since a queued updater runs later (twice under StrictMode) and its side effects, like clearing scroll memory, would repeat.
 
 ## Tauri bridge
 

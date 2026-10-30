@@ -613,10 +613,9 @@ function lastOfKind<K extends Frame["kind"]>(
 export function ViewProvider({ children }: { children: ReactNode }) {
   const [stack, setStack] = useState<Frame[]>([{ kind: "home" }]);
   const [forwardStack, setForwardStack] = useState<Frame[]>([]);
+  // The refs are the source of truth: every change computes from them synchronously, so queued navigations never overwrite each other.
   const stackRef = useRef(stack);
   const forwardStackRef = useRef(forwardStack);
-  stackRef.current = stack;
-  forwardStackRef.current = forwardStack;
   const [chromeHidden, setChromeHidden] = useState(false);
   // Big Picture is its own full-screen shell, so every layout's nav stands down
   // for it. That is exactly what chromeHidden means to the chrome components,
@@ -818,9 +817,11 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   const setNavStack = useCallback(
     (updater: (s: Frame[]) => Frame[], preserveDock = true) => {
       clearForwardStack();
-      setStack((current) =>
-        preserveDock ? navigateUnderPreview(current, updater) : updater(current),
-      );
+      const current = stackRef.current;
+      const next = preserveDock ? navigateUnderPreview(current, updater) : updater(current);
+      if (next === current) return;
+      stackRef.current = next;
+      setStack(next);
     },
     [clearForwardStack],
   );
