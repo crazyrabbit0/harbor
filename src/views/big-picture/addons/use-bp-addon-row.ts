@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import {
   enrich,
   hydrateStripped,

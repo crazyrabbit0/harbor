@@ -9,7 +9,7 @@ import {
   SocialIcon,
   type SocialKey,
 } from "@/lib/social/socials";
-import type { ProfileSummary, SocialEntry } from "./profile-types";
+import type { ProfileSummary, SocialEntry } from "@/lib/social/profile-types";
 import { SocialsEditor } from "./socials-editor";
 
 function ChipIcon({ service }: { service: SocialKey }) {

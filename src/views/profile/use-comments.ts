@@ -6,8 +6,8 @@ import {
   postComment,
   ProfileApiError,
   setCommentLike,
-} from "./profile-api";
-import type { Comment, LoadState } from "./profile-types";
+} from "@/lib/social/profile-api";
+import type { Comment, LoadState } from "@/lib/social/profile-types";
 import { stripUrls, validateComment, type ComposeIssue } from "./text-safety";
 
 export type CommentsController = {

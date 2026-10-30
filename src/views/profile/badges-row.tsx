@@ -4,7 +4,7 @@ import { useT } from "@/lib/i18n";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { NavArrow } from "@/components/nav-arrow";
 import { SectionHeader } from "./section-header";
-import type { Badge } from "./profile-types";
+import type { Badge } from "@/lib/social/profile-types";
 
 function BadgeChip({ b }: { b: Badge }) {
   return (

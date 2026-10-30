@@ -2,7 +2,7 @@ import { ArrowLeft, Check, Eye } from "lucide-react";
 import { useRef, useState } from "react";
 import { socialPost } from "@/lib/social/client";
 import { useT } from "@/lib/i18n";
-import type { CustomizationInput, ProfileSummary } from "../profile-types";
+import type { CustomizationInput, ProfileSummary } from "@/lib/social/profile-types";
 import { CustomizePreview } from "./customize-preview";
 import { PreviewHandle } from "./preview-handle";
 import { CustomizationCode } from "./customization-code";

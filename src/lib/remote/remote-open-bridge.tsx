@@ -12,7 +12,7 @@ import { mediaServerConnections } from "@/lib/media-server/connections";
 import { mediaServerItems } from "@/lib/media-server/index-store";
 import { matchingServerItems, serverPlayableCopies } from "@/lib/media-server/selectors";
 import { createMediaServerPlayerSrc, decidePlaybackSource } from "@/lib/media-server/playback";
-import { requestBpPlay } from "@/views/big-picture/bp-play-request";
+import { requestBpPlay } from "@/lib/big-picture/bp-play-request";
 
 type RemoteOpen =
   | { action: "openMeta"; metaId: string; metaType: string; name?: string; poster?: string }

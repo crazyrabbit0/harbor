@@ -1,4 +1,4 @@
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import type { Settings } from "@/lib/settings";
 import { fetchWatchingItems, fetchWatchlist } from "./watchlist";
 import type { SimklItem } from "./types";

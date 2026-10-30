@@ -5,7 +5,7 @@ import { PRESENCE_META, resolvePresence, type PresenceStatus } from "@/lib/socia
 import { AddFriendsModal } from "./add-friends-modal";
 import { Avatar } from "./profile-bits";
 import { UserHoverCard } from "./user-hover-card";
-import type { Friend } from "./profile-types";
+import type { Friend } from "@/lib/social/profile-types";
 
 const FRIENDS_PAGE = 6;
 const FRIENDS_STEP = 12;

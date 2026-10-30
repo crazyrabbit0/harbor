@@ -9,7 +9,7 @@ import {
   type FavoriteMedia,
   type FavoriteSearchResult,
 } from "@/lib/providers/favorites-types";
-import type { ProfileSummary } from "./profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 
 export type { FavoriteKind, FavoriteMedia } from "@/lib/providers/favorites-types";
 

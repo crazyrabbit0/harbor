@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { buildCinemetaRows, buildTmdbRows } from "@/views/home/home-rows";
 import { displayRowTitle } from "@/views/home/customizable-rows";
 import { useSettings } from "@/lib/settings";

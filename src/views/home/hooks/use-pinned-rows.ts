@@ -4,7 +4,7 @@ import { buildPinnedCatalogRows, pinnedRowKey } from "@/lib/pinned-catalogs-rows
 import { useAnilistAnimeRails } from "@/lib/use-anilist-anime-rails";
 import { useMalAnimeRails } from "@/lib/use-mal-anime-rails";
 import { useAnilistTrending, useAnilistTop } from "@/lib/use-anilist-top";
-import type { HomeRow } from "../home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { useT } from "@/lib/i18n";
 import { useSettingsSelector } from "@/lib/settings";
 

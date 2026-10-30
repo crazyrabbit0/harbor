@@ -3,7 +3,7 @@ import { hydrateTraktItems } from "./hydrate";
 import { fetchMovieRecommendations, fetchShowRecommendations } from "./recommendations";
 import type { TraktItem } from "./types";
 import { fetchWatchlist } from "./watchlist";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 
 const PER_RAIL = 24;
 

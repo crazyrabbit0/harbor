@@ -4,7 +4,7 @@ import {
   type ThemeNotification,
 } from "@/lib/theme-store";
 import { t } from "@/lib/i18n";
-import { badgeIconUrl } from "@/views/profile/badge-catalog";
+import { badgeIconUrl } from "@/lib/social/badge-catalog";
 import { socialGet, socialPost } from "./client";
 
 export type SocialNotif = {

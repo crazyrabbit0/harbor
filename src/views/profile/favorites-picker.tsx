@@ -28,7 +28,7 @@ import {
   type FavoriteLists,
   type FavoriteMedia,
 } from "./use-favorites";
-import type { ProfileSummary } from "./profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 
 function KindIcon({ kind, size }: { kind: FavoriteKind; size: number }) {
   const Icon = kind === "game" ? Gamepad2 : kind === "book" ? BookOpen : Music2;

@@ -15,7 +15,7 @@ import {
 import { tmdbMovieRow, tmdbSeriesRow, tmdbTrending } from "@/lib/providers/tmdb";
 import { withTmdbDeadline } from "@/lib/providers/tmdb/tmdb-client";
 import { type Settings } from "@/lib/settings";
-import type { HomeRow, RowSpec } from "./home-types";
+import type { HomeRow, RowSpec } from "@/lib/home/home-types";
 
 export const MAX_PER_ROW = 30;
 

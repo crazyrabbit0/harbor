@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { fetchSummary, ProfileNotFound } from "@/views/profile/profile-api";
-import type { ProfileSummary } from "@/views/profile/profile-types";
+import { fetchSummary, ProfileNotFound } from "@/lib/social/profile-api";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 import type { FeaturedList } from "@/lib/social/featured-lists";
 
 export type SharedListState = "loading" | "ready" | "missing" | "error";

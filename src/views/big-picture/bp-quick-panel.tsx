@@ -11,7 +11,7 @@ import { exitBigPicture, pushBigPicture } from "@/lib/big-picture";
 import { toggleWatchlist, useInWatchlist } from "@/lib/watchlist";
 import { forceBpMeta, readBpCwItem, useBpFocusedMeta } from "./bp-focus-meta";
 import { pushBpBack } from "./bp-back";
-import { requestBpPlay } from "./bp-play-request";
+import { requestBpPlay } from "@/lib/big-picture/bp-play-request";
 import { dismissCw } from "@/lib/cw-dismiss";
 import { useAuth } from "@/lib/auth";
 import { useBpT } from "./bp-i18n";

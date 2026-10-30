@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { socialPost } from "@/lib/social/client";
-import type { ProfileSummary } from "@/views/profile/profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 
 type ShowcaseKind = "favorite" | "top-genre" | "pinned";
 

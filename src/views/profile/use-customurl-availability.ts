@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchSummary, ProfileNotFound } from "./profile-api";
+import { fetchSummary, ProfileNotFound } from "@/lib/social/profile-api";
 
 export type UrlStatus = "idle" | "checking" | "available" | "taken" | "invalid" | "mine";
 

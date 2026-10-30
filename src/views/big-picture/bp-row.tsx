@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import type { Meta } from "@/lib/cinemeta";
 import { isAndroidTv } from "@/lib/platform";
 import { useSettings } from "@/lib/settings";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { BpTile, type BpTileShape } from "./bp-tile";
 import { BpRowHeader, type BpRowLead } from "./bp-row-header";
 import { bpTrackGliding } from "./bp-track-glide";

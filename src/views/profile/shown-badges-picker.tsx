@@ -4,8 +4,8 @@ import { useMemo, useState, type ReactNode } from "react";
 import { socialPost } from "@/lib/social/client";
 import { useT } from "@/lib/i18n";
 import { useEscape } from "@/components/modal-shell";
-import { badgeKey, SHOWN_BADGE_KEY_RE } from "./badge-catalog";
-import type { Badge, ProfileSummary } from "./profile-types";
+import { badgeKey, SHOWN_BADGE_KEY_RE } from "@/lib/social/badge-catalog";
+import type { Badge, ProfileSummary } from "@/lib/social/profile-types";
 
 export const MAX_SHOWN_BADGES = 6;
 

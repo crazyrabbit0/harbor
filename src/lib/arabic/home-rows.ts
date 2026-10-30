@@ -1,6 +1,6 @@
 import { t } from "@/lib/i18n";
 import type { Meta } from "@/lib/cinemeta";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { ARABIC_ROWS } from "./index";
 
 export async function buildArabicHomeRows(tmdbKey: string): Promise<HomeRow[]> {

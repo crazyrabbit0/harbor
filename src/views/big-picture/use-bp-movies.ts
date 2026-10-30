@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { buildLetterboxdHomeRows } from "@/lib/stremboxd/home-rails";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { loadPageRows } from "@/lib/page-rows";

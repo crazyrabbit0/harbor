@@ -8,7 +8,7 @@ import { removeAvatar as removeEcosystemAvatar, uploadAvatar } from "@/lib/socia
 import { markAvatarSynced } from "@/lib/account/avatar-sync";
 import { currentAuthor } from "@/lib/theme-auth";
 import { Avatar } from "./profile-bits";
-import type { ProfileSummary } from "./profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 
 async function fileToWebp(file: File, max: number, t: ReturnType<typeof useT>): Promise<Blob> {
   const url = URL.createObjectURL(file);

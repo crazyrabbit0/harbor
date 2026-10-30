@@ -10,7 +10,7 @@ import {
   type LibraryItem,
 } from "@/lib/stremio";
 import { forceBpMeta, publishBpMeta, registerBpTarget } from "./bp-focus-meta";
-import { requestBpPlay } from "./bp-play-request";
+import { requestBpPlay } from "@/lib/big-picture/bp-play-request";
 import { useBpT } from "./bp-i18n";
 import { BP_FLUID_BOX, bpBoxCss, bpBoxPx, bpHeroArt, type BpArtBox } from "./bp-art";
 import { BpArt } from "./bp-art-img";

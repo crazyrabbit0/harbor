@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { pushBigPicture } from "@/lib/big-picture";
 import { isAndroidTv } from "@/lib/platform";
 import { useSettings, type StreamingService } from "@/lib/settings";

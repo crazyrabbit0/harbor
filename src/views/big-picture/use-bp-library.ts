@@ -36,7 +36,7 @@ import { useMangaFavorites } from "@/lib/manga-favorites";
 import { parseTs, sortedGroups, type SortKey } from "@/views/library/shared";
 import { filterLibrary, mergeWatchlist } from "@/views/library/watchlist-tab";
 import { filterHistory, historyItemsToDated, mergeHistory } from "@/views/library/history-merge";
-import { hydrateLibraryMeta } from "@/views/library/hydrate-meta";
+import { hydrateLibraryMeta } from "@/lib/library/hydrate-meta";
 import { useBpServiceFeed } from "./use-bp-library-services";
 import type {
   BpLibEntry,

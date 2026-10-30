@@ -1,4 +1,4 @@
-import type { HomeRow } from "./home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 
 export function mergeLoadedHomeRows(current: HomeRow[], incoming: HomeRow[]): HomeRow[] {
   const byKey = new Map(current.map((row) => [row.key, row]));

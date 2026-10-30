@@ -28,7 +28,7 @@ import {
   bpPlayVersion,
   subscribeBpPlay,
   takeBpPlayIntent,
-} from "./bp-play-request";
+} from "@/lib/big-picture/bp-play-request";
 import { BpPageMessage } from "./bp-page-message";
 import { runBpBack } from "./bp-back";
 import { BpRateDialog } from "./bp-rate-dialog";

@@ -12,7 +12,7 @@ import {
   sanitizeLayout,
   type CardKey,
 } from "@/lib/profile-card-layout";
-import type { ProfileSummary } from "./profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 
 const iconBtn =
   "grid h-11 w-11 shrink-0 place-items-center rounded-md text-ink-muted transition-colors hover:bg-elevated hover:text-ink disabled:opacity-30";

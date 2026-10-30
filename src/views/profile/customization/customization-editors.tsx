@@ -1,5 +1,5 @@
 import { useT } from "@/lib/i18n";
-import type { CustomizationInput, ProfileSummary } from "../profile-types";
+import type { CustomizationInput, ProfileSummary } from "@/lib/social/profile-types";
 import { CANVAS_MAX, CANVAS_MIN, IMAGE_URL_MAX, SUGGESTED_FONTS } from "./customization-types";
 import { FaviconField } from "./favicon-field";
 

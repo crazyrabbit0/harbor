@@ -5,7 +5,7 @@ import { useT } from "@/lib/i18n";
 import { emitListToast } from "@/components/lists/list-toast";
 import { clearShowcase, seedShowcaseMetaId, setThemeShowcase } from "@/lib/social/showcase";
 import { myThemes, type StoreTheme } from "@/lib/theme-store";
-import type { ProfileSummary, ShowcaseItem } from "./profile-types";
+import type { ProfileSummary, ShowcaseItem } from "@/lib/social/profile-types";
 import { useProfileTitle } from "./use-profile-title";
 
 const KIND_LABEL: Record<ShowcaseItem["kind"], string> = {

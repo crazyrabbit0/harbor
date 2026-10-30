@@ -1,5 +1,5 @@
 import type { SportsGame } from "./sports/espn";
-import type { SectionId } from "@/views/settings/shared";
+import type { SectionId } from "@/lib/settings/section-id";
 import type { EsportsMatch } from "./sports/esports-feeds";
 import {
   navigateUnderPreview,

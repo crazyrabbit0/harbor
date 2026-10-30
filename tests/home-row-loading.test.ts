@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mergeLoadedHomeRows } from "../src/views/home/merge-loaded-rows";
-import type { HomeRow } from "../src/views/home/home-types";
+import type { HomeRow } from "../src/lib/home/home-types";
 
 const fetcher = async () => [];
 const firstPage: HomeRow = {

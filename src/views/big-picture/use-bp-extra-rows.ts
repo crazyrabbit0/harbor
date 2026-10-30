@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { buildAnimeHomeRows } from "@/views/home/home-rows";
 import { buildArabicHomeRows } from "@/lib/arabic/home-rows";
 import { buildRussianHomeRows } from "@/lib/russian/home-rows";

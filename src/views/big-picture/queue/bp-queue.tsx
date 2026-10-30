@@ -10,7 +10,7 @@ import { useBpCopyGate } from "../bp-backdrop-commit";
 import { BpConfirm } from "../bp-confirm";
 import { BP_HERO_RING } from "../bp-hero-style";
 import { useBpT } from "../bp-i18n";
-import { requestBpPlay } from "../bp-play-request";
+import { requestBpPlay } from "@/lib/big-picture/bp-play-request";
 import { currentBpFocus, recoverBpFocus } from "../use-bp-focus";
 import { BP_QUEUE_TITLE, BpQueueCopy } from "./bp-queue-copy";
 import { setBpQueueKeyHandler } from "./bp-queue-key";

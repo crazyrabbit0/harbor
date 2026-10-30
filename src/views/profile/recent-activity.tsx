@@ -4,7 +4,7 @@ import { Row } from "@/components/row";
 import { useT } from "@/lib/i18n";
 import { SectionHeader } from "./section-header";
 import { timeAgo } from "./profile-bits";
-import type { ActivityItem, ActivityKind } from "./profile-types";
+import type { ActivityItem, ActivityKind } from "@/lib/social/profile-types";
 import { useProfileTitle } from "./use-profile-title";
 
 export const ACTIVITY_VERB: Record<ActivityKind, string> = {

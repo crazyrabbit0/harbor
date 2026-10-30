@@ -30,6 +30,7 @@ Notes for agents working in this folder. Root rules live in `../AGENTS.md`.
 
 ## Views and navigation
 
+- `lib/` never imports from `views/` (`tests/lib-layering.test.ts`). Types, stores and helpers that both need live in `lib/` (`lib/home/home-types.ts`, `lib/social/profile-api.ts`, `lib/big-picture/bp-play-request.ts`, `lib/settings/section-id.ts`, ...), and views import them from there.
 - Adding a view: add it to the `View` union (`lib/view.tsx`), add a `frameKey()` case there, then add an import fn plus a `lazyView(...)` wrapper in `App.tsx` and its render branch in `Shell`. Optionally add it to the `useViewPreloader` idle-prefetch list, which starts 8 s after launch and loads one batch per idle slot at least 1.5 s apart, so view chunks never compete with startup fetches.
 - `setView` pushes a `Frame` onto a stack and resets scroll memory. Use the existing frame kinds (`meta`, `person`, `player`, ...) for detail-like pages instead of new views.
 - In `ViewProvider`, `stackRef`/`forwardStackRef` are the source of truth: `setNavStack`, `pop` and `goForward` compute the next stack from them at call time and then `setStack` the result. Never pass React a functional updater for the stack, since a queued updater runs later (twice under StrictMode) and its side effects, like clearing scroll memory, would repeat.
