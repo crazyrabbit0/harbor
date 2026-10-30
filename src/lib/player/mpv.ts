@@ -14,7 +14,7 @@ import { mpvFailureSnapshot } from "./mpv-failure";
 import { startGeometryTracking, type GeometryTracker } from "./mpv-geometry";
 import {
   externalSubtitleMetadata,
-  parseMpvChapterList,
+  applyMpvProperty,
   parseMpvTrackList,
   type ExternalSubtitleMetadata,
 } from "./mpv-tracks";
@@ -614,16 +614,12 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
     } else if (raw.event === "property-change") {
       const name = raw.name;
       const data = raw.data;
-      if (name === "time-pos" && typeof data === "number") snap.positionSec = data;
+      applyMpvProperty(snap, String(name), data);
       if (name === "path" && typeof data === "string") observedMediaPath = data;
-      if (name === "duration" && typeof data === "number") snap.durationSec = data;
       if (name === "pause" && typeof data === "boolean") {
         observedPaused = data;
         snap.status = data ? "paused" : "playing";
       }
-      if (name === "eof-reached" && data === true) snap.status = "ended";
-      if (name === "volume" && typeof data === "number") snap.volume = data / 100;
-      if (name === "mute" && typeof data === "boolean") snap.muted = data;
       if (name === "audio-device-list") scheduleAudioDeviceReload();
       if (name === "track-list" && Array.isArray(data)) {
         const tracks = parseMpvTrackList(
@@ -635,28 +631,11 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
         snap.subtitleTracks = tracks.subtitles;
         confirmPrimarySubtitleVisibility(!tracks.subtitles.some((track) => track.selected));
       }
-      if (name === "sub-delay" && typeof data === "number") snap.subDelaySec = data;
-      if (name === "audio-delay" && typeof data === "number") snap.audioDelaySec = data;
       if (name === "sub-text") {
         snap.subText = !primarySubtitleOff && typeof data === "string" ? data : "";
       }
       if (name === "sub-start") {
         snap.subStartSec = !primarySubtitleOff && typeof data === "number" ? data : 0;
-      }
-      if (name === "secondary-sub-text") {
-        snap.secondarySubText = typeof data === "string" ? data : "";
-      }
-      if (name === "dwidth" && typeof data === "number") snap.videoWidth = data;
-      if (name === "dheight" && typeof data === "number") snap.videoHeight = data;
-      if (name === "video-params/gamma" && typeof data === "string" && data) snap.hdrGamma = data;
-      if (name === "demuxer-cache-duration" && typeof data === "number") snap.bufferedSec = data;
-      if (name === "paused-for-cache" && typeof data === "boolean") snap.buffering = data;
-      if (name === "af") {
-        const repr = typeof data === "string" ? data : JSON.stringify(data ?? "");
-        snap.audioNormalize = repr.includes("dynaudnorm");
-      }
-      if (name === "chapter-list" && Array.isArray(data)) {
-        snap.chapters = parseMpvChapterList(data as Array<Record<string, unknown>>);
       }
       emit();
     } else if (raw.event === "end-file") {

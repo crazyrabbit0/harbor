@@ -2,7 +2,9 @@
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { emptySnapshot } from "../src/lib/player/bridge.ts";
 import {
+  applyMpvProperty,
   externalSubtitleMetadata,
   parseMpvChapterList,
   parseMpvTrackList,
@@ -94,6 +96,22 @@ test("external subtitle metadata keeps the provider's original URL and match det
     externalSubtitleMetadata("file:///a.srt", undefined, undefined, undefined, undefined).url,
     "file:///a.srt",
   );
+});
+
+test("one-to-one mpv properties land on the snapshot and ignore wrong types", () => {
+  const snap = { ...emptySnapshot };
+  applyMpvProperty(snap, "time-pos", 12.5);
+  applyMpvProperty(snap, "volume", 40);
+  applyMpvProperty(snap, "demuxer-cache-duration", 8);
+  applyMpvProperty(snap, "af", "lavfi=[dynaudnorm=f=250]");
+  applyMpvProperty(snap, "duration", "oops");
+  applyMpvProperty(snap, "chapter-list", [{ title: "Intro", time: 0 }]);
+  assert.equal(snap.positionSec, 12.5);
+  assert.equal(snap.volume, 0.4);
+  assert.equal(snap.bufferedSec, 8);
+  assert.equal(snap.audioNormalize, true);
+  assert.equal(snap.durationSec, emptySnapshot.durationSec);
+  assert.deepEqual(snap.chapters, [{ title: "Intro", startSec: 0 }]);
 });
 
 test("chapter-list drops invalid starts and sorts by time", () => {

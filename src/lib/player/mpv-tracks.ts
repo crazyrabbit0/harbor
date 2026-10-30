@@ -1,6 +1,6 @@
 import type { SubCue } from "@/lib/subtitles/parser";
 import type { SubtitleLoadMetadata } from "@/lib/subtitles/types";
-import type { Chapter, TrackInfo } from "./bridge";
+import type { Chapter, PlayerSnapshot, TrackInfo } from "./bridge";
 
 export type ExternalSubtitleMetadata = {
   url: string;
@@ -184,4 +184,30 @@ export function parseMpvChapterList(list: Array<Record<string, unknown>>): Chapt
     }))
     .filter((c) => Number.isFinite(c.startSec) && c.startSec >= 0)
     .sort((a, b) => a.startSec - b.startSec);
+}
+
+// Copies mpv properties that map one-to-one onto the snapshot; properties tied to bridge state are handled in mpv.ts.
+export function applyMpvProperty(snap: PlayerSnapshot, name: string, data: unknown): void {
+  if (name === "time-pos" && typeof data === "number") snap.positionSec = data;
+  if (name === "duration" && typeof data === "number") snap.durationSec = data;
+  if (name === "eof-reached" && data === true) snap.status = "ended";
+  if (name === "volume" && typeof data === "number") snap.volume = data / 100;
+  if (name === "mute" && typeof data === "boolean") snap.muted = data;
+  if (name === "sub-delay" && typeof data === "number") snap.subDelaySec = data;
+  if (name === "audio-delay" && typeof data === "number") snap.audioDelaySec = data;
+  if (name === "secondary-sub-text") {
+    snap.secondarySubText = typeof data === "string" ? data : "";
+  }
+  if (name === "dwidth" && typeof data === "number") snap.videoWidth = data;
+  if (name === "dheight" && typeof data === "number") snap.videoHeight = data;
+  if (name === "video-params/gamma" && typeof data === "string" && data) snap.hdrGamma = data;
+  if (name === "demuxer-cache-duration" && typeof data === "number") snap.bufferedSec = data;
+  if (name === "paused-for-cache" && typeof data === "boolean") snap.buffering = data;
+  if (name === "af") {
+    const repr = typeof data === "string" ? data : JSON.stringify(data ?? "");
+    snap.audioNormalize = repr.includes("dynaudnorm");
+  }
+  if (name === "chapter-list" && Array.isArray(data)) {
+    snap.chapters = parseMpvChapterList(data as Array<Record<string, unknown>>);
+  }
 }
