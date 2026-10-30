@@ -321,10 +321,8 @@ export function safeFetchBase64(
   ) {
     return Promise.reject(new TypeError("blocked non-public provider subtitle target"));
   }
-  if (isBlockedUrl(target)) {
-    noteBlocked();
-    return Promise.reject(new TrackerBlockedError(new URL(target).hostname));
-  }
+  const blocked = blockedRejection(target);
+  if (blocked) return blocked;
   const raw = invokeHarborFetch(target, init, "base64", timeoutMs, maxResponseBytes).then(
     (resp) => ({
       status: resp.status,
@@ -533,16 +531,31 @@ export function dedupedGet(
   return shared.then((res) => res.clone());
 }
 
+// Every entry point runs this first: a blocklisted host is refused before any transport is picked.
+function blockedRejection(target: string | null): Promise<never> | null {
+  if (!target || !isBlockedUrl(target)) return null;
+  noteBlocked();
+  let host = target;
+  try {
+    host = new URL(target).hostname;
+  } catch {}
+  return Promise.reject(new TrackerBlockedError(host));
+}
+
+// String and URL inputs run at once; a Request is first copied into a plain URL plus init.
+function withPlainInput<T>(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  run: (url: string, init?: RequestInit) => Promise<T>,
+): Promise<T> {
+  if (typeof input === "string") return run(input, init);
+  if (input instanceof URL) return run(input.href, init);
+  return materializeRequest(input, init).then((request) => run(request.url, request.init));
+}
+
 export const safeFetch: typeof fetch = (input, init) => {
-  const target = urlOf(input);
-  if (isBlockedUrl(target)) {
-    noteBlocked();
-    let host = target;
-    try {
-      host = new URL(target).hostname;
-    } catch {}
-    return Promise.reject(new TrackerBlockedError(host));
-  }
+  const blocked = blockedRejection(urlOf(input));
+  if (blocked) return blocked;
   if (isTauri) {
     if (typeof input === "string") return dedupedGet(input, init, tauriStringFetch);
     if (input instanceof URL) return tauriStringFetch(input.href, init);
@@ -550,49 +563,25 @@ export const safeFetch: typeof fetch = (input, init) => {
       tauriStringFetch(request.url, request.init),
     );
   }
-  if (typeof input === "string") return webStringFetch(input, init);
-  if (input instanceof URL) return webStringFetch(input.href, init);
-  return materializeRequest(input, init).then((request) =>
-    webStringFetch(request.url, request.init),
-  );
+  return withPlainInput(input, init, webStringFetch);
 };
 
 export function safeFetchLocal(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   const target = urlOf(input);
-  if (isBlockedUrl(target)) {
-    noteBlocked();
-    let host = target;
-    try {
-      host = new URL(target).hostname;
-    } catch {}
-    return Promise.reject(new TrackerBlockedError(host));
-  }
-  if (isTauri) {
-    // Only a request that itself targets the local network may reach it; a public host can't redirect inside.
-    const local = isLocalNetworkUrl(target);
-    const fetchPart =
-      typeof input === "string"
-        ? tauriHarborFetch(input, init, undefined, 30000, undefined, local)
-        : input instanceof URL
-          ? tauriHarborFetch(input.href, init, undefined, 30000, undefined, local)
-          : materializeRequest(input, init).then((request) =>
-              tauriHarborFetch(request.url, request.init, undefined, 30000, undefined, local),
-            );
-    return withDeadline(fetchPart, init?.signal);
-  }
-  if (typeof input === "string") return webStringFetch(input, init);
-  if (input instanceof URL) return webStringFetch(input.href, init);
-  return materializeRequest(input, init).then((request) =>
-    webStringFetch(request.url, request.init),
+  const blocked = blockedRejection(target);
+  if (blocked) return blocked;
+  if (!isTauri) return withPlainInput(input, init, webStringFetch);
+  // Only a request that itself targets the local network may reach it; a public host can't redirect inside.
+  const local = isLocalNetworkUrl(target);
+  const fetchPart = withPlainInput(input, init, (url, plainInit) =>
+    tauriHarborFetch(url, plainInit, undefined, 30000, undefined, local),
   );
+  return withDeadline(fetchPart, init?.signal);
 }
 
 export const safeFetchStream: typeof fetch = (input, init) => {
-  const target = typeof input === "string" ? input : input instanceof URL ? input.href : null;
-  if (target && isBlockedUrl(target)) {
-    noteBlocked();
-    return Promise.reject(new TrackerBlockedError(new URL(target).hostname));
-  }
+  const blocked = blockedRejection(urlOf(input));
+  if (blocked) return blocked;
   if (isTauri) {
     const url = urlOf(input);
     const credentialed =
@@ -660,10 +649,8 @@ export function safeFetchBytes(
     }
     return safeFetch(input, cleanInit ? { ...cleanInit, redirect } : cleanInit);
   }
-  if (isBlockedUrl(target)) {
-    noteBlocked();
-    return Promise.reject(new TrackerBlockedError(new URL(target).hostname));
-  }
+  const blocked = blockedRejection(target);
+  if (blocked) return blocked;
   return withDeadline(
     tauriHarborFetch(target, init, "base64", timeoutMs, maxResponseBytes),
     init?.signal,

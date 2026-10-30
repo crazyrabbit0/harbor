@@ -9,14 +9,20 @@ type PluginCall = { url: string; init: RequestInit & { maxRedirections?: number 
 function loadStream(plugin: (url: string, init: PluginCall["init"]) => Promise<Response>) {
   const source = readFileSync("src/lib/safe-fetch.ts", "utf8");
   const ast = ts.createSourceFile("safe-fetch.ts", source, ts.ScriptTarget.Latest, true);
-  const wanted = ["urlOf", "withDeadline", "HARBOR_FETCH_DEADLINE_MS", "safeFetchStream"];
+  const wanted = [
+    "urlOf",
+    "withDeadline",
+    "HARBOR_FETCH_DEADLINE_MS",
+    "blockedRejection",
+    "safeFetchStream",
+  ];
   const picked = ast.statements.filter(
     (node) =>
       (ts.isFunctionDeclaration(node) && wanted.includes(node.name?.text ?? "")) ||
       (ts.isVariableStatement(node) &&
         node.declarationList.declarations.some((d) => wanted.includes(d.name.getText(ast)))),
   );
-  assert.equal(picked.length, 4);
+  assert.equal(picked.length, 5);
   const code = ts
     .transpileModule(picked.map((node) => node.getText(ast)).join("\n"), {
       compilerOptions: { target: ts.ScriptTarget.ES2022 },
