@@ -11,6 +11,7 @@ import {
 import { generatedLangTarget } from "@/lib/subtitles/language";
 import type { PreparedSubtitle } from "@/lib/subtitles/prepare";
 import { mpvFailureSnapshot } from "./mpv-failure";
+import { startGeometryTracking, type GeometryTracker } from "./mpv-geometry";
 import { isLinuxDesktop, isMacDesktop, isWindowsDesktop } from "@/lib/platform";
 import type { MonitorInfo } from "@/lib/monitors";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
@@ -290,12 +291,9 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
   };
   const listeners = new Set<(s: PlayerSnapshot) => void>();
   let unlistenEvent: UnlistenFn | null = null;
-  let stopGeometryTracking: (() => void) | null = null;
-  let moveEmbeddedSurface: PlayerBridge["moveEmbeddedSurface"];
-  let geomKickHandler: ((e?: Event) => void) | null = null;
-  let geomForceHandler: (() => void) | null = null;
-  let geomResizeObserver: ResizeObserver | null = null;
-  let geomTauriUnlisten: Array<() => void> = [];
+  let geometry: GeometryTracker | null = null;
+  let geometryStarting = false;
+  let destroyed = false;
   let mpvStarted = false;
   let currentIsLive: boolean | null = null;
   let currentStartupProfile: "standard" | "high-bitrate" | null = null;
@@ -520,119 +518,17 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
   };
 
   const ensureGeometryTracking = async (opts: MpvOptions) => {
-    if (!opts.embed || !opts.getEmbedRect || geomKickHandler != null || isLinuxDesktop()) return;
-
-    let lastRect: MpvRect | null = null;
-    let frame: number | null = null;
-    let active = true;
-    let inFlight = false;
-    let queued = false;
-    let force = false;
-    let pendingMove: { rect: MpvRect; commit: () => void } | null = null;
-    const schedule = () => {
-      if (!active) return;
-      queued = true;
-      if (inFlight || frame != null) return;
-      frame = window.requestAnimationFrame(() => {
-        frame = null;
-        void tick();
-      });
-    };
-    const tick = async () => {
-      if (!active) return;
-      if (inFlight) {
-        queued = true;
-        return;
-      }
-      inFlight = true;
-      queued = false;
-      const forced = force;
-      force = false;
-      const move = pendingMove;
-      pendingMove = null;
-      try {
-        const r = move?.rect ?? (await opts.getEmbedRect!());
-        if (!active || !r) return;
-        if (
-          !forced &&
-          lastRect &&
-          lastRect.cssLeft === r.cssLeft &&
-          lastRect.cssTop === r.cssTop &&
-          lastRect.cssWidth === r.cssWidth &&
-          lastRect.cssHeight === r.cssHeight &&
-          lastRect.cssViewW === r.cssViewW &&
-          lastRect.cssViewH === r.cssViewH
-        ) {
-          move?.commit();
-          return;
-        }
-        await invoke("mpv_set_geometry", { geom: r });
-        if (active) {
-          lastRect = r;
-          move?.commit();
-        }
-      } catch {
-        lastRect = null;
-      } finally {
-        inFlight = false;
-        if (active && queued) void tick();
-      }
-    };
-
-    // A trailing debounce never runs during a continuous drag. Coalesce frames,
-    // with one native write in flight and the latest bounds queued behind it.
-    // Dock movement is already batched by useDockDrag. Send its new bounds in
-    // that same frame instead of making native video trail the chrome by a frame.
-    geomKickHandler = () => {
-      void tick();
-    };
-    moveEmbeddedSurface = (rect, commit) => {
-      if (!active) return false;
-      pendingMove = { rect, commit };
-      void tick();
-      return true;
-    };
-    geomForceHandler = () => {
-      force = true;
-      schedule();
-    };
-    stopGeometryTracking = () => {
-      active = false;
-      queued = false;
-      pendingMove = null;
-      moveEmbeddedSurface = undefined;
-      if (frame != null) window.cancelAnimationFrame(frame);
-      frame = null;
-    };
-    window.addEventListener("resize", geomKickHandler);
-    window.addEventListener("harbor:mpv-refresh-geom", geomKickHandler);
-    window.addEventListener("harbor:mpv-force-geom", geomForceHandler);
-    if (host && typeof ResizeObserver !== "undefined") {
-      try {
-        geomResizeObserver = new ResizeObserver(schedule);
-        geomResizeObserver.observe(host);
-      } catch {
-        /* noop */
-      }
-    }
+    if (!opts.embed || !opts.getEmbedRect || geometry || geometryStarting || isLinuxDesktop())
+      return;
+    geometryStarting = true;
     try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
-      const win = getCurrentWindow();
-      const unResized = await win.onResized(() => geomForceHandler?.());
-      const unMoved = await win.onMoved(() => geomForceHandler?.());
-      if (!active) {
-        unResized();
-        unMoved();
-        return;
-      }
-      geomTauriUnlisten.push(makeSafeTauriUnlisten(unResized), makeSafeTauriUnlisten(unMoved));
-    } catch {
-      /* noop */
+      const tracker = await startGeometryTracking(host, opts.getEmbedRect);
+      // A tracker that finishes starting after destroy() must not outlive the bridge.
+      if (destroyed) tracker.stop();
+      else geometry = tracker;
+    } finally {
+      geometryStarting = false;
     }
-
-    // A retained Windows mpv child was hidden when the previous player view
-    // unmounted. Reapplying geometry also makes that native surface visible.
-    await tick();
   };
 
   const handleSvpFilterFailure = () => {
@@ -927,7 +823,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
   };
 
   const bridge: PlayerBridge = {
-    moveEmbeddedSurface: (rect, commit) => moveEmbeddedSurface?.(rect, commit) ?? false,
+    moveEmbeddedSurface: (rect, commit) => geometry?.moveEmbeddedSurface(rect, commit) ?? false,
     attach(h) {
       host = h;
       const embed = mpvOptions?.embed === true;
@@ -1572,8 +1468,9 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       };
     },
     destroy() {
-      stopGeometryTracking?.();
-      stopGeometryTracking = null;
+      destroyed = true;
+      geometry?.stop();
+      geometry = null;
       mediaRevision += 1;
       invalidateSubtitleSelections();
       stopSubtitleTranslations();
@@ -1613,31 +1510,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
         markMpvSubtitleFpsSessionRecreated();
         invoke("mpv_stop").catch(() => {});
       }
-      if (geomKickHandler) {
-        window.removeEventListener("resize", geomKickHandler);
-        window.removeEventListener("harbor:mpv-refresh-geom", geomKickHandler);
-        geomKickHandler = null;
-      }
-      if (geomForceHandler) {
-        window.removeEventListener("harbor:mpv-force-geom", geomForceHandler);
-        geomForceHandler = null;
-      }
-      if (geomResizeObserver) {
-        try {
-          geomResizeObserver.disconnect();
-        } catch {
-          /* noop */
-        }
-        geomResizeObserver = null;
-      }
-      for (const u of geomTauriUnlisten) {
-        try {
-          u();
-        } catch {
-          /* noop */
-        }
-      }
-      geomTauriUnlisten = [];
       document.removeEventListener("visibilitychange", onVisibilityRestore);
       window.removeEventListener("blur", onWindowBlur);
       window.removeEventListener("focus", onWindowFocusRestore);

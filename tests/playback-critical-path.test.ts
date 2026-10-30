@@ -66,7 +66,7 @@ test("Windows embedded mpv is retained across compatible VOD bitrate profiles", 
   );
   assert.match(mpv, /invoke\("mpv_restore_media_surface"\)/);
   assert.match(mpv, /await ensureGeometryTracking\(opts\);/);
-  assert.match(mpv, /A retained Windows mpv child was hidden/);
+  assert.match(read("src/lib/player/mpv-geometry.ts"), /A retained Windows mpv child was hidden/);
   assert.match(nativeMpv, /pub async fn mpv_release_media/);
   assert.match(nativeMpv, /pub async fn mpv_restore_media_surface/);
   assert.match(nativeMpv, /mpv\.command\("stop", &\[\]\)/);

@@ -49,6 +49,13 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
+  const geometrySource = readFileSync(
+    new URL("../../src/lib/player/mpv-geometry.ts", import.meta.url),
+    "utf8",
+  );
+  const geometryCompiled = ts.transpileModule(geometrySource, {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
   const handlers = new Map<string, (event: { payload: unknown }) => void>();
   const commands: Array<{ command: string; args: Record<string, unknown> }> = [];
   const errors: string[] = [];
@@ -133,6 +140,31 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
   const frames = new Map<number, FrameRequestCallback>();
   let frameId = 0;
   const documentEvents = new EventTarget();
+  const fakeWindow = {
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      frames.set(++frameId, callback);
+      return frameId;
+    },
+    cancelAnimationFrame: (id: number) => frames.delete(id),
+    addEventListener: windowEvents.addEventListener.bind(windowEvents),
+    removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
+    dispatchEvent: (event: Event) => {
+      errors.push(event.type);
+      return windowEvents.dispatchEvent(event);
+    },
+  };
+  // The geometry tracker runs for real against the same fake window and native bridge.
+  const geometryModule = { exports: {} };
+  new Function("require", "module", "exports", "window", geometryCompiled)(
+    (id: string) => {
+      if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
+      return dependencies[id];
+    },
+    geometryModule,
+    geometryModule.exports,
+    fakeWindow,
+  );
+  dependencies["./mpv-geometry"] = geometryModule.exports;
   new Function("require", "module", "exports", "window", "console", "document", compiled)(
     (id: string) => {
       if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
@@ -140,19 +172,7 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
     },
     module,
     module.exports,
-    {
-      requestAnimationFrame: (callback: FrameRequestCallback) => {
-        frames.set(++frameId, callback);
-        return frameId;
-      },
-      cancelAnimationFrame: (id: number) => frames.delete(id),
-      addEventListener: windowEvents.addEventListener.bind(windowEvents),
-      removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
-      dispatchEvent: (event: Event) => {
-        errors.push(event.type);
-        return windowEvents.dispatchEvent(event);
-      },
-    },
+    fakeWindow,
     { warn() {}, info() {} },
     {
       addEventListener: documentEvents.addEventListener.bind(documentEvents),
