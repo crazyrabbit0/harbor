@@ -55,7 +55,7 @@ function buttons(config: ChromeConfig): string {
       const iconVal = config.icons?.[id];
       const iconMarkup = iconVal ? resolveIconMarkup(iconVal) : undefined;
       const inner = iconMarkup ? `${iconMarkup}<span>${esc(label)}</span>` : esc(label);
-      return `    <button data-harbor-nav="${id}" onclick="window.harbor.navigate('${id}')">${inner}</button>`;
+      return `    <button data-harbor-nav="${id}">${inner}</button>`;
     })
     .join("\n");
 }

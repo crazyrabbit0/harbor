@@ -20,6 +20,7 @@ import {
 } from "@/lib/social/presence";
 import { getUnreadCount, subscribeUnread } from "@/lib/social/unread-bridge";
 import { activeLayout } from "@/lib/theme";
+import { harborActionFor, type HarborAction } from "@/lib/harbor-chrome-actions";
 import { useBigPictureEntry } from "@/chrome/use-big-picture-entry";
 import { useThemePreview } from "@/lib/theme-preview";
 
@@ -89,7 +90,37 @@ function syncBigPictureSlots(offer: boolean): void {
   }
 }
 
-type HarborApi = { search?: () => void; bigPicture?: () => void };
+type HarborApi = {
+  search?: () => void;
+  bigPicture?: () => void;
+  navigate?: (view: string) => void;
+  back?: () => void;
+  openSettings?: () => void;
+};
+
+function runHarborAction(call: HarborAction): void {
+  const api = harborApi();
+  switch (call.action) {
+    case "navigate":
+      api?.navigate?.(call.view);
+      return;
+    case "back":
+      api?.back?.();
+      return;
+    case "search":
+      api?.search?.();
+      return;
+    case "settings":
+      api?.openSettings?.();
+      return;
+    default:
+      return assertNever(call);
+  }
+}
+
+function assertNever(value: never): never {
+  throw new Error(`Unhandled harbor action: ${JSON.stringify(value)}`);
+}
 
 function harborApi(): HarborApi | undefined {
   return (window as unknown as { harbor?: HarborApi }).harbor;
@@ -216,8 +247,20 @@ export function ThemeChromeBridge() {
         harborApi()?.bigPicture?.();
       }
     };
+    // Bubble phase: native handlers (the Games nav toggle) run first and may cancel the click.
+    const onAction = (e: MouseEvent) => {
+      if (e.defaultPrevented || !(e.target instanceof Element)) return;
+      const call = harborActionFor(e.target);
+      if (!call) return;
+      e.preventDefault();
+      runHarborAction(call);
+    };
     document.addEventListener("click", onClick, true);
-    return () => document.removeEventListener("click", onClick, true);
+    document.addEventListener("click", onAction);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("click", onAction);
+    };
   }, []);
 
   useEffect(() => {

@@ -136,7 +136,7 @@ export const QUICKSTART: QuickStep[] = [
   {
     step: "Build custom chrome visually",
     detail:
-      "On Custom, the builder makes a sidebar or top bar with no code. Wire items to window.harbor.navigate().",
+      "On Custom, the builder makes a sidebar or top bar with no code. In your own HTML, wire buttons with data-harbor-action (see Stable selectors); inline onclick never runs in installed builds.",
   },
   {
     step: "Go deeper with code",
@@ -263,6 +263,12 @@ export const TAILWIND_UTILITIES: Utility[] = [
 export type HookSelector = { selector: string; where: string; tip?: string };
 
 export const STABLE_SELECTORS: HookSelector[] = [
+  {
+    selector: "[data-harbor-action]",
+    where:
+      'Declarative buttons for your chrome. data-harbor-action="navigate" with data-harbor-arg="movies" opens that view; "back", "search" and "settings" take no argument. Unknown actions and views are ignored.',
+    tip: "Use this instead of onclick: installed builds block inline handlers, so an onclick calling window.harbor.navigate does nothing there. A button whose data-harbor-nav is a view id also navigates in your own HTML.",
+  },
   {
     selector: "[data-harbor-notifications]",
     where:
