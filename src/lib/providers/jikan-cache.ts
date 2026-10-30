@@ -1,6 +1,7 @@
 import { evictLocalPrefix, idbCacheGet, idbCacheSet } from "@/lib/idb-cache";
 import type { Meta } from "@/lib/cinemeta";
 import { registerEvictable } from "@/lib/maintenance";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const ARM = "https://relations.yuna.moe/api/ids";
 
@@ -56,7 +57,7 @@ async function armLookup(malId: number): Promise<ArmEntry | null> {
     const ac = new AbortController();
     const timer = setTimeout(() => ac.abort(), ARM_TIMEOUT_MS);
     try {
-      const r = await fetch(`${ARM}?source=myanimelist&id=${malId}`, { signal: ac.signal });
+      const r = await safeFetch(`${ARM}?source=myanimelist&id=${malId}`, { signal: ac.signal });
       if (!r.ok) {
         armRemember(malId, { t: Date.now(), neg: true });
         return null;

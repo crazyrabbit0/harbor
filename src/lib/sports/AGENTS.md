@@ -26,7 +26,7 @@ Framework-free data layer for the Sports room. UI is `src/views/sports/` (flat, 
 
 ## Browser build
 
-Most sports hosts (ESPN, TheSportsDB, Liquipedia, bo3.gg, OpenDota, Jolpica) are in neither `PROXY_HOSTS` (`lib/safe-fetch.ts`) nor the `vite.config.ts` proxy, so in a plain browser they rely on the host's own CORS. Add a host to both lists if it fails there.
+Most sports hosts (ESPN, TheSportsDB, Liquipedia, bo3.gg, OpenDota, Jolpica) are in neither `PROXY_HOSTS` (`lib/safe-fetch.ts`) nor the dev proxy list (`src/lib/dev-proxy-hosts.json`, read by `vite.config.ts`), so in a plain browser they rely on the host's own CORS. Add a host to both lists if it fails there.
 
 ## Tests
 

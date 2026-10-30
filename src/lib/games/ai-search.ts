@@ -4,6 +4,7 @@ import { HARBOR_API_BASE } from "@/lib/config/endpoints";
 import { loadGameCatalog } from "./catalog";
 import type { CatalogFilters } from "./catalog-filters";
 import type { GameSummary } from "./types";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export type GameSuggestion = { title: string; reason: string };
 export type GameSearchMatch = { game: GameSummary; reason: string };
@@ -59,7 +60,7 @@ export async function findGamesWithAi({
   signal: AbortSignal;
 }): Promise<GameSearchMatch[]> {
   const resolved = migrateModelId(model.trim()) || (groq ? GROQ_MODELS[0].id : DEFAULT_AI_MODEL);
-  const response = await fetch(
+  const response = await safeFetch(
     groq
       ? "https://api.groq.com/openai/v1/chat/completions"
       : "https://openrouter.ai/api/v1/chat/completions",

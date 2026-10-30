@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { lruSet } from "../cache";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const CACHE_MAX = 300;
 
@@ -322,7 +323,7 @@ function collapseAwards(entries: AwardEntry[], kind: "movie" | "series" | "perso
 async function runQuery(query: string): Promise<any | null> {
   const url = `https://query.wikidata.org/sparql?query=${encodeURIComponent(query)}&format=json`;
   try {
-    const res = await fetch(url, { headers: { Accept: "application/sparql-results+json" } });
+    const res = await safeFetch(url, { headers: { Accept: "application/sparql-results+json" } });
     if (!res.ok) return null;
     return await res.json();
   } catch {

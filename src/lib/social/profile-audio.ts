@@ -1,3 +1,4 @@
+import { safeFetch } from "@/lib/safe-fetch";
 export type AudioProvider = "youtube" | "soundcloud" | "spotify";
 
 export type ProfileAudio = {
@@ -161,7 +162,7 @@ export async function fetchAudioMeta(
   const hit = metaCache.get(a.url);
   if (hit !== undefined) return hit;
   try {
-    const r = await fetch(OEMBED[a.provider](a.url), { signal });
+    const r = await safeFetch(OEMBED[a.provider](a.url), { signal });
     if (!r.ok) throw new Error("oembed");
     const d = (await r.json()) as { title?: string; thumbnail_url?: string; author_name?: string };
     const meta: AudioMeta = {

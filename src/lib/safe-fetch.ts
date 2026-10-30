@@ -9,7 +9,9 @@ import {
   directHostFor,
   noteDirectFailure,
 } from "./direct-host-policy";
+import DEV_PROXY_HOST_LIST from "./dev-proxy-hosts.json" with { type: "json" };
 import { hasSensitiveRequestHeaders, shouldFallbackToPluginHttp } from "./fetch-fallback-policy";
+import { isLocalNetworkUrl } from "./local-network";
 import {
   isSafeProviderSubtitleUrl,
   SUBTITLE_PUBLIC_NETWORK_HEADER,
@@ -102,34 +104,7 @@ const PROXY_HOSTS = new Set([
   "prosettings.net",
   "cdn.cloudflare.steamstatic.com",
 ]);
-const DEV_PROXY_HOSTS = new Set([
-  "mcp-api.op.gg",
-  "worldofwarcraft.blizzard.com",
-  "api.warframe.com",
-  "www.youtube.com",
-  "www.pcgamingwiki.com",
-  "kick.com",
-  "prosettings.net",
-  "api.steampowered.com",
-  "store.steampowered.com",
-  "steamcommunity.com",
-  "www.speedrun.com",
-  "partner.steamgames.com",
-  "help.steampowered.com",
-  "graphql.anilist.co",
-  "api.trakt.tv",
-  "myanimelist.net",
-  "api.myanimelist.net",
-  "caching.graphql.imdb.com",
-  "openlibrary.org",
-  "covers.openlibrary.org",
-  "www.googleapis.com",
-  "www.wikidata.org",
-  "api.deepseek.com",
-  "api.igdb.com",
-  "id.twitch.tv",
-  "raw.githubusercontent.com",
-]);
+const DEV_PROXY_HOSTS: ReadonlySet<string> = new Set(DEV_PROXY_HOST_LIST);
 
 const PROXY_SUFFIXES = [
   ".elfhosted.com",
@@ -593,13 +568,15 @@ export function safeFetchLocal(input: RequestInfo | URL, init?: RequestInit): Pr
     return Promise.reject(new TrackerBlockedError(host));
   }
   if (isTauri) {
+    // Only a request that itself targets the local network may reach it; a public host can't redirect inside.
+    const local = isLocalNetworkUrl(target);
     const fetchPart =
       typeof input === "string"
-        ? tauriHarborFetch(input, init, undefined, 30000, undefined, true)
+        ? tauriHarborFetch(input, init, undefined, 30000, undefined, local)
         : input instanceof URL
-          ? tauriHarborFetch(input.href, init, undefined, 30000, undefined, true)
+          ? tauriHarborFetch(input.href, init, undefined, 30000, undefined, local)
           : materializeRequest(input, init).then((request) =>
-              tauriHarborFetch(request.url, request.init, undefined, 30000, undefined, true),
+              tauriHarborFetch(request.url, request.init, undefined, 30000, undefined, local),
             );
     return withDeadline(fetchPart, init?.signal);
   }

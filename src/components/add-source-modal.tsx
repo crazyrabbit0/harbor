@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { parseSourceRows, type SourceRow } from "@/lib/custom-sources";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export function AddSourceModal({
   isOpen,
@@ -37,7 +38,7 @@ export function AddSourceModal({
     try {
       if (mode === "url") {
         if (!url.trim()) throw new Error(t("URL cannot be empty"));
-        const res = await fetch(url.trim());
+        const res = await safeFetch(url.trim());
         if (!res.ok) throw new Error(t("Failed to fetch JSON"));
         const text = await res.text();
         rows = parseSourceRows(text);

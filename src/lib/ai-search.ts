@@ -5,6 +5,7 @@ import {
   supportsJsonSchema,
   supportsSampling,
 } from "./ai-models";
+import { safeFetch } from "@/lib/safe-fetch";
 import { meta as fetchFullMeta, type Meta } from "./cinemeta";
 
 import { releaseText } from "@/lib/release-info";
@@ -121,7 +122,7 @@ export async function aiSuggest(
     : SYSTEM_PROMPT;
   const resolved = migrateModelId(model.trim()) || DEFAULT_AI_MODEL;
   const schema = supportsJsonSchema(resolved);
-  const res = await fetch(url, {
+  const res = await safeFetch(url, {
     method: "POST",
     headers,
     body: JSON.stringify({

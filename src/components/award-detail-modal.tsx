@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n";
 import type { AwardEntry, AwardType } from "@/lib/providers/wikidata";
 import { useViewActions } from "@/lib/view";
 import { meta as cinemetaMeta, type Meta } from "@/lib/cinemeta";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const TOOLTIP_WIDTH = 360;
 const TOOLTIP_MAX_HEIGHT = 420;
@@ -334,7 +335,7 @@ async function cinemetaSearch(
   const want = normMatch(title);
   for (const type of order) {
     try {
-      const res = await fetch(
+      const res = await safeFetch(
         `${CINEMETA}/catalog/${type}/top/search=${encodeURIComponent(title)}.json`,
       );
       if (!res.ok) continue;

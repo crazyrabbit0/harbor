@@ -9,6 +9,7 @@ import { handoffNote } from "./onboarding/bp-handoff-panel";
 import { BpOnboardField } from "./onboarding/bp-onboard-field";
 import { useBpOnboardFacts } from "./onboarding/use-bp-onboard-facts";
 import { BpConnectQr, BpConnectStatus, TITLE, BODY } from "./bp-connect-parts";
+import { safeFetch } from "@/lib/safe-fetch";
 
 type CheckState = "idle" | "checking" | "rejected" | "unreachable";
 
@@ -31,7 +32,7 @@ function BpConnectBody({ onBack }: { onBack?: () => void }) {
     if (!key || check === "checking") return;
     setCheck("checking");
     try {
-      const res = await fetch(
+      const res = await safeFetch(
         `https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(key)}`,
       );
       if (!res.ok) {

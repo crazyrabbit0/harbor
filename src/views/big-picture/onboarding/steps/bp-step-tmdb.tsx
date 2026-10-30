@@ -12,6 +12,7 @@ import {
   BpDecisionScroll,
   BpStepConfirmed,
 } from "../bp-step-parts";
+import { safeFetch } from "@/lib/safe-fetch";
 
 type Check = "idle" | "checking" | "rejected" | "unreachable";
 
@@ -36,7 +37,7 @@ export function BpStepTmdb({ setSatisfied, setPrimaryGuard }: BpOnboardStepProps
     if (!key || check === "checking") return false;
     setCheck("checking");
     try {
-      const res = await fetch(
+      const res = await safeFetch(
         `https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(key)}`,
       );
       if (!res.ok) {

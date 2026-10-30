@@ -4,6 +4,8 @@ import { defineConfig, type ViteDevServer, type HttpProxy } from "vite";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
 import pkg from "./package.json" with { type: "json" };
+// Shared with safe-fetch.ts, which rewrites these hosts to /api-proxy/<host> on localhost.
+import DEV_PROXY_HOST_LIST from "./src/lib/dev-proxy-hosts.json" with { type: "json" };
 
 declare const process: { env: Record<string, string | undefined> };
 
@@ -111,34 +113,7 @@ export default defineConfig(({ mode }) => {
         ],
       },
       proxy: Object.fromEntries(
-        [
-          "mcp-api.op.gg",
-          "store.steampowered.com",
-          "api.steampowered.com",
-          "steamcommunity.com",
-          "partner.steamgames.com",
-          "help.steampowered.com",
-          "worldofwarcraft.blizzard.com",
-          "api.warframe.com",
-          "www.youtube.com",
-          "www.pcgamingwiki.com",
-          "kick.com",
-          "prosettings.net",
-          "www.speedrun.com",
-          "graphql.anilist.co",
-          "api.trakt.tv",
-          "myanimelist.net",
-          "api.myanimelist.net",
-          "caching.graphql.imdb.com",
-          "openlibrary.org",
-          "covers.openlibrary.org",
-          "www.googleapis.com",
-          "www.wikidata.org",
-          "api.deepseek.com",
-          "api.igdb.com",
-          "id.twitch.tv",
-          "raw.githubusercontent.com",
-        ].map((host) => [
+        DEV_PROXY_HOST_LIST.map((host) => [
           `/api-proxy/${host}`,
           {
             target: `https://${host}`,

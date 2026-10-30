@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { AiModel } from "./ai-models";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const CACHE_MS = 6 * 60 * 60 * 1000;
 const OPENROUTER_KEY = "harbor.ai.catalog.openrouter.v1";
@@ -43,7 +44,7 @@ async function fetchCatalog(
   if (running) return running;
   const p = (async () => {
     try {
-      const res = await fetch(url, { headers });
+      const res = await safeFetch(url, { headers });
       if (!res.ok) return null;
       const data = (await res.json()) as { data?: Array<{ id?: string }> };
       if (!Array.isArray(data?.data)) return null;

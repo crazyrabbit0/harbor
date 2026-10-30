@@ -8,6 +8,7 @@ import {
   type AnimeAwardCategory,
   type AwardSourceId,
 } from "@/lib/anime-awards";
+import { safeFetch } from "@/lib/safe-fetch";
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
 import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
@@ -361,7 +362,7 @@ async function searchTmdb(
   if (type === "movie") params.set("year", String(year));
   else params.set("first_air_date_year", String(year));
   try {
-    const res = await fetch(`https://api.themoviedb.org/3/search/${type}?${params}`);
+    const res = await safeFetch(`https://api.themoviedb.org/3/search/${type}?${params}`);
     if (!res.ok) return null;
     const data: any = await res.json();
     const hit = data?.results?.[0];

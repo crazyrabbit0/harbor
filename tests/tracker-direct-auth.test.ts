@@ -74,13 +74,16 @@ test("tracker auth talks to the real services, not harbor.site", () => {
 test("new tracker hosts are proxied for the browser build", () => {
   const safeFetch = read("src/lib/safe-fetch.ts");
   const vite = read("vite.config.ts");
+  const devHosts = JSON.parse(read("src/lib/dev-proxy-hosts.json")) as string[];
+  assert.match(vite, /DEV_PROXY_HOST_LIST\.map\(/, "the vite proxy is built from the shared list");
+  assert.match(safeFetch, /new Set\(DEV_PROXY_HOST_LIST\)/, "safe-fetch reads the shared list");
   for (const host of [
     "api.trakt.tv",
     "myanimelist.net",
     "api.myanimelist.net",
     "caching.graphql.imdb.com",
   ]) {
-    assert.ok(safeFetch.split(`"${host}"`).length >= 3, `${host} missing from safe-fetch lists`);
-    assert.ok(vite.includes(`"${host}"`), `${host} missing from vite proxy`);
+    assert.ok(safeFetch.includes(`"${host}"`), `${host} missing from PROXY_HOSTS`);
+    assert.ok(devHosts.includes(host), `${host} missing from the dev proxy list`);
   }
 });

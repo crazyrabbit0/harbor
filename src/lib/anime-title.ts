@@ -4,6 +4,7 @@ import {
   aniZipByMal,
   type AniZipMapping,
 } from "@/lib/providers/anizip";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export type AnimeTitleLang = "english" | "romaji" | "native";
 
@@ -50,7 +51,7 @@ export async function resolvePreferredAnimeTitle(
     const n = parseInt(id.slice(6), 10);
     if (Number.isFinite(n)) {
       try {
-        const res = await fetch(`https://kitsu.io/api/edge/anime/${n}`, {
+        const res = await safeFetch(`https://kitsu.io/api/edge/anime/${n}`, {
           headers: { Accept: "application/vnd.api+json" },
         });
         if (res.ok) {

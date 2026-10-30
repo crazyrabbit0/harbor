@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useSettingsSelector } from "./settings";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const TMDB = "https://api.themoviedb.org/3";
 const STALE_MS = 6 * 60 * 60 * 1000;
@@ -53,7 +54,7 @@ async function fetchPopular(key: string): Promise<RankMaps | null> {
   if (!key) return null;
   const pages = await Promise.all(
     Array.from({ length: PAGES }, (_, i) => i + 1).map((p) =>
-      fetch(`${TMDB}/person/popular?api_key=${key}&page=${p}`)
+      safeFetch(`${TMDB}/person/popular?api_key=${key}&page=${p}`)
         .then((r) => (r.ok ? r.json() : null))
         .catch(() => null),
     ),

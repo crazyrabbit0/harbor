@@ -6,6 +6,7 @@ import { readActiveStremioAuthKey } from "@/lib/auth";
 import { addonBasesForOrigin, fetchAddonMeta, gatherCatalogAddons } from "@/lib/addons";
 import { tmdbLocalizedPoster } from "@/lib/providers/tmdb/tmdb-images";
 import { loadStoredSettings } from "@/lib/settings/load";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const metaHydrateCache = new Map<string, Promise<Meta | null>>();
 
@@ -46,7 +47,7 @@ export async function hydrateLibraryMeta(
       const tmdbType = isTv ? "tv" : "movie";
       const tmdbId = id.replace(/^tmdb:(movie|tv|series):/, "");
       try {
-        const r = await fetch(
+        const r = await safeFetch(
           `https://api.themoviedb.org/3/${tmdbType}/${tmdbId}?api_key=${tmdbKey}&language=${encodeURIComponent(language)}`,
         );
         if (r.ok) {

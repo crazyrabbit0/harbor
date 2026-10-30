@@ -1,3 +1,4 @@
+import { safeFetch } from "@/lib/safe-fetch";
 // Light wrapper around Jina's free Reader endpoint to power AI-search web augmentation.
 // `r.jina.ai/` accepts an upstream URL as path arg, proxies the page through Jina's
 // anti-bot layer, and returns clean markdown. It also accepts DuckDuckGo's HTML SERP
@@ -95,7 +96,7 @@ function parseHits(md: string): WebHit[] {
 async function readerFetch(url: string, apiKey?: string): Promise<string> {
   const headers: Record<string, string> = { Accept: "text/plain" };
   if (apiKey) headers["Authorization"] = `Bearer ${apiKey.trim()}`;
-  const res = await fetch(READER + url, { headers });
+  const res = await safeFetch(READER + url, { headers });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`Jina error (${res.status}). ${body.slice(0, 120)}`);

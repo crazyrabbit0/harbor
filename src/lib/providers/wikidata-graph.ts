@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { lruSet } from "../cache";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const CACHE_KEY = "harbor.graph.wikidata.v2";
 const STALE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -120,7 +121,7 @@ async function runQuery(query: string): Promise<Binding[] | null> {
   const abort = new AbortController();
   const timer = window.setTimeout(() => abort.abort(), QUERY_TIMEOUT_MS);
   try {
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       headers: { Accept: "application/sparql-results+json" },
       signal: abort.signal,
     });
