@@ -4,8 +4,10 @@ import {
   IPTV_CREDENTIALS_KEY,
   getSecret,
   getSecretsWriteStatus,
+  secretsDurable,
   secretsSettled,
   setSecret,
+  subscribeSecretsDurable,
   subscribeSecretsSettled,
   subscribeSecretsWriteStatus,
 } from "@/lib/secret-store";
@@ -173,7 +175,8 @@ function persistLists(playlists: StoredPlaylist[]): boolean {
     const { stripped, credentials } = splitCredentials(playlists, parseCredentials(credRaw));
     const nextCredRaw = serializeCredentials(credentials);
     if (nextCredRaw !== credRaw) setSecret(IPTV_CREDENTIALS_KEY, nextCredRaw);
-    json = JSON.stringify(stripped);
+    // The list keeps its plaintext until secrets.json holds the logins; the durable notification re-persists it.
+    json = JSON.stringify(secretsDurable() ? stripped : playlists);
     cacheSignature = `${nextCredRaw ?? ""}\n${json}`;
   } else {
     cacheSignature = `${getSecret(IPTV_CREDENTIALS_KEY) ?? ""}\n${json}`;
@@ -201,6 +204,16 @@ function ensureSubscribed(): void {
   if (!secretsSettled()) subscribeSecretsSettled(resync);
   subscribeSecretsWriteStatus(() => {
     if (canHoldCredentials() !== writable) resync();
+  });
+  subscribeSecretsDurable(() => {
+    if (!hydrated) return;
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw == null || !hasPlaintextCredentials(JSON.parse(raw) as StoredPlaylist[])) return;
+    } catch {
+      return;
+    }
+    persistLists(readStoredLists());
   });
 }
 

@@ -1,6 +1,13 @@
 import { loadStoredSettings } from "./load";
 import { setItemWithRecovery } from "@/lib/storage-recovery";
-import { getSecret, getSecretsWriteStatus, secretsSettled, setSecret } from "@/lib/secret-store";
+import {
+  getSecret,
+  getSecretsWriteStatus,
+  secretsDurable,
+  secretsSettled,
+  setSecret,
+  subscribeSecretsDurable,
+} from "@/lib/secret-store";
 import {
   SETTINGS_SECRETS_PREFIX,
   TRAKT_LEGACY_MIGRATED_KEY,
@@ -42,12 +49,27 @@ export function serializeSettings(settings: Settings): string {
   return JSON.stringify({ ...stripSecrets(settings, legacyTraktMigrated()), theme: themeRest });
 }
 
-// Until secrets settle, and while secrets.json writes fail, the blob keeps its secrets so no write can lose the only copy.
+// Until every secret is written to secrets.json, the blob keeps its secrets so no crash or failed write loses the only copy.
 function serializeForBlob(settings: Settings): string {
-  if (secretsSettled() && getSecretsWriteStatus().ok) return serializeSettings(settings);
+  if (secretsDurable()) return serializeSettings(settings);
   const { backgroundImage: _drop, ...themeRest } = settings.theme;
   void _drop;
   return JSON.stringify({ ...settings, theme: themeRest });
+}
+
+// Blob key to the secret scope its values belong to, for blobs kept whole until the next successful secrets_write.
+const unstrippedBlobs = new Map<string, string>();
+let durableSubscribed = false;
+
+function stripOnceDurable(blobKey: string, secretKey: string): void {
+  unstrippedBlobs.set(blobKey, secretKey);
+  if (durableSubscribed) return;
+  durableSubscribed = true;
+  subscribeSecretsDurable(() => {
+    const pending = Array.from(unstrippedBlobs);
+    unstrippedBlobs.clear();
+    for (const [blob, scope] of pending) moveBlobSecrets(blob, scope, false);
+  });
 }
 
 export function isSettingsSecretsKey(key: string): boolean {
@@ -87,7 +109,11 @@ function fillMissingSecrets(secretKey: string, source: Partial<Settings>): void 
 /** Moves the secrets a stored blob still carries into its scope (blob values win with `overwrite`) and strips the blob. */
 export function migrateBlobSecrets(blobKey: string, overwrite = false): void {
   const secretKey = settingsSecretsKeyForBlob(blobKey);
-  if (!secretKey || !secretsSettled() || !getSecretsWriteStatus().ok) return;
+  if (secretKey) moveBlobSecrets(blobKey, secretKey, overwrite);
+}
+
+function moveBlobSecrets(blobKey: string, secretKey: string, overwrite: boolean): void {
+  if (!secretsSettled() || !getSecretsWriteStatus().ok) return;
   try {
     const raw = localStorage.getItem(blobKey);
     if (!raw) return;
@@ -97,6 +123,11 @@ export function migrateBlobSecrets(blobKey: string, overwrite = false): void {
     if (Object.keys(embedded).length === 0) return;
     if (overwrite) writeSecretsAt(secretKey, { ...readSecretsAt(secretKey), ...embedded });
     else fillMissingSecrets(secretKey, parsed);
+    // Moving keys queues a secrets_write; the blob keeps them until that write lands.
+    if (!secretsDurable()) {
+      stripOnceDurable(blobKey, secretKey);
+      return;
+    }
     setItemWithRecovery(blobKey, JSON.stringify(stripSecrets(parsed, legacyTraktMigrated())));
   } catch {
     return;
@@ -162,16 +193,22 @@ export function applyLegacyToActive(): boolean {
 }
 
 export function persistEffective(settings: Settings, profileId: string, linked: boolean): string {
-  if (secretsSettled()) fillMissingSecrets(settingsSecretsKey(profileId, linked), settings);
+  const secretKey = settingsSecretsKey(profileId, linked);
+  if (secretsSettled()) fillMissingSecrets(secretKey, settings);
   const json = serializeForBlob(settings);
   const ok = setItemWithRecovery(sourceKeyFor(profileId, linked), json);
   setItemWithRecovery(MIRROR_KEY, json);
+  if (secretsSettled() && !secretsDurable()) {
+    stripOnceDurable(sourceKeyFor(profileId, linked), secretKey);
+    stripOnceDurable(MIRROR_KEY, secretKey);
+  }
   if (!ok) {
     console.error(
       `[settings] blob of ${json.length} chars did not persist; changes will be lost on restart`,
     );
   }
-  return json;
+  // settings.json is read only when the blob is missing, so it drops secrets as soon as secrets.json is writable.
+  return secretsSettled() && getSecretsWriteStatus().ok ? serializeSettings(settings) : json;
 }
 
 /** Gives a profile its own copy of a scope's secrets, filling only what it lacks. */

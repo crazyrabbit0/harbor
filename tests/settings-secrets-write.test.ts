@@ -10,6 +10,7 @@ const SCOPE = "harbor.settings-secrets.v1.shared";
 let secretsFile: string | null = null;
 let failuresLeft = 0;
 let writeAttempts = 0;
+let heldWrite: Promise<void> | null = null;
 const events = new EventTarget();
 (globalThis as { window?: unknown }).window = {
   __TAURI_INTERNALS__: {
@@ -17,6 +18,7 @@ const events = new EventTarget();
       if (cmd === "secrets_read") return secretsFile;
       if (cmd === "secrets_write") {
         writeAttempts++;
+        if (heldWrite) await heldWrite;
         if (failuresLeft > 0) {
           failuresLeft--;
           throw new Error("disk full");
@@ -106,4 +108,61 @@ test("while secrets.json writes fail the blob keeps its keys, and the next succe
   assert.equal("tmdbKey" in healthy, false);
   assert.equal("rdKey" in healthy, false);
   assert.equal(profileStore.loadEffective("default", true).tmdbKey, "tmdb-live");
+});
+
+test("a new key stays in the blob until secrets_write lands, then the blob drops it", async () => {
+  let release = () => {};
+  heldWrite = new Promise<void>((r) => (release = r));
+  const settings = { ...DEFAULT, tmdbKey: "tmdb-live", rdKey: "rd-live", omdbKey: "omdb-new" };
+
+  const json = profileStore.persistEffective(settings, "default", true);
+  assert.equal(secretStore.secretsDurable(), false);
+  assert.equal(
+    JSON.parse(localStorage.getItem(profileStore.MIRROR_KEY) ?? "{}").omdbKey,
+    "omdb-new",
+  );
+  assert.equal("omdbKey" in JSON.parse(json), false, "settings.json never takes the key");
+  const flushing = secretStore.flushSecrets();
+  await settle();
+  profileStore.persistEffective(settings, "default", true);
+  assert.equal(
+    JSON.parse(localStorage.getItem(profileStore.MIRROR_KEY) ?? "{}").omdbKey,
+    "omdb-new",
+  );
+  assert.equal(fileSecrets().omdbKey, undefined);
+
+  heldWrite = null;
+  release();
+  await flushing;
+  assert.equal(secretStore.secretsDurable(), true);
+  assert.equal(fileSecrets().omdbKey, "omdb-new");
+  for (const key of [profileStore.MIRROR_KEY, profileStore.SHARED_KEY]) {
+    assert.equal("omdbKey" in JSON.parse(localStorage.getItem(key) ?? "{}"), false, key);
+  }
+  profileStore.persistEffective(settings, "default", true);
+  assert.equal(
+    "omdbKey" in JSON.parse(localStorage.getItem(profileStore.MIRROR_KEY) ?? "{}"),
+    false,
+  );
+  assert.equal(profileStore.loadEffective("default", true).omdbKey, "omdb-new");
+});
+
+test("a legacy blob keeps its keys while the migrating write is pending", async () => {
+  let release = () => {};
+  heldWrite = new Promise<void>((r) => (release = r));
+  localStorage.setItem(profileStore.SHARED_KEY, JSON.stringify({ fanartKey: "blob-fanart" }));
+  profileStore.migrateBlobSecrets(profileStore.SHARED_KEY);
+  assert.equal(
+    JSON.parse(localStorage.getItem(profileStore.SHARED_KEY) ?? "{}").fanartKey,
+    "blob-fanart",
+  );
+  const flushing = secretStore.flushSecrets();
+  heldWrite = null;
+  release();
+  await flushing;
+  assert.equal(fileSecrets().fanartKey, "blob-fanart");
+  assert.equal(
+    "fanartKey" in JSON.parse(localStorage.getItem(profileStore.SHARED_KEY) ?? "{}"),
+    false,
+  );
 });

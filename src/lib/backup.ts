@@ -12,6 +12,7 @@ import {
 } from "@/lib/secret-store";
 import { setItemWithRecovery } from "@/lib/storage-recovery";
 import { isSettingsSecretsKey, migrateBlobSecrets } from "@/lib/settings/profile-store";
+import { URL_SECRET_PLACEHOLDER, hasUrlSecrets as urlHasSecrets } from "@/lib/iptv/url-credentials";
 import { localLibraryReady, readLocalLibrary, restoreLocalLibrary } from "@/lib/local-library";
 
 declare const __APP_VERSION__: string;
@@ -298,16 +299,20 @@ export async function buildBackup(selected?: BackupSectionKey[]): Promise<Backup
     await localLibraryReady();
     data["harbor.library.local.v1"] = JSON.stringify(readLocalLibrary());
   }
-  // Xtream playlists embed credentials in their URLs; when the Xtream
-  // credentials section is left out (but Live TV is exported), drop them so
-  // they never leave the device.
+  // Without the credentials section, playlists that need a login (Xtream or a redacted typed URL) are left out entirely.
   if (sectionSet?.has("iptv") && !sectionSet.has("iptvCredentials")) {
     const raw = data["harbor.iptv.playlists.v1"];
     if (raw != null) {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter((p: { kind?: string }) => p?.kind !== "xtream");
+          const secretUrl = (v: unknown) =>
+            typeof v === "string" && (urlHasSecrets(v) || v.includes(URL_SECRET_PLACEHOLDER));
+          const needsLogin = (p: { kind?: string; url?: unknown; epgUrl?: unknown }) =>
+            p?.kind === "xtream" || secretUrl(p?.url) || secretUrl(p?.epgUrl);
+          const filtered = parsed.filter(
+            (p: { kind?: string; url?: unknown; epgUrl?: unknown }) => !needsLogin(p),
+          );
           if (filtered.length === 0) {
             delete data["harbor.iptv.playlists.v1"];
           } else {

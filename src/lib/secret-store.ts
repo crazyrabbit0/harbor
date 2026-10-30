@@ -25,6 +25,10 @@ let persistTimer: number | null = null;
 let retryTimer: number | null = null;
 let retryIndex = 0;
 let writeChain: Promise<void> = Promise.resolve();
+// setSecret bumps dirtyVersion; a successful write of a snapshot taken at version v raises writtenVersion to v.
+let dirtyVersion = 0;
+let writtenVersion = 0;
+const durableListeners = new Set<() => void>();
 
 // A failed secrets_write retries after each delay in turn, then every last delay until one succeeds.
 const RETRY_DELAYS_MS = [1000, 5000, 30_000];
@@ -55,6 +59,31 @@ function recordSecretsWrite(error: string | null): void {
       listener();
     } catch (error) {
       console.error("[secrets] write status listener failed", error);
+    }
+  }
+}
+
+/** True once every secret set so far is in secrets.json (or localStorage off-Tauri), so callers may drop other copies. */
+export function secretsDurable(): boolean {
+  if (!settled || !writeStatus.ok) return false;
+  return !rustAvailable || writtenVersion >= dirtyVersion;
+}
+
+/** Runs the listener after each successful secrets_write that leaves every set secret durable. */
+export function subscribeSecretsDurable(listener: () => void): () => void {
+  durableListeners.add(listener);
+  return () => {
+    durableListeners.delete(listener);
+  };
+}
+
+function notifyDurable(): void {
+  if (!secretsDurable()) return;
+  for (const listener of Array.from(durableListeners)) {
+    try {
+      listener();
+    } catch (error) {
+      console.error("[secrets] durable listener failed", error);
     }
   }
 }
@@ -95,6 +124,7 @@ function clearRetry(): void {
 
 async function writeOnce(): Promise<void> {
   if (!rustAvailable) return;
+  const version = dirtyVersion;
   try {
     await invoke("secrets_write", { content: JSON.stringify(store) });
   } catch (e) {
@@ -103,9 +133,11 @@ async function writeOnce(): Promise<void> {
     scheduleRetry();
     return;
   }
+  writtenVersion = Math.max(writtenVersion, version);
   retryIndex = 0;
   clearRetry();
   recordSecretsWrite(null);
+  notifyDurable();
 }
 
 // Writes run one at a time, so an older snapshot can never land after a newer one.
@@ -181,6 +213,7 @@ export async function loadSecrets(): Promise<void> {
       const val = localStorage.getItem(key);
       if (val != null && store[key] == null) {
         store[key] = val;
+        dirtyVersion += 1;
         migrated = true;
       }
     }
@@ -238,9 +271,12 @@ export function getSecret(key: string): string | null {
 
 export function setSecret(key: string, value: string | null): void {
   if (rustAvailable) {
-    if (value == null) delete store[key];
-    else store[key] = value;
-    schedulePersist();
+    if ((store[key] ?? null) !== value) {
+      if (value == null) delete store[key];
+      else store[key] = value;
+      dirtyVersion += 1;
+      schedulePersist();
+    }
     try {
       localStorage.removeItem(key);
     } catch {
