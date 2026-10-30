@@ -1,4 +1,5 @@
 import { safeFetch as fetch } from "@/lib/safe-fetch";
+import { createLibraryCache } from "./library-cache";
 import { matchEpisodeFileIndex, type EpisodeHint } from "@/lib/streams/episode-file";
 import {
   hashFromMagnet,
@@ -16,7 +17,7 @@ const VIDEO_EXTS = [".mkv", ".mp4", ".avi", ".m4v", ".webm", ".ts", ".mov", ".wm
 const POLL_DELAY_MS = 600;
 const POLL_MAX_ATTEMPTS = 18;
 const LIBRARY_TTL_MS = 5 * 60_000;
-const LIBRARY_CACHE = new Map<string, { at: number; data: LibraryEntry[] }>();
+const LIBRARY_CACHE = createLibraryCache(LIBRARY_TTL_MS);
 
 export function createRealDebrid(apiKey: string): DebridStore {
   const headers = (extra?: HeadersInit): HeadersInit => ({
@@ -184,9 +185,7 @@ export function createRealDebrid(apiKey: string): DebridStore {
 
   async function listLibrary(signal: AbortSignal): Promise<DebridResult<LibraryEntry[]>> {
     const cached = LIBRARY_CACHE.get(apiKey);
-    if (cached && Date.now() - cached.at < LIBRARY_TTL_MS) {
-      return { ok: true, data: cached.data };
-    }
+    if (cached) return { ok: true, data: cached };
     const all: RdTorrentSummary[] = [];
     for (let page = 1; page <= 5; page++) {
       const r = await get<RdTorrentSummary[]>(`/torrents?limit=100&page=${page}`, signal);
@@ -207,7 +206,7 @@ export function createRealDebrid(apiKey: string): DebridStore {
         name: t.filename,
         size: t.bytes,
       }));
-    LIBRARY_CACHE.set(apiKey, { at: Date.now(), data });
+    LIBRARY_CACHE.set(apiKey, data);
     return { ok: true, data };
   }
 
