@@ -2,19 +2,18 @@ import { Check, Gauge, LoaderCircle } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import type { PlayerSrc } from "@/lib/view";
 import { switchMediaServerQuality } from "@/lib/media-server/playback";
+import { getPlaybackPosition } from "@/lib/player/playback-clock";
 import { MEDIA_SERVER_QUALITIES } from "@/lib/media-server/quality";
 import type { MediaServerQuality } from "@/lib/media-server/types";
 import { Tooltip } from "@/components/player/transport/tooltip";
 
 export function HomeServerQualityControl({
   src,
-  positionMs,
   playing,
   theme,
   replace,
 }: {
   src: PlayerSrc;
-  positionMs: number;
   playing: boolean;
   theme: "default" | "stremio";
   replace: (next: PlayerSrc) => void;
@@ -39,6 +38,8 @@ export function HomeServerQualityControl({
     setSwitching(true);
     setError("");
     try {
+      // The snapshot's position only refreshes on non-clock changes; the clock holds the live one.
+      const positionMs = Math.max(0, getPlaybackPosition() * 1000);
       replace(await switchMediaServerQuality({ src, quality, positionMs, playing }));
     } catch (cause) {
       setError(

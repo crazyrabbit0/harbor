@@ -42,7 +42,7 @@ test("a fully downloaded local file is reported as cached immediately, not buffe
   const p2pBranchAt = source.indexOf("if (isP2pEngine) {");
   const localBranchAt = source.indexOf("} else if (isLocalSrc) {");
   const genericBufferBranchAt = source.indexOf(
-    "setPlaybackDownloaded(dur > 0 ? Math.min(1, (snap.positionSec + snap.bufferedSec) / dur) : 0);",
+    "(getPlaybackPosition() + getPlaybackBuffered()) / dur",
   );
 
   assert.ok(p2pBranchAt !== -1, "playback-downloaded effect's P2P branch is missing");
@@ -62,6 +62,15 @@ test("a fully downloaded local file is reported as cached immediately, not buffe
     localBranch,
     /setPlaybackDownloaded\(1\);/,
     "a local (already-on-disk) file must be reported as 100% downloaded, not derived from position + buffered",
+  );
+  const genericBranch = source.slice(
+    genericBufferBranchAt,
+    source.indexOf("} else {", genericBufferBranchAt),
+  );
+  assert.match(
+    genericBranch,
+    /subscribePlaybackClock\(update\)/,
+    "the downloaded bar follows the playback clock, since the snapshot skips clock-only changes",
   );
 });
 
