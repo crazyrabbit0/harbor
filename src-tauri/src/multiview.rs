@@ -905,19 +905,18 @@ pub async fn multiview_stop_all(
 }
 
 pub(crate) fn shutdown(app: &AppHandle) {
-    let state = app.state::<MultiviewState>();
-    let drained: Vec<Slot> = tauri::async_runtime::block_on(async {
-        let mut slots = state.slots.lock().await;
-        slots.drain().map(|(_, s)| s).collect()
+    let slots = app.state::<MultiviewState>().slots.clone();
+    crate::block_on_bounded("multiview", std::time::Duration::from_secs(2), async move {
+        let drained: Vec<Slot> = slots.lock().await.drain().map(|(_, s)| s).collect();
+        for mut s in drained {
+            if let Some(pid) = s.pid {
+                kill_pid(pid);
+            }
+            if let Some(child) = s.child.as_mut() {
+                let _ = child.start_kill();
+            }
+        }
     });
-    for mut s in drained {
-        if let Some(pid) = s.pid {
-            kill_pid(pid);
-        }
-        if let Some(child) = s.child.as_mut() {
-            let _ = child.start_kill();
-        }
-    }
 }
 
 #[cfg(test)]

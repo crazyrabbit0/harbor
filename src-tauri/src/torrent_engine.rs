@@ -626,7 +626,11 @@ pub async fn stop_async() {
 }
 
 pub fn stop() {
-    tauri::async_runtime::block_on(stop_async());
+    crate::block_on_bounded(
+        "torrent engine",
+        std::time::Duration::from_secs(5),
+        stop_async(),
+    );
 }
 
 #[tauri::command]

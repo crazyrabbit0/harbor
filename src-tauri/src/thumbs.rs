@@ -719,7 +719,13 @@ pub(crate) fn shutdown(app: &tauri::AppHandle) {
     use tauri::Manager;
 
     let state = app.state::<ThumbsState>();
-    tauri::async_runtime::block_on(state.stop());
+    let owned = ThumbsState {
+        inner: state.inner.clone(),
+        spawn_lock: state.spawn_lock.clone(),
+    };
+    crate::block_on_bounded("thumbs", std::time::Duration::from_secs(3), async move {
+        owned.stop().await;
+    });
 }
 
 // Every prefetch batch and shadow spawn asks again for the same url; a finished probe answers them.
