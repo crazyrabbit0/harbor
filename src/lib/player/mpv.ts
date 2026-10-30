@@ -13,6 +13,7 @@ import type { PreparedSubtitle } from "@/lib/subtitles/prepare";
 import { mpvFailureSnapshot } from "./mpv-failure";
 import { startGeometryTracking, type GeometryTracker } from "./mpv-geometry";
 import {
+  externalSubtitleMetadata,
   parseMpvChapterList,
   parseMpvTrackList,
   type ExternalSubtitleMetadata,
@@ -1161,40 +1162,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       }
       mpvUrl = mpvUrl.replace(/\\/g, "/");
       try {
-        const externalMetadata: ExternalSubtitleMetadata = {
-          url: metadata?.originalUrl ?? url,
-          lang,
-          title,
-          cues: preparedCues,
-          originalUrl: metadata?.originalUrl ?? url,
-          downloadAuth: metadata?.downloadAuth,
-          format: metadata?.format,
-          release: metadata?.release,
-          provider: metadata?.provider,
-          providerDerived: metadata?.providerDerived,
-          fps: metadata?.fps,
-          downloads: metadata?.downloads,
-          author: metadata?.author,
-          uploadedAt: metadata?.uploadedAt,
-          rating: metadata?.rating,
-          productionType: metadata?.productionType,
-          releaseType: metadata?.releaseType,
-          hearingImpaired: metadata?.hearingImpaired,
-          forced: metadata?.forced,
-          foreignOnly: metadata?.foreignOnly,
-          machineTranslated: metadata?.machineTranslated,
-          fromTrusted: metadata?.fromTrusted,
-          providerMatch: metadata?.providerMatch,
-          timingStatus: metadata?.timingStatus,
-          timingMeasurementStatus: metadata?.timingMeasurementStatus,
-          matchExplanation: metadata?.matchExplanation,
-          prepared: metadata?.prepared,
-          autoSelectionEligible: metadata?.autoSelectionEligible,
-          matchScore: metadata?.matchScore,
-          matchConfidence: metadata?.matchConfidence,
-          matchReasons: metadata?.matchReasons,
-          subId: metadata?.subId,
-        };
+        const externalMetadata = externalSubtitleMetadata(url, lang, title, preparedCues, metadata);
         urlByExternalFilename.set(mpvUrl, externalMetadata);
         registeredMetadata = externalMetadata;
         const addToMpv = async (): Promise<boolean> => {

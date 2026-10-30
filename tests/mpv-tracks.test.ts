@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import {
+  externalSubtitleMetadata,
   parseMpvChapterList,
   parseMpvTrackList,
   type ExternalSubtitleMetadata,
@@ -73,6 +74,26 @@ test("external subtitle files get Harbor's metadata, whatever the path separator
   assert.equal(subtitles[0].url, "https://subs.example/a.srt");
   assert.equal(subtitles[0].provider, "opensubtitles");
   assert.equal(subtitles[0].prepared, true);
+});
+
+test("external subtitle metadata keeps the provider's original URL and match details", () => {
+  const cues = [{ start: 0, end: 1, text: "hi" }];
+  const metadata = externalSubtitleMetadata("blob:prepared", "eng", "Title", cues, {
+    originalUrl: "https://subs.example/a.srt",
+    provider: "wyzie",
+    matchScore: 0.9,
+    subId: "42",
+  });
+  assert.equal(metadata.url, "https://subs.example/a.srt");
+  assert.equal(metadata.originalUrl, "https://subs.example/a.srt");
+  assert.equal(metadata.cues, cues);
+  assert.equal(metadata.provider, "wyzie");
+  assert.equal(metadata.matchScore, 0.9);
+  assert.equal(metadata.subId, "42");
+  assert.equal(
+    externalSubtitleMetadata("file:///a.srt", undefined, undefined, undefined, undefined).url,
+    "file:///a.srt",
+  );
 });
 
 test("chapter-list drops invalid starts and sorts by time", () => {

@@ -37,6 +37,50 @@ export type ExternalSubtitleMetadata = {
   subId?: string;
 };
 
+// Copies the provider metadata Harbor keeps for an external subtitle file it hands to mpv.
+export function externalSubtitleMetadata(
+  url: string,
+  lang: string | undefined,
+  title: string | undefined,
+  cues: SubCue[] | undefined,
+  metadata: SubtitleLoadMetadata | undefined,
+): ExternalSubtitleMetadata {
+  return {
+    url: metadata?.originalUrl ?? url,
+    lang,
+    title,
+    cues,
+    originalUrl: metadata?.originalUrl ?? url,
+    downloadAuth: metadata?.downloadAuth,
+    format: metadata?.format,
+    release: metadata?.release,
+    provider: metadata?.provider,
+    providerDerived: metadata?.providerDerived,
+    fps: metadata?.fps,
+    downloads: metadata?.downloads,
+    author: metadata?.author,
+    uploadedAt: metadata?.uploadedAt,
+    rating: metadata?.rating,
+    productionType: metadata?.productionType,
+    releaseType: metadata?.releaseType,
+    hearingImpaired: metadata?.hearingImpaired,
+    forced: metadata?.forced,
+    foreignOnly: metadata?.foreignOnly,
+    machineTranslated: metadata?.machineTranslated,
+    fromTrusted: metadata?.fromTrusted,
+    providerMatch: metadata?.providerMatch,
+    timingStatus: metadata?.timingStatus,
+    timingMeasurementStatus: metadata?.timingMeasurementStatus,
+    matchExplanation: metadata?.matchExplanation,
+    prepared: metadata?.prepared,
+    autoSelectionEligible: metadata?.autoSelectionEligible,
+    matchScore: metadata?.matchScore,
+    matchConfidence: metadata?.matchConfidence,
+    matchReasons: metadata?.matchReasons,
+    subId: metadata?.subId,
+  };
+}
+
 // Builds the audio and subtitle track lists from mpv's track-list, joining Harbor's metadata for external subtitle files.
 export function parseMpvTrackList(
   list: Array<Record<string, unknown>>,
