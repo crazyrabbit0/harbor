@@ -486,6 +486,7 @@ test("mpv lifecycle and Auto Sync boundaries reset only subtitle FPS", () => {
   const properties = read("src/lib/player/mpv-properties.ts");
   const autoSyncStore = read("src/components/player/autosync/autosync-store.ts");
   const bridge = read("src/lib/player/mpv.ts");
+  const subtitles = read("src/lib/player/mpv-subtitles.ts");
   const forwardingBridge = read("src/lib/player/mpv-forward.ts");
   const hdrStageBridge = read("src/views/player/hdr-stage-bridge.tsx");
   const autoSync = read("src/views/player/hooks/use-auto-sync.ts");
@@ -496,15 +497,15 @@ test("mpv lifecycle and Auto Sync boundaries reset only subtitle FPS", () => {
   assert.match(bridge, /resetMpvSubtitleFpsForTransition/);
   assert.match(bridge, /markMpvSubtitleFpsSessionRecreated/);
   assert.match(
-    bridge,
-    /setSecondarySubtitleTrack\(id\)[\s\S]*const requestMediaRevision = mediaRevision[\s\S]*await resetSubtitleFpsBeforeMpvTransition\([\s\S]*requestMediaRevision !== mediaRevision[\s\S]*name: "secondary-sid"/,
+    subtitles,
+    /setSecondarySubtitleTrack\(id\)[\s\S]*const requestMediaRevision = mediaRevision\(\)[\s\S]*await resetSubtitleFpsBeforeMpvTransition\([\s\S]*requestMediaRevision !== mediaRevision\(\)[\s\S]*name: "secondary-sid"/,
   );
   assert.match(
-    bridge,
+    subtitles,
     /could not select a subtitle after resetting subtitle FPS[\s\S]*SUBTITLE_FPS_TRANSITION_FAILED_EVENT/,
   );
   assert.match(
-    bridge,
+    subtitles,
     /could not select a secondary subtitle after resetting subtitle FPS[\s\S]*SUBTITLE_FPS_TRANSITION_FAILED_EVENT/,
   );
   assert.match(player, /SUBTITLE_FPS_TRANSITION_FAILED_EVENT/);
@@ -516,8 +517,8 @@ test("mpv lifecycle and Auto Sync boundaries reset only subtitle FPS", () => {
   assert.match(bridge, /let mediaRevision = 0/);
   assert.match(bridge, /async load\(src[\s\S]*mediaRevision \+= 1/);
   assert.match(
-    bridge,
-    /async addSubtitle[\s\S]*const requestMediaRevision = mediaRevision[\s\S]*requestMediaRevision !== mediaRevision[\s\S]*resetSubtitleFpsBeforeMpvTransition\(\)[\s\S]*requestMediaRevision !== mediaRevision[\s\S]*"mpv_sub_add"/,
+    subtitles,
+    /async addSubtitle[\s\S]*const requestMediaRevision = mediaRevision\(\)[\s\S]*requestMediaRevision !== mediaRevision\(\)[\s\S]*resetSubtitleFpsBeforeMpvTransition\(\)[\s\S]*requestMediaRevision !== mediaRevision\(\)[\s\S]*"mpv_sub_add"/,
   );
   assert.match(
     forwardingBridge,
@@ -541,14 +542,11 @@ test("mpv lifecycle and Auto Sync boundaries reset only subtitle FPS", () => {
     hdrStageBridge,
     /HDR_STAGE_ADD_SUBTITLE[\s\S]*isCurrentMediaRequest[\s\S]*addSubtitle[\s\S]*HDR_STAGE_ADD_SUBTITLE_RESULT/,
   );
-  for (const boundary of [
-    "async load",
-    "setSubtitleTrack",
-    "setSecondarySubtitleTrack",
-    "async addSubtitle",
-    "destroy",
-  ]) {
+  for (const boundary of ["async load", "destroy"]) {
     assert.match(bridge, new RegExp(boundary), boundary);
+  }
+  for (const boundary of ["setSubtitleTrack", "setSecondarySubtitleTrack", "async addSubtitle"]) {
+    assert.match(subtitles, new RegExp(boundary), boundary);
   }
   assert.doesNotMatch(autoSyncStore, /resetMpvSubtitleFpsForTransition/);
   assert.match(autoSync, /resetMpvSubtitleFpsForTransition/);

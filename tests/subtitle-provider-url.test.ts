@@ -97,7 +97,7 @@ test("public-network policy applies only to provider-derived subtitle tracks", (
 });
 
 test("player bridges allow explicitly trusted generated tracks without weakening provider checks", () => {
-  const mpvSource = readFileSync("src/lib/player/mpv.ts", "utf8");
+  const mpvSource = readFileSync("src/lib/player/mpv-subtitles.ts", "utf8");
   const html5Source = readFileSync("src/lib/player/html5/bridge.ts", "utf8");
 
   for (const source of [mpvSource, html5Source]) {

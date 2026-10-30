@@ -50,13 +50,11 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
-  const geometrySource = readFileSync(
-    new URL("../../src/lib/player/mpv-geometry.ts", import.meta.url),
-    "utf8",
-  );
-  const geometryCompiled = ts.transpileModule(geometrySource, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
+  const compileSibling = (name: string) =>
+    ts.transpileModule(
+      readFileSync(new URL(`../../src/lib/player/${name}.ts`, import.meta.url), "utf8"),
+      { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+    ).outputText;
   const handlers = new Map<string, (event: { payload: unknown }) => void>();
   const commands: Array<{ command: string; args: Record<string, unknown> }> = [];
   const errors: string[] = [];
@@ -154,19 +152,22 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
       return windowEvents.dispatchEvent(event);
     },
   };
-  // The geometry tracker runs for real against the same fake window and native bridge.
-  const geometryModule = { exports: {} };
-  new Function("require", "module", "exports", "window", geometryCompiled)(
-    (id: string) => {
-      if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
-      return dependencies[id];
-    },
-    geometryModule,
-    geometryModule.exports,
-    fakeWindow,
-  );
-  dependencies["./mpv-geometry"] = geometryModule.exports;
   dependencies["./mpv-tracks"] = tracks;
+  // The bridge's own sub-modules run for real against the same fake window and native bridge.
+  for (const name of ["mpv-geometry", "mpv-subtitles"]) {
+    const sibling = { exports: {} };
+    new Function("require", "module", "exports", "window", "console", compileSibling(name))(
+      (id: string) => {
+        if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
+        return dependencies[id];
+      },
+      sibling,
+      sibling.exports,
+      fakeWindow,
+      { warn() {}, info() {} },
+    );
+    dependencies[`./${name}`] = sibling.exports;
+  }
   new Function("require", "module", "exports", "window", "console", "document", compiled)(
     (id: string) => {
       if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
