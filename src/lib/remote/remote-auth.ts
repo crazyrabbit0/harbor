@@ -41,24 +41,10 @@ export function readRemoteKey(search?: string): string | null {
   return storedKey();
 }
 
-type InboundFrame = RemoteClientMessage & { id?: unknown; command?: { fromInstance?: unknown } };
-
-// Harbor-to-Harbor Play-on sends playMeta with a nonce id and its own instance id; the phone remote sends neither.
-function isPlayOnEnvelope(msg: InboundFrame): boolean {
-  return (
-    msg.t === "cmd" &&
-    msg.command.action === "playMeta" &&
-    typeof msg.id === "string" &&
-    typeof msg.command.fromInstance === "string" &&
-    msg.command.fromInstance.length > 0
-  );
-}
-
 /** Whether host-mount may act on a frame from a connection that did or did not present the pairing key. */
 export function remoteFrameAllowed(msg: RemoteClientMessage, authed: boolean): boolean {
   if (authed) return true;
   if (msg.t === "hello") return true;
   if (msg.t !== "cmd") return false;
-  if (msg.command.action === "ping") return true;
-  return isPlayOnEnvelope(msg as InboundFrame);
+  return msg.command.action === "ping";
 }

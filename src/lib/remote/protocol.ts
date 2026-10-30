@@ -265,7 +265,8 @@ export type RemoteCommand =
 
 export type RemoteServerMessage =
   | { t: "snapshot"; snapshot: RemoteSnapshot }
-  | { t: "hello"; proto: number; server: "harbor-remote" }
+  | { t: "hello"; proto: number; server: "harbor-remote"; trust?: string }
+  | { t: "ack"; id: string; ok: boolean; code?: string }
   | { t: "pong"; at: number }
   | { t: "error"; message: string; code?: "unauthorized" };
 

@@ -2240,6 +2240,14 @@ const uiFallback: Record<string, string> = {
     "Enter a full http:// or https:// address, or leave it blank to turn community corrections off.",
   "This remote isn't paired. Scan the QR code in Harbor's settings on your computer again.":
     "This remote isn't paired. Scan the QR code in Harbor's settings on your computer again.",
+  "Pair {name} with this Harbor?": "Pair {name} with this Harbor?",
+  "Type this code on that computer. Only pair computers you trust.":
+    "Type this code on that computer. Only pair computers you trust.",
+  "Another computer": "Another computer",
+  "Paired computers": "Paired computers",
+  "These computers paired with this Harbor and can send it titles with Play on.":
+    "These computers paired with this Harbor and can send it titles with Play on.",
+  "No computer has paired with this Harbor yet.": "No computer has paired with this Harbor yet.",
 };
 
 export default uiFallback;

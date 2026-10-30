@@ -45,9 +45,10 @@ import {
 import { subscribeMangaBookmarks } from "@/lib/manga-bookmarks";
 import { installTextEntryListeners } from "./text-entry";
 import { remoteFrameAllowed } from "./remote-auth";
+import { hostHello, hostPairing, isTrustFrame, playOnRouter, type TrustAck } from "./play-on-route";
 import {
-  REMOTE_PROTO,
   parseClientMessage,
+  type RemoteCommand,
   type RemoteLibrary,
   type RemoteLibraryItem,
   type RemoteServerMessage,
@@ -55,9 +56,25 @@ import {
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-function broadcast(msg: RemoteServerMessage) {
+function broadcast(msg: RemoteServerMessage | TrustAck) {
   if (!isTauri) return;
   void invoke("remote_ws_broadcast", { payload: JSON.stringify(msg) }).catch(() => {});
+}
+
+// queueMeta is acked here and applied by PlayOnReceiver, which runs the same verification.
+async function routeTrustFrame(msg: unknown, clientId: number, authed: boolean): Promise<void> {
+  try {
+    const route = await playOnRouter().handle(msg, clientId, authed);
+    if (route?.ack) broadcast(route.ack);
+    if (route?.dispatch?.action !== "playMeta") return;
+    await dispatchRemoteCommand(route.dispatch as unknown as RemoteCommand);
+    pushSnapshot();
+  } catch (err) {
+    broadcast({
+      t: "error",
+      message: err instanceof Error ? err.message : "remote command failed",
+    });
+  }
 }
 
 function pushSnapshot(force = false) {
@@ -495,9 +512,14 @@ export function RemoteHostMount() {
         broadcast({ t: "error", message: "invalid message" });
         return;
       }
-      if (!remoteFrameAllowed(msg, e.payload.authed === true)) return;
+      const authed = e.payload.authed === true;
+      if (isTrustFrame(msg)) {
+        void routeTrustFrame(msg, e.payload.clientId, authed);
+        return;
+      }
+      if (!remoteFrameAllowed(msg, authed)) return;
       if (msg.t === "hello") {
-        broadcast({ t: "hello", proto: REMOTE_PROTO, server: "harbor-remote" });
+        broadcast(hostHello());
         pushSnapshot(true);
         return;
       }
@@ -539,10 +561,13 @@ export function RemoteHostMount() {
       else unsubs.push(u);
     });
 
-    void listen<{ action: string }>("remote://client", (e) => {
+    void listen<{ action: string; clientId?: number }>("remote://client", (e) => {
       if (e.payload?.action === "join") {
-        broadcast({ t: "hello", proto: REMOTE_PROTO, server: "harbor-remote" });
+        broadcast(hostHello());
         pushSnapshot(true);
+      }
+      if (e.payload?.action === "leave" && typeof e.payload.clientId === "number") {
+        hostPairing().release(e.payload.clientId);
       }
     }).then((u) => {
       if (cancelled) u();

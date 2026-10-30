@@ -9,6 +9,7 @@ import { ROW_ACTION, ROW_DESC } from "./kit";
 import { Section, ToggleRow } from "./shared";
 import { isTauri } from "./player-panel/internals";
 import { RemoteCard } from "./remotes-panel/remote-card";
+import { PairedComputersSection } from "./remotes-panel/paired-computers";
 import type { DeviceKind } from "./remotes-panel/device-art";
 
 export function RemotesPanel() {
@@ -154,6 +155,8 @@ export function RemotesPanel() {
             probed={probed}
           />
         ))}
+
+      <PairedComputersSection />
     </>
   );
 }

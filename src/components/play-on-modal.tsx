@@ -33,6 +33,7 @@ import {
 } from "./play-on-lan";
 import { PlayOnPairHost, openPairFlow, usePairFlowTarget } from "./play-on-pair";
 import { PlayOnReceiver } from "./play-on-receiver";
+import { PlayOnHostPairDialog } from "./play-on-host-pair";
 import { failureText, needsPairing, sendToInstance, type PlayOnAction } from "./play-on-send";
 import { closePlayOn, usePlayOnRequest, type PlayOnRequest } from "./play-on-trigger";
 
@@ -63,6 +64,7 @@ export function PlayOnModal() {
       <PlayOnReceiver />
       {request ? <PlayOnPanel request={request} themeId={themeId} /> : null}
       <PlayOnPairHost />
+      {isTauri ? <PlayOnHostPairDialog /> : null}
     </>
   );
 }

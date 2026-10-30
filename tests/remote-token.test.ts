@@ -86,10 +86,9 @@ test("unauthed connections keep the frames other subsystems authenticate or need
     id: "c1",
     command: { action: "playMeta", metaId: "tt1", metaType: "movie", fromInstance: "peer-1" },
   };
-  assert.equal(remoteFrameAllowed(playOn as never, false), true);
   assert.equal(
-    remoteFrameAllowed({ ...playOn, id: undefined } as never, false),
+    remoteFrameAllowed(playOn as never, false),
     false,
-    "playMeta without the Play-on envelope is a phone command",
+    "Play-on frames are verified by their pairing token in play-on-route, not let through here",
   );
 });

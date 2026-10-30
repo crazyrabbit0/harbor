@@ -35,6 +35,7 @@ export type LanTrustAck = {
   ok: boolean;
   code?: string | null;
   token?: string;
+  adopted?: boolean;
   expiresAt?: number;
   len?: number;
   peer?: Partial<LanSelf>;
@@ -173,6 +174,19 @@ export function readTrustFrame(raw: string): LanTrustServerFrame | null {
   }
 }
 
+// The sender proposes its token inside the inbound pair frame, which only the host reads, so it never rides a broadcast ack.
+function proposeToken(): string {
+  const buf = new Uint8Array(24);
+  crypto.getRandomValues(buf);
+  return [...buf].map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
+/** The token a successful pair ack grants: a host-issued one wins, `adopted` confirms the proposed one. */
+export function pairTokenFromAck(ack: LanTrustAck, proposed: string): string {
+  if (typeof ack.token === "string" && ack.token) return ack.token;
+  return ack.adopted === true ? proposed : "";
+}
+
 export function speaksTrust(hello: LanTrustHello): boolean {
   return typeof hello.trust === "string" && hello.trust.length > 0;
 }
@@ -213,11 +227,13 @@ export class LanPairSession {
   private readonly waiting = new Map<string, Waiter>();
   private dead = false;
   private hello: LanTrustHello | null = null;
+  private readonly target: TrustPeerRef;
+  private readonly self: LanSelf | null;
 
-  constructor(
-    private readonly target: TrustPeerRef,
-    private readonly self: LanSelf | null,
-  ) {}
+  constructor(target: TrustPeerRef, self: LanSelf | null) {
+    this.target = target;
+    this.self = self;
+  }
 
   close(): void {
     this.kill("gone");
@@ -251,6 +267,7 @@ export class LanPairSession {
     const clean = normalizePairCode(code);
     if (!clean) return { ok: false, code: "badCode" };
     if (this.dead || !this.socket) return { ok: false, code: "gone" };
+    const proposed = proposeToken();
     try {
       const ack = await this.ask(
         {
@@ -259,13 +276,14 @@ export class LanPairSession {
           step: "code",
           code: clean,
           peer: this.identity(),
+          token: proposed,
         },
         SUBMIT_MS,
       );
       if (!ack.ok) return { ok: false, code: ack.code || "refused" };
       const claimed = typeof ack.peer?.id === "string" ? ack.peer.id : "";
       if (claimed && claimed !== this.target.id) return { ok: false, code: "mismatch" };
-      const token = typeof ack.token === "string" ? ack.token : "";
+      const token = pairTokenFromAck(ack, proposed);
       if (!validToken(token)) return { ok: false, code: "refused" };
       const record: PairedHarbor = {
         peerId: this.target.id,
