@@ -616,7 +616,37 @@ export const safeFetchStream: typeof fetch = (input, init) => {
     noteBlocked();
     return Promise.reject(new TrackerBlockedError(new URL(target).hostname));
   }
-  if (isTauri) return pluginHttpFetch(input, init);
+  if (isTauri) {
+    const url = urlOf(input);
+    const credentialed =
+      hasSensitiveRequestHeaders(init?.headers) ||
+      (input instanceof Request && hasSensitiveRequestHeaders(input.headers));
+    if (credentialed && !/^https:/i.test(url)) {
+      return Promise.reject(new TypeError("credentialed stream requests must use HTTPS"));
+    }
+    // harbor_fetch cannot stream, so credentials ride plugin-http with redirects off and never over plain HTTP.
+    const controller = new AbortController();
+    const caller = init?.signal;
+    const relay = () => controller.abort();
+    if (caller?.aborted) controller.abort();
+    else caller?.addEventListener("abort", relay, { once: true });
+    const pluginInit = {
+      ...init,
+      signal: controller.signal,
+      ...(credentialed ? { maxRedirections: 0 } : {}),
+    };
+    return withDeadline(pluginHttpFetch(input, pluginInit), caller).then(
+      (res) => {
+        caller?.removeEventListener("abort", relay);
+        return res;
+      },
+      (error: unknown) => {
+        caller?.removeEventListener("abort", relay);
+        controller.abort();
+        throw error;
+      },
+    );
+  }
   if (typeof input === "string") {
     const rewritten = rewriteForWeb(input, init);
     return fetch(rewritten.url, rewritten.init);
