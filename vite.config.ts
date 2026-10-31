@@ -9,6 +9,14 @@ import DEV_PROXY_HOST_LIST from "./src/lib/dev-proxy-hosts.json" with { type: "j
 
 declare const process: { env: Record<string, string | undefined> };
 
+// Folders the React Compiler memoizes; add one at a time (see docs/ARCHITECTURE-FOLLOWUPS.md).
+const REACT_COMPILER_DIRS = ["/src/components/notification-center/"];
+const REACT_COMPILER = {
+  panicThreshold: "none",
+  sources: (file: string) =>
+    REACT_COMPILER_DIRS.some((dir) => file.replace(/\\/g, "/").includes(dir)),
+};
+
 function silenceMediapipeSourcemap() {
   return {
     name: "silence-mediapipe-sourcemap",
@@ -55,7 +63,12 @@ export default defineConfig(({ mode }) => {
   const devHost = process.env.TAURI_DEV_HOST;
   return {
     staged: { "*": "vp check --fix" },
-    plugins: [react(), tailwindcss(), silenceMediapipeSourcemap(), servePublicMediapipe()],
+    plugins: [
+      react({ babel: { plugins: [["babel-plugin-react-compiler", REACT_COMPILER]] } }),
+      tailwindcss(),
+      silenceMediapipeSourcemap(),
+      servePublicMediapipe(),
+    ],
     clearScreen: false,
     define: {
       __APP_VERSION__: JSON.stringify(pkg.version),
