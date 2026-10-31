@@ -113,9 +113,10 @@ test("startup buffering is staged and adapts without lowering media quality", ()
   assert.match(startupProfile, /2160p\?|4320p\?|4k\|8k\|uhd\|remux/);
   assert.match(nativeMpv, /startup_profile: Option<String>/);
   assert.match(nativeMpv, /if high_bitrate \{ "32MiB" \} else \{ "16MiB" \}/);
-  assert.match(mpv, /phase === "startup"/);
-  assert.match(mpv, /\["demuxer-max-bytes", highBitrate \? "256MiB" : "128MiB"\]/);
-  assert.match(mpv, /\["demuxer-max-bytes", highBitrate \? "768MiB" : "512MiB"\]/);
+  const mpvConfig = read("src/lib/player/mpv-config.ts");
+  assert.match(mpvConfig, /phase === "startup"/);
+  assert.match(mpvConfig, /\["demuxer-max-bytes", highBitrate \? "256MiB" : "128MiB"\]/);
+  assert.match(mpvConfig, /\["demuxer-max-bytes", highBitrate \? "768MiB" : "512MiB"\]/);
   assert.match(mpv, /steadyBufferLoadId !== mediaLoadId/);
   assert.match(nativeMpv, /"cache-pause-initial", "no"/);
   assert.doesNotMatch(startupProfile, /resolution.*replace|transcode|downscale/i);

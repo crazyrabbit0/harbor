@@ -13,7 +13,7 @@ const usePlayerMedia = read("src/views/player/hooks/use-player-media.ts");
 const engineSection = read("src/views/settings/player-panel/engine-section.tsx");
 const displayPicker = read("src/views/settings/player-panel/display-picker.tsx");
 const defaults = read("src/lib/settings/defaults.ts");
-const playerMpv = read("src/lib/player/mpv.ts");
+const playerMpv = read("src/lib/player/mpv-config.ts");
 
 // The friendly monitor name must come from the DisplayConfig API, which is the
 // EDID-derived string Windows Settings shows. EnumDisplayDevicesW is only the

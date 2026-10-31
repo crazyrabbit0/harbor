@@ -68,7 +68,7 @@ test("native startup logs classify sources without printing private playback URL
 });
 
 test("startup subtitle downloads no longer block the initial media load", () => {
-  assert.match(mpv, /subtitles: \[\]/);
+  assert.match(read("src/lib/player/mpv-config.ts"), /subtitles: \[\]/);
   assert.match(mpv, /void addSeedSubtitles\(src\.subtitles, activeLoadId\)/);
   const coldStart = mpv.indexOf('await invoke("mpv_start"');
   const deferredSubtitles = mpv.indexOf("void addSeedSubtitles", coldStart);
