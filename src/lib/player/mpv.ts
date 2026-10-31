@@ -1,5 +1,4 @@
 import { invoke } from "@tauri-apps/api/core";
-import { mpvFailureSnapshot } from "./mpv-failure";
 import { startGeometryTracking, type GeometryTracker } from "./mpv-geometry";
 import { createMpvAudio } from "./mpv-audio";
 import {
@@ -19,7 +18,7 @@ import {
   waitForRetainedRelease,
 } from "./mpv-session";
 import { createMpvSubtitles } from "./mpv-subtitles";
-import { applyMpvProperty } from "./mpv-tracks";
+import { reduceMpvEvent, type MpvEvent, type MpvEventEffect } from "./mpv-events";
 import { isLinuxDesktop, isWindowsDesktop } from "@/lib/platform";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -77,18 +76,6 @@ export async function listMpvAudioDevices(): Promise<MpvAudioDevice[]> {
   }
 }
 
-type MpvEvent =
-  | {
-      event: "property-change";
-      id?: number;
-      name: string;
-      data: unknown;
-    }
-  | { event: "end-file"; reason?: string }
-  | { event: "playback-restart" }
-  | { event: "file-loaded" }
-  | { event: string; [k: string]: unknown };
-
 const DEFAULT_UA = "VLC/3.0.20 LibVLC/3.0.20";
 
 async function resetSubtitleFpsBeforeMpvTransition(): Promise<void> {
@@ -106,10 +93,6 @@ async function applyHeaderProps(headers?: Record<string, string>): Promise<void>
   await invoke("mpv_set_property", { name: "http-header-fields", value: fields.join(",") }).catch(
     () => {},
   );
-}
-
-function normalizeMediaPath(path: string): string {
-  return path.replace(/\\/g, "/");
 }
 
 export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
@@ -199,87 +182,61 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
     listeners.forEach((l) => l(next));
   };
 
-  const handleEvent = (raw: MpvEvent) => {
-    if (raw.event === "log") {
-      const prefix = String((raw as { prefix?: unknown }).prefix ?? "");
-      const level = String((raw as { level?: unknown }).level ?? "");
-      const text = String((raw as { text?: unknown }).text ?? "");
-      if (
-        text.includes("Creating filter 'vapoursynth' failed") ||
-        (prefix.includes("vapoursynth") && (level === "fatal" || level === "error"))
-      ) {
+  const runEventEffect = (effect: MpvEventEffect) => {
+    switch (effect.kind) {
+      case "svp-filter-failed":
         handleSvpFilterFailure();
-      }
-      return;
+        break;
+      case "player-failed":
+        mediaRevision += 1;
+        invalidateSubtitleSelections();
+        stopSubtitleTranslations();
+        clearPreparedSubtitles();
+        mpvStarted = false;
+        finishPlaybackTrace(activeTraceId, "failed");
+        activeTraceId = null;
+        invoke("mpv_stop").catch(() => {});
+        break;
+      case "property":
+        if (effect.name === "audio-device-list") scheduleAudioDeviceReload();
+        if (effect.name === "track-list" && Array.isArray(effect.data)) {
+          applyTrackList(effect.data as Array<Record<string, unknown>>);
+        }
+        applySubtitleText(effect.name, effect.data);
+        break;
+      case "trace-mark":
+        markPlaybackTrace(activeTraceId, effect.mark);
+        break;
+      case "trace-ready":
+        finishPlaybackTrace(activeTraceId, "ready");
+        activeTraceId = null;
+        break;
+      case "steady-buffer":
+        void applyDefaultVodBufferPhase(effect.profile, "steady");
+        break;
+      case "emit":
+        emit();
+        break;
     }
-    if (raw.event === "player-failure") {
-      const reason = String((raw as { reason?: unknown }).reason ?? "");
-      snap = mpvFailureSnapshot(snap, reason);
-      mediaRevision += 1;
-      invalidateSubtitleSelections();
-      stopSubtitleTranslations();
-      clearPreparedSubtitles();
-      mpvStarted = false;
-      finishPlaybackTrace(activeTraceId, "failed");
-      activeTraceId = null;
-      invoke("mpv_stop").catch(() => {});
-      emit();
-    } else if (raw.event === "property-change") {
-      const name = raw.name;
-      const data = raw.data;
-      applyMpvProperty(snap, String(name), data);
-      if (name === "path" && typeof data === "string") observedMediaPath = data;
-      if (name === "pause" && typeof data === "boolean") {
-        observedPaused = data;
-        snap.status = data ? "paused" : "playing";
-      }
-      if (name === "audio-device-list") scheduleAudioDeviceReload();
-      if (name === "track-list" && Array.isArray(data)) {
-        applyTrackList(data as Array<Record<string, unknown>>);
-      }
-      applySubtitleText(String(name), data);
-      emit();
-    } else if (raw.event === "end-file") {
-      const reason = (raw as { reason?: string }).reason?.toLowerCase();
-      if (reason === "stop" || reason === "quit" || reason === "redirect") return;
-      if (Date.now() < suppressEndFileUntil) return;
-      if (reason && reason !== "eof") {
-        snap.status = "error";
-        snap.errorCode = "decode";
-        snap.errorMessage = `mpv ended playback: ${reason}`;
-      } else {
-        snap.status = "ended";
-      }
-      emit();
-    } else if (raw.event === "file-loaded") {
-      markPlaybackTrace(activeTraceId, "file-loaded");
-      snap.status = observedPaused === true ? "paused" : "playing";
-      snap.errorCode = null;
-      snap.errorMessage = null;
-      emit();
-    } else if (raw.event === "playback-restart") {
-      if (
-        expectedMediaPath &&
-        observedMediaPath &&
-        normalizeMediaPath(expectedMediaPath) !== normalizeMediaPath(observedMediaPath)
-      ) {
-        return;
-      }
-      snap.status = observedPaused === true ? "paused" : "playing";
-      snap.buffering = false; // Playback recovered, including when the user remains paused.
-      snap.firstFrameReady = true;
-      if (currentIsLive === false && currentStartupProfile && steadyBufferLoadId !== mediaLoadId) {
-        steadyBufferLoadId = mediaLoadId;
-        const profile = currentStartupProfile;
-        void applyDefaultVodBufferPhase(profile, "steady");
-      }
-      markPlaybackTrace(activeTraceId, "first-frame");
-      finishPlaybackTrace(activeTraceId, "ready");
-      activeTraceId = null;
-      snap.errorCode = null;
-      snap.errorMessage = null;
-      emit();
-    }
+  };
+  const handleEvent = (raw: MpvEvent) => {
+    const result = reduceMpvEvent(
+      {
+        snap,
+        observedPaused,
+        observedMediaPath,
+        expectedMediaPath,
+        currentIsLive,
+        currentStartupProfile,
+        mediaLoadId,
+        steadyBufferLoadId,
+        suppressEndFileUntil,
+      },
+      raw,
+      Date.now(),
+    );
+    ({ snap, observedPaused, observedMediaPath, steadyBufferLoadId } = result.state);
+    for (const effect of result.effects) runEventEffect(effect);
   };
 
   const bridge: PlayerBridge = {
