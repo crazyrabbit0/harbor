@@ -11,13 +11,19 @@ import {
   type BufferPhase,
   type MpvOptions,
 } from "./mpv-config";
+import {
+  forgetRetainedMpv,
+  releaseOrStopMpv,
+  retainedStartupProfile,
+  takeRetainedMpv,
+  waitForRetainedRelease,
+} from "./mpv-session";
 import { createMpvSubtitles } from "./mpv-subtitles";
 import { applyMpvProperty } from "./mpv-tracks";
 import { isLinuxDesktop, isWindowsDesktop } from "@/lib/platform";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
-  invalidateMpvSubtitleFpsContext,
   markMpvSubtitleFpsSessionRecreated,
   resetMpvSubtitleFpsForTransition,
 } from "./mpv-properties";
@@ -41,14 +47,6 @@ export type MpvProbe = {
 };
 
 let mpvProbePromise: Promise<MpvProbe> | null = null;
-
-type RetainedMpv = {
-  configKey: string;
-  isLive: boolean;
-  startupProfile: "standard" | "high-bitrate";
-};
-let retainedMpv: RetainedMpv | null = null;
-let retainedMpvRelease: Promise<void> | null = null;
 
 export function probeMpv(): Promise<MpvProbe> {
   if (mpvProbePromise) return mpvProbePromise;
@@ -320,22 +318,16 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       }
       activeTraceId = src.traceId ?? null;
       markPlaybackTrace(activeTraceId, "bridge-load");
-      if (retainedMpvRelease) await retainedMpvRelease;
+      await waitForRetainedRelease();
       const nextIsLive = src.isLive === true;
       const nextStartupProfile =
-        src.startupProfile ?? currentStartupProfile ?? retainedMpv?.startupProfile ?? "standard";
+        src.startupProfile ?? currentStartupProfile ?? retainedStartupProfile() ?? "standard";
       const reuseConfigKey = mpvReuseConfigKey(mpvOptions, hdrToSdr);
       const canRetain = isWindowsDesktop() && mpvOptions?.embed === true;
-      if (
-        !mpvStarted &&
-        canRetain &&
-        retainedMpv?.configKey === reuseConfigKey &&
-        retainedMpv.isLive === nextIsLive
-      ) {
+      if (!mpvStarted && canRetain && takeRetainedMpv(reuseConfigKey, nextIsLive)) {
         mpvStarted = true;
         currentIsLive = nextIsLive;
         currentStartupProfile = nextStartupProfile;
-        retainedMpv = null;
       } else if (mpvStarted && currentIsLive != null && currentIsLive !== nextIsLive) {
         mpvStarted = false;
       }
@@ -414,7 +406,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
             mpvStarted = false;
           }
         }
-        retainedMpv = null;
+        forgetRetainedMpv();
         audio.resetAppliedFilters();
         await invoke("mpv_start", {
           args: mpvStartArgs(opts, src, hdrToSdr, nextStartupProfile),
@@ -593,37 +585,15 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       activeTraceId = null;
       const keepNativeSession =
         mpvStarted && currentIsLive != null && isWindowsDesktop() && mpvOptions?.embed === true;
-      if (keepNativeSession) {
-        invalidateMpvSubtitleFpsContext();
-        const retained: RetainedMpv = {
-          configKey: mpvReuseConfigKey(mpvOptions, hdrToSdr),
-          isLive: currentIsLive!,
-          startupProfile: currentStartupProfile ?? "standard",
-        };
-        const release = invoke<boolean>("mpv_release_media")
-          .then(async (kept) => {
-            if (kept) {
-              retainedMpv = retained;
-              return;
+      releaseOrStopMpv(
+        keepNativeSession
+          ? {
+              configKey: mpvReuseConfigKey(mpvOptions, hdrToSdr),
+              isLive: currentIsLive!,
+              startupProfile: currentStartupProfile ?? "standard",
             }
-            retainedMpv = null;
-            markMpvSubtitleFpsSessionRecreated();
-            await invoke("mpv_stop").catch(() => {});
-          })
-          .catch(async () => {
-            retainedMpv = null;
-            markMpvSubtitleFpsSessionRecreated();
-            await invoke("mpv_stop").catch(() => {});
-          });
-        retainedMpvRelease = release;
-        void release.finally(() => {
-          if (retainedMpvRelease === release) retainedMpvRelease = null;
-        });
-      } else {
-        retainedMpv = null;
-        markMpvSubtitleFpsSessionRecreated();
-        invoke("mpv_stop").catch(() => {});
-      }
+          : null,
+      );
       audio.stop();
       mpvStarted = false;
       currentIsLive = null;

@@ -56,10 +56,12 @@ test("the resume position is resolved before loading and handed to the first loa
 });
 
 test("Windows embedded mpv is retained across compatible VOD bitrate profiles", () => {
-  assert.match(mpv, /invoke<boolean>\("mpv_release_media"\)/);
-  assert.match(mpv, /retainedMpv\?\.configKey === reuseConfigKey/);
-  assert.match(mpv, /retainedMpv\.isLive === nextIsLive/);
-  assert.doesNotMatch(mpv, /retainedMpv\.startupProfile === nextStartupProfile/);
+  const session = read("src/lib/player/mpv-session.ts");
+  assert.match(session, /invoke<boolean>\("mpv_release_media"\)/);
+  assert.match(session, /retainedMpv\?\.configKey === reuseConfigKey/);
+  assert.match(session, /retainedMpv\.isLive === nextIsLive/);
+  assert.doesNotMatch(session, /startupProfile ===/);
+  assert.match(mpv, /canRetain && takeRetainedMpv\(reuseConfigKey, nextIsLive\)/);
   assert.doesNotMatch(
     mpv,
     /currentStartupProfile != null && currentStartupProfile !== nextStartupProfile/,

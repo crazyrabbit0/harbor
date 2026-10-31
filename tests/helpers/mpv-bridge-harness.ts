@@ -158,7 +158,7 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
   };
   dependencies["./mpv-tracks"] = tracks;
   // The bridge's own sub-modules run for real against the same fake window and native bridge.
-  for (const name of ["mpv-config", "mpv-geometry", "mpv-subtitles", "mpv-audio"]) {
+  for (const name of ["mpv-config", "mpv-session", "mpv-geometry", "mpv-subtitles", "mpv-audio"]) {
     const sibling = { exports: {} };
     new Function(
       "require",
