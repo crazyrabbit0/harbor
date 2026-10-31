@@ -4,7 +4,7 @@ import { ListHeart } from "@/views/profile/list-heart";
 import { ListShareButton } from "@/views/profile/list-share-button";
 import { SaveListButton } from "@/views/profile/save-list-button";
 import type { FeaturedList } from "@/lib/social/featured-lists";
-import type { ProfileSummary } from "@/views/profile/profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 
 export function SharedListHero({
   summary,

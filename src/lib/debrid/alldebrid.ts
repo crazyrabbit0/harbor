@@ -1,4 +1,5 @@
 import { safeFetch as fetch } from "@/lib/safe-fetch";
+import { createLibraryCache } from "./library-cache";
 import { dlog, dwarn } from "@/lib/debug";
 import { matchEpisodeFileIndex, type EpisodeHint } from "@/lib/streams/episode-file";
 import {
@@ -18,7 +19,7 @@ const VIDEO_EXTS = [".mkv", ".mp4", ".avi", ".m4v", ".webm", ".ts", ".mov", ".wm
 const POLL_DELAY_MS = 1500;
 const POLL_MAX_ATTEMPTS = 12;
 const LIBRARY_TTL_MS = 5 * 60_000;
-const LIBRARY_CACHE = new Map<string, { at: number; data: LibraryEntry[] }>();
+const LIBRARY_CACHE = createLibraryCache(LIBRARY_TTL_MS);
 
 const READY_STATUS_CODE = 4;
 const TERMINAL_FAIL_STATUS = new Set([5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
@@ -212,9 +213,7 @@ export function createAllDebrid(apiKey: string): DebridStore {
 
   async function listLibrary(signal: AbortSignal): Promise<DebridResult<LibraryEntry[]>> {
     const cached = LIBRARY_CACHE.get(apiKey);
-    if (cached && Date.now() - cached.at < LIBRARY_TTL_MS) {
-      return { ok: true, data: cached.data };
-    }
+    if (cached) return { ok: true, data: cached };
     const r = await get<{ magnets: AdMagnetStatus[] }>("/magnet/status", signal);
     if (!r.ok) return r;
     const list = r.data.magnets ?? [];
@@ -232,7 +231,7 @@ export function createAllDebrid(apiKey: string): DebridStore {
           size: l.size ?? 0,
         })),
       }));
-    LIBRARY_CACHE.set(apiKey, { at: Date.now(), data });
+    LIBRARY_CACHE.set(apiKey, data);
     return { ok: true, data };
   }
 

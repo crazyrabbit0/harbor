@@ -417,9 +417,13 @@ pub(crate) fn shutdown(app: &tauri::AppHandle) {
     use tauri::Manager;
 
     let state = app.state::<ProxyState>().inner().clone();
-    tauri::async_runtime::block_on(async move {
-        state.stop_all_hls().await;
-    });
+    crate::block_on_bounded(
+        "stream proxy",
+        std::time::Duration::from_secs(4),
+        async move {
+            state.stop_all_hls().await;
+        },
+    );
 }
 
 pub(crate) fn lan_ip() -> Option<String> {

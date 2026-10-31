@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { formatHandoffCode, handoffUrl } from "./handoff-code";
 import { startHandoffHost, type HandoffHost } from "./handoff-host";
 import { buildHandoffQr, type HandoffQr } from "./handoff-qr";
+import { useWebRemoteKey } from "@/lib/remote/use-web-remote-key";
 import {
   LAN_RECHECK_MS,
   LAN_RETRY_MS,
@@ -191,7 +192,8 @@ export function useTvHandoff(opts: UseTvHandoffOptions): TvHandoff {
     hostRef.current?.restart();
   }, []);
 
-  const url = lanHost && token ? handoffUrl(lanHost, token) : null;
+  const remoteKey = useWebRemoteKey();
+  const url = lanHost && token ? handoffUrl(lanHost, token, undefined, remoteKey ?? null) : null;
   const qr = useMemo(() => (url ? buildHandoffQr(url) : null), [url]);
 
   return useMemo<TvHandoff>(() => {

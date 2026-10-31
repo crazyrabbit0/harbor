@@ -1,6 +1,6 @@
 import { browseFetcher, type BrowseCatalog } from "./catalog-browse";
 import type { Meta } from "./cinemeta";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import type { PinnedCatalog } from "./pinned-catalogs";
 import { isExtensionCatalogueBase } from "./streams/plugins/extension/catalogue-base";
 

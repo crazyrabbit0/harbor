@@ -1,5 +1,5 @@
 import { useT } from "@/lib/i18n";
-import type { CustomizationInput } from "../profile-types";
+import type { CustomizationInput } from "@/lib/social/profile-types";
 import { MARKUP_CAP } from "./customization-types";
 
 const areaCls =

@@ -8,7 +8,7 @@ import {
   type CatalogDef,
 } from "@/lib/addons";
 import { runLanes } from "@/lib/run-lanes";
-import { isAnimeRow } from "@/views/anime/anime-rows";
+import { isAnimeRow } from "@/lib/anime-row-detect";
 
 const ANIME_ROW_CAP = 24;
 const CATALOG_LANES = 6;
@@ -20,7 +20,7 @@ type CatalogTask = { addon: Addon; cat: CatalogDef };
 // isAnimeRow runs three tests: type === "anime", a name regex, then a sample of the metas.
 // Handing it an EMPTY metas array makes the third test bail out, so what comes back is
 // exactly "do the manifest fields alone qualify this catalog". That is the whole point:
-// never duplicate the regex here, or the two lists drift and a rename in anime-rows.tsx
+// never duplicate the regex here, or the two lists drift and a rename in anime-row-detect.ts
 // silently stops matching.
 function manifestQualifies(cat: CatalogDef): boolean {
   return isAnimeRow({ key: "", type: cat.type, name: cat.name, metas: [] });

@@ -1,9 +1,9 @@
+import { primaryStoredProfile } from "@/lib/profile-roster";
 import { cwProfileScope, privateCwProfileId } from "./cw-profile";
 
 const KEY_PREFIX = "harbor.localcw.v1.";
 const PRIVATE_PREFIX = "harbor.localcw.private.v1.";
 const LEGACY_KEY = "harbor.localcw.v1";
-const PROFILES_KEY = "harbor.profiles.v1";
 const MAX = 60;
 const FINISHED_RATIO = 0.92;
 
@@ -28,16 +28,7 @@ let version = 0;
 const cache = new Map<string, Record<string, LocalCwEntry>>();
 
 function primaryProfileId(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    const s = raw
-      ? (JSON.parse(raw) as { profiles?: Array<{ id?: string; isPrimary?: boolean }> })
-      : null;
-    const primary = s?.profiles?.find((p) => p?.isPrimary);
-    return (primary && typeof primary.id === "string" && primary.id) || cwProfileScope().sharedId;
-  } catch {
-    return cwProfileScope().sharedId;
-  }
+  return primaryStoredProfile()?.id || cwProfileScope().sharedId;
 }
 
 function storeKey(privateOnly = false, ownerId?: string): string {

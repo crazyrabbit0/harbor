@@ -19,28 +19,9 @@ export const HARBOR_DATA_BASE = resolveBase(
   "https://raw.githubusercontent.com/crazyrabbit0/harbor/main/data",
 );
 
-export const HARBOR_TRAKT_BASE = resolveBase(
-  import.meta.env.VITE_HARBOR_TRAKT_BASE,
-  HARBOR_API_BASE,
-);
-
-export const HARBOR_MAL_BASE = resolveBase(import.meta.env.VITE_HARBOR_MAL_BASE, HARBOR_API_BASE);
-
-export const HARBOR_TVDB_BASE = resolveBase(import.meta.env.VITE_HARBOR_TVDB_BASE, HARBOR_API_BASE);
-
 export const HARBOR_BUGS_BASE = resolveBase(
   import.meta.env.VITE_HARBOR_BUGS_BASE,
   "https://bugs.harbor.site",
-);
-
-export const HARBOR_SYNC_BASE = resolveBase(
-  import.meta.env.VITE_HARBOR_SYNC_BASE,
-  "https://sync.harbor.site",
-);
-
-export const HARBOR_RELAY_BASE = resolveBase(
-  import.meta.env.VITE_HARBOR_RELAY_BASE,
-  "https://app.harbor.site",
 );
 
 export const HARBOR_DISCORD_INVITE = resolveBase(

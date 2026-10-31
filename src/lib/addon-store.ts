@@ -1,3 +1,4 @@
+import { stremioDataProfileId, primaryOrStremioProfileId } from "@/lib/profile-roster";
 import { safeFetch as fetch, safeFetchLocal } from "@/lib/safe-fetch";
 import { isLocalNetworkUrl } from "@/lib/local-network";
 import { readActiveStremioAuthKey } from "./auth";
@@ -9,8 +10,6 @@ import {
   saveDisplayOrder,
 } from "./addons-store/reorder";
 
-const PROFILES_KEY = "harbor.profiles.v1";
-
 const STORAGE_KEY_PREFIX = "harbor.installed-addons.";
 const LEGACY_STORAGE_KEY = "harbor.installed-addons";
 const SEEDED_KEY = "harbor.addons.seeded.v1";
@@ -20,38 +19,11 @@ const LEGACY_DISABLED_KEY = "harbor.addons.disabled";
 const DEFAULT_ADDONS: Array<{ id: string; transportUrl: string }> = [];
 
 function activeProfileId(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    if (!raw) return "";
-    const s = JSON.parse(raw) as {
-      activeId?: string;
-      profiles?: Array<{ id?: string; isPrimary?: boolean; shareStremioWith?: string | null }>;
-    };
-    const profiles = Array.isArray(s.profiles) ? s.profiles : [];
-    const active = profiles.find((p) => p.id === s.activeId) ?? null;
-    const own = active?.id ?? profiles.find((p) => p?.isPrimary)?.id ?? "";
-    if (!own) return "";
-    if (active && typeof active.shareStremioWith === "string" && active.shareStremioWith) {
-      const shared = profiles.find((p) => p.id === active.shareStremioWith);
-      if (shared?.id) return shared.id;
-    }
-    return own;
-  } catch {
-    return "";
-  }
+  return stremioDataProfileId();
 }
 
 function primaryProfileId(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    const s = raw
-      ? (JSON.parse(raw) as { profiles?: Array<{ id?: string; isPrimary?: boolean }> })
-      : null;
-    const primary = s?.profiles?.find((p) => p?.isPrimary);
-    return (primary && typeof primary.id === "string" && primary.id) || activeProfileId();
-  } catch {
-    return activeProfileId();
-  }
+  return primaryOrStremioProfileId();
 }
 
 function storeKey(kind: "installed" | "disabled"): string {

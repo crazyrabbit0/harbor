@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { topMovies, topSeries, type Meta } from "@/lib/cinemeta";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import type { BpTileShape } from "./bp-tile";
 import { useHideAnimeMetas, useHideAnimeRows } from "@/lib/anime-hide";
 import { listPager } from "@/lib/list-pager";

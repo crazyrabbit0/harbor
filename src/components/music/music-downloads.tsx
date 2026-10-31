@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { allowFsPaths } from "@/lib/fs-scope";
 import { FolderOpen, Trash2, X, Plus, RotateCcw, Play } from "@/components/icons/music-icons";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useT } from "@/lib/i18n";
@@ -42,6 +43,7 @@ export function MusicDownloads({ query = "" }: { query?: string }) {
     try {
       const picked = await openDialog({ directory: true, multiple: false, defaultPath: folder });
       if (typeof picked === "string") {
+        await allowFsPaths([picked]);
         setMusicDownloadDir(picked);
         setFolderTick((n) => n + 1);
       }

@@ -2,7 +2,6 @@ import type { CrowdResult, PipelineContext, TierPorts } from "./pipeline";
 import type { PiecewiseSegment, SyncTransform } from "./fp-gate";
 import { safeFetch } from "@/lib/safe-fetch";
 import { dwarn, dinfo } from "@/lib/debug";
-import { HARBOR_SYNC_BASE } from "@/lib/config/endpoints";
 
 export type CrowdConfig = {
   baseUrl: string;
@@ -16,7 +15,8 @@ export type CrowdConfig = {
 
 export type CrowdReportExtra = { chromaprint?: string | null; subFileHash?: string | null };
 
-export const DEFAULT_COMMUNITY_SYNC_URL = HARBOR_SYNC_BASE;
+// Empty means community sync is off until the user enters their own server.
+export const DEFAULT_COMMUNITY_SYNC_URL = "";
 
 type LookupResponse = {
   offsetMs?: number;

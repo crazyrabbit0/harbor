@@ -8,6 +8,7 @@ import {
   findShowNfo,
   readNfo,
 } from "@/lib/local-library/sidecars";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export type ScannedFile = {
   path: string;
@@ -195,7 +196,7 @@ async function tmdbLookup(
   if (lang) params.set("language", lang);
   if (year && type === "movie") params.set("year", String(year));
   if (year && type === "show") params.set("first_air_date_year", String(year));
-  const r = await fetch(`https://api.themoviedb.org/3/search/${path}?${params}`);
+  const r = await safeFetch(`https://api.themoviedb.org/3/search/${path}?${params}`);
   if (!r.ok) return {};
   const json = await r.json();
   const top = json.results?.[0];
@@ -208,7 +209,7 @@ async function tmdbLookup(
   try {
     const dparams = new URLSearchParams({ api_key: key, append_to_response: "external_ids" });
     if (lang) dparams.set("language", lang);
-    const dr = await fetch(`https://api.themoviedb.org/3/${path}/${top.id}?${dparams}`);
+    const dr = await safeFetch(`https://api.themoviedb.org/3/${path}/${top.id}?${dparams}`);
     if (dr.ok) {
       const dj = await dr.json();
       const imdb = dj.imdb_id ?? dj.external_ids?.imdb_id;

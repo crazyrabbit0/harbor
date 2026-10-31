@@ -43,14 +43,20 @@ test("HDR shell mounts with the actual profile, auth and navigation contexts", (
     getItem: (key) => store.get(key) ?? null,
     setItem: (...args) => writes.push(args),
   };
+  const roster = load("src/lib/profile-roster.ts", {}, { localStorage });
   const profiles = load(
     "src/lib/profiles.tsx",
     {
       "./avatars/catalog": { isRemovedBuiltinAvatar: () => false },
+      "@/lib/profile-roster": roster,
     },
     { localStorage },
   );
-  const auth = load("src/lib/auth.tsx", { "./profiles": profiles }, { localStorage });
+  const auth = load(
+    "src/lib/auth.tsx",
+    { "./profiles": profiles, "@/lib/profile-roster": roster },
+    { localStorage },
+  );
   const view = load("src/lib/view.tsx");
   const forwarded = [];
   const payload = {

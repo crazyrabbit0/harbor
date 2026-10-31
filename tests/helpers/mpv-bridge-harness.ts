@@ -6,6 +6,7 @@ import * as selection from "../../src/lib/player/subtitle-selection.ts";
 import * as cleanups from "../../src/lib/player/prepared-subtitle-cleanups.ts";
 import * as seeds from "../../src/lib/subtitles/seed-batch.ts";
 import * as failures from "../../src/lib/player/mpv-failure.ts";
+import * as tracks from "../../src/lib/player/mpv-tracks.ts";
 import * as language from "../../src/lib/subtitles/language.ts";
 import * as translationJobs from "../../src/lib/subtitles/translation-jobs.ts";
 import type { PlayerBridge, PlayerSnapshot } from "../../src/lib/player/bridge.ts";
@@ -49,6 +50,11 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
+  const compileSibling = (name: string) =>
+    ts.transpileModule(
+      readFileSync(new URL(`../../src/lib/player/${name}.ts`, import.meta.url), "utf8"),
+      { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+    ).outputText;
   const handlers = new Map<string, (event: { payload: unknown }) => void>();
   const commands: Array<{ command: string; args: Record<string, unknown> }> = [];
   const errors: string[] = [];
@@ -133,6 +139,55 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
   const frames = new Map<number, FrameRequestCallback>();
   let frameId = 0;
   const documentEvents = new EventTarget();
+  const fakeDocument = {
+    addEventListener: documentEvents.addEventListener.bind(documentEvents),
+    removeEventListener: documentEvents.removeEventListener.bind(documentEvents),
+  };
+  const fakeWindow = {
+    requestAnimationFrame: (callback: FrameRequestCallback) => {
+      frames.set(++frameId, callback);
+      return frameId;
+    },
+    cancelAnimationFrame: (id: number) => frames.delete(id),
+    addEventListener: windowEvents.addEventListener.bind(windowEvents),
+    removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
+    dispatchEvent: (event: Event) => {
+      errors.push(event.type);
+      return windowEvents.dispatchEvent(event);
+    },
+  };
+  dependencies["./mpv-tracks"] = tracks;
+  // The bridge's own sub-modules run for real against the same fake window and native bridge.
+  for (const name of [
+    "mpv-config",
+    "mpv-events",
+    "mpv-session",
+    "mpv-geometry",
+    "mpv-subtitles",
+    "mpv-audio",
+  ]) {
+    const sibling = { exports: {} };
+    new Function(
+      "require",
+      "module",
+      "exports",
+      "window",
+      "console",
+      "document",
+      compileSibling(name),
+    )(
+      (id: string) => {
+        if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
+        return dependencies[id];
+      },
+      sibling,
+      sibling.exports,
+      fakeWindow,
+      { warn() {}, info() {} },
+      fakeDocument,
+    );
+    dependencies[`./${name}`] = sibling.exports;
+  }
   new Function("require", "module", "exports", "window", "console", "document", compiled)(
     (id: string) => {
       if (!(id in dependencies)) throw new Error(`Unexpected dependency: ${id}`);
@@ -140,24 +195,9 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
     },
     module,
     module.exports,
-    {
-      requestAnimationFrame: (callback: FrameRequestCallback) => {
-        frames.set(++frameId, callback);
-        return frameId;
-      },
-      cancelAnimationFrame: (id: number) => frames.delete(id),
-      addEventListener: windowEvents.addEventListener.bind(windowEvents),
-      removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
-      dispatchEvent: (event: Event) => {
-        errors.push(event.type);
-        return windowEvents.dispatchEvent(event);
-      },
-    },
+    fakeWindow,
     { warn() {}, info() {} },
-    {
-      addEventListener: documentEvents.addEventListener.bind(documentEvents),
-      removeEventListener: documentEvents.removeEventListener.bind(documentEvents),
-    },
+    fakeDocument,
   );
   const bridge = module.exports.createMpvBridge(options);
   let snapshot: PlayerSnapshot = snapshots.emptySnapshot;

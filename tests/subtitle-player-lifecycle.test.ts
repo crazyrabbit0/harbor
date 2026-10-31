@@ -18,7 +18,10 @@ import {
   subtitleAutoSelectionSignature,
 } from "../src/lib/subtitles/track-selection.ts";
 
-const mpvSource = readFileSync(new URL("../src/lib/player/mpv.ts", import.meta.url), "utf8");
+const mpvSource = readFileSync(
+  new URL("../src/lib/player/mpv-subtitles.ts", import.meta.url),
+  "utf8",
+);
 const html5Source = readFileSync(
   new URL("../src/lib/player/html5/bridge.ts", import.meta.url),
   "utf8",
@@ -187,7 +190,7 @@ test("delayed hash enrichment may upgrade only the current automatic selection",
 test("mpv serializes same-media subtitle selection commits through generation guards", () => {
   assert.match(mpvSource, /mainSubtitleSelection\.begin\(/);
   assert.match(mpvSource, /enqueueSubtitleTransition\(async \(\) =>/);
-  assert.match(mpvSource, /if \(requestMediaRevision !== mediaRevision\) return;/);
+  assert.match(mpvSource, /if \(requestMediaRevision !== mediaRevision\(\)\) return;/);
 });
 
 test("prepared player-source seeds publish eligibility only after each bridge settles its batch", () => {

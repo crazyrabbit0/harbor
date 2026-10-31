@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { lruSet } from "../cache";
 import { registerEvictable } from "../maintenance";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const CACHE_MAX = 1500;
 const MISS_MAX = 1000;
@@ -320,7 +321,7 @@ async function performFetch(
   try {
     let url = `https://www.omdbapi.com/?i=${encodeURIComponent(imdbId)}&apikey=${encodeURIComponent(key)}`;
     if (type) url += `&type=${encodeURIComponent(type)}`;
-    const res = await fetch(url);
+    const res = await safeFetch(url);
     if (res.status === 401) {
       markKeyInvalid();
       return null;
@@ -431,7 +432,7 @@ async function performSeasonFetch(
   const out = new Map<number, number>();
   try {
     const url = `https://www.omdbapi.com/?i=${encodeURIComponent(imdbId)}&Season=${season}&apikey=${encodeURIComponent(key)}`;
-    const res = await fetch(url);
+    const res = await safeFetch(url);
     if (res.status === 401) {
       markKeyInvalid();
       return out;

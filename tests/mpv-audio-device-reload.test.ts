@@ -7,16 +7,13 @@ import test from "node:test";
 
 const at = (p: string) => new URL(`../${p}`, import.meta.url);
 const mpv = readFileSync(at("src/lib/player/mpv.ts"), "utf8");
+const audio = readFileSync(at("src/lib/player/mpv-audio.ts"), "utf8");
 const mpvRs = readFileSync(at("src-tauri/src/mpv.rs"), "utf8");
 
-// The mpv bridge is a closure bound to Tauri's invoke/listen and the DOM, so we
-// assert the wiring statically the way the other mpv tests do. This mirrors the
-// runtime path: mpv fires a property-change for audio-device-list on any device
-// topology/default switch, which must trigger an ao-reload on Windows while an
-// active stream is playing.
-const schedule = mpv.slice(
-  mpv.indexOf("const scheduleAudioDeviceReload = () => {"),
-  mpv.indexOf("const handleEvent = (raw: MpvEvent) => {"),
+// An audio-device-list change reaches the bridge, which asks mpv-audio.ts for a Windows ao-reload while a stream is active.
+const schedule = audio.slice(
+  audio.indexOf("const scheduleAudioDeviceReload = () => {"),
+  audio.indexOf("const onVisibilityRestore = () => {"),
 );
 
 test("audio-device-list property change is wired to schedule the reload", () => {
@@ -25,8 +22,8 @@ test("audio-device-list property change is wired to schedule the reload", () => 
 
 test("the reload re-init guard is Windows-only while actively playing", () => {
   assert.match(schedule, /if \(!isWindowsDesktop\(\)\) return;/);
-  assert.match(schedule, /if \(!mpvStarted\) return;/);
-  assert.match(schedule, /snap\.status !== "playing" && snap\.status !== "paused"/);
+  assert.match(schedule, /if \(!mpvStarted\(\)\) return;/);
+  assert.match(schedule, /snap\(\)\.status !== "playing" && snap\(\)\.status !== "paused"/);
 });
 
 test("the reload re-asserts the device then forces ao-reload on the current default", () => {
@@ -39,7 +36,7 @@ test("the reload re-asserts the device then forces ao-reload on the current defa
 test("with normalization on, the reload re-syncs audio with an exact seek in place", () => {
   assert.match(
     schedule,
-    /if \(snap\.audioNormalize\) \{\s*await invoke\("mpv_command", \{ cmd: \["seek", 0, "relative\+exact"\] \}\)/,
+    /if \(snap\(\)\.audioNormalize\) \{\s*await invoke\("mpv_command", \{ cmd: \["seek", 0, "relative\+exact"\] \}\)/,
   );
   assert.ok(schedule.indexOf("ao-reload") < schedule.indexOf('"relative+exact"'));
 });
@@ -53,17 +50,17 @@ test("Rust allows the ao-reload command", () => {
 });
 
 test("refocus reload waits for a long absence and removes both listeners on disposal", () => {
-  assert.match(mpv, /const FOCUS_RELOAD_MIN_ABSENT_MS = 60_000/);
-  assert.match(mpv, /const onWindowBlur = \(\) => \{\s*lastWindowBlur = Date.now\(\)/);
+  assert.match(audio, /const FOCUS_RELOAD_MIN_ABSENT_MS = 60_000/);
+  assert.match(audio, /const onWindowBlur = \(\) => \{\s*lastWindowBlur = Date.now\(\)/);
   assert.match(
-    mpv,
+    audio,
     /Date.now\(\) - lastWindowBlur < FOCUS_RELOAD_MIN_ABSENT_MS\) return;\s*scheduleAudioDeviceReload\(\)/,
   );
   for (const [event, callback] of [
     ["blur", "onWindowBlur"],
     ["focus", "onWindowFocusRestore"],
   ]) {
-    assert.ok(mpv.includes(`window.addEventListener("${event}", ${callback})`));
-    assert.ok(mpv.includes(`window.removeEventListener("${event}", ${callback})`));
+    assert.ok(audio.includes(`window.addEventListener("${event}", ${callback})`));
+    assert.ok(audio.includes(`window.removeEventListener("${event}", ${callback})`));
   }
 });

@@ -4,6 +4,7 @@ import { readAwardHistory, whenBundledAwards } from "@/lib/awards-history";
 import { tmdbSearchMovie } from "@/lib/providers/tmdb";
 import type { AwardType } from "@/lib/providers/wikidata";
 import { HARBOR_DATA_BASE } from "@/lib/config/endpoints";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const CACHE_KEY = "harbor.discover.awards.v1";
 const MAX_TITLES = 150;
@@ -111,7 +112,7 @@ async function resolveHosted(): Promise<Meta[] | null> {
   if (hostedTried) return null;
   hostedTried = true;
   try {
-    const res = await fetch(HOSTED_URL);
+    const res = await safeFetch(HOSTED_URL);
     if (!res.ok) return null;
     const arr = (await res.json()) as unknown;
     if (Array.isArray(arr) && arr.length >= 20) {

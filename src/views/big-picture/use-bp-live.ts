@@ -6,6 +6,7 @@ import { recordChannelPlay } from "@/lib/iptv/channel-stats";
 import { isHydratableChannel } from "@/lib/iptv/channel-hydration";
 import { computeTvgIdCounts } from "@/lib/iptv/epg-resolver";
 import { useFavorites } from "@/lib/iptv/favorites";
+import { usePlaylists } from "@/lib/iptv/playlists-store";
 import { sortChannelsByGroupRelevance } from "@/lib/iptv/group-relevance";
 import { isLiveChannel } from "@/lib/iptv/vod-classify";
 import type { EpgIndex, EpgProgram, IptvChannel, IptvPlaylistSource } from "@/lib/iptv/types";
@@ -140,9 +141,10 @@ export function useBpLive(enabled = true): BpLive {
   const favorites = useFavorites();
   const play = useBpLivePlay();
 
+  const playlists = usePlaylists();
   const sources = useMemo<IptvPlaylistSource[]>(
     () =>
-      settings.iptvPlaylists
+      playlists
         .filter((p) => (p.kind ?? "m3u") !== "epg")
         .map((p) => ({
           id: p.id,
@@ -152,7 +154,7 @@ export function useBpLive(enabled = true): BpLive {
           kind: p.kind,
           xtream: p.xtream,
         })),
-    [settings.iptvPlaylists],
+    [playlists],
   );
 
   const [storedId, setStoredId] = useState<string | null>(() => readActiveId());
@@ -170,8 +172,8 @@ export function useBpLive(enabled = true): BpLive {
   const playlist = state.kind === "ready" ? state.playlist : null;
 
   const epgOnlyUrls = useMemo(
-    () => settings.iptvPlaylists.filter((s) => s.kind === "epg").map((s) => s.epgUrl || s.url),
-    [settings.iptvPlaylists],
+    () => playlists.filter((s) => s.kind === "epg").map((s) => s.epgUrl || s.url),
+    [playlists],
   );
   const { index: baseEpg } = useEpg(enabled ? activeSource : null, epgOnlyUrls);
   const epg = useXtreamEpgFallback(activeSource, playlist?.channels ?? EMPTY_CHANNELS, baseEpg);

@@ -1,3 +1,4 @@
+import { stremioDataProfileId, primaryOrStremioProfileId } from "@/lib/profile-roster";
 import { useSyncExternalStore } from "react";
 import type { AddonProgress } from "./streams/addons";
 
@@ -19,59 +20,18 @@ export type PlaybackEntry = {
 
 const STORAGE_KEY_PREFIX = "harbor.playback-history.v1.";
 const LEGACY_STORAGE_KEY = "harbor.playback-history.v1";
-const PROFILES_KEY = "harbor.profiles.v1";
 const TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const MAX_ENTRIES = 200;
 
 const listeners = new Set<() => void>();
-let profileCache: { raw: string | null; id: string } | null = null;
 let parsedCache: { key: string; raw: string; all: Record<string, PlaybackEntry> } | null = null;
 
 function activeProfileId(): string {
-  let raw: string | null;
-  try {
-    raw = localStorage.getItem(PROFILES_KEY);
-  } catch {
-    return "";
-  }
-  if (profileCache?.raw === raw) return profileCache.id;
-  const id = parseActiveProfileId(raw);
-  profileCache = { raw, id };
-  return id;
-}
-
-function parseActiveProfileId(raw: string | null): string {
-  try {
-    if (!raw) return "";
-    const s = JSON.parse(raw) as {
-      activeId?: string;
-      profiles?: Array<{ id?: string; isPrimary?: boolean; shareStremioWith?: string | null }>;
-    };
-    const profiles = Array.isArray(s.profiles) ? s.profiles : [];
-    const active = profiles.find((p) => p.id === s.activeId) ?? null;
-    const own = active?.id ?? profiles.find((p) => p?.isPrimary)?.id ?? "";
-    if (!own) return "";
-    if (active && typeof active.shareStremioWith === "string" && active.shareStremioWith) {
-      const shared = profiles.find((p) => p.id === active.shareStremioWith);
-      if (shared?.id) return shared.id;
-    }
-    return own;
-  } catch {
-    return "";
-  }
+  return stremioDataProfileId();
 }
 
 function primaryProfileId(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    const s = raw
-      ? (JSON.parse(raw) as { profiles?: Array<{ id?: string; isPrimary?: boolean }> })
-      : null;
-    const primary = s?.profiles?.find((p) => p?.isPrimary);
-    return (primary && typeof primary.id === "string" && primary.id) || activeProfileId();
-  } catch {
-    return activeProfileId();
-  }
+  return primaryOrStremioProfileId();
 }
 
 function storeKey(): string {

@@ -78,6 +78,8 @@ mod dlna;
 #[cfg(desktop)]
 mod dvr;
 #[cfg(desktop)]
+mod fs_scope;
+#[cfg(desktop)]
 mod fullscreen;
 #[cfg(desktop)]
 mod games;
@@ -161,6 +163,21 @@ pub(crate) fn release_stremio_scheme(app: &tauri::AppHandle) {
         Err(e) => format!("[harbor::deeplink] could not release stremio://: {}", e),
     };
     let _ = writeln!(std::io::stderr(), "{}", msg);
+}
+
+// Shutdown runs on the event-loop thread, so each wait is capped: a worker holding a lock can't freeze closing the app.
+pub(crate) fn block_on_bounded<F>(label: &str, budget: std::time::Duration, fut: F)
+where
+    F: std::future::Future<Output = ()> + Send + 'static,
+{
+    let (tx, rx) = std::sync::mpsc::channel();
+    tauri::async_runtime::spawn(async move {
+        fut.await;
+        let _ = tx.send(());
+    });
+    if rx.recv_timeout(budget).is_err() {
+        eprintln!("[harbor::shutdown] {label} did not finish within {budget:?}, continuing");
+    }
 }
 
 #[cfg(desktop)]
@@ -844,6 +861,7 @@ pub fn run() {
             proc_guard::init();
             proc_guard::reap_orphans();
             games::initialize_download_preparation(app.handle());
+            fs_scope::allow_saved_settings(app.handle());
             music::initialize(app.handle()).map_err(std::io::Error::other)?;
             #[cfg(windows)]
             {
@@ -1244,7 +1262,9 @@ pub fn run() {
             web_server::web_serve_stop,
             web_server::web_serve_status,
             web_server::remote_ws_broadcast,
+            web_server::remote_ws_send,
             web_server::remote_ws_client_count,
+            web_server::web_remote_token,
             anime4k::anime4k_download,
             anime4k::anime4k_dir,
             asr_model::asr_ensure_model,
@@ -1259,6 +1279,7 @@ pub fn run() {
             settings_store::settings_write,
             settings_store::secrets_read,
             settings_store::secrets_write,
+            fs_scope::fs_scope_allow,
             media_server::media_server_request,
             proc_mem::harbor_process_memory,
             diagnostics::diagnostics_collect,
@@ -1465,7 +1486,6 @@ pub fn run() {
             http_fetch::thumb_cache_size,
             subtitle_credentials::subtitle_credential_bind,
             subtitle_credentials::subtitle_credentials_clear,
-            cf_solver::cf_report,
             capstan::capstan_ping,
             capstan::capstan_install,
             capstan::capstan_uninstall,
@@ -1540,4 +1560,26 @@ pub fn run() {
                 shutdown_services(app_handle);
             }
         });
+}
+
+#[cfg(test)]
+mod shutdown_tests {
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn bounded_shutdown_returns_when_the_task_hangs() {
+        let started = Instant::now();
+        super::block_on_bounded("test", Duration::from_millis(200), std::future::pending());
+        assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    #[test]
+    fn bounded_shutdown_waits_for_a_task_that_finishes() {
+        let (tx, rx) = std::sync::mpsc::channel();
+        super::block_on_bounded("test", Duration::from_secs(5), async move {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+            let _ = tx.send(());
+        });
+        assert!(rx.try_recv().is_ok());
+    }
 }

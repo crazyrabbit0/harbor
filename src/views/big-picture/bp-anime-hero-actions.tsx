@@ -7,7 +7,7 @@ import { BP_ACTION_RING } from "./bp-action-style";
 import type { BpPagePhase } from "./bp-catalog-page";
 import { forceBpMeta, lockBpMeta, unlockBpMeta } from "./bp-focus-meta";
 import { useBpT } from "./bp-i18n";
-import { requestBpPlay } from "./bp-play-request";
+import { requestBpPlay } from "@/lib/big-picture/bp-play-request";
 
 const PRIMARY_BOX = { height: "var(--bp-action-h)", borderRadius: "var(--bp-r-xs)" };
 const SECONDARY_BOX = { height: "var(--bp-action-box)", borderRadius: "var(--bp-r-xs)" };

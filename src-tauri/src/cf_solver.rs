@@ -10,8 +10,6 @@ const SOLVER_LABEL: &str = "harbor-cf-solver";
 const CF_TTL: Duration = Duration::from_secs(20 * 60);
 const CF_RETRY_COOLDOWN: Duration = Duration::from_secs(30 * 60);
 
-static PENDING: Mutex<Option<oneshot::Sender<String>>> = Mutex::new(None);
-
 fn request_lock() -> &'static AsyncMutex<()> {
     static LOCK: OnceLock<AsyncMutex<()>> = OnceLock::new();
     LOCK.get_or_init(|| AsyncMutex::new(()))
@@ -147,10 +145,17 @@ fn harvest(app: &AppHandle, url: &str) -> bool {
     true
 }
 
+const MAX_RESULT_CHARS: usize = 8 * 1024 * 1024;
+const POLL_INTERVAL: Duration = Duration::from_millis(500);
+const SOLVE_TIMEOUT: Duration = Duration::from_secs(90);
+const READ_RESULT_EXPR: &str = "window.__harborCfResult || null";
+
+// Remote pages get no IPC, so the script parks its result in a window variable that Rust polls with eval_with_callback.
 const INIT_SCRIPT: &str = r#"
 (function () {
   if (window.__harborCfBooted) return;
   window.__harborCfBooted = true;
+  var MAX = __HARBOR_CF_MAX_CHARS__;
   var done = false;
   function challenged() {
     var t = (document.title || '').toLowerCase();
@@ -159,16 +164,17 @@ const INIT_SCRIPT: &str = r#"
     if (document.querySelector('#challenge-form, #cf-challenge-running, .cf-turnstile')) return true;
     return false;
   }
-  function send(body) {
-    try { window.__TAURI_INTERNALS__.invoke('cf_report', { body: body, ua: navigator.userAgent || '' }); } catch (e) {}
+  function store(body) {
+    var ua = navigator.userAgent || '';
+    window.__harborCfResult = body.length > MAX ? { tooLarge: true, ua: ua } : { body: body, ua: ua };
   }
   function report() {
     if (done || challenged()) return;
     done = true;
     fetch(location.href, { credentials: 'include', headers: { Accept: 'application/json, text/plain, */*' } })
       .then(function (r) { return r.text(); })
-      .then(function (t) { send(t); })
-      .catch(function () { send(document.body ? document.body.innerText || '' : ''); });
+      .then(function (t) { store(t); })
+      .catch(function () { store(document.body ? document.body.innerText || '' : ''); });
   }
   var tries = 0;
   var iv = setInterval(function () {
@@ -181,22 +187,73 @@ const INIT_SCRIPT: &str = r#"
 })();
 "#;
 
-#[tauri::command]
-pub fn cf_report(body: String, ua: String) {
-    eprintln!("[cf] report {} bytes", body.len());
-    if !ua.is_empty() {
-        *last_ua().lock().unwrap() = ua;
+fn init_script() -> String {
+    INIT_SCRIPT.replace("__HARBOR_CF_MAX_CHARS__", &MAX_RESULT_CHARS.to_string())
+}
+
+#[derive(Debug, PartialEq, Eq, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct CfResult {
+    #[serde(default)]
+    body: String,
+    #[serde(default)]
+    ua: String,
+    #[serde(default)]
+    too_large: bool,
+}
+
+// The callback payload is the JSON serialization of READ_RESULT_EXPR; "null" means the page is still challenged.
+fn parse_result(payload: &str) -> Result<Option<CfResult>, String> {
+    let payload = payload.trim();
+    if payload.is_empty() || payload == "null" {
+        return Ok(None);
     }
-    if let Some(tx) = PENDING.lock().unwrap().take() {
-        let _ = tx.send(body);
+    if payload.len() > MAX_RESULT_CHARS.saturating_mul(6).saturating_add(1024) {
+        return Err("cloudflare solver result too large".into());
+    }
+    let result: Option<CfResult> =
+        serde_json::from_str(payload).map_err(|e| format!("cloudflare solver result: {e}"))?;
+    match result {
+        Some(result) if result.too_large || result.body.len() > MAX_RESULT_CHARS * 4 => {
+            Err("cloudflare solver result too large".into())
+        }
+        other => Ok(other),
+    }
+}
+
+async fn read_result(win: &tauri::WebviewWindow) -> Result<Option<CfResult>, String> {
+    let (tx, rx) = oneshot::channel::<String>();
+    let tx = Mutex::new(Some(tx));
+    win.eval_with_callback(READ_RESULT_EXPR, move |value| {
+        if let Some(tx) = tx.lock().ok().and_then(|mut tx| tx.take()) {
+            let _ = tx.send(value);
+        }
+    })
+    .map_err(|e| format!("cloudflare solver eval: {e}"))?;
+    match tokio::time::timeout(Duration::from_secs(5), rx).await {
+        Ok(Ok(payload)) => parse_result(&payload),
+        _ => Ok(None),
+    }
+}
+
+async fn wait_for_result(app: &AppHandle) -> Result<CfResult, String> {
+    loop {
+        tokio::time::sleep(POLL_INTERVAL).await;
+        let win = app
+            .get_webview_window(SOLVER_LABEL)
+            .ok_or_else(|| "cloudflare solver window closed".to_string())?;
+        if let Some(result) = read_result(&win).await? {
+            return Ok(result);
+        }
     }
 }
 
 fn open_solver(app: &AppHandle, url: &str) -> Result<(), String> {
     if let Some(existing) = app.get_webview_window(SOLVER_LABEL) {
         eprintln!("[cf] reusing solver window");
-        let _ = existing.eval(&format!(
-            "window.location.href = {};",
+        // Clears the previous page's result so a poll before the new page commits cannot return it.
+        let _ = existing.eval(format!(
+            "window.__harborCfResult = null; window.location.href = {};",
             serde_json::to_string(url).unwrap_or_else(|_| "''".into())
         ));
         let w = existing.clone();
@@ -217,7 +274,7 @@ fn open_solver(app: &AppHandle, url: &str) -> Result<(), String> {
                 .decorations(true)
                 .shadow(true)
                 .focused(true)
-                .initialization_script(INIT_SCRIPT);
+                .initialization_script(init_script());
         let built = crate::browser_args::match_main(&app_main, builder).build();
         match built {
             Ok(window) => {
@@ -246,9 +303,6 @@ pub async fn cf_fetch(app: AppHandle, url: String) -> Result<String, String> {
         }
         cf_note_failure(h);
     }
-    let (tx, rx) = oneshot::channel::<String>();
-    *PENDING.lock().unwrap() = Some(tx);
-
     eprintln!("[cf] solving {}", url);
     open_solver(&app, &url)?;
     let _dismiss = SolverDismiss(app.clone());
@@ -264,21 +318,63 @@ pub async fn cf_fetch(app: AppHandle, url: String) -> Result<String, String> {
         }
     }
 
-    match tokio::time::timeout(Duration::from_secs(90), rx).await {
-        Ok(Ok(body)) => {
-            eprintln!("[cf] got {} bytes", body.len());
+    match tokio::time::timeout(SOLVE_TIMEOUT, wait_for_result(&app)).await {
+        Ok(Ok(result)) => {
+            eprintln!("[cf] got {} bytes", result.body.len());
+            if !result.ua.is_empty() {
+                *last_ua().lock().unwrap() = result.ua;
+            }
             let cleared = harvest(&app, &url);
             if cleared {
                 if let Some(h) = host.as_deref() {
                     cf_clear_failure(h);
                 }
             }
-            Ok(body)
+            Ok(result.body)
         }
-        _ => {
-            PENDING.lock().unwrap().take();
+        Ok(Err(error)) => {
+            eprintln!("[cf] solve failed for {}: {}", url, error);
+            Err(error)
+        }
+        Err(_) => {
             eprintln!("[cf] TIMEOUT {}", url);
             Err("cloudflare challenge timed out".into())
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{init_script, parse_result, CfResult, MAX_RESULT_CHARS, READ_RESULT_EXPR};
+
+    #[test]
+    fn cf_solver_script_stores_result_without_ipc() {
+        let script = init_script();
+        assert!(!script.contains("__TAURI_INTERNALS__"));
+        assert!(!script.contains("__HARBOR_CF_MAX_CHARS__"));
+        assert!(script.contains(&format!("var MAX = {MAX_RESULT_CHARS};")));
+        assert!(script.contains("window.__harborCfResult ="));
+        assert!(READ_RESULT_EXPR.contains("window.__harborCfResult"));
+    }
+
+    #[test]
+    fn cf_solver_result_pending_until_page_stores_one() {
+        assert_eq!(parse_result("null"), Ok(None));
+        assert_eq!(parse_result(" "), Ok(None));
+    }
+
+    #[test]
+    fn cf_solver_result_carries_body_and_user_agent() {
+        let parsed = parse_result(r#"{"body":"{\"ok\":true}","ua":"Mozilla/5.0"}"#).unwrap();
+        let expected = CfResult { body: r#"{"ok":true}"#.into(), ua: "Mozilla/5.0".into(), too_large: false };
+        assert_eq!(parsed, Some(expected));
+    }
+
+    #[test]
+    fn cf_solver_result_rejects_oversized_or_malformed_payloads() {
+        assert!(parse_result(r#"{"tooLarge":true,"ua":"x"}"#).is_err());
+        assert!(parse_result("{not json").is_err());
+        let huge = format!("\"{}\"", "a".repeat(MAX_RESULT_CHARS * 6 + 2048));
+        assert!(parse_result(&huge).is_err());
     }
 }

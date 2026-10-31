@@ -44,7 +44,7 @@ import { LetterboxdRowMenu } from "@/components/letterboxd/letterboxd-row-menu";
 import { Rail as RailImpl } from "./discover/discover-rail";
 import { useDedupedRows } from "./discover/use-deduped-rows";
 import { ANCHOR_AWARDS, ANCHOR_TOP_RATED } from "@/lib/feed/daily-rows-anchors";
-import type { HomeRow } from "./home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { CatalogCustomizeBar } from "@/components/catalog/customize-bar";
 import { CatalogBrowser as CatalogBrowserImpl } from "@/views/discover/catalog-browser";
 import { SurpriseMe as SurpriseMeImpl } from "@/views/discover/surprise-me";

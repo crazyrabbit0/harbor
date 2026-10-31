@@ -33,12 +33,16 @@ const TOKEN_KEYS = [
   "--color-danger",
 ] as const;
 
+// Where a theme came from; parseThemeJson never reads it from a file, so a theme cannot claim to be local.
+export type CustomThemeOrigin = "local" | "imported" | "community";
+
 export type CustomTheme = Omit<ThemePreset, "id"> & {
   id: string;
   css?: string;
   js?: string;
   html?: string;
   customFontId?: string | null;
+  origin?: CustomThemeOrigin;
 };
 
 const subscribers = new Set<() => void>();

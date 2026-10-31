@@ -7,6 +7,7 @@ import {
   ensureDubSet,
   subscribeDubSet,
 } from "@/lib/providers/anime-dub-sub";
+import { safeFetch } from "@/lib/safe-fetch";
 import {
   awardSourceMeta,
   findAnyAwardWins,
@@ -539,7 +540,7 @@ const PosterCard = memo(function PosterCard({
 
       if (kitsuId) {
         try {
-          const res = await fetch(`https://kitsu.io/api/edge/anime/${kitsuId}`, {
+          const res = await safeFetch(`https://kitsu.io/api/edge/anime/${kitsuId}`, {
             headers: { Accept: "application/vnd.api+json" },
           });
           if (res.ok) {

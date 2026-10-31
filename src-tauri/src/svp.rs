@@ -412,7 +412,20 @@ fn mpv_supports_vapoursynth() -> bool {
 }
 
 #[tauri::command]
-pub fn svp_status() -> SvpStatus {
+pub async fn svp_status() -> SvpStatus {
+    tauri::async_runtime::spawn_blocking(svp_status_now)
+        .await
+        .unwrap_or_else(|_| SvpStatus {
+            supported: false,
+            reason: Some("SVP status check failed".to_string()),
+            installed: false,
+            ready: false,
+            loadable: None,
+            load_error: None,
+        })
+}
+
+fn svp_status_now() -> SvpStatus {
     let reason = unsupported_reason();
     if reason.is_some() {
         return SvpStatus {
@@ -541,7 +554,11 @@ fn launch_svp_manager() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn svp_launch() -> Result<(), String> {
+pub async fn svp_launch() -> Result<(), String> {
+    blocking(svp_launch_now).await
+}
+
+fn svp_launch_now() -> Result<(), String> {
     if let Some(reason) = unsupported_reason() {
         return Err(reason);
     }
@@ -549,7 +566,11 @@ pub fn svp_launch() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn svp_ensure_running() -> Result<bool, String> {
+pub async fn svp_ensure_running() -> Result<bool, String> {
+    blocking(svp_ensure_running_now).await
+}
+
+fn svp_ensure_running_now() -> Result<bool, String> {
     if let Some(reason) = unsupported_reason() {
         return Err(reason);
     }
@@ -627,8 +648,21 @@ fn make_script(flow1: &Path, flow2: &Path, target_fps: &str) -> Result<String, S
         .replace("__TARGET__", target_value(target_fps)))
 }
 
+// SVP probes create an mpv instance and walk the install folder, so commands run on the blocking pool.
+async fn blocking<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
-pub fn svp_apply(app: tauri::AppHandle, target_fps: String) -> Result<String, String> {
+pub async fn svp_apply(app: tauri::AppHandle, target_fps: String) -> Result<String, String> {
+    blocking(move || svp_apply_now(app, target_fps)).await
+}
+
+fn svp_apply_now(app: tauri::AppHandle, target_fps: String) -> Result<String, String> {
     if let Some(reason) = unsupported_reason() {
         return Err(reason);
     }

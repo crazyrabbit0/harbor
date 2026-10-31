@@ -221,8 +221,10 @@ export function BookFlip({
       hosts.size || (headersRef.current && Object.keys(headersRef.current).length > 0)
         ? import("@tauri-apps/plugin-http")
         : null;
+    let bookFetch: typeof fetch | null = null;
     if (httpMod) {
-      window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      bookFetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+        if (cancelled) return origFetch(input, init);
         const u = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
         const host = hostOf(u);
         const headers =
@@ -232,6 +234,7 @@ export function BookFlip({
         }
         return origFetch(input, init);
       }) as typeof fetch;
+      window.fetch = bookFetch;
     }
 
     const onPage = (e: Event) => {
@@ -403,7 +406,8 @@ export function BookFlip({
     return () => {
       cancelled = true;
       instRef.current = null;
-      if (httpMod) window.fetch = origFetch;
+      // A wrapper installed after ours (the Memory HUD) stays; ours then passes through via `cancelled`.
+      if (bookFetch && window.fetch === bookFetch) window.fetch = origFetch;
       window.onpopstate = origOnPopState;
       window.removeEventListener("r3d-pagechange", onPage);
       try {

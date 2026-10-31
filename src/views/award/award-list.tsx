@@ -9,6 +9,7 @@ import type { AwardType } from "@/lib/providers/wikidata";
 import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export function AwardList({ awardType, tint }: { awardType: AwardType; tint: string }) {
   const t = useT();
@@ -377,7 +378,7 @@ async function searchType(
 ): Promise<Array<{ id: number; title: string; year: number | null }>> {
   const params = new URLSearchParams({ api_key: key, query: title, include_adult: "false" });
   try {
-    const res = await fetch(`https://api.themoviedb.org/3/search/${type}?${params}`);
+    const res = await safeFetch(`https://api.themoviedb.org/3/search/${type}?${params}`);
     if (!res.ok) return [];
     const data: { results?: Array<Record<string, unknown>> } = await res.json();
     return (data.results ?? [])

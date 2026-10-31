@@ -39,7 +39,7 @@ pub fn read(app: &AppHandle, key: &str) -> Option<String> {
 }
 
 pub fn write(app: &AppHandle, key: &str, value: Option<&str>) -> Result<(), String> {
-    let stored = crate::settings_store::secrets_read(app.clone())?.unwrap_or_default();
+    let stored = crate::settings_store::read_secrets_file(app.clone())?.unwrap_or_default();
     let mut document = serde_json::from_str::<Value>(&stored)
         .unwrap_or_else(|_| Value::Object(serde_json::Map::new()));
     if !document.is_object() {
@@ -57,7 +57,7 @@ pub fn write(app: &AppHandle, key: &str, value: Option<&str>) -> Result<(), Stri
         }
     }
     let encoded = serde_json::to_string(&document).map_err(|error| error.to_string())?;
-    crate::settings_store::secrets_write(app.clone(), encoded)
+    crate::settings_store::write_secrets_file(app.clone(), encoded)
 }
 
 pub fn load(app: &AppHandle, cache_dir: &Path) -> Option<Credentials> {

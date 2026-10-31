@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { listen } from "@tauri-apps/api/event";
 import type { Meta, MetaType } from "@/lib/cinemeta";
+import { hostTrustStore, verifyPlayOnFrame, type HostTrustStore } from "@/lib/lan-trust-host";
 import { queueAdd } from "@/lib/queue";
 import type { PlayEpisode } from "@/lib/view";
 import { isTauri } from "./play-on-lan";
@@ -17,17 +18,24 @@ type InboundQueue = {
 
 const META_TYPES: MetaType[] = ["movie", "series", "channel", "tv", "anime", "other", "manga"];
 
-function readQueueCommand(raw: string): InboundQueue | null {
+/** The queueMeta command of a frame, only when a paired token or the phone remote key vouches for it. */
+export async function readQueueCommand(
+  raw: string,
+  authed: boolean,
+  store: HostTrustStore,
+): Promise<InboundQueue | null> {
+  let parsed: { t?: string; command?: InboundQueue };
   try {
-    const parsed = JSON.parse(raw) as { t?: string; command?: InboundQueue };
-    if (parsed?.t !== "cmd") return null;
-    const command = parsed.command;
-    if (!command || command.action !== "queueMeta") return null;
-    if (typeof command.metaId !== "string" || !command.metaId) return null;
-    return command;
+    parsed = JSON.parse(raw) as { t?: string; command?: InboundQueue };
   } catch {
     return null;
   }
+  if (parsed?.t !== "cmd") return null;
+  const command = parsed.command;
+  if (!command || command.action !== "queueMeta") return null;
+  if (typeof command.metaId !== "string" || !command.metaId) return null;
+  const verdict = await verifyPlayOnFrame(parsed, authed, store);
+  return verdict.ok ? command : null;
 }
 
 function toMeta(command: InboundQueue): Meta {
@@ -45,12 +53,14 @@ export function PlayOnReceiver() {
     if (!isTauri) return;
     let cancelled = false;
     let unlisten: (() => void) | null = null;
-    void listen<{ clientId: number; raw: string }>("remote://cmd", (event) => {
+    void listen<{ clientId: number; raw: string; authed?: boolean }>("remote://cmd", (event) => {
       const raw = event.payload?.raw;
-      if (!raw) return;
-      const command = readQueueCommand(raw);
-      if (!command) return;
-      queueAdd(toMeta(command), toEpisode(command));
+      if (!raw || !raw.includes("queueMeta")) return;
+      void readQueueCommand(raw, event.payload.authed === true, hostTrustStore()).then(
+        (command) => {
+          if (command) queueAdd(toMeta(command), toEpisode(command));
+        },
+      );
     }).then((stop) => {
       if (cancelled) stop();
       else unlisten = stop;

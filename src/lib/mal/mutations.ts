@@ -1,5 +1,6 @@
 import { malRequest } from "./client";
 import type { MalListStatus } from "./types";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export type SavedEntry = {
   status: MalListStatus;
@@ -26,7 +27,7 @@ function leadingInt(value: string): number | null {
 
 async function anilistToMal(anilistId: number): Promise<number | null> {
   try {
-    const res = await fetch("https://graphql.anilist.co", {
+    const res = await safeFetch("https://graphql.anilist.co", {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({

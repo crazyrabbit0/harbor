@@ -4,6 +4,7 @@ import tmdbLogo from "@/assets/addon-logos/tmdb.png";
 import { useT } from "@/lib/i18n";
 import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import { openUrl } from "@/lib/window";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export function TmdbStep() {
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
@@ -19,7 +20,7 @@ export function TmdbStep() {
     if (!draft.trim()) return;
     setStatus("checking");
     try {
-      const res = await fetch(
+      const res = await safeFetch(
         `https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(draft.trim())}`,
       );
       if (res.ok) {

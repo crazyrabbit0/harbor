@@ -1,9 +1,9 @@
+import { separateProfileKey } from "@/lib/profile-roster";
 import { useEffect, useMemo, useState } from "react";
 import { setItemWithRecovery, freeStorageSpace } from "@/lib/storage-recovery";
 import type { MyRating } from "./types";
 
 const KEY = "harbor.ratings.v1";
-const PROFILES_KEY = "harbor.profiles.v1";
 const subs = new Set<() => void>();
 
 type RatingMap = Record<string, MyRating>;
@@ -11,21 +11,7 @@ type RatingMap = Record<string, MyRating>;
 let memoryFallback: RatingMap | null = null;
 
 function activeRatingsKey(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    if (!raw) return KEY;
-    const s = JSON.parse(raw) as {
-      profiles?: Array<{ id: string; settingsLinked?: boolean }>;
-      activeId?: string | null;
-    };
-    const id = s.activeId;
-    if (!id) return KEY;
-    const p = s.profiles?.find((x) => x.id === id);
-    if (!p || p.settingsLinked !== false) return KEY;
-    return `harbor.ratings.${id}`;
-  } catch {
-    return KEY;
-  }
+  return separateProfileKey(KEY, "harbor.ratings");
 }
 
 if (typeof window !== "undefined") {

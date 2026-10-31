@@ -11,7 +11,7 @@ import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { useT } from "@/lib/i18n";
 import type { HomeRowCustomization } from "@/lib/home-customization";
 import { useViewActions } from "@/lib/view";
-import type { HomeRow } from "./home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { RowControls } from "./row-controls";
 import { watchTitleKey, type WatchedSet } from "@/lib/playback-history";
 import { useSettings } from "@/lib/settings";

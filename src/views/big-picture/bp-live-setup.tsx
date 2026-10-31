@@ -7,6 +7,8 @@ import {
   type PlaylistFormValue,
   type PlaylistKind,
 } from "@/lib/iptv/playlist-entry";
+import { readPlaylists, writePlaylists } from "@/lib/iptv/playlists-store";
+import { alertDialog } from "@/lib/dialog";
 import { useSettings } from "@/lib/settings";
 import { SFX } from "@/lib/sfx";
 import { useBpT } from "./bp-i18n";
@@ -116,10 +118,13 @@ export function BpLiveSetup({
     const id = newPlaylistId();
     const entry = materializePlaylistEntry(id, { ...form, name });
     const carriesVod = form.kind !== "epg";
-    update({
-      iptvPlaylists: [...settings.iptvPlaylists, entry],
-      ...(carriesVod && !settings.showPlaylistsTab ? { showPlaylistsTab: true } : {}),
-    });
+    if (!writePlaylists([...readPlaylists(), entry])) {
+      void alertDialog(
+        t("Couldn't save the playlist. Free up storage space in Settings and try again."),
+      );
+      return;
+    }
+    if (carriesVod && !settings.showPlaylistsTab) update({ showPlaylistsTab: true });
     setForm(EMPTY_PLAYLIST_FORM);
     onSaved?.(id);
     onDone?.();

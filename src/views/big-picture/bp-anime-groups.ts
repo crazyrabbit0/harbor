@@ -13,7 +13,7 @@ import type { LibraryItem } from "@/lib/stremio";
 import type { AnilistRail } from "@/lib/use-anilist-anime-rails";
 import type { AwardWinnerEntry } from "@/lib/use-crunchyroll-award-metas";
 import type { MalRail } from "@/lib/use-mal-anime-rails";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import {
   EMPTY_ROW,
   SPECS,

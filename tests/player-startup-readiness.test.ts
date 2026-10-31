@@ -26,23 +26,12 @@ test("player snapshots expose a resettable first-frame readiness signal", () => 
   assert.match(html5, /snap\.firstFrameReady = false/);
 });
 
-test("mpv uses PlaybackRestart rather than FileLoaded as first-frame readiness", () => {
-  const fileLoaded = mpv.slice(
-    mpv.indexOf('raw.event === "file-loaded"'),
-    mpv.indexOf('raw.event === "playback-restart"'),
-  );
-  const playbackRestart = mpv.slice(
-    mpv.indexOf('raw.event === "playback-restart"'),
-    mpv.indexOf("return {", mpv.indexOf('raw.event === "playback-restart"')),
-  );
-  assert.doesNotMatch(fileLoaded, /firstFrameReady = true/);
-  assert.match(playbackRestart, /firstFrameReady = true/);
+// mpv's event rules (first frame on PlaybackRestart, pause kept across seeks, stale paths ignored) are tested in mpv-events.test.ts.
+test("the cinematic loader waits for the first-frame signal", () => {
   assert.match(loader, /snap\.firstFrameReady/);
 });
 
 test("seek restart preserves mpv pause state and user seeks use fast keyframes", () => {
-  assert.match(mpv, /observedPaused = data/);
-  assert.match(mpv, /snap\.status = observedPaused === true \? "paused" : "playing"/);
   assert.match(mpv, /"absolute\+keyframes"/);
   assert.match(mpv, /"absolute\+exact"/);
   assert.match(controls, /seek\(target, "keyframes"\)/);
@@ -56,8 +45,7 @@ test("cinematic loader cannot hide from playback time before the first frame", (
 test("first-frame readiness ignores a stale event from the previous media path", () => {
   assert.match(nativeMpv, /\("path", 20, PropertyKind::String\)/);
   assert.match(mpv, /expectedMediaPath = src\.url/);
-  assert.match(mpv, /observedMediaPath &&/);
-  assert.match(mpv, /normalizeMediaPath\(expectedMediaPath\)/);
+  assert.match(mpv, /observedMediaPath,/);
 });
 
 test("native startup logs classify sources without printing private playback URLs", () => {
@@ -68,7 +56,7 @@ test("native startup logs classify sources without printing private playback URL
 });
 
 test("startup subtitle downloads no longer block the initial media load", () => {
-  assert.match(mpv, /subtitles: \[\]/);
+  assert.match(read("src/lib/player/mpv-config.ts"), /subtitles: \[\]/);
   assert.match(mpv, /void addSeedSubtitles\(src\.subtitles, activeLoadId\)/);
   const coldStart = mpv.indexOf('await invoke("mpv_start"');
   const deferredSubtitles = mpv.indexOf("void addSeedSubtitles", coldStart);

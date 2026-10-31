@@ -3,6 +3,7 @@ import { TRAKT_API_BASE } from "./config";
 import { traktApiKey } from "./credentials";
 import { getSession } from "./session";
 import type { TraktTarget, TraktIds } from "./types";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export type TraktComment = {
   id: number;
@@ -198,7 +199,7 @@ export async function getUserRating(target: TraktTarget): Promise<number | null>
     target.kind === "movie" ? "movies" : target.kind === "episode" ? "episodes" : "shows";
 
   try {
-    const res = await fetch(`${TRAKT_API_BASE}/sync/ratings/${type}?${param}`, {
+    const res = await safeFetch(`${TRAKT_API_BASE}/sync/ratings/${type}?${param}`, {
       headers: {
         "Content-Type": "application/json",
         "trakt-api-version": "2",

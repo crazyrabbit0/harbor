@@ -7,8 +7,14 @@ import {
   fetchFriends,
   fetchSummary,
   ProfileNotFound,
-} from "./profile-api";
-import type { ActivityItem, Badge, Friend, LoadState, ProfileSummary } from "./profile-types";
+} from "@/lib/social/profile-api";
+import type {
+  ActivityItem,
+  Badge,
+  Friend,
+  LoadState,
+  ProfileSummary,
+} from "@/lib/social/profile-types";
 
 const LIVE_INTERVAL_MS = 25000;
 

@@ -1,10 +1,10 @@
+import { separateProfileKey } from "@/lib/profile-roster";
 import { useEffect, useMemo, useState } from "react";
 import { setItemWithRecovery, freeStorageSpace } from "@/lib/storage-recovery";
 import { randomUuid } from "@/lib/uuid";
 import { persistableAddonOrigin, persistableVideos, type Meta } from "@/lib/cinemeta";
 
 const KEY = "harbor.customlists.v1";
-const PROFILES_KEY = "harbor.profiles.v1";
 
 export type ListItem = {
   id: string;
@@ -98,21 +98,7 @@ export function createListStore(storageKey: string): ListStore {
   let memoryFallback: CustomList[] | null = null;
 
   function activeKey(): string {
-    try {
-      const raw = localStorage.getItem(PROFILES_KEY);
-      if (!raw) return storageKey;
-      const s = JSON.parse(raw) as {
-        profiles?: Array<{ id: string; settingsLinked?: boolean }>;
-        activeId?: string | null;
-      };
-      const id = s.activeId;
-      if (!id) return storageKey;
-      const p = s.profiles?.find((x) => x.id === id);
-      if (!p || p.settingsLinked !== false) return storageKey;
-      return `${storageKey}.${id}`;
-    } catch {
-      return storageKey;
-    }
+    return separateProfileKey(storageKey);
   }
 
   if (typeof window !== "undefined") {

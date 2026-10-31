@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
+import { profileRosterFor } from "./helpers/profile-roster.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -92,6 +93,7 @@ function watchlist() {
   const api = load(
     "src/lib/watchlist.ts",
     {
+      "@/lib/profile-roster": profileRosterFor(storage),
       "@/lib/storage-recovery": {
         setItemWithRecovery: (key, value) => {
           data.set(key, value);

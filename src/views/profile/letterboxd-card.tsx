@@ -7,7 +7,7 @@ import { openLinkOut } from "@/lib/social/link-out";
 import { socialPatch } from "@/lib/social/client";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { compactNumber } from "./profile-bits";
-import type { LetterboxdPublished, LetterboxdPublishedList } from "./profile-types";
+import type { LetterboxdPublished, LetterboxdPublishedList } from "@/lib/social/profile-types";
 
 const TILE = "flex flex-col items-center rounded-md bg-elevated px-2 py-2.5 ring-1 ring-edge-soft";
 const LABEL = "text-[10.5px] uppercase tracking-[0.1em] text-ink-subtle";

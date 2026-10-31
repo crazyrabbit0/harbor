@@ -1,3 +1,4 @@
+import { primaryStoredProfile, readRoster } from "@/lib/profile-roster";
 import { HARBOR_API_BASE } from "@/lib/config/endpoints";
 import { safeFetch } from "@/lib/safe-fetch";
 
@@ -5,30 +6,13 @@ const API = `${HARBOR_API_BASE}/themes/api`;
 const ORIGIN = HARBOR_API_BASE;
 const LEGACY_SESSION_KEY = "harbor.theme-session";
 const SESSION_PREFIX = "harbor.theme-session.";
-const PROFILES_KEY = "harbor.profiles.v1";
 const REPAIR_FLAG = "harbor.theme-session.repaired.v2";
 
-function readProfilesRaw(): {
-  profiles?: Array<{ id?: string; isPrimary?: boolean }>;
-  activeId?: string;
-} | null {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    return raw ? JSON.parse(raw) : null;
-  } catch {
-    return null;
-  }
-}
 function activeProfileId(): string {
-  const s = readProfilesRaw();
-  if (s && typeof s.activeId === "string" && s.activeId) return s.activeId;
-  const primary = s?.profiles?.find((p) => p?.isPrimary);
-  return (primary && typeof primary.id === "string" && primary.id) || "";
+  return readRoster().activeId || primaryStoredProfile()?.id || "";
 }
 function primaryProfileId(): string {
-  const s = readProfilesRaw();
-  const primary = s?.profiles?.find((p) => p?.isPrimary);
-  return (primary && typeof primary.id === "string" && primary.id) || activeProfileId();
+  return primaryStoredProfile()?.id || activeProfileId();
 }
 function sessionKey(): string {
   const id = activeProfileId();

@@ -1,3 +1,4 @@
+import { PROFILES_KEY } from "@/lib/profile-roster";
 import { downloadText } from "@/lib/download-text";
 import { buildSyncBackup, type SyncBackup } from "@/lib/profile-sync/backup-payload";
 import { loadBgImage, saveBgImage } from "@/lib/theme-storage";
@@ -11,6 +12,8 @@ import {
   setSecret,
 } from "@/lib/secret-store";
 import { setItemWithRecovery } from "@/lib/storage-recovery";
+import { isSettingsSecretsKey, migrateBlobSecrets } from "@/lib/settings/profile-store";
+import { URL_SECRET_PLACEHOLDER, hasUrlSecrets as urlHasSecrets } from "@/lib/iptv/url-credentials";
 import { localLibraryReady, readLocalLibrary, restoreLocalLibrary } from "@/lib/local-library";
 
 declare const __APP_VERSION__: string;
@@ -46,12 +49,7 @@ type BackupSection = {
   patterns: string[];
 };
 
-/**
- * How localStorage keys map to user-facing export sections.
- * Order matters: the first section whose pattern prefixes a key wins,
- * so `harbor.discover.libImported` (homeLayout) must be checked before
- * the broader `harbor.discover.` (feedDiscover).
- */
+/** How localStorage and secret keys map to user-facing export sections; the longest matching pattern wins. */
 export const BACKUP_SECTIONS: readonly BackupSection[] = [
   {
     key: "theme",
@@ -101,7 +99,7 @@ export const BACKUP_SECTIONS: readonly BackupSection[] = [
     key: "profiles",
     label: "Profiles",
     description: "Your profiles, the active profile, and the profile picker.",
-    patterns: ["harbor.profiles.v1", "harbor.profile.lastSelectAt", "harbor.pickerShown"],
+    patterns: [PROFILES_KEY, "harbor.profile.lastSelectAt", "harbor.pickerShown"],
   },
   {
     key: "sessions",
@@ -172,7 +170,7 @@ export const BACKUP_SECTIONS: readonly BackupSection[] = [
     label: "Xtream credentials",
     description: "Usernames and passwords for Xtream playlists.",
     warning: true,
-    patterns: [],
+    patterns: ["harbor.iptv.credentials.v1"],
   },
   {
     key: "feedDiscover",
@@ -234,10 +232,17 @@ export function isSectionKey(value: unknown): value is BackupSectionKey {
 
 /** The section a localStorage key belongs to; "other" is the catch-all. */
 export function sectionOf(key: string): BackupSectionKey {
+  let best: BackupSectionKey = "other";
+  let bestLength = 0;
   for (const section of BACKUP_SECTIONS) {
-    if (section.patterns.some((p) => key.startsWith(p))) return section.key;
+    for (const p of section.patterns) {
+      if (p.length > bestLength && key.startsWith(p)) {
+        best = section.key;
+        bestLength = p.length;
+      }
+    }
   }
-  return "other";
+  return best;
 }
 
 export function backupSectionLabel(key: BackupSectionKey): string {
@@ -295,16 +300,20 @@ export async function buildBackup(selected?: BackupSectionKey[]): Promise<Backup
     await localLibraryReady();
     data["harbor.library.local.v1"] = JSON.stringify(readLocalLibrary());
   }
-  // Xtream playlists embed credentials in their URLs; when the Xtream
-  // credentials section is left out (but Live TV is exported), drop them so
-  // they never leave the device.
+  // Without the credentials section, playlists that need a login (Xtream or a redacted typed URL) are left out entirely.
   if (sectionSet?.has("iptv") && !sectionSet.has("iptvCredentials")) {
     const raw = data["harbor.iptv.playlists.v1"];
     if (raw != null) {
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) {
-          const filtered = parsed.filter((p: { kind?: string }) => p?.kind !== "xtream");
+          const secretUrl = (v: unknown) =>
+            typeof v === "string" && (urlHasSecrets(v) || v.includes(URL_SECRET_PLACEHOLDER));
+          const needsLogin = (p: { kind?: string; url?: unknown; epgUrl?: unknown }) =>
+            p?.kind === "xtream" || secretUrl(p?.url) || secretUrl(p?.epgUrl);
+          const filtered = parsed.filter(
+            (p: { kind?: string; url?: unknown; epgUrl?: unknown }) => !needsLogin(p),
+          );
           if (filtered.length === 0) {
             delete data["harbor.iptv.playlists.v1"];
           } else {
@@ -421,7 +430,7 @@ export function backupSections(backup: Backup): BackupSectionKey[] {
  * generated id like "p_mqxx2agk_ez1zro" (see createProfile in profiles.tsx).
  */
 const PROFILE_ID_RE = /^(?:default|p_[a-z0-9]+_[a-z0-9]+)$/;
-const PROFILES_STATE_KEY = "harbor.profiles.v1";
+const PROFILES_STATE_KEY = PROFILES_KEY;
 
 function profileSuffixOf(key: string): string | null {
   const dot = key.lastIndexOf(".");
@@ -526,13 +535,18 @@ export async function applyBackup(backup: Backup): Promise<void> {
   // after this restore so they come back regardless of where the backup was made.
   const targetProfile = activeProfileId();
   for (const [k, v] of Object.entries(backup.data)) {
-    if (!isPortable(k) || !isSecretKey(k)) continue;
+    if (!isPortable(k) || !isSecretKey(k) || isSettingsSecretsKey(k)) continue;
     try {
       setSecret(secretKeyForProfile(k, targetProfile), v);
     } catch {
       /* keep restoring the rest even if one entry is rejected */
     }
   }
+  // Settings secrets follow their blob's scope, so they take the same retargeted keys as the blobs.
+  for (const [k, v] of Object.entries(data)) {
+    if (isPortable(k) && isSettingsSecretsKey(k)) setSecret(k, v);
+  }
+  for (const k of Object.keys(data)) migrateBlobSecrets(k, true);
   const restoresTheme =
     backup.sections == null || backup.sections.length === 0 || backup.sections.includes("theme");
   if (restoresTheme) {

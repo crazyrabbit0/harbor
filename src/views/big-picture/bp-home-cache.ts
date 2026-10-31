@@ -1,5 +1,5 @@
 import type { Meta } from "@/lib/cinemeta";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 
 const DB_NAME = "harbor-bp-home";
 const STORE = "home";

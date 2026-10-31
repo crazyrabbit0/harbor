@@ -1,3 +1,4 @@
+import { safeFetch } from "@/lib/safe-fetch";
 const FANART = "https://webservice.fanart.tv/v3";
 
 type ArtItem = { id?: string; url?: string; lang?: string; likes?: string };
@@ -37,7 +38,7 @@ async function get<T>(key: string, path: string): Promise<T | null> {
   const hit = cache.get(url);
   if (hit && Date.now() - hit.t < TTL) return hit.v as T;
   try {
-    const r = await fetch(url);
+    const r = await safeFetch(url);
     if (!r.ok) return null;
     const j = (await r.json()) as T;
     cache.set(url, { v: j, t: Date.now() });

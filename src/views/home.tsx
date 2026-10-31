@@ -115,7 +115,7 @@ import {
   mergeRows,
   resolvePendingTmdbRows,
 } from "./home/home-rows";
-import type { HomeRow } from "./home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { mergeLoadedHomeRows } from "./home/merge-loaded-rows";
 import { RowSkeleton } from "./home/row-skeleton";
 import { AddSourceModal } from "@/components/add-source-modal";

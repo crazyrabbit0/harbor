@@ -1,3 +1,4 @@
+import { activeSettingsSource } from "@/lib/profile-roster";
 import { useSyncExternalStore } from "react";
 import { isRtl, normalizeLanguage, type UiLanguage } from "./languages";
 import { resolveUiRegion } from "./regional-labels";
@@ -19,16 +20,10 @@ function storedUiLocale(): { language: UiLanguage; region?: string } {
   const fallback = { language: "en" as const, region: resolveUiRegion(undefined, runtimeLocale()) };
   if (typeof localStorage === "undefined") return fallback;
   try {
-    const profileState = JSON.parse(localStorage.getItem("harbor.profiles.v1") ?? "null") as {
-      activeId?: string | null;
-      profiles?: Array<{ id: string; settingsLinked?: boolean }>;
-    } | null;
-    const activeId = profileState?.activeId ?? "default";
-    const activeProfile = profileState?.profiles?.find((p) => p.id === activeId);
-    const preferredKey =
-      activeProfile?.settingsLinked === false
-        ? `harbor.settings.${activeId}`
-        : "harbor.settings.shared";
+    const source = activeSettingsSource();
+    const preferredKey = source.linked
+      ? "harbor.settings.shared"
+      : `harbor.settings.${source.profileId}`;
     for (const key of [preferredKey, "harbor.settings.shared", "harbor.settings"]) {
       const raw = localStorage.getItem(key);
       if (!raw) continue;

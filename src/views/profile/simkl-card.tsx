@@ -8,7 +8,7 @@ import { openLinkOut } from "@/lib/social/link-out";
 import { socialPatch } from "@/lib/social/client";
 import type { SimklAccountType, SimklProfile, SimklProfileStats } from "@/lib/simkl/profile";
 import { Avatar, compactNumber, timeAgo } from "./profile-bits";
-import type { SimklPublished } from "./profile-types";
+import type { SimklPublished } from "@/lib/social/profile-types";
 import { useSimklCard } from "./use-simkl-card";
 
 const TILE = "flex flex-col items-center rounded-md bg-elevated px-2 py-2.5 ring-1 ring-edge-soft";

@@ -1,4 +1,4 @@
-import { fetchSummary, ProfileNotFound } from "@/views/profile/profile-api";
+import { fetchSummary, ProfileNotFound } from "@/lib/social/profile-api";
 import { socialGet } from "./client";
 
 export type UserHit = {

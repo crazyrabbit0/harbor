@@ -2224,6 +2224,30 @@ const uiFallback: Record<string, string> = {
     "How many seconds Save video clip keeps, counting back from where you are.",
   "Loading releases…": "Loading releases…",
   "Checking {done} of {total} titles": "Checking {done} of {total} titles",
+  "This theme's script is turned off": "This theme's script is turned off",
+  "This theme's script is running": "This theme's script is running",
+  "Theme scripts get full access to Harbor and your files. Only run a script from a theme you trust.":
+    "Theme scripts get full access to Harbor and your files. Only run a script from a theme you trust.",
+  "Run this theme's script": "Run this theme's script",
+  "Turn off script": "Turn off script",
+  "No community server is set. Enter the address of a server you run to use community corrections.":
+    "No community server is set. Enter the address of a server you run to use community corrections.",
+  "Community corrections need a server you run. Leave blank to keep them off. Private mode below stops all contact either way.":
+    "Community corrections need a server you run. Leave blank to keep them off. Private mode below stops all contact either way.",
+  "Enter the address of a community sync server you run. Leave it blank to turn community corrections off.":
+    "Enter the address of a community sync server you run. Leave it blank to turn community corrections off.",
+  "Enter a full http:// or https:// address, or leave it blank to turn community corrections off.":
+    "Enter a full http:// or https:// address, or leave it blank to turn community corrections off.",
+  "This remote isn't paired. Scan the QR code in Harbor's settings on your computer again.":
+    "This remote isn't paired. Scan the QR code in Harbor's settings on your computer again.",
+  "Pair {name} with this Harbor?": "Pair {name} with this Harbor?",
+  "Type this code on that computer. Only pair computers you trust.":
+    "Type this code on that computer. Only pair computers you trust.",
+  "Another computer": "Another computer",
+  "Paired computers": "Paired computers",
+  "These computers paired with this Harbor and can send it titles with Play on.":
+    "These computers paired with this Harbor and can send it titles with Play on.",
+  "No computer has paired with this Harbor yet.": "No computer has paired with this Harbor yet.",
 };
 
 export default uiFallback;

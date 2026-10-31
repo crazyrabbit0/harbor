@@ -1,8 +1,8 @@
 import { safeFetch } from "@/lib/safe-fetch";
 import type { SkipSegment } from "./types";
-import { HARBOR_API_BASE } from "@/lib/config/endpoints";
 
-const CORPUS_URL = `${HARBOR_API_BASE}/updates/ad-segments.json`;
+// No signed feed exists (the signing key is gone), so an empty URL keeps this module offline.
+const CORPUS_URL: string = "";
 const CORPUS_PUBKEY = "yszDA2+G0Rtep39h67iuhl8+5pCQkM+O4D4pMnpg4Ks=";
 
 type CorpusEntry = {

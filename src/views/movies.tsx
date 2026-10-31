@@ -19,7 +19,7 @@ import { useScrollMemory, useViewActions } from "@/lib/view";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
 import { buildLetterboxdHomeRows } from "@/lib/stremboxd/home-rails";
 import { LetterboxdRowMenu } from "@/components/letterboxd/letterboxd-row-menu";
-import type { HomeRow } from "./home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { useCollectionRowsForPage } from "@/lib/page-collection-rows";
 import { buildMovieHero, HERO_POOL_TARGET, movieSpecs, rotateDaily } from "./movies/movie-specs";
 

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { CommentCompose } from "./comment-compose";
 import { CommentItem } from "./comment-item";
-import type { Comment } from "./profile-types";
+import type { Comment } from "@/lib/social/profile-types";
 import { useComments } from "./use-comments";
 
 const COMMENTS_PAGE = 5;

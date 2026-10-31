@@ -24,8 +24,8 @@ import {
   type StatKey,
 } from "@/lib/profile-card-layout";
 import { countryName } from "./flags";
-import { saveSlogan } from "./profile-api";
-import { orderShownBadges } from "./badge-catalog";
+import { saveSlogan } from "@/lib/social/profile-api";
+import { orderShownBadges } from "@/lib/social/badge-catalog";
 import { EditProfileHint } from "./edit-profile-hint";
 import {
   Avatar,
@@ -36,7 +36,7 @@ import {
   VerifiedCheck,
 } from "./profile-bits";
 import { StatusBubble } from "./status-bubble";
-import type { ProfileSummary } from "./profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 import { HARBOR_API_BASE } from "@/lib/config/endpoints";
 
 type HeroBadge = { id: string; name: string; iconUrl?: string };

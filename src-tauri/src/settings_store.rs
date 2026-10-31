@@ -6,19 +6,35 @@ fn settings_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(dir.join("settings.json"))
 }
 
-#[tauri::command]
-pub fn settings_read(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    let path = settings_path(&app)?;
-    match std::fs::read_to_string(&path) {
+fn read_optional(path: &std::path::Path) -> Result<Option<String>, String> {
+    match std::fs::read_to_string(path) {
         Ok(s) => Ok(Some(s)),
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
         Err(e) => Err(e.to_string()),
     }
 }
 
+// Sync commands run on the main thread, so file I/O (and its fsync) goes to the blocking pool.
+async fn off_main<T: Send + 'static>(
+    work: impl FnOnce() -> Result<T, String> + Send + 'static,
+) -> Result<T, String> {
+    tauri::async_runtime::spawn_blocking(work)
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn settings_read(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    off_main(move || read_optional(&settings_path(&app)?)).await
+}
+
+// Writes share one temp name per file, so they run one at a time.
+static WRITE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 // Flushed before the rename, so a power loss leaves the old file or the new one, never an empty one.
 fn write_atomic(path: &std::path::Path, content: &str) -> Result<(), String> {
     use std::io::Write;
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let tmp = path.with_extension("json.tmp");
     let mut file = std::fs::File::create(&tmp).map_err(|e| e.to_string())?;
     file.write_all(content.as_bytes())
@@ -29,8 +45,14 @@ fn write_atomic(path: &std::path::Path, content: &str) -> Result<(), String> {
 }
 
 #[tauri::command]
-pub fn settings_write(app: tauri::AppHandle, content: String) -> Result<(), String> {
-    write_atomic(&settings_path(&app)?, &content)
+pub async fn settings_write(app: tauri::AppHandle, content: String) -> Result<(), String> {
+    off_main(move || {
+        write_atomic(&settings_path(&app)?, &content)?;
+        #[cfg(desktop)]
+        crate::fs_scope::allow_settings_content(&app, &content);
+        Ok(())
+    })
+    .await
 }
 
 fn secrets_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
@@ -39,23 +61,26 @@ fn secrets_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     Ok(dir.join("secrets.json"))
 }
 
-#[tauri::command]
-pub fn secrets_read(app: tauri::AppHandle) -> Result<Option<String>, String> {
-    let path = secrets_path(&app)?;
-    match std::fs::read_to_string(&path) {
-        Ok(s) => Ok(Some(s)),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(None),
-        Err(e) => Err(e.to_string()),
-    }
+pub(crate) fn read_secrets_file(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    read_optional(&secrets_path(&app)?)
 }
 
-#[tauri::command]
-pub fn secrets_write(app: tauri::AppHandle, content: String) -> Result<(), String> {
+pub(crate) fn write_secrets_file(app: tauri::AppHandle, content: String) -> Result<(), String> {
     write_atomic(&secrets_path(&app)?, &content)
 }
 
+#[tauri::command]
+pub async fn secrets_read(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    off_main(move || read_secrets_file(app)).await
+}
+
+#[tauri::command]
+pub async fn secrets_write(app: tauri::AppHandle, content: String) -> Result<(), String> {
+    off_main(move || write_secrets_file(app, content)).await
+}
+
 pub(crate) fn secret_value(app: &tauri::AppHandle, key: &str) -> Result<Option<String>, String> {
-    let Some(content) = secrets_read(app.clone())? else {
+    let Some(content) = read_optional(&secrets_path(app)?)? else {
         return Ok(None);
     };
     let value =

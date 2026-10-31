@@ -56,17 +56,19 @@ test("the resume position is resolved before loading and handed to the first loa
 });
 
 test("Windows embedded mpv is retained across compatible VOD bitrate profiles", () => {
-  assert.match(mpv, /invoke<boolean>\("mpv_release_media"\)/);
-  assert.match(mpv, /retainedMpv\?\.configKey === reuseConfigKey/);
-  assert.match(mpv, /retainedMpv\.isLive === nextIsLive/);
-  assert.doesNotMatch(mpv, /retainedMpv\.startupProfile === nextStartupProfile/);
+  const session = read("src/lib/player/mpv-session.ts");
+  assert.match(session, /invoke<boolean>\("mpv_release_media"\)/);
+  assert.match(session, /retainedMpv\?\.configKey === reuseConfigKey/);
+  assert.match(session, /retainedMpv\.isLive === nextIsLive/);
+  assert.doesNotMatch(session, /startupProfile ===/);
+  assert.match(mpv, /canRetain && takeRetainedMpv\(reuseConfigKey, nextIsLive\)/);
   assert.doesNotMatch(
     mpv,
     /currentStartupProfile != null && currentStartupProfile !== nextStartupProfile/,
   );
   assert.match(mpv, /invoke\("mpv_restore_media_surface"\)/);
   assert.match(mpv, /await ensureGeometryTracking\(opts\);/);
-  assert.match(mpv, /A retained Windows mpv child was hidden/);
+  assert.match(read("src/lib/player/mpv-geometry.ts"), /A retained Windows mpv child was hidden/);
   assert.match(nativeMpv, /pub async fn mpv_release_media/);
   assert.match(nativeMpv, /pub async fn mpv_restore_media_surface/);
   assert.match(nativeMpv, /mpv\.command\("stop", &\[\]\)/);
@@ -113,10 +115,10 @@ test("startup buffering is staged and adapts without lowering media quality", ()
   assert.match(startupProfile, /2160p\?|4320p\?|4k\|8k\|uhd\|remux/);
   assert.match(nativeMpv, /startup_profile: Option<String>/);
   assert.match(nativeMpv, /if high_bitrate \{ "32MiB" \} else \{ "16MiB" \}/);
-  assert.match(mpv, /phase === "startup"/);
-  assert.match(mpv, /\["demuxer-max-bytes", highBitrate \? "256MiB" : "128MiB"\]/);
-  assert.match(mpv, /\["demuxer-max-bytes", highBitrate \? "768MiB" : "512MiB"\]/);
-  assert.match(mpv, /steadyBufferLoadId !== mediaLoadId/);
+  const mpvConfig = read("src/lib/player/mpv-config.ts");
+  assert.match(mpvConfig, /phase === "startup"/);
+  assert.match(mpvConfig, /\["demuxer-max-bytes", highBitrate \? "256MiB" : "128MiB"\]/);
+  assert.match(mpvConfig, /\["demuxer-max-bytes", highBitrate \? "768MiB" : "512MiB"\]/);
   assert.match(nativeMpv, /"cache-pause-initial", "no"/);
   assert.doesNotMatch(startupProfile, /resolution.*replace|transcode|downscale/i);
 });

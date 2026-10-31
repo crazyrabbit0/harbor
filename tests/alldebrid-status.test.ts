@@ -4,6 +4,7 @@ import test from "node:test";
 import ts from "typescript";
 import { matchEpisodeFileIndex } from "../src/lib/streams/episode-file.ts";
 import { hashFromMagnet, magnetFromHash } from "../src/lib/debrid/types.ts";
+import { createLibraryCache } from "../src/lib/debrid/library-cache.ts";
 
 const links = [
   { link: "https://fixture.invalid/episode1", filename: "Show.S01E01.mkv", size: 200 },
@@ -17,6 +18,7 @@ function fixture(magnets: unknown) {
     "@/lib/debug": { dlog() {}, dwarn() {} },
     "@/lib/streams/episode-file": { matchEpisodeFileIndex },
     "./types": { hashFromMagnet, magnetFromHash },
+    "./library-cache": { createLibraryCache },
     "@/lib/safe-fetch": {
       safeFetch: async (url: string) => {
         const parsed = new URL(url);

@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import { Loader2, Upload } from "lucide-react";
 import { fileToFaviconWebp, uploadFavicon } from "@/lib/social/favicon";
 import { useT } from "@/lib/i18n";
-import type { CustomizationInput, ProfileSummary } from "../profile-types";
+import type { CustomizationInput, ProfileSummary } from "@/lib/social/profile-types";
 import { IMAGE_URL_MAX } from "./customization-types";
 
 const inputCls =

@@ -1,4 +1,5 @@
 import { ANIME_CLOUD_ID } from "@/lib/stremio";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const API = "https://api.strem.io/api";
 
@@ -18,7 +19,7 @@ export type RepairResult = {
 };
 
 async function call(path: string, body: unknown): Promise<unknown> {
-  const res = await fetch(`${API}/${path}`, {
+  const res = await safeFetch(`${API}/${path}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),

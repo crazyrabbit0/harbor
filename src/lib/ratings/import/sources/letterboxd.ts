@@ -1,3 +1,4 @@
+import { getTmdbKey } from "@/lib/settings/tmdb-key";
 import { unzip } from "@/lib/unzip";
 import { isRated, normalizeScore, scoreIsValid } from "../types";
 import type { ImportProgress, ImportSourceInput, ImportedRating, RatingsSource } from "../types";
@@ -279,14 +280,7 @@ async function fetchRatings(
 }
 
 function hasTmdbKey(): boolean {
-  try {
-    const raw = localStorage.getItem("harbor.settings");
-    if (!raw) return false;
-    const key = (JSON.parse(raw) as { tmdbKey?: unknown }).tmdbKey;
-    return typeof key === "string" && key.trim().length > 0;
-  } catch {
-    return false;
-  }
+  return getTmdbKey().trim().length > 0;
 }
 
 export const letterboxdSource: RatingsSource = {

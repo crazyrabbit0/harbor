@@ -52,18 +52,22 @@ export function HdrStageBridge({
   handlersRef.current = handlers;
   const payloadRef = useRef(payload);
   payloadRef.current = payload;
+  const sentRef = useRef<string | null>(null);
+  // The player passes a fresh object each render, so only a changed serialized payload is sent.
+  const send = (next: HdrStagePayload, force = false) => {
+    const json = JSON.stringify(next);
+    if (!force && json === sentRef.current) return;
+    sentRef.current = json;
+    void hdrOverlayEmitProps(next);
+  };
 
   useEffect(() => {
     if (!active || !listening.current) return;
-    void hdrOverlayEmitProps(payload);
+    send(payload);
   }, [active, payload]);
 
   useEffect(() => {
-    if (!active) return;
-    const id = window.setInterval(() => {
-      if (listening.current) void hdrOverlayEmitProps(payloadRef.current);
-    }, 1000);
-    return () => window.clearInterval(id);
+    if (!active) sentRef.current = null;
   }, [active]);
 
   useEffect(() => {
@@ -132,7 +136,7 @@ export function HdrStageBridge({
       await bind("hdr-stage://lock", () => h().lock());
       await bind("hdr-stage://unlock", () => h().unlock());
       await bind("hdr-stage://request", () => {
-        if (listening.current) void hdrOverlayEmitProps(payloadRef.current);
+        if (listening.current) send(payloadRef.current, true);
       });
       await bind(HDR_STAGE_SET_SUBTITLE_TRACK, (p) => {
         const request = p as Partial<HdrStageSubtitleTrackRequest>;
@@ -181,7 +185,7 @@ export function HdrStageBridge({
       });
       if (!cancelled) {
         listening.current = true;
-        void hdrOverlayEmitProps(payloadRef.current);
+        send(payloadRef.current, true);
       }
     })().catch(() => console.warn("[hdr-overlay] could not register player action listeners"));
     return () => {

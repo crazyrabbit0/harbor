@@ -6,6 +6,7 @@ import {
   sourceBadge,
   type BadgeKind,
 } from "@/components/format-badge";
+import { safeFetch } from "@/lib/safe-fetch";
 import type { Meta } from "@/lib/cinemeta";
 import type { Rejection } from "@/lib/streams/trust";
 import type { Addon } from "@/lib/addons";
@@ -24,7 +25,7 @@ export async function cinemetaImdbFallback(
   const targetYear = releaseInfo ? parseInt(releaseInfo, 10) : null;
   const url = `https://v3-cinemeta.strem.io/catalog/${type}/top/search=${encodeURIComponent(name)}.json`;
   try {
-    const res = await fetch(url);
+    const res = await safeFetch(url);
     if (!res.ok) return null;
     const data = (await res.json()) as {
       metas?: Array<{ id: string; name: string; releaseInfo?: string }>;

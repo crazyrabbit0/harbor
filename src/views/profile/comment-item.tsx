@@ -8,7 +8,7 @@ import { MentionLink } from "./mention-link";
 import { segmentProfanity, type ComposeIssue } from "./text-safety";
 import { UserHoverCard } from "./user-hover-card";
 import { useSelfAvatar } from "./use-self-avatar";
-import type { Comment } from "./profile-types";
+import type { Comment } from "@/lib/social/profile-types";
 import { VerifiedBadge } from "@/views/account/verified-badge";
 
 function SafeBody({

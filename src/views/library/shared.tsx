@@ -7,7 +7,7 @@ import { VirtualGrid } from "@/components/virtual-grid";
 import { WatchlistCard } from "./watchlist-card";
 
 export { WatchlistCard } from "./watchlist-card";
-export { hydrateLibraryMeta, loadLocalIds } from "./hydrate-meta";
+export { hydrateLibraryMeta, loadLocalIds } from "@/lib/library/hydrate-meta";
 
 export type Tab =
   | "library"

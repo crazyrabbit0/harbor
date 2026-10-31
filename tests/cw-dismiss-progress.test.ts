@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 import type { LibraryItem } from "../src/lib/stremio";
+import { profileRosterFor } from "./helpers/profile-roster.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -17,6 +18,7 @@ function harness(seed?: string, onChange = () => {}) {
   const resume = new Map<string, { ms: number; t: number }>();
   const key = (id: string, s?: number, e?: number) => `${id}|${s}|${e}`;
   const mocks: Record<string, unknown> = {
+    "@/lib/profile-roster": profileRosterFor({ getItem: (k: string) => data.get(k) ?? null }),
     "./cw-profile": { privateCwProfileId: () => privateProfile },
     react: {
       useSyncExternalStore: (subscribe: (notify: () => void) => () => void) => {

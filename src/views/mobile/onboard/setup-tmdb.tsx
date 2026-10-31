@@ -14,6 +14,7 @@ import {
   SetupOk,
   SetupWalkthrough,
 } from "./setup-ui";
+import { safeFetch } from "@/lib/safe-fetch";
 import type { HandoffClientReject } from "@/lib/tv-handoff/handoff-client";
 import type { DeliveryState } from "./use-setup-link";
 
@@ -27,7 +28,7 @@ async function checkKey(key: string): Promise<Check> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), VALIDATE_TIMEOUT_MS);
   try {
-    const res = await fetch(
+    const res = await safeFetch(
       `https://api.themoviedb.org/3/configuration?api_key=${encodeURIComponent(key)}`,
       { signal: ctrl.signal },
     );

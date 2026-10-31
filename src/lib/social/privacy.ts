@@ -1,6 +1,6 @@
 import { safeFetch } from "@/lib/safe-fetch";
 import { authToken } from "@/lib/theme-auth";
-import type { ProfileSummary } from "@/views/profile/profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 import { HARBOR_API_BASE } from "@/lib/config/endpoints";
 
 const ENDPOINT = `${HARBOR_API_BASE}/themes/api/social/me/profile`;

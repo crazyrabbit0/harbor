@@ -13,6 +13,7 @@ import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
 import { pushActivityHint } from "@/lib/discord/activity-hint";
 import type { Meta } from "@/lib/cinemeta";
+import { safeFetch } from "@/lib/safe-fetch";
 
 const DEPT_LABELS: Record<TopRankDept, { title: string; subtitle: string }> = {
   Acting: { title: "Top 100 Actors", subtitle: "Most popular performers right now" },
@@ -325,7 +326,7 @@ function useImdbOpener(personId: number, tmdbKey: string) {
     if (!tmdbKey) return fallback();
     setLoading(true);
     try {
-      const r = await fetch(
+      const r = await safeFetch(
         `https://api.themoviedb.org/3/person/${personId}/external_ids?api_key=${encodeURIComponent(tmdbKey)}`,
       );
       if (r.ok) {

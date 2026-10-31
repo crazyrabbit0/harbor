@@ -2,15 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Main window capabilities",
-  "windows": [
-    "main",
-    "harbor-pip",
-    "harbor-browser",
-    "harbor-modal-overlay",
-    "harbor-cf-solver",
-    "harbor-dj",
-    "source-verification-*"
-  ],
+  "windows": ["main"],
   "permissions": [
     "core:default",
     "os:default",
@@ -69,89 +61,254 @@
     {
       "identifier": "fs:allow-write-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-write-text-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-create",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-remove",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-exists",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-mkdir",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-read-dir",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-read-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-read-text-file",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "fs:allow-stat",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     },
     {
       "identifier": "opener:allow-reveal-item-in-dir",
       "allow": [
-        {
-          "path": "**"
-        }
+        { "path": "$APPDATA" },
+        { "path": "$APPDATA/**" },
+        { "path": "$APPCACHE" },
+        { "path": "$APPCACHE/**" },
+        { "path": "$APPLOCALDATA" },
+        { "path": "$APPLOCALDATA/**" },
+        { "path": "$TEMP" },
+        { "path": "$TEMP/**" },
+        { "path": "$DOWNLOAD" },
+        { "path": "$DOWNLOAD/**" },
+        { "path": "$AUDIO" },
+        { "path": "$AUDIO/**" },
+        { "path": "$VIDEO" },
+        { "path": "$VIDEO/**" },
+        { "path": "$PICTURE" },
+        { "path": "$PICTURE/**" },
+        { "path": "$DOCUMENT" },
+        { "path": "$DOCUMENT/**" }
       ]
     }
   ]

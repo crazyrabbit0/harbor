@@ -1,5 +1,5 @@
 import { tmdbDefaultPoster } from "@/lib/providers/tmdb/tmdb-images";
-import { loadStoredSettings } from "@/lib/settings/load";
+import { getTmdbKey } from "@/lib/settings/tmdb-key";
 import type { FeaturedList } from "./featured-lists";
 
 async function defaultItemPoster(id: string, fallback: string, key: string): Promise<string> {
@@ -9,7 +9,7 @@ async function defaultItemPoster(id: string, fallback: string, key: string): Pro
 }
 
 export async function bakeDefaultPosters(lists: FeaturedList[]): Promise<FeaturedList[]> {
-  const key = loadStoredSettings().tmdbKey ?? "";
+  const key = getTmdbKey();
   if (!key) return lists;
   return Promise.all(
     lists.map(async (l) => ({

@@ -1,4 +1,11 @@
-import { AlertCircle } from "../icons";
+import { AlertCircle, AlertTriangle } from "../icons";
+import {
+  grantThemeJsConsent,
+  hasThemeJsConsent,
+  needsThemeJsConsent,
+  revokeThemeJsConsent,
+  subscribeThemeJsConsent,
+} from "@/lib/theme-js-consent";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActiveBanner } from "./custom-themes-section/active-banner";
 import { ExportBlock } from "./custom-themes-section/export-block";
@@ -155,7 +162,7 @@ export function CustomThemesSection({
       if (!result.ok) {
         const foreign = importForeignTheme(text, file.name);
         if (foreign.ok && foreign.themes.length > 0) {
-          for (const t of foreign.themes) saveCustomTheme(t);
+          for (const t of foreign.themes) saveCustomTheme({ ...t, origin: "imported" });
           const first = foreign.themes[0];
           setImportedNotice(
             foreign.themes.length > 1
@@ -172,7 +179,7 @@ export function CustomThemesSection({
         setError(localizeImportError(result.error));
         return;
       }
-      saveCustomTheme(result.theme);
+      saveCustomTheme({ ...result.theme, origin: "imported" });
       setImportedNotice(result.theme.name);
       activateTheme(result.theme.id, result.theme.navCustomization);
     } catch {
@@ -204,6 +211,7 @@ export function CustomThemesSection({
         )
       : null;
     removeCustomTheme(id);
+    revokeThemeJsConsent(id);
     if (wasActive) {
       update({ theme: { ...settings.theme, preset: "cool-grey", backgroundImage: image } });
     }
@@ -230,6 +238,7 @@ export function CustomThemesSection({
   if (libraryOpen) {
     return (
       <div className="flex flex-col gap-6">
+        {activeTheme && <ThemeScriptConsent theme={activeTheme as CustomTheme} />}
         <LibraryBrowser
           entries={entries}
           activeId={activeId}
@@ -253,6 +262,8 @@ export function CustomThemesSection({
         onExport={() => activeTheme && showExport(activeTheme.id)}
         onCustomize={() => window.dispatchEvent(new CustomEvent("harbor:open-theme-editor"))}
       />
+
+      {activeTheme && <ThemeScriptConsent theme={activeTheme as CustomTheme} />}
 
       <HeroCards
         onOpenLibrary={() => {
@@ -282,6 +293,51 @@ export function CustomThemesSection({
       )}
 
       {exportText && <ExportBlock text={exportText} onClose={() => setExportText("")} />}
+    </div>
+  );
+}
+
+function useThemeJsConsentTick(): number {
+  const [tick, setTick] = useState(0);
+  useEffect(() => subscribeThemeJsConsent(() => setTick((n) => n + 1)), []);
+  return tick;
+}
+
+// Imported and community themes keep their script off until the user allows it here.
+function ThemeScriptConsent({ theme }: { theme: CustomTheme }) {
+  const t = useT();
+  useThemeJsConsentTick();
+  const pending = needsThemeJsConsent(theme);
+  const allowed = hasThemeJsConsent(theme);
+  if (!pending && !allowed) return null;
+  return (
+    <div className="flex flex-wrap items-start gap-2.5 rounded-[10px] bg-elevated px-4 py-3 text-[15.5px] leading-[22px]">
+      <AlertTriangle
+        size={18}
+        strokeWidth={2.2}
+        className={`mt-[2px] shrink-0 ${pending ? "text-danger" : "text-ink-muted"}`}
+      />
+      <div className="min-w-0 max-w-[66ch] flex-1">
+        <p className="font-semibold text-ink">
+          {pending ? t("This theme's script is turned off") : t("This theme's script is running")}
+        </p>
+        <p className="mt-0.5 text-ink-muted">
+          {t(
+            "Theme scripts get full access to Harbor and your files. Only run a script from a theme you trust.",
+          )}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={() => (pending ? grantThemeJsConsent(theme) : revokeThemeJsConsent(theme.id))}
+        className={
+          pending
+            ? "harbor-press-pop flex h-11 shrink-0 items-center rounded-[8px] bg-ink px-4 text-[15.5px] font-semibold text-canvas transition-opacity hover:opacity-90"
+            : "harbor-press-pop flex h-11 shrink-0 items-center rounded-[8px] bg-ink/[0.08] px-4 text-[15.5px] font-semibold text-ink transition-colors hover:bg-ink/[0.14]"
+        }
+      >
+        {pending ? t("Run this theme's script") : t("Turn off script")}
+      </button>
     </div>
   );
 }

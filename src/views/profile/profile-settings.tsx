@@ -27,7 +27,7 @@ import { nameEquals } from "@/lib/account/name-sync";
 import { setPrivate } from "@/lib/social/privacy";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
-import { saveSettings } from "./profile-api";
+import { saveSettings } from "@/lib/social/profile-api";
 import { MyListsPicker } from "./my-lists-picker";
 import { FavoritesPicker } from "./favorites-picker";
 import { ShownBadgesPicker, pickableBadges } from "./shown-badges-picker";
@@ -43,7 +43,7 @@ import type {
   FriendsVisibility,
   ProfileSettingsInput,
   ProfileSummary,
-} from "./profile-types";
+} from "@/lib/social/profile-types";
 import type { FavoriteKind } from "./use-favorites";
 
 function Field({

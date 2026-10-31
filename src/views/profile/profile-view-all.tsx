@@ -8,7 +8,7 @@ import { ListHeart } from "./list-heart";
 import { ListShareButton } from "./list-share-button";
 import { timeAgo } from "./profile-bits";
 import { ACTIVITY_VERB, ActivityGlyph } from "./recent-activity";
-import type { ActivityItem, Badge } from "./profile-types";
+import type { ActivityItem, Badge } from "@/lib/social/profile-types";
 import { useProfileTitle } from "./use-profile-title";
 
 type Section = "lists" | "badges" | "activity";

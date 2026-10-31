@@ -36,7 +36,26 @@
       "dangerousDisableAssetCspModification": ["style-src"],
       "assetProtocol": {
         "enable": true,
-        "scope": ["**"]
+        "scope": [
+          "$APPDATA",
+          "$APPDATA/**",
+          "$APPCACHE",
+          "$APPCACHE/**",
+          "$APPLOCALDATA",
+          "$APPLOCALDATA/**",
+          "$TEMP",
+          "$TEMP/**",
+          "$DOWNLOAD",
+          "$DOWNLOAD/**",
+          "$AUDIO",
+          "$AUDIO/**",
+          "$VIDEO",
+          "$VIDEO/**",
+          "$PICTURE",
+          "$PICTURE/**",
+          "$DOCUMENT",
+          "$DOCUMENT/**"
+        ]
       }
     }
   },

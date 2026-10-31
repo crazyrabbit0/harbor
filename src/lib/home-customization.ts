@@ -1,4 +1,4 @@
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import type { SourceRow } from "./custom-sources";
 
 export type HomeRowCustomization = {

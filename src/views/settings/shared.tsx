@@ -17,44 +17,8 @@ import { sourceTranslationKey, useT, useUiLanguage } from "@/lib/i18n";
 import { HoverPreviewCard } from "./setting-preview";
 import { NewBadge } from "./new-badge";
 
-export type SectionId =
-  | "basics"
-  | "account"
-  | "library"
-  | "trakt"
-  | "anilist"
-  | "mal"
-  | "simkl"
-  | "letterboxd"
-  | "relay"
-  | "streaming"
-  | "streamFilters"
-  | "p2p"
-  | "plugins"
-  | "language"
-  | "subtitles"
-  | "player"
-  | "mpv"
-  | "anime"
-  | "shaders"
-  | "playerLayout"
-  | "hotkeys"
-  | "controllers"
-  | "theme"
-  | "badges"
-  | "awardIcons"
-  | "webhooks"
-  | "bug"
-  | "support"
-  | "licenses"
-  | "icons"
-  | "remotes"
-  | "tv"
-  | "bigPicture"
-  | "storage"
-  | "trackers"
-  | "updates"
-  | "advanced";
+import type { SectionId } from "@/lib/settings/section-id";
+export type { SectionId };
 
 export const SettingsActiveContext = createContext<{
   setActive: (s: SectionId, anchor?: string) => void;

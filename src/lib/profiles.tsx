@@ -1,3 +1,4 @@
+import { PROFILES_KEY } from "@/lib/profile-roster";
 import { purgeGameNotes } from "./games/game-notes";
 import {
   createContext,
@@ -194,7 +195,7 @@ type ProfilesValue = {
   setPrimary: (id: string) => void;
 };
 
-const STORAGE_KEY = "harbor.profiles.v1";
+const STORAGE_KEY = PROFILES_KEY;
 const TOGETHER_NAME_KEY = "harbor.together.name";
 const SETTINGS_KEY = "harbor.settings";
 const SHARED_SETTINGS_KEY = "harbor.settings.shared";

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Star } from "lucide-react";
 import { CatAvatar } from "@/components/icons/cat-avatar";
-import { BADGE_ICON_BASE } from "./badge-catalog";
+import { BADGE_ICON_BASE } from "@/lib/social/badge-catalog";
 import { t, useT } from "@/lib/i18n";
 
 export function Avatar({

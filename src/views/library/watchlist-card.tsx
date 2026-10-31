@@ -6,7 +6,7 @@ import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useInWatchlist } from "@/lib/watchlist";
 import { useT } from "@/lib/i18n";
-import { hydrateLibraryMeta } from "./hydrate-meta";
+import { hydrateLibraryMeta } from "@/lib/library/hydrate-meta";
 
 export function WatchlistCard({ meta, onRemove }: { meta: Meta; onRemove?: () => void }) {
   const t = useT();

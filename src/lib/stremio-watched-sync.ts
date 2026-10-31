@@ -1,3 +1,4 @@
+import { stremioDataProfileId, primaryOrStremioProfileId } from "@/lib/profile-roster";
 import type { Meta } from "@/lib/cinemeta";
 import { libraryGetOneStrict, type LibraryItem } from "@/lib/stremio";
 import { cloudLibraryPut } from "@/lib/stremio-write-queue";
@@ -9,44 +10,16 @@ const ANIME_ID = /^(kitsu|mal|anilist|anidb):/;
 
 const FRESH_KEY_PREFIX = "harbor.stremio.freshwatched.v1.";
 const LEGACY_FRESH_KEY = "harbor.stremio.freshwatched.v1";
-const PROFILES_KEY = "harbor.profiles.v1";
 const FRESH_CAP = 300;
 const freshWatched = new Map<string, { watched: string | null; mtime: number }>();
 let freshLoaded = false;
 
 function activeProfileId(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    if (!raw) return "";
-    const s = JSON.parse(raw) as {
-      activeId?: string;
-      profiles?: Array<{ id?: string; isPrimary?: boolean; shareStremioWith?: string | null }>;
-    };
-    const profiles = Array.isArray(s.profiles) ? s.profiles : [];
-    const active = profiles.find((p) => p.id === s.activeId) ?? null;
-    const own = active?.id ?? profiles.find((p) => p?.isPrimary)?.id ?? "";
-    if (!own) return "";
-    if (active && typeof active.shareStremioWith === "string" && active.shareStremioWith) {
-      const shared = profiles.find((p) => p.id === active.shareStremioWith);
-      if (shared?.id) return shared.id;
-    }
-    return own;
-  } catch {
-    return "";
-  }
+  return stremioDataProfileId();
 }
 
 function primaryProfileId(): string {
-  try {
-    const raw = localStorage.getItem(PROFILES_KEY);
-    const s = raw
-      ? (JSON.parse(raw) as { profiles?: Array<{ id?: string; isPrimary?: boolean }> })
-      : null;
-    const primary = s?.profiles?.find((p) => p?.isPrimary);
-    return (primary && typeof primary.id === "string" && primary.id) || activeProfileId();
-  } catch {
-    return activeProfileId();
-  }
+  return primaryOrStremioProfileId();
 }
 
 function storeKey(): string {

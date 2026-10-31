@@ -1476,18 +1476,18 @@ html[data-theme-layout="custom"] ::selection { background: rgba(53,116,252,0.35)
 function buildFeishinHtml(): string {
   return `<aside class="fsh-rail" data-tv-nav-zone data-tauri-drag-region>
   <div class="fsh-actionbar">
-    <button class="fsh-search" type="button" onclick="window.harbor.search()" aria-label="${escapeGeneratedHtml(t("Search"))}" title="${escapeGeneratedHtml(t("Search"))}">
+    <button class="fsh-search" type="button" data-harbor-action="search" aria-label="${escapeGeneratedHtml(t("Search"))}" title="${escapeGeneratedHtml(t("Search"))}">
       <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m21 21-4.3-4.3"></path></svg>
       <span class="fsh-search-ph">${escapeGeneratedHtml(t("Search"))}</span>
     </button>
     <div class="fsh-actionbtns">
-      <button class="fsh-iconbtn" type="button" onclick="window.harbor.navigate('settings')" aria-label="${escapeGeneratedHtml(t("Menu"))}" title="${escapeGeneratedHtml(t("Menu"))}">
+      <button class="fsh-iconbtn" type="button" data-harbor-action="settings" aria-label="${escapeGeneratedHtml(t("Menu"))}" title="${escapeGeneratedHtml(t("Menu"))}">
         <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="12" x2="21" y2="12"></line><line x1="3" y1="6" x2="21" y2="6"></line><line x1="3" y1="18" x2="21" y2="18"></line></svg>
       </button>
-      <button class="fsh-iconbtn" type="button" onclick="window.harbor.back()" aria-label="${escapeGeneratedHtml(t("Back"))}" title="${escapeGeneratedHtml(t("Back"))}">
+      <button class="fsh-iconbtn" type="button" data-harbor-action="back" aria-label="${escapeGeneratedHtml(t("Back"))}" title="${escapeGeneratedHtml(t("Back"))}">
         <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg>
       </button>
-      <button class="fsh-iconbtn" type="button" onclick="window.harbor.navigate('home')" aria-label="${escapeGeneratedHtml(t("Forward"))}" title="${escapeGeneratedHtml(t("Home"))}">
+      <button class="fsh-iconbtn" type="button" data-harbor-action="navigate" data-harbor-arg="home" aria-label="${escapeGeneratedHtml(t("Forward"))}" title="${escapeGeneratedHtml(t("Home"))}">
         <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg>
       </button>
     </div>
@@ -1497,31 +1497,31 @@ function buildFeishinHtml(): string {
     <div class="fsh-section">
       <div class="fsh-section-head">${escapeGeneratedHtml(t("My Library"))}</div>
       <nav class="fsh-nav">
-        <button data-harbor-nav="home" onclick="window.harbor.navigate('home')">
+        <button data-harbor-nav="home">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 10.5 12 3l9 7.5"></path><path d="M5 9.5V21h14V9.5"></path></svg>
           <span>${escapeGeneratedHtml(t("Home"))}</span>
         </button>
-        <button data-harbor-nav="discover" onclick="window.harbor.navigate('discover')">
+        <button data-harbor-nav="discover">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m15.5 8.5-2.2 5.3-5.3 2.2 2.2-5.3z"></path></svg>
           <span>${escapeGeneratedHtml(t("Discover"))}</span>
         </button>
-        <button data-harbor-nav="movies" onclick="window.harbor.navigate('movies')">
+        <button data-harbor-nav="movies">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M7 4v16M17 4v16M3 9h4M17 9h4M3 15h4M17 15h4"></path></svg>
           <span>${escapeGeneratedHtml(t("Movies"))}</span>
         </button>
-        <button data-harbor-nav="shows" onclick="window.harbor.navigate('shows')">
+        <button data-harbor-nav="shows">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="13" rx="2"></rect><path d="m8 3 4 4 4-4"></path></svg>
           <span>${escapeGeneratedHtml(t("Shows"))}</span>
         </button>
-        <button data-harbor-nav="anime" onclick="window.harbor.navigate('anime')">
+        <button data-harbor-nav="anime">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3c4.5 0 8 3 8 7 0 3-2 5-5 6l1 4-4-2.5L8 20l1-4c-3-1-5-3-5-6 0-4 3.5-7 8-7z"></path></svg>
           <span>${escapeGeneratedHtml(t("Anime"))}</span>
         </button>
-        <button data-harbor-nav="live" onclick="window.harbor.navigate('live')">
+        <button data-harbor-nav="live">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2" y="7" width="20" height="14" rx="2"></rect><path d="m8 7 4-4 4 4"></path></svg>
           <span>${escapeGeneratedHtml(t("Live TV"))}</span>
         </button>
-        <button data-harbor-nav="vod" onclick="window.harbor.navigate('vod')">
+        <button data-harbor-nav="vod">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6h11M4 12h11M4 18h7"></path><path d="m17 9 4 3-4 3z"></path></svg>
           <span>${escapeGeneratedHtml(t("Playlists"))}</span>
         </button>
@@ -1531,23 +1531,23 @@ function buildFeishinHtml(): string {
     <div class="fsh-section">
       <div class="fsh-section-head">${escapeGeneratedHtml(t("Collections"))}</div>
       <nav class="fsh-nav">
-        <button data-harbor-nav="library" onclick="window.harbor.navigate('library')">
+        <button data-harbor-nav="library">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 4h4v16H4zM10 4h4v16h-4z"></path><path d="m17 5 3.5 1-3 14-3.4-1z"></path></svg>
           <span>${escapeGeneratedHtml(t("Library"))}</span>
         </button>
-        <button data-harbor-nav="calendar" onclick="window.harbor.navigate('calendar')">
+        <button data-harbor-nav="calendar">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4"></path></svg>
           <span>${escapeGeneratedHtml(t("Calendar"))}</span>
         </button>
-        <button data-harbor-nav="downloads" onclick="window.harbor.navigate('downloads')">
+        <button data-harbor-nav="downloads">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"></path><path d="m7 11 5 5 5-5"></path><path d="M4 20h16"></path></svg>
           <span>${escapeGeneratedHtml(t("Downloads"))}</span>
         </button>
-        <button data-harbor-nav="addons" onclick="window.harbor.navigate('addons')">
+        <button data-harbor-nav="addons">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="8" height="8" rx="1.5"></rect><rect x="13" y="3" width="8" height="8" rx="1.5"></rect><rect x="3" y="13" width="8" height="8" rx="1.5"></rect><path d="M17 13v8M13 17h8"></path></svg>
           <span>${escapeGeneratedHtml(t("Addons"))}</span>
         </button>
-        <button data-harbor-nav="settings" onclick="window.harbor.navigate('settings')">
+        <button data-harbor-nav="settings">
           <svg class="fsh-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></svg>
           <span>${escapeGeneratedHtml(t("Settings"))}</span>
         </button>

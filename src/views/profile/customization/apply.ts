@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import type { ProfileSummary } from "../profile-types";
+import type { ProfileSummary } from "@/lib/social/profile-types";
 import { CANVAS_DEFAULT, validColor, validFont, validImage } from "./customization-types";
 
 export type ResolvedCustom = {

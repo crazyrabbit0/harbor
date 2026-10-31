@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { countryQid } from "./country-qid";
 import { cacheGet, cachePeek, cacheSet } from "./tmdb/brand-cache";
+import { safeFetch } from "@/lib/safe-fetch";
 
 export type CanonTitle = { imdb: string; title: string; year: number | null };
 
@@ -54,7 +55,7 @@ async function run(qid: string, mediaType: "movie" | "tv"): Promise<CanonTitle[]
   const timer = window.setTimeout(() => controller.abort(), ABORT_MS);
   const url = `${ENDPOINT}?format=json&query=${encodeURIComponent(query(qid, mediaType))}`;
   try {
-    const res = await fetch(url, {
+    const res = await safeFetch(url, {
       headers: { Accept: "application/sparql-results+json" },
       signal: controller.signal,
     });

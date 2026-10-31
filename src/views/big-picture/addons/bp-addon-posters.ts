@@ -1,5 +1,5 @@
 import { fetchAddonCatalogPage } from "@/lib/addons";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { bpCardArt, bpTileArtWidth } from "../bp-art";
 import type { BpAddonEntry } from "./bp-addon-entries";
 

@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 
-const RELAY = "https://app.harbor.site";
 const DISCORD_URL_LIMIT = 512;
 
 function loadDeepLink() {
@@ -11,7 +10,7 @@ function loadDeepLink() {
     new URL("../src/lib/music/deep-link.ts", import.meta.url),
     "utf8",
   ).replace(/^import[^\n]+;\r?\n/gm, "");
-  const { outputText } = ts.transpileModule(`const HARBOR_RELAY_BASE = "${RELAY}";\n${source}`, {
+  const { outputText } = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
   });
   return import(`data:text/javascript;charset=utf-8,${encodeURIComponent(outputText)}`);
@@ -66,7 +65,7 @@ test("bounce urls stay inside the discord link budget for every script", () => {
   ];
   for (const [artist, title] of cases) {
     const url = musicBounceUrl(musicTrackPath(artist, title));
-    assert.ok(url.startsWith(`${RELAY}/?harbor-music=track/`), `missing bounce for ${artist}`);
+    assert.ok(url.startsWith("harbor://music/track/"), `missing link for ${artist}`);
     assert.ok(url.length <= DISCORD_URL_LIMIT, `${artist} produced ${url.length} chars`);
     assert.ok(musicBounceUrl(musicArtistPath(artist)).length <= DISCORD_URL_LIMIT);
     assert.ok(musicBounceUrl(musicAlbumPath(artist, title)).length <= DISCORD_URL_LIMIT);

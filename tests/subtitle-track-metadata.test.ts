@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 
-const mpv = readFileSync(new URL("../src/lib/player/mpv.ts", import.meta.url), "utf8");
+const mpv = readFileSync(new URL("../src/lib/player/mpv-tracks.ts", import.meta.url), "utf8");
 const selection = readFileSync(
   new URL("../src/lib/subtitles/track-selection.ts", import.meta.url),
   "utf8",

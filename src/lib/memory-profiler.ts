@@ -245,10 +245,15 @@ function periodicReport() {
   console.groupEnd();
 }
 
+let fetchInstrumented = false;
+
+// Installed once and idle while stopped, so reopening the HUD never stacks another wrapper on window.fetch.
 function instrumentFetch() {
-  if (typeof window === "undefined") return;
+  if (typeof window === "undefined" || fetchInstrumented) return;
+  fetchInstrumented = true;
   const origFetch = window.fetch;
   window.fetch = async (input, init) => {
+    if (!started) return origFetch(input as RequestInfo, init);
     const url = typeof input === "string" ? input : (input as Request).url;
     const startHeap = snapshotHeapMB();
     const startTs = nowMs();
@@ -285,22 +290,22 @@ function shortenUrl(url: string): string {
   }
 }
 
+function onProfiledClick(e: MouseEvent) {
+  const target = e.target as HTMLElement | null;
+  if (!target) return;
+  const label =
+    target.getAttribute("aria-label") ||
+    target.textContent?.trim().slice(0, 40) ||
+    target.tagName.toLowerCase();
+  pushSample("click", label);
+}
+
 function instrumentClicks() {
   if (typeof document === "undefined") return;
-  document.addEventListener(
-    "click",
-    (e) => {
-      const target = e.target as HTMLElement | null;
-      if (!target) return;
-      const label =
-        target.getAttribute("aria-label") ||
-        target.textContent?.trim().slice(0, 40) ||
-        target.tagName.toLowerCase();
-      pushSample("click", label);
-    },
-    { capture: true, passive: true },
-  );
+  document.addEventListener("click", onProfiledClick, { capture: true, passive: true });
 }
+
+let longTaskObserver: PerformanceObserver | null = null;
 
 function instrumentLongTasks() {
   if (typeof window === "undefined" || typeof PerformanceObserver === "undefined") return;
@@ -315,6 +320,7 @@ function instrumentLongTasks() {
       }
     });
     observer.observe({ entryTypes: ["longtask"] });
+    longTaskObserver = observer;
   } catch {}
 }
 
@@ -403,6 +409,11 @@ export function stopProfiler(): void {
   if (tickHandle != null) {
     clearInterval(tickHandle);
     tickHandle = null;
+  }
+  longTaskObserver?.disconnect();
+  longTaskObserver = null;
+  if (typeof document !== "undefined") {
+    document.removeEventListener("click", onProfiledClick, { capture: true });
   }
 }
 

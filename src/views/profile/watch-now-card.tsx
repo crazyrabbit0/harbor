@@ -3,7 +3,7 @@ import { Play } from "@/components/icons/play-filled";
 import { useT } from "@/lib/i18n";
 import { useNow } from "@/lib/use-now";
 import { useViewActions } from "@/lib/view";
-import type { ProfileWatching } from "./profile-types";
+import type { ProfileWatching } from "@/lib/social/profile-types";
 import { useProfileTitle } from "./use-profile-title";
 
 function clock(sec: number): string {

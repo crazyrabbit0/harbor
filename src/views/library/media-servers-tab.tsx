@@ -41,7 +41,7 @@ import type {
 import { useSettingsSelector } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { useViewActions } from "@/lib/view";
-import { hydrateLibraryMeta } from "./hydrate-meta";
+import { hydrateLibraryMeta } from "@/lib/library/hydrate-meta";
 import { FilterBar, type TypeKey } from "./shared";
 import { useReportFeatured } from "./featured-context";
 import { IdentifyModal, type IdentifyResolution } from "./local-tab/identify-modal";

@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { isAnimeRow } from "@/views/anime";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { SFX } from "@/lib/sfx";
 import { useView, type PlayEpisode } from "@/lib/view";
 import { useActiveKid } from "@/lib/profiles";

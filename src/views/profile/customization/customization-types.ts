@@ -1,5 +1,5 @@
 import { t } from "@/lib/i18n";
-import type { CustomizationInput } from "../profile-types";
+import type { CustomizationInput } from "@/lib/social/profile-types";
 
 export const CANVAS_MIN = 200;
 export const CANVAS_MAX = 1400;

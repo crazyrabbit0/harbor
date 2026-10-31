@@ -13,8 +13,8 @@ import {
   type SocialKey,
 } from "@/lib/social/socials";
 import { useT } from "@/lib/i18n";
-import { saveSocials } from "./profile-api";
-import type { ProfileSummary, SocialEntry } from "./profile-types";
+import { saveSocials } from "@/lib/social/profile-api";
+import type { ProfileSummary, SocialEntry } from "@/lib/social/profile-types";
 
 function ServiceTile({
   service,

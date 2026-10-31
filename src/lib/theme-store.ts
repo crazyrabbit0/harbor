@@ -176,7 +176,11 @@ export async function downloadTheme(
   const existing = Object.entries(getDownloadRecords()).find(
     ([savedId, rec]) => rec.storeId === id && getCustomThemes().some((t) => t.id === savedId),
   );
-  const base = existing ? { ...parsed.theme, id: existing[0] } : parsed.theme;
+  const base: CustomTheme = {
+    ...parsed.theme,
+    ...(existing ? { id: existing[0] } : {}),
+    origin: "community",
+  };
   // parseThemeJson never carries previewImage, and the update path passes no new
   // preview, so an update would blank the card. Fall back to the saved preview.
   const prevPreview = existing

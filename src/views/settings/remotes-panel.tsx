@@ -3,13 +3,14 @@ import { AlertTriangle, RotateCw } from "./icons";
 import { invoke } from "@tauri-apps/api/core";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
+import { WEB_PORT, webUiUrl } from "@/lib/remote/protocol";
+import { useWebRemoteKey } from "@/lib/remote/use-web-remote-key";
 import { ROW_ACTION, ROW_DESC } from "./kit";
 import { Section, ToggleRow } from "./shared";
 import { isTauri } from "./player-panel/internals";
 import { RemoteCard } from "./remotes-panel/remote-card";
+import { PairedComputersSection } from "./remotes-panel/paired-computers";
 import type { DeviceKind } from "./remotes-panel/device-art";
-
-const WEB_PORT = 11471;
 
 export function RemotesPanel() {
   const t = useT();
@@ -17,6 +18,7 @@ export function RemotesPanel() {
   const [lanIp, setLanIp] = useState<string | null | undefined>(undefined);
   const [webError, setWebError] = useState(false);
   const [retry, setRetry] = useState(0);
+  const remoteKey = useWebRemoteKey();
   const aliveRef = useRef(true);
 
   const enabled = settings.serveWebUi || settings.remoteControlEnabled;
@@ -70,9 +72,10 @@ export function RemotesPanel() {
     );
   }
 
-  const lan = (path: string) => (lanIp ? `http://${lanIp}:${WEB_PORT}${path}` : null);
-  const local = (path: string) => `http://127.0.0.1:${WEB_PORT}${path}`;
-  const probed = lanIp !== undefined;
+  const key = remoteKey ?? null;
+  const lan = (path: string) => (lanIp ? webUiUrl(lanIp, path, key) : null);
+  const local = (path: string) => webUiUrl("127.0.0.1", path, key);
+  const probed = lanIp !== undefined && remoteKey !== undefined;
 
   const cards: Array<{ kind: DeviceKind; title: string; blurb: string; path: string }> = [
     {
@@ -152,6 +155,8 @@ export function RemotesPanel() {
             probed={probed}
           />
         ))}
+
+      <PairedComputersSection />
     </>
   );
 }

@@ -17,6 +17,7 @@ import type { CodeLang } from "@/components/code-editor";
 import { saveCustomTheme, type CustomTheme } from "@/lib/custom-themes";
 import { downloadText } from "@/lib/download-text";
 import { serializeHarborStyle } from "@/lib/harborstyle";
+import { studioThemeOrigin } from "@/lib/theme-js-consent";
 import {
   applyTheme,
   customColorsToTokens,
@@ -40,6 +41,9 @@ export function ThemeStudio({ seed, onClose }: { seed?: ThemePreset; onClose: ()
   const t = useT();
   const { settings, update } = useSettings();
   const [initialDraft] = useState(() => emptyDraft(seed, settings.navCustomization));
+  const [originSeeds, setOriginSeeds] = useState<(CustomTheme | undefined)[]>(() => [
+    seed as CustomTheme | undefined,
+  ]);
   const { draft, setDraft, undo, redo, canUndo, canRedo } = useDraftHistory(() => initialDraft);
   const drag = usePanelDrag();
   const restoreRef = useState(() => settings.theme.preset)[0];
@@ -216,7 +220,10 @@ export function ThemeStudio({ seed, onClose }: { seed?: ThemePreset; onClose: ()
       }
       return next;
     });
-  const onSeed = (t: ThemePreset) => setDraft(emptyDraft(t, draft.navCustomization));
+  const onSeed = (t: ThemePreset) => {
+    setOriginSeeds((list) => [...list, t as CustomTheme]);
+    setDraft(emptyDraft(t, draft.navCustomization));
+  };
 
   const onChromeChange = (config: ChromeConfig) =>
     setDraft((d) => {
@@ -270,6 +277,7 @@ export function ThemeStudio({ seed, onClose }: { seed?: ThemePreset; onClose: ()
       ...(draft.css.trim() ? { css: draft.css } : {}),
       ...(draft.js.trim() ? { js: draft.js } : {}),
       ...(draft.html.trim() ? { html: draft.html } : {}),
+      origin: studioThemeOrigin(originSeeds, draft.js),
     };
   };
 

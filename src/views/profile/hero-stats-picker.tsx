@@ -12,7 +12,7 @@ import {
   type StatKey,
 } from "@/lib/profile-card-layout";
 import { compactNumber, formatWatchTime } from "./profile-bits";
-import type { ProfileCounts, ProfileSummary } from "./profile-types";
+import type { ProfileCounts, ProfileSummary } from "@/lib/social/profile-types";
 
 function watchLabel(minutes: number): string {
   const f = formatWatchTime(minutes);

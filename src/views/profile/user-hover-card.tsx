@@ -19,12 +19,12 @@ import {
   resolvePresence,
   type PresenceStatus,
 } from "@/lib/social/presence";
-import { fetchBadges, fetchSummary } from "./profile-api";
-import { orderShownBadges } from "./badge-catalog";
+import { fetchBadges, fetchSummary } from "@/lib/social/profile-api";
+import { orderShownBadges } from "@/lib/social/badge-catalog";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { Avatar, VerifiedCheck } from "./profile-bits";
 import { useSelfAvatar } from "./use-self-avatar";
-import type { Badge, ProfileSummary } from "./profile-types";
+import type { Badge, ProfileSummary } from "@/lib/social/profile-types";
 
 type CardData = { summary: ProfileSummary; badges: Badge[] };
 

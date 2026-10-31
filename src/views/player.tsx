@@ -35,6 +35,7 @@ import { useWakeReconnect } from "./player/hooks/use-wake-reconnect";
 import { useEngineStats } from "./player/hooks/use-engine-stats";
 import { useContentAdvisory } from "./player/hooks/use-content-advisory";
 import {
+  getPlaybackBuffered,
   getPlaybackPosition,
   subscribePlaybackClock,
   resolvePlaybackDownloadedFraction,
@@ -271,8 +272,14 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     } else if (isLocalSrc) {
       setPlaybackDownloaded(1);
     } else if (!isLive && !isHls) {
+      // The snapshot skips clock-only changes, so position and buffer come from the playback clock.
       const dur = snap.durationSec || 0;
-      setPlaybackDownloaded(dur > 0 ? Math.min(1, (snap.positionSec + snap.bufferedSec) / dur) : 0);
+      const update = () =>
+        setPlaybackDownloaded(
+          dur > 0 ? Math.min(1, (getPlaybackPosition() + getPlaybackBuffered()) / dur) : 0,
+        );
+      update();
+      return subscribePlaybackClock(update);
     } else {
       setPlaybackDownloaded(0);
     }
@@ -284,8 +291,6 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     isLocalSrc,
     src.isLive,
     src.meta.id,
-    snap.positionSec,
-    snap.bufferedSec,
     snap.durationSec,
   ]);
   const shellSnapRef = useRef(snap);
@@ -1524,7 +1529,6 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     homeServerQualityControl: (
       <HomeServerQualityControl
         src={src}
-        positionMs={Math.max(0, snap.positionSec * 1000)}
         playing={playing}
         theme={resolveChromeTheme(settings.theme, settings.playerChromeTheme)}
         replace={replacePlayerSrc}

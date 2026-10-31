@@ -39,7 +39,7 @@ const RETIRED_GEMINI = new Set([
 ]);
 import { DEFAULT, STORAGE_KEY } from "./defaults";
 import type { Settings } from "./types";
-import { adoptLegacyPlaylists, readPlaylists } from "@/lib/iptv/playlists-store";
+import { runSettingsMigrations, type StoredSettings } from "./migrations";
 import { sanitizeDisplaySelection } from "@/lib/monitors";
 
 const HEX_RE = /^#[0-9a-f]{6}$/i;
@@ -147,115 +147,19 @@ function parseStoredSettings(raw: string | null): Settings {
     };
   }
   try {
-    const parsed = JSON.parse(raw) as Partial<Settings> & {
+    const parsed = JSON.parse(raw) as StoredSettings & {
       topbarGlassControls?: boolean;
-      _subStyleV2?: boolean;
-      _subAssForceV1?: boolean;
-      _subAssRespectV2?: boolean;
-      _mpvEmbedV2?: boolean;
-      _mpvEmbedV3?: boolean;
-      _mpvEmbedV4?: boolean;
-      _mpvBufferSizeV1?: boolean;
-      _anime4kIndicatorOffV1?: boolean;
-      _pickerLayoutStremio?: boolean;
-      _pickerLayoutStremioV2?: boolean;
-      _stremioDeeplinkOnByDefault?: boolean;
-      _skipButtonHideSecV2?: boolean;
-      _anilistSyncOnV1?: boolean;
-      _musicSeekThumbV1?: boolean;
-      _rememberLastStreamOnV1?: boolean;
-      _streamSortAddonV1?: boolean;
       scrapers?: unknown;
       scrapersAcknowledged?: boolean;
       _scrapersV2?: boolean;
-      _animeRowsV1?: boolean;
-      _tennisWtaV1?: boolean;
-      _liquidGlassOptIn?: boolean;
-      _navThemeRepairV1?: boolean;
-      _navHideMigrateV1?: boolean;
-      _playlistsTabV1?: boolean;
-      _smoothScrollOptIn?: boolean;
-      _streamCacheCapV1?: boolean;
-      _playbackSourcePreferenceV1?: boolean;
-      _playbackSourcePreferenceV2?: boolean;
     };
-    if (!parsed._playbackSourcePreferenceV1) {
-      parsed.playbackSourcePreference = parsed.localPlaybackMode === "local" ? "local" : "online";
-      parsed.preferredMediaServerId = null;
-      parsed._playbackSourcePreferenceV1 = true;
-    }
-    if (!parsed._playbackSourcePreferenceV2) {
-      if (parsed.playbackSourcePreference === "ask") {
-        parsed.playbackSourcePreference = "online";
-      }
-      parsed._playbackSourcePreferenceV2 = true;
-    }
-    if (!parsed._animeRowsV1) {
-      const prev = (parsed.animeRows ?? {}) as Partial<Settings["animeRows"]>;
-      const hiddenSet = new Set<string>(Array.isArray(prev.hidden) ? prev.hidden : []);
-      const anilist = Array.isArray(parsed.animeAnilistRowsHidden)
-        ? parsed.animeAnilistRowsHidden
-        : [];
-      const mal = Array.isArray(parsed.animeMalRowsHidden) ? parsed.animeMalRowsHidden : [];
-      if (anilist.includes("yourLists")) hiddenSet.add("yourAnilistLists");
-      if (anilist.includes("trending")) hiddenSet.add("anilistTrending");
-      if (anilist.includes("top100")) hiddenSet.add("anilistTop100");
-      if (mal.includes("yourMalLists")) hiddenSet.add("yourMalLists");
-      parsed.animeRows = {
-        order: Array.isArray(prev.order) ? prev.order : [],
-        hidden: [...hiddenSet],
-        renamed: prev.renamed && typeof prev.renamed === "object" ? prev.renamed : {},
-      };
-      parsed._animeRowsV1 = true;
-    }
-    if (!parsed._pickerLayoutStremioV2) {
-      if (parsed.pickerLayout === "condensed") parsed.pickerLayout = "stremio";
-      parsed._pickerLayoutStremio = true;
-      parsed._pickerLayoutStremioV2 = true;
-    }
-    if (!parsed._stremioDeeplinkOnByDefault) {
-      parsed.stremioDeeplinkInstall = true;
-      parsed._stremioDeeplinkOnByDefault = true;
-    }
+    runSettingsMigrations(parsed);
     parsed.contentAdvisoryToast = parsed.contentAdvisoryToast === true;
     if (parsed.contentAdvisoryTheme !== "monochrome" && parsed.contentAdvisoryTheme !== "colored") {
       parsed.contentAdvisoryTheme = DEFAULT.contentAdvisoryTheme;
     }
     if (typeof parsed.contentAdvisoryShowIgnore !== "boolean") {
       parsed.contentAdvisoryShowIgnore = true;
-    }
-    if (!parsed._skipButtonHideSecV2) {
-      if (
-        parsed.skipButtonHideSec === 10 ||
-        parsed.skipButtonHideSec === 20 ||
-        parsed.skipButtonHideSec == null
-      ) {
-        parsed.skipButtonHideSec = 14;
-      }
-      parsed._skipButtonHideSecV2 = true;
-    }
-    if (!parsed._anilistSyncOnV1) {
-      parsed.anilistAutoSync = true;
-      parsed._anilistSyncOnV1 = true;
-    }
-    if (!parsed._musicSeekThumbV1) {
-      parsed.musicSeekThumb = true;
-      parsed.musicSeekThumbHover = true;
-      parsed._musicSeekThumbV1 = true;
-    }
-    if (!parsed._rememberLastStreamOnV1) {
-      parsed.rememberLastStream = true;
-      parsed._rememberLastStreamOnV1 = true;
-    }
-    if (!parsed._streamSortAddonV1) {
-      if (parsed.streamSort === "harbor") parsed.streamSort = "addon";
-      parsed._streamSortAddonV1 = true;
-    }
-    if (!parsed._tennisWtaV1) {
-      if (Array.isArray(parsed.sportsLeagues) && parsed.sportsLeagues.includes("TENNIS")) {
-        if (!parsed.sportsLeagues.includes("TENNIS_WTA")) parsed.sportsLeagues.push("TENNIS_WTA");
-      }
-      parsed._tennisWtaV1 = true;
     }
     if (
       typeof parsed.songIdAiModel === "string" &&
@@ -279,85 +183,10 @@ function parseStoredSettings(raw: string | null): Settings {
         ? providerTabFor(parsed.aiSearchModel)
         : "openrouter";
     }
-    if (!parsed._mpvEmbedV3) {
-      parsed.playerMpvEmbed = true;
-      parsed._mpvEmbedV3 = true;
-    }
-    if (!parsed._mpvEmbedV4) {
-      parsed.playerMpvEmbed = true;
-      parsed._mpvEmbedV4 = true;
-    }
-    if (!parsed._mpvBufferSizeV1) {
-      if (parsed.mpvBufferBoost) parsed.mpvBufferSize = "large";
-      parsed._mpvBufferSizeV1 = true;
-    }
     parsed.mpvBufferSize = sanitizeBufferSize(parsed.mpvBufferSize);
-    if (!parsed._anime4kIndicatorOffV1) {
-      parsed.playerAnime4kIndicator = false;
-      parsed._anime4kIndicatorOffV1 = true;
-    }
-    if (!parsed._subStyleV2) {
-      if (parsed.subFontSize === 55) parsed.subFontSize = DEFAULT.subFontSize;
-      if (parsed.subBorderSize === 3) parsed.subBorderSize = DEFAULT.subBorderSize;
-      if (parsed.subMarginY === 22) parsed.subMarginY = DEFAULT.subMarginY;
-      parsed._subStyleV2 = true;
-    }
     delete parsed.scrapers;
     delete parsed.scrapersAcknowledged;
     delete parsed._scrapersV2;
-    if (!parsed._liquidGlassOptIn) {
-      parsed.liquidGlass = false;
-      parsed.experimentalLiquidGlassEnabled = false;
-      parsed._liquidGlassOptIn = true;
-    }
-    if (!parsed._smoothScrollOptIn) {
-      parsed.smoothScroll = false;
-      parsed._smoothScrollOptIn = true;
-    }
-    if (!parsed._streamCacheCapV1) {
-      if (parsed.streamCacheMaxGb === 0 || parsed.streamCacheMaxGb == null) {
-        parsed.streamCacheMaxGb = DEFAULT.streamCacheMaxGb;
-      }
-      if (parsed.streamCacheRetentionHours === 24 || parsed.streamCacheRetentionHours == null) {
-        parsed.streamCacheRetentionHours = DEFAULT.streamCacheRetentionHours;
-      }
-      parsed._streamCacheCapV1 = true;
-    }
-    if (!parsed._playlistsTabV1) {
-      const lists = readPlaylists();
-      const hasVodSource = Array.isArray(lists) && lists.some((l) => l?.kind !== "epg");
-      if (hasVodSource) parsed.showPlaylistsTab = true;
-      parsed._playlistsTabV1 = true;
-    }
-    // Playlists now live in their own store; adopt any stranded legacy field and
-    // only drop it once it has been persisted, so a failed write never loses data.
-    if ("iptvPlaylists" in parsed) {
-      if (adoptLegacyPlaylists(Array.isArray(parsed.iptvPlaylists) ? parsed.iptvPlaylists : [])) {
-        delete parsed.iptvPlaylists;
-      }
-    }
-    if (!parsed._navThemeRepairV1) {
-      parsed._navThemeRepairV1 = true;
-    }
-    if (!parsed._navHideMigrateV1) {
-      const legacy = (parsed.hideContent ?? {}) as Record<string, unknown>;
-      const carry: string[] = [];
-      if (legacy.manga === true) carry.push("manga");
-      if (legacy.liveTv === true) carry.push("live");
-      if (carry.length > 0) {
-        const prevNav = (parsed.navCustomization ?? {}) as { hidden?: unknown };
-        const prev = Array.isArray(prevNav.hidden)
-          ? prevNav.hidden.filter((x): x is string => typeof x === "string")
-          : [];
-        parsed.navCustomization = {
-          ...parsed.navCustomization,
-          hidden: [...prev, ...carry.filter((c) => !prev.includes(c))],
-        } as Settings["navCustomization"];
-      }
-      delete legacy.manga;
-      delete legacy.liveTv;
-      parsed._navHideMigrateV1 = true;
-    }
     if (parsed.cwSources == null) {
       const ext = parsed.externalContinueWatching === true;
       parsed.cwSources = { library: true, trakt: ext, simkl: ext, local: true };

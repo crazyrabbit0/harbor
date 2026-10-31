@@ -1,4 +1,4 @@
-import { BADGE_ICON_BASE } from "@/views/profile/badge-catalog";
+import { BADGE_ICON_BASE } from "@/lib/social/badge-catalog";
 import { useT } from "@/lib/i18n";
 
 export function VerifiedBadge({ label, size = "md" }: { label?: string; size?: "sm" | "md" }) {

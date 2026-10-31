@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
-import type { HomeRow } from "@/views/home/home-types";
+import type { HomeRow } from "@/lib/home/home-types";
 import { SERVICES, providerIdsFor } from "@/lib/providers/streaming";
 import {
   CATEGORIES,

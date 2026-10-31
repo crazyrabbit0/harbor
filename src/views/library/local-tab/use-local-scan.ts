@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { allowFsPaths, localLibraryPaths } from "@/lib/fs-scope";
 import {
   addLocalEntries,
   parseFilename,
@@ -78,6 +79,8 @@ export function useLocalScan({
     const { open } = await import("@tauri-apps/plugin-dialog");
     const folder = await open({ directory: true, multiple: false });
     if (typeof folder !== "string") return;
+    // Sidecars and posters sit in subfolders and the parent folder, beyond the dialog's own grant.
+    await allowFsPaths(localLibraryPaths([{ folder }]));
     await scanFolder(folder, true);
   }, [scanFolder]);
 

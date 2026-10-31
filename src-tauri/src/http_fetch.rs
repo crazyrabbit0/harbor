@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::future::Future;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::{Arc, OnceLock};
-use std::time::Duration;
+use std::sync::{Arc, Mutex as StdMutex, OnceLock};
+use std::time::{Duration, Instant};
 
 use crate::http_redirect::same_origin;
 use base64::Engine;
@@ -348,42 +348,33 @@ async fn resolve_public_target(url: &reqwest::Url) -> Result<Vec<SocketAddr>, St
     if url.scheme() != "http" && url.scheme() != "https" {
         return Err(format!("public target bad scheme: {}", url.scheme()));
     }
-    let host = url
-        .host_str()
-        .map(|value| {
-            value
-                .trim_start_matches('[')
-                .trim_end_matches(']')
-                .to_string()
-        })
-        .filter(|value| !value.is_empty())
-        .ok_or_else(|| "public target has no host".to_string())?;
-    let port = url
-        .port_or_known_default()
-        .ok_or_else(|| "public target has no port".to_string())?;
-    if let Ok(ip) = host.parse::<IpAddr>() {
-        if !is_public_network_ip(ip) {
-            return Err(format!("blocked non-public target: {host}"));
-        }
-        return Ok(vec![SocketAddr::new(ip, port)]);
+    let addresses = validate_target(url, false).await?;
+    if addresses
+        .iter()
+        .any(|address| !is_public_network_ip(address.ip()))
+    {
+        let host = url.host_str().unwrap_or_default();
+        return Err(format!("blocked non-public target: {host}"));
     }
+    Ok(addresses)
+}
 
-    let lookup = (host.clone(), port);
-    let mut addresses = tokio::task::spawn_blocking(move || {
+const DNS_TIMEOUT: Duration = Duration::from_secs(10);
+
+async fn lookup_host(host: &str, port: u16) -> Result<Vec<SocketAddr>, String> {
+    let lookup = (host.to_string(), port);
+    let task = tokio::task::spawn_blocking(move || {
         use std::net::ToSocketAddrs;
         lookup
             .to_socket_addrs()
             .map(|items| items.collect::<Vec<_>>())
-    })
-    .await
-    .map_err(|_| format!("public target DNS failed: {host}"))?
-    .map_err(|_| format!("public target DNS failed: {host}"))?;
-    if addresses.is_empty()
-        || addresses
-            .iter()
-            .any(|address| !is_public_network_ip(address.ip()))
-    {
-        return Err(format!("blocked non-public target: {host}"));
+    });
+    let mut addresses = match tokio::time::timeout(DNS_TIMEOUT, task).await {
+        Ok(Ok(Ok(addresses))) => addresses,
+        _ => return Err(format!("target DNS failed: {host}")),
+    };
+    if addresses.is_empty() {
+        return Err(format!("target DNS failed: {host}"));
     }
     addresses.sort_unstable();
     addresses.dedup();
@@ -408,35 +399,145 @@ fn host_is_blocked_literal(url: &reqwest::Url) -> bool {
 // and private network addresses. It is only set by callers that have explicitly
 // received a URL from the user (e.g. wiring up their own self-hosted Suwayomi
 // server), never for implicitly-discovered URLs.
-pub(crate) async fn validate_target(url: &reqwest::Url, allow_local: bool) -> Result<(), String> {
-    let host = match url.host_str() {
-        Some(h) => h.trim_start_matches('[').trim_end_matches(']').to_string(),
-        None => return Ok(()),
-    };
-    if host_is_blocked_literal(url) && !allow_local {
-        return Err(format!("blocked internal target: {}", host));
-    }
-    if host.parse::<IpAddr>().is_ok() {
-        return Ok(());
-    }
-    if allow_local {
-        return Ok(());
-    }
-    let port = url.port_or_known_default().unwrap_or(80);
-    let lookup = (host.clone(), port);
-    let resolved = tokio::task::spawn_blocking(move || {
-        use std::net::ToSocketAddrs;
-        lookup
-            .to_socket_addrs()
-            .map(|it| it.map(|a| a.ip()).collect::<Vec<_>>())
-    })
-    .await;
-    if let Ok(Ok(ips)) = resolved {
-        if ips.into_iter().any(is_blocked_ip) {
+// Returns the addresses the request must connect to; callers pin them so the send cannot re-resolve.
+pub(crate) async fn validate_target(
+    url: &reqwest::Url,
+    allow_local: bool,
+) -> Result<Vec<SocketAddr>, String> {
+    let host = url
+        .host_str()
+        .map(|h| h.trim_start_matches('[').trim_end_matches(']').to_string())
+        .filter(|h| !h.is_empty())
+        .ok_or_else(|| "target has no host".to_string())?;
+    let port = url
+        .port_or_known_default()
+        .ok_or_else(|| "target has no port".to_string())?;
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        if host_is_blocked_literal(url) && !allow_local {
             return Err(format!("blocked internal target: {}", host));
         }
+        return Ok(vec![SocketAddr::new(ip, port)]);
     }
-    Ok(())
+    let addresses = lookup_host(&host, port).await?;
+    if !allow_local && addresses.iter().any(|a| is_blocked_ip(a.ip())) {
+        return Err(format!("blocked internal target: {}", host));
+    }
+    Ok(addresses)
+}
+
+pub(crate) fn pinned_client(
+    builder: reqwest::ClientBuilder,
+    url: &reqwest::Url,
+    addresses: &[SocketAddr],
+) -> Result<reqwest::Client, String> {
+    let builder = match url.host_str() {
+        Some(host) if url.domain().is_some() => builder.resolve_to_addrs(host, addresses),
+        _ => builder,
+    };
+    builder.build().map_err(|error| format!("client: {error}"))
+}
+
+const CLIENT_CACHE_TTL: Duration = Duration::from_secs(60);
+const CLIENT_CACHE_MAX_ENTRIES: usize = 64;
+
+// A client is reused only for the exact origin and validated address set it was pinned to.
+#[derive(Clone, PartialEq, Eq, Hash)]
+struct ClientKey {
+    scheme: String,
+    host: String,
+    port: u16,
+    addresses: Vec<SocketAddr>,
+}
+
+impl ClientKey {
+    fn new(url: &reqwest::Url, addresses: &[SocketAddr]) -> Self {
+        let mut addresses = addresses.to_vec();
+        addresses.sort_unstable();
+        addresses.dedup();
+        Self {
+            scheme: url.scheme().to_string(),
+            host: url.host_str().unwrap_or_default().to_ascii_lowercase(),
+            port: url.port_or_known_default().unwrap_or(0),
+            addresses,
+        }
+    }
+}
+
+struct CachedClient<T> {
+    client: T,
+    created: Instant,
+    last_used: Instant,
+}
+
+struct ClientCache<T> {
+    entries: HashMap<ClientKey, CachedClient<T>>,
+}
+
+impl<T: Clone> ClientCache<T> {
+    fn new() -> Self {
+        Self { entries: HashMap::new() }
+    }
+
+    fn get(&mut self, key: &ClientKey, now: Instant) -> Option<T> {
+        self.entries
+            .retain(|_, entry| now.duration_since(entry.created) < CLIENT_CACHE_TTL);
+        let entry = self.entries.get_mut(key)?;
+        entry.last_used = now;
+        Some(entry.client.clone())
+    }
+
+    // Keeps a fresh entry another caller inserted meanwhile, so concurrent misses share one client.
+    fn insert(&mut self, key: ClientKey, client: T, now: Instant) -> T {
+        if let Some(existing) = self.get(&key, now) {
+            return existing;
+        }
+        while self.entries.len() >= CLIENT_CACHE_MAX_ENTRIES {
+            let oldest = self
+                .entries
+                .iter()
+                .min_by_key(|(_, entry)| entry.last_used)
+                .map(|(key, _)| key.clone());
+            match oldest {
+                Some(oldest) => self.entries.remove(&oldest),
+                None => break,
+            };
+        }
+        let entry = CachedClient { client: client.clone(), created: now, last_used: now };
+        self.entries.insert(key, entry);
+        client
+    }
+}
+
+fn client_cache() -> &'static StdMutex<ClientCache<reqwest::Client>> {
+    static CACHE: OnceLock<StdMutex<ClientCache<reqwest::Client>>> = OnceLock::new();
+    CACHE.get_or_init(|| StdMutex::new(ClientCache::new()))
+}
+
+fn cached_pinned_client(
+    url: &reqwest::Url,
+    addresses: &[SocketAddr],
+) -> Result<reqwest::Client, String> {
+    let key = ClientKey::new(url, addresses);
+    let lock = || client_cache().lock().unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(client) = lock().get(&key, Instant::now()) {
+        return Ok(client);
+    }
+    let client = pinned_client(http_client_builder(), url, addresses)?;
+    Ok(lock().insert(key, client, Instant::now()))
+}
+
+// Validates every hop; only the client pinned to an identical validated address set is reused.
+async fn hop_client(
+    url: &reqwest::Url,
+    allow_local: bool,
+    public_network_only: bool,
+) -> Result<reqwest::Client, String> {
+    let addresses = if public_network_only {
+        resolve_public_target(url).await?
+    } else {
+        validate_target(url, allow_local).await?
+    };
+    cached_pinned_client(url, &addresses)
 }
 
 fn is_https_downgrade(a: &reqwest::Url, b: &reqwest::Url) -> bool {
@@ -503,27 +604,8 @@ pub(crate) fn http_client_builder() -> reqwest::ClientBuilder {
         .pool_max_idle_per_host(8)
 }
 
-fn http_client() -> Result<&'static reqwest::Client, String> {
-    static CLIENT: OnceLock<Result<reqwest::Client, String>> = OnceLock::new();
-    CLIENT
-        .get_or_init(|| {
-            http_client_builder()
-                .build()
-                .map_err(|e| format!("client: {e}"))
-        })
-        .as_ref()
-        .map_err(|e| e.clone())
-}
-
 pub(crate) async fn public_http_client(url: &reqwest::Url) -> Result<reqwest::Client, String> {
-    let host = url
-        .host_str()
-        .ok_or_else(|| "public target has no host".to_string())?;
-    let addresses = resolve_public_target(url).await?;
-    http_client_builder()
-        .resolve_to_addrs(host, &addresses)
-        .build()
-        .map_err(|error| format!("public client: {error}"))
+    hop_client(url, false, true).await
 }
 
 #[derive(Debug, Deserialize)]
@@ -578,7 +660,6 @@ async fn send_fetch(
         reqwest::Method::from_bytes(method.as_bytes()).map_err(|e| format!("method: {}", e))?;
 
     let mut current_url = reqwest::Url::parse(&args.url).map_err(|e| format!("url: {}", e))?;
-    validate_target(&current_url, allow_local_network).await?;
 
     let mut subtitle_credential = args
         .credential_handle
@@ -649,16 +730,7 @@ async fn send_fetch(
     let mut redirect_count = 0usize;
 
     let res = loop {
-        let pinned_client = if public_network_only {
-            Some(public_http_client(&current_url).await?)
-        } else {
-            None
-        };
-        let client = if let Some(client) = pinned_client.as_ref() {
-            client
-        } else {
-            http_client()?
-        };
+        let client = hop_client(&current_url, allow_local_network, public_network_only).await?;
         let (request_url, credential_header) = match subtitle_credential.as_ref() {
             Some(credential) => {
                 crate::subtitle_credentials::apply_to_request(&current_url, credential)?
@@ -710,9 +782,6 @@ async fn send_fetch(
         }
         if is_https_downgrade(&current_url, &next_url) {
             return Err("redirect from HTTPS to HTTP is not allowed".to_string());
-        }
-        if !public_network_only {
-            validate_target(&next_url, allow_local_network).await?;
         }
         let cross_origin = !same_origin(&current_url, &next_url);
         let had_body = body.is_some();
@@ -884,9 +953,8 @@ pub async fn harbor_upload(args: HarborUploadArgs) -> Result<HarborFetchResponse
 
 async fn harbor_upload_inner(args: HarborUploadArgs) -> Result<HarborFetchResponse, String> {
     let _permit = acquire_fetch_permit().await?;
-    let client = http_client()?;
     let url = reqwest::Url::parse(&args.url).map_err(|e| format!("url: {}", e))?;
-    validate_target(&url, false).await?;
+    let client = hop_client(&url, false, false).await?;
 
     let bytes = base64::engine::general_purpose::STANDARD
         .decode(args.data_base64.as_bytes())
@@ -945,9 +1013,85 @@ fn cross_origin_redirect_forwards_body(cross_origin: bool, body: &Option<Vec<u8>
 #[cfg(test)]
 mod tests {
     use super::{
-        apply_redirect_method, cross_origin_redirect_forwards_body, host_is_blocked_literal,
-        is_https_downgrade, is_public_network_ip, same_origin, strip_headers, validate_target,
+        apply_redirect_method, cross_origin_redirect_forwards_body, hop_client,
+        host_is_blocked_literal, is_https_downgrade, is_public_network_ip, same_origin,
+        validate_target, ClientCache, ClientKey, CLIENT_CACHE_MAX_ENTRIES, CLIENT_CACHE_TTL,
     };
+    use std::net::SocketAddr;
+    use std::sync::Arc;
+    use std::time::{Duration, Instant};
+
+    fn key(url: &str, addresses: &[&str]) -> ClientKey {
+        let url: reqwest::Url = url.parse().unwrap();
+        let addresses: Vec<SocketAddr> = addresses.iter().map(|a| a.parse().unwrap()).collect();
+        ClientKey::new(&url, &addresses)
+    }
+
+    #[test]
+    fn client_cache_reuses_client_for_same_host_and_addresses() {
+        let mut cache = ClientCache::new();
+        let now = Instant::now();
+        let first = cache.insert(key("https://a.test/x", &["1.1.1.1:443", "1.0.0.1:443"]), Arc::new(1), now);
+        let reordered = key("https://a.test/y", &["1.0.0.1:443", "1.1.1.1:443"]);
+        let hit = cache.get(&reordered, now).expect("same address set hits");
+        assert!(Arc::ptr_eq(&first, &hit));
+        let raced = cache.insert(reordered, Arc::new(2), now);
+        assert!(Arc::ptr_eq(&first, &raced));
+    }
+
+    #[test]
+    fn client_cache_misses_when_addresses_or_origin_differ() {
+        let mut cache = ClientCache::new();
+        let now = Instant::now();
+        cache.insert(key("https://a.test/", &["1.1.1.1:443"]), Arc::new(1), now);
+        assert!(cache.get(&key("https://a.test/", &["8.8.8.8:443"]), now).is_none());
+        assert!(cache.get(&key("https://a.test/", &["1.1.1.1:443", "8.8.8.8:443"]), now).is_none());
+        assert!(cache.get(&key("http://a.test:443/", &["1.1.1.1:443"]), now).is_none());
+        assert!(cache.get(&key("https://b.test/", &["1.1.1.1:443"]), now).is_none());
+    }
+
+    #[test]
+    fn client_cache_expires_entries_after_ttl() {
+        let mut cache = ClientCache::new();
+        let now = Instant::now();
+        let k = key("https://a.test/", &["1.1.1.1:443"]);
+        cache.insert(k.clone(), Arc::new(1), now);
+        assert!(cache.get(&k, now + CLIENT_CACHE_TTL - Duration::from_secs(1)).is_some());
+        assert!(cache.get(&k, now + CLIENT_CACHE_TTL).is_none());
+        assert!(cache.entries.is_empty());
+    }
+
+    #[test]
+    fn client_cache_evicts_least_recently_used_beyond_bound() {
+        let mut cache = ClientCache::new();
+        let now = Instant::now();
+        let first = key("https://h0.test/", &["1.1.1.1:443"]);
+        cache.insert(first.clone(), Arc::new(0), now);
+        for i in 1..CLIENT_CACHE_MAX_ENTRIES {
+            let at = now + Duration::from_millis(i as u64);
+            cache.insert(key(&format!("https://h{i}.test/"), &["1.1.1.1:443"]), Arc::new(i), at);
+        }
+        let touched = now + Duration::from_millis(500);
+        assert!(cache.get(&first, touched).is_some());
+        let extra = key("https://extra.test/", &["1.1.1.1:443"]);
+        cache.insert(extra.clone(), Arc::new(99), touched + Duration::from_millis(1));
+        assert_eq!(cache.entries.len(), CLIENT_CACHE_MAX_ENTRIES);
+        assert!(cache.entries.contains_key(&first));
+        assert!(cache.entries.contains_key(&extra));
+        assert!(!cache.entries.contains_key(&key("https://h1.test/", &["1.1.1.1:443"])));
+    }
+
+    #[tokio::test]
+    async fn hop_client_reuses_pinned_client_after_revalidation() {
+        let url: reqwest::Url = "http://127.0.0.1:4568/".parse().unwrap();
+        let first = hop_client(&url, true, false).await.unwrap();
+        let second = hop_client(&url, true, false).await.unwrap();
+        let addresses = validate_target(&url, true).await.unwrap();
+        let cached = super::client_cache().lock().unwrap().get(&ClientKey::new(&url, &addresses), Instant::now());
+        assert!(cached.is_some());
+        drop((first, second));
+        assert!(hop_client(&url, false, false).await.is_err(), "validation still runs on a cached host");
+    }
 
     #[test]
     fn cross_host_redirects_strip_credentials() {
@@ -1075,5 +1219,42 @@ mod tests {
                 "{value} public ok"
             );
         }
+    }
+
+    #[tokio::test]
+    async fn validate_target_fails_closed_when_dns_lookup_fails() {
+        let url: reqwest::Url = "http://nonexistent-host.invalid/".parse().unwrap();
+        assert!(validate_target(&url, false).await.is_err());
+        assert!(validate_target(&url, true).await.is_err());
+    }
+
+    #[tokio::test]
+    async fn validate_target_returns_only_allowed_pinned_addresses() {
+        for value in ["http://localhost:4567/api", "http://127.0.0.1:4567/api"] {
+            let url: reqwest::Url = value.parse().unwrap();
+            assert!(validate_target(&url, false).await.is_err(), "{value} blocked");
+            let addresses = validate_target(&url, true).await.unwrap();
+            assert!(!addresses.is_empty(), "{value} resolves");
+            assert!(
+                addresses.iter().all(|a| a.ip().is_loopback() && a.port() == 4567),
+                "{value} pinned to loopback:4567"
+            );
+        }
+        let url: reqwest::Url = "http://192.168.1.10/api".parse().unwrap();
+        let addresses = validate_target(&url, false).await.unwrap();
+        assert_eq!(addresses, vec!["192.168.1.10:80".parse().unwrap()]);
+    }
+
+    #[tokio::test]
+    async fn every_hop_client_goes_through_target_validation() {
+        for value in ["http://127.0.0.1/", "http://localhost/", "http://nonexistent-host.invalid/"] {
+            let url: reqwest::Url = value.parse().unwrap();
+            assert!(hop_client(&url, false, false).await.is_err(), "{value} blocked");
+            assert!(hop_client(&url, false, true).await.is_err(), "{value} public-only blocked");
+        }
+        let url: reqwest::Url = "http://127.0.0.1:4567/".parse().unwrap();
+        assert!(hop_client(&url, true, false).await.is_ok());
+        let url: reqwest::Url = "http://nonexistent-host.invalid/".parse().unwrap();
+        assert!(hop_client(&url, true, false).await.is_err());
     }
 }

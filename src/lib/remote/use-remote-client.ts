@@ -2,12 +2,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import {
   REMOTE_PROTO,
   remoteWsUrl,
+  WEB_PORT,
   type RemoteClientMessage,
   type RemoteCommand,
   type RemoteServerMessage,
   type RemoteSnapshot,
   idleSnapshot,
 } from "./protocol";
+import { readRemoteKey } from "./remote-auth";
 
 export type RemoteClientStatus = "idle" | "connecting" | "connected" | "error";
 
@@ -29,6 +31,8 @@ export function useRemoteClient(initialHost?: string) {
   const [host, setHost] = useState(initialHost || defaultHost());
   const [status, setStatus] = useState<RemoteClientStatus>("idle");
   const [error, setError] = useState<string | null>(null);
+  const [unauthorized, setUnauthorized] = useState(false);
+  const keyRef = useRef<string | null | undefined>(undefined);
   const [snapshot, setSnapshot] = useState<RemoteSnapshot>(() => idleSnapshot());
   const wsRef = useRef<WebSocket | null>(null);
   const hostRef = useRef(host);
@@ -89,7 +93,8 @@ export function useRemoteClient(initialHost?: string) {
 
       setStatus((s) => (s === "error" ? "error" : "connecting"));
       setError(null);
-      const ws = new WebSocket(remoteWsUrl(h));
+      if (keyRef.current === undefined) keyRef.current = readRemoteKey();
+      const ws = new WebSocket(remoteWsUrl(h, WEB_PORT, keyRef.current));
       wsRef.current = ws;
 
       ws.onopen = () => {
@@ -103,8 +108,14 @@ export function useRemoteClient(initialHost?: string) {
       ws.onmessage = (ev) => {
         try {
           const msg = JSON.parse(String(ev.data)) as RemoteServerMessage;
-          if (msg.t === "snapshot") setSnapshot(msg.snapshot);
-          if (msg.t === "error") setError(msg.message);
+          if (msg.t === "snapshot") {
+            setUnauthorized(false);
+            setSnapshot(msg.snapshot);
+          }
+          if (msg.t === "error") {
+            setError(msg.message);
+            if (msg.code === "unauthorized") setUnauthorized(true);
+          }
         } catch {
           /* ignore */
         }
@@ -218,6 +229,7 @@ export function useRemoteClient(initialHost?: string) {
     setHost,
     status,
     error,
+    unauthorized,
     snapshot,
     connect,
     disconnect,

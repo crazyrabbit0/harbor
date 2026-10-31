@@ -7,6 +7,7 @@ import { getUiLanguage } from "@/lib/i18n/store";
 import { ensureUiLocale } from "@/lib/i18n/load-locale";
 import { applyOsDataset } from "@/lib/platform";
 import { loadSecrets } from "@/lib/secret-store";
+import { migrateLegacyPlaylists } from "@/lib/iptv/playlists-store";
 import { storedSettings } from "@/lib/stored-settings";
 import { initializeMusic } from "@/lib/music/player";
 import { initSubtitleCache } from "@/lib/subtitles/subtitle-cache";
@@ -213,14 +214,22 @@ async function mount() {
   ) {
     returnPreferencesReady = completeBetaReturnPreferences(__APP_VERSION__);
   }
+  const isMainWindow =
+    !isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck && !isRemote;
   await Promise.all([
     loadSecrets(),
+    // Saved folders outside the static fs/asset scope are re-allowed before any view reads them.
+    isMainWindow
+      ? import("@/lib/fs-scope").then((m) => m.allowStoredFsPaths()).catch(() => {})
+      : undefined,
     // Only a user theme as the active preset needs IndexedDB before the first paint; others hydrate in the background.
     activePresetIsCustom()
       ? hydrateCustomThemes().catch(() => {})
       : void hydrateCustomThemes().catch(() => {}),
     Promise.race([localeReady, new Promise((resolve) => setTimeout(resolve, LOCALE_WAIT_MS))]),
   ]);
+  // Moves playlists left in a settings blob into their own store before any settings parse reads that blob.
+  if (isMainWindow) migrateLegacyPlaylists();
   if (!isHdrOverlay && !isModal && !isCaptions && !isDjDeck) void initSubtitleCache();
   if (!isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck)
     startTaskbarProgress();

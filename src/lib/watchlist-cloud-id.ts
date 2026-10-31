@@ -1,16 +1,8 @@
 import { tmdbImdbCached, tmdbImdbId } from "@/lib/providers/tmdb/tmdb-imdb-resolve";
-import { loadStoredSettings } from "@/lib/settings/load";
+import { getTmdbKey } from "@/lib/settings/tmdb-key";
 import { ANIME_CLOUD_ID } from "@/lib/stremio";
 
 export type CloudReach = "ok" | "anime-local-only" | "unresolved";
-
-function tmdbKey(): string {
-  try {
-    return loadStoredSettings().tmdbKey ?? "";
-  } catch {
-    return "";
-  }
-}
 
 export async function watchlistImdbId(id: string, hint?: string | null): Promise<string | null> {
   if (id.startsWith("tt")) return id;
@@ -19,7 +11,7 @@ export async function watchlistImdbId(id: string, hint?: string | null): Promise
   if (!id.startsWith("tmdb:")) return null;
   const cached = tmdbImdbCached(id);
   if (cached !== undefined) return cached;
-  const key = tmdbKey();
+  const key = getTmdbKey();
   if (!key) return null;
   return tmdbImdbId(key, id).catch(() => null);
 }

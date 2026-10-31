@@ -178,6 +178,7 @@ function scanHarness(h: ReturnType<typeof harness>, files: LocalEntry[]) {
           ];
         },
       },
+      "@/lib/fs-scope": { allowFsPaths: async () => {}, localLibraryPaths: () => [] },
       "@/lib/local-library": h.library,
       "@/lib/local-library/removals": h.removals,
       "@/lib/local-library/sidecars": { clearSidecarCache() {}, countNfoFor: async () => 0 },

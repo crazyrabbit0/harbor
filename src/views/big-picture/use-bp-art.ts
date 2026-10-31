@@ -2,7 +2,7 @@ import { useEffect, useState, type RefObject } from "react";
 import { narrowMediaType } from "@/lib/cinemeta";
 import { animeKitsuMeta } from "@/lib/providers/anime-kitsu-addon";
 import { useSettings } from "@/lib/settings";
-import { hydrateLibraryMeta } from "@/views/library/hydrate-meta";
+import { hydrateLibraryMeta } from "@/lib/library/hydrate-meta";
 import { bpCardArt, bpTileArtWidth } from "./bp-art";
 import { bpHydrateSlot } from "./bp-art-hydrate";
 import { onBpCardVisible } from "./bp-card-visible";
