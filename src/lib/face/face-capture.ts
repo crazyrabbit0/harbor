@@ -9,7 +9,7 @@ export function imageDataUrlToBlob(dataUrl: string): Blob {
   const match = /^data:(image\/[a-z0-9.+-]+)(;base64)?$/i.exec(header);
   if (!match) throw new Error("unsupported image data");
 
-  let bytes: Uint8Array;
+  let bytes: Uint8Array<ArrayBuffer>;
   if (match[2]) {
     const binary = atob(payload);
     bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));

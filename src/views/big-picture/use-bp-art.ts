@@ -131,7 +131,7 @@ export function useBpArt({
     const stop = onBpCardVisible(el, () => {
       if (fired) return;
       fired = true;
-      const pending = bpHydrateSlot(() =>
+      const pending = bpHydrateSlot<{ poster?: string; background?: string } | null>(() =>
         ANIME_ID.test(id)
           ? animeKitsuMeta(id)
           : hydrateLibraryMeta(id, narrowMediaType(type), tmdbKey),

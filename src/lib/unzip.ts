@@ -1,12 +1,12 @@
-async function inflateRaw(bytes: Uint8Array): Promise<Uint8Array> {
+async function inflateRaw(bytes: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
 
-export async function unzip(buffer: ArrayBuffer): Promise<Map<string, Uint8Array>> {
+export async function unzip(buffer: ArrayBuffer): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
   const view = new DataView(buffer);
   const bytes = new Uint8Array(buffer);
-  const out = new Map<string, Uint8Array>();
+  const out = new Map<string, Uint8Array<ArrayBuffer>>();
 
   let eocd = -1;
   for (let i = buffer.byteLength - 22; i >= 0; i -= 1) {

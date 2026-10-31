@@ -23,7 +23,7 @@ const MAX_ARCHIVE_BYTES = 16 * 1024 * 1024;
 const MAX_ICON_BYTES = 512 * 1024;
 const READY_TIMEOUT = 10_000;
 
-async function sha256Bytes(bytes: Uint8Array): Promise<string> {
+async function sha256Bytes(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", bytes);
   return Array.from(new Uint8Array(digest))
     .map((b) => b.toString(16).padStart(2, "0"))
@@ -51,7 +51,9 @@ export async function fetchEntryCode(
   return { code, etag };
 }
 
-async function fetchArchive(entry: StreamRepoEntry): Promise<{ bytes: Uint8Array; etag?: string }> {
+async function fetchArchive(
+  entry: StreamRepoEntry,
+): Promise<{ bytes: Uint8Array<ArrayBuffer>; etag?: string }> {
   const target = assertSafeUrl(entry.entry);
   let res: Response;
   try {

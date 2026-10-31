@@ -83,6 +83,9 @@ jobs:
             echo "No changed JavaScript or TypeScript files require lint checks."
           fi
 
+      - name: Typecheck (TypeScript 7)
+        run: vp run typecheck:fast
+
       - name: Typecheck
         run: vp run typecheck
 

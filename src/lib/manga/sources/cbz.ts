@@ -1,15 +1,15 @@
 const IMG_RE = /\.(jpe?g|png|webp|gif|avif|bmp)$/i;
 
-async function inflateRaw(data: Uint8Array): Promise<Uint8Array> {
+async function inflateRaw(data: Uint8Array<ArrayBuffer>): Promise<Uint8Array<ArrayBuffer>> {
   const ds = new DecompressionStream("deflate-raw");
   const stream = new Blob([data]).stream().pipeThrough(ds);
   const buf = await new Response(stream).arrayBuffer();
   return new Uint8Array(buf);
 }
 
-export type CbzEntry = { name: string; data: Uint8Array };
+export type CbzEntry = { name: string; data: Uint8Array<ArrayBuffer> };
 
-export async function readCbzImages(bytes: Uint8Array): Promise<CbzEntry[]> {
+export async function readCbzImages(bytes: Uint8Array<ArrayBuffer>): Promise<CbzEntry[]> {
   const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   const len = bytes.length;
 
