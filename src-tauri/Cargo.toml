@@ -1,8 +1,16 @@
+[workspace.package]
+version = "0.9.221"
+
 [package]
 name = "harbor"
-version = "0.9.221"
+version.workspace = true
 description = "A Stremio client built for adventure"
 edition = "2021"
+
+[workspace]
+# The vendored path dependencies are workspace members as well, so their manifests declare no dev-dependencies.
+members = [".", "shared", "games"]
+resolver = "2"
 
 [lib]
 name = "harbor_lib"
@@ -12,7 +20,8 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [features]
-default = []
+default = ["games"]
+games = ["dep:harbor-games"]
 silero-vad = ["dep:ort", "dep:ndarray"]
 asr-whisper = ["dep:whisper-rs"]
 chromaprint = []
@@ -83,6 +92,7 @@ rustls = { version = "0.23", default-features = false, features = [
   "logging",
 ] }
 harbor-core = { path = "../harbor-core" }
+harbor-shared = { path = "shared" }
 harbor-install-recovery = { path = "../harbor-install-recovery" }
 librqbit = { version = "=8.1.1", default-features = false, features = ["rust-tls"] }
 url = "2"
@@ -103,6 +113,7 @@ ts-rs = { version = "12.0.1", features = ["serde-json-impl"] }
 #   root: on Android they compile to an empty crate and every path into them is
 #   unresolved. updater and process declare Android support level "none".
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+harbor-games = { path = "games", optional = true }
 leveldb-sys = { path = "vendor/leveldb-sys", features = ["snappy"] }
 trash = "=5.2.9"
 libmpv2 = "4"

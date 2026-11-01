@@ -78,14 +78,18 @@ test("provider download policy is marked internally and pinned natively", () => 
     new URL("../src-tauri/src/http_fetch.rs", import.meta.url),
     "utf8",
   );
+  const guardSource = readFileSync(
+    new URL("../src-tauri/shared/src/net_guard.rs", import.meta.url),
+    "utf8",
+  );
   assert.match(safeFetchSource, /publicNetworkOnly/);
   assert.match(safeFetchSource, /policyHeaders\.delete\(SUBTITLE_PUBLIC_NETWORK_HEADER\)/);
   assert.match(
     nativeSource,
     /hop_client\(&current_url, allow_local_network, public_network_only\)/,
   );
-  assert.match(nativeSource, /resolve_public_target\(url\)\.await\?/);
-  assert.match(nativeSource, /resolve_to_addrs\(host, addresses\)/);
+  assert.match(guardSource, /resolve_public_target\(url\)\.await\?/);
+  assert.match(guardSource, /resolve_to_addrs\(host, addresses\)/);
 });
 
 test("public-network policy applies only to provider-derived subtitle tracks", () => {

@@ -6,7 +6,7 @@ import vm from "node:vm";
 const target = "https://catalog.example/feed.json";
 const script = (
   await readFile(
-    new URL("../src-tauri/src/games/source_verification_read.js", import.meta.url),
+    new URL("../src-tauri/games/src/source_verification_read.js", import.meta.url),
     "utf8",
   )
 )

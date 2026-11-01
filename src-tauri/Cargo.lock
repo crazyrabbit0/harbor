@@ -2587,7 +2587,9 @@ dependencies = [
  "gtk",
  "hadris-iso",
  "harbor-core",
+ "harbor-games",
  "harbor-install-recovery",
+ "harbor-shared",
  "harbor-udfread",
  "hound",
  "httpdate",
@@ -2678,8 +2680,68 @@ dependencies = [
 ]
 
 [[package]]
+name = "harbor-games"
+version = "0.9.221"
+dependencies = [
+ "anyhow",
+ "aws-lc-rs",
+ "axum",
+ "base64 0.22.1",
+ "core-foundation 0.10.1",
+ "crc32fast",
+ "dunce",
+ "flate2",
+ "futures-util",
+ "hadris-iso",
+ "harbor-shared",
+ "harbor-udfread",
+ "httpdate",
+ "image",
+ "leveldb-sys",
+ "libc",
+ "librqbit",
+ "md5",
+ "plist",
+ "png 0.17.16",
+ "quick-xml 0.38.4",
+ "regex",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "rustls",
+ "serde",
+ "serde_json",
+ "sevenz-rust2",
+ "sha1",
+ "sha2",
+ "tar",
+ "tauri",
+ "tauri-plugin-opener",
+ "tokio",
+ "tokio-util",
+ "trash",
+ "unrar_sys",
+ "url",
+ "uuid 1.23.1",
+ "windows 0.62.2",
+ "yaml-rust2",
+ "zeroize",
+ "zip",
+]
+
+[[package]]
 name = "harbor-install-recovery"
 version = "0.1.0"
+
+[[package]]
+name = "harbor-shared"
+version = "0.0.0"
+dependencies = [
+ "futures-util",
+ "reqwest 0.12.28",
+ "serde",
+ "tauri",
+ "tokio",
+]
 
 [[package]]
 name = "harbor-udfread"

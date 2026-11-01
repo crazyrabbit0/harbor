@@ -162,20 +162,6 @@ pub fn allow_saved_settings<R: Runtime>(app: &AppHandle<R>) {
     }
 }
 
-/// Adds image files Rust itself located (Steam artwork) to the asset protocol scope only.
-pub fn allow_asset_files<'a, R: Runtime>(
-    app: &AppHandle<R>,
-    files: impl IntoIterator<Item = &'a String>,
-) {
-    let scope = app.asset_protocol_scope();
-    for file in files {
-        let path = Path::new(file);
-        if path.is_absolute() && path.is_file() {
-            let _ = scope.allow_file(path);
-        }
-    }
-}
-
 fn asset_directory(raw: &str, home: Option<&Path>) -> Result<PathBuf, Rejection> {
     match classify(raw, home)? {
         Grant::Directory(path) => Ok(path),
