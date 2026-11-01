@@ -12,6 +12,7 @@ import { CriticismRow } from "./criticism-row";
 import { productionRows } from "./production-rows";
 import { useProductionFacts } from "./use-production-facts";
 import { SoundtrackRow } from "./soundtrack-row";
+import { appFeatures } from "@/lib/app-features";
 
 const ANIME_ROW_BY_GENRE: Record<string, string> = {
   Action: "genre-action",
@@ -154,7 +155,7 @@ export function InfoBlock({ detail, isAnime = false }: { detail: TmdbDetail; isA
     adaptation
       ? { label: t("Based on"), kind: "node", node: <AdaptationRow family={adaptation} /> }
       : null,
-    soundtrack
+    soundtrack && appFeatures().music
       ? { label: t("Soundtrack"), kind: "node", node: <SoundtrackRow album={soundtrack} /> }
       : null,
     genreChips.length > 0 ? { label: t("Genres"), kind: "chips", chips: genreChips } : null,

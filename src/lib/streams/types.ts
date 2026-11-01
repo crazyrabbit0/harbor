@@ -1,34 +1,16 @@
-export type Resolution = "4K" | "1080p" | "720p" | "480p" | "SD";
-export type HdrFormat = "HDR10" | "HDR10+" | "DV" | "DV+HDR10" | "HLG";
-export type Codec = "HEVC" | "AVC" | "AV1" | "VP9" | "MPEG2" | "Other";
-export type AudioCodec =
-  | "Atmos"
-  | "TrueHD"
-  | "DTS-HD MA"
-  | "DTS"
-  | "DD+"
-  | "AC3"
-  | "AAC"
-  | "Opus"
-  | "FLAC"
-  | "Other";
-export type Source =
-  | "BluRay"
-  | "REMUX"
-  | "WEB-DL"
-  | "WEBRip"
-  | "BDRip"
-  | "HDRip"
-  | "DVDRip"
-  | "HDTV"
-  | "CAM"
-  | "TS"
-  | "HDTS"
-  | "TC"
-  | "SCR"
-  | "Other";
-export type Tier = "4K_DV" | "4K_HDR" | "4K" | "1080p_HDR" | "1080p" | "720p" | "SD" | "ROUGH";
-export type DebridSlug = "rd" | "tb" | "ad" | "pm" | "dl";
+import type {
+  AudioCodec,
+  Codec,
+  Container,
+  DebridSlug,
+  HdrFormat,
+  Resolution,
+  Source,
+  Tier,
+} from "@/lib/generated/streams-ipc";
+
+// The stream enums come from harbor-core, so the Rust ranking and this TypeScript fallback share one set of names.
+export type { AudioCodec, Codec, Container, DebridSlug, HdrFormat, Resolution, Source, Tier };
 
 export type ProxyHeaders = {
   request?: Record<string, string>;
@@ -88,8 +70,6 @@ export type AudioInfo = {
   channels: number;
   bitDepth?: number;
 };
-
-export type Container = "mkv" | "mp4" | "m4v" | "avi" | "webm" | "mov" | "ts" | "wmv";
 
 export type ParsedStream = Stream & {
   parsedTitle: string;

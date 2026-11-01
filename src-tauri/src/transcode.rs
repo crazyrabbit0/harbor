@@ -4,7 +4,7 @@ use axum::response::{IntoResponse, Response};
 use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, ts_rs::TS)]
 pub struct TranscodeProfile {
     #[serde(default = "default_max_height")]
     pub max_height: u32,
@@ -15,6 +15,7 @@ pub struct TranscodeProfile {
     #[serde(default)]
     pub force_stereo: bool,
     #[serde(default)]
+    #[ts(optional)]
     pub max_video_kbps: Option<u32>,
 }
 

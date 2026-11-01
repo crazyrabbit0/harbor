@@ -1,4 +1,4 @@
-// Keep in sync with REDIRECT_PORT and redirect_uri in src-tauri/src/music/spotify/auth.rs.
+// Keep in sync with REDIRECT_PORT and redirect_uri in src-tauri/music/src/spotify/auth.rs.
 export const SPOTIFY_REDIRECT_URI = "http://127.0.0.1:8898/login";
 export const SPOTIFY_DASHBOARD_URL = "https://developer.spotify.com/dashboard";
 

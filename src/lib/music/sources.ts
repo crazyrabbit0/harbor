@@ -137,7 +137,7 @@ const SEARCH_LANE_TIMEOUT_MS = 9_000;
 const FALLBACK_FANOUT_TIMEOUT_MS = 20_000;
 const PREFERRED_SOURCE_KEY = "harbor.music.preferred-source.v1";
 
-/** Mirrors source_rank in src-tauri/src/music/rows.rs so merged search agrees with catalog rows. */
+/** Mirrors source_rank in src-tauri/music/src/rows.rs so merged search agrees with catalog rows. */
 const MUSIC_SOURCE_ORDER: readonly string[] = [
   "catalog",
   "spotify",

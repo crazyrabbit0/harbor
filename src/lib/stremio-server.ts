@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { CastServerStatus } from "@/lib/generated/cast-ipc";
 import { storedSettings } from "@/lib/stored-settings";
 
 export const DEFAULT_BUNDLED_PORT = 11470;
@@ -46,14 +47,7 @@ export function isLocalEngineUrl(url: string | undefined | null): boolean {
 
 let probeCache: { ok: boolean; at: number; base: string } | null = null;
 
-export type CastServerStatus = {
-  bundled: boolean;
-  running: boolean;
-  ready: boolean;
-  port: number | null;
-  last_error: string | null;
-  restart_count: number;
-};
+export type { CastServerStatus };
 
 export async function getCastServerStatus(): Promise<CastServerStatus | null> {
   if (!isTauri) return null;

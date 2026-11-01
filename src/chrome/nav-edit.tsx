@@ -4,7 +4,7 @@ import { TvModalClose } from "@/components/tv-modal-close";
 import { useT } from "@/lib/i18n";
 import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
 import {
-  NAV_ITEMS,
+  builtNavItems,
   effectiveNavOrder,
   moveNavItem,
   resetNavCustomization,
@@ -375,7 +375,7 @@ export function NavHiddenTray({
     return () => window.removeEventListener("keydown", onKey);
   }, [editing]);
   if (!editing) return null;
-  const byId = new Map(NAV_ITEMS.map((it) => [it.id, it]));
+  const byId = new Map(builtNavItems().map((it) => [it.id, it]));
   const hidden = cfg.hidden.map((id) => byId.get(id as NavItemId)).filter((it) => it != null);
   if (compact) {
     return (

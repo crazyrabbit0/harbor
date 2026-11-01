@@ -79,10 +79,17 @@ pub async fn secrets_write(app: tauri::AppHandle, content: String) -> Result<(),
     off_main(move || write_secrets_file(app, content)).await
 }
 
+// Dev builds keep their own WebView storage, so they mirror it into their own file.
+const USER_DATA_FILE: &str = if cfg!(debug_assertions) {
+    "user-data.dev.json"
+} else {
+    "user-data.json"
+};
+
 fn user_data_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    Ok(dir.join("user-data.json"))
+    Ok(dir.join(USER_DATA_FILE))
 }
 
 // Durable copy of the localStorage keys listed in src/lib/durable-store.ts, as one JSON object.

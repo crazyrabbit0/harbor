@@ -24,13 +24,14 @@ use crate::transcode::TranscodeProfile;
 const CAST_SERVICE_TYPE: &str = "_googlecast._tcp.local.";
 const DISCOVERY_TIMEOUT_MS: u64 = 5000;
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 pub struct CastDeviceInfo {
     pub id: String,
     pub name: String,
     pub host: String,
     pub port: u16,
     pub model: Option<String>,
+    #[ts(type = "CastKind")]
     pub kind: String,
     pub control_url: Option<String>,
     pub audio_only: bool,
@@ -1296,12 +1297,13 @@ fn poll_status(device: &CastDevice<'_>, transport_id: &str, msid: Option<i32>) -
     }))
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Serialize, ts_rs::TS)]
 pub struct CastStatus {
     pub position_sec: f64,
     pub player_state: String,
     pub connected: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[ts(optional)]
     pub transport_codec: Option<String>,
 }
 

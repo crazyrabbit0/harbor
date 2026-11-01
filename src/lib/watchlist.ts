@@ -12,6 +12,7 @@ import {
 import { stremioIdToSimklTarget } from "@/lib/simkl/ids";
 import { isAuthenticated as simklConnected } from "@/lib/simkl/session";
 import { setItemWithRecovery, freeStorageSpace } from "@/lib/storage-recovery";
+import { syncDurableStore } from "@/lib/durable-store";
 import {
   ANIME_CLOUD_ID,
   cloudWriteId,
@@ -85,6 +86,7 @@ function migrateLegacy(): void {
       if (!localStorage.getItem(perKey)) localStorage.setItem(perKey, legacyAgg);
       localStorage.removeItem(LEGACY_AGG_KEY);
     }
+    if (legacy) syncDurableStore();
   } catch {
     /* noop */
   }

@@ -8,6 +8,7 @@ import { ensureUiLocale } from "@/lib/i18n/load-locale";
 import { applyOsDataset } from "@/lib/platform";
 import { loadSecrets } from "@/lib/secret-store";
 import { loadDurableStore } from "@/lib/durable-store";
+import { appFeatures, loadAppFeatures } from "@/lib/app-features";
 import { migrateLegacyPlaylists } from "@/lib/iptv/playlists-store";
 import { storedSettings } from "@/lib/stored-settings";
 import { initializeMusic } from "@/lib/music/player";
@@ -202,7 +203,9 @@ async function mount() {
   const localeReady = ensureUiLocale(getUiLanguage());
   // Started unawaited before App mounts, so resetMusicForProfile sees it running and keeps the saved checkpoint.
   if (!isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck)
-    void initializeMusic();
+    void loadAppFeatures().then(() => {
+      if (appFeatures().music) void initializeMusic();
+    });
   if (
     "__TAURI_INTERNALS__" in window &&
     !isHdrOverlay &&
@@ -220,6 +223,7 @@ async function mount() {
   await Promise.all([
     loadSecrets(),
     isMainWindow ? loadDurableStore() : undefined,
+    isMainWindow ? loadAppFeatures() : undefined,
     // Saved folders outside the static fs/asset scope are re-allowed before any view reads them.
     isMainWindow
       ? import("@/lib/fs-scope").then((m) => m.allowStoredFsPaths()).catch(() => {})

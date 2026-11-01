@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { defaultVodBufferProperties } from "../src/lib/player/mpv-config.ts";
 
 const at = (path: string) => new URL(`../${path}`, import.meta.url);
 const read = (path: string) => readFileSync(at(path), "utf8");
@@ -115,10 +116,12 @@ test("startup buffering is staged and adapts without lowering media quality", ()
   assert.match(startupProfile, /2160p\?|4320p\?|4k\|8k\|uhd\|remux/);
   assert.match(nativeMpv, /startup_profile: Option<String>/);
   assert.match(nativeMpv, /if high_bitrate \{ "32MiB" \} else \{ "16MiB" \}/);
-  const mpvConfig = read("src/lib/player/mpv-config.ts");
-  assert.match(mpvConfig, /phase === "startup"/);
-  assert.match(mpvConfig, /\["demuxer-max-bytes", highBitrate \? "256MiB" : "128MiB"\]/);
-  assert.match(mpvConfig, /\["demuxer-max-bytes", highBitrate \? "768MiB" : "512MiB"\]/);
+  const maxBytes = (profile: "standard" | "high-bitrate", phase: "startup" | "steady") =>
+    new Map(defaultVodBufferProperties(profile, phase)).get("demuxer-max-bytes");
+  assert.equal(maxBytes("standard", "startup"), "128MiB");
+  assert.equal(maxBytes("high-bitrate", "startup"), "256MiB");
+  assert.equal(maxBytes("standard", "steady"), "512MiB");
+  assert.equal(maxBytes("high-bitrate", "steady"), "768MiB");
   assert.match(nativeMpv, /"cache-pause-initial", "no"/);
   assert.doesNotMatch(startupProfile, /resolution.*replace|transcode|downscale/i);
 });

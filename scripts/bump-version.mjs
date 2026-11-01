@@ -48,6 +48,7 @@ function setVersion(version) {
   for (const [path, name] of [
     ["src-tauri/Cargo.lock", "harbor"],
     ["src-tauri/Cargo.lock", "harbor-games"],
+    ["src-tauri/Cargo.lock", "harbor-music"],
     ["installer/src-tauri/Cargo.lock", "harbor-setup"],
   ]) {
     replaceOnce(

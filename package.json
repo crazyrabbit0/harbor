@@ -12,6 +12,7 @@
     "preview": "vite preview",
     "check:settings": "node scripts/check-settings.mjs",
     "check:search": "node scripts/check-settings-search.mjs",
+    "check:react-compiler": "node scripts/check-react-compiler.mjs",
     "check:tvstrings": "node scripts/check-tv-strings.mjs",
     "check:tvstrings:wide": "node scripts/check-tv-strings.mjs --list-wide",
     "check:tvinvariants": "node scripts/check-tv-invariants.mjs",

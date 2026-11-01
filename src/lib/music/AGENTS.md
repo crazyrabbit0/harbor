@@ -1,6 +1,6 @@
 # src/lib/music/ (music frontend logic)
 
-Rust backend notes are in `src-tauri/src/music/AGENTS.md`. UI lives in `src/components/music/`, `src/views/music/` and the DJ deck in `src/views/dj/` + `src/views/dj-deck-app.tsx`.
+Rust backend notes are in `src-tauri/music/AGENTS.md`. UI lives in `src/components/music/`, `src/views/music/` and the DJ deck in `src/views/dj/` + `src/views/dj-deck-app.tsx`.
 
 ## Where to look
 

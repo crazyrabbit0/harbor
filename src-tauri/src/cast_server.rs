@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 
-#[derive(Clone, Debug, serde::Serialize)]
+#[derive(Clone, Debug, serde::Serialize, ts_rs::TS)]
 pub struct CastServerStatus {
     pub bundled: bool,
     pub running: bool,

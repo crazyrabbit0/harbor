@@ -91,12 +91,7 @@ fn cached_info(path: &Path, quality: &str, size: u64, stream_url: Option<String>
     }
 }
 
-pub(crate) struct YtDlpOutput {
-    pub(crate) success: bool,
-    pub(crate) exit_code: Option<i32>,
-    pub(crate) stdout: Vec<u8>,
-    pub(crate) stderr: Vec<u8>,
-}
+pub(crate) use harbor_shared::app_hooks::YtDlpOutput;
 
 fn yt_dlp_failure(source: &str, label: &str, output: &YtDlpOutput) -> String {
     let stderr = String::from_utf8_lossy(&output.stderr);

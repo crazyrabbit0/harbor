@@ -1,49 +1,17 @@
 import { invoke } from "@tauri-apps/api/core";
+import type {
+  CastDeviceInfo,
+  CastKind,
+  CastStatus,
+  CastSub,
+  CastSubStyle,
+  TranscodeProfile,
+} from "@/lib/generated/cast-ipc";
+
+export type { CastDeviceInfo, CastKind, CastStatus, CastSubStyle, TranscodeProfile };
+export type CastSubInfo = CastSub;
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
-
-export type CastDeviceInfo = {
-  id: string;
-  name: string;
-  host: string;
-  port: number;
-  model: string | null;
-  kind: "chromecast" | "dlna" | "roku" | "airplay";
-  control_url: string | null;
-  audio_only: boolean;
-};
-
-export type TranscodeProfile = {
-  max_height: number;
-  force_h264: boolean;
-  force_aac: boolean;
-  force_stereo: boolean;
-  max_video_kbps?: number;
-};
-
-export type CastStatus = {
-  position_sec: number;
-  player_state: string;
-  connected: boolean;
-  transport_codec?: string | null;
-};
-
-export type CastSubStyle = {
-  font_size: number;
-  font_color: string;
-  border_color: string;
-  border_size: number;
-  margin_y: number;
-  align_x: "left" | "center" | "right";
-};
-
-export type CastSubInfo = {
-  kind: "external" | "embedded";
-  url?: string;
-  src_index?: number;
-  format?: "srt" | "ass" | "ssa" | "vtt";
-  off: boolean;
-};
 
 export async function discoverCastDevices(): Promise<CastDeviceInfo[]> {
   if (!isTauri) return [];
@@ -63,7 +31,7 @@ export async function castLoad(opts: {
   poster?: string;
   contentType?: string;
   startTimeSec?: number;
-  kind?: "chromecast" | "dlna" | "roku" | "airplay";
+  kind?: CastKind;
   controlUrl?: string | null;
   headers?: Record<string, string>;
   transcode?: boolean;

@@ -1,5 +1,7 @@
 import { stremioDataProfileId, primaryOrStremioProfileId } from "@/lib/profile-roster";
 import { useSyncExternalStore } from "react";
+import { syncDurableStore } from "@/lib/durable-store";
+import { setItemWithRecovery } from "@/lib/storage-recovery";
 import type { AddonProgress } from "./streams/addons";
 
 export type PlaybackEntry = {
@@ -48,6 +50,7 @@ function migrateLegacy(): void {
     const perKey = STORAGE_KEY_PREFIX + pid;
     if (!localStorage.getItem(perKey)) localStorage.setItem(perKey, legacy);
     localStorage.removeItem(LEGACY_STORAGE_KEY);
+    syncDurableStore();
   } catch {
     /* noop */
   }
@@ -119,14 +122,10 @@ function writeAll(map: Record<string, PlaybackEntry>): void {
     }
     const key = storeKey();
     const raw = JSON.stringify(map);
-    localStorage.setItem(key, raw);
-    parsedCache = { key, raw, all: map };
-  } catch (e) {
-    if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22)) {
-      try {
-        localStorage.removeItem(storeKey());
-      } catch {}
-    }
+    // A full quota prunes caches first; if even that fails, the stored history stays as it was.
+    if (setItemWithRecovery(key, raw)) parsedCache = { key, raw, all: map };
+  } catch {
+    /* storage unavailable */
   }
   if (playbackVisiblyChanged(prev, readAll())) listeners.forEach((l) => l());
 }
