@@ -99,6 +99,8 @@ mod modal_overlay;
 #[cfg(desktop)]
 mod mpv;
 #[cfg(desktop)]
+mod mpv_ipc;
+#[cfg(desktop)]
 mod playback_cache;
 #[cfg(target_os = "linux")]
 mod mpv_render_linux;

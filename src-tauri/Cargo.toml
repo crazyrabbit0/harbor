@@ -90,6 +90,7 @@ realfft = "3"
 ort = { version = "=2.0.0-rc.10", optional = true }
 ndarray = { version = "0.16", optional = true }
 whisper-rs = { version = "0.14", optional = true }
+ts-rs = { version = "12.0.1", features = ["serde-json-impl"] }
 
 # Desktop-only crates. Cargo resolves `[target.'cfg(...)']` from the target spec
 # before any build script runs, so it cannot see tauri-build's `desktop`/`mobile`

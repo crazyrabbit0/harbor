@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isWindowsDesktop } from "@/lib/platform";
 import type { PlayerSnapshot } from "./bridge";
+import type { AudioDevice } from "@/lib/generated/mpv-ipc";
 
 const AUDIO_PROFILE_AF: Record<string, string> = {
   bass: "lavfi=[bass=g=7:f=110:w=0.6]",
@@ -16,7 +17,7 @@ async function applyAudioDevice(want: string): Promise<void> {
   let target = want;
   if (target !== "auto") {
     try {
-      const devices = await invoke<Array<{ name: string }>>("mpv_audio_devices");
+      const devices = await invoke<AudioDevice[]>("mpv_audio_devices");
       if (devices.length > 0 && !devices.some((d) => d.name === target)) {
         console.warn(`[audio] device "${target}" is no longer present, falling back to auto`);
         target = "auto";

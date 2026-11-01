@@ -2,18 +2,10 @@ import { mpvFailureSnapshot } from "./mpv-failure";
 import type { StartupProfile } from "./mpv-config";
 import { applyMpvProperty } from "./mpv-tracks";
 import type { PlayerSnapshot } from "./bridge";
+import type { MpvEvent as NativeMpvEvent } from "@/lib/generated/mpv-ipc";
 
-export type MpvEvent =
-  | {
-      event: "property-change";
-      id?: number;
-      name: string;
-      data: unknown;
-    }
-  | { event: "end-file"; reason?: string }
-  | { event: "playback-restart" }
-  | { event: "file-loaded" }
-  | { event: string; [k: string]: unknown };
+// The native payload union, plus a loose end-file reason the reducer still tolerates.
+export type MpvEvent = NativeMpvEvent | { event: "end-file"; reason?: string };
 
 // Bridge state an mpv event reads or changes; the bridge copies it in before and back after each event.
 export type MpvEventState = {
@@ -44,10 +36,15 @@ export function normalizeMediaPath(path: string): string {
   return path.replace(/\\/g, "/");
 }
 
-const isSvpFailureLog = (raw: Record<string, unknown>) => {
-  const prefix = String(raw.prefix ?? "");
-  const level = String(raw.level ?? "");
-  const text = String(raw.text ?? "");
+const isSvpFailureLog = ({
+  prefix,
+  level,
+  text,
+}: {
+  prefix: string;
+  level: string;
+  text: string;
+}) => {
   return (
     text.includes("Creating filter 'vapoursynth' failed") ||
     (prefix.includes("vapoursynth") && (level === "fatal" || level === "error"))
@@ -60,15 +57,12 @@ export function reduceMpvEvent(current: MpvEventState, raw: MpvEvent, now: numbe
   const snap = state.snap;
   const effects: MpvEventEffect[] = [];
   if (raw.event === "log") {
-    if (isSvpFailureLog(raw as Record<string, unknown>))
-      effects.push({ kind: "svp-filter-failed" });
+    if (isSvpFailureLog(raw)) effects.push({ kind: "svp-filter-failed" });
   } else if (raw.event === "player-failure") {
-    const reason = String((raw as { reason?: unknown }).reason ?? "");
-    state.snap = mpvFailureSnapshot(snap, reason);
+    state.snap = mpvFailureSnapshot(snap, raw.reason ?? "");
     effects.push({ kind: "player-failed" }, { kind: "emit" });
   } else if (raw.event === "property-change") {
-    const name = String((raw as { name?: unknown }).name);
-    const data = (raw as { data?: unknown }).data;
+    const { name, data } = raw;
     applyMpvProperty(snap, name, data);
     if (name === "path" && typeof data === "string") state.observedMediaPath = data;
     if (name === "pause" && typeof data === "boolean") {
@@ -77,7 +71,7 @@ export function reduceMpvEvent(current: MpvEventState, raw: MpvEvent, now: numbe
     }
     effects.push({ kind: "property", name, data }, { kind: "emit" });
   } else if (raw.event === "end-file") {
-    const reason = (raw as { reason?: string }).reason?.toLowerCase();
+    const reason = raw.reason?.toLowerCase();
     if (reason === "stop" || reason === "quit" || reason === "redirect")
       return { state: current, effects };
     if (now < state.suppressEndFileUntil) return { state: current, effects };

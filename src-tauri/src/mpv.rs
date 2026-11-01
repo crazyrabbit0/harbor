@@ -28,7 +28,7 @@ use tauri::{AppHandle, Emitter, State};
 use tokio::sync::Mutex;
 use uuid::Uuid;
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ts_rs::TS)]
 pub struct MpvProbe {
     pub available: bool,
     pub binary: Option<String>,
@@ -36,8 +36,9 @@ pub struct MpvProbe {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(optional_fields = nullable)]
 pub struct MpvStartArgs {
     pub url: String,
     pub start_at_sec: Option<f64>,
@@ -63,7 +64,7 @@ pub struct MpvStartArgs {
     pub separate_cover_taskbar: Option<bool>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct MpvGeometry {
     pub css_left: f64,
@@ -144,7 +145,8 @@ pub(crate) fn map_css_geometry(
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
+#[ts(optional_fields = nullable)]
 pub struct MpvSub {
     pub url: String,
     pub lang: Option<String>,
@@ -292,7 +294,7 @@ pub(crate) fn supports_vapoursynth_filter() -> bool {
         .is_ok()
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, ts_rs::TS)]
 pub struct AudioDevice {
     pub name: String,
     pub description: String,
@@ -1483,7 +1485,10 @@ fn spawn_event_loop(
                     if matches!(e, libmpv2::Error::Raw(-13 | -16)) {
                         let _ = app.emit(
                             "mpv://event",
-                            json!({ "event": "end-file", "reason": "error" }),
+                            crate::mpv_ipc::MpvEvent::EndFile {
+                                reason: crate::mpv_ipc::EndFileReason::Error,
+                            }
+                            .to_value(),
                         );
                     }
                     match delay {
@@ -1491,10 +1496,10 @@ fn spawn_event_loop(
                         None => {
                             let _ = app.emit(
                                 "mpv://event",
-                                json!({
-                                    "event": "player-failure",
-                                    "reason": "persistent-event-errors",
-                                }),
+                                crate::mpv_ipc::MpvEvent::PlayerFailure {
+                                    reason: "persistent-event-errors".into(),
+                                }
+                                .to_value(),
                             );
                             break;
                         }
@@ -1508,6 +1513,7 @@ fn spawn_event_loop(
 }
 
 fn event_to_payload(event: Event) -> Option<Value> {
+    use crate::mpv_ipc::{EndFileReason, MpvEvent};
     match event {
         Event::PropertyChange { name, change, .. } => {
             let data = match change {
@@ -1518,31 +1524,31 @@ fn event_to_payload(event: Event) -> Option<Value> {
                 PropertyData::Double(f) => json!(f),
                 PropertyData::Node(n) => mpv_node_to_json(n),
             };
-            Some(json!({ "event": "property-change", "name": name, "data": data }))
+            Some(MpvEvent::PropertyChange {
+                name: name.to_string(),
+                data,
+            })
         }
-        Event::EndFile(reason) => {
-            let reason = match reason {
-                0 => "eof",
-                2 => "stop",
-                3 => "quit",
-                4 => "error",
-                5 => "redirect",
-                _ => "other",
-            };
-            Some(json!({ "event": "end-file", "reason": reason }))
-        }
-        Event::FileLoaded => Some(json!({ "event": "file-loaded" })),
-        Event::PlaybackRestart => Some(json!({ "event": "playback-restart" })),
-        Event::Seek => Some(json!({ "event": "seek" })),
-        Event::Shutdown => Some(json!({ "event": "shutdown" })),
+        Event::EndFile(reason) => Some(MpvEvent::EndFile {
+            reason: EndFileReason::from_mpv(reason),
+        }),
+        Event::FileLoaded => Some(MpvEvent::FileLoaded),
+        Event::PlaybackRestart => Some(MpvEvent::PlaybackRestart),
+        Event::Seek => Some(MpvEvent::Seek),
+        Event::Shutdown => Some(MpvEvent::Shutdown),
         Event::LogMessage {
             prefix,
             level,
             text,
             ..
-        } => Some(json!({ "event": "log", "prefix": prefix, "level": level, "text": text })),
+        } => Some(MpvEvent::Log {
+            prefix: prefix.to_string(),
+            level: level.to_string(),
+            text: text.to_string(),
+        }),
         _ => None,
     }
+    .map(|e| e.to_value())
 }
 
 fn mpv_node_to_json(node: MpvNode) -> Value {
