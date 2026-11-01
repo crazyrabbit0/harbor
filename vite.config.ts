@@ -10,7 +10,16 @@ import DEV_PROXY_HOST_LIST from "./src/lib/dev-proxy-hosts.json" with { type: "j
 declare const process: { env: Record<string, string | undefined> };
 
 // Folders the React Compiler memoizes; add one at a time (see docs/ARCHITECTURE-FOLLOWUPS.md).
-const REACT_COMPILER_DIRS = ["/src/components/notification-center/"];
+const REACT_COMPILER_DIRS = [
+  "/src/components/notification-center/",
+  "/src/components/update/",
+  "/src/components/together-modal/",
+  "/src/components/popups/",
+  "/src/components/catalog/",
+  "/src/components/announcement-hero/",
+  "/src/components/welcome-arabic/",
+  "/src/components/auth-modal/",
+];
 // Babel runs only on these folders; every other file skips it and goes straight to esbuild.
 const compilesReact = (id: string) =>
   REACT_COMPILER_DIRS.some((dir) => id.replace(/\\/g, "/").includes(dir));
