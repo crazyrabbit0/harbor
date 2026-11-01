@@ -1,6 +1,7 @@
 import { stremioDataProfileId, primaryOrStremioProfileId } from "@/lib/profile-roster";
 import type { LibraryItem } from "@/lib/stremio";
 import { persistCritical } from "@/lib/storage-recovery";
+import { durableSetItem, syncDurableStore } from "@/lib/durable-store";
 
 const PREFIXES = {
   watched: "harbor.manualwatched.v1.",
@@ -65,6 +66,7 @@ function migrateLegacy(): void {
       const perKey = PREFIXES[kind] + pid;
       if (!localStorage.getItem(perKey)) localStorage.setItem(perKey, legacy);
       localStorage.removeItem(LEGACY_KEYS[kind]);
+      syncDurableStore();
     }
   } catch {
     /* noop */
@@ -131,7 +133,7 @@ function undismiss(metaId: string): void {
   next.delete(metaId);
   dismissedCache = next;
   try {
-    localStorage.setItem(storeKey("dismissed"), JSON.stringify([...next]));
+    durableSetItem(storeKey("dismissed"), JSON.stringify([...next]));
   } catch {
     return;
   }
@@ -146,7 +148,7 @@ export function dismissManualWatched(metaId: string): void {
   next.add(metaId);
   dismissedCache = next;
   try {
-    localStorage.setItem(storeKey("dismissed"), JSON.stringify([...next]));
+    durableSetItem(storeKey("dismissed"), JSON.stringify([...next]));
   } catch {
     return;
   }
@@ -385,7 +387,7 @@ export function recordManualWatchedMeta(metaId: string, meta: ManualWatchedMeta)
   const next = { ...all, [metaId]: entry };
   metaCache = next;
   try {
-    localStorage.setItem(storeKey("meta"), JSON.stringify(next));
+    durableSetItem(storeKey("meta"), JSON.stringify(next));
   } catch {
     return;
   }

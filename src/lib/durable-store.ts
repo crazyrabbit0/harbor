@@ -1,16 +1,30 @@
 import { invoke } from "@tauri-apps/api/core";
 
 // localStorage keys (and their `<key>.<profile>` variants) also kept in user-data.json, so a cleared WebView keeps them.
-export const DURABLE_PREFIXES = ["harbor.watchevents.v1"];
+export const DURABLE_PREFIXES = [
+  "harbor.watchevents.v1",
+  "harbor.playback-history.v1",
+  "harbor.watchlist.v1",
+  "harbor.manualwatched.v1",
+  "harbor.manualunwatched.v1",
+  "harbor.manualwatched.meta.v1",
+  "harbor.manualwatched.dismissed.v1",
+  "harbor.manualunwatched.at.v1",
+  "harbor.manualwatched.fromremote.v1",
+];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.
 const MARKER_KEY = "harbor.durable-store.v1";
 const WRITE_DELAY_MS = 300;
+// Playback history changes on every autosave tick, so scheduled writes are spaced out; pagehide still flushes at once.
+const MIN_WRITE_INTERVAL_MS = 10_000;
 
 let available = false;
 let loaded = false;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let writeChain: Promise<void> = Promise.resolve();
+let lastWriteAt = -Infinity;
+let lastContent: string | null = null;
 
 export function isDurableKey(key: string): boolean {
   return DURABLE_PREFIXES.some((p) => key === p || key.startsWith(`${p}.`));
@@ -29,8 +43,12 @@ function snapshot(): Record<string, string> {
 
 async function writeSnapshot(): Promise<void> {
   if (!available) return;
+  const content = JSON.stringify(snapshot());
+  if (content === lastContent) return;
+  lastWriteAt = Date.now();
   try {
-    await invoke("user_data_write", { content: JSON.stringify(snapshot()) });
+    await invoke("user_data_write", { content });
+    lastContent = content;
   } catch (error) {
     console.error("[durable-store] user_data_write failed", error);
   }
@@ -47,10 +65,11 @@ export function flushDurableStore(): Promise<void> {
 /** Schedules a write after durable keys changed in localStorage, including direct removals. */
 export function syncDurableStore(): void {
   if (!available || timer != null) return;
+  const delay = Math.max(WRITE_DELAY_MS, lastWriteAt + MIN_WRITE_INTERVAL_MS - Date.now());
   timer = setTimeout(() => {
     timer = null;
     void flushDurableStore();
-  }, WRITE_DELAY_MS);
+  }, delay);
 }
 
 /** localStorage.setItem for a durable key; throws like setItem when storage refuses the value. */

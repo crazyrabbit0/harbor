@@ -1,3 +1,5 @@
+import { isDurableKey, syncDurableStore } from "@/lib/durable-store";
+
 const PRUNABLE_EXACT = new Set<string>([
   "harbor.omdb.v1",
   "harbor.omdb.misses",
@@ -44,7 +46,6 @@ const PRUNABLE_EXACT = new Set<string>([
   "harbor.lastseason.v1",
   "harbor.surprise.recent.v1",
   "harbor.stremio-addons.velocity.v1",
-  "harbor.playback-history.v1",
   "harbor.streamBadges.v1",
   "harbor.manga.popular.v1",
   "harbor.ebook.metadata.v1",
@@ -59,10 +60,11 @@ const PRUNABLE_PREFIXES = [
   "harbor.manga.art.",
   "harbor.ebook.openlibrary.v1.",
   "harbor.tvdbo.",
-  "harbor.playback-history.v1.",
 ];
 
-function isPrunable(key: string): boolean {
+// Quota recovery frees caches only, never durable user data, even if a cache prefix covers it.
+export function isPrunable(key: string): boolean {
+  if (isDurableKey(key)) return false;
   if (PRUNABLE_EXACT.has(key)) return true;
   return PRUNABLE_PREFIXES.some((p) => key.startsWith(p));
 }
@@ -120,6 +122,12 @@ function snapshotFrames(): Array<{ key: string; size: number }> {
 }
 
 export function setItemWithRecovery(key: string, value: string): boolean {
+  const stored = setWithRecovery(key, value);
+  if (stored && isDurableKey(key)) syncDurableStore();
+  return stored;
+}
+
+function setWithRecovery(key: string, value: string): boolean {
   try {
     localStorage.setItem(key, value);
     return true;

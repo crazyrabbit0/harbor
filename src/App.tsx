@@ -32,6 +32,7 @@ import { startMaintenance, subscribeMemoryPressure } from "@/lib/maintenance";
 import { MiddleClickScroll } from "@/lib/use-middle-click-scroll";
 import { exitWindowFullscreenOnPlayerClose, toggleWindowFullscreen } from "@/lib/fullscreen-state";
 import { flushCloudSync } from "@/views/player/hooks/use-stremio-sync";
+import { flushDurableStore } from "@/lib/durable-store";
 import { startWriteQueueFlusher } from "@/lib/stremio-write-queue";
 import {
   mediaServerConnections,
@@ -1277,6 +1278,7 @@ function Shell({ onReady }: { onReady?: () => void }) {
         await Promise.all([
           flushCloudSync().catch(() => {}),
           flushPendingTorrentRemovals().catch(() => {}),
+          flushDurableStore(),
         ]);
         const { invoke } = await import("@tauri-apps/api/core");
         await invoke("harbor_flush_done").catch(() => {});
