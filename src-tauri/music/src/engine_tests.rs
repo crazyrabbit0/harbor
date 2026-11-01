@@ -354,9 +354,15 @@ fn native_load_preserves_spaces_in_local_filenames() {
     .unwrap();
     harbor_shared::mpv::mpv_argv_command(&mpv, &["loadfile", path.to_str().unwrap(), "replace"])
         .unwrap();
+    // mpv publishes duration before the audio track's codec, so wait for both.
+    let ready = || {
+        mpv.get_property::<f64>("duration").unwrap_or(0.0) > 0.0
+            && mpv
+                .get_property::<String>("current-tracks/audio/codec")
+                .is_ok()
+    };
     let deadline = Instant::now() + Duration::from_secs(5);
-    while mpv.get_property::<f64>("duration").unwrap_or(0.0) <= 0.0 && Instant::now() < deadline
-    {
+    while !ready() && Instant::now() < deadline {
         std::thread::sleep(Duration::from_millis(20));
     }
     let duration = mpv.get_property::<f64>("duration").unwrap_or(0.0);
