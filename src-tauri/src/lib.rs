@@ -84,6 +84,8 @@ mod fs_scope;
 mod fullscreen;
 #[cfg(all(desktop, feature = "games"))]
 use harbor_games as games;
+#[cfg(all(desktop, feature = "music"))]
+use harbor_music as music;
 #[cfg(desktop)]
 mod monitors;
 #[cfg(desktop)]
@@ -111,8 +113,6 @@ mod mpv_render_linux;
 mod mpv_render_mac;
 #[cfg(desktop)]
 mod multiview;
-#[cfg(desktop)]
-mod music;
 #[cfg(desktop)]
 mod pip;
 mod pip_window;
@@ -191,6 +191,7 @@ pub(crate) fn shutdown_services(app: &tauri::AppHandle) {
     thumbs::shutdown(app);
     multiview::shutdown(app);
     dvr::shutdown(app);
+    #[cfg(feature = "music")]
     music::shutdown(app);
     stream_proxy::shutdown(app);
     cast_server::stop();
@@ -740,17 +741,23 @@ pub fn run() {
     mobile::run();
 }
 
-// Games commands live in the harbor-games crate; every `games_*` command goes to its handler.
+// Games and music commands live in their own crates; every `games_*`/`music_*` command goes to that crate's handler.
 #[cfg(desktop)]
 fn route_commands(
     app: impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static,
 ) -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
     #[cfg(feature = "games")]
     let games = games::invoke_handler();
+    #[cfg(feature = "music")]
+    let music = music::invoke_handler();
     move |invoke| {
         #[cfg(feature = "games")]
         if invoke.message.command().starts_with("games_") {
             return games(invoke);
+        }
+        #[cfg(feature = "music")]
+        if invoke.message.command().starts_with("music_") {
+            return music(invoke);
         }
         app(invoke)
     }
@@ -758,6 +765,7 @@ fn route_commands(
 
 #[cfg(desktop)]
 pub fn run() {
+    #[cfg(feature = "music")]
     if music::try_run_connector_worker() { return; }
     #[cfg(feature = "games")]
     if games::try_run_achievement_worker()
@@ -847,7 +855,6 @@ pub fn run() {
         })
         .manage(proxy_state)
         .manage(mpv_state)
-        .manage(music::MusicState::new())
         .manage(pip_state)
         .manage(pip_window_state)
         .manage(fullscreen_state)
@@ -857,6 +864,8 @@ pub fn run() {
         .manage(modal_overlay_state)
         .manage(discord_rp::DiscordState::new())
         .manage(download::DownloadState::new());
+    #[cfg(feature = "music")]
+    let app_builder = app_builder.manage(music::MusicState::new());
 
     #[cfg(target_os = "macos")]
     let app_builder = app_builder.register_uri_scheme_protocol("stremio", |ctx, request| {
@@ -891,9 +900,31 @@ pub fn run() {
                     Box::pin(http_fetch::harbor_fetch(app, args))
                 })),
             );
+            tauri::Manager::manage(
+                app,
+                harbor_shared::app_hooks::AppHooks {
+                    secret_value: std::sync::Arc::new(settings_store::secret_value),
+                    read_secrets_file: std::sync::Arc::new(settings_store::read_secrets_file),
+                    write_secrets_file: std::sync::Arc::new(settings_store::write_secrets_file),
+                    locate_ffmpeg: std::sync::Arc::new(transcode::locate_ffmpeg),
+                    run_yt_dlp: std::sync::Arc::new(
+                        |app, args, timeout, label| -> harbor_shared::app_hooks::YtDlpFuture {
+                            Box::pin(async move {
+                                trailer::run_yt_dlp(&app, args, timeout, &label).await
+                            })
+                        },
+                    ),
+                    allow_asset_directory: std::sync::Arc::new(
+                        |app: &tauri::AppHandle, path: &str| {
+                            fs_scope::allow_asset_directory(app, path)
+                        },
+                    ),
+                },
+            );
             #[cfg(feature = "games")]
             games::initialize_download_preparation(app.handle());
             fs_scope::allow_saved_settings(app.handle());
+            #[cfg(feature = "music")]
             music::initialize(app.handle()).map_err(std::io::Error::other)?;
             #[cfg(windows)]
             {
@@ -1122,101 +1153,8 @@ pub fn run() {
             diagnostics::diagnostics_collect,
             diagnostics::diagnostics_cleanup,
             trailer::fetch_trailer,
-            music::music_health,
-            music::music_source_candidates,
-            music::music_spotify_status,
-            music::music_spotify_connect,
-            music::music_spotify_disconnect,
-            music::music_spotify_devices,
-            music::music_spotify_set_device,
-            music::music_spotify_device,
-            music::music_spotify_library_page,
-            music::music_spotify_create_playlist,
-            music::music_spotify_add_to_playlist,
-            music::music_lastfm_auth,
-            music::music_lastfm_complete_auth,
-            music::music_lastfm_status,
-            music::run_connector_worker,
-            music::music_search,
-            music::music_resolve_stream,
-            music::music_db_init,
-            music::music_track_upsert,
-            music::music_track_get,
-            music::music_resolve_cached,
-            music::music_get_liked,
-            music::music_set_liked,
-            music::music_get_recents,
-            music::music_add_recent,
-            music::music_get_queue,
-            music::music_set_queue,
-            music::music_list_albums,
-            music::music_list_artists,
-            music::music_list_playlists,
-            music::music_create_playlist,
-            music::music_add_to_playlist,
-            music::music_add_tracks_to_playlist,
-            music::music_rename_playlist,
-            music::music_delete_playlist,
-            music::music_reorder_playlist,
-            music::music_remove_from_playlist,
-            music::music_import_m3u,
-            music::music_export_m3u,
-            music::music_play_track,
-            music::music_engine_pause,
-            music::music_paused_for_video,
-            music::music_resume_after_video,
-            music::music_engine_seek,
-            music::music_deck_loop,
-            music::music_deck_scratch,
-            music::music_prewarm_track,
-            music::music_scratch_window,
-            music::music_scratch_hold,
-            music::music_cable_status,
-            music::music_cable_create,
-            music::music_cable_destroy,
-            music::music_deck_play,
-            music::music_deck_pause,
-            music::music_deck_seek,
-            music::music_deck_volume,
-            music::music_deck_stop,
-            music::music_deck_states,
-            music::music_deck_primary,
-            music::music_deck_crossfade,
-            music::music_deck_crossfade_get,
-            music::music_fx_set,
-            music::music_fx_clear,
-            music::music_fx_get,
-            music::music_engine_set_volume,
-            music::music_audio_devices,
-            music::music_audio_settings_get,
-            music::music_audio_meter_set_enabled,
-            music::music_audio_meter_snapshot,
-            music::music_audio_settings_set,
-            music::music_export_filtered,
-            music::music_broadcast_targets,
-            music::music_broadcast_start,
-            music::music_broadcast_stop,
-            music::music_broadcast_status,
             dj_deck::dj_deck_open,
             dj_deck::dj_deck_close,
-            music::music_engine_stop,
-            music::music_home_rows,
-            music::music_browse_connector,
-            music::music_album_tracks,
-            music::music_artist_top,
-            music::music_artist_catalog,
-            music::music_artist_rows,
-            music::music_catalog_playlist_tracks,
-            music::music_station_tracks,
-            music::music_search_typed,
-            music::music_video_stream,
-            music::music_search_videos,
-            music::music_search_video_page,
-            music::music_connections,
-            music::music_connect,
-            music::music_disconnect,
-            music::music_local_scan,
-            music::music_local_collection,
             temp_prune::temp_usage_bytes,
             temp_prune::temp_clear,
             download::download_start,

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 
 const media = readFileSync("src/views/music/music-hero-media.tsx", "utf8");
 const hero = readFileSync("src/views/music/music-home-hero.tsx", "utf8");
-const connector = readFileSync("src-tauri/src/music/connector.rs", "utf8");
+const connector = readFileSync("src-tauri/music/src/connector.rs", "utf8");
 
 test("only one connector can resolve a video, so a fallback is required", () => {
   assert.match(connector, /fn resolve_video[\s\S]{0,200}Err\(NO_VIDEO/);

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Harbor is a cross-platform Stremio client built with Tauri 2, React, TypeScript, Rust and libmpv. The frontend owns the interface and user interactions; Rust owns native integrations, playback, operating-system behavior and performance-sensitive work. Folder-specific notes live in `src/AGENTS.md` (with `src/lib/i18n/`, `src/lib/games/`, `src/lib/music/`, `src/lib/streams/`, `src/lib/sports/`, `src/lib/manga/`, `src/views/big-picture/`, `src/views/games/` and `src/views/settings/`), `src-tauri/AGENTS.md` (with `src-tauri/games/` and `src-tauri/src/music/`), `harbor-core/AGENTS.md`, `tests/AGENTS.md`, `scripts/AGENTS.md` and `android-extension-compat/AGENTS.md`.
+Harbor is a cross-platform Stremio client built with Tauri 2, React, TypeScript, Rust and libmpv. The frontend owns the interface and user interactions; Rust owns native integrations, playback, operating-system behavior and performance-sensitive work. Folder-specific notes live in `src/AGENTS.md` (with `src/lib/i18n/`, `src/lib/games/`, `src/lib/music/`, `src/lib/streams/`, `src/lib/sports/`, `src/lib/manga/`, `src/views/big-picture/`, `src/views/games/` and `src/views/settings/`), `src-tauri/AGENTS.md` (with `src-tauri/games/` and `src-tauri/music/`), `harbor-core/AGENTS.md`, `tests/AGENTS.md`, `scripts/AGENTS.md` and `android-extension-compat/AGENTS.md`.
 
 ## The fork is the project now
 

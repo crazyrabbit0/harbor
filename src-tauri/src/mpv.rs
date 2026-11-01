@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::ffi::CString;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
@@ -8,19 +7,7 @@ use libmpv2::events::{Event, EventContext, PropertyData};
 use libmpv2::mpv_node::MpvNode;
 use libmpv2::{Format, Mpv, MpvInitializer};
 
-pub(crate) fn mpv_argv_command(mpv: &Mpv, argv: &[&str]) -> Result<(), String> {
-    let cstrings: Vec<CString> = argv
-        .iter()
-        .map(|s| CString::new(*s).map_err(|e| format!("cstring: {}", e)))
-        .collect::<Result<Vec<_>, _>>()?;
-    let mut ptrs: Vec<*const std::os::raw::c_char> = cstrings.iter().map(|c| c.as_ptr()).collect();
-    ptrs.push(std::ptr::null());
-    let rc = unsafe { libmpv2_sys::mpv_command(mpv.ctx.as_ptr(), ptrs.as_mut_ptr()) };
-    if rc < 0 {
-        return Err(format!("mpv_command rc={}", rc));
-    }
-    Ok(())
-}
+pub(crate) use harbor_shared::mpv::{mpv_argv_command, AudioDevice};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::Manager;
@@ -292,12 +279,6 @@ pub(crate) fn supports_vapoursynth_filter() -> bool {
     Mpv::new()
         .and_then(|mpv| mpv.set_property("vf", "vapoursynth"))
         .is_ok()
-}
-
-#[derive(Debug, Serialize, Deserialize, ts_rs::TS)]
-pub struct AudioDevice {
-    pub name: String,
-    pub description: String,
 }
 
 fn read_audio_devices(mpv: &Mpv) -> Vec<AudioDevice> {
@@ -788,6 +769,7 @@ pub async fn mpv_start(
     let separate_screen_for_init = None;
     #[cfg(not(windows))]
     let separate_screen_size_for_init = None;
+    #[cfg(feature = "music")]
     if let Err(error) = crate::music::pause_for_video(&app).await {
         eprintln!("[harbor::music] could not pause for video: {error}");
     }

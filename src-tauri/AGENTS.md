@@ -4,7 +4,7 @@ Notes for agents working in this folder.
 
 ## Commands and windows
 
-- Desktop commands are registered in `src/lib.rs` (`generate_handler!`, ~300 entries), wrapped by `route_commands`, which sends every `games_*` command to `harbor_games::invoke_handler()` (`games/src/lib.rs`, ~230 entries). Android has its own builder and list in `src/mobile.rs` (L80, ~65 entries: torrent engine, proxy, web server, settings, fetch bridge); it inherits nothing, so add a command there only if Android needs it. Games, music, mpv, casting and ffmpeg features are desktop-only. Gate platform-only entries with `#[cfg(...)]` inside the list.
+- Desktop commands are registered in `src/lib.rs` (`generate_handler!`, ~210 entries), wrapped by `route_commands`, which sends every `games_*` command to `harbor_games::invoke_handler()` (`games/src/lib.rs`, ~230 entries) and every `music_*` command to `harbor_music::invoke_handler()` (`music/src/lib.rs`, 93 entries). Android has its own builder and list in `src/mobile.rs` (L80, ~65 entries: torrent engine, proxy, web server, settings, fetch bridge); it inherits nothing, so add a command there only if Android needs it. Games, music, mpv, casting and ffmpeg features are desktop-only. Gate platform-only entries with `#[cfg(...)]` inside the list.
 - `run()` in `src/lib.rs` first checks `music::try_run_connector_worker` and the `games::try_run_*_worker`s: the same exe doubles as a worker subprocess, so a new worker mode needs a check there, before the Tauri builder.
 - App commands need no capability entry from bundled pages, but plugin APIs do (`capabilities/*.json`), and capabilities match windows by label. A new window label needs adding to a capability's `windows` list; e.g. `harbor-video-pip` is only in `video-pip.json`.
 - Capabilities are split by trust: `default.json` and `desktop-only.json` cover `main` only, `app-windows.json` gives the PiP, modal overlay and DJ deck windows only the plugin calls their code makes (fs scoped to the files they touch), and `external-windows.json` lists the third-party windows (`harbor-browser`, `harbor-cf-solver`, `source-verification-*`) with no permissions. A remote page reaches no IPC at all, app commands included, unless a capability has a `remote` block matching its URL, so these windows are driven from Rust: `cf_solver.rs` polls `window.__harborCfResult` with `eval_with_callback` every 500 ms (90 s limit, 8 Mi-char body cap), `browser.rs` closes on Escape by cancelling the sentinel navigation `harbor-close://now` in `on_navigation`, and `games/source_verification.rs` reads `window.__harborSourceResult` the same way. Never add a `__TAURI_INTERNALS__.invoke` to an external window's init script.
@@ -16,8 +16,8 @@ Notes for agents working in this folder.
 
 ## Cargo and platform gates
 
-- `src-tauri/Cargo.toml` is both the `harbor` package and the workspace root: members `shared` (`harbor-shared`) and `games` (`harbor-games`). The `vendor/` crates are path dependencies under the root, so they are workspace members too (`cargo metadata` lists them); a vendored manifest's dev-dependencies would land in `Cargo.lock` and `flatpak/cargo-sources.json`, so vendored manifests carry none (`vendor/rust_cast` omits upstream's dev-dependencies). The single `Cargo.lock`, `[patch.crates-io]` and the profiles stay at this root, and `[workspace.package] version` is the version every member inherits (`scripts/bump-version.mjs` rewrites it). Plain `cargo test --manifest-path src-tauri/Cargo.toml` tests only `harbor`; add `-p harbor-games -p harbor-shared` (CI does). `harbor-games` is optional behind the default `games` feature.
-- Code both the app and a member crate need goes in `harbor-shared`, and the app re-exports it under its old path (`use harbor_shared::child_pipe;` in `src/lib.rs`); a member never depends on `harbor`. A member that must call app code gets it as managed state (`FetchHook`).
+- `src-tauri/Cargo.toml` is both the `harbor` package and the workspace root: members `shared` (`harbor-shared`), `games` (`harbor-games`) and `music` (`harbor-music`). The `vendor/` crates are path dependencies under the root, so they are workspace members too (`cargo metadata` lists them); a vendored manifest's dev-dependencies would land in `Cargo.lock` and `flatpak/cargo-sources.json`, so vendored manifests carry none (`vendor/rust_cast` omits upstream's dev-dependencies). The single `Cargo.lock`, `[patch.crates-io]` and the profiles stay at this root, and `[workspace.package] version` is the version every member inherits (`scripts/bump-version.mjs` rewrites it). Plain `cargo test --manifest-path src-tauri/Cargo.toml` tests only `harbor`; add `-p harbor-games -p harbor-music -p harbor-shared` (CI does). `harbor-games` and `harbor-music` are optional behind the default `games` and `music` features.
+- Code both the app and a member crate need goes in `harbor-shared`, and the app re-exports it under its old path (`use harbor_shared::child_pipe;` in `src/lib.rs`); a member never depends on `harbor`. A member that must call app code gets it as managed state: `FetchHook` (`harbor_fetch`) and `AppHooks` (`shared/src/app_hooks.rs`: secrets, `locate_ffmpeg`, `run_yt_dlp`, `allow_asset_directory`), both managed in `setup` before `music::initialize`. The mpv helpers both sides use (`AudioDevice`, `mpv_argv_command`) are `harbor_shared::mpv`, behind the `mpv` feature so `harbor-games` does not link libmpv; `src/mpv.rs` re-exports them.
 
 - In `[target.'cfg(...)'.dependencies]`, `cfg(desktop)` silently matches nothing. Use `cfg(not(any(target_os = "android", target_os = "ios")))`.
 - In `build.rs`, branch on `CARGO_CFG_TARGET_OS`, not `cfg!(...)` (that evaluates the host).
@@ -39,7 +39,7 @@ Notes for agents working in this folder.
 
 ## Subsystems with their own notes
 
-- `games/AGENTS.md` (game library, emulators, launchers; its own crate) and `src/music/AGENTS.md` (music engines, Spotify, DJ decks, audio cable).
+- `games/AGENTS.md` (game library, emulators, launchers; its own crate) and `music/AGENTS.md` (music engines, Spotify, DJ decks, audio cable; its own crate).
 
 ## Bundled inputs
 
@@ -61,5 +61,5 @@ Notes for agents working in this folder.
 
 ## Tests
 
-- No integration tests: `tests/` holds only fixtures (pulled in with `include_bytes!`). Tests are inline `#[cfg(test)]` or sibling `*_tests.rs` (`games/src/`, `src/music/engine_tests.rs`).
+- No integration tests: `tests/` holds only fixtures (pulled in with `include_bytes!`). Tests are inline `#[cfg(test)]` or sibling `*_tests.rs` (`games/src/`, `music/src/engine_tests.rs`).
 - Single test: `cargo test --manifest-path src-tauri/Cargo.toml <module::path substring>`, with `TAURI_CONFIG` set as in the root notes if setup wasn't run.

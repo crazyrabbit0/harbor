@@ -2589,6 +2589,7 @@ dependencies = [
  "harbor-core",
  "harbor-games",
  "harbor-install-recovery",
+ "harbor-music",
  "harbor-shared",
  "harbor-udfread",
  "hound",
@@ -2733,14 +2734,48 @@ name = "harbor-install-recovery"
 version = "0.1.0"
 
 [[package]]
+name = "harbor-music"
+version = "0.9.221"
+dependencies = [
+ "async-trait",
+ "futures-util",
+ "harbor-shared",
+ "hound",
+ "libc",
+ "libmpv2",
+ "libmpv2-sys",
+ "librespot-core",
+ "librespot-oauth",
+ "librespot-playback",
+ "lofty",
+ "md5",
+ "parking_lot",
+ "regex",
+ "reqwest 0.12.28",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tauri",
+ "tokio",
+ "url",
+ "uuid 1.23.1",
+ "walkdir",
+ "wasapi",
+]
+
+[[package]]
 name = "harbor-shared"
 version = "0.0.0"
 dependencies = [
  "futures-util",
+ "libmpv2",
+ "libmpv2-sys",
  "reqwest 0.12.28",
  "serde",
  "tauri",
  "tokio",
+ "ts-rs",
 ]
 
 [[package]]
