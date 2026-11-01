@@ -1,4 +1,5 @@
 import { readRoster } from "@/lib/profile-roster";
+import { syncDurableStore } from "@/lib/durable-store";
 import {
   MIRROR_KEY,
   SHARED_KEY,
@@ -293,6 +294,7 @@ export function importDomains(
   } catch (e) {
     console.warn("[profile-import] failed", e);
   }
+  syncDurableStore();
 }
 
 function applyAddons(

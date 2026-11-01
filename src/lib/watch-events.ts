@@ -1,4 +1,5 @@
 import { stremioDataProfileId, primaryOrStremioProfileId } from "@/lib/profile-roster";
+import { durableSetItem, syncDurableStore } from "@/lib/durable-store";
 const KEY_PREFIX = "harbor.watchevents.v1.";
 const LEGACY_KEY = "harbor.watchevents.v1";
 const MAX = 40;
@@ -34,8 +35,9 @@ function migrateLegacy(): void {
     const pid = primaryProfileId();
     if (!pid) return;
     const perKey = KEY_PREFIX + pid;
-    if (!localStorage.getItem(perKey)) localStorage.setItem(perKey, legacy);
+    if (!localStorage.getItem(perKey)) durableSetItem(perKey, legacy);
     localStorage.removeItem(LEGACY_KEY);
+    syncDurableStore();
   } catch {
     /* noop */
   }
@@ -62,7 +64,7 @@ export function recordWatchEvent(e: WatchEvent): void {
   const key = `${e.id}|${e.season ?? ""}|${e.episode ?? ""}`;
   const next = [e, ...load().filter((p) => `${p.id}|${p.season ?? ""}|${p.episode ?? ""}` !== key)];
   try {
-    localStorage.setItem(storeKey(), JSON.stringify(next.slice(0, MAX)));
+    durableSetItem(storeKey(), JSON.stringify(next.slice(0, MAX)));
   } catch {
     return;
   }

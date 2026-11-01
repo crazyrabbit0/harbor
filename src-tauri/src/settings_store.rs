@@ -79,6 +79,23 @@ pub async fn secrets_write(app: tauri::AppHandle, content: String) -> Result<(),
     off_main(move || write_secrets_file(app, content)).await
 }
 
+fn user_data_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    let dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    Ok(dir.join("user-data.json"))
+}
+
+// Durable copy of the localStorage keys listed in src/lib/durable-store.ts, as one JSON object.
+#[tauri::command]
+pub async fn user_data_read(app: tauri::AppHandle) -> Result<Option<String>, String> {
+    off_main(move || read_optional(&user_data_path(&app)?)).await
+}
+
+#[tauri::command]
+pub async fn user_data_write(app: tauri::AppHandle, content: String) -> Result<(), String> {
+    off_main(move || write_atomic(&user_data_path(&app)?, &content)).await
+}
+
 pub(crate) fn secret_value(app: &tauri::AppHandle, key: &str) -> Result<Option<String>, String> {
     let Some(content) = read_optional(&secrets_path(app)?)? else {
         return Ok(None);

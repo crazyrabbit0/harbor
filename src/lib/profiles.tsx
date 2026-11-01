@@ -1,5 +1,6 @@
 import { PROFILES_KEY } from "@/lib/profile-roster";
 import { purgeGameNotes } from "./games/game-notes";
+import { syncDurableStore } from "./durable-store";
 import {
   createContext,
   useCallback,
@@ -109,6 +110,7 @@ function purgeProfileStorage(id: string): void {
   } catch {
     /* ignore */
   }
+  syncDurableStore();
 }
 
 /**

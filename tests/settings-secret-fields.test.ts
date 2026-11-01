@@ -173,6 +173,7 @@ function loadBackup(): typeof import("../src/lib/backup.ts") {
     "@/lib/secret-store": secretStore,
     "@/lib/settings/profile-store": profileStore,
     "@/lib/storage-recovery": recovery,
+    "@/lib/durable-store": { flushDurableStore: async () => {} },
     "@/lib/iptv/url-credentials": { URL_SECRET_PLACEHOLDER: "***", hasUrlSecrets: () => false },
     "@/lib/local-library": {
       localLibraryReady: async () => {},

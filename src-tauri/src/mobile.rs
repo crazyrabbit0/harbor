@@ -91,6 +91,8 @@ pub fn run() {
             settings_store::settings_write,
             settings_store::secrets_read,
             settings_store::secrets_write,
+            settings_store::user_data_read,
+            settings_store::user_data_write,
             media_server::media_server_request,
             http_fetch::harbor_fetch,
             http_fetch::harbor_fetch_image,
