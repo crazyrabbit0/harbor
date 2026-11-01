@@ -27,7 +27,7 @@ export function fetchDiagnosticsRequest(
 
 export async function uploadDiagnosticsBundle(
   id: string,
-  bytes: Uint8Array,
+  bytes: Uint8Array<ArrayBuffer>,
 ): Promise<{ ok: boolean; ticket: string }> {
   const token = authToken();
   const form = new FormData();

@@ -72,7 +72,7 @@ export async function fetchAndParseXmltv(
       if (first.value[0] === 0x1f && first.value[1] === 0x8b) {
         console.info("[epg] gzip payload detected, inflating");
         const firstChunk = first.value;
-        reader = new ReadableStream<Uint8Array>({
+        reader = new ReadableStream<Uint8Array<ArrayBuffer>>({
           start(c) {
             c.enqueue(firstChunk);
           },

@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
 import type { PlayerEmbedRect } from "./bridge";
+import type { MpvGeometry } from "@/lib/generated/mpv-ipc";
 
 export type GeometryTracker = {
   moveEmbeddedSurface: (rect: PlayerEmbedRect, commit: () => void) => boolean;
@@ -56,7 +57,8 @@ export async function startGeometryTracking(
         move?.commit();
         return;
       }
-      await invoke("mpv_set_geometry", { geom: r });
+      const geom: MpvGeometry = r;
+      await invoke("mpv_set_geometry", { geom });
       if (active) {
         lastRect = r;
         move?.commit();

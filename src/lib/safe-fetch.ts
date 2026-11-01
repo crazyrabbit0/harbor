@@ -188,7 +188,7 @@ function bytesToBase64(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
-function base64ToBytes(value: string): Uint8Array {
+function base64ToBytes(value: string): Uint8Array<ArrayBuffer> {
   const binary = atob(value);
   // Every image crosses the native bridge through here, so this runs while rows are
   // scrolling into view. Uint8Array.from with a callback pays an iterator step and a JS

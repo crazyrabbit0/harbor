@@ -9,12 +9,12 @@ type HarborFetchResponse = { ok: boolean; body: string; contentType?: string | n
 
 const hasTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
-const U8 = Uint8Array as unknown as { fromBase64?: (input: string) => Uint8Array };
+const U8 = Uint8Array as unknown as { fromBase64?: (input: string) => Uint8Array<ArrayBuffer> };
 
 // The char loop is 60ms of blocked main thread for a 275KB poster on a Fire TV
 // stick, against 1 to 10ms for the native decoder. Keep the loop: fromBase64
 // throws on anything the host encoded loosely, and it is absent off Chromium.
-function bytesFromBase64(b64: string): Uint8Array {
+function bytesFromBase64(b64: string): Uint8Array<ArrayBuffer> {
   const trimmed = b64.trim();
   if (typeof U8.fromBase64 === "function") {
     try {

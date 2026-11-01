@@ -83,6 +83,9 @@ jobs:
             echo "No changed JavaScript or TypeScript files require lint checks."
           fi
 
+      - name: Typecheck (TypeScript 7)
+        run: vp run typecheck:fast
+
       - name: Typecheck
         run: vp run typecheck
 
@@ -171,4 +174,4 @@ jobs:
           HARBOR_TEST_ROOT: ${{ runner.temp }}/harbor-game-tests
         run: |
           mkdir -p "$HARBOR_GAME_TEST_ROOT"
-          cargo test --manifest-path src-tauri/Cargo.toml
+          cargo test --manifest-path src-tauri/Cargo.toml -p harbor -p harbor-games -p harbor-shared

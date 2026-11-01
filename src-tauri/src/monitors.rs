@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 /// `id` is the stable-ish persistence key (`device_id` when available, otherwise
 /// the GDI device name). The remaining fields exist so the label can show a real
 /// name + resolution, and so `resolve_monitor` can fall back on geometry.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct MonitorInfo {
     pub id: String,

@@ -12,6 +12,7 @@ import {
   setSecret,
 } from "@/lib/secret-store";
 import { setItemWithRecovery } from "@/lib/storage-recovery";
+import { flushDurableStore } from "@/lib/durable-store";
 import { isSettingsSecretsKey, migrateBlobSecrets } from "@/lib/settings/profile-store";
 import { URL_SECRET_PLACEHOLDER, hasUrlSecrets as urlHasSecrets } from "@/lib/iptv/url-credentials";
 import { localLibraryReady, readLocalLibrary, restoreLocalLibrary } from "@/lib/local-library";
@@ -567,4 +568,5 @@ export async function applyBackup(backup: Backup): Promise<void> {
     }
   }
   await flushSecrets();
+  await flushDurableStore();
 }

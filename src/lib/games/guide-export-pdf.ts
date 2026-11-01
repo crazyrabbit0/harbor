@@ -233,7 +233,8 @@ export async function createGuidePdf(
     });
     const body = htmlToPdfmake(doc.body.innerHTML, options);
     markFirstContent(body, `guide-body-${i}`);
-    content.push(Array.isArray(body) ? body.filter(hasContent) : body);
+    // @types/html-to-pdfmake pins @types/pdfmake 0.2, whose Content type differs from 0.3's.
+    content.push((Array.isArray(body) ? body.filter(hasContent) : body) as Content);
   }
   content.push(
     { text: source, link: item.url, bold: true, fontSize: 9, margin: [0, 22, 0, 5] },

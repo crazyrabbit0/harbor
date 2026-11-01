@@ -19,6 +19,7 @@ import {
 } from "./mpv-session";
 import { createMpvSubtitles } from "./mpv-subtitles";
 import { reduceMpvEvent, type MpvEvent, type MpvEventEffect } from "./mpv-events";
+import type { AudioDevice, MpvProbe } from "@/lib/generated/mpv-ipc";
 import { isLinuxDesktop, isWindowsDesktop } from "@/lib/platform";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
@@ -38,12 +39,7 @@ import {
 
 export type { MpvOptions, MpvRect } from "./mpv-config";
 
-export type MpvProbe = {
-  available: boolean;
-  binary: string | null;
-  version: string | null;
-  error: string | null;
-};
+export type { MpvProbe } from "@/lib/generated/mpv-ipc";
 
 let mpvProbePromise: Promise<MpvProbe> | null = null;
 
@@ -66,7 +62,7 @@ async function runMpvProbe(): Promise<MpvProbe> {
   }
 }
 
-export type MpvAudioDevice = { name: string; description: string };
+export type MpvAudioDevice = AudioDevice;
 
 export async function listMpvAudioDevices(): Promise<MpvAudioDevice[]> {
   try {

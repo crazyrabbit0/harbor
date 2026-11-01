@@ -980,6 +980,7 @@ test("backups neither enroll another device nor erase this device's channel or s
         migrateBlobSecrets() {},
       },
       "@/lib/storage-recovery": h.recovery,
+      "@/lib/durable-store": { flushDurableStore: async () => {} },
       "@/lib/iptv/url-credentials": { URL_SECRET_PLACEHOLDER: "***", hasUrlSecrets: () => false },
       "@/lib/local-library": {
         localLibraryReady: async () => {},

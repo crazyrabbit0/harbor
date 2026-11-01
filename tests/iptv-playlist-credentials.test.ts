@@ -220,6 +220,7 @@ async function loadBackup(): Promise<typeof import("../src/lib/backup.ts")> {
     "@/lib/secret-store": secretStore,
     "@/lib/settings/profile-store": await import("../src/lib/settings/profile-store.ts"),
     "@/lib/storage-recovery": await import("../src/lib/storage-recovery.ts"),
+    "@/lib/durable-store": { flushDurableStore: async () => {} },
     "@/lib/iptv/url-credentials": await import("../src/lib/iptv/url-credentials.ts"),
     "@/lib/local-library": {
       localLibraryReady: async () => {},

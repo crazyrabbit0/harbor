@@ -102,7 +102,7 @@ const MIME: Record<string, string> = {
   gif: "image/gif",
 };
 
-async function toIconDataUrl(name: string, bytes: Uint8Array): Promise<string | null> {
+async function toIconDataUrl(name: string, bytes: Uint8Array<ArrayBuffer>): Promise<string | null> {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   if (ext === "svg") return `data:image/svg+xml;base64,${bytesToBase64(bytes)}`;
   const mime = MIME[ext];

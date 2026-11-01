@@ -7,6 +7,7 @@ import { getUiLanguage } from "@/lib/i18n/store";
 import { ensureUiLocale } from "@/lib/i18n/load-locale";
 import { applyOsDataset } from "@/lib/platform";
 import { loadSecrets } from "@/lib/secret-store";
+import { loadDurableStore } from "@/lib/durable-store";
 import { migrateLegacyPlaylists } from "@/lib/iptv/playlists-store";
 import { storedSettings } from "@/lib/stored-settings";
 import { initializeMusic } from "@/lib/music/player";
@@ -218,6 +219,7 @@ async function mount() {
     !isHdrOverlay && !isModal && !isCaptions && !isPip && !isVideoPip && !isDjDeck && !isRemote;
   await Promise.all([
     loadSecrets(),
+    isMainWindow ? loadDurableStore() : undefined,
     // Saved folders outside the static fs/asset scope are re-allowed before any view reads them.
     isMainWindow
       ? import("@/lib/fs-scope").then((m) => m.allowStoredFsPaths()).catch(() => {})

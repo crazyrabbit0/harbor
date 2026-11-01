@@ -8751,6 +8751,19 @@
     {
         "type": "archive",
         "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/termcolor/termcolor-1.4.1.crate",
+        "sha256": "06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755",
+        "dest": "cargo/vendor/termcolor-1.4.1"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"06794f8f6c5c898b3275aebefa6b8a1cb24cd2c6c79397ab15774837a0bc5755\", \"files\": {}}",
+        "dest": "cargo/vendor/termcolor-1.4.1",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
         "url": "https://static.crates.io/crates/thiserror/thiserror-1.0.69.crate",
         "sha256": "b6aaf5339b578ea85b50e080feb250a3e8ae8cfcdff9a461c9ec2904bc923f52",
         "dest": "cargo/vendor/thiserror-1.0.69"
@@ -9331,6 +9344,32 @@
         "type": "inline",
         "contents": "{\"package\": \"e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b\", \"files\": {}}",
         "dest": "cargo/vendor/try-lock-0.2.5",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/ts-rs/ts-rs-12.0.1.crate",
+        "sha256": "756050066659291d47a554a9f558125db17428b073c5ffce1daf5dcb0f7231d8",
+        "dest": "cargo/vendor/ts-rs-12.0.1"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"756050066659291d47a554a9f558125db17428b073c5ffce1daf5dcb0f7231d8\", \"files\": {}}",
+        "dest": "cargo/vendor/ts-rs-12.0.1",
+        "dest-filename": ".cargo-checksum.json"
+    },
+    {
+        "type": "archive",
+        "archive-type": "tar-gzip",
+        "url": "https://static.crates.io/crates/ts-rs-macros/ts-rs-macros-12.0.1.crate",
+        "sha256": "38d90eea51bc7988ef9e674bf80a85ba6804739e535e9cab48e4bb34a8b652aa",
+        "dest": "cargo/vendor/ts-rs-macros-12.0.1"
+    },
+    {
+        "type": "inline",
+        "contents": "{\"package\": \"38d90eea51bc7988ef9e674bf80a85ba6804739e535e9cab48e4bb34a8b652aa\", \"files\": {}}",
+        "dest": "cargo/vendor/ts-rs-macros-12.0.1",
         "dest-filename": ".cargo-checksum.json"
     },
     {

@@ -1,0 +1,111 @@
+[package]
+name = "harbor-games"
+version.workspace = true
+edition = "2021"
+publish = false
+
+[dependencies]
+harbor-shared = { path = "../shared" }
+tauri = { version = "2.12.0", features = ["protocol-asset"] }
+reqwest = { version = "0.12", default-features = false, features = [
+  "stream",
+  "multipart",
+  "json",
+  "gzip",
+] }
+anyhow = "1"
+tauri-plugin-opener = "2"
+dunce = "1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+httpdate = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io", "rt"] }
+axum = { version = "0.8", features = ["ws"] }
+flate2 = "1"
+tar = "0.4"
+plist = "1.9"
+zip = { version = "4", default-features = false, features = ["deflate-flate2", "aes-crypto"] }
+zeroize = "1"
+sevenz-rust2 = { version = "=0.20.2", default-features = false, features = [
+  "aes256",
+  "bzip2",
+  "ppmd",
+  "deflate",
+] }
+hadris-iso = { version = "=2.5.0", default-features = false, features = ["std", "sync", "joliet"] }
+regex = "1"
+quick-xml = { version = "=0.38.4", features = ["serialize"] }
+yaml-rust2 = { version = "0.13", default-features = false }
+uuid = { version = "1", features = ["v4"] }
+futures-util = "0.3"
+libc = "0.2"
+base64 = "0.22"
+sha2 = "0.10"
+sha1 = "0.10"
+png = "0.17"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
+rustls = { version = "0.23", default-features = false, features = [
+  "ring",
+  "std",
+  "tls12",
+  "logging",
+] }
+librqbit = { version = "=8.1.1", default-features = false, features = ["rust-tls"] }
+url = "2"
+# librqbit's aws-lc-rs needs NASM unless this is on; the app gets it through rustls defaults.
+aws-lc-rs = { version = "1", default-features = false, features = ["prebuilt-nasm"] }
+unrar_sys = { path = "../vendor/unrar_sys" }
+harbor-udfread = { path = "../vendor/harbor-udfread" }
+
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+leveldb-sys = { path = "../vendor/leveldb-sys", features = ["snappy"] }
+trash = "=5.2.9"
+rusqlite = { version = "0.32.0", features = ["bundled"] }
+md5 = "0.7"
+reqwest = { version = "0.12", default-features = false, features = ["native-tls"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_Security_Cryptography",
+  "Win32_UI_WindowsAndMessaging",
+  "Win32_UI_Shell",
+  "Win32_Graphics_Gdi",
+  "Win32_Graphics_Dxgi",
+  "Win32_Graphics_Dxgi_Common",
+  "Win32_Devices_Display",
+  "Win32_System_Threading",
+  "Win32_System_Com",
+  "Win32_System_Com_StructuredStorage",
+  "Win32_System_Variant",
+  "Win32_Media_Audio",
+  "Win32_System_Registry",
+  "Win32_Storage_FileSystem",
+  "Win32_System_Power",
+  "Win32_System_JobObjects",
+  "Win32_System_ProcessStatus",
+  "Win32_System_Diagnostics_ToolHelp",
+  "Win32_System_Diagnostics_Debug",
+  "Win32_System_SystemInformation",
+  "Win32_System_LibraryLoader",
+  "Win32_System_WinRT",
+  "Win32_System_WinRT_Direct3D11",
+  "Win32_System_WinRT_Graphics_Capture",
+  "Win32_Graphics_Direct3D",
+  "Win32_Graphics_Direct3D11",
+  "Graphics_Capture",
+  "Graphics_DirectX_Direct3D11",
+  "Graphics_Imaging",
+  "Media",
+  "Foundation",
+  "Storage_Streams",
+] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+core-foundation = "0.10"
+
+[dev-dependencies]
+sevenz-rust2 = { version = "=0.20.2", default-features = false, features = ["compress"] }
+crc32fast = "1"

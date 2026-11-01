@@ -75,17 +75,5 @@ version = "1"
 [dependencies.thiserror]
 version = "1"
 
-[dev-dependencies.ansi_term]
-version = "0.12"
-
-[dev-dependencies.docopt]
-version = "1"
-
-[dev-dependencies.env_logger]
-version = "0.11"
-
-[dev-dependencies.mdns-sd]
-version = "0.11"
-
 [build-dependencies.protobuf-codegen]
 version = "=3.7.2"

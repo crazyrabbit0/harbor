@@ -1,6 +1,6 @@
 # src/views/games/ (Games room UI)
 
-Flat folder (~540 files, no subfolders): `game-*.tsx` with a `.css` twin, plus `minecraft-*`, `mod(s)-*`, `guide-*`, `pro-*`, `rom-*`, `sims-*` families and `use-*.ts` hooks. Logic lives in `src/lib/games/`, native commands in `src-tauri/src/games/` (both have AGENTS.md).
+Flat folder (~540 files, no subfolders): `game-*.tsx` with a `.css` twin, plus `minecraft-*`, `mod(s)-*`, `guide-*`, `pro-*`, `rom-*`, `sims-*` families and `use-*.ts` hooks. Logic lives in `src/lib/games/`, native commands in `src-tauri/games/src/` (both have AGENTS.md).
 
 ## Entry and routing
 

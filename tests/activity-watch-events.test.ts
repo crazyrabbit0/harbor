@@ -4,6 +4,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import "./_localstorage-stub.ts";
+import {
+  listWatchEvents,
+  recordWatchEvent,
+  subscribeWatchEvents,
+  type WatchEvent,
+} from "../src/lib/watch-events.ts";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
@@ -11,7 +18,6 @@ const feed = read("src/lib/social/activity-feed.ts");
 const autosave = read("src/views/player/hooks/use-resume-autosave.ts");
 const marker = read("src/lib/mark-watched.ts");
 const sync = read("src/lib/social/use-activity-sync.ts");
-const store = read("src/lib/watch-events.ts");
 
 test("recent activity no longer derives only from the resume list", () => {
   assert.match(feed, /watchEvents\?: WatchEvent\[\]/, "the feed must accept completion events");
@@ -53,13 +59,59 @@ test("the sync hook re-pushes when a watch event lands", () => {
   assert.match(sync, /\[cw, ratings, favMap, mangaMap, imports, watchEvents\]/);
 });
 
-test("the watch log is capped and survives unreadable storage", () => {
-  assert.match(store, /const MAX = \d+;/);
-  assert.match(store, /\.slice\(0, MAX\)/, "the log must be bounded");
-  assert.match(store, /catch \{\s*return \[\];/, "a corrupt log must not throw");
+const event = (id: string, over: Partial<WatchEvent> = {}): WatchEvent => ({
+  id,
+  type: "series",
+  name: `Show ${id}`,
+  season: 1,
+  episode: 1,
+  at: 1,
+  ...over,
+});
+
+test("the watch log keeps only the newest 40 events", () => {
+  localStorage.clear();
+  for (let i = 0; i < 45; i++) recordWatchEvent(event(`tt${i}`));
+  const events = listWatchEvents();
+  assert.equal(events.length, 40);
+  assert.equal(events[0].id, "tt44");
+  assert.equal(events.at(-1)?.id, "tt5");
+});
+
+test("an unreadable or non-array log reads as empty", () => {
+  localStorage.clear();
+  localStorage.setItem("harbor.watchevents.v1", "{not json");
+  assert.deepEqual(listWatchEvents(), []);
+  localStorage.setItem("harbor.watchevents.v1", JSON.stringify({ id: "tt1" }));
+  assert.deepEqual(listWatchEvents(), []);
 });
 
 test("re-finishing the same episode replaces rather than duplicates", () => {
-  assert.match(store, /filter\(\(p\) =>[\s\S]*?!== key\)/);
-  assert.match(store, /\$\{e\.id\}\|\$\{e\.season \?\? ""\}\|\$\{e\.episode \?\? ""\}/);
+  localStorage.clear();
+  recordWatchEvent(event("tt1", { at: 1 }));
+  recordWatchEvent(event("tt1", { episode: 2, at: 2 }));
+  recordWatchEvent(event("tt1", { at: 3 }));
+  const events = listWatchEvents();
+  assert.deepEqual(
+    events.map((e) => [e.episode, e.at]),
+    [
+      [1, 3],
+      [2, 2],
+    ],
+  );
+});
+
+test("events without an id or name are ignored and subscribers hear real writes", () => {
+  localStorage.clear();
+  let calls = 0;
+  const off = subscribeWatchEvents(() => calls++);
+  recordWatchEvent(event("", {}));
+  recordWatchEvent(event("tt1", { name: "" }));
+  assert.equal(calls, 0);
+  recordWatchEvent(event("tt1"));
+  assert.equal(calls, 1);
+  off();
+  recordWatchEvent(event("tt2"));
+  assert.equal(calls, 1);
+  assert.equal(listWatchEvents().length, 2);
 });

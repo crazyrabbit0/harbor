@@ -1,6 +1,6 @@
 # src/lib/games/ (game library logic)
 
-Framework-free logic for the Games room: IGDB, ROMs and emulation, launchers, Steam, Minecraft, Sims, Stardew, WoW, Pokémon, downloads, cloud/debrid sources. Rust backend notes are in `src-tauri/src/games/AGENTS.md`; UI lives in `src/views/games/` and `src/hooks/use-game-*.ts`.
+Framework-free logic for the Games room: IGDB, ROMs and emulation, launchers, Steam, Minecraft, Sims, Stardew, WoW, Pokémon, downloads, cloud/debrid sources. Rust backend notes are in `src-tauri/games/AGENTS.md`; UI lives in `src/views/games/` and `src/hooks/use-game-*.ts`.
 
 ## Where to look
 

@@ -5,6 +5,7 @@ import { applyOsDataset } from "@/lib/platform";
 import { getUiLanguage } from "@/lib/i18n/store";
 import { ensureUiLocale } from "@/lib/i18n/load-locale";
 import { loadSecrets } from "@/lib/secret-store";
+import { loadDurableStore } from "@/lib/durable-store";
 import { BpTvApp } from "@/views/big-picture/bp-tv-app";
 import "@/index.css";
 
@@ -27,7 +28,7 @@ applyOsDataset();
 
 async function mount() {
   performance.mark("harbor:mount-start");
-  await Promise.all([loadSecrets(), hydrateCustomThemes().catch(() => {})]);
+  await Promise.all([loadSecrets(), loadDurableStore(), hydrateCustomThemes().catch(() => {})]);
   performance.mark("harbor:secrets-done");
   // Only the selected language, and only if it is not the one compiled in.
   // The other catalogs never enter this entry's graph.

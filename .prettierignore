@@ -21,3 +21,4 @@ src/lib/games/retro-logo-index.json
 src/lib/providers/tmdb/brand-index.json
 src/lib/providers/tmdb/brand-index-top.json
 tests/fixtures/
+src/lib/generated/

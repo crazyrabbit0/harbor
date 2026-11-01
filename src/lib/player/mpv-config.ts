@@ -1,4 +1,5 @@
 import type { MonitorInfo } from "@/lib/monitors";
+import type { MpvStartArgs } from "@/lib/generated/mpv-ipc";
 import { isMacDesktop, isWindowsDesktop } from "@/lib/platform";
 import type { PlayerEmbedRect, PlayerSource } from "./bridge";
 
@@ -116,7 +117,7 @@ export function mpvStartArgs(
   src: PlayerSource,
   hdrToSdr: boolean,
   startupProfile: StartupProfile,
-) {
+): MpvStartArgs {
   return {
     url: src.url,
     startAtSec: src.startAtSec ?? null,

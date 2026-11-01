@@ -10,7 +10,7 @@ mod binary_lookup;
 mod cast_hls;
 mod cast_subs;
 #[cfg_attr(mobile, allow(dead_code))]
-mod child_pipe;
+use harbor_shared::child_pipe;
 mod crash_report;
 mod diagnostics;
 mod download;
@@ -52,7 +52,7 @@ mod app_icon;
 mod asr_model;
 #[cfg(desktop)]
 mod browser;
-mod browser_args;
+use harbor_shared::browser_args;
 #[cfg(desktop)]
 mod capstan;
 #[cfg(desktop)]
@@ -81,8 +81,8 @@ mod dvr;
 mod fs_scope;
 #[cfg(desktop)]
 mod fullscreen;
-#[cfg(desktop)]
-mod games;
+#[cfg(all(desktop, feature = "games"))]
+use harbor_games as games;
 #[cfg(desktop)]
 mod monitors;
 #[cfg(desktop)]
@@ -98,6 +98,8 @@ mod taskbar;
 mod modal_overlay;
 #[cfg(desktop)]
 mod mpv;
+#[cfg(desktop)]
+mod mpv_ipc;
 #[cfg(desktop)]
 mod playback_cache;
 #[cfg(target_os = "linux")]
@@ -735,12 +737,32 @@ pub fn run() {
     mobile::run();
 }
 
+// Games commands live in the harbor-games crate; every `games_*` command goes to its handler.
+#[cfg(desktop)]
+fn route_commands(
+    app: impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static,
+) -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static {
+    #[cfg(feature = "games")]
+    let games = games::invoke_handler();
+    move |invoke| {
+        #[cfg(feature = "games")]
+        if invoke.message.command().starts_with("games_") {
+            return games(invoke);
+        }
+        app(invoke)
+    }
+}
+
 #[cfg(desktop)]
 pub fn run() {
     if music::try_run_connector_worker() { return; }
-    if games::try_run_achievement_worker() { return; }
-    if games::try_run_archive_worker() { return; }
-    if games::try_run_hydra_import_worker() { return; }
+    #[cfg(feature = "games")]
+    if games::try_run_achievement_worker()
+        || games::try_run_archive_worker()
+        || games::try_run_hydra_import_worker()
+    {
+        return;
+    }
     {
         let args: Vec<String> = std::env::args().skip(1).collect();
         if let Some(p) = media_file_from_args(&args) {
@@ -860,6 +882,13 @@ pub fn run() {
             }
             proc_guard::init();
             proc_guard::reap_orphans();
+            tauri::Manager::manage(
+                app,
+                harbor_shared::fetch::FetchHook(std::sync::Arc::new(|app, args| {
+                    Box::pin(http_fetch::harbor_fetch(app, args))
+                })),
+            );
+            #[cfg(feature = "games")]
             games::initialize_download_preparation(app.handle());
             fs_scope::allow_saved_settings(app.handle());
             music::initialize(app.handle()).map_err(std::io::Error::other)?;
@@ -1016,205 +1045,7 @@ pub fn run() {
                 _ => {}
             }
         })
-        .invoke_handler(tauri::generate_handler![
-            games::games_pokemon,
-            games::games_scan_steam,
-            games::steam_shortcut_commands::games_scan_steam_shortcuts,
-            games::steam_shortcut_commands::games_launch_steam_shortcut,
-            games::steam_shortcut_commands::games_steam_shortcut_icons,
-            games::steam_shortcut_commands::games_launch_steam_shortcut_direct,
-            games::steam_shortcut_commands::games_steam_shortcut_running,
-            games::games_scan_launchers,
-            games::games_wow_addons,
-            games::games_sims_folders,
-            games::games_sims_workspace,
-            games::games_sims_inspect,
-            games::games_sims_metadata,
-            games::games_sims_packs,
-            games::games_sims_duplicates,
-            games::games_sims_dependencies,
-            games::games_sims_tray_preview,
-            games::games_sims_tray_content,
-            games::games_sims_kept_folder,
-            games::games_sims_catalog,
-            games::games_sims_lot51_catalog,
-            games::stardew_commands::games_stardew_folders,
-            games::stardew_commands::games_stardew_inspect,
-            games::stardew_commands::games_stardew_updates,
-            games::stardew_commands::games_stardew_cancel,
-            games::stardew_commands::games_stardew_workspace,
-            games::stardew_commands::games_stardew_review,
-            games::stardew_commands::games_stardew_apply,
-            games::stardew_commands::games_stardew_recover,
-            games::stardew_commands::games_stardew_discard,
-            games::stardew_commands::games_stardew_catalog,
-            games::stardew_commands::games_stardew_creator_review,
-            games::games_sims_mts_detail,
-            games::games_sims_mts_browse,
-            games::games_sims_mts_review,
-            games::games_sims_lot51_detail,
-            games::games_sims_lot51_review,
-            games::games_sims_creator_review,
-            games::games_sims_review,
-            games::games_sims_apply,
-            games::games_sims_cancel,
-            games::games_sims_sets,
-            games::games_sims_set_save,
-            games::games_sims_set_remove,
-            games::games_sims_discard,
-            games::games_sims_recover,
-            games::games_sims_save_context,
-            games::games_sims_save_recover,
-            games::games_save_recovery_status,
-            games::games_recover_save_restore,
-            games::games_sims_save_list,
-            games::games_sims_save_snapshot,
-            games::games_sims_save_review,
-            games::games_wow_addon_package,
-            games::games_wow_addon_workspace,
-            games::games_wow_addon_review,
-            games::games_wow_addon_apply,
-            games::games_wow_addon_discard,
-            games::games_wow_addon_cancel,
-            games::games_wow_addon_recover,
-            games::games_launch_launcher_game,
-            games::games_launcher_sessions,
-            games::games_inspect_archive,
-            games::games_inspect_setup,
-            games::games_setup_icon,
-            games::games_start_setup,
-            games::games_setup_jobs,
-            games::games_recover_setup,
-            games::games_reveal_setup,
-            games::games_observe_setup,
-            games::games_archive_space,
-            games::games_extract_archive,
-            games::games_cancel_archive,
-            games::games_discard_archive,
-            games::games_archive_jobs,
-            games::games_review_archive_cleanup,
-            games::games_discard_archive_cleanup,
-            games::games_recycle_archive_sources,
-            games::games_archive_cleanup_records,
-            games::games_archive_cleanup_action,
-            games::games_start_archive,
-            games::games_prepare_archive,
-            games::games_preparation_choices,
-            games::games_preparation_version,
-            games::games_preparation_candidates,
-            games::games_set_preparation,
-            games::games_disable_preparation,
-            games::games_remove_archive_job,
-            games::games_steam_account_status,
-            games::games_battlenet_account,
-            games::games_battlenet_import,
-            games::games_battlenet_cancel,
-            games::games_battlenet_preferences,
-            games::games_battlenet_disconnect,
-            games::games_minecraft_status,
-            games::games_minecraft_begin,
-            games::games_minecraft_poll,
-            games::games_minecraft_cancel,
-            games::games_minecraft_refresh,
-            games::games_minecraft_disconnect,
-            games::games_minecraft_apply_skin,
-            games::games_minecraft_apply_cape,
-            games::games_minecraft_texture,
-            games::games_minecraft_catalog,
-            games::games_minecraft_instances,
-            games::games_minecraft_instance_create,
-            games::games_minecraft_instance_rename,
-            games::games_minecraft_instance_folder,
-            games::games_minecraft_content,
-            games::games_minecraft_fabric_versions,
-            games::games_minecraft_loader_versions,
-            games::games_minecraft_pack_update_state,
-            games::games_minecraft_pack_update_review,
-            games::games_minecraft_pack_update_select,
-            games::games_minecraft_pack_update_apply,
-            games::games_minecraft_pack_update_discard,
-            games::games_minecraft_pack_update_cancel,
-            games::games_minecraft_instance_export_review,
-            games::games_minecraft_instance_export_apply,
-            games::games_minecraft_instance_storage,
-            games::games_minecraft_instance_remove_review,
-            games::games_minecraft_instance_remove_apply,
-            games::games_minecraft_lifecycle_discard,
-            games::games_minecraft_pack_review,
-            games::games_minecraft_pack_install,
-            games::games_minecraft_pack_cancel,
-            games::games_minecraft_pack_discard,
-            games::games_minecraft_runtime_state,
-            games::games_minecraft_runtime_review,
-            games::games_minecraft_runtime_install,
-            games::games_minecraft_runtime_cancel,
-            games::games_minecraft_runtime_discard,
-            games::games_minecraft_java_state,
-            games::games_minecraft_java_review,
-            games::games_minecraft_java_select,
-            games::games_minecraft_java_memory,
-            games::games_minecraft_java_install,
-            games::games_minecraft_java_discard,
-            games::games_minecraft_launch_state,
-            games::games_minecraft_launch,
-            games::games_connect_steam_account,
-            games::games_refresh_steam_account,
-            games::games_disconnect_steam_account,
-            games::games_steam_achievements,
-            games::games_read_local_achievements,
-            games::games_apply_local_achievements,
-            games::games_discard_local_achievements,
-            games::games_install_steam,
-            games::games_list_transfers,
-            games::games_transfer_settings,
-            games::games_transfer_storage,
-            games::games_download_locations,
-            games::games_set_transfer_bandwidth,
-            games::games_source_public_review,games::games_source_public_prepare,games::games_source_public_prepare_batch,games::games_source_public_cancel_batch,games::games_hydra_import_review,games::games_hydra_import_cancel,games::games_cloud_list,games::games_cloud_download,games::games_cloud_resolve_link,games::games_cloud_host_check,games::games_cloud_ad_prepare,games::games_cloud_ad_status,games::games_cloud_web_create,games::games_cloud_web_list,games::games_cloud_web_status,games::games_cloud_web_download,games::games_cloud_web_find,games::games_cloud_pm_create,games::games_cloud_pm_list,games::games_cloud_pm_status,games::games_cloud_pm_download,games::games_cloud_pm_retry,games::games_modrinth,games::games_mod_workspace,games::games_review_mods,games::games_install_mods,games::games_mod_action,games::games_cancel_mods,games::games_discard_mods,games::games_list_torrents,
-            games::games_inspect_torrent,
-            games::games_cancel_torrent_inspection,
-            games::games_discard_torrent,
-            games::games_start_torrent,
-            games::games_torrent_action,
-            games::games_seed_torrent,
-            games::games_list_save_snapshots,
-            games::games_validate_custom_launch,
-            games::games_game_shortcuts,
-            games::games_allow_game_execution,
-            games::games_custom_running,
-            games::games_custom_history,
-            games::games_validate_custom_artwork,
-            games::games_launch_custom,
-            games::games_create_save_snapshot,
-            games::games_prepare_save_restore,
-            games::games_restore_save_snapshot,
-            games::games_cancel_save_operation,
-            games::games_discard_save_restore,
-            games::games_source_browser_choose, games::games_source_browser_close,
-            games::games_source_verify, games::games_source_verify_cancel, games::games_source_verified_fetch,
-            games::games_source_http_fetch, games::games_source_http_cancel,
-            games::games_add_transfer,
-            games::games_add_transfer_batch,
-            games::games_transfer_action,
-            games::games_relink_transfer,
-            games::games_download_patch,
-            games::games_cancel_patch_download,
-            games::games_match_patch_sources,
-            games::games_prepare_patch,
-            games::games_write_patch,
-            games::games_discard_patch,
-            games::games_scan_roms,
-            games::games_find_emulators,
-            games::games_validate_emulator,
-            games::games_emulation_running,
-            games::games_launch_emulated,
-            games::games_retro_status,
-            games::games_retro_start,
-            games::games_retro_close,
-            games::games_launch_steam,
-            games::library_management::games_manage_steam,
-            games::library_management::games_manage_launcher,
-            games::library_management::games_open_installed_apps,
+        .invoke_handler(route_commands(tauri::generate_handler![
             privacy::privacy_status,
             privacy::privacy_set_enabled,
             set_maximize_clamp,
@@ -1279,6 +1110,8 @@ pub fn run() {
             settings_store::settings_write,
             settings_store::secrets_read,
             settings_store::secrets_write,
+            settings_store::user_data_read,
+            settings_store::user_data_write,
             fs_scope::fs_scope_allow,
             media_server::media_server_request,
             proc_mem::harbor_process_memory,
@@ -1552,7 +1385,7 @@ pub fn run() {
             deeplink_set_stremio,
             deeplink_is_stremio_registered,
             harbor_take_pending_file,
-        ])
+        ]))
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
