@@ -23,6 +23,7 @@ import {
 import { subscribeOpenProfile } from "@/lib/social/open-profile";
 import { subscribeOpenGroup } from "@/lib/social/open-group";
 import { useBigPicture } from "@/lib/big-picture";
+import { appFeatures } from "@/lib/app-features";
 import type { Meta } from "./cinemeta";
 import { profileFromMeta, trackEvent } from "./discover";
 import type { StreamingService } from "./settings";
@@ -704,6 +705,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
 
   const setView = useCallback(
     (v: View) => {
+      if ((v === "games" || v === "music") && !appFeatures()[v]) return;
       if (typeof window !== "undefined") {
         window.__harborProfiler?.recordNav(`view:${v}`);
       }
@@ -962,6 +964,7 @@ export function ViewProvider({ children }: { children: ReactNode }) {
   );
 
   const openGames = useCallback(() => {
+    if (!appFeatures().games) return;
     setNavStack((cur) => (cur.at(-1)?.kind === "games" ? cur : pushFrame(cur, { kind: "games" })));
   }, [setNavStack]);
 

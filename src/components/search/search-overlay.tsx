@@ -4,6 +4,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { createPortal } from "react-dom";
 import { TvModalClose } from "@/components/tv-modal-close";
+import { appFeatures } from "@/lib/app-features";
 import { tvFocus } from "@/lib/keyboard-navigation";
 import { useT } from "@/lib/i18n";
 import type { Meta } from "@/lib/cinemeta";
@@ -649,7 +650,7 @@ export function SearchOverlay() {
                         onClose={commit}
                       />
                       <MusicRow
-                        items={showKind("music") ? currentResults.music : []}
+                        items={showKind("music") && appFeatures().music ? currentResults.music : []}
                         onClose={commit}
                       />
                       <EBookRow

@@ -6,6 +6,7 @@ mod ytmusic;
 // start_dragging, set_icon) is desktop-only in tauri 2, and so are
 // `tauri::menu` and `tauri::tray`. The getters are not, which is why
 // display geometry reads are fine and display geometry writes are not.
+mod app_features;
 mod binary_lookup;
 mod cast_hls;
 mod cast_subs;
@@ -91,6 +92,8 @@ mod harbor_lan;
 mod hdr_overlay;
 #[cfg(desktop)]
 mod installer_handoff;
+#[cfg(test)]
+mod ipc_bindings;
 #[cfg(desktop)]
 mod media_controls;
 #[cfg(target_os = "windows")]
@@ -1062,6 +1065,7 @@ pub fn run() {
             harbor_startup_ready,
             close_aux_windows,
             desktop_notify::send_clickable_notification,
+            app_features::app_features,
             installer_handoff::handoff_probe,
             installer_handoff::handoff_stage,
             installer_handoff::handoff_launch,

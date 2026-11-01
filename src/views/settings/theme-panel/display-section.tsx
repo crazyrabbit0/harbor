@@ -2,6 +2,7 @@ import { fillStyle, SliderReset } from "@/components/slider";
 import { DEFAULT } from "@/lib/settings/defaults";
 import { Dropdown } from "@/components/dropdown";
 import { GamesIcon } from "@/components/icons/games-icon";
+import { appFeatures } from "@/lib/app-features";
 import {
   Droplet,
   Hourglass,
@@ -178,8 +179,6 @@ export function AmbienceSection() {
   );
 }
 
-const GAMES_SETTINGS_VISIBLE = true;
-
 export function DisplaySection() {
   const t = useT();
   const { settings, update } = useSettings();
@@ -194,7 +193,7 @@ export function DisplaySection() {
     : 25;
   return (
     <>
-      {GAMES_SETTINGS_VISIBLE && (
+      {appFeatures().games && (
         <Section title={t("Games")}>
           <SettingGroup>
             <ToggleRow

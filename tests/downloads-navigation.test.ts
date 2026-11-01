@@ -26,7 +26,7 @@ function declaration(name: string): string {
   return text;
 }
 
-function fixture(initial: any[]) {
+function fixture(initial: any[], features = { games: true, music: true }) {
   const stackRef = { current: initial };
   const forwardStackRef = { current: [] as any[] };
   const scrollMem = { current: new Map([["meta:movie", { fallback: 420 }]]) };
@@ -59,6 +59,7 @@ function fixture(initial: any[]) {
       forwardStackRef.current = value;
     },
     setHomeResetTick: () => {},
+    appFeatures: () => features,
     window: { dispatchEvent() {}, requestAnimationFrame() {}, setTimeout() {} },
     CustomEvent: class {
       constructor(_name: string, _options: unknown) {}
@@ -108,6 +109,14 @@ test("every room starts a fresh root and clears scroll memory; Settings stacks o
   settings.setView("settings");
   assert.deepEqual(settings.stackRef.current, [{ kind: "home" }, { kind: "settings" }]);
   assert.equal(settings.scrollMem.current.size, 1, "opening Settings keeps scroll memory");
+});
+
+test("a room this build was compiled without never opens", () => {
+  for (const room of ["games", "music"]) {
+    const h = fixture([{ kind: "home" }], { games: room !== "games", music: room !== "music" });
+    h.setView(room);
+    assert.deepEqual(h.stackRef.current, [{ kind: "home" }], room);
+  }
 });
 
 test("Downloads returns to the previous detail with its page and row scroll memories intact", () => {

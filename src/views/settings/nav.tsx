@@ -12,6 +12,7 @@ import { settingsAnchor, type SectionId } from "./shared";
 import { TOP_GROUPS } from "./groups";
 import { markSectionSeen, useSettingsNew } from "./settings-new";
 import { useExperimentalAccess } from "@/lib/updater/experimental-access";
+import { appFeatures } from "@/lib/app-features";
 import { useStreamPluginCount } from "@/lib/plugins";
 
 type IconProps = { size?: number; strokeWidth?: number };
@@ -11046,6 +11047,7 @@ export function useNavSearch(trimmed: string) {
     return SETTINGS_OPTIONS.filter(
       (o) =>
         (o.label !== "Experimental builds" || experimentalAccess) &&
+        (o.anchorTitle !== "Games" || appFeatures().games) &&
         matchesSettingsSearch(
           trimmed,
           o.anchorTitle ? [o.label, o.anchorTitle] : [o.label],

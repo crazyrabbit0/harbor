@@ -20,8 +20,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [features]
-default = ["games"]
+default = ["games", "music"]
 games = ["dep:harbor-games"]
+music = []
 silero-vad = ["dep:ort", "dep:ndarray"]
 asr-whisper = ["dep:whisper-rs"]
 chromaprint = []

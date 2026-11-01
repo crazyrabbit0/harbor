@@ -1,4 +1,4 @@
-import { GAMES_IN_NAV } from "@/chrome/nav-items";
+import { appFeatures } from "@/lib/app-features";
 import { GameAccessProvider } from "@/views/games/game-access-context";
 import { hasBackHandlers } from "@/lib/back-intercept";
 import { useSportsEnabled } from "@/lib/sports/enabled";
@@ -273,7 +273,7 @@ const MusicChrome = memo(function MusicChrome() {
     sourceRequested.current = false;
     window.dispatchEvent(new Event(MUSIC_SOURCE_REQUIRED));
   }, []);
-  if (!armed) return null;
+  if (!armed || !appFeatures().music) return null;
   return (
     <SilentBoundary>
       <Suspense fallback={null}>
@@ -1642,14 +1642,22 @@ function Shell({ onReady }: { onReady?: () => void }) {
   );
 
   const gameDockVisible =
-    !kid && !kidsTop && !playerActive && !pickerTop && !bigPicture && !immersive && !chromeHidden;
+    appFeatures().games &&
+    !kid &&
+    !kidsTop &&
+    !playerActive &&
+    !pickerTop &&
+    !bigPicture &&
+    !immersive &&
+    !chromeHidden;
   // Once shown, the dock stays mounted so turning the setting off still runs its close effect.
   const [quickLibraryMounted, setQuickLibraryMounted] = useState(false);
-  if (settings.showQuickGameLibrary && !quickLibraryMounted) setQuickLibraryMounted(true);
+  if (appFeatures().games && settings.showQuickGameLibrary && !quickLibraryMounted)
+    setQuickLibraryMounted(true);
   return (
     <GameAccessProvider
       profile={activeProfile?.id ?? "default"}
-      enabled={!kid && !bigPicture && !playerActive}
+      enabled={appFeatures().games && !kid && !bigPicture && !playerActive}
       gamesActive={gamesTop}
       onNavigate={openGames}
       onLeave={goBack}
@@ -1807,7 +1815,7 @@ function Shell({ onReady }: { onReady?: () => void }) {
             {calendarAlive && (
               <div {...layerProps(calendarTop)}>
                 <Suspense fallback={null}>
-                  <CalendarView active={calendarTop} gamesAllowed={!kid && GAMES_IN_NAV} />
+                  <CalendarView active={calendarTop} gamesAllowed={!kid && appFeatures().games} />
                 </Suspense>
               </div>
             )}

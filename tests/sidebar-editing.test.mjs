@@ -20,15 +20,33 @@ function load(file, mocks = {}, globals = {}) {
   );
   return exports;
 }
+const allFeatures = { appFeatures: () => ({ games: true, music: true }) };
 const nav = load("src/chrome/nav-items.tsx", {
   "@/lib/sports/enabled": { useSportsEnabled: () => false },
   "@/lib/streams/plugins/available": { usePluginCataloguesAvailable: () => false },
+  "@/lib/app-features": allFeatures,
 });
 const navWithPlugins = load("src/chrome/nav-items.tsx", {
   "@/lib/sports/enabled": { useSportsEnabled: () => false },
   "@/lib/streams/plugins/available": { usePluginCataloguesAvailable: () => true },
+  "@/lib/app-features": allFeatures,
+});
+const navWithoutGames = load("src/chrome/nav-items.tsx", {
+  "@/lib/sports/enabled": { useSportsEnabled: () => false },
+  "@/lib/streams/plugins/available": { usePluginCataloguesAvailable: () => false },
+  "@/lib/app-features": { appFeatures: () => ({ games: false, music: true }) },
 });
 const cfg = () => ({ order: [], hidden: [], renamed: {} });
+
+test("a build without the games feature drops Games from the nav, the editors and the saved order", () => {
+  assert.ok(nav.useAvailableNavItems().some((item) => item.id === "games"));
+  assert.ok(!navWithoutGames.useAvailableNavItems().some((item) => item.id === "games"));
+  assert.ok(!navWithoutGames.builtNavItems().some((item) => item.id === "games"));
+  assert.ok(navWithoutGames.builtNavItems().some((item) => item.id === "music"));
+  assert.ok(
+    !navWithoutGames.effectiveNavOrder({ ...cfg(), order: ["games", "home"] }).includes("games"),
+  );
+});
 
 test("customization retains Music and the Sports availability gate", () => {
   assert.ok(nav.NAV_ITEMS.some((item) => item.id === "music"));

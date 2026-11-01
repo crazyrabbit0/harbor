@@ -6,6 +6,7 @@ import { Popcorn, Puzzle } from "lucide-react";
 import { NavGlyph } from "@/components/icons/nav-glyph";
 import { NavLottie } from "@/components/icons/nav-lottie";
 
+import { appFeatures } from "@/lib/app-features";
 import { useUnseenReminderCount } from "@/lib/reminders";
 import { AddonsIcon } from "@/components/icons/addons-icon";
 import { CatalogsIcon } from "@/components/icons/catalogs-icon";
@@ -360,16 +361,23 @@ const NAV_ITEMS_ALL: NavItem[] = [
 ];
 
 export const NAV_ITEMS: NavItem[] = NAV_ITEMS_ALL;
-export const GAMES_IN_NAV = true;
+
+/** False for a room whose Rust subsystem this build was compiled without. */
+export function navItemBuilt(id: NavItemId): boolean {
+  const features = appFeatures();
+  return (id !== "games" || features.games) && (id !== "music" || features.music);
+}
+
+/** Every nav item this build can open, before per-profile and per-setting filters. */
+export function builtNavItems(): NavItem[] {
+  return NAV_ITEMS.filter((item) => navItemBuilt(item.id));
+}
 
 export function useAvailableNavItems(): NavItem[] {
   const sportsEnabled = useSportsEnabled();
   const pluginCatalogs = usePluginCataloguesAvailable();
-  return NAV_ITEMS.filter(
-    (item) =>
-      (item.id !== "sports" || sportsEnabled) &&
-      (item.id !== "plugins" || pluginCatalogs) &&
-      (item.id !== "games" || GAMES_IN_NAV),
+  return builtNavItems().filter(
+    (item) => (item.id !== "sports" || sportsEnabled) && (item.id !== "plugins" || pluginCatalogs),
   );
 }
 
@@ -392,7 +400,7 @@ export function applyNavCustomization(items: NavItem[], cfg: NavCustomization): 
 }
 
 export function effectiveNavOrder(cfg: NavCustomization): NavItemId[] {
-  const all = NAV_ITEMS.map((it) => it.id);
+  const all = builtNavItems().map((it) => it.id);
   const known = new Set<string>(all);
   const out: NavItemId[] = [];
   for (const id of cfg.order) {

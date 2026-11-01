@@ -1,7 +1,7 @@
 import { RotateCcw } from "../../icons";
 import { useState } from "react";
 import {
-  NAV_ITEMS,
+  builtNavItems,
   effectiveNavOrder,
   moveNavItem,
   renameNavItem,
@@ -29,7 +29,7 @@ export function NavEditor({
   const [dragId, setDragId] = useState<string | null>(null);
   const [drop, setDrop] = useState<{ id: string; pos: "before" | "after" } | null>(null);
 
-  const byId = new Map<string, NavItem>(NAV_ITEMS.map((it) => [it.id, it]));
+  const byId = new Map<string, NavItem>(builtNavItems().map((it) => [it.id, it]));
   const rows = effectiveNavOrder(cfg).map((id) => byId.get(id)!);
   const renamable = !ICON_ONLY.has(layout);
   const hasChanges =
