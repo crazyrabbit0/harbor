@@ -2676,6 +2676,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen",
  "serde_json",
+ "ts-rs",
  "unicode-normalization",
  "wasm-bindgen",
 ]

@@ -30,6 +30,8 @@ mod proc_mem;
 mod settings_store;
 mod stream_proxy;
 mod streams;
+#[cfg(test)]
+mod streams_ipc;
 mod stremio_auth;
 mod mal_auth;
 mod subtitle_credentials;
@@ -60,6 +62,8 @@ mod capstan;
 mod captions;
 #[cfg(desktop)]
 mod cast;
+#[cfg(all(desktop, test))]
+mod cast_ipc;
 #[cfg(desktop)]
 mod cast_server;
 #[cfg(desktop)]

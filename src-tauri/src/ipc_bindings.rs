@@ -4,9 +4,13 @@ use std::path::PathBuf;
 
 /// Compares `src/lib/generated/<file>` with the declarations, or rewrites it when HARBOR_WRITE_BINDINGS is set.
 pub(crate) fn check(file: &str, source: &str, decls: &[String]) {
+    // A declaration that already starts with `export` is written as is (hand-written unions).
     let body: Vec<String> = decls
         .iter()
-        .map(|d| format!("export {}", strip_doc_comments(d)))
+        .map(|d| match d.strip_prefix("export ") {
+            Some(_) => d.clone(),
+            None => format!("export {}", strip_doc_comments(d)),
+        })
         .collect();
     let expected = format!(
         "// Generated from src-tauri/src/{source}; do not edit. Regenerate: HARBOR_WRITE_BINDINGS=1 cargo test export_bindings\n\n{}\n",

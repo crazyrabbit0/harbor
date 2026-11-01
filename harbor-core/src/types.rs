@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(Default)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum Resolution {
     #[serde(rename = "4K")]
     UHD,
@@ -17,6 +18,7 @@ pub enum Resolution {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum HdrFormat {
     #[serde(rename = "HDR10")]
     Hdr10,
@@ -32,6 +34,7 @@ pub enum HdrFormat {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(Default)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum Codec {
     #[serde(rename = "HEVC")]
     Hevc,
@@ -50,6 +53,7 @@ pub enum Codec {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(Default)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum AudioCodec {
     #[serde(rename = "Atmos")]
     Atmos,
@@ -76,6 +80,7 @@ pub enum AudioCodec {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[derive(Default)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum Source {
     BluRay,
     REMUX,
@@ -96,6 +101,7 @@ pub enum Source {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum Tier {
     #[serde(rename = "4K_DV")]
     UhdDv,
@@ -116,6 +122,7 @@ pub enum Tier {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum DebridSlug {
     #[serde(rename = "rd")]
     Rd,
@@ -131,6 +138,7 @@ pub enum DebridSlug {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub enum Container {
     Mkv,
     Mp4,

@@ -19,6 +19,11 @@ js-sys = "0.3"
 regex = "1"
 once_cell = "1"
 unicode-normalization = "0.1"
+ts-rs = { version = "12.0.1", optional = true }
+
+[features]
+# Exports the shared enums to TypeScript; only the app's binding test enables it.
+ts = ["dep:ts-rs"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

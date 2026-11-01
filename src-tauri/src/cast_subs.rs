@@ -5,20 +5,24 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, ts_rs::TS)]
 pub struct CastSub {
+    #[ts(type = r#""external" | "embedded""#)]
     pub kind: String,
     #[serde(default)]
+    #[ts(optional)]
     pub url: Option<String>,
     #[serde(default)]
+    #[ts(optional)]
     pub src_index: Option<u32>,
     #[serde(default)]
+    #[ts(optional, type = r#""srt" | "ass" | "ssa" | "vtt""#)]
     pub format: Option<String>,
     #[serde(default)]
     pub off: bool,
 }
 
-#[derive(Clone, Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize, ts_rs::TS)]
 pub struct CastSubStyle {
     #[serde(default = "default_font_size")]
     pub font_size: u32,
@@ -31,6 +35,7 @@ pub struct CastSubStyle {
     #[serde(default = "default_margin")]
     pub margin_y: u32,
     #[serde(default = "default_align")]
+    #[ts(type = r#""left" | "center" | "right""#)]
     pub align_x: String,
 }
 
