@@ -11,11 +11,9 @@ declare const process: { env: Record<string, string | undefined> };
 
 // Folders the React Compiler memoizes; add one at a time (see docs/ARCHITECTURE-FOLLOWUPS.md).
 const REACT_COMPILER_DIRS = ["/src/components/notification-center/"];
-const REACT_COMPILER = {
-  panicThreshold: "none",
-  sources: (file: string) =>
-    REACT_COMPILER_DIRS.some((dir) => file.replace(/\\/g, "/").includes(dir)),
-};
+// Babel runs only on these folders; every other file skips it and goes straight to esbuild.
+const compilesReact = (id: string) =>
+  REACT_COMPILER_DIRS.some((dir) => id.replace(/\\/g, "/").includes(dir));
 
 function silenceMediapipeSourcemap() {
   return {
@@ -64,7 +62,12 @@ export default defineConfig(({ mode }) => {
   return {
     staged: { "*": "vp check --fix" },
     plugins: [
-      react({ babel: { plugins: [["babel-plugin-react-compiler", REACT_COMPILER]] } }),
+      react({
+        babel: (id) =>
+          compilesReact(id)
+            ? { plugins: [["babel-plugin-react-compiler", { panicThreshold: "none" }]] }
+            : {},
+      }),
       tailwindcss(),
       silenceMediapipeSourcemap(),
       servePublicMediapipe(),
@@ -194,7 +197,8 @@ export default defineConfig(({ mode }) => {
       // Reached only from a lazy route's own lazy child, so the scanner does not find it from an
       // entry. Discovered at runtime instead, it answers the first request with a 504 and a reload
       // the error boundary swallows, which strands that route until the dep cache is rebuilt.
-      include: ["qrcode"],
+      // react/compiler-runtime: plugin-react adds it only for a static babel object, not a function.
+      include: ["qrcode", "react/compiler-runtime"],
       exclude: ["onnxruntime-web", "@mediapipe/tasks-vision"],
     },
     worker: { format: "es" },
