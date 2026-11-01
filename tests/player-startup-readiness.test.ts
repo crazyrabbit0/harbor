@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { mpvStartArgs } from "../src/lib/player/mpv-config.ts";
 
 const at = (path: string) => new URL(`../${path}`, import.meta.url);
 const read = (path: string) => readFileSync(at(path), "utf8");
@@ -56,7 +57,11 @@ test("native startup logs classify sources without printing private playback URL
 });
 
 test("startup subtitle downloads no longer block the initial media load", () => {
-  assert.match(read("src/lib/player/mpv-config.ts"), /subtitles: \[\]/);
+  const src = { url: "file:///a.mkv", isLive: false, subtitles: [{ url: "x.srt" }] } as never;
+  assert.deepEqual(
+    mpvStartArgs({ anime4k: false, hdrToSdr: false }, src, false, "standard").subtitles,
+    [],
+  );
   assert.match(mpv, /void addSeedSubtitles\(src\.subtitles, activeLoadId\)/);
   const coldStart = mpv.indexOf('await invoke("mpv_start"');
   const deferredSubtitles = mpv.indexOf("void addSeedSubtitles", coldStart);

@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { mpvStartArgs } from "../src/lib/player/mpv-config.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -13,7 +14,6 @@ const usePlayerMedia = read("src/views/player/hooks/use-player-media.ts");
 const engineSection = read("src/views/settings/player-panel/engine-section.tsx");
 const displayPicker = read("src/views/settings/player-panel/display-picker.tsx");
 const defaults = read("src/lib/settings/defaults.ts");
-const playerMpv = read("src/lib/player/mpv-config.ts");
 
 // The friendly monitor name must come from the DisplayConfig API, which is the
 // EDID-derived string Windows Settings shows. EnumDisplayDevicesW is only the
@@ -95,6 +95,11 @@ test("display settings default to auto with taskbar covered", () => {
 });
 
 test("separate display and cover-taskbar flow through to the mpv start args", () => {
-  assert.match(playerMpv, /separateCoverTaskbar/);
-  assert.match(playerMpv, /separateDisplay/);
+  const display = { id: "2" } as never;
+  const src = { url: "file:///a.mkv", isLive: false } as never;
+  const opts = { anime4k: false, hdrToSdr: false, separateDisplay: display };
+  const args = mpvStartArgs({ ...opts, separateCoverTaskbar: false }, src, false, "standard");
+  assert.equal(args.separateDisplay, display);
+  assert.equal(args.separateCoverTaskbar, false);
+  assert.equal(mpvStartArgs(opts, src, false, "standard").separateCoverTaskbar, true);
 });
