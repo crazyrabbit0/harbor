@@ -193,3 +193,34 @@ test("deleting a collection keeps an image another profile's collections still r
   await settle();
   assert.deepEqual(await images.readCollectionImages([ref]), {});
 });
+
+test("a stored cover is undefined until IndexedDB answers after a restart, then subscribers get it", async () => {
+  localStorage.clear();
+  const images = await import("../src/lib/collection-images.ts");
+  const image = `data:image/webp;base64,${"D".repeat(500)}`;
+  const ref = "harbor-image:00000000-0000-4000-8000-00000000cold";
+  await new Promise<void>((resolve) => {
+    const open = indexedDB.open("harbor-theme", 1);
+    open.onsuccess = () => {
+      const tx = open.result.transaction("kv", "readwrite");
+      tx.objectStore("kv").put(image, "collection-image:00000000-0000-4000-8000-00000000cold");
+      tx.oncomplete = () => resolve();
+    };
+  });
+  const collections = await import("../src/lib/collections.ts");
+  localStorage.setItem(
+    "harbor.collections.v1",
+    JSON.stringify([
+      { id: "cold", name: "Cold", coverImage: ref, items: [], createdAt: 1, updatedAt: 1 },
+    ]),
+  );
+  const fired = new Promise<void>((resolve) => {
+    const off = images.subscribeCollectionImages(() => {
+      off();
+      resolve();
+    });
+  });
+  assert.equal(collections.getCollection("cold")?.coverImage, undefined);
+  await fired;
+  assert.equal(collections.getCollection("cold")?.coverImage, image);
+});
