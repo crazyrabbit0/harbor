@@ -102,10 +102,12 @@ export function PortHoverCard({
   const credits = usePortCredits(meta, settings.tmdbKey ?? "");
   const ref = useRef<HTMLDivElement>(null);
   const [spot, setSpot] = useState<Spot | null>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
+    setSize({ width: el.offsetWidth, height: el.offsetHeight });
     const panel = document.querySelector("[data-voyage-panel]")?.getBoundingClientRect() ?? null;
     const rtl = document.documentElement.dir === "rtl";
     const style = getComputedStyle(document.documentElement);
@@ -136,18 +138,17 @@ export function PortHoverCard({
     .join(", ");
   const waiting = credits === undefined;
   const horizontal = spot?.side === "left" || spot?.side === "right";
-  const pointer =
-    spot && ref.current
-      ? Math.max(
-          18,
-          Math.min(
-            horizontal
-              ? anchor.top + Math.min(anchor.height / 3, 64) - spot.top
-              : anchor.left + anchor.width / 2 - spot.left,
-            (horizontal ? ref.current.offsetHeight : ref.current.offsetWidth) - 18,
-          ),
-        )
-      : 24;
+  const pointer = spot
+    ? Math.max(
+        18,
+        Math.min(
+          horizontal
+            ? anchor.top + Math.min(anchor.height / 3, 64) - spot.top
+            : anchor.left + anchor.width / 2 - spot.left,
+          (horizontal ? size.height : size.width) - 18,
+        ),
+      )
+    : 24;
 
   return createPortal(
     <div

@@ -92,13 +92,15 @@ export function VoyageLaunch({ thumbs, onDone }: { thumbs: LaunchThumb[]; onDone
   const cloneRefs = useRef<(HTMLDivElement | null)[]>([]);
   const animRef = useRef<AnimationItem | null>(null);
   const doneRef = useRef(onDone);
-  doneRef.current = onDone;
+  useEffect(() => {
+    doneRef.current = onDone;
+  }, [onDone]);
   const completed = useRef(false);
   const [targets, setTargets] = useState<DOMRect[] | null>(null);
   const [phase, setPhase] = useState<"gathering" | "boarding" | "sailing">("gathering");
   const contentRef = useRef<{ svg: SVGSVGElement; content: ContentBox } | null>(null);
-  const cast = useRef(thumbs).current;
-  const three = useRef(thumbs.slice(0, 3)).current;
+  const [cast] = useState(thumbs);
+  const [three] = useState(() => thumbs.slice(0, 3));
   const finish = useCallback(() => {
     if (completed.current) return;
     completed.current = true;

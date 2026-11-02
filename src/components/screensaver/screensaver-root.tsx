@@ -8,21 +8,21 @@ import { useIdleScreensaver } from "@/lib/screensaver/use-idle-screensaver";
 import { activeScreensaverMedia, onScreensaverPreview } from "@/lib/screensaver/media";
 import type { AmbientItem } from "./ambient-overlay";
 
-const CatBoatOverlay = lazy(() =>
-  import("./cat-boat-overlay").then((m) => ({ default: m.CatBoatOverlay })),
-);
+const loadCatBoat = () => import("./cat-boat-overlay");
+const loadAmbient = () => import("./ambient-overlay");
+const loadCustomMedia = () => import("./custom-media-overlay");
+const loadHalloween = () => import("./halloween-overlay");
+const loadHeroPool = () => import("@/lib/feed/hero-pool");
 
-const AmbientOverlay = lazy(() =>
-  import("./ambient-overlay").then((m) => ({ default: m.AmbientOverlay })),
-);
+const CatBoatOverlay = lazy(() => loadCatBoat().then((m) => ({ default: m.CatBoatOverlay })));
+
+const AmbientOverlay = lazy(() => loadAmbient().then((m) => ({ default: m.AmbientOverlay })));
 
 const CustomMediaOverlay = lazy(() =>
-  import("./custom-media-overlay").then((m) => ({ default: m.CustomMediaOverlay })),
+  loadCustomMedia().then((m) => ({ default: m.CustomMediaOverlay })),
 );
 
-const HalloweenOverlay = lazy(() =>
-  import("./halloween-overlay").then((m) => ({ default: m.HalloweenOverlay })),
-);
+const HalloweenOverlay = lazy(() => loadHalloween().then((m) => ({ default: m.HalloweenOverlay })));
 
 const EXIT_MS = 460;
 
@@ -115,12 +115,12 @@ export function ScreensaverRoot() {
     const warm = window.setTimeout(
       () =>
         void (catBoat
-          ? import("./cat-boat-overlay")
+          ? loadCatBoat()
           : halloween
-            ? import("./halloween-overlay")
+            ? loadHalloween()
             : customMedia
-              ? import("./custom-media-overlay")
-              : import("./ambient-overlay")),
+              ? loadCustomMedia()
+              : loadAmbient()),
       3000,
     );
     return () => window.clearTimeout(warm);
@@ -131,7 +131,7 @@ export function ScreensaverRoot() {
     fetchedRef.current = true;
     let cancelled = false;
     const source = settings.heroFeed === "classic" ? "trending" : settings.heroFeed;
-    void import("@/lib/feed/hero-pool")
+    void loadHeroPool()
       .then((m) => m.fetchHeroFeed(source))
       .then((metas) => {
         if (!cancelled) setItems(toItems(metas));

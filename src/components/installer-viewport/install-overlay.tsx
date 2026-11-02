@@ -15,7 +15,9 @@ const XLINK = "http://www.w3.org/1999/xlink";
 function InstallBoat({ logo }: { logo: string | null }) {
   const ref = useRef<HTMLDivElement | null>(null);
   const logoRef = useRef<string | null>(logo);
-  logoRef.current = logo;
+  useEffect(() => {
+    logoRef.current = logo;
+  }, [logo]);
 
   useEffect(() => {
     const host = ref.current;

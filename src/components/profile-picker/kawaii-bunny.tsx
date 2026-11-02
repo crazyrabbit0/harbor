@@ -1,6 +1,9 @@
 import { useEffect, useRef } from "react";
 import { useSettingsSelector } from "@/lib/settings";
 
+const loadRive = () => import("@rive-app/canvas");
+const loadRiveWasm = () => import("@rive-app/canvas/rive.wasm?url");
+
 export function KawaiiBunny() {
   const settings = useSettingsSelector((s) => ({ theme: s.theme }));
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -13,10 +16,10 @@ export function KawaiiBunny() {
     let disposed = false;
     let instance: { cleanup?: () => void; resizeDrawingSurfaceToCanvas?: () => void } | null = null;
 
-    void import("@rive-app/canvas")
+    void loadRive()
       .then(async ({ Rive, Layout, Fit, Alignment, RuntimeLoader }) => {
         if (disposed) return;
-        const wasm = (await import("@rive-app/canvas/rive.wasm?url")).default;
+        const wasm = (await loadRiveWasm()).default;
         RuntimeLoader.setWasmUrl(wasm);
         instance = new Rive({
           src: "/bunny-hop.riv",

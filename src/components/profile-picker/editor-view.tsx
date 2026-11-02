@@ -284,64 +284,64 @@ export function EditorView({
     }
   };
 
-  const onUseTraktAvatar = async () => {
+  const onUseTraktAvatar = () => {
     setLoadingTraktAvatar(true);
     setTraktAvatarError(null);
-    try {
-      const url = await fetchTraktAvatar();
-      if (!url) {
-        setTraktAvatarError(t("Couldn't find a Trakt avatar on your account."));
+    return fetchTraktAvatar()
+      .then((url) => {
+        if (!url) {
+          setTraktAvatarError(t("Couldn't find a Trakt avatar on your account."));
+          setTimeout(() => setTraktAvatarError(null), 4000);
+          return;
+        }
+        setAvatar(url);
+        setAvatarSource("trakt");
+      })
+      .catch(() => {
+        setTraktAvatarError(t("Couldn't reach Trakt."));
         setTimeout(() => setTraktAvatarError(null), 4000);
-        return;
-      }
-      setAvatar(url);
-      setAvatarSource("trakt");
-    } catch {
-      setTraktAvatarError(t("Couldn't reach Trakt."));
-      setTimeout(() => setTraktAvatarError(null), 4000);
-    } finally {
-      setLoadingTraktAvatar(false);
-    }
+      })
+      .finally(() => setLoadingTraktAvatar(false));
   };
 
-  const onUseAnilistAvatar = async () => {
+  const onUseAnilistAvatar = () => {
     setLoadingAnilistAvatar(true);
     setAnilistAvatarError(null);
-    try {
-      const url = await fetchAnilistAvatar();
-      if (!url) {
-        setAnilistAvatarError(t("Couldn't find an AniList avatar on your account."));
+    return fetchAnilistAvatar()
+      .then((url) => {
+        if (!url) {
+          setAnilistAvatarError(t("Couldn't find an AniList avatar on your account."));
+          setTimeout(() => setAnilistAvatarError(null), 4000);
+          return;
+        }
+        setAvatar(url);
+        setAvatarSource("anilist");
+      })
+      .catch(() => {
+        setAnilistAvatarError(t("Couldn't reach AniList."));
         setTimeout(() => setAnilistAvatarError(null), 4000);
-        return;
-      }
-      setAvatar(url);
-      setAvatarSource("anilist");
-    } catch {
-      setAnilistAvatarError(t("Couldn't reach AniList."));
-      setTimeout(() => setAnilistAvatarError(null), 4000);
-    } finally {
-      setLoadingAnilistAvatar(false);
-    }
+      })
+      .finally(() => setLoadingAnilistAvatar(false));
   };
 
-  const onUseSimklAvatar = async () => {
+  const onUseSimklAvatar = () => {
     setLoadingSimklAvatar(true);
     setSimklAvatarError(null);
-    try {
-      const url = await fetchSimklAvatar();
-      if (!url) {
-        setSimklAvatarError(t("Couldn't find a Simkl avatar on your account."));
+    return fetchSimklAvatar()
+      .then((url) => {
+        if (!url) {
+          setSimklAvatarError(t("Couldn't find a Simkl avatar on your account."));
+          setTimeout(() => setSimklAvatarError(null), 4000);
+          return;
+        }
+        setAvatar(url);
+        setAvatarSource("simkl");
+      })
+      .catch(() => {
+        setSimklAvatarError(t("Couldn't reach Simkl."));
         setTimeout(() => setSimklAvatarError(null), 4000);
-        return;
-      }
-      setAvatar(url);
-      setAvatarSource("simkl");
-    } catch {
-      setSimklAvatarError(t("Couldn't reach Simkl."));
-      setTimeout(() => setSimklAvatarError(null), 4000);
-    } finally {
-      setLoadingSimklAvatar(false);
-    }
+      })
+      .finally(() => setLoadingSimklAvatar(false));
   };
 
   const submit = async () => {

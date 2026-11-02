@@ -48,7 +48,9 @@ type LogoSettings = { tmdbKey: string; fanartKey: string };
 export function useHeroLogos(slides: Meta[], settings: LogoSettings): Record<string, string> {
   const [cache, setCache] = useState<Record<string, Entry>>(load);
   const cacheRef = useRef(cache);
-  cacheRef.current = cache;
+  useEffect(() => {
+    cacheRef.current = cache;
+  }, [cache]);
   const triedRef = useRef<Set<string>>(new Set());
   const { tmdbKey } = settings;
   const languageKey = imageLangParam();
@@ -69,8 +71,9 @@ export function useHeroLogos(slides: Meta[], settings: LogoSettings): Record<str
         const resolved = await resolveLogo(tmdbKey, m, { preferOwn: true }).catch(() => undefined);
         const url = resolved ?? (await staticHeroArt(m.id).catch(() => undefined))?.logo;
         if (cancelled) return;
+        const key = `${m.id}::${languageKey}`;
         setCache((prev) => {
-          const next = { ...prev, [`${m.id}::${languageKey}`]: { u: url ?? null, t: Date.now() } };
+          const next = { ...prev, [key]: { u: url ?? null, t: Date.now() } };
           persist(next);
           return next;
         });

@@ -3,6 +3,8 @@ import type { AnimationItem } from "lottie-web";
 import { ScreensaverBrand, ScreensaverClockFace, useScreensaverClock } from "./screensaver-clock";
 
 const CANVAS = "#0f1113";
+const loadScene = () =>
+  Promise.all([import("lottie-web"), import("@/assets/lottie/screensaver/halloween.json")]);
 
 export function HalloweenOverlay({
   reduce,
@@ -21,10 +23,7 @@ export function HalloweenOverlay({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [{ default: lottie }, { default: data }] = await Promise.all([
-        import("lottie-web"),
-        import("@/assets/lottie/screensaver/halloween.json"),
-      ]);
+      const [{ default: lottie }, { default: data }] = await loadScene();
       if (cancelled || !host.current) return;
       const a = lottie.loadAnimation({
         container: host.current,

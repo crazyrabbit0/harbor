@@ -4,6 +4,9 @@ import { useT } from "@/lib/i18n";
 import { resolveAnimeSourceReading, type AnimeReadingSource } from "@/lib/manga/anime-adaptation";
 import { useViewActions } from "@/lib/view";
 
+const loadEbookApi = () => import("@/lib/ebook/api");
+const loadMangaApi = () => import("@/lib/manga/api");
+
 export function HeroMangaAdaptation({ meta }: { meta: Meta }) {
   const t = useT();
   const { openEBook, openManga } = useViewActions();
@@ -27,12 +30,12 @@ export function HeroMangaAdaptation({ meta }: { meta: Meta }) {
 
   const open = async () => {
     if (kind === "ebook") {
-      const { ebookDetail } = await import("@/lib/ebook/api");
+      const { ebookDetail } = await loadEbookApi();
       const ebook = await ebookDetail(`anilist:${node.anilistId}`).catch(() => null);
       openEBook(ebook?.id ?? `anilist:${node.anilistId}`);
       return;
     }
-    const { searchManga } = await import("@/lib/manga/api");
+    const { searchManga } = await loadMangaApi();
     const found = (await searchManga(node.title, 0).catch(() => []))[0];
     openManga(found?.id);
   };

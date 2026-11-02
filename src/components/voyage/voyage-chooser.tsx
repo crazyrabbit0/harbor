@@ -23,9 +23,10 @@ export function VoyageChooser({ inline = false }: { inline?: boolean }) {
   const start = async (theme: VoyageTheme) => {
     setBusy(theme.id);
     setError(null);
+    const tmdbKey = settings.tmdbKey ?? "";
     let ok = false;
     try {
-      ok = await startVoyage(theme, len, settings.tmdbKey ?? "");
+      ok = await startVoyage(theme, len, tmdbKey);
     } catch {
       /* Show the same recoverable route error. */
     }

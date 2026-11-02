@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import type { AnimationItem } from "lottie-web";
 
 const CANVAS = "#223bba";
+const loadScene = () =>
+  Promise.all([import("lottie-web"), import("@/assets/lottie/screensaver/cat-boat.json")]);
 
 export function CatBoatOverlay({
   reduce,
@@ -19,10 +21,7 @@ export function CatBoatOverlay({
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [{ default: lottie }, { default: data }] = await Promise.all([
-        import("lottie-web"),
-        import("@/assets/lottie/screensaver/cat-boat.json"),
-      ]);
+      const [{ default: lottie }, { default: data }] = await loadScene();
       if (cancelled || !host.current) return;
       const a = lottie.loadAnimation({
         container: host.current,
