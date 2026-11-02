@@ -1,3 +1,5 @@
+import { durableSetItem, syncDurableStore } from "@/lib/durable-store";
+
 const KEY = "harbor.library.local.removed.v1";
 
 /** Windows scan paths are case-insensitive; keep Unix paths case-sensitive. */
@@ -20,8 +22,11 @@ export function removedLocalPaths(): Set<string> {
 
 function save(paths: Set<string>): void {
   try {
-    if (paths.size) localStorage.setItem(KEY, JSON.stringify([...paths]));
-    else localStorage.removeItem(KEY);
+    if (paths.size) durableSetItem(KEY, JSON.stringify([...paths]));
+    else {
+      localStorage.removeItem(KEY);
+      syncDurableStore();
+    }
   } catch (error) {
     console.error("[local-library] could not persist removed paths", error);
   }

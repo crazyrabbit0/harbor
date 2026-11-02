@@ -61,6 +61,7 @@ function harness() {
             },
           };
         if (name.endsWith("/storage-recovery")) return { setItemWithRecovery: storage.setItem };
+        if (name.endsWith("/durable-store")) return { durableSetItem: storage.setItem };
         if (name.endsWith("/series-episodes"))
           return {
             fetchAdjacentEpisodes: async () => ({

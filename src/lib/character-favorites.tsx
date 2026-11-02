@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useProfiles } from "./profiles";
+import { durableSetItem } from "./durable-store";
 
 export type CharacterEntry = {
   id: string;
@@ -46,7 +47,7 @@ function readMap(key: string): Map<string, CharacterEntry> {
 
 function writeMap(key: string, map: Map<string, CharacterEntry>): void {
   try {
-    localStorage.setItem(key, JSON.stringify([...map.values()]));
+    durableSetItem(key, JSON.stringify([...map.values()]));
   } catch {
     return;
   }

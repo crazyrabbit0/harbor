@@ -224,3 +224,47 @@ test("a stored cover is undefined until IndexedDB answers after a restart, then 
   await fired;
   assert.equal(collections.getCollection("cold")?.coverImage, image);
 });
+
+test("favorites, local Continue Watching and removed local files reach user-data.json", async () => {
+  localStorage.clear();
+  await store.flushDurableStore();
+  const cw = await import("../src/lib/local-cw.ts");
+  const removals = await import("../src/lib/local-library/removals.ts");
+  // Each write runs alone: any scheduled write snapshots every durable key, which would hide a missing trigger.
+  const writeAlone = async (write: () => void) => {
+    await store.flushDurableStore();
+    mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+    try {
+      write();
+      mock.timers.tick(10_000);
+    } finally {
+      mock.timers.reset();
+    }
+    await settle();
+    return fileKeys();
+  };
+  const afterCw = await writeAlone(() =>
+    cw.saveLocalCw({
+      id: "tt9",
+      type: "movie",
+      name: "Kept",
+      positionMs: 600_000,
+      durationMs: 6_000_000,
+      t: 1,
+    }),
+  );
+  const cwKey = Object.keys(afterCw).find((k) => k.startsWith("harbor.localcw.v1"));
+  assert.ok(cwKey, "local Continue Watching is mirrored");
+  assert.match(afterCw[cwKey] ?? "", /"Kept"/);
+  const afterRemoval = await writeAlone(() => removals.rememberLocalRemovals(["/movies/gone.mkv"]));
+  assert.match(afterRemoval["harbor.library.local.removed.v1"] ?? "", /gone\.mkv/);
+  for (const key of [
+    "harbor.favorites.v1.p1",
+    "harbor.mangafav.v1.p1",
+    "harbor.charfavorites.v1.p1",
+  ]) {
+    assert.equal(store.isDurableKey(key), true, key);
+    assert.equal(recovery.isPrunable(key), false, key);
+  }
+  assert.equal(store.isDurableKey("harbor.library.local.v1"), false);
+});

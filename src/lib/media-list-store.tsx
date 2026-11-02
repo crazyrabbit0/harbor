@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useProfiles } from "./profiles";
+import { durableSetItem } from "./durable-store";
 import { persistableAddonOrigin, persistableVideos, type Meta } from "./cinemeta";
 
 export type MediaEntry = {
@@ -67,7 +68,7 @@ function readMap(key: string): Map<string, MediaEntry> {
 
 function writeMap(key: string, map: Map<string, MediaEntry>): void {
   try {
-    localStorage.setItem(key, JSON.stringify([...map.values()]));
+    durableSetItem(key, JSON.stringify([...map.values()]));
   } catch {
     return;
   }

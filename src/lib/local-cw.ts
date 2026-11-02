@@ -1,5 +1,6 @@
 import { primaryStoredProfile } from "@/lib/profile-roster";
 import { cwProfileScope, privateCwProfileId } from "./cw-profile";
+import { durableSetItem } from "./durable-store";
 
 const KEY_PREFIX = "harbor.localcw.v1.";
 const PRIVATE_PREFIX = "harbor.localcw.private.v1.";
@@ -70,7 +71,7 @@ function readAll(key: string): Record<string, LocalCwEntry> {
 function writeAll(key: string, all: Record<string, LocalCwEntry>): void {
   cache.set(key, all);
   try {
-    localStorage.setItem(key, JSON.stringify(all));
+    durableSetItem(key, JSON.stringify(all));
   } catch {
     /* noop */
   }
