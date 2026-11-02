@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test, { mock } from "node:test";
 import "./_localstorage-stub.ts";
+import "./_indexeddb-stub.ts";
 
 let userDataFile: string | null = null;
 let writes = 0;
@@ -27,6 +28,15 @@ await store.loadDurableStore();
 // setImmediate is not mocked, so this lets a fired write reach the fake bridge.
 const settle = () => new Promise((resolve) => setImmediate(resolve));
 const fileKeys = () => JSON.parse(userDataFile ?? "{}") as Record<string, string>;
+const storedImageCount = () =>
+  new Promise<number>((resolve) => {
+    const open = indexedDB.open("harbor-theme", 1);
+    open.onsuccess = () => {
+      const req = open.result.transaction("kv", "readonly").objectStore("kv").getAllKeys();
+      req.onsuccess = () =>
+        resolve(req.result.filter((k) => String(k).startsWith("collection-image:")).length);
+    };
+  });
 
 test("quota recovery prunes caches but never playback history, the watchlist or watched marks", () => {
   localStorage.clear();
@@ -114,4 +124,72 @@ test("frequent playback ticks rewrite the file at most every 10 s, and never whe
   }
   await store.flushDurableStore();
   assert.equal(fileKeys()["harbor.playback-history.v1.p1"], '{"tt1":{"savedAt":2}}');
+});
+
+test("an uploaded collection cover stays out of user-data.json and still resolves for display", async () => {
+  localStorage.clear();
+  await store.flushDurableStore();
+  const collections = await import("../src/lib/collections.ts");
+  const image = `data:image/webp;base64,${"A".repeat(400_000)}`;
+  const id = collections.createCollection("Covered");
+  assert.ok(id);
+  collections.setCollectionCover(id, await collections.storeUploadedCollectionImage(image));
+  await store.flushDurableStore();
+  const saved = fileKeys()["harbor.collections.v1"] ?? "";
+  assert.match(saved, /"Covered"/);
+  assert.ok(saved.length < 2_000, `collection blob is ${saved.length} bytes`);
+  assert.equal(collections.getCollection(id)?.coverImage, image);
+});
+
+test("a data-URL cover saved by an older build moves out of the durable blob on first read", async () => {
+  localStorage.clear();
+  const before = await storedImageCount();
+  const collections = await import("../src/lib/collections.ts");
+  const image = `data:image/webp;base64,${"B".repeat(300_000)}`;
+  localStorage.setItem(
+    "harbor.collections.v1",
+    JSON.stringify([
+      { id: "c1", name: "Old", bgImage: image, items: [], createdAt: 1, updatedAt: 1 },
+    ]),
+  );
+  const changed = new Promise<void>((resolve) => {
+    const off = collections.subscribeCollections(() => {
+      off();
+      resolve();
+    });
+  });
+  collections.readCollections();
+  await changed;
+  const raw = localStorage.getItem("harbor.collections.v1") ?? "";
+  assert.ok(!raw.includes("data:"), "the blob no longer carries the image");
+  assert.equal(collections.getCollection("c1")?.bgImage, image);
+  collections.deleteCollection("c1");
+  await settle();
+  assert.equal(
+    await storedImageCount(),
+    before,
+    "migration stored the image once and delete removed it",
+  );
+});
+
+test("deleting a collection keeps an image another profile's collections still reference", async () => {
+  localStorage.clear();
+  const collections = await import("../src/lib/collections.ts");
+  const images = await import("../src/lib/collection-images.ts");
+  const image = `data:image/webp;base64,${"C".repeat(1_000)}`;
+  const id = collections.createCollection("Shared");
+  assert.ok(id);
+  const ref = await collections.storeUploadedCollectionImage(image);
+  collections.setCollectionCover(id, ref);
+  localStorage.setItem(
+    "harbor.collections.p_a_b",
+    localStorage.getItem("harbor.collections.v1") ?? "",
+  );
+  collections.deleteCollection(id);
+  await settle();
+  assert.deepEqual(await images.readCollectionImages([ref]), { [ref]: image });
+  localStorage.removeItem("harbor.collections.p_a_b");
+  images.releaseCollectionImage(ref);
+  await settle();
+  assert.deepEqual(await images.readCollectionImages([ref]), {});
 });

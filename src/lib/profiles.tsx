@@ -15,6 +15,7 @@ import type { HiddenTabs } from "./lockable-tabs";
 import type { ContentFilters } from "./settings";
 import { isRemovedBuiltinAvatar } from "./avatars/catalog";
 import { deleteProfileBgImage } from "./theme-storage";
+import { collectionImageRefs, releaseCollectionImage } from "./collection-images";
 // Concrete modules, not the barrel: it re-exports ProfileSyncRunner, and pulling the
 // whole sync layer in from the profile provider is how a cycle gets built by accident.
 import { configureRosterStore } from "./profile-sync/roster-store";
@@ -102,7 +103,9 @@ function purgeProfileStorage(id: string): void {
     /* Keep the existing profile cleanup best-effort. */
   }
   try {
+    const imageRefs = collectionImageRefs(localStorage.getItem(`harbor.collections.${id}`));
     for (const prefix of PROFILE_KEY_PREFIXES) localStorage.removeItem(`${prefix}${id}`);
+    for (const ref of imageRefs) releaseCollectionImage(ref);
     localStorage.removeItem(`harbor.games.search-history.v1:${encodeURIComponent(id)}`);
     localStorage.removeItem(`harbor.league.pool:${encodeURIComponent(id)}`);
     const tftPrefix = `harbor.games.tft.teams:${encodeURIComponent(id)}:`;

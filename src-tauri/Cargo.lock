@@ -2589,6 +2589,7 @@ dependencies = [
  "harbor-core",
  "harbor-games",
  "harbor-install-recovery",
+ "harbor-livetv",
  "harbor-music",
  "harbor-shared",
  "harbor-udfread",
@@ -2735,6 +2736,19 @@ name = "harbor-install-recovery"
 version = "0.1.0"
 
 [[package]]
+name = "harbor-livetv"
+version = "0.9.221"
+dependencies = [
+ "harbor-shared",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tokio",
+ "uuid 1.23.1",
+ "windows 0.62.2",
+]
+
+[[package]]
 name = "harbor-music"
 version = "0.9.221"
 dependencies = [
@@ -2771,6 +2785,7 @@ name = "harbor-shared"
 version = "0.0.0"
 dependencies = [
  "futures-util",
+ "libc",
  "libmpv2",
  "libmpv2-sys",
  "reqwest 0.12.28",
@@ -2778,6 +2793,7 @@ dependencies = [
  "tauri",
  "tokio",
  "ts-rs",
+ "windows 0.62.2",
 ]
 
 [[package]]

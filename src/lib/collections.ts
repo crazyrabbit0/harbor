@@ -3,6 +3,14 @@ import { useEffect, useMemo, useState } from "react";
 import { setItemWithRecovery, freeStorageSpace } from "@/lib/storage-recovery";
 import { randomUuid } from "@/lib/uuid";
 import { HARBOR_API_BASE } from "@/lib/config/endpoints";
+import {
+  collectionImageRefs,
+  isCollectionImageRef,
+  releaseCollectionImage,
+  resolveCollectionImage,
+  storeCollectionImage,
+  subscribeCollectionImages,
+} from "@/lib/collection-images";
 
 // Server image URLs are root-relative (/themes/api/images/...); make them absolute so they
 // resolve against harbor.site in Tauri instead of the app origin. data:/blob:/http stay as-is.
@@ -25,6 +33,10 @@ if (typeof window !== "undefined") {
     for (const s of subs) s();
   });
 }
+
+subscribeCollectionImages(() => {
+  for (const s of subs) s();
+});
 
 export type CollectionItemType = "movie" | "series" | "manga";
 
@@ -147,10 +159,62 @@ function read(): Collection[] {
         updatedAt: typeof e.updatedAt === "number" ? e.updatedAt : 0,
       });
     }
+    if (out.some((c) => isInline(c.coverImage) || isInline(c.bgImage))) migrateInlineImages(key);
     return out;
   } catch {
     return [];
   }
+}
+
+function isInline(u: string | undefined): u is string {
+  return typeof u === "string" && u.startsWith("data:");
+}
+
+const migrating = new Set<string>();
+
+// Moves data-URL covers from older builds into IndexedDB so the durable blob stays small.
+function migrateInlineImages(key: string): void {
+  if (memoryFallback || migrating.has(key)) return;
+  migrating.add(key);
+  void (async () => {
+    const moved = new Map<string, string>();
+    for (const c of read()) {
+      for (const u of [c.coverImage, c.bgImage]) {
+        if (!isInline(u) || moved.has(u)) continue;
+        const ref = await storeCollectionImage(u);
+        if (ref) moved.set(u, ref);
+      }
+    }
+    // Without IndexedDB the key stays in `migrating`, so later reads don't retry this session.
+    if (!moved.size) return;
+    if (activeCollectionsKey() === key) {
+      const current = read();
+      for (const c of current) {
+        if (c.coverImage && moved.has(c.coverImage)) c.coverImage = moved.get(c.coverImage);
+        if (c.bgImage && moved.has(c.bgImage)) c.bgImage = moved.get(c.bgImage);
+      }
+      write(current);
+    }
+    // Refs nobody wrote (profile switched, collection changed meanwhile) are dropped again.
+    for (const ref of moved.values()) releaseCollectionImage(ref);
+    migrating.delete(key);
+  })();
+}
+
+function resolved(c: Collection): Collection {
+  if (!isCollectionImageRef(c.coverImage) && !isCollectionImageRef(c.bgImage)) return c;
+  return {
+    ...c,
+    coverImage: resolveCollectionImage(c.coverImage),
+    bgImage: resolveCollectionImage(c.bgImage),
+  };
+}
+
+function releaseImage(value: string | undefined): void {
+  releaseCollectionImage(
+    value,
+    memoryFallback ? collectionImageRefs(JSON.stringify(memoryFallback)) : [],
+  );
 }
 
 function write(collections: Collection[]): void {
@@ -172,12 +236,16 @@ function write(collections: Collection[]): void {
   for (const s of subs) s();
 }
 
+/** Collections with stored images resolved to displayable URLs. */
 export function readCollections(): Collection[] {
-  return read().sort((a, b) => b.updatedAt - a.updatedAt);
+  return read()
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .map(resolved);
 }
 
 export function getCollection(id: string): Collection | null {
-  return read().find((c) => c.id === id) ?? null;
+  const c = read().find((x) => x.id === id);
+  return c ? resolved(c) : null;
 }
 
 export function subscribeCollections(fn: () => void): () => void {
@@ -264,7 +332,10 @@ export function deleteCollection(id: string): void {
   const collections = read();
   const next = collections.filter((c) => c.id !== id);
   if (next.length === collections.length) return;
+  const gone = collections.find((c) => c.id === id);
   write(next);
+  releaseImage(gone?.coverImage);
+  releaseImage(gone?.bgImage);
 }
 
 export function addToCollection(collectionId: string, item: CollectionItemInput): void {
@@ -383,18 +454,27 @@ export function setCollectionCover(id: string, coverImage: string | null): void 
   const collections = read();
   const c = collections.find((x) => x.id === id);
   if (!c) return;
+  const old = c.coverImage;
   c.coverImage = coverImage || undefined;
   c.updatedAt = Date.now();
   write(collections);
+  if (old !== c.coverImage) releaseImage(old);
 }
 
 export function setCollectionBackground(id: string, bgImage: string | null): void {
   const collections = read();
   const c = collections.find((x) => x.id === id);
   if (!c) return;
+  const old = c.bgImage;
   c.bgImage = bgImage || undefined;
   c.updatedAt = Date.now();
   write(collections);
+  if (old !== c.bgImage) releaseImage(old);
+}
+
+/** Stores an uploaded image outside the collection blob and returns what to save in the collection. */
+export async function storeUploadedCollectionImage(dataUrl: string): Promise<string> {
+  return (await storeCollectionImage(dataUrl)) ?? dataUrl;
 }
 
 export function collectionContains(collectionId: string, itemId: string): boolean {
@@ -407,6 +487,8 @@ export function useCollections(): Collection[] {
   useEffect(() => {
     const tick = () => setCollections(readCollections());
     subs.add(tick);
+    // An image lookup started by the first render may have resolved before this subscription.
+    tick();
     return () => {
       subs.delete(tick);
     };

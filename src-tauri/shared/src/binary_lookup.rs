@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 /// Common locations for command-line media tools on a Linux desktop. The
 /// caller should add app-bundled paths first, then use these candidates.
-pub(crate) fn linux_binary_candidates(binary: &str) -> Vec<PathBuf> {
+pub fn linux_binary_candidates(binary: &str) -> Vec<PathBuf> {
     let mut candidates = vec![PathBuf::from(binary)];
 
     if let Some(home) = std::env::var_os("HOME") {

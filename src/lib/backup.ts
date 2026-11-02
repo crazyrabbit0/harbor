@@ -16,6 +16,12 @@ import { flushDurableStore } from "@/lib/durable-store";
 import { isSettingsSecretsKey, migrateBlobSecrets } from "@/lib/settings/profile-store";
 import { URL_SECRET_PLACEHOLDER, hasUrlSecrets as urlHasSecrets } from "@/lib/iptv/url-credentials";
 import { localLibraryReady, readLocalLibrary, restoreLocalLibrary } from "@/lib/local-library";
+import {
+  collectionImageRefs,
+  readCollectionImages,
+  releaseCollectionImage,
+  restoreCollectionImages,
+} from "@/lib/collection-images";
 
 declare const __APP_VERSION__: string;
 
@@ -265,6 +271,8 @@ export type Backup = {
   bgImages?: Record<string, string>;
   /** @deprecated legacy single-image field from before per-profile backgrounds; still read on restore */
   bgImage?: string | null;
+  /** Uploaded collection covers, keyed by the reference the collection stores. */
+  collectionImages?: Record<string, string>;
   /**
    * A resolved snapshot of everything account sync owns, so the server side never
    * becomes the only copy of a household's customisation. That is the standing wound on
@@ -334,6 +342,11 @@ export async function buildBackup(selected?: BackupSectionKey[]): Promise<Backup
       if (image) bgImages[id] = image;
     }
   }
+  const collectionImages = await readCollectionImages(
+    Object.entries(data)
+      .filter(([key]) => key.startsWith("harbor.collections"))
+      .flatMap(([, value]) => collectionImageRefs(value)),
+  );
   return {
     format: FORMAT,
     version: VERSION,
@@ -345,6 +358,7 @@ export async function buildBackup(selected?: BackupSectionKey[]): Promise<Backup
       ? (ALL_SECTION_KEYS.filter((k) => sectionSet.has(k)) as BackupSectionKey[])
       : [...ALL_SECTION_KEYS],
     ...(Object.keys(bgImages).length > 0 ? { bgImages } : {}),
+    ...(Object.keys(collectionImages).length > 0 ? { collectionImages } : {}),
   };
 }
 
@@ -399,6 +413,12 @@ export function parseBackup(text: string): ParsedBackup {
       if (typeof value === "string") bgImages[id] = value;
     }
   }
+  const collectionImages: Record<string, string> = {};
+  if (b.collectionImages && typeof b.collectionImages === "object") {
+    for (const [ref, value] of Object.entries(b.collectionImages)) {
+      if (typeof value === "string") collectionImages[ref] = value;
+    }
+  }
   return {
     ok: true,
     backup: {
@@ -410,6 +430,7 @@ export function parseBackup(text: string): ParsedBackup {
       ...(sections && sections.length > 0 ? { sections } : {}),
       ...(Object.keys(bgImages).length > 0 ? { bgImages } : {}),
       ...(typeof b.bgImage === "string" || b.bgImage === null ? { bgImage: b.bgImage } : {}),
+      ...(Object.keys(collectionImages).length > 0 ? { collectionImages } : {}),
     },
   };
 }
@@ -493,6 +514,7 @@ export async function applyBackup(backup: Backup): Promise<void> {
   // install had deleted. Sectioned files replace only the exact entries they
   // carry and never touch anything else, matching the restore dialog's promise.
   let wipeSections: Set<BackupSectionKey> | null = null;
+  const wipedImageRefs: string[] = [];
   if (backup.sections == null || backup.sections.length === 0) {
     const filled = new Set<BackupSectionKey>();
     for (const key of Object.keys(backup.data)) {
@@ -509,7 +531,12 @@ export async function applyBackup(backup: Backup): Promise<void> {
       if (!wipeSections.has(sectionOf(key))) continue;
       stale.push(key);
     }
-    for (const key of stale) localStorage.removeItem(key);
+    for (const key of stale) {
+      if (key.startsWith("harbor.collections")) {
+        wipedImageRefs.push(...collectionImageRefs(localStorage.getItem(key)));
+      }
+      localStorage.removeItem(key);
+    }
     for (const key of Object.keys(getAllSecrets())) {
       if (!isPortable(key)) continue;
       if (!wipeSections.has(sectionOf(key))) continue;
@@ -567,6 +594,10 @@ export async function applyBackup(backup: Backup): Promise<void> {
       }
     }
   }
+  if (backup.collectionImages) {
+    await restoreCollectionImages(backup.collectionImages).catch(() => {});
+  }
+  for (const ref of wipedImageRefs) releaseCollectionImage(ref);
   await flushSecrets();
   await flushDurableStore();
 }

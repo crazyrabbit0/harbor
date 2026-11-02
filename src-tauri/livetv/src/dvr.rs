@@ -3,6 +3,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+use harbor_shared::proc_guard;
+use harbor_shared::shutdown::block_on_bounded;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, State};
 use tokio::process::{Child, Command};
@@ -83,7 +85,7 @@ fn probe_mpv() -> Option<PathBuf> {
             PathBuf::from("mpv"),
         ]
     } else {
-        crate::binary_lookup::linux_binary_candidates("mpv")
+        harbor_shared::binary_lookup::linux_binary_candidates("mpv")
     };
     for c in candidates {
         let mut cmd = std::process::Command::new(&c);
@@ -160,9 +162,9 @@ pub async fn dvr_start(
     cmd.kill_on_drop(true);
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW);
-    crate::proc_guard::configure_command(&mut cmd);
+    proc_guard::configure_command(&mut cmd);
     let child = cmd.spawn().map_err(|e| format!("spawn mpv: {}", e))?;
-    crate::proc_guard::adopt(&child);
+    proc_guard::adopt(&child);
 
     let id = Uuid::new_v4().to_string();
     let started_at = Instant::now();
@@ -300,10 +302,10 @@ async fn finalize(
     Ok(())
 }
 
-pub(crate) fn shutdown(app: &AppHandle) {
+pub fn shutdown(app: &AppHandle) {
     use tauri::Manager;
     let inner = app.state::<DvrState>().inner.clone();
-    crate::block_on_bounded("dvr", std::time::Duration::from_secs(2), async move {
+    block_on_bounded("dvr", std::time::Duration::from_secs(2), async move {
         for (_, mut rec) in inner.lock().await.drain() {
             let _ = rec.child.start_kill();
         }
