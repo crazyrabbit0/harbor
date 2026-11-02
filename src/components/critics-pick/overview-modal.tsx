@@ -51,17 +51,14 @@ export function OverviewModal({
         return;
       }
       if (!onNavReview || !reviewCount || reviewCount < 2) return;
-      if (e.key === "ArrowRight") {
-        e.preventDefault();
-        nav(1);
-      } else if (e.key === "ArrowLeft") {
-        e.preventDefault();
-        nav(-1);
-      }
+      const d = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+      if (d === 0) return;
+      e.preventDefault();
+      setDir(d);
+      onNavReview(d);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [onClose, onNavReview, reviewCount]);
 
   useEffect(() => {

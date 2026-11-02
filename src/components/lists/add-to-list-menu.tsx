@@ -38,28 +38,22 @@ export function AddToListMenu({
     emitListToast(nowIn ? t('Added to "{name}"', { name }) : t('Removed from "{name}"', { name }));
   };
 
-  const toggleShowcase = async () => {
-    if (busy) return;
+  // A promise chain rather than a try/finally statement, so the React Compiler can memoize this component.
+  const toggleShowcase = () => {
+    if (busy) return Promise.resolve();
     setBusy(true);
-    try {
-      if (isShowcase) {
-        await clearShowcase();
-        emitListToast(t("Removed from showcase"));
-      } else {
-        await setShowcase({
+    const change = isShowcase
+      ? clearShowcase().then(() => emitListToast(t("Removed from showcase")))
+      : setShowcase({
           metaId: item.id,
           title: item.name ?? item.id,
           posterUrl: item.poster,
           kind: "pinned",
-        });
-        emitListToast(t("Set as your showcase"));
-      }
-      onClose();
-    } catch {
-      emitListToast(t("Could not update showcase"));
-    } finally {
-      setBusy(false);
-    }
+        }).then(() => emitListToast(t("Set as your showcase")));
+    return change
+      .then(() => onClose())
+      .catch(() => emitListToast(t("Could not update showcase")))
+      .finally(() => setBusy(false));
   };
 
   return (
