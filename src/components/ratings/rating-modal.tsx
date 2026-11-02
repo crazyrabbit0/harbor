@@ -58,35 +58,33 @@ export function RatingModal({ target, onClose }: { target: RatingTarget; onClose
     selected !== (existing?.score ?? 0) ||
     (reviewing && (draft !== (existing?.review ?? "") || spoiler !== (existing?.spoiler ?? false)));
 
-  const save = async () => {
-    if (busy || !selected) return;
+  // A promise chain rather than a try/finally statement, so the React Compiler can memoize this component.
+  const save = () => {
+    if (busy || !selected) return Promise.resolve();
     setBusy(true);
-    try {
-      await rate(target, selected, {
-        review: reviewing ? draft : existing?.review,
-        spoiler: reviewing ? spoiler : existing?.spoiler,
-      });
-      emitListToast(t("Rating saved"));
-      onClose();
-    } catch (e) {
-      emitListToast(errorText(e, t, "save"));
-    } finally {
-      setBusy(false);
-    }
+    const options = {
+      review: reviewing ? draft : existing?.review,
+      spoiler: reviewing ? spoiler : existing?.spoiler,
+    };
+    return rate(target, selected, options)
+      .then(() => {
+        emitListToast(t("Rating saved"));
+        onClose();
+      })
+      .catch((e: unknown) => emitListToast(errorText(e, t, "save")))
+      .finally(() => setBusy(false));
   };
 
-  const remove = async () => {
-    if (busy) return;
+  const remove = () => {
+    if (busy) return Promise.resolve();
     setBusy(true);
-    try {
-      await unrate(target.itemKey);
-      emitListToast(t("Rating removed"));
-      onClose();
-    } catch (e) {
-      emitListToast(errorText(e, t, "remove"));
-    } finally {
-      setBusy(false);
-    }
+    return unrate(target.itemKey)
+      .then(() => {
+        emitListToast(t("Rating removed"));
+        onClose();
+      })
+      .catch((e: unknown) => emitListToast(errorText(e, t, "remove")))
+      .finally(() => setBusy(false));
   };
 
   return createPortal(
