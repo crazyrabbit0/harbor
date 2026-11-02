@@ -29,7 +29,7 @@ export function shouldResolvePreferredSource(
     preferred &&
     !explicit &&
     !failed &&
-    !directFile(track.playbackUrl) &&
+    !directFile(track.playbackUrl ?? undefined) &&
     track.mediaKind !== "video" &&
     track.connectorId !== "local" &&
     track.connectorId !== preferred,

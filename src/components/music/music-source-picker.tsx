@@ -437,7 +437,7 @@ export function MusicSourcePicker({
           <MusicSourcePossible
             track={request.track}
             covered={candidates.map((candidate) => candidate.connectorId).join(",")}
-            onPick={(found) => start(found, found.connectorId)}
+            onPick={(found) => start(found, found.connectorId ?? undefined)}
           />
         )}
         {error && (

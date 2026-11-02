@@ -111,7 +111,7 @@ export function MusicListeningDetails({
     <div className="music-listening-details">
       <MusicSoundtrackLink
         title={track.title}
-        album={track.album}
+        album={track.album ?? undefined}
         release={profile?.album?.title}
       />
       {artist && <MusicArtistOverview artist={artist} onOpen={onArtist} compact />}

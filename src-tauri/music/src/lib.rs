@@ -31,12 +31,14 @@ use tauri::Manager;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MusicTrackCore", optional_fields = nullable))]
 pub struct MusicTrack {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     explicit: Option<bool>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     version: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(type = r#""audio" | "video""#))]
     media_kind: Option<String>,
     id: String,
     connector_id: Option<String>,
@@ -46,6 +48,7 @@ pub struct MusicTrack {
     artist: String,
     album: Option<String>,
     artwork: String,
+    #[cfg_attr(test, ts(type = "number"))]
     duration_seconds: u64,
     duration_label: String,
 }
@@ -84,14 +87,17 @@ impl MusicStream {
 /// into video up to 720p; above that mpv plays the video and is handed the audio alongside it.
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicVideoStream {
     url: String,
     audio_url: Option<String>,
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    #[cfg_attr(test, ts(type = "Record<string, string>", optional))]
     http_headers: std::collections::BTreeMap<String, String>,
 }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicSourceCandidate {
     connector_id: String,
     connector_name: String,
@@ -101,6 +107,7 @@ pub struct MusicSourceCandidate {
 
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicMigration {
     liked_ids: Option<Vec<String>>,
     recents: Option<Vec<MusicTrack>>,
@@ -109,6 +116,7 @@ pub struct MusicMigration {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicBootstrap {
     liked_ids: Vec<String>,
     liked_tracks: Vec<MusicTrack>,

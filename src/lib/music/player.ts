@@ -61,6 +61,7 @@ import type {
   MusicSourceCandidate,
 } from "./types";
 import type { CastDeviceInfo } from "@/lib/cast";
+import type { MusicBootstrap } from "@/lib/generated/music-ipc";
 import { stopCastOwner } from "@/lib/cast-ownership";
 import { isWindowsDesktop } from "@/lib/platform";
 import {
@@ -206,8 +207,7 @@ type LegacyMusicMigration = {
   queue: MusicTrack[] | null;
 };
 
-type NativeMusicBootstrap = {
-  likedIds: string[];
+type NativeMusicBootstrap = Omit<MusicBootstrap, "likedTracks" | "recents" | "queue"> & {
   likedTracks: MusicTrack[];
   recents: MusicTrack[];
   queue: MusicTrack[];
@@ -797,7 +797,7 @@ export async function playMusic(
   audioReady = {
     request,
     id: track.id,
-    connectorId: track.connectorId,
+    connectorId: track.connectorId ?? undefined,
     done: new Promise((resolve) => {
       finishAudio = resolve;
     }),
@@ -876,7 +876,7 @@ export async function playMusic(
       );
       if (audioReady?.request === request) {
         audioReady.id = track.id;
-        audioReady.connectorId = track.connectorId;
+        audioReady.connectorId = track.connectorId ?? undefined;
       }
       publish({
         current: track,
@@ -1001,7 +1001,7 @@ export async function playMusic(
         );
         if (audioReady?.request === request) {
           audioReady.id = track.id;
-          audioReady.connectorId = track.connectorId;
+          audioReady.connectorId = track.connectorId ?? undefined;
         }
         publish({
           current: track,

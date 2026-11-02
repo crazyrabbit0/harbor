@@ -492,7 +492,9 @@ export function MusicDetail({
         </div>
         {item.kind === "artist" && <MusicReleaseMetadata item={item} />}
       </header>
-      {item.kind === "track" && <MusicSoundtrackLink title={item.title} album={item.album} />}
+      {item.kind === "track" && (
+        <MusicSoundtrackLink title={item.title} album={item.album ?? undefined} />
+      )}
       {item.kind !== "artist" && <MusicReleaseMetadata item={item} />}
       {item.kind !== "artist" && <MusicWhereToBuy item={item} />}
       {item.kind === "artist" && (

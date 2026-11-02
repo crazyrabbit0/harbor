@@ -242,6 +242,13 @@ mod tests {
             MusicRowLayout::decl(&cfg),
             MusicConnectionField::decl(&cfg),
             MusicConnection::decl(&cfg),
+            MusicTrack::decl(&cfg),
+            crate::connector::ConnectorHealth::decl(&cfg),
+            crate::connector::ConnectorHealthInfo::decl(&cfg),
+            crate::MusicSourceCandidate::decl(&cfg),
+            crate::MusicVideoStream::decl(&cfg),
+            crate::MusicMigration::decl(&cfg),
+            crate::MusicBootstrap::decl(&cfg),
         ];
         harbor_shared::ipc_bindings::check("music-ipc.ts", "music/src/model.rs", &decls);
     }

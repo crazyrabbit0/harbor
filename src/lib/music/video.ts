@@ -1,11 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { MusicTrack } from "./types";
 
-export type MusicVideoStream = {
-  url: string;
-  audioUrl: string | null;
-  httpHeaders?: Record<string, string>;
-};
+export type { MusicVideoStream } from "@/lib/generated/music-ipc";
+import type { MusicVideoStream } from "@/lib/generated/music-ipc";
 
 const STREAM_TTL = 8 * 60_000;
 const STREAM_LIMIT = 12;
