@@ -26,6 +26,7 @@ impl Fixture {
         let base = PathBuf::from(
             std::env::var_os("HARBOR_GAME_TEST_ROOT").expect("explicit fixture root"),
         );
+        fs::create_dir_all(&base).unwrap();
         let root = base.join(format!("archive-cleanup-{}", uuid::Uuid::new_v4()));
         fs::create_dir(&root).unwrap();
         let root = root.canonicalize().unwrap();
