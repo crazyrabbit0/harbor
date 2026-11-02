@@ -41,6 +41,7 @@ import {
   setCollectionCover,
   setCollectionDescription,
   setCollectionNumbered,
+  storeUploadedCollectionImage,
   toggleInCollection,
   useCollection,
   type CollectionItemType,
@@ -54,6 +55,7 @@ import {
   uploadCollectionBackground,
   uploadCollectionCover,
 } from "@/lib/social/collections-sync";
+import { authToken } from "@/lib/theme-auth";
 
 type Hit = { id: string; type: CollectionItemType; name: string; poster?: string };
 
@@ -427,7 +429,9 @@ export function CommunityCollectionEditor({
             canUpload
             onUpload={async (file) => {
               const local = await fileToCollectionCover(file);
-              setCollectionCover(id, local);
+              setCollectionCover(id, await storeUploadedCollectionImage(local));
+              // The upload needs a Harbor account; without one the image stays on this device.
+              if (!authToken()) return;
               await publishCollections(readCollections()).catch(() => {});
               try {
                 const { url } = await uploadCollectionCover(id, file);
@@ -454,7 +458,9 @@ export function CommunityCollectionEditor({
             canUpload
             onUpload={async (file) => {
               const local = await fileToCollectionBackground(file);
-              setCollectionBackground(id, local);
+              setCollectionBackground(id, await storeUploadedCollectionImage(local));
+              // The upload needs a Harbor account; without one the image stays on this device.
+              if (!authToken()) return;
               await publishCollections(readCollections()).catch(() => {});
               try {
                 const { url } = await uploadCollectionBackground(id, file);
