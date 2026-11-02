@@ -5,37 +5,45 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 
+const { ASPECT_PAD, RATIO_AR, posterTargetWidth } = await import("../src/lib/poster-sizing.ts");
+
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const poster = read("src/components/poster.tsx");
 const row = read("src/components/row.tsx");
 
 test("poster sizing accounts for the height it has to cover, not just width", () => {
-  assert.match(poster, /const RATIO_AR: Record<Ratio, number>/);
-  assert.match(poster, /Math\.max\(box\.width, box\.height \* RATIO_AR\[ratio\]\)/);
-  assert.doesNotMatch(
-    poster,
-    /const t = Math\.ceil\(w \* \(window\.devicePixelRatio/,
-    "width-only sizing under-fetches for off-aspect boxes",
-  );
+  // A portrait card in a box that is wider than 2:3 needs its width; one taller than 2:3 needs height * 2/3.
+  assert.equal(posterTargetWidth({ width: 200, height: 300 }, "portrait", 1, 1), 200);
+  assert.equal(posterTargetWidth({ width: 100, height: 300 }, "portrait", 1, 1), 200);
+  assert.equal(posterTargetWidth({ width: 100, height: 90 }, "landscape", 1, 1), 160);
+  assert.equal(posterTargetWidth({ width: 0, height: 300 }, "portrait", 2, 1), 0);
+});
+
+test("poster sizing scales by device pixels, capped at 2, and by the quality setting", () => {
+  const box = { width: 101, height: 0 };
+  assert.equal(posterTargetWidth(box, "square", 1.5, 1), 152);
+  assert.equal(posterTargetWidth(box, "square", 4, 1), 202);
+  assert.equal(posterTargetWidth(box, "square", 0, 1), 101);
+  assert.equal(posterTargetWidth(box, "square", 2, 0.5), 101);
 });
 
 test("poster sizing sees css transforms so scaled art is not blurry", () => {
   assert.match(
     poster,
-    /el\.getBoundingClientRect\(\)/,
+    /posterTargetWidth\(\s*el\.getBoundingClientRect\(\)/,
     "clientWidth ignores transforms like scale()",
   );
   assert.match(poster, /\}, \[inView, qMult, ratio\]\);/, "ratio must be a dependency");
 });
 
 test("the declared aspect ratios match the aspect padding", () => {
-  const ar = poster.slice(
-    poster.indexOf("const RATIO_AR"),
-    poster.indexOf("export function Poster"),
-  );
-  assert.match(ar, /portrait: 2 \/ 3/);
-  assert.match(ar, /landscape: 16 \/ 9/);
-  assert.match(ar, /wide: 16 \/ 7/);
+  for (const ratio of Object.keys(RATIO_AR) as Array<keyof typeof RATIO_AR>) {
+    const pad = Number.parseFloat(ASPECT_PAD[ratio]) / 100;
+    assert.ok(Math.abs(pad - 1 / RATIO_AR[ratio]) < 1e-9, ratio);
+  }
+  assert.equal(RATIO_AR.portrait, 2 / 3);
+  assert.equal(RATIO_AR.landscape, 16 / 9);
+  assert.equal(RATIO_AR.wide, 16 / 7);
 });
 
 test("row tracks do not bleed the next card into horizontal padding", () => {
