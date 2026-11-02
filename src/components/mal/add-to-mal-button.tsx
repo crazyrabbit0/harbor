@@ -72,14 +72,11 @@ export function AddToMalButton({ harborId, title }: { harborId: string; title: s
     const prev = status;
     setStatus(next);
     setMenuOpen(false);
-    try {
-      const saved = await saveListEntry({ malId, status: next });
-      setStatus(saved.status);
-    } catch {
-      setStatus(prev);
-    } finally {
-      setBusy(false);
-    }
+    await Promise.resolve()
+      .then(() => saveListEntry({ malId, status: next }))
+      .then((saved) => setStatus(saved.status))
+      .catch(() => setStatus(prev))
+      .finally(() => setBusy(false));
   };
 
   const remove = async () => {
@@ -87,13 +84,10 @@ export function AddToMalButton({ harborId, title }: { harborId: string; title: s
     const prevStatus = status;
     setStatus(null);
     setMenuOpen(false);
-    try {
-      await deleteListEntry(malId);
-    } catch {
-      setStatus(prevStatus);
-    } finally {
-      setBusy(false);
-    }
+    await Promise.resolve()
+      .then(() => deleteListEntry(malId))
+      .catch(() => setStatus(prevStatus))
+      .finally(() => setBusy(false));
   };
 
   if (status == null) {

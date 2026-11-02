@@ -51,13 +51,10 @@ export function StremioStep() {
     if (!email || !password) return;
     setBusy(true);
     setError(null);
-    try {
-      await signIn(email, password);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("Sign-in failed"));
-    } finally {
-      setBusy(false);
-    }
+    await Promise.resolve()
+      .then(() => signIn(email, password))
+      .catch((err: unknown) => setError(err instanceof Error ? err.message : t("Sign-in failed")))
+      .finally(() => setBusy(false));
   };
 
   if (user) {
