@@ -220,7 +220,7 @@ pub async fn ytmusic_set_geometry(
     let parent = main.hwnd().map_err(|error| format!("main hwnd: {error}"))?;
     let hwnd = child.hwnd().map_err(|error| format!("child hwnd: {error}"))?;
     let parent_raw = parent.0 as isize;
-    let (x, y, w, h) = crate::multiview::css_to_physical(
+    let (x, y, w, h) = harbor_shared::child_window::css_to_physical(
         parent_raw,
         geom.css_left,
         geom.css_top,
@@ -229,7 +229,7 @@ pub async fn ytmusic_set_geometry(
         geom.css_view_w,
         geom.css_view_h,
     );
-    crate::multiview::place_child(hwnd.0 as isize, parent_raw, x, y, w, h);
+    harbor_shared::child_window::place_child(hwnd.0 as isize, parent_raw, x, y, w, h);
     Ok(())
 }
 

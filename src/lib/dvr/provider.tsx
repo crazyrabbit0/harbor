@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import type { DvrSession, DvrStartArgs } from "./types";
+import { appFeatures } from "@/lib/app-features";
 
 const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -29,7 +30,7 @@ export function DvrProvider({ children }: { children: ReactNode }) {
   const [terminal, setTerminal] = useState<DvrSession[]>([]);
 
   useEffect(() => {
-    if (!IS_TAURI) return;
+    if (!IS_TAURI || !appFeatures().livetv) return;
     let cancelled = false;
     invoke<DvrSession[]>("dvr_list")
       .then((list) => {

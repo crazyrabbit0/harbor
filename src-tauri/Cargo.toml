@@ -20,9 +20,10 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [features]
-default = ["games", "music"]
+default = ["games", "music", "livetv"]
 games = ["dep:harbor-games"]
 music = ["dep:harbor-music"]
+livetv = ["dep:harbor-livetv"]
 silero-vad = ["dep:ort", "dep:ndarray"]
 asr-whisper = ["dep:whisper-rs"]
 chromaprint = []
@@ -116,7 +117,7 @@ ts-rs = { version = "12.0.1", features = ["serde-json-impl"] }
 [target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
 harbor-games = { path = "games", optional = true }
 harbor-music = { path = "music", optional = true }
-harbor-livetv = { path = "livetv" }
+harbor-livetv = { path = "livetv", optional = true }
 harbor-shared = { path = "shared", features = ["mpv"] }
 leveldb-sys = { path = "vendor/leveldb-sys", features = ["snappy"] }
 trash = "=5.2.9"

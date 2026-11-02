@@ -81,7 +81,7 @@ mod display_fit;
 mod dj_deck;
 #[cfg(desktop)]
 mod dlna;
-#[cfg(desktop)]
+#[cfg(all(desktop, feature = "livetv"))]
 pub(crate) use harbor_livetv::dvr;
 #[cfg(desktop)]
 mod fs_scope;
@@ -116,7 +116,7 @@ mod playback_cache;
 mod mpv_render_linux;
 #[cfg(target_os = "macos")]
 mod mpv_render_mac;
-#[cfg(desktop)]
+#[cfg(all(desktop, feature = "livetv"))]
 pub(crate) use harbor_livetv::multiview;
 #[cfg(desktop)]
 mod pip;
@@ -179,7 +179,9 @@ pub(crate) fn release_stremio_scheme(app: &tauri::AppHandle) {
 pub(crate) fn shutdown_services(app: &tauri::AppHandle) {
     release_stremio_scheme(app);
     thumbs::shutdown(app);
+    #[cfg(feature = "livetv")]
     multiview::shutdown(app);
+    #[cfg(feature = "livetv")]
     dvr::shutdown(app);
     #[cfg(feature = "music")]
     music::shutdown(app);
@@ -740,12 +742,15 @@ fn route_commands(
     let games = games::invoke_handler();
     #[cfg(feature = "music")]
     let music = music::invoke_handler();
+    #[cfg(feature = "livetv")]
     let livetv = harbor_livetv::invoke_handler();
     move |invoke| {
+        #[cfg(feature = "livetv")]
         let livetv_command = {
             let command = invoke.message.command();
             command.starts_with("dvr_") || command.starts_with("multiview_")
         };
+        #[cfg(feature = "livetv")]
         if livetv_command {
             return livetv(invoke);
         }
@@ -803,8 +808,6 @@ pub fn run() {
     let pip_window_state = pip_window::PipWindowState::default();
     let fullscreen_state = fullscreen::FullscreenState::new();
     let thumbs_state = thumbs::ThumbsState::new();
-    let dvr_state = dvr::DvrState::new();
-    let multiview_state = multiview::MultiviewState::new();
     let modal_overlay_state = modal_overlay::ModalOverlayState::new();
     let app_builder = tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
@@ -857,13 +860,15 @@ pub fn run() {
         .manage(pip_window_state)
         .manage(fullscreen_state)
         .manage(thumbs_state)
-        .manage(dvr_state)
-        .manage(multiview_state)
         .manage(modal_overlay_state)
         .manage(discord_rp::DiscordState::new())
         .manage(download::DownloadState::new());
     #[cfg(feature = "music")]
     let app_builder = app_builder.manage(music::MusicState::new());
+    #[cfg(feature = "livetv")]
+    let app_builder = app_builder
+        .manage(dvr::DvrState::new())
+        .manage(multiview::MultiviewState::new());
 
     #[cfg(target_os = "macos")]
     let app_builder = app_builder.register_uri_scheme_protocol("stremio", |ctx, request| {

@@ -4,6 +4,7 @@ pub mod asset_scope;
 pub mod binary_lookup;
 pub mod browser_args;
 pub mod child_pipe;
+pub mod child_window;
 pub mod fetch;
 pub mod ipc_bindings;
 #[cfg(feature = "mpv")]

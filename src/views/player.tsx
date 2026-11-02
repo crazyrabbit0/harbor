@@ -49,6 +49,7 @@ import {
 } from "@/lib/stremio-server";
 import { playbackStartupProfile } from "@/lib/player/startup-profile";
 import { isWeb } from "@/lib/platform";
+import { appFeatures } from "@/lib/app-features";
 import { usePauseOnInactive } from "./player/hooks/use-pause-on-inactive";
 import { spoilerMaskFor } from "@/lib/spoilers";
 import { usePlayerWatched } from "./player/hooks/use-player-watched";
@@ -1626,7 +1627,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     download: isLocalSrc ? undefined : download,
     liveOverlay,
     setDvrOpen,
-    openDvr: liveOverlay.isLive ? () => setDvrOpen(true) : undefined,
+    openDvr: liveOverlay.isLive && appFeatures().livetv ? () => setDvrOpen(true) : undefined,
     sleep,
     adjacentPrev: adjacent.prev,
     adjacentNext: adjacent.next,

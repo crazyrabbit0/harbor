@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { isWindowsDesktop } from "@/lib/platform";
+import { appFeatures } from "@/lib/app-features";
 
 export const MAX_SLOTS = 4;
 
@@ -24,7 +25,7 @@ export type OpenRect = {
 
 export function multiviewSupported(): boolean {
   if (typeof window === "undefined") return false;
-  return isWindowsDesktop();
+  return isWindowsDesktop() && appFeatures().livetv;
 }
 
 export async function mvOpen(
