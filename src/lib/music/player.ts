@@ -92,7 +92,7 @@ let activeProfile = "";
 let audioReady: {
   request: number;
   id: string;
-  connectorId?: string;
+  connectorId?: string | null;
   done: Promise<boolean>;
 } | null = null;
 let speakerTransfer = false;
@@ -797,7 +797,7 @@ export async function playMusic(
   audioReady = {
     request,
     id: track.id,
-    connectorId: track.connectorId ?? undefined,
+    connectorId: track.connectorId,
     done: new Promise((resolve) => {
       finishAudio = resolve;
     }),
@@ -876,7 +876,7 @@ export async function playMusic(
       );
       if (audioReady?.request === request) {
         audioReady.id = track.id;
-        audioReady.connectorId = track.connectorId ?? undefined;
+        audioReady.connectorId = track.connectorId;
       }
       publish({
         current: track,
@@ -1001,7 +1001,7 @@ export async function playMusic(
         );
         if (audioReady?.request === request) {
           audioReady.id = track.id;
-          audioReady.connectorId = track.connectorId ?? undefined;
+          audioReady.connectorId = track.connectorId;
         }
         publish({
           current: track,

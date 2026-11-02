@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { appFeatures } from "@/lib/app-features";
 import { useMusicConnections } from "@/components/music/music-connections";
 import { SECONDARY_BUTTON } from "@/components/music/music-connections/connection-row";
 import { APP_VERSION, BUILD_LABEL } from "@/lib/build-info";
@@ -154,7 +155,9 @@ export function MusicFooter({ className = "" }: { className?: string }) {
   const setup: FooterLink[] = [
     { key: "music.footer.sources", run: () => openConnections() },
     { key: "music.audio.title", run: () => openConnections("__audio") },
-    { key: "music.cast.title", run: () => openConnections("__speakers") },
+    ...(appFeatures().cast
+      ? [{ key: "music.cast.title", run: () => openConnections("__speakers") }]
+      : []),
     { key: "music.footer.languages", run: () => openSettings("language") },
   ];
 

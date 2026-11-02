@@ -1,4 +1,5 @@
 import { AlertCircle } from "lucide-react";
+import { appFeatures } from "@/lib/app-features";
 import { NavGlyph } from "@/components/icons/nav-glyph";
 import { useEffect, useState, type ReactNode } from "react";
 import type { PlayerControlId } from "@/lib/player-chrome";
@@ -211,7 +212,7 @@ export function renderCustomIconControl(
       );
     }
     case "cast": {
-      if (ctx.tight) return null;
+      if (ctx.tight || !appFeatures().cast) return null;
       return (
         <BigButton
           onClick={ctx.onCast}
@@ -326,6 +327,7 @@ export function renderCustomIconControlStremio(
         </Tooltip>
       );
     case "cast":
+      if (!appFeatures().cast) return null;
       return (
         <Tooltip label={withHotkey(t("Cast"), "playerCast")}>
           <StremioBtn onClick={ctx.onCast} ariaLabel={t("Cast")}>

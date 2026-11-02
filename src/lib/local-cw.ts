@@ -1,6 +1,6 @@
 import { primaryStoredProfile } from "@/lib/profile-roster";
 import { cwProfileScope, privateCwProfileId } from "./cw-profile";
-import { durableSetItem } from "./durable-store";
+import { durableSetItem, syncDurableStore } from "./durable-store";
 
 const KEY_PREFIX = "harbor.localcw.v1.";
 const PRIVATE_PREFIX = "harbor.localcw.private.v1.";
@@ -48,6 +48,7 @@ function migrateLegacy(): void {
     const perKey = KEY_PREFIX + pid;
     if (!localStorage.getItem(perKey)) localStorage.setItem(perKey, legacy);
     localStorage.removeItem(LEGACY_KEY);
+    syncDurableStore();
   } catch {
     /* noop */
   }

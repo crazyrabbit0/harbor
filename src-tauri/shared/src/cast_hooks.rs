@@ -1,4 +1,4 @@
-//! App functions the `harbor-cast` crate reaches through managed state: stream proxy, subtitles, ffmpeg and the LAN server.
+//! App functions the `harbor-cast` crate reaches through managed state: stream proxy, subtitles and ffmpeg.
 use crate::cast_types::{
     AudioCastInput, CastSub, CastSubStyle, PreparedSub, RegisterArgs, RegisterResult,
 };
@@ -32,9 +32,4 @@ pub struct CastHooks {
     pub cleanup_subs: Arc<dyn Fn() + Send + Sync>,
     pub ffmpeg_present: Arc<dyn Fn() -> bool + Send + Sync>,
     pub locate_ffmpeg: Arc<dyn Fn() -> Option<PathBuf> + Send + Sync>,
-    pub lan_status: Arc<dyn Fn() -> (bool, Option<u16>, Option<String>) + Send + Sync>,
-    pub start_lan_server:
-        Arc<dyn Fn(tauri::AppHandle) -> CastFuture<Result<u16, String>> + Send + Sync>,
-    pub stop_lan_server: Arc<dyn Fn() + Send + Sync>,
-    pub kill_orphan_sidecars: Arc<dyn Fn() + Send + Sync>,
 }

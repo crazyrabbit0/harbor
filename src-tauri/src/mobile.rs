@@ -20,33 +20,6 @@ use crate::{
     subtitle_credentials, temp_prune, torrent_engine, transcode, web_server,
 };
 
-// Desktop answers this from dlna.rs, but that module is #[cfg(desktop)] because
-// it pulls mdns-sd, which Android does not build. The QR hand-off encodes this
-// address, so without a mobile copy onboarding falls back to typing a TMDB key
-// on a remote. Connecting a UDP socket picks the interface the kernel would
-// actually route through; no packet is sent.
-#[tauri::command]
-fn lan_ip() -> Option<String> {
-    use std::net::{IpAddr, UdpSocket};
-    for target in ["1.1.1.1:80", "8.8.8.8:80", "192.168.1.1:80"] {
-        let Ok(sock) = UdpSocket::bind("0.0.0.0:0") else {
-            continue;
-        };
-        if sock.connect(target).is_err() {
-            continue;
-        }
-        let Ok(addr) = sock.local_addr() else {
-            continue;
-        };
-        if let IpAddr::V4(v4) = addr.ip() {
-            if !v4.is_loopback() && !v4.is_unspecified() {
-                return Some(v4.to_string());
-            }
-        }
-    }
-    None
-}
-
 pub fn run() {
     // librqbit speaks rustls, and rustls refuses to work until a process wide
     // crypto provider is installed. Desktop does this too.
@@ -78,7 +51,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            lan_ip,
+            harbor_shared::lan::lan_ip,
             crate::app_features::app_features,
             crate::save_text_file,
             crate::harbor_take_pending_file,

@@ -31,6 +31,7 @@ mod proc_mem;
 mod settings_store;
 mod stream_proxy;
 mod streams;
+#[cfg(desktop)]
 mod stremio_sidecar;
 #[cfg(test)]
 mod streams_ipc;
@@ -64,8 +65,10 @@ mod captions;
 #[cfg(desktop)]
 #[cfg_attr(not(feature = "cast"), allow(dead_code))]
 mod cast_hooks;
-#[cfg(all(desktop, feature = "cast"))]
-use harbor_cast::cast_server;
+#[cfg(desktop)]
+mod cast_server;
+#[cfg(all(desktop, test))]
+mod cast_server_ipc;
 #[cfg(desktop)]
 mod cf_relay;
 #[cfg(desktop)]
@@ -181,8 +184,6 @@ pub(crate) fn shutdown_services(app: &tauri::AppHandle) {
     #[cfg(feature = "music")]
     music::shutdown(app);
     stream_proxy::shutdown(app);
-    #[cfg(feature = "cast")]
-    cast_server::stop(app);
     torrent_engine::stop();
     discord_rp::shutdown(app);
     crash_report::mark_clean_exit();
@@ -1131,6 +1132,9 @@ pub fn run() {
             subsync::asr::asr_verify,
             sub_extract::subtitle_extract,
             stremio_sidecar::stop_stremio_sidecar,
+            cast_server::cast_server_status,
+            cast_server::cast_server_restart,
+            cast_server::cast_server_stop,
             harbor_shared::lan::lan_ip,
             sub_extract::subtitle_extract_ass,
             web_server::web_serve_start,

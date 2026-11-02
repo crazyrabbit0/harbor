@@ -30,11 +30,5 @@ pub(crate) fn build(proxy: ProxyState) -> CastHooks {
         cleanup_subs: Arc::new(crate::cast_subs::cleanup),
         ffmpeg_present: Arc::new(crate::transcode::ffmpeg_present),
         locate_ffmpeg: Arc::new(crate::transcode::locate_ffmpeg),
-        lan_status: Arc::new(crate::torrent_engine::lan_status),
-        start_lan_server: Arc::new(|app| {
-            Box::pin(async move { crate::torrent_engine::start_lan_server(&app).await })
-        }),
-        stop_lan_server: Arc::new(crate::torrent_engine::stop_lan_server),
-        kill_orphan_sidecars: Arc::new(crate::stremio_sidecar::kill_orphan_sidecars),
     }
 }

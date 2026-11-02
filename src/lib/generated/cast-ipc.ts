@@ -6,8 +6,6 @@ export type CastDeviceInfo = { id: string, name: string, host: string, port: num
 
 export type CastStatus = { position_sec: number, player_state: string, connected: boolean, transport_codec?: string, };
 
-export type CastServerStatus = { bundled: boolean, running: boolean, ready: boolean, port: number | null, last_error: string | null, restart_count: number, };
-
 export type CastSub = { kind: "external" | "embedded", url?: string, src_index?: number, format?: "srt" | "ass" | "ssa" | "vtt", off: boolean, };
 
 export type CastSubStyle = { font_size: number, font_color: string, border_color: string, border_size: number, margin_y: number, align_x: "left" | "center" | "right", };

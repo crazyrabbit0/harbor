@@ -163,6 +163,7 @@ function fixture(respond?: (command: string, args?: any) => unknown, realCasting
     const castingModule = { exports: {} };
     new Function("require", "module", "exports", "window", castingOutput)(
       (name: string) => {
+        if (name === "@/lib/app-features") return { appFeatures: () => ({ cast: true }) };
         assert.ok(name in mocks, name);
         return mocks[name];
       },

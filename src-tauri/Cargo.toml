@@ -77,7 +77,6 @@ uuid = { version = "1", features = ["v4"] }
 futures-util = "0.3"
 gilrs = { version = "0.11", default-features = false, features = ["xinput"] }
 libc = "0.2"
-socket2 = "0.5"
 base64 = "0.22"
 sha2 = "0.10"
 sha1 = "0.10"
@@ -86,7 +85,6 @@ image = { version = "0.25", default-features = false, features = ["jpeg", "png",
 hound = "3.5"
 kothok-edge-tts = "0.2.10"
 discord-rich-presence = "1.1"
-rust_cast = { path = "vendor/rust_cast", version = "0.20" }
 mdns-sd = "0.13"
 rustls = { version = "0.23", default-features = false, features = [
   "ring",

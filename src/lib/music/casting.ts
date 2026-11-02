@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { appFeatures } from "@/lib/app-features";
 import type { CastDeviceInfo, CastStatus } from "@/lib/cast";
 import type { MusicTrack } from "./types";
 import {
@@ -115,6 +116,7 @@ export function musicSpeakerCompatibility(device: CastDeviceInfo): string | null
 /** Discovery runs only from an explicit UI action, never when the module is imported. */
 export async function discoverMusicSpeakers(): Promise<CastDeviceInfo[]> {
   requireDesktop();
+  if (!appFeatures().cast) return [];
   try {
     const devices = await invoke<CastDeviceInfo[]>("cast_discover");
     if (!Array.isArray(devices)) throw new Error("Invalid device response");

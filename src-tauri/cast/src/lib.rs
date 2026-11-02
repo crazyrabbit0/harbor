@@ -1,9 +1,8 @@
-//! Casting to Chromecast, DLNA, Roku and AirPlay, plus the cast server controls; app code comes through `CastHooks`.
+//! Casting to Chromecast, DLNA, Roku and AirPlay; app code comes through `CastHooks`.
 pub mod airplay;
 pub mod cast;
 #[cfg(test)]
 mod cast_ipc;
-pub mod cast_server;
 pub mod dlna;
 pub mod roku;
 
@@ -15,9 +14,6 @@ const COMMANDS: &[&str] = &[
     "cast_seek",
     "cast_stop",
     "cast_status",
-    "cast_server_status",
-    "cast_server_restart",
-    "cast_server_stop",
 ];
 
 /// True for exactly the commands `invoke_handler` serves; the app's `cast_ffmpeg_present` stays with the app.
@@ -35,8 +31,5 @@ pub fn invoke_handler() -> impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Sen
         cast::cast_seek,
         cast::cast_stop,
         cast::cast_status,
-        cast_server::cast_server_status,
-        cast_server::cast_server_restart,
-        cast_server::cast_server_stop,
     ]
 }

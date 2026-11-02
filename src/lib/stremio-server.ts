@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import type { CastServerStatus } from "@/lib/generated/cast-ipc";
+import type { CastServerStatus } from "@/lib/generated/cast-server-ipc";
 import { storedSettings } from "@/lib/stored-settings";
 
 export const DEFAULT_BUNDLED_PORT = 11470;
