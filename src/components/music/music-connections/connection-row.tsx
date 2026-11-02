@@ -459,7 +459,7 @@ function FieldControl({
         type={field.kind === "password" ? "password" : field.kind === "url" ? "url" : "text"}
         value={value}
         onChange={(event) => onChange(event.currentTarget.value)}
-        placeholder={field.placeholder}
+        placeholder={field.placeholder ?? undefined}
         required={field.required}
         disabled={disabled}
         autoComplete="off"

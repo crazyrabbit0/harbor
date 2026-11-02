@@ -2759,6 +2759,7 @@ dependencies = [
  "sha2",
  "tauri",
  "tokio",
+ "ts-rs",
  "url",
  "uuid 1.23.1",
  "walkdir",

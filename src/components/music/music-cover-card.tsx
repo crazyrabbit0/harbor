@@ -183,7 +183,7 @@ export function MusicCoverCard({
               <MusicPlaylistCover artwork={item.artwork} seed={seed} className="rounded-md" />
             ) : (
               <Poster
-                src={item.artwork}
+                src={item.artwork ?? undefined}
                 seed={seed}
                 ratio="square"
                 className="w-full [--poster-radius:0px]"

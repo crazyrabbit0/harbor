@@ -4,6 +4,7 @@ pub mod asset_scope;
 pub mod browser_args;
 pub mod child_pipe;
 pub mod fetch;
+pub mod ipc_bindings;
 #[cfg(feature = "mpv")]
 pub mod mpv;
 pub mod net_guard;

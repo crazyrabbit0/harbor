@@ -73,7 +73,7 @@ export function toggleLikedArtist(artist: MusicArtistRef): void {
       id: artist.id,
       connectorId: artist.connectorId,
       name: artist.name,
-      artwork: artist.artwork,
+      artwork: artist.artwork ?? undefined,
     },
     ...liked,
   ]);

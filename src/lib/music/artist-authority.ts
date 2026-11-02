@@ -213,7 +213,7 @@ export function peekArtistIdentity(name: string): ArtistIdentityView {
 
 function enrich(
   ref: MusicArtistRef,
-  member: { artwork?: string; subtitle?: string },
+  member: { artwork?: string | null; subtitle?: string | null },
 ): MusicArtistRef {
   const artwork = ref.artwork || member.artwork;
   const subtitle = ref.subtitle || member.subtitle;

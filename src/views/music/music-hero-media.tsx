@@ -54,7 +54,7 @@ export function MusicHeroMedia({
   const ducked = useRef(false);
   const key = item?.id ?? "";
   const artwork = item?.artwork;
-  const layers = useHeroLayers(Array.isArray(artwork) ? artwork[0] : artwork);
+  const layers = useHeroLayers(Array.isArray(artwork) ? artwork[0] : (artwork ?? undefined));
   useEffect(() => {
     setPreview(null);
     setReadyUrl(null);
