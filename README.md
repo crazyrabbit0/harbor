@@ -540,7 +540,7 @@ flowchart TD
 src/                       React frontend (views, chrome, components, lib)
 src-tauri/                 Rust shell, player, casting, sidecars
   src/                     cast.rs, dlna.rs, roku.rs, airplay.rs, transcode.rs, discord_rp.rs, ...
-  games/, music/           game library and music backends (the harbor-games and harbor-music crates)
+  games/, music/, livetv/  game library, music backends and DVR/Multiview (the harbor-games, harbor-music and harbor-livetv crates)
 harbor-core/               pure Rust stream engine; the shell runs its trust, score and rank stages natively
 android-extension-compat/  JVM bridge that runs Android streaming extensions
 data/                      static feeds and the community theme library

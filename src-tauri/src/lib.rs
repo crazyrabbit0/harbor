@@ -7,7 +7,7 @@ mod ytmusic;
 // `tauri::menu` and `tauri::tray`. The getters are not, which is why
 // display geometry reads are fine and display geometry writes are not.
 mod app_features;
-mod binary_lookup;
+pub(crate) use harbor_shared::binary_lookup;
 mod cast_hls;
 mod cast_subs;
 #[cfg_attr(mobile, allow(dead_code))]
@@ -25,7 +25,8 @@ mod local_lib;
 mod media_server;
 mod power;
 mod privacy;
-mod proc_guard;
+pub(crate) use harbor_shared::proc_guard;
+pub(crate) use harbor_shared::shutdown::block_on_bounded;
 mod proc_mem;
 mod settings_store;
 mod stream_proxy;
@@ -81,7 +82,7 @@ mod dj_deck;
 #[cfg(desktop)]
 mod dlna;
 #[cfg(desktop)]
-mod dvr;
+pub(crate) use harbor_livetv::dvr;
 #[cfg(desktop)]
 mod fs_scope;
 #[cfg(desktop)]
@@ -116,7 +117,7 @@ mod mpv_render_linux;
 #[cfg(target_os = "macos")]
 mod mpv_render_mac;
 #[cfg(desktop)]
-mod multiview;
+pub(crate) use harbor_livetv::multiview;
 #[cfg(desktop)]
 mod pip;
 mod pip_window;
@@ -172,21 +173,6 @@ pub(crate) fn release_stremio_scheme(app: &tauri::AppHandle) {
         Err(e) => format!("[harbor::deeplink] could not release stremio://: {}", e),
     };
     let _ = writeln!(std::io::stderr(), "{}", msg);
-}
-
-// Shutdown runs on the event-loop thread, so each wait is capped: a worker holding a lock can't freeze closing the app.
-pub(crate) fn block_on_bounded<F>(label: &str, budget: std::time::Duration, fut: F)
-where
-    F: std::future::Future<Output = ()> + Send + 'static,
-{
-    let (tx, rx) = std::sync::mpsc::channel();
-    tauri::async_runtime::spawn(async move {
-        fut.await;
-        let _ = tx.send(());
-    });
-    if rx.recv_timeout(budget).is_err() {
-        eprintln!("[harbor::shutdown] {label} did not finish within {budget:?}, continuing");
-    }
 }
 
 #[cfg(desktop)]
@@ -745,7 +731,7 @@ pub fn run() {
     mobile::run();
 }
 
-// Games and music commands live in their own crates; every `games_*`/`music_*` command goes to that crate's handler.
+// Games, music and Live TV commands live in their own crates; each command prefix goes to that crate's handler.
 #[cfg(desktop)]
 fn route_commands(
     app: impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static,
@@ -754,7 +740,15 @@ fn route_commands(
     let games = games::invoke_handler();
     #[cfg(feature = "music")]
     let music = music::invoke_handler();
+    let livetv = harbor_livetv::invoke_handler();
     move |invoke| {
+        let livetv_command = {
+            let command = invoke.message.command();
+            command.starts_with("dvr_") || command.starts_with("multiview_")
+        };
+        if livetv_command {
+            return livetv(invoke);
+        }
         #[cfg(feature = "games")]
         if invoke.message.command().starts_with("games_") {
             return games(invoke);
@@ -1246,18 +1240,6 @@ pub fn run() {
             thumbs::thumbs_get,
             thumbs::thumbs_prefetch,
             thumbs::thumbs_stop,
-            dvr::dvr_start,
-            dvr::dvr_stop,
-            dvr::dvr_list,
-            dvr::dvr_default_dir,
-            dvr::dvr_reveal,
-            multiview::multiview_open,
-            multiview::multiview_prespawn,
-            multiview::multiview_geometry,
-            multiview::multiview_audio_focus,
-            multiview::multiview_close,
-            multiview::multiview_visibility,
-            multiview::multiview_stop_all,
             http_fetch::harbor_fetch,
             http_fetch::harbor_fetch_image,
             http_fetch::harbor_upload,
@@ -1339,26 +1321,4 @@ pub fn run() {
                 shutdown_services(app_handle);
             }
         });
-}
-
-#[cfg(test)]
-mod shutdown_tests {
-    use std::time::{Duration, Instant};
-
-    #[test]
-    fn bounded_shutdown_returns_when_the_task_hangs() {
-        let started = Instant::now();
-        super::block_on_bounded("test", Duration::from_millis(200), std::future::pending());
-        assert!(started.elapsed() < Duration::from_secs(2));
-    }
-
-    #[test]
-    fn bounded_shutdown_waits_for_a_task_that_finishes() {
-        let (tx, rx) = std::sync::mpsc::channel();
-        super::block_on_bounded("test", Duration::from_secs(5), async move {
-            tokio::time::sleep(Duration::from_millis(50)).await;
-            let _ = tx.send(());
-        });
-        assert!(rx.try_recv().is_ok());
-    }
 }

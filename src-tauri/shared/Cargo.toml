@@ -16,5 +16,16 @@ libmpv2 = { version = "4", optional = true }
 libmpv2-sys = { version = "4", optional = true }
 ts-rs = { version = "12.0.1", features = ["serde-json-impl"], optional = true }
 
+[target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.62", features = [
+  "Win32_Foundation",
+  "Win32_Security",
+  "Win32_System_JobObjects",
+  "Win32_System_Threading",
+] }
+
 [dev-dependencies]
 futures-util = "0.3"

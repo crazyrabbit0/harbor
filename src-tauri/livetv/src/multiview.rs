@@ -1,3 +1,5 @@
+use harbor_shared::proc_guard;
+use harbor_shared::shutdown::block_on_bounded;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -168,7 +170,7 @@ fn client_scale(_parent: isize, _css_view_w: f64, _css_view_h: f64) -> (f64, f64
     (1.0, 1.0, 0, 0)
 }
 
-pub(crate) fn css_to_physical(
+pub fn css_to_physical(
     parent: isize,
     css_left: f64,
     css_top: f64,
@@ -259,7 +261,7 @@ fn find_child_by_pid_and_title(_parent: isize, _want_pid: u32, _title: &str) -> 
 }
 
 #[cfg(windows)]
-pub(crate) fn place_child(hwnd_raw: isize, _parent_raw: isize, x: i32, y: i32, w: i32, h: i32) {
+pub fn place_child(hwnd_raw: isize, _parent_raw: isize, x: i32, y: i32, w: i32, h: i32) {
     use windows::Win32::Foundation::HWND;
     use windows::Win32::Graphics::Gdi::{CreateRoundRectRgn, SetWindowRgn};
     use windows::Win32::UI::WindowsAndMessaging::{SetWindowPos, HWND_TOP, SWP_NOACTIVATE};
@@ -296,7 +298,7 @@ fn move_child_only(hwnd_raw: isize, x: i32, y: i32) {
 }
 
 #[cfg(not(windows))]
-pub(crate) fn place_child(_hwnd_raw: isize, _parent_raw: isize, _x: i32, _y: i32, _w: i32, _h: i32) {}
+pub fn place_child(_hwnd_raw: isize, _parent_raw: isize, _x: i32, _y: i32, _w: i32, _h: i32) {}
 
 #[cfg(not(windows))]
 fn move_child_only(_hwnd_raw: isize, _x: i32, _y: i32) {}
@@ -547,9 +549,9 @@ fn spawn_mpv(
         .stderr(std::process::Stdio::null());
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW);
-    crate::proc_guard::configure_command(&mut cmd);
+    proc_guard::configure_command(&mut cmd);
     let child = cmd.spawn().map_err(|e| format!("spawn mpv: {e}"))?;
-    crate::proc_guard::adopt(&child);
+    proc_guard::adopt(&child);
     Ok(child)
 }
 
@@ -904,9 +906,9 @@ pub async fn multiview_stop_all(
     Ok(())
 }
 
-pub(crate) fn shutdown(app: &AppHandle) {
+pub fn shutdown(app: &AppHandle) {
     let slots = app.state::<MultiviewState>().slots.clone();
-    crate::block_on_bounded("multiview", std::time::Duration::from_secs(2), async move {
+    block_on_bounded("multiview", std::time::Duration::from_secs(2), async move {
         let drained: Vec<Slot> = slots.lock().await.drain().map(|(_, s)| s).collect();
         for mut s in drained {
             if let Some(pid) = s.pid {

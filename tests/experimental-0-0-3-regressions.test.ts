@@ -42,7 +42,7 @@ test("explicit valid resume season wins over watched-season inference", () => {
 });
 
 test("HLS reconnect options never retry normal streamed EOF", () => {
-  for (const path of ["src-tauri/src/mpv.rs", "src-tauri/src/multiview.rs"]) {
+  for (const path of ["src-tauri/src/mpv.rs", "src-tauri/livetv/src/multiview.rs"]) {
     assert.doesNotMatch(read(path), /reconnect_streamed=1/);
     assert.match(read(path), /reconnect=1/);
   }
