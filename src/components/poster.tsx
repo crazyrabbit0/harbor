@@ -14,8 +14,9 @@ import { sizeImageUrl, qualityMultiplier } from "@/lib/img-size";
 import { shouldLocalizePosters } from "@/lib/providers/tmdb/tmdb-image-lang";
 import { useProxiedImageSrc } from "@/lib/remote-image-proxy";
 import { observeResize, observeWithin } from "@/lib/visibility";
+import { ASPECT_PAD, posterTargetWidth, type PosterRatio } from "@/lib/poster-sizing";
 
-type Ratio = "portrait" | "landscape" | "wide" | "square";
+type Ratio = PosterRatio;
 
 export function useLocalizedPoster(metaId: string): {
   url: string | undefined;
@@ -190,26 +191,6 @@ export function usePosterChain(
   };
 }
 
-// Height is reserved with an in-flow padding spacer (see render below) instead of
-// relying solely on CSS `aspect-ratio`. Older WebView2/Chromium engines (≲124, e.g.
-// the 123.x runtime shipped on debloated Windows builds) fail to size `aspect-ratio`
-// grid items, collapsing every poster card to 0px height so artwork never shows.
-// The padding-top hack works identically on every engine.
-// https://github.com/harborstremio/harbor/issues/403
-const ASPECT_PAD: Record<Ratio, string> = {
-  portrait: "150%", // 3 / 2
-  landscape: "56.25%", // 9 / 16
-  wide: "43.75%", // 7 / 16
-  square: "100%",
-};
-
-const RATIO_AR: Record<Ratio, number> = {
-  portrait: 2 / 3,
-  landscape: 16 / 9,
-  wide: 16 / 7,
-  square: 1,
-};
-
 function PosterBody({
   src,
   seed,
@@ -265,13 +246,14 @@ function PosterBody({
     const el = rootRef.current;
     if (!el) return;
     return observeResize(el, () => {
-      const box = el.getBoundingClientRect();
-      if (box.width <= 0) return;
-      const need = Math.max(box.width, box.height * RATIO_AR[ratio]);
-      // Capped at 2. An Android TV WebView reports devicePixelRatio 4 because it is
-      // describing the 4K panel, while the window it rasterises is 1920x1080, so the
-      // raw value asks for a bucket twice as wide and four times the pixels.
-      const t = Math.ceil(need * Math.min(2, window.devicePixelRatio || 1) * qMult);
+      // getBoundingClientRect sees CSS transforms such as scale(), which clientWidth ignores.
+      const t = posterTargetWidth(
+        el.getBoundingClientRect(),
+        ratio,
+        window.devicePixelRatio,
+        qMult,
+      );
+      if (t <= 0) return;
       // A page shown again fires this with the same size; skipping the no-op update keeps every poster from re-rendering.
       if (t <= targetPxRef.current) return;
       targetPxRef.current = t;

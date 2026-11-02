@@ -1,3 +1,12 @@
+import type {
+  MusicAlbumRef,
+  MusicArtistRef as GeneratedMusicArtistRef,
+  MusicCatalogScope,
+  MusicPlaylistRef,
+  MusicRowLayout,
+  MusicStationRef,
+} from "@/lib/generated/music-ipc";
+
 /** Measured file/stream properties; never infer these from a provider or subscription. */
 export type MusicAudioQuality = {
   codec?: string;
@@ -109,43 +118,21 @@ export type MusicPlayerState = {
   recents: MusicTrack[];
 };
 
-export type MusicAlbumRef = {
-  id: string;
-  connectorId: string;
-  title: string;
-  artist: string;
-  artwork: string;
-  year?: number;
-  trackCount?: number;
-  /** Undefined where the provider does not say. Only a real false means clean. */
-  explicit?: boolean;
-};
+export type {
+  MusicAlbumRef,
+  MusicPlaylistRef,
+  MusicStationRef,
+  MusicCatalogKind,
+  MusicRowLayout,
+  MusicConnectionKind,
+  MusicConnectionStatus,
+  MusicConnectionCapability,
+  MusicConnectionField,
+  MusicConnection,
+} from "@/lib/generated/music-ipc";
 
-export type MusicArtistRef = {
-  musicBrainzId?: string;
-  id: string;
-  connectorId: string;
-  name: string;
-  artwork?: string;
-  subtitle?: string;
-};
-
-export type MusicPlaylistRef = {
-  id: string;
-  connectorId: string;
-  name: string;
-  artwork: string[];
-  trackCount?: number;
-  subtitle?: string;
-};
-
-export type MusicStationRef = {
-  id: string;
-  connectorId: string;
-  name: string;
-  artwork: string;
-  subtitle?: string;
-};
+/** Rust never sends musicBrainzId; the frontend adds it when it resolves an artist. */
+export type MusicArtistRef = GeneratedMusicArtistRef & { musicBrainzId?: string };
 
 export type MusicCatalogItem =
   | ({ kind: "track" } & MusicTrack)
@@ -154,16 +141,13 @@ export type MusicCatalogItem =
   | ({ kind: "playlist" } & MusicPlaylistRef)
   | ({ kind: "station" } & MusicStationRef);
 
-export type MusicCatalogKind = "tracks" | "albums";
 export type MusicCatalogPage = {
   items: MusicCatalogItem[];
   nextCursor: string | null;
   total?: number | null;
   /** A top/limited selection must not be presented as the artist's complete tracks. */
-  scope: "catalog" | "top" | "limited";
+  scope: MusicCatalogScope;
 };
-
-export type MusicRowLayout = "covers" | "circles" | "trackGrid" | "wide";
 
 export type MusicCatalogRow = {
   id: string;
@@ -181,30 +165,4 @@ export type MusicSearchResults = {
   albums: MusicAlbumRef[];
   artists: MusicArtistRef[];
   playlists: MusicPlaylistRef[];
-};
-
-export type MusicConnectionKind = "streaming" | "server" | "local" | "scrobbler" | "catalog";
-export type MusicConnectionStatus = "connected" | "disconnected" | "error" | "unavailable";
-export type MusicConnectionCapability = "search" | "browse" | "play" | "library" | "scrobble";
-
-export type MusicConnectionField = {
-  key: string;
-  label: string;
-  kind: "text" | "password" | "url" | "folder";
-  placeholder?: string;
-  required: boolean;
-};
-
-export type MusicConnection = {
-  id: string;
-  name: string;
-  kind: MusicConnectionKind;
-  status: MusicConnectionStatus;
-  account?: string;
-  detail?: string;
-  error?: string;
-  capabilities: MusicConnectionCapability[];
-  needs: MusicConnectionField[];
-  /** A source needing no account: always usable, never signed in or out of. */
-  anonymous?: boolean;
 };

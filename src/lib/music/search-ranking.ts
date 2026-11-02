@@ -26,7 +26,7 @@ function sourceRankOf(item: unknown): number {
 const agreementOf = (item: unknown) => clamp01((sourceCountOf(item) - 1) / 2);
 
 /** YouTube Music and ListenBrainz hide the only real audience number in a free-text subtitle. */
-export function audienceOf(subtitle: string | undefined): number {
+export function audienceOf(subtitle: string | null | undefined): number {
   return audienceValue(subtitle);
 }
 

@@ -263,7 +263,7 @@ export async function loadMadeForYou(
       candidates.push({
         anchor,
         tracks: [...own.tracks, ...pages.flatMap((page) => page.tracks)],
-        portrait: own.ref?.artwork || anchor.ref?.artwork,
+        portrait: own.ref?.artwork || anchor.ref?.artwork || undefined,
       });
       const mixes = buildMixes(candidates, day, profile);
       onUpdate?.(mixes);

@@ -22,6 +22,17 @@ const REACT_COMPILER_DIRS = [
   "/src/components/ratings/",
   "/src/components/lists/",
   "/src/components/critics-pick/",
+  "/src/components/context-menu/",
+  "/src/components/letterboxd/",
+  "/src/components/manga/",
+  "/src/components/simkl/",
+  "/src/components/trakt/",
+  "/src/components/anilist/",
+  "/src/components/mal/",
+  "/src/components/hover-preview/",
+  "/src/components/pick-card/",
+  "/src/components/diagnostics/",
+  "/src/components/onboarding/",
 ];
 // Babel runs only on these folders; every other file skips it and goes straight to esbuild.
 const compilesReact = (id: string) =>

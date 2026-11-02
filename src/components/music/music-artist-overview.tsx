@@ -50,7 +50,7 @@ export function MusicArtistOverview({
   return (
     <MusicArtistStory
       profile={profile}
-      artwork={artist.artwork}
+      artwork={artist.artwork ?? undefined}
       onOpen={onOpen}
       compact={compact}
       extraLinks={extraLinks}

@@ -11,6 +11,10 @@ export const DURABLE_PREFIXES = [
   "harbor.manualwatched.dismissed.v1",
   "harbor.manualunwatched.at.v1",
   "harbor.manualwatched.fromremote.v1",
+  "harbor.customlists.v1",
+  "harbor.mangalists.v1",
+  // Separate profiles store collections as harbor.collections.<profile>, not under .v1.
+  "harbor.collections",
 ];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.

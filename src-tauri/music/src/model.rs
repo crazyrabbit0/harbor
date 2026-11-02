@@ -10,6 +10,7 @@ pub struct MusicVideoPage {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields = nullable))]
 pub struct MusicAlbumRef {
     pub id: String,
     pub connector_id: String,
@@ -24,6 +25,7 @@ pub struct MusicAlbumRef {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields = nullable))]
 pub struct MusicArtistRef {
     pub id: String,
     pub connector_id: String,
@@ -34,6 +36,7 @@ pub struct MusicArtistRef {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields = nullable))]
 pub struct MusicPlaylistRef {
     pub id: String,
     pub connector_id: String,
@@ -45,6 +48,7 @@ pub struct MusicPlaylistRef {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields = nullable))]
 pub struct MusicStationRef {
     pub id: String,
     pub connector_id: String,
@@ -65,6 +69,7 @@ pub enum MusicCatalogItem {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum MusicCatalogKind {
     Tracks,
     Albums,
@@ -72,6 +77,7 @@ pub enum MusicCatalogKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum MusicCatalogScope {
     Catalog,
     Top,
@@ -89,6 +95,7 @@ pub struct MusicCatalogPage {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum MusicRowLayout {
     Covers,
     Circles,
@@ -140,9 +147,11 @@ pub struct MusicSearchResults {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields = nullable))]
 pub struct MusicConnectionField {
     pub key: String,
     pub label: String,
+    #[cfg_attr(test, ts(type = r#""text" | "password" | "url" | "folder""#))]
     pub kind: String,
     pub placeholder: Option<String>,
     pub required: bool,
@@ -167,14 +176,18 @@ impl MusicConnectionField {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields = nullable))]
 pub struct MusicConnection {
     pub id: String,
     pub name: String,
+    #[cfg_attr(test, ts(type = "MusicConnectionKind"))]
     pub kind: String,
+    #[cfg_attr(test, ts(type = "MusicConnectionStatus"))]
     pub status: String,
     pub account: Option<String>,
     pub detail: Option<String>,
     pub error: Option<String>,
+    #[cfg_attr(test, ts(type = "MusicConnectionCapability[]"))]
     pub capabilities: Vec<String>,
     pub needs: Vec<MusicConnectionField>,
     /// A source needing no account is always usable, so it is never signed in or out of.
@@ -211,6 +224,27 @@ impl MusicConnection {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn export_bindings() {
+        use ts_rs::TS;
+        let cfg = ts_rs::Config::default();
+        let decls = [
+            r#"export type MusicConnectionKind = "streaming" | "server" | "local" | "scrobbler" | "catalog";"#.to_string(),
+            r#"export type MusicConnectionStatus = "connected" | "disconnected" | "error" | "unavailable";"#.to_string(),
+            r#"export type MusicConnectionCapability = "search" | "browse" | "play" | "library" | "scrobble";"#.to_string(),
+            MusicAlbumRef::decl(&cfg),
+            MusicArtistRef::decl(&cfg),
+            MusicPlaylistRef::decl(&cfg),
+            MusicStationRef::decl(&cfg),
+            MusicCatalogKind::decl(&cfg),
+            MusicCatalogScope::decl(&cfg),
+            MusicRowLayout::decl(&cfg),
+            MusicConnectionField::decl(&cfg),
+            MusicConnection::decl(&cfg),
+        ];
+        harbor_shared::ipc_bindings::check("music-ipc.ts", "music/src/model.rs", &decls);
+    }
 
     fn track() -> MusicTrack {
         MusicTrack {

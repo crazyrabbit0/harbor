@@ -71,7 +71,7 @@ function unitOf(word: string): AudienceUnit {
   return "fans";
 }
 
-export function parseAudience(subtitle: string | undefined): Audience | null {
+export function parseAudience(subtitle: string | null | undefined): Audience | null {
   if (!subtitle) return null;
   const digits = subtitle.replace(/\p{Nd}/gu, (character) =>
     character >= "0" && character <= "9" ? character : String(character.charCodeAt(0) & 0xf),
@@ -91,7 +91,7 @@ export function parseAudience(subtitle: string | undefined): Audience | null {
   };
 }
 
-export function audienceValue(subtitle: string | undefined): number {
+export function audienceValue(subtitle: string | null | undefined): number {
   return parseAudience(subtitle)?.value ?? 0;
 }
 

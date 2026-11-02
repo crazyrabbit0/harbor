@@ -202,16 +202,47 @@ mod tests {
         assert!(saved.join("kept.srt").exists());
         std::fs::remove_dir_all(root).unwrap();
     }
+
+    #[test]
+    fn mpv_cache_sweep_reclaims_only_entries_past_the_max_age() {
+        let root = std::env::temp_dir().join(format!(
+            "harbor-mpv-cache-test-{}-{}",
+            std::process::id(),
+            SystemTime::now()
+                .duration_since(SystemTime::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let session = root.join("session-a");
+        std::fs::create_dir_all(&session).unwrap();
+        std::fs::write(session.join("chunk"), b"0123456789").unwrap();
+        std::fs::write(root.join("loose.cache"), b"abcd").unwrap();
+
+        assert_eq!(sweep_mpv_cache_at(&root, SystemTime::now()), 0);
+        assert!(session.join("chunk").exists());
+        assert!(root.join("loose.cache").exists());
+
+        let later = SystemTime::now() + MPV_CACHE_MAX_AGE + Duration::from_secs(1);
+        assert_eq!(sweep_mpv_cache_at(&root, later), 14);
+        assert!(!session.exists());
+        assert!(!root.join("loose.cache").exists());
+        assert!(root.exists());
+        assert_eq!(sweep_mpv_cache_at(&root.join("missing"), later), 0);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 }
 
 const MPV_CACHE_MAX_AGE: Duration = Duration::from_secs(6 * 60 * 60);
 
 pub fn sweep_mpv_cache(dir: PathBuf) -> u64 {
-    let entries = match std::fs::read_dir(&dir) {
+    sweep_mpv_cache_at(&dir, SystemTime::now())
+}
+
+fn sweep_mpv_cache_at(dir: &std::path::Path, now: SystemTime) -> u64 {
+    let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(_) => return 0,
     };
-    let now = SystemTime::now();
     let mut freed = 0_u64;
     for entry in entries.flatten() {
         let path = entry.path();

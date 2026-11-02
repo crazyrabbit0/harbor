@@ -40,7 +40,7 @@ export function useDiagnosticsRun(requestId: string, ticket: string) {
     setError(null);
     setDone(false);
     advance(0);
-    try {
+    const attempt = async () => {
       const runtimeText = collectRuntime();
       const collectP = invoke<CollectResult>("diagnostics_collect", {
         input: { requestId, ticket, runtimeText },
@@ -58,11 +58,14 @@ export function useDiagnosticsRun(requestId: string, ticket: string) {
       void invoke("diagnostics_cleanup", { tempPath }).catch(() => {});
       advance(DIAG_STEPS.length);
       setDone(true);
-    } catch (e) {
-      setError({ stage: stageRef.current, message: e instanceof Error ? e.message : String(e) });
-    } finally {
-      runningRef.current = false;
-    }
+    };
+    await attempt()
+      .catch((e: unknown) =>
+        setError({ stage: stageRef.current, message: e instanceof Error ? e.message : String(e) }),
+      )
+      .finally(() => {
+        runningRef.current = false;
+      });
   }, [requestId, ticket, reducedMotion, advance]);
 
   useEffect(() => {

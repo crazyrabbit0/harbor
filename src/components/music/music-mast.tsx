@@ -334,7 +334,7 @@ export function MusicMast({
                   }
                 />
               }
-              detail={row.account}
+              detail={row.account ?? undefined}
               selected={scope === row.id}
               onSelect={() => pick(row.id)}
             />

@@ -3,8 +3,8 @@ import type { MusicSearchHit } from "@/lib/search";
 import { artistIdentityKey } from "@/lib/music/artist-authority";
 import { audienceValue, SUBSTANTIVE_AUDIENCE } from "@/lib/music/artist-popularity";
 
-const first = (value: string | string[] | undefined): string | undefined =>
-  Array.isArray(value) ? value[0] : value;
+const first = (value: string | string[] | null | undefined): string | undefined =>
+  Array.isArray(value) ? value[0] : (value ?? undefined);
 
 /** Artists lead, then albums, then songs: a name query should not be buried under its own tracks. */
 export function toMusicHits(results: Awaited<ReturnType<typeof searchTyped>>): MusicSearchHit[] {
