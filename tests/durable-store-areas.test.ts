@@ -67,6 +67,30 @@ test("a watchlist or watched-mark write through storage recovery reaches user-da
   assert.equal(fileKeys()["harbor.manualwatched.v1.p1"], '["tt1|1|2"]');
 });
 
+test("custom lists, manga lists and collections reach user-data.json and survive quota recovery", async () => {
+  localStorage.clear();
+  await store.flushDurableStore();
+  const lists = await import("../src/lib/custom-lists.ts");
+  const collections = await import("../src/lib/collections.ts");
+  mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+  try {
+    assert.ok(lists.createList("Weekend"));
+    assert.ok(lists.createListStore("harbor.mangalists.v1").createList("Manga"));
+    assert.ok(collections.createCollection("Best of"));
+    localStorage.setItem("harbor.collections.p2", "[]");
+    mock.timers.tick(10_000);
+  } finally {
+    mock.timers.reset();
+  }
+  await settle();
+  const file = fileKeys();
+  assert.match(file["harbor.customlists.v1"] ?? "", /"Weekend"/);
+  assert.match(file["harbor.mangalists.v1"] ?? "", /"Manga"/);
+  assert.match(file["harbor.collections.v1"] ?? "", /"Best of"/);
+  assert.equal(recovery.isPrunable("harbor.collections.p2"), false);
+  assert.equal(store.isDurableKey("harbor.mangalists.migrated.v1"), false);
+});
+
 test("frequent playback ticks rewrite the file at most every 10 s, and never when nothing changed", async () => {
   localStorage.clear();
   await store.flushDurableStore();
