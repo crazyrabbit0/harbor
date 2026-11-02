@@ -1,18 +1,4 @@
-use tauri::AppHandle;
-
-#[derive(Clone, Debug, serde::Serialize, ts_rs::TS)]
-pub struct CastServerStatus {
-    pub bundled: bool,
-    pub running: bool,
-    pub ready: bool,
-    pub port: Option<u16>,
-    pub last_error: Option<String>,
-    pub restart_count: u32,
-}
-
-pub fn stop() {
-    crate::torrent_engine::stop_lan_server();
-}
+//! Stops a stremio-server that older builds left in Harbor's own folder.
 
 // Only a stremio-server left in Harbor's own folder by older builds; a Stremio the user runs elsewhere is never touched.
 fn is_harbor_sidecar(path: &std::path::Path, install_dir: &std::path::Path) -> bool {
@@ -38,7 +24,7 @@ fn install_dir() -> Option<std::path::PathBuf> {
         .map(|p| p.to_path_buf())
 }
 
-fn kill_orphan_sidecars() {
+pub(crate) fn kill_orphan_sidecars() {
     let Some(dir) = install_dir() else { return };
     #[cfg(windows)]
     for pid in windows_sidecars(&dir) {
@@ -145,38 +131,12 @@ fn windows_terminate(pid: u32) {
     }
 }
 
-pub fn ensure_started_on_setup(_app: &AppHandle) {
+pub fn ensure_started_on_setup() {
     std::thread::spawn(kill_orphan_sidecars);
 }
 
 #[tauri::command]
 pub async fn stop_stremio_sidecar() {
-    let _ = tauri::async_runtime::spawn_blocking(kill_orphan_sidecars).await;
-}
-
-#[tauri::command]
-pub fn cast_server_status() -> CastServerStatus {
-    let (running, port, last_error) = crate::torrent_engine::lan_status();
-    CastServerStatus {
-        bundled: running,
-        running,
-        ready: running,
-        port,
-        last_error,
-        restart_count: 0,
-    }
-}
-
-#[tauri::command]
-pub async fn cast_server_restart(app: AppHandle) -> Result<(), String> {
-    crate::torrent_engine::start_lan_server(&app)
-        .await
-        .map(|_| ())
-}
-
-#[tauri::command]
-pub async fn cast_server_stop() {
-    crate::torrent_engine::stop_lan_server();
     let _ = tauri::async_runtime::spawn_blocking(kill_orphan_sidecars).await;
 }
 

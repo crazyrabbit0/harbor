@@ -1,39 +1,9 @@
 use axum::body::Body;
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Response};
-use serde::Deserialize;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, Deserialize, ts_rs::TS)]
-pub struct TranscodeProfile {
-    #[serde(default = "default_max_height")]
-    pub max_height: u32,
-    #[serde(default)]
-    pub force_h264: bool,
-    #[serde(default)]
-    pub force_aac: bool,
-    #[serde(default)]
-    pub force_stereo: bool,
-    #[serde(default)]
-    #[ts(optional)]
-    pub max_video_kbps: Option<u32>,
-}
-
-impl Default for TranscodeProfile {
-    fn default() -> Self {
-        TranscodeProfile {
-            max_height: 1080,
-            force_h264: true,
-            force_aac: true,
-            force_stereo: true,
-            max_video_kbps: Some(6000),
-        }
-    }
-}
-
-fn default_max_height() -> u32 {
-    1080
-}
+pub use harbor_shared::cast_types::TranscodeProfile;
 
 // Only a found path is cached, so an ffmpeg installed after launch is still picked up.
 static FFMPEG_PATH: std::sync::OnceLock<std::path::PathBuf> = std::sync::OnceLock::new();

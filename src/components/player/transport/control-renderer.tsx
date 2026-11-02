@@ -71,6 +71,7 @@ import { RtxVsrToggleBigBtn } from "./rtx-vsr-toggle-btn";
 import type { Anime4kChoice } from "@/views/player/hooks/use-anime4k";
 import { DrawToggle } from "./draw-toggle";
 import { CastButton } from "./cast-button";
+import { appFeatures } from "@/lib/app-features";
 import { SeekStepBtn } from "./seek-step-btn";
 import { EpisodeNavBtn } from "./episode-nav-btn";
 import { TimeStart, TimeEnd } from "./time-display";
@@ -655,7 +656,7 @@ export function renderControl(id: PlayerControlId, ctx: ControlContext): ReactNo
       );
     }
     case "cast": {
-      if (ctx.tight) return null;
+      if (ctx.tight || !appFeatures().cast) return null;
       return <CastButton onClick={ctx.onCast} capabilities={ctx.capabilities} />;
     }
     case "fullscreen": {

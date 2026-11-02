@@ -6,6 +6,7 @@ publish = false
 
 [features]
 mpv = ["dep:libmpv2", "dep:libmpv2-sys", "dep:ts-rs"]
+ts = ["dep:ts-rs"]
 
 [dependencies]
 reqwest = { version = "0.12", default-features = false }

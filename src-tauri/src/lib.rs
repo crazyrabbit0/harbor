@@ -31,6 +31,7 @@ mod proc_mem;
 mod settings_store;
 mod stream_proxy;
 mod streams;
+mod stremio_sidecar;
 #[cfg(test)]
 mod streams_ipc;
 mod stremio_auth;
@@ -47,8 +48,6 @@ mod web_server;
 // alias emitted by tauri-build, so on Windows, macOS and Linux the predicate
 // is a compile-time true and the compiler sees exactly the tree it saw before.
 #[cfg(desktop)]
-mod airplay;
-#[cfg(desktop)]
 mod anime4k;
 #[cfg(desktop)]
 mod app_icon;
@@ -61,12 +60,12 @@ use harbor_shared::browser_args;
 mod capstan;
 #[cfg(desktop)]
 mod captions;
+// Without `cast` nothing calls the hooks; keeping them as a dead-code root keeps the proxy's cast paths warning-free.
 #[cfg(desktop)]
-mod cast;
-#[cfg(all(desktop, test))]
-mod cast_ipc;
-#[cfg(desktop)]
-mod cast_server;
+#[cfg_attr(not(feature = "cast"), allow(dead_code))]
+mod cast_hooks;
+#[cfg(all(desktop, feature = "cast"))]
+use harbor_cast::cast_server;
 #[cfg(desktop)]
 mod cf_relay;
 #[cfg(desktop)]
@@ -79,8 +78,6 @@ mod discord_rp;
 mod display_fit;
 #[cfg(desktop)]
 mod dj_deck;
-#[cfg(desktop)]
-mod dlna;
 #[cfg(all(desktop, feature = "livetv"))]
 pub(crate) use harbor_livetv::dvr;
 #[cfg(desktop)]
@@ -123,8 +120,6 @@ mod pip;
 mod pip_window;
 #[cfg(target_os = "macos")]
 mod pip_mac;
-#[cfg(desktop)]
-mod roku;
 #[cfg(desktop)]
 mod shaders;
 #[cfg(desktop)]
@@ -186,7 +181,8 @@ pub(crate) fn shutdown_services(app: &tauri::AppHandle) {
     #[cfg(feature = "music")]
     music::shutdown(app);
     stream_proxy::shutdown(app);
-    cast_server::stop();
+    #[cfg(feature = "cast")]
+    cast_server::stop(app);
     torrent_engine::stop();
     discord_rp::shutdown(app);
     crash_report::mark_clean_exit();
@@ -733,7 +729,7 @@ pub fn run() {
     mobile::run();
 }
 
-// Games, music and Live TV commands live in their own crates; each command prefix goes to that crate's handler.
+// Games, music, Live TV and cast commands live in their own crates; each goes to that crate's handler.
 #[cfg(desktop)]
 fn route_commands(
     app: impl Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool + Send + Sync + 'static,
@@ -744,7 +740,13 @@ fn route_commands(
     let music = music::invoke_handler();
     #[cfg(feature = "livetv")]
     let livetv = harbor_livetv::invoke_handler();
+    #[cfg(feature = "cast")]
+    let cast = harbor_cast::invoke_handler();
     move |invoke| {
+        #[cfg(feature = "cast")]
+        if harbor_cast::handles(invoke.message.command()) {
+            return cast(invoke);
+        }
         #[cfg(feature = "livetv")]
         let livetv_command = {
             let command = invoke.message.command();
@@ -803,6 +805,8 @@ pub fn run() {
             eprintln!("[stream-proxy] failed to start: {}", e);
             stream_proxy::ProxyState::placeholder()
         });
+    #[cfg(feature = "cast")]
+    let cast_proxy_state = proxy_state.clone();
     let mpv_state = mpv::MpvState::new();
     let pip_state = pip::PipState::new();
     let pip_window_state = pip_window::PipWindowState::default();
@@ -869,6 +873,8 @@ pub fn run() {
     let app_builder = app_builder
         .manage(dvr::DvrState::new())
         .manage(multiview::MultiviewState::new());
+    #[cfg(feature = "cast")]
+    let app_builder = app_builder.manage(cast_hooks::build(cast_proxy_state));
 
     #[cfg(target_os = "macos")]
     let app_builder = app_builder.register_uri_scheme_protocol("stremio", |ctx, request| {
@@ -979,7 +985,7 @@ pub fn run() {
                     }
                 }
             }
-            cast_server::ensure_started_on_setup(&app.handle());
+            stremio_sidecar::ensure_started_on_setup();
             torrent_engine::ensure_started_on_setup(&app.handle());
             {
                 let handle = app.handle().clone();
@@ -1124,9 +1130,9 @@ pub fn run() {
             subsync::asr::asr_transcribe_windows,
             subsync::asr::asr_verify,
             sub_extract::subtitle_extract,
+            stremio_sidecar::stop_stremio_sidecar,
+            harbor_shared::lan::lan_ip,
             sub_extract::subtitle_extract_ass,
-            cast_server::stop_stremio_sidecar,
-            cast_server::cast_server_stop,
             web_server::web_serve_start,
             web_server::web_serve_stop,
             web_server::web_serve_status,
@@ -1275,20 +1281,10 @@ pub fn run() {
             gamepad::gamepad_set_enabled,
             gamepad::gamepad_set_background_input,
             discord_rp::discord_set_enabled,
-            cast::cast_discover,
             harbor_lan::harbor_lan_identity,
             harbor_lan::harbor_lan_advertise,
             harbor_lan::harbor_lan_stop_advertise,
             harbor_lan::harbor_lan_discover,
-            dlna::lan_ip,
-            cast::cast_load,
-            cast::cast_play,
-            cast::cast_pause,
-            cast::cast_seek,
-            cast::cast_stop,
-            cast::cast_status,
-            cast_server::cast_server_status,
-            cast_server::cast_server_restart,
             torrent_engine::torrent_engine_status,
             torrent_engine::torrent_engine_set_enabled,
             torrent_engine::torrent_engine_add,

@@ -9,7 +9,7 @@ edition = "2021"
 
 [workspace]
 # The vendored path dependencies are workspace members as well, so their manifests declare no dev-dependencies.
-members = [".", "shared", "games", "music", "livetv"]
+members = [".", "shared", "games", "music", "livetv", "cast"]
 resolver = "2"
 
 [lib]
@@ -20,10 +20,11 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [features]
-default = ["games", "music", "livetv"]
+default = ["games", "music", "livetv", "cast"]
 games = ["dep:harbor-games"]
 music = ["dep:harbor-music"]
 livetv = ["dep:harbor-livetv"]
+cast = ["dep:harbor-cast"]
 silero-vad = ["dep:ort", "dep:ndarray"]
 asr-whisper = ["dep:whisper-rs"]
 chromaprint = []
@@ -118,6 +119,7 @@ ts-rs = { version = "12.0.1", features = ["serde-json-impl"] }
 harbor-games = { path = "games", optional = true }
 harbor-music = { path = "music", optional = true }
 harbor-livetv = { path = "livetv", optional = true }
+harbor-cast = { path = "cast", optional = true }
 harbor-shared = { path = "shared", features = ["mpv"] }
 leveldb-sys = { path = "vendor/leveldb-sys", features = ["snappy"] }
 trash = "=5.2.9"

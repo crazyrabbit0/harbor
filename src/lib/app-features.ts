@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type { AppFeatures } from "@/lib/generated/app-ipc";
 
 // Off-Tauri builds keep every room; a Tauri build reports what it was compiled with.
-const ALL: AppFeatures = { games: true, music: true, livetv: true };
+const ALL: AppFeatures = { games: true, music: true, livetv: true, cast: true };
 let features: AppFeatures = ALL;
 let loading: Promise<void> | null = null;
 
@@ -18,6 +18,7 @@ async function readFeatures(): Promise<void> {
       games: reported.games !== false,
       music: reported.music !== false,
       livetv: reported.livetv !== false,
+      cast: reported.cast !== false,
     };
   } catch {
     features = ALL;

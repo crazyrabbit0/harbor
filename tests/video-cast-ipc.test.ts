@@ -12,6 +12,7 @@ function fixture(fail = false) {
   const module = { exports: {} };
   new Function("require", "module", "exports", "window", outputText)(
     (name: string) => {
+      if (name === "@/lib/app-features") return { appFeatures: () => ({ cast: true }) };
       assert.equal(name, "@tauri-apps/api/core");
       return {
         invoke: async (command: string, args: any) => {

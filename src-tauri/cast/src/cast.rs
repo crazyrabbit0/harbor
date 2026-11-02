@@ -15,23 +15,25 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Duration;
 
 use crate::airplay;
-use crate::cast_subs::{self, CastSub, CastSubStyle};
 use crate::dlna;
 use crate::roku;
-use crate::stream_proxy::{AudioCastFormat, AudioCastInput, ProxyState, RegisterArgs};
-use crate::transcode::TranscodeProfile;
+use harbor_shared::cast_hooks::CastHooks;
+use harbor_shared::cast_types::{
+    AudioCastFormat, AudioCastInput, CastSub, CastSubStyle, RegisterArgs, TranscodeProfile,
+};
 
 const CAST_SERVICE_TYPE: &str = "_googlecast._tcp.local.";
 const DISCOVERY_TIMEOUT_MS: u64 = 5000;
 
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CastDeviceInfo {
     pub id: String,
     pub name: String,
     pub host: String,
     pub port: u16,
     pub model: Option<String>,
-    #[ts(type = "CastKind")]
+    #[cfg_attr(test, ts(type = "CastKind"))]
     pub kind: String,
     pub control_url: Option<String>,
     pub audio_only: bool,
@@ -511,7 +513,7 @@ fn launch_receiver_app<'a>(
 
 #[tauri::command]
 pub async fn cast_load(
-    proxy_state: tauri::State<'_, ProxyState>,
+    hooks: tauri::State<'_, CastHooks>,
     host: String,
     port: u16,
     url: String,
@@ -546,7 +548,7 @@ pub async fn cast_load(
             format: AudioCastFormat::Mp3,
             title, target_host: host,
         };
-        return load_dlna_audio(&proxy_state, cu, input, audio_start_paused.unwrap_or(false), None).await;
+        return load_dlna_audio(&hooks, cu, input, audio_start_paused.unwrap_or(false), None).await;
     }
     if audio_only.unwrap_or(false) && !is_audio_content_type(content_type.as_deref()) {
         return Err("Audio-only routing is currently supported by DLNA speakers".into());
@@ -558,7 +560,7 @@ pub async fn cast_load(
             // Extracting an embedded track reads the whole file under TRANSPORT_OPS, so a slow source casts without it.
             tokio::time::timeout(
                 Duration::from_secs(180),
-                cast_subs::prepare(s, &style, &url, &req_headers, seek),
+                (hooks.prepare_sub)(s.clone(), style, url.clone(), req_headers.clone(), seek),
             )
             .await
             .unwrap_or(None)
@@ -576,8 +578,8 @@ pub async fn cast_load(
     // receivers — same approach Plex/Jellyfin/Stremio use. ffmpeg copy mode
     // is line-rate (no re-encoding) and produces a streaming-friendly container.
     let url_needs_remux = needs_auto_remux(&kind_str, &url, content_type.as_deref());
-    let ffmpeg_available = crate::transcode::ffmpeg_present();
-    let ffmpeg_path = crate::transcode::locate_ffmpeg();
+    let ffmpeg_available = (hooks.ffmpeg_present)();
+    let ffmpeg_path = (hooks.locate_ffmpeg)();
     let url_path_lc = url.split('?').next().unwrap_or(&url).to_lowercase();
     let already_streaming = url_path_lc.ends_with(".m3u8")
         || url_path_lc.ends_with(".mpd")
@@ -604,7 +606,7 @@ pub async fn cast_load(
     // When auto_remux fires (and the frontend didn't pass a re-encode profile),
     // use copy mode so we just remux to MPEGTS at line rate — no CPU cost.
     let effective_profile = profile.or(if auto_remux {
-        Some(crate::transcode::TranscodeProfile {
+        Some(TranscodeProfile {
             max_height: 1080,
             force_h264: false,
             force_aac: false,
@@ -618,19 +620,18 @@ pub async fn cast_load(
         .as_ref()
         .map(|p| p.path.to_string_lossy().to_string());
     let burn_sub_style = burn_sub.as_ref().map(|p| p.force_style.clone());
-    let proxied = proxy_state
-        .register_cast(RegisterArgs {
-            url: url.clone(),
-            headers: req_headers,
-            transcode: do_transcode,
-            prebuffer_bytes: None,
-            profile: effective_profile,
-            target_host: Some(host.clone()),
-            start_time_sec,
-            burn_sub_path,
-            burn_sub_style,
-        })
-        .await;
+    let proxied = (hooks.register_cast)(RegisterArgs {
+        url: url.clone(),
+        headers: req_headers,
+        transcode: do_transcode,
+        prebuffer_bytes: None,
+        profile: effective_profile,
+        target_host: Some(host.clone()),
+        start_time_sec,
+        burn_sub_path,
+        burn_sub_style,
+    })
+    .await;
     eprintln!("[harbor::cast] proxied stream ready");
     let hls_session_id = proxied
         .url
@@ -655,7 +656,7 @@ pub async fn cast_load(
         .await
         {
             if let Some(id) = hls_session_id.as_deref() {
-                proxy_state.stop_hls_session(id).await;
+                (hooks.stop_hls_session)(id.to_string()).await;
             }
             return Err(error);
         }
@@ -665,7 +666,7 @@ pub async fn cast_load(
                 hls_session_id,
             },
             |id| async move {
-                proxy_state.stop_hls_session(&id).await;
+                (hooks.stop_hls_session)(id).await;
             },
         )
         .await?;
@@ -680,7 +681,7 @@ pub async fn cast_load(
         };
         if let Err(error) = roku::load(ecp.clone(), cast_url, title, ct, start_time_sec).await {
             if let Some(id) = hls_session_id.as_deref() {
-                proxy_state.stop_hls_session(id).await;
+                (hooks.stop_hls_session)(id.to_string()).await;
             }
             return Err(error);
         }
@@ -690,7 +691,7 @@ pub async fn cast_load(
                 hls_session_id,
             },
             |id| async move {
-                proxy_state.stop_hls_session(&id).await;
+                (hooks.stop_hls_session)(id).await;
             },
         )
         .await?;
@@ -699,7 +700,7 @@ pub async fn cast_load(
     if kind_str == "airplay" {
         if let Err(error) = airplay::load(host.clone(), port, cast_url, start_time_sec).await {
             if let Some(id) = hls_session_id.as_deref() {
-                proxy_state.stop_hls_session(id).await;
+                (hooks.stop_hls_session)(id.to_string()).await;
             }
             return Err(error);
         }
@@ -710,7 +711,7 @@ pub async fn cast_load(
                 hls_session_id,
             },
             |id| async move {
-                proxy_state.stop_hls_session(&id).await;
+                (hooks.stop_hls_session)(id).await;
             },
         )
         .await?;
@@ -730,27 +731,27 @@ pub async fn cast_load(
     match result {
         Ok(session) => {
             replace_active_session(session, |id| async move {
-                proxy_state.stop_hls_session(&id).await;
+                (hooks.stop_hls_session)(id).await;
             })
             .await
         }
         Err(error) => {
             if let Some(id) = hls_session_id.as_deref() {
-                proxy_state.stop_hls_session(id).await;
+                (hooks.stop_hls_session)(id.to_string()).await;
             }
             Err(error)
         }
     }
 }
 
-async fn load_dlna_audio(proxy: &ProxyState, control_url: String, input: AudioCastInput, paused: bool, expected_previous: Option<&str>) -> Result<(), String> {
+async fn load_dlna_audio(hooks: &CastHooks, control_url: String, input: AudioCastInput, paused: bool, expected_previous: Option<&str>) -> Result<(), String> {
     let title = input.title.clone();
     let mime = input.format.mime().to_string();
-    let route = proxy.register_audio_cast(input).await?;
+    let route = (hooks.register_audio_cast)(input).await?;
     if let Some(previous) = expected_previous {
         let still_owned = dlna::current_uri(&control_url).await.map(|uri| dlna::uri_has_audio_session(&uri, previous));
         if !matches!(still_owned, Ok(true)) {
-            proxy.stop_hls_session(&route.session_id).await;
+            (hooks.stop_hls_session)(route.session_id.clone()).await;
             return Err("The speaker source changed during seeking".into());
         }
     }
@@ -759,13 +760,13 @@ async fn load_dlna_audio(proxy: &ProxyState, control_url: String, input: AudioCa
         let cleanup = dlna::stop_audio_if_owned(&control_url, &route.session_id).await;
         if let Err(uncertain) = cleanup {
             // Retain an addressable session so a subsequent Stop can be acknowledged.
-            replace_active_session(ActiveSession::Dlna { control_url, hls_session_id: Some(route.session_id) }, |id| async move { proxy.stop_hls_session(&id).await; }).await?;
+            replace_active_session(ActiveSession::Dlna { control_url, hls_session_id: Some(route.session_id) }, |id| async move { (hooks.stop_hls_session)(id).await; }).await?;
             return Err(uncertain);
         }
-        proxy.stop_hls_session(&route.session_id).await;
+        (hooks.stop_hls_session)(route.session_id.clone()).await;
         return Err(error);
     }
-    replace_active_session(ActiveSession::Dlna { control_url, hls_session_id: Some(route.session_id) }, |id| async move { proxy.stop_hls_session(&id).await; }).await
+    replace_active_session(ActiveSession::Dlna { control_url, hls_session_id: Some(route.session_id) }, |id| async move { (hooks.stop_hls_session)(id).await; }).await
 }
 
 fn snapshot_dlna_audio() -> Option<(String, String)> {
@@ -1056,14 +1057,14 @@ pub async fn cast_pause() -> Result<(), String> {
 }
 
 #[tauri::command]
-pub async fn cast_seek(proxy_state: tauri::State<'_, ProxyState>, sec: f64) -> Result<(), String> {
+pub async fn cast_seek(hooks: tauri::State<'_, CastHooks>, sec: f64) -> Result<(), String> {
     let _operation = TRANSPORT_OPS.lock().await;
     if let Some((cu, id)) = snapshot_dlna_audio() {
         if !dlna::uri_has_audio_session(&dlna::current_uri(&cu).await?, &id) { return Err("The speaker source changed".into()); }
         let paused = normalize_player_state(&dlna::status(cu.clone()).await?.player_state) == "PAUSED";
-        let mut input = proxy_state.audio_cast_input(&id).await.ok_or("Speaker audio route ended")?;
+        let mut input = (hooks.audio_cast_input)(id.clone()).await.ok_or("Speaker audio route ended")?;
         input.start_seconds = sec;
-        return load_dlna_audio(&proxy_state, cu, input, paused, Some(&id)).await;
+        return load_dlna_audio(&hooks, cu, input, paused, Some(&id)).await;
     }
     if let Some(cu) = snapshot_dlna() {
         return dlna::seek(cu, sec).await;
@@ -1094,7 +1095,7 @@ pub async fn cast_seek(proxy_state: tauri::State<'_, ProxyState>, sec: f64) -> R
 }
 
 #[tauri::command]
-pub async fn cast_stop(proxy_state: tauri::State<'_, ProxyState>) -> Result<(), String> {
+pub async fn cast_stop(hooks: tauri::State<'_, CastHooks>) -> Result<(), String> {
     let _operation = TRANSPORT_OPS.lock().await;
     let (session, epoch) = {
         let mut active = ACTIVE.lock().map_err(|e| format!("lock: {e}"))?;
@@ -1134,18 +1135,18 @@ pub async fn cast_stop(proxy_state: tauri::State<'_, ProxyState>) -> Result<(), 
         restore_failed_stop(session, epoch)?;
         return Err(error);
     }
-    cast_subs::cleanup();
+    (hooks.cleanup_subs)();
     if let Some(id) = hls_session_id {
-        proxy_state.stop_hls_session(&id).await;
+        (hooks.stop_hls_session)(id).await;
     }
     Ok(())
 }
 
 #[tauri::command]
-pub async fn cast_status(proxy_state: tauri::State<'_, ProxyState>) -> Result<Option<CastStatus>, String> {
+pub async fn cast_status(hooks: tauri::State<'_, CastHooks>) -> Result<Option<CastStatus>, String> {
     if let Some((cu, id)) = snapshot_dlna_audio() {
         if !dlna::uri_has_audio_session(&dlna::current_uri(&cu).await?, &id) { return Ok(None); }
-        let input = proxy_state.audio_cast_input(&id).await.ok_or("Speaker audio route ended")?;
+        let input = (hooks.audio_cast_input)(id.clone()).await.ok_or("Speaker audio route ended")?;
         let state = dlna::status(cu).await?;
         return Ok(Some(CastStatus { position_sec: input.start_seconds + state.position_sec, player_state: normalize_player_state(&state.player_state), connected: true, transport_codec: Some("mp3".into()) }));
     }
@@ -1297,13 +1298,14 @@ fn poll_status(device: &CastDevice<'_>, transport_id: &str, msid: Option<i32>) -
     }))
 }
 
-#[derive(Debug, Clone, Serialize, ts_rs::TS)]
+#[derive(Debug, Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CastStatus {
     pub position_sec: f64,
     pub player_state: String,
     pub connected: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[ts(optional)]
+    #[cfg_attr(test, ts(optional))]
     pub transport_codec: Option<String>,
 }
 

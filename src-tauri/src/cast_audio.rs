@@ -19,28 +19,7 @@ use tokio::{
     sync::{watch, Mutex, RwLock, Semaphore},
 };
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum AudioCastFormat {
-    Mp3,
-}
-impl AudioCastFormat {
-    pub fn mime(self) -> &'static str {
-        match self {
-            Self::Mp3 => "audio/mpeg",
-        }
-    }
-}
-
-#[derive(Clone)]
-pub(crate) struct AudioCastInput {
-    pub url: String,
-    pub headers: HashMap<String, String>,
-    pub audio_ordinal: u32,
-    pub start_seconds: f64,
-    pub format: AudioCastFormat,
-    pub title: Option<String>,
-    pub target_host: String,
-}
+pub(crate) use harbor_shared::cast_types::{AudioCastFormat, AudioCastInput};
 
 struct Prepared {
     child: Child,

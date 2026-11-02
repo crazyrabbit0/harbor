@@ -1,4 +1,4 @@
-// Generated from src-tauri/src/cast_ipc.rs; do not edit. Regenerate: HARBOR_WRITE_BINDINGS=1 cargo test export_bindings
+// Generated from src-tauri/cast/src/cast_ipc.rs; do not edit. Regenerate: HARBOR_WRITE_BINDINGS=1 cargo test export_bindings
 
 export type CastKind = "chromecast" | "dlna" | "roku" | "airplay";
 

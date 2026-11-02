@@ -50,6 +50,7 @@ function setVersion(version) {
     ["src-tauri/Cargo.lock", "harbor-games"],
     ["src-tauri/Cargo.lock", "harbor-music"],
     ["src-tauri/Cargo.lock", "harbor-livetv"],
+    ["src-tauri/Cargo.lock", "harbor-cast"],
     ["installer/src-tauri/Cargo.lock", "harbor-setup"],
   ]) {
     replaceOnce(
