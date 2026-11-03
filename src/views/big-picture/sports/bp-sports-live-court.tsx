@@ -14,7 +14,7 @@ function starters(detail: SportsMatchDetail, home: boolean): number {
 }
 
 function surname(name: string): string {
-  return name.split(" ").at(-1) ?? name;
+  return name.split(" ").pop() ?? name;
 }
 
 export function bpSportsHasCourt(group: string, detail: SportsMatchDetail | null): boolean {
