@@ -48,36 +48,38 @@ export function MusicSpotifyDestination({
     const run = ++generation.current;
     setLoading(true);
     setError("");
-    try {
-      const next = await loadSpotifyLibraryPage("playlists", offset);
-      if (
-        next.nextOffset != null &&
-        (!Number.isSafeInteger(next.nextOffset) ||
-          next.nextOffset <= offset ||
-          next.nextOffset > 100_000)
-      )
-        throw new Error("Invalid playlist pagination");
-      if (generation.current === run)
-        setPage((previous) =>
-          offset && previous
-            ? {
-                ...next,
-                playlists: [
-                  ...new Map(
-                    [...previous.playlists, ...next.playlists].map((playlist) => [
-                      playlist.id,
-                      playlist,
-                    ]),
-                  ).values(),
-                ],
-              }
-            : next,
-        );
-    } catch (error) {
-      if (generation.current === run) setError(spotifyLibraryErrorKey(error));
-    } finally {
-      if (generation.current === run) setLoading(false);
-    }
+    return loadSpotifyLibraryPage("playlists", offset)
+      .then((next) => {
+        if (
+          next.nextOffset != null &&
+          (!Number.isSafeInteger(next.nextOffset) ||
+            next.nextOffset <= offset ||
+            next.nextOffset > 100_000)
+        )
+          return Promise.reject(new Error("Invalid playlist pagination"));
+        if (generation.current === run)
+          setPage((previous) =>
+            offset && previous
+              ? {
+                  ...next,
+                  playlists: [
+                    ...new Map(
+                      [...previous.playlists, ...next.playlists].map((playlist) => [
+                        playlist.id,
+                        playlist,
+                      ]),
+                    ).values(),
+                  ],
+                }
+              : next,
+          );
+      })
+      .catch((error: unknown) => {
+        if (generation.current === run) setError(spotifyLibraryErrorKey(error));
+      })
+      .finally(() => {
+        if (generation.current === run) setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -112,16 +114,18 @@ export function MusicSpotifyDestination({
     setBusy(true);
     setTarget(playlistId);
     setError("");
-    try {
-      await addTrackToSpotifyPlaylist(playlistId, track);
-      if (generation.current !== run) return;
-      setSaved(playlistId);
-      finishTimer.current = setTimeout(onDone, 600);
-    } catch (error) {
-      if (generation.current === run) setError(spotifyLibraryErrorKey(error));
-    } finally {
-      if (generation.current === run) setBusy(false);
-    }
+    return addTrackToSpotifyPlaylist(playlistId, track)
+      .then(() => {
+        if (generation.current !== run) return;
+        setSaved(playlistId);
+        finishTimer.current = setTimeout(onDone, 600);
+      })
+      .catch((error: unknown) => {
+        if (generation.current === run) setError(spotifyLibraryErrorKey(error));
+      })
+      .finally(() => {
+        if (generation.current === run) setBusy(false);
+      });
   };
 
   const create = async () => {
@@ -130,41 +134,42 @@ export function MusicSpotifyDestination({
     setBusy(true);
     setTarget(null);
     setError("");
-    try {
-      const playlist = await createSpotifyPlaylist(name);
-      if (generation.current !== run) return;
-      created.confirm();
-      setName("");
-      setNotice(t("music.spotifyLibrary.created", { name: playlist.name }));
-      setPage((previous) =>
-        previous
-          ? {
-              ...previous,
-              playlists: [playlist, ...previous.playlists],
-              total: previous.total == null ? null : previous.total + 1,
-            }
-          : previous,
-      );
-      window.dispatchEvent(new Event("harbor:spotify-library-changed"));
-    } catch (error) {
-      if (generation.current === run) setError(spotifyLibraryErrorKey(error));
-    } finally {
-      if (generation.current === run) setBusy(false);
-    }
+    return createSpotifyPlaylist(name)
+      .then((playlist) => {
+        if (generation.current !== run) return;
+        created.confirm();
+        setName("");
+        setNotice(t("music.spotifyLibrary.created", { name: playlist.name }));
+        setPage((previous) =>
+          previous
+            ? {
+                ...previous,
+                playlists: [playlist, ...previous.playlists],
+                total: previous.total == null ? null : previous.total + 1,
+              }
+            : previous,
+        );
+        window.dispatchEvent(new Event("harbor:spotify-library-changed"));
+      })
+      .catch((error: unknown) => {
+        if (generation.current === run) setError(spotifyLibraryErrorKey(error));
+      })
+      .finally(() => {
+        if (generation.current === run) setBusy(false);
+      });
   };
 
   const reconnect = async () => {
     setBusy(true);
     setTarget("reconnect");
     setError("");
-    try {
-      connections.apply(await connectSource("spotify"));
-      await load();
-    } catch (error) {
-      setError(spotifyLibraryErrorKey(error));
-    } finally {
-      setBusy(false);
-    }
+    return connectSource("spotify")
+      .then((next) => {
+        connections.apply(next);
+        return load();
+      })
+      .catch((error: unknown) => setError(spotifyLibraryErrorKey(error)))
+      .finally(() => setBusy(false));
   };
 
   if (!connected)

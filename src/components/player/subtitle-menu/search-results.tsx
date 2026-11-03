@@ -189,50 +189,60 @@ function ResultRow({
     if (added && !refreshable) return;
     setAdding(true);
     setAddStatus(null);
-    try {
-      const ok = await Promise.resolve(onAdd());
-      if (ok !== false) {
-        markAddedSub(result.url);
-        return;
-      }
-      setAddStatus(
-        wasPendingSub(result.url) ? "pending" : wasLimitReached(result.url) ? "limited" : "failed",
-      );
-      if (failTimer.current !== null) window.clearTimeout(failTimer.current);
-      failTimer.current = window.setTimeout(() => setAddStatus(null), 2600);
-    } finally {
-      setAdding(false);
-    }
+    await new Promise<boolean | void>((resolve) => resolve(onAdd()))
+      .then((ok) => {
+        if (ok !== false) {
+          markAddedSub(result.url);
+          return;
+        }
+        setAddStatus(
+          wasPendingSub(result.url)
+            ? "pending"
+            : wasLimitReached(result.url)
+              ? "limited"
+              : "failed",
+        );
+        if (failTimer.current !== null) window.clearTimeout(failTimer.current);
+        failTimer.current = window.setTimeout(() => setAddStatus(null), 2600);
+      })
+      .finally(() => {
+        setAdding(false);
+      });
   };
 
   const download = async () => {
     if (busy) return;
     setBusy(true);
     setDownloadStatus(null);
-    try {
-      const outcome = await saveSubtitleToDisk(result.url, {
-        title: result.title,
-        lang: result.lang,
-        format: result.format,
-        downloadAuth: result.downloadAuth,
-        label: t("Subtitle"),
-      });
-      if (outcome === "ok") {
-        setSaved(true);
-        if (timer.current !== null) window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => setSaved(false), 1400);
-      } else {
-        setDownloadStatus(outcome);
+    const saveOptions = {
+      title: result.title,
+      lang: result.lang,
+      format: result.format,
+      downloadAuth: result.downloadAuth,
+      label: t("Subtitle"),
+    };
+    await new Promise<Awaited<ReturnType<typeof saveSubtitleToDisk>>>((resolve) =>
+      resolve(saveSubtitleToDisk(result.url, saveOptions)),
+    )
+      .then((outcome) => {
+        if (outcome === "ok") {
+          setSaved(true);
+          if (timer.current !== null) window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => setSaved(false), 1400);
+        } else {
+          setDownloadStatus(outcome);
+          if (downloadFailTimer.current !== null) window.clearTimeout(downloadFailTimer.current);
+          downloadFailTimer.current = window.setTimeout(() => setDownloadStatus(null), 2200);
+        }
+      })
+      .catch(() => {
+        setDownloadStatus("failed");
         if (downloadFailTimer.current !== null) window.clearTimeout(downloadFailTimer.current);
         downloadFailTimer.current = window.setTimeout(() => setDownloadStatus(null), 2200);
-      }
-    } catch {
-      setDownloadStatus("failed");
-      if (downloadFailTimer.current !== null) window.clearTimeout(downloadFailTimer.current);
-      downloadFailTimer.current = window.setTimeout(() => setDownloadStatus(null), 2200);
-    } finally {
-      setBusy(false);
-    }
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const sourceColor =

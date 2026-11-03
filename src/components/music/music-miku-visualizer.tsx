@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useMusicAppearance } from "@/lib/music/appearance";
 import { MIKU_ARTWORK, type MikuArtworkSet } from "@/lib/music/miku-artwork";
 import type { MikuModel } from "@/lib/music/miku-models";
@@ -106,7 +106,9 @@ export function MusicMikuVisualizer({
   const video = track.mediaKind === "video";
   const supported = connectorId !== "spotify" && !video;
   const identity = useRef({ trackId, connectorId });
-  identity.current = { trackId, connectorId };
+  useLayoutEffect(() => {
+    identity.current = { trackId, connectorId };
+  }, [trackId, connectorId]);
   useEffect(() => {
     refresh.current?.();
   }, [trackId, connectorId]);

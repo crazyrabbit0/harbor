@@ -66,13 +66,10 @@ export function MusicDownloads({ query = "" }: { query?: string }) {
   const run = async (id: string, action: () => Promise<unknown>) => {
     setError(false);
     setWorking(id);
-    try {
-      await action();
-    } catch {
-      setError(true);
-    } finally {
-      setWorking(null);
-    }
+    return new Promise<unknown>((resolve) => resolve(action()))
+      .then(() => undefined)
+      .catch(() => setError(true))
+      .finally(() => setWorking(null));
   };
   const play = async (entry: MusicDownload) => {
     const track = await downloadedMusicTrack(entry);

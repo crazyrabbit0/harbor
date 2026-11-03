@@ -112,22 +112,26 @@ export function SubtitleFpsPanel({
     const request = ++applyRequestRef.current;
     setSaving(true);
     setError(null);
-    try {
+    await new Promise<void>((resolve) => {
       onBeforeApply?.();
-      await writeMpvSubtitleFps(choice, getMpvSubtitleFpsGeneration());
-      if (request !== applyRequestRef.current) return;
-      const value = choice === "default" ? null : choice;
-      setSubtitleFps(value);
-      setAutomatic(mode === "auto");
-      setCustomOpen(mode !== "auto" && value != null && matchingSubtitleFpsPreset(value) == null);
-      if (value != null) setDraft(formatSubtitleFps(value, 6));
-    } catch (cause) {
-      if (request !== applyRequestRef.current) return;
-      console.warn("[subtitles] could not set subtitle FPS", cause);
-      setError(tr("Couldn't apply subtitle FPS. Try again."));
-    } finally {
-      if (request === applyRequestRef.current) setSaving(false);
-    }
+      resolve(writeMpvSubtitleFps(choice, getMpvSubtitleFpsGeneration()));
+    })
+      .then(() => {
+        if (request !== applyRequestRef.current) return;
+        const value = choice === "default" ? null : choice;
+        setSubtitleFps(value);
+        setAutomatic(mode === "auto");
+        setCustomOpen(mode !== "auto" && value != null && matchingSubtitleFpsPreset(value) == null);
+        if (value != null) setDraft(formatSubtitleFps(value, 6));
+      })
+      .catch((cause) => {
+        if (request !== applyRequestRef.current) return;
+        console.warn("[subtitles] could not set subtitle FPS", cause);
+        setError(tr("Couldn't apply subtitle FPS. Try again."));
+      })
+      .finally(() => {
+        if (request === applyRequestRef.current) setSaving(false);
+      });
   };
 
   const selectOption = (value: string) => {

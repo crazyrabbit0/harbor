@@ -76,7 +76,9 @@ export function SkipPill({
 
   const counting = shouldCountdown && timeLeft > 0 && !hovered && !!mounted;
   const onDismissRef = useRef(onDismiss);
-  onDismissRef.current = onDismiss;
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
   // One interval per countdown run; depending on timeLeft would recreate it on every 50 ms step.
   useEffect(() => {
     if (!counting) return;

@@ -86,7 +86,7 @@ export function MusicVideoDiscovery({
       if (item.kind === "track") onWatch(item, tracks);
     },
   });
-  const rail = useDragScroll<HTMLDivElement>();
+  const { ref: railRef, handlers: railHandlers } = useDragScroll<HTMLDivElement>();
   useEffect(() => {
     setDraft(baseQuery);
   }, [baseQuery]);
@@ -134,27 +134,29 @@ export function MusicVideoDiscovery({
     moreRequest.current = true;
     setLoadingMore(true);
     setMoreError(false);
-    try {
-      const page = await searchMusicVideoPage(search, regular, cursor, false, resultSubject);
-      if (generation.current !== version) return;
-      seenCursors.current.add(cursor);
-      setResult((previous) =>
-        previous?.key === searchKey
-          ? {
-              ...previous,
-              tracks: appendMusicVideos(previous.tracks, page.tracks),
-              next: page.next && !seenCursors.current.has(page.next) ? page.next : null,
-            }
-          : previous,
-      );
-    } catch {
-      if (generation.current === version) setMoreError(true);
-    } finally {
-      if (generation.current === version) {
-        moreRequest.current = false;
-        setLoadingMore(false);
-      }
-    }
+    return searchMusicVideoPage(search, regular, cursor, false, resultSubject)
+      .then((page) => {
+        if (generation.current !== version) return;
+        seenCursors.current.add(cursor);
+        setResult((previous) =>
+          previous?.key === searchKey
+            ? {
+                ...previous,
+                tracks: appendMusicVideos(previous.tracks, page.tracks),
+                next: page.next && !seenCursors.current.has(page.next) ? page.next : null,
+              }
+            : previous,
+        );
+      })
+      .catch(() => {
+        if (generation.current === version) setMoreError(true);
+      })
+      .finally(() => {
+        if (generation.current === version) {
+          moreRequest.current = false;
+          setLoadingMore(false);
+        }
+      });
   }, [current, search, regular, searchKey, resultSubject]);
   const moreRef = useRef<(() => void) | null>(null);
   useEffect(() => {
@@ -165,7 +167,6 @@ export function MusicVideoDiscovery({
           }
         : null;
   }, [active, visible, loadingMore, moreError, current, more]);
-  const railRef = rail.ref;
   const measure = useCallback(() => {
     const el = railRef.current;
     if (!el) return;
@@ -354,7 +355,7 @@ export function MusicVideoDiscovery({
         </p>
       ) : (
         <>
-          <div className="music-video-rail" ref={railRef} {...rail.handlers}>
+          <div className="music-video-rail" ref={railRef} {...railHandlers}>
             {current.tracks.map((track, index) => (
               <div
                 key={track.sourceId}

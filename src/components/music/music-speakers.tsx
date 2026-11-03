@@ -25,6 +25,10 @@ export type MusicSpeakersProps = {
   onClose?: () => void;
 };
 
+// A synchronous throw from the action becomes a rejection the chain catches.
+const attempt = (action: () => Promise<unknown>) =>
+  new Promise<unknown>((resolve) => resolve(action()));
+
 export function MusicSpeakers({
   track,
   positionSec = 0,
@@ -58,50 +62,43 @@ export function MusicSpeakers({
     const token = ++request.current;
     setScanning(true);
     setErrorKey(null);
-    try {
-      const found = await discoverMusicSpeakers();
-      if (token === request.current) setDevices(found);
-    } catch (error) {
-      if (token === request.current)
-        setErrorKey(error instanceof MusicSpeakerError ? error.key : "music.cast.discoveryFailed");
-    } finally {
-      if (token === request.current) setScanning(false);
-    }
+    return discoverMusicSpeakers()
+      .then((found) => {
+        if (token === request.current) setDevices(found);
+      })
+      .catch((error: unknown) => {
+        if (token === request.current)
+          setErrorKey(
+            error instanceof MusicSpeakerError ? error.key : "music.cast.discoveryFailed",
+          );
+      })
+      .finally(() => {
+        if (token === request.current) setScanning(false);
+      });
+  };
+  const control = (id: string, action: () => Promise<unknown>, fallback: string) => {
+    setWorking(id);
+    setErrorKey(null);
+    return attempt(action)
+      .then(() => undefined)
+      .catch((error: unknown) => {
+        setErrorKey(error instanceof MusicSpeakerError ? error.key : fallback);
+      })
+      .finally(() => setWorking(null));
   };
   const activate = async (device: CastDeviceInfo) => {
     if (!track || trackIssue || busy) return;
-    setWorking(device.id);
-    setErrorKey(null);
-    try {
-      await (onLoad ? onLoad(device) : loadMusicOnSpeaker(track, device, positionSec));
-    } catch (error) {
-      setErrorKey(error instanceof MusicSpeakerError ? error.key : "music.cast.loadFailed");
-    } finally {
-      setWorking(null);
-    }
+    return control(
+      device.id,
+      () => (onLoad ? onLoad(device) : loadMusicOnSpeaker(track, device, positionSec)),
+      "music.cast.loadFailed",
+    );
   };
-  const stop = async () => {
-    setWorking("stop");
-    setErrorKey(null);
-    try {
-      await (onStop ? onStop() : stopMusicSpeaker());
-    } catch (error) {
-      setErrorKey(error instanceof MusicSpeakerError ? error.key : "music.cast.controlFailed");
-    } finally {
-      setWorking(null);
-    }
-  };
+  const stop = async () =>
+    control("stop", () => (onStop ? onStop() : stopMusicSpeaker()), "music.cast.controlFailed");
   const returnToComputer = async () => {
     if (!onReturn) return;
-    setWorking("return");
-    setErrorKey(null);
-    try {
-      await onReturn();
-    } catch (error) {
-      setErrorKey(error instanceof MusicSpeakerError ? error.key : "music.cast.controlFailed");
-    } finally {
-      setWorking(null);
-    }
+    return control("return", onReturn, "music.cast.controlFailed");
   };
 
   return (

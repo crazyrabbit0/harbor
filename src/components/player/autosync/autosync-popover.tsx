@@ -8,7 +8,7 @@ import {
   Wand2,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
 import { openSyncBar } from "@/lib/player/sub-sync";
 import { useAsrModelProgress } from "@/lib/subtitles/autosync/asr-model-progress";
@@ -74,7 +74,7 @@ export function AutosyncPopover({ handle }: { handle: AutoSyncHandle }) {
   const [thumb, setThumb] = useState<Thumb | null>(null);
   const [acting, setActing] = useState<Acting>(null);
   const [held, setHeld] = useState(false);
-  const correctionRef = useRef("");
+  const [correction, setCorrection] = useState("");
 
   useEffect(() => {
     setDismissed(false);
@@ -85,11 +85,11 @@ export function AutosyncPopover({ handle }: { handle: AutoSyncHandle }) {
 
   useEffect(() => {
     if (phase === "analyzing" || phase === null) {
-      correctionRef.current = "";
+      setCorrection("");
       return;
     }
     const c = correctionOf(handle.offer);
-    if (c) correctionRef.current = c;
+    if (c) setCorrection(c);
   }, [phase, handle.offer]);
 
   useEffect(() => {
@@ -102,7 +102,6 @@ export function AutosyncPopover({ handle }: { handle: AutoSyncHandle }) {
 
   if (phase === null || dismissed) return null;
 
-  const correction = correctionRef.current;
   const hasPanel = phase !== "analyzing";
 
   const applyOffer = () => {

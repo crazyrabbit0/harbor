@@ -1,5 +1,5 @@
 import { Spinner } from "@/components/spinner";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { thumbCacheGet, thumbCacheNearest, thumbCacheSet, trickplayGet } from "@/lib/trickplay";
 import { useSkipSegmentsView } from "@/lib/skip-intro/segment-store";
 import { useT } from "@/lib/i18n";
@@ -24,7 +24,9 @@ export function ThumbPreview({
 }) {
   const bucket = Math.round(time / BUCKET_SECONDS);
   const liveBucketRef = useRef(bucket);
-  liveBucketRef.current = bucket;
+  useLayoutEffect(() => {
+    liveBucketRef.current = bucket;
+  }, [bucket]);
   const [fetchedSrc, setFetchedSrc] = useState<string | null>(() => thumbCacheGet(bucket) ?? null);
   const [loading, setLoading] = useState(false);
 

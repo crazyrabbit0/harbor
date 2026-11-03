@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -39,11 +39,42 @@ import "./music-quick-listen.css";
 
 type PreviewState = "loading" | "playing" | "paused" | "ended";
 
+function SnippetAction({
+  label,
+  icon,
+  action,
+  pressed,
+  disabled,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  action: () => void;
+  pressed?: boolean;
+  disabled?: boolean;
+}) {
+  return (
+    <HoverTooltip label={label} align="center">
+      <button
+        type="button"
+        className="music-snippet-action"
+        onClick={action}
+        aria-label={label}
+        aria-pressed={pressed}
+        disabled={disabled}
+      >
+        {icon}
+      </button>
+    </HoverTooltip>
+  );
+}
+
 export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onClose: () => void }) {
   const t = useT();
   const settings = useSettingsSelector((s) => ({ hotkeys: s.hotkeys }));
   const hotkeysRef = useRef(settings.hotkeys ?? {});
-  hotkeysRef.current = settings.hotkeys ?? {};
+  useLayoutEffect(() => {
+    hotkeysRef.current = settings.hotkeys ?? {};
+  }, [settings.hotkeys]);
   const titleId = useId();
   const root = useRef<HTMLDivElement>(null);
   const artFrame = useRef<HTMLDivElement>(null);
@@ -57,12 +88,14 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
   const [status, setStatus] = useState<PreviewState>("loading");
   const [elapsed, setElapsed] = useState(0);
   const [muted, setMuted] = useState(false);
-  const profile = useRef(activeProfileId());
+  const [profileId] = useState(activeProfileId);
   const [loop, setLoop] = useState(
-    () => readMusicPreference(`harbor.music.previewLoop.${profile.current}`) !== "false",
+    () => readMusicPreference(`harbor.music.previewLoop.${profileId}`) !== "false",
   );
   const loopEnabled = useRef(loop);
-  loopEnabled.current = loop;
+  useLayoutEffect(() => {
+    loopEnabled.current = loop;
+  }, [loop]);
   const [volume, setVolume] = useState(() => {
     const saved = readMusicPreference(`harbor.music.previewVolume.${activeProfileId()}`);
     const value = saved === null ? Math.min(0.25, getMusicState().volume) : Number(saved);
@@ -74,12 +107,14 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
   const track = tracks[index];
   const display = track;
   const failed = useRef(() => {});
-  failed.current = () => {
-    if (snippet) {
-      reject(snippet);
-      setIndex((value) => Math.max(0, Math.min(value, items.length - 2)));
-    }
-  };
+  useLayoutEffect(() => {
+    failed.current = () => {
+      if (snippet) {
+        reject(snippet);
+        setIndex((value) => Math.max(0, Math.min(value, items.length - 2)));
+      }
+    };
+  });
   const saved = useMusicTrackLiked(display);
   const { openPlaylistPicker } = useMusicPlaylistPicker();
   const { openSourcePicker } = useMusicSourcePicker();
@@ -168,7 +203,7 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
 
   useEffect(() => {
     if (!track || !snippet) return;
-    recordSnippetsSeen([track], profile.current);
+    recordSnippetsSeen([track], profileId);
     const controller = new AbortController();
     const player = audio.current!;
     player.pause();
@@ -212,11 +247,11 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
       audio.current.muted = muted;
       audio.current.volume = volume;
     }
-    writeMusicPreference(`harbor.music.previewVolume.${profile.current}`, String(volume));
+    writeMusicPreference(`harbor.music.previewVolume.${profileId}`, String(volume));
   }, [muted, volume]);
 
   useEffect(() => {
-    writeMusicPreference(`harbor.music.previewLoop.${profile.current}`, String(loop));
+    writeMusicPreference(`harbor.music.previewLoop.${profileId}`, String(loop));
   }, [loop]);
 
   useEffect(() => {
@@ -241,10 +276,7 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
     );
     if (next === index) return;
     // A fast wheel/trackpad gesture can cross several cards between React renders.
-    recordSnippetsSeen(
-      tracks.slice(Math.min(index, next), Math.max(index, next) + 1),
-      profile.current,
-    );
+    recordSnippetsSeen(tracks.slice(Math.min(index, next), Math.max(index, next) + 1), profileId);
     setIndex(next);
   };
   const togglePreview = () => {
@@ -295,26 +327,6 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
         ? "music.quickListen.replay"
         : "music.quickListen.previewPlay",
   );
-  const iconButton = (
-    label: string,
-    icon: React.ReactNode,
-    action: () => void,
-    props: { pressed?: boolean; disabled?: boolean } = {},
-  ) => (
-    <HoverTooltip label={label} align="center">
-      <button
-        type="button"
-        className="music-snippet-action"
-        onClick={action}
-        aria-label={label}
-        aria-pressed={props.pressed}
-        disabled={props.disabled}
-      >
-        {icon}
-      </button>
-    </HoverTooltip>
-  );
-
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (
@@ -391,12 +403,12 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
             <h2 id={titleId}>{t("music.quickListen.title")}</h2>
           </div>
           <div>
-            {iconButton(
-              t("music.quickListen.loop"),
-              <Repeat2 size={20} />,
-              () => setLoop((value) => !value),
-              { pressed: loop },
-            )}
+            <SnippetAction
+              label={t("music.quickListen.loop")}
+              icon={<Repeat2 size={20} />}
+              action={() => setLoop((value) => !value)}
+              pressed={loop}
+            />
             <div ref={attachVolumeWheel} className="music-snippet-volume">
               <button
                 type="button"
@@ -509,9 +521,11 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
                           onToggle={() => toggleMusicLiked(song)}
                         />
                       </HoverTooltip>
-                      {iconButton(t("music.card.addToPlaylist"), <ListPlus size={25} />, () =>
-                        openPlaylistPicker(song),
-                      )}
+                      <SnippetAction
+                        label={t("music.card.addToPlaylist")}
+                        icon={<ListPlus size={25} />}
+                        action={() => openPlaylistPicker(song)}
+                      />
                       <HoverTooltip label={t("music.quickListen.more")} align="center">
                         <button
                           type="button"
@@ -601,12 +615,18 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
               ))}
             </div>
             <div className="music-snippet-navigation">
-              {iconButton(t("music.previous"), <ArrowUp size={21} />, () => step(-1), {
-                disabled: index === 0,
-              })}
-              {iconButton(t("music.next"), <ArrowDown size={21} />, () => step(1), {
-                disabled: index >= tracks.length - 1,
-              })}
+              <SnippetAction
+                label={t("music.previous")}
+                icon={<ArrowUp size={21} />}
+                action={() => step(-1)}
+                disabled={index === 0}
+              />
+              <SnippetAction
+                label={t("music.next")}
+                icon={<ArrowDown size={21} />}
+                action={() => step(1)}
+                disabled={index >= tracks.length - 1}
+              />
             </div>
           </div>
         </footer>

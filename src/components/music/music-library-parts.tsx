@@ -35,6 +35,7 @@ import { nowPlayingMatches } from "@/lib/music/now-playing-key";
 import "./music-like-burst.css";
 
 const ROW_LIKE_SPOKES = [0, 45, 90, 135, 180, 225, 270, 315];
+const loadRadio = () => import("@/lib/music/radio");
 import { addTracksToMusicPlaylist, createMusicPlaylist } from "@/lib/music/library";
 import { recordMusicPlaylistPlayback } from "@/lib/music/playback-origin";
 import { useMusicNowPlaying } from "@/lib/music/use-now-playing";
@@ -500,26 +501,29 @@ export function PlaylistHeader({
     setAsking(false);
     setCloning(true);
     onError(null);
-    try {
-      const { loadPlaylistLikeThis } = await import("@/lib/music/radio");
-      const heard = freshOnly ? getMusicState().recents : [];
-      const mix = await loadPlaylistLikeThis(playlist.tracks, undefined, heard);
-      const made = await createMusicPlaylist(
-        t("music.playlist.likeThisName", { name: playlist.name }),
-      );
-      const built = mix.length ? await addTracksToMusicPlaylist(made.id, mix) : made;
-      onRenamed(built);
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : String(cause);
-      onError(message === "music.radio.error" ? t(message) : message);
-    } finally {
-      clonePending.current = false;
-      setCloning(false);
-      requestAnimationFrame(() => {
-        if (document.activeElement === document.body)
-          likeButton.current?.focus({ preventScroll: true });
+    return loadRadio()
+      .then(({ loadPlaylistLikeThis }) => {
+        const heard = freshOnly ? getMusicState().recents : [];
+        return loadPlaylistLikeThis(playlist.tracks, undefined, heard);
+      })
+      .then((mix) =>
+        createMusicPlaylist(t("music.playlist.likeThisName", { name: playlist.name })).then(
+          (made) => (mix.length ? addTracksToMusicPlaylist(made.id, mix) : made),
+        ),
+      )
+      .then((built) => onRenamed(built))
+      .catch((cause: unknown) => {
+        const message = cause instanceof Error ? cause.message : String(cause);
+        onError(message === "music.radio.error" ? t(message) : message);
+      })
+      .finally(() => {
+        clonePending.current = false;
+        setCloning(false);
+        requestAnimationFrame(() => {
+          if (document.activeElement === document.body)
+            likeButton.current?.focus({ preventScroll: true });
+        });
       });
-    }
   };
   // Stored tracks may carry no playbackUrl, so playing goes through the picker rather than
   // straight to the engine.
@@ -547,29 +551,28 @@ export function PlaylistHeader({
     }
     setBusy(true);
     onError(null);
-    try {
-      onRenamed(await renameMusicPlaylist(playlist.id, trimmed));
-      setRenaming(false);
-      requestAnimationFrame(() => renameButton.current?.focus());
-    } catch (reason) {
-      onError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setBusy(false);
-    }
+    return renameMusicPlaylist(playlist.id, trimmed)
+      .then((renamed) => {
+        onRenamed(renamed);
+        setRenaming(false);
+        requestAnimationFrame(() => renameButton.current?.focus());
+      })
+      .catch((reason: unknown) => {
+        onError(reason instanceof Error ? reason.message : String(reason));
+      })
+      .finally(() => setBusy(false));
   };
 
   const remove = async () => {
     if (!window.confirm(t("music.playlist.deleteConfirm"))) return;
     setBusy(true);
     onError(null);
-    try {
-      await deleteMusicPlaylist(playlist.id);
-      onDeleted(playlist.id);
-    } catch (reason) {
-      onError(reason instanceof Error ? reason.message : String(reason));
-    } finally {
-      setBusy(false);
-    }
+    return deleteMusicPlaylist(playlist.id)
+      .then(() => onDeleted(playlist.id))
+      .catch((reason: unknown) => {
+        onError(reason instanceof Error ? reason.message : String(reason));
+      })
+      .finally(() => setBusy(false));
   };
 
   return (

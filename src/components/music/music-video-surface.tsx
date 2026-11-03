@@ -37,6 +37,10 @@ const RESOLVE_MS = 30_000;
 /** Survives the handoff the way the picture does: a choice made on the watch page holds in the pop-out. */
 let lyricsPreferred = false;
 
+function setMediaVolume(media: HTMLMediaElement, volume: number): void {
+  media.volume = volume;
+}
+
 function retryMusicVideo(track: MusicTrack): void {
   void musicVideoStream(track, true).catch(() => {});
   musicVideoSurfaces.retry();
@@ -93,7 +97,7 @@ export function MusicVideoSurface({
   onRetry?: () => void;
 }) {
   const t = useT();
-  const owner = useRef(Symbol("music video surface")).current;
+  const [owner] = useState(() => Symbol("music video surface"));
   const shell = useRef<HTMLDivElement>(null);
   const nodes = musicVideoHost();
   const state = useSyncExternalStore(
@@ -244,8 +248,7 @@ export function MusicVideoSurface({
   const paused = player.phase === "paused";
   useEffect(() => {
     if (!stream || !picture) return;
-    if (sound) sound.volume = volume;
-    else picture.volume = volume;
+    setMediaVolume(sound ?? picture, volume);
     if (paused) {
       sound?.pause();
       picture.pause();
@@ -323,7 +326,7 @@ export function MusicVideoSurface({
     }
     setAttempt((count) => count + 1);
     retryMusicVideo(track);
-  }, [onRetry, track.id, track.connectorId]);
+  }, [onRetry, track]);
   // Fullscreen is a lean-back surface: the chrome rests on its own the way a film player does.
   useEffect(() => {
     if (!fullscreen) {

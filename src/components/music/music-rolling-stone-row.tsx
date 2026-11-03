@@ -26,7 +26,7 @@ export function MusicRollingStoneRow({
   const t = useT();
   const [decade, setDecade] = useState<number | null>(null);
   const [genre, setGenre] = useState("all");
-  const genres = useMemo(rollingStoneGenres, []);
+  const genres = useMemo(() => rollingStoneGenres(), []);
   const items = useMemo(
     () => rollingStoneItems({ decade, genre: genre === "all" ? null : genre }),
     [decade, genre],

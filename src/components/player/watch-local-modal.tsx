@@ -1,4 +1,4 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Check, HardDrive, RotateCcw, Wifi } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -32,6 +32,11 @@ export function WatchLocalModal() {
     closeWatchLocalConfirm();
     fn?.(choice, remember);
   };
+  const chooseRef = useRef(choose);
+  useLayoutEffect(() => {
+    chooseRef.current = choose;
+  }, [choose]);
+  const onChoose = state.onChoose;
 
   useEffect(() => {
     if (!state.open) return;
@@ -43,13 +48,12 @@ export function WatchLocalModal() {
       } else if (e.key === "Enter") {
         e.preventDefault();
         e.stopImmediatePropagation();
-        choose("local");
+        chooseRef.current("local");
       }
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.open, state.onChoose, remember]);
+  }, [state.open, onChoose, remember]);
 
   if (!state.open) return null;
 

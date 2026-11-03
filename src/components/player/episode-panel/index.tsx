@@ -147,7 +147,7 @@ export function EpisodePanel({
       setMode: (m) => update({ localPlaybackMode: m }),
     });
   };
-  const handlePickStream = async (stream: ScoredStream) => {
+  const handlePickStream = (stream: ScoredStream) => {
     if (!pickingFor || roomGuest) return;
     if (!stream.url && stream.externalUrl) return;
     const ep = pickingFor;
@@ -162,7 +162,7 @@ export function EpisodePanel({
     const ac = new AbortController();
     resolveAcRef.current = ac;
     setResolvingFor(ep);
-    try {
+    const play = async () => {
       const hint = { season: ep.season ?? null, episode: ep.episode ?? null };
       const r = await resolveStream(stream, debrids, ac.signal, true, false, hint);
       if (ac.signal.aborted) return;
@@ -174,14 +174,13 @@ export function EpisodePanel({
       let playUrl = r.data.url;
       const hasProxyHeaders = !!r.data.headers && Object.keys(r.data.headers).length > 0;
       if (hasProxyHeaders) {
-        try {
-          const proxied = await registerStreamProxy(r.data.url, r.data.headers);
-          playUrl = proxied.url;
-          proxySessionId = proxied.sessionId;
-        } catch {
+        const proxied = await registerStreamProxy(r.data.url, r.data.headers).catch(() => null);
+        if (!proxied) {
           setResolvingFor(null);
           return;
         }
+        playUrl = proxied.url;
+        proxySessionId = proxied.sessionId;
       }
       const skipPreflight =
         r.via === "p2p" ||
@@ -230,14 +229,17 @@ export function EpisodePanel({
       traceTransferred = true;
       proxyTransferred = true;
       onClose();
-    } catch {
-      setResolvingFor(null);
-    } finally {
-      if (proxySessionId && !proxyTransferred) {
-        void unregisterStreamProxy(proxySessionId).catch(() => {});
-      }
-      if (!traceTransferred) finishPlaybackTrace(playbackTraceId, "failed");
-    }
+    };
+    return play()
+      .catch(() => {
+        setResolvingFor(null);
+      })
+      .finally(() => {
+        if (proxySessionId && !proxyTransferred) {
+          void unregisterStreamProxy(proxySessionId).catch(() => {});
+        }
+        if (!traceTransferred) finishPlaybackTrace(playbackTraceId, "failed");
+      });
   };
   return (
     <div

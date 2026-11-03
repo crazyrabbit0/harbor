@@ -116,16 +116,18 @@ function PickerModal({ track, onDismiss }: { track: MusicTrack; onDismiss: () =>
     setBusy(true);
     setTarget(playlistId);
     setError("");
-    try {
-      await addTrackToMusicPlaylist(playlistId, track);
-      if (!mounted.current) return;
-      setSaved(playlistId);
-      finishTimer.current = setTimeout(close, 600);
-    } catch (cause) {
-      if (mounted.current) setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
+    return addTrackToMusicPlaylist(playlistId, track)
+      .then(() => {
+        if (!mounted.current) return;
+        setSaved(playlistId);
+        finishTimer.current = setTimeout(close, 600);
+      })
+      .catch((cause: unknown) => {
+        if (mounted.current) setError(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => {
+        if (mounted.current) setBusy(false);
+      });
   };
 
   const createAndSave = async () => {
@@ -134,17 +136,20 @@ function PickerModal({ track, onDismiss }: { track: MusicTrack; onDismiss: () =>
     setBusy(true);
     setTarget(null);
     setError("");
-    try {
-      const playlist = await createMusicPlaylist(trimmed);
-      await addTrackToMusicPlaylist(playlist.id, track);
-      if (!mounted.current) return;
-      setSaved(playlist.id);
-      finishTimer.current = setTimeout(close, 600);
-    } catch (cause) {
-      if (mounted.current) setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      if (mounted.current) setBusy(false);
-    }
+    return createMusicPlaylist(trimmed)
+      .then((playlist) =>
+        addTrackToMusicPlaylist(playlist.id, track).then(() => {
+          if (!mounted.current) return;
+          setSaved(playlist.id);
+          finishTimer.current = setTimeout(close, 600);
+        }),
+      )
+      .catch((cause: unknown) => {
+        if (mounted.current) setError(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => {
+        if (mounted.current) setBusy(false);
+      });
   };
 
   return (

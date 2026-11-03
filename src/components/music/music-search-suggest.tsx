@@ -130,6 +130,16 @@ function subtitleOf(item: MusicCatalogItem): string {
   return "";
 }
 
+function groupStarts(groups: Group[]): number[] {
+  const starts: number[] = [];
+  let total = 0;
+  for (const group of groups) {
+    starts.push(total);
+    total += group.items.length;
+  }
+  return starts;
+}
+
 function GlyphFor({ kind }: { kind: MusicCatalogItem["kind"] }) {
   if (kind === "artist") return <Mic2 size={13} aria-hidden />;
   if (kind === "album") return <Disc3 size={13} aria-hidden />;
@@ -158,7 +168,7 @@ export function MusicSearchSuggest({
 
   if (!flat.length) return null;
 
-  let index = -1;
+  const starts = groupStarts(groups);
   return (
     <div
       ref={listRef}
@@ -167,14 +177,13 @@ export function MusicSearchSuggest({
       aria-label="search suggestions"
       className="harbor-float animate-menu-in max-h-[min(560px,60vh)] overflow-y-auto overscroll-contain rounded-md bg-elevated p-1 ring-1 ring-edge-soft"
     >
-      {groups.map((group) => (
+      {groups.map((group, groupIndex) => (
         <div key={group.key}>
           <div className="px-2.5 pb-1 pt-2 text-[10.5px] font-semibold uppercase tracking-[0.14em] text-ink-subtle">
             {group.label}
           </div>
-          {group.items.map((item) => {
-            index += 1;
-            const i = index;
+          {group.items.map((item, itemIndex) => {
+            const i = starts[groupIndex] + itemIndex;
             const art = artOf(item);
             const sub = subtitleOf(item);
             return (

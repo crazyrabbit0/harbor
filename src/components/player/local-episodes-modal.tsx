@@ -41,6 +41,28 @@ export function LocalEpisodesModal() {
 /** Episode -> every file on disk for it, best version first. */
 type SeasonMap = Map<number, Map<number, LocalEntry[]>>;
 
+function belongsToShow(
+  e: LocalEntry,
+  tmdbId: LocalEpisodesPayload["tmdbId"],
+  imdbId: LocalEpisodesPayload["imdbId"],
+): boolean {
+  return (tmdbId != null && e.tmdbId === tmdbId) || (imdbId != null && e.imdbId === imdbId);
+}
+
+function byEpisodeOrder(a: LocalEntry, b: LocalEntry): number {
+  return (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0);
+}
+
+// Takes the library so a library change re-reads resume history.
+function latestPlayedEpisode(resumeIds: string[], _library: LocalEntry[]) {
+  let best: { season: number; episode: number; t: number } | null = null;
+  for (const id of resumeIds) {
+    const lp = lastPlayedEpisode(id);
+    if (lp && (!best || lp.t > best.t)) best = lp;
+  }
+  return best;
+}
+
 function GridModal({ payload }: { payload: LocalEpisodesPayload }) {
   const t = useT();
   const settings = useSettingsSelector((s) => ({ localEpisodeSortDesc: s.localEpisodeSortDesc }));
@@ -52,13 +74,7 @@ function GridModal({ payload }: { payload: LocalEpisodesPayload }) {
 
   const localEps = useMemo(
     () =>
-      all
-        .filter(
-          (e) =>
-            e.type === "show" &&
-            ((tmdbId != null && e.tmdbId === tmdbId) || (imdbId != null && e.imdbId === imdbId)),
-        )
-        .sort((a, b) => (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0)),
+      all.filter((e) => e.type === "show" && belongsToShow(e, tmdbId, imdbId)).sort(byEpisodeOrder),
     [all, tmdbId, imdbId],
   );
 
@@ -69,7 +85,9 @@ function GridModal({ payload }: { payload: LocalEpisodesPayload }) {
     let alive = true;
     void fetchCinemetaMeta("series", imdbId)
       .then((full) => {
-        if (alive && full?.videos?.length) setVideos(full.videos);
+        const fetched = full?.videos;
+        if (!alive || !fetched?.length) return;
+        setVideos(fetched);
       })
       .catch(() => {});
     return () => {
@@ -162,15 +180,7 @@ function GridModal({ payload }: { payload: LocalEpisodesPayload }) {
     };
   }, [resumeIds]);
 
-  const lastWatched = useMemo(() => {
-    let best: { season: number; episode: number; t: number } | null = null;
-    for (const id of resumeIds) {
-      const lp = lastPlayedEpisode(id);
-      if (lp && (!best || lp.t > best.t)) best = lp;
-    }
-    return best;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resumeIds.join("|"), all]);
+  const lastWatched = useMemo(() => latestPlayedEpisode(resumeIds, all), [resumeIds, all]);
 
   const hlSeason =
     payload.highlightEpisode != null

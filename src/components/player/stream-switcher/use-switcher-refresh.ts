@@ -49,7 +49,7 @@ export function useSwitcherRefresh(params: {
     const ac = new AbortController();
     acRef.current = ac;
     setRefreshing(true);
-    try {
+    await new Promise<void>((resolve) => {
       const input = buildEpisodePipelineInput({
         meta,
         episode,
@@ -61,19 +61,22 @@ export function useSwitcherRefresh(params: {
         strictMode,
         filterDisabled,
       });
-      const result = await runPipeline(input, ac.signal, (partial) => {
+      const pipeline = runPipeline(input, ac.signal, (partial) => {
         if (ac.signal.aborted || partial.picker.all.length === 0) return;
         stampAddonOrder(partial.picker.all, partial.raw.addon);
         setPickerCache(meta, episode, partial, configHash, false);
+      }).then((result) => {
+        if (ac.signal.aborted) return;
+        stampAddonOrder(result.picker.all, result.raw.addon);
+        setPickerCache(meta, episode, result, configHash);
       });
-      if (ac.signal.aborted) return;
-      stampAddonOrder(result.picker.all, result.raw.addon);
-      setPickerCache(meta, episode, result, configHash);
-    } catch {
+      resolve(pipeline);
+    })
       // keep the existing cache on failure
-    } finally {
-      if (!ac.signal.aborted) setRefreshing(false);
-    }
+      .catch(() => {})
+      .finally(() => {
+        if (!ac.signal.aborted) setRefreshing(false);
+      });
   }, [addons, debrids, meta, episode, imdbId, settings]);
 
   const autoFilledRef = useRef(false);
