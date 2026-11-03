@@ -1,10 +1,12 @@
 import type {
   MusicAlbumRef,
   MusicArtistRef as GeneratedMusicArtistRef,
+  MusicSourceCandidate as GeneratedMusicSourceCandidate,
   MusicCatalogScope,
   MusicPlaylistRef,
   MusicRowLayout,
   MusicStationRef,
+  MusicTrackCore,
 } from "@/lib/generated/music-ipc";
 
 /** Measured file/stream properties; never infer these from a provider or subscription. */
@@ -16,31 +18,18 @@ export type MusicAudioQuality = {
   bitrateKbps?: number;
 };
 
-export type MusicTrack = {
+/** Rust's track shape plus fields only the frontend sets. */
+export type MusicTrack = MusicTrackCore & {
   releaseDate?: string;
-  explicit?: boolean;
-  version?: string;
-  /** Original collection entry retained when the source chooser selects a provider. */
   /** Where the recording was asked for: the credit survives whichever source supplies audio. */
   collectionOrigin?: {
     id: string;
-    connectorId?: string;
+    connectorId?: string | null;
     title?: string;
     artist?: string;
     artwork?: string;
   };
-  mediaKind?: "audio" | "video";
-  connectorId?: string;
-  sourceId?: string;
-  playbackUrl?: string;
   quality?: MusicAudioQuality;
-  id: string;
-  title: string;
-  artist: string;
-  album?: string;
-  artwork: string;
-  durationSeconds: number;
-  durationLabel: string;
 };
 
 export type MusicSection = {
@@ -51,19 +40,9 @@ export type MusicSection = {
   titleVars?: Record<string, string | number>;
 };
 
-export type MusicConnectorHealth = {
-  id: string;
-  name: string;
-  health: "unknown" | "healthy" | "degraded" | "offline";
-  searchable: boolean;
-  playable: boolean;
-  scrobbler: boolean;
-};
+export type { MusicConnectorHealth } from "@/lib/generated/music-ipc";
 
-export type MusicSourceCandidate = {
-  connectorId: string;
-  connectorName: string;
-  health: MusicConnectorHealth["health"];
+export type MusicSourceCandidate = Omit<GeneratedMusicSourceCandidate, "track"> & {
   track: MusicTrack;
 };
 

@@ -47,7 +47,15 @@ function harness() {
   };
   let persisted: LocalEntry[] = [];
   const createLibrary = () => {
-    const removals = load("src/lib/local-library/removals.ts", {}, storage);
+    const durable = {
+      durableSetItem: (key: string, value: string) => storage.setItem(key, value),
+      syncDurableStore() {},
+    };
+    const removals = load(
+      "src/lib/local-library/removals.ts",
+      { "@/lib/durable-store": durable },
+      storage,
+    );
     const library = load(
       "src/lib/local-library.ts",
       {

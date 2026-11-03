@@ -49,6 +49,7 @@ import {
 } from "@/lib/stremio-server";
 import { playbackStartupProfile } from "@/lib/player/startup-profile";
 import { isWeb } from "@/lib/platform";
+import { appFeatures } from "@/lib/app-features";
 import { usePauseOnInactive } from "./player/hooks/use-pause-on-inactive";
 import { spoilerMaskFor } from "@/lib/spoilers";
 import { usePlayerWatched } from "./player/hooks/use-player-watched";
@@ -1146,11 +1147,13 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
             showActionFeedback({ icon: "download", title: t("Download"), value: t("Started") });
           }
         : undefined,
-    onCast: () => {
-      const btn = document.querySelector('[aria-label="Cast"]') as HTMLElement | null;
-      const r = btn?.getBoundingClientRect();
-      cast.openCastMenu(r && r.width > 0 ? { right: r.right, bottom: r.top } : null);
-    },
+    onCast: appFeatures().cast
+      ? () => {
+          const btn = document.querySelector('[aria-label="Cast"]') as HTMLElement | null;
+          const r = btn?.getBoundingClientRect();
+          cast.openCastMenu(r && r.width > 0 ? { right: r.right, bottom: r.top } : null);
+        }
+      : undefined,
     onEditLayout: bigPictureActive ? undefined : () => setLayoutEditorOpen(true),
     playNext,
     playPrev,
@@ -1159,7 +1162,9 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     toggleSwitcher: () => setSwitcherOpen((v) => !v),
     toggleEpisodePanel: () => setEpisodePanelOpen((v) => !v),
     liveOverlay,
-    toggleDvr: () => setDvrOpen((v) => !v),
+    toggleDvr: () => {
+      if (appFeatures().livetv) setDvrOpen((v) => !v);
+    },
     sleep,
     quickToolsEnabled,
     frameGrab,
@@ -1626,7 +1631,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     download: isLocalSrc ? undefined : download,
     liveOverlay,
     setDvrOpen,
-    openDvr: liveOverlay.isLive ? () => setDvrOpen(true) : undefined,
+    openDvr: liveOverlay.isLive && appFeatures().livetv ? () => setDvrOpen(true) : undefined,
     sleep,
     adjacentPrev: adjacent.prev,
     adjacentNext: adjacent.next,
@@ -1891,7 +1896,9 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
             bridgeRef.current?.addSubtitle(url, lang, title, select, metadata) ??
             Promise.resolve(false),
           pip: togglePipMode,
-          cast: () => cast.openCastMenu(null),
+          cast: () => {
+            if (appFeatures().cast) cast.openCastMenu(null);
+          },
           back: backFromPlayer,
           prevEp: playPrev,
           nextEp: playNext,

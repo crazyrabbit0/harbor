@@ -15,6 +15,13 @@ export const DURABLE_PREFIXES = [
   "harbor.mangalists.v1",
   // Separate profiles store collections as harbor.collections.<profile>, not under .v1.
   "harbor.collections",
+  "harbor.favorites.v1",
+  "harbor.mangafav.v1",
+  "harbor.charfavorites.v1",
+  "harbor.localcw.v1",
+  "harbor.localcw.private.v1",
+  // The scanned library itself is rebuilt by a rescan; the paths the user removed are not.
+  "harbor.library.local.removed.v1",
 ];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.

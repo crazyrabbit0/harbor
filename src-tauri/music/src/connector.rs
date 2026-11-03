@@ -12,6 +12,7 @@ pub const NO_VIDEO: &str = "This source has no music video";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MusicConnectorHealthState"))]
 pub enum ConnectorHealth {
     Unknown,
     Healthy,
@@ -21,6 +22,7 @@ pub enum ConnectorHealth {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MusicConnectorHealth"))]
 pub struct ConnectorHealthInfo {
     pub id: String,
     pub name: String,

@@ -1,4 +1,5 @@
 import { trackViewportBottom } from "@/lib/viewport-bottom";
+import { appFeatures } from "@/lib/app-features";
 import { isMusicLiked } from "@/lib/music/liked";
 import { pushBackHandler } from "@/lib/back-intercept";
 import { useModalExit } from "@/components/modal-shell";
@@ -267,7 +268,7 @@ export function MusicDock() {
         ),
         run: changeSource,
       });
-    if (dockParts.cast || speaker.active)
+    if (appFeatures().cast && (dockParts.cast || speaker.active))
       out.push({
         id: "cast",
         label: t("music.cast.title"),
@@ -912,7 +913,7 @@ export function MusicDock() {
                 </span>
               </span>
             </span>
-            {(dockParts.cast || speaker.active) && (
+            {appFeatures().cast && (dockParts.cast || speaker.active) && (
               <button
                 type="button"
                 data-dock-wide="1"

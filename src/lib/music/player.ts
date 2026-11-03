@@ -61,6 +61,7 @@ import type {
   MusicSourceCandidate,
 } from "./types";
 import type { CastDeviceInfo } from "@/lib/cast";
+import type { MusicBootstrap } from "@/lib/generated/music-ipc";
 import { stopCastOwner } from "@/lib/cast-ownership";
 import { isWindowsDesktop } from "@/lib/platform";
 import {
@@ -91,7 +92,7 @@ let activeProfile = "";
 let audioReady: {
   request: number;
   id: string;
-  connectorId?: string;
+  connectorId?: string | null;
   done: Promise<boolean>;
 } | null = null;
 let speakerTransfer = false;
@@ -206,8 +207,7 @@ type LegacyMusicMigration = {
   queue: MusicTrack[] | null;
 };
 
-type NativeMusicBootstrap = {
-  likedIds: string[];
+type NativeMusicBootstrap = Omit<MusicBootstrap, "likedTracks" | "recents" | "queue"> & {
   likedTracks: MusicTrack[];
   recents: MusicTrack[];
   queue: MusicTrack[];

@@ -46,6 +46,7 @@ function fixture(
   new Function("require", "module", "exports", "window", outputText)(
     (name: string) => {
       if (name === "@/lib/cast-ownership") return ownership;
+      if (name === "@/lib/app-features") return { appFeatures: () => ({ cast: true }) };
       assert.equal(name, "@tauri-apps/api/core");
       return {
         invoke: async (command: string, args: any) => {

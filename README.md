@@ -539,8 +539,8 @@ flowchart TD
 ```
 src/                       React frontend (views, chrome, components, lib)
 src-tauri/                 Rust shell, player, casting, sidecars
-  src/                     cast.rs, dlna.rs, roku.rs, airplay.rs, transcode.rs, discord_rp.rs, ...
-  games/, music/, livetv/  game library, music backends and DVR/Multiview (the harbor-games, harbor-music and harbor-livetv crates)
+  src/                     transcode.rs, stream_proxy.rs, discord_rp.rs, ...
+  games/, music/, livetv/, cast/  game library, music backends, DVR/Multiview and casting (the harbor-games, harbor-music, harbor-livetv and harbor-cast crates)
 harbor-core/               pure Rust stream engine; the shell runs its trust, score and rank stages natively
 android-extension-compat/  JVM bridge that runs Android streaming extensions
 data/                      static feeds and the community theme library

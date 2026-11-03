@@ -1,81 +1,10 @@
-use serde::Deserialize;
 use std::collections::HashMap;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use uuid::Uuid;
 
-#[derive(Clone, Debug, Deserialize, ts_rs::TS)]
-pub struct CastSub {
-    #[ts(type = r#""external" | "embedded""#)]
-    pub kind: String,
-    #[serde(default)]
-    #[ts(optional)]
-    pub url: Option<String>,
-    #[serde(default)]
-    #[ts(optional)]
-    pub src_index: Option<u32>,
-    #[serde(default)]
-    #[ts(optional, type = r#""srt" | "ass" | "ssa" | "vtt""#)]
-    pub format: Option<String>,
-    #[serde(default)]
-    pub off: bool,
-}
-
-#[derive(Clone, Debug, Deserialize, ts_rs::TS)]
-pub struct CastSubStyle {
-    #[serde(default = "default_font_size")]
-    pub font_size: u32,
-    #[serde(default = "default_white")]
-    pub font_color: String,
-    #[serde(default = "default_black")]
-    pub border_color: String,
-    #[serde(default)]
-    pub border_size: u32,
-    #[serde(default = "default_margin")]
-    pub margin_y: u32,
-    #[serde(default = "default_align")]
-    #[ts(type = r#""left" | "center" | "right""#)]
-    pub align_x: String,
-}
-
-fn default_font_size() -> u32 {
-    28
-}
-
-fn default_white() -> String {
-    "#FFFFFF".to_string()
-}
-
-fn default_black() -> String {
-    "#000000".to_string()
-}
-
-fn default_margin() -> u32 {
-    12
-}
-
-fn default_align() -> String {
-    "center".to_string()
-}
-
-impl Default for CastSubStyle {
-    fn default() -> Self {
-        CastSubStyle {
-            font_size: default_font_size(),
-            font_color: default_white(),
-            border_color: default_black(),
-            border_size: 0,
-            margin_y: default_margin(),
-            align_x: default_align(),
-        }
-    }
-}
-
-pub struct PreparedSub {
-    pub path: PathBuf,
-    pub force_style: String,
-}
+pub use harbor_shared::cast_types::{CastSub, CastSubStyle, PreparedSub};
 
 fn hex_to_ass_bgr(hex: &str) -> String {
     let clean = hex.trim().trim_start_matches('#');

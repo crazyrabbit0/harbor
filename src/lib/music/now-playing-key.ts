@@ -12,7 +12,7 @@ const SEP = "\n";
 type NowPlayingTrack = {
   id: string;
   connectorId?: string | null;
-  collectionOrigin?: { id: string; connectorId?: string } | null;
+  collectionOrigin?: { id: string; connectorId?: string | null } | null;
 };
 
 /**

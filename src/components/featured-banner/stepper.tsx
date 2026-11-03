@@ -26,7 +26,9 @@ function HoldStepButton({
   children: React.ReactNode;
 }) {
   const stepRef = useRef(onStep);
-  stepRef.current = onStep;
+  useEffect(() => {
+    stepRef.current = onStep;
+  }, [onStep]);
   const timer = useRef<number | null>(null);
   const interval = useRef<number | null>(null);
 

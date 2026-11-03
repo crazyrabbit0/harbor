@@ -1,0 +1,21 @@
+[package]
+name = "harbor-cast"
+version.workspace = true
+edition = "2021"
+publish = false
+
+[dependencies]
+harbor-shared = { path = "../shared" }
+tauri = { version = "2.12.0", features = ["protocol-asset"] }
+reqwest = { version = "0.12", default-features = false }
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["full"] }
+uuid = { version = "1", features = ["v4"] }
+socket2 = "0.5"
+mdns-sd = "0.13"
+rust_cast = { path = "../vendor/rust_cast", version = "0.20" }
+
+[dev-dependencies]
+harbor-shared = { path = "../shared", features = ["ts"] }
+axum = "0.8"
+ts-rs = { version = "12.0.1", features = ["serde-json-impl"] }

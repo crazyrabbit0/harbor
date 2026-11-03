@@ -19,6 +19,9 @@ import { useAvatarImport } from "./use-avatar-import";
 import { AvatarPackHelp } from "./avatar-pack-help";
 import { useT } from "@/lib/i18n";
 
+const loadPackJson = () => import("@/lib/avatars/pack-json");
+const loadPackFile = () => import("./avatar-pack-file");
+
 type ViewGroup = {
   id: string;
   label: string;
@@ -78,8 +81,8 @@ export function AvatarCatalogModal({
   const exportPack = async (packId: string) => {
     const pack = packs.find((p) => p.id === packId);
     if (!pack) return;
-    const { avatarPackToJson, packFileName } = await import("@/lib/avatars/pack-json");
-    const { savePackJson } = await import("./avatar-pack-file");
+    const { avatarPackToJson, packFileName } = await loadPackJson();
+    const { savePackJson } = await loadPackFile();
     await savePackJson(packFileName(pack), avatarPackToJson(pack));
   };
 

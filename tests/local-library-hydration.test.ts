@@ -55,7 +55,15 @@ function harness(initial: LocalEntry[], legacy?: LocalEntry[]) {
     const pending = new Promise<LocalEntry[]>((resolve) => {
       release = () => resolve(snapshot);
     });
-    const removals = load("src/lib/local-library/removals.ts", {}, storage);
+    const durable = {
+      durableSetItem: (key: string, value: string) => storage.setItem(key, value),
+      syncDurableStore() {},
+    };
+    const removals = load(
+      "src/lib/local-library/removals.ts",
+      { "@/lib/durable-store": durable },
+      storage,
+    );
     const library = load(
       "src/lib/local-library.ts",
       {

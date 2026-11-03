@@ -2,6 +2,7 @@
 
 #[cfg(test)]
 mod tests {
+    use harbor_shared::cast_types::{CastSub, CastSubStyle, TranscodeProfile};
     use ts_rs::TS;
 
     #[test]
@@ -11,11 +12,10 @@ mod tests {
             r#"export type CastKind = "chromecast" | "dlna" | "roku" | "airplay";"#.to_string(),
             crate::cast::CastDeviceInfo::decl(&cfg),
             crate::cast::CastStatus::decl(&cfg),
-            crate::cast_server::CastServerStatus::decl(&cfg),
-            crate::cast_subs::CastSub::decl(&cfg),
-            crate::cast_subs::CastSubStyle::decl(&cfg),
-            crate::transcode::TranscodeProfile::decl(&cfg),
+            CastSub::decl(&cfg),
+            CastSubStyle::decl(&cfg),
+            TranscodeProfile::decl(&cfg),
         ];
-        crate::ipc_bindings::check("cast-ipc.ts", "cast_ipc.rs", &decls);
+        harbor_shared::ipc_bindings::check("cast-ipc.ts", "cast/src/cast_ipc.rs", &decls);
     }
 }

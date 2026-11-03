@@ -7,7 +7,6 @@ use axum::response::{IntoResponse, Redirect, Response};
 use axum::routing::get;
 use axum::Router;
 use futures_util::StreamExt;
-use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
 #[cfg(target_os = "linux")]
@@ -24,7 +23,7 @@ use crate::cast_hls::HlsState;
 use crate::transcode::{handle_transcode, TranscodeProfile};
 #[path = "cast_audio.rs"]
 mod cast_audio;
-pub(crate) use cast_audio::{AudioCastFormat, AudioCastInput};
+pub(crate) use cast_audio::AudioCastInput;
 use cast_audio::AudioCastState;
 
 #[derive(Clone)]
@@ -72,33 +71,7 @@ pub struct ProxyState {
     audio: AudioCastState,
 }
 
-#[derive(Serialize)]
-pub struct RegisterResult {
-    pub session_id: String,
-    pub url: String,
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct RegisterArgs {
-    pub url: String,
-    #[serde(default)]
-    pub headers: HashMap<String, String>,
-    #[serde(default)]
-    pub transcode: bool,
-    #[serde(default)]
-    pub prebuffer_bytes: Option<usize>,
-    #[serde(default)]
-    pub profile: Option<TranscodeProfile>,
-    #[serde(default)]
-    pub target_host: Option<String>,
-    #[serde(default)]
-    pub start_time_sec: Option<f64>,
-    #[serde(default)]
-    pub burn_sub_path: Option<String>,
-    #[serde(default)]
-    pub burn_sub_style: Option<String>,
-}
+pub use harbor_shared::cast_types::{RegisterArgs, RegisterResult};
 
 impl ProxyState {
     pub fn placeholder() -> Self {

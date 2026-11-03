@@ -7,11 +7,15 @@ use ts_rs::TS;
 pub struct AppFeatures {
     pub games: bool,
     pub music: bool,
+    pub livetv: bool,
+    pub cast: bool,
 }
 
 pub const FEATURES: AppFeatures = AppFeatures {
     games: cfg!(all(desktop, feature = "games")),
     music: cfg!(all(desktop, feature = "music")),
+    livetv: cfg!(all(desktop, feature = "livetv")),
+    cast: cfg!(all(desktop, feature = "cast")),
 };
 
 #[tauri::command]

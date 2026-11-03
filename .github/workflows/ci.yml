@@ -174,4 +174,4 @@ jobs:
           HARBOR_TEST_ROOT: ${{ runner.temp }}/harbor-game-tests
         run: |
           mkdir -p "$HARBOR_GAME_TEST_ROOT"
-          cargo test --manifest-path src-tauri/Cargo.toml -p harbor -p harbor-games -p harbor-music -p harbor-livetv -p harbor-shared
+          cargo test --manifest-path src-tauri/Cargo.toml -p harbor -p harbor-games -p harbor-music -p harbor-livetv -p harbor-cast -p harbor-shared

@@ -359,7 +359,7 @@ function LibraryTrack({
         </span>
       </div>
       {showAlbum && (
-        <span className="music-playlist-album" title={track.album}>
+        <span className="music-playlist-album" title={track.album ?? undefined}>
           {track.album || "—"}
         </span>
       )}

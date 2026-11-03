@@ -44,6 +44,7 @@ import { RtxVsrToggleStremioBtn } from "./rtx-vsr-toggle-btn";
 import type { Anime4kChoice } from "@/views/player/hooks/use-anime4k";
 import { DrawToggle } from "./draw-toggle";
 import { CastButton } from "./cast-button";
+import { appFeatures } from "@/lib/app-features";
 import { TimeStart } from "./time-display";
 import { StremioBtn } from "./stremio-btn";
 import { StremioVolume } from "./stremio-volume";
@@ -452,6 +453,7 @@ export function RenderedStremioControl({
       if (ctx.engine === "html5") return null;
       return <RtxVsrToggleStremioBtn meta={ctx.meta} />;
     case "cast":
+      if (!appFeatures().cast) return null;
       return <CastButton onClick={ctx.onCast} capabilities={ctx.capabilities} />;
     case "subtitle-menu":
       if (ctx.isLiveChannel && ctx.snap.subtitleTracks.length === 0) return null;

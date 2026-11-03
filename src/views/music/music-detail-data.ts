@@ -156,7 +156,7 @@ export async function loadDetailRows(
     };
   }
   if (item.kind === "album") {
-    const connector = item.connectorId === "local" ? undefined : item.connectorId;
+    const connector = item.connectorId === "local" ? undefined : (item.connectorId ?? undefined);
     const results = await searchTyped(item.artist, 24, connector);
     const credits = new Set(
       [item.artist, ...artistCreditParts(item.artist)].map(artistIdentityKey),
@@ -179,7 +179,7 @@ export async function loadDetailRows(
     return { rows, rowsError: "" };
   }
   if (item.kind !== "track") return { rows: [], rowsError: "" };
-  const connector = item.connectorId === "local" ? undefined : item.connectorId;
+  const connector = item.connectorId === "local" ? undefined : (item.connectorId ?? undefined);
   const results = await searchTyped(item.artist, 24, connector);
   const profile = await loadRecordingProfile(item).catch(() => null);
   const credits = new Set([item.artist, ...artistCreditParts(item.artist)].map(artistIdentityKey));

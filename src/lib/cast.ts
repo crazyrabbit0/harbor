@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { appFeatures } from "@/lib/app-features";
 import type {
   CastDeviceInfo,
   CastKind,
@@ -14,7 +15,7 @@ export type CastSubInfo = CastSub;
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export async function discoverCastDevices(): Promise<CastDeviceInfo[]> {
-  if (!isTauri) return [];
+  if (!isTauri || !appFeatures().cast) return [];
   try {
     return await invoke<CastDeviceInfo[]>("cast_discover");
   } catch (e) {

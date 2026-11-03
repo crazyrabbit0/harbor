@@ -2586,6 +2586,7 @@ dependencies = [
  "gilrs",
  "gtk",
  "hadris-iso",
+ "harbor-cast",
  "harbor-core",
  "harbor-games",
  "harbor-install-recovery",
@@ -2624,14 +2625,12 @@ dependencies = [
  "regex",
  "reqwest 0.12.28",
  "rusqlite",
- "rust_cast",
  "rustls",
  "serde",
  "serde_json",
  "sevenz-rust2",
  "sha1",
  "sha2",
- "socket2 0.5.10",
  "tar",
  "tauri",
  "tauri-build",
@@ -2665,6 +2664,23 @@ dependencies = [
  "zbus",
  "zeroize",
  "zip",
+]
+
+[[package]]
+name = "harbor-cast"
+version = "0.9.221"
+dependencies = [
+ "axum",
+ "harbor-shared",
+ "mdns-sd",
+ "reqwest 0.12.28",
+ "rust_cast",
+ "serde",
+ "socket2 0.5.10",
+ "tauri",
+ "tokio",
+ "ts-rs",
+ "uuid 1.23.1",
 ]
 
 [[package]]

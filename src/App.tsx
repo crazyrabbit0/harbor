@@ -1332,7 +1332,9 @@ function Shell({ onReady }: { onReady?: () => void }) {
 
   useEffect(() => {
     if (topKind !== "live") {
-      void import("@/lib/multiview/bridge").then(({ mvStopAll }) => mvStopAll().catch(() => {}));
+      void import("@/lib/multiview/bridge").then(({ mvStopAll, multiviewSupported }) => {
+        if (multiviewSupported()) mvStopAll().catch(() => {});
+      });
     }
   }, [topKind]);
 

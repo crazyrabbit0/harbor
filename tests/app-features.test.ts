@@ -14,16 +14,22 @@ async function loadWith(invoke: Invoke | null, tag: string) {
 
 test("a Tauri build reports the subsystems it was compiled without", async () => {
   const features = await loadWith(
-    async (cmd) => (cmd === "app_features" ? { games: false, music: true } : null),
+    async (cmd) =>
+      cmd === "app_features" ? { games: false, music: true, livetv: false, cast: false } : null,
     "games-off",
   );
-  assert.deepEqual(features, { games: false, music: true });
+  assert.deepEqual(features, { games: false, music: true, livetv: false, cast: false });
 });
 
 test("a binary without the command, or a browser, keeps every room", async () => {
   const missing = await loadWith(async () => {
     throw new Error("command app_features not found");
   }, "missing");
-  assert.deepEqual(missing, { games: true, music: true });
-  assert.deepEqual(await loadWith(null, "browser"), { games: true, music: true });
+  assert.deepEqual(missing, { games: true, music: true, livetv: true, cast: true });
+  assert.deepEqual(await loadWith(null, "browser"), {
+    games: true,
+    music: true,
+    livetv: true,
+    cast: true,
+  });
 });
