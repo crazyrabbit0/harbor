@@ -1,4 +1,13 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useSteamLibrary } from "@/hooks/use-steam-library";
 import { useSteamShortcuts } from "@/hooks/use-steam-shortcuts";
 import { useSteamImports } from "@/hooks/use-steam-imports";
@@ -111,7 +120,9 @@ function useAccess(
   const saved = useMemo(() => libraryFavoriteGames(storedSaved, quick), [storedSaved, quick]);
   const saving = useRef(false),
     owner = useRef(profile);
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const save = async (game: GameSummary) => {
     if (saving.current) return false;
     saving.current = true;
@@ -120,7 +131,7 @@ function useAccess(
     const next = removing
       ? storedSaved.filter((item) => !keys.has(item.id))
       : [game, ...storedSaved];
-    try {
+    const work = async () => {
       if (removing) {
         const entries = quick.filter(
           (item) => keys.has(item.id) || (!!item.game && keys.has(item.game.id)),
@@ -146,12 +157,15 @@ function useAccess(
       setSavedState({ profile, games: next });
       setSaveFailed(false);
       return true;
-    } catch {
-      if (owner.current === profile) setSaveFailed(true);
-      return false;
-    } finally {
-      saving.current = false;
-    }
+    };
+    return await work()
+      .catch(() => {
+        if (owner.current === profile) setSaveFailed(true);
+        return false;
+      })
+      .finally(() => {
+        saving.current = false;
+      });
   };
   const navigate = (target: GameAccessTarget, origin?: HTMLElement) => {
     setDockOpen(false);

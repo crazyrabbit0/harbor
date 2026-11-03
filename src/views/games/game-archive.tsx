@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { ArrowRight, Check, Folder, FolderOpen, PackageOpen, Search, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -27,6 +27,9 @@ import { ArchiveMotion, ArchiveReviewSkeleton } from "./game-archive-motion";
 import { GameFileIcon } from "./game-file-icon";
 import { recentArchiveParent } from "@/lib/games/archive-locations";
 import "./game-archive.css";
+
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+const loadOpener = () => import("@tauri-apps/plugin-opener");
 
 export function GameArchiveDialog({
   profile,
@@ -88,7 +91,9 @@ export function GameArchiveDialog({
     token = useRef(""),
     operation = useRef(""),
     exiting = useRef(closing);
-  exiting.current = closing;
+  useLayoutEffect(() => {
+    exiting.current = closing;
+  }, [closing]);
   const space = useArchiveSpace(profile, plan?.token ?? "", parent, !closing && busy !== "extract");
   const spaceAtFailure = useRef<typeof space.value>(undefined);
   const shortfall = space.value?.shortfallBytes != null && space.value.shortfallBytes > 0;
@@ -181,33 +186,33 @@ export function GameArchiveDialog({
     setBusy(kind);
     setError("");
     setProgress(null);
-    try {
-      await action(operation.current);
-    } catch (reason) {
-      if (live.current) {
-        const message = archiveError(reason);
-        setError(message);
-        if (
-          [
-            "games.archive.archive_encrypted",
-            "games.archive.archive_password",
-            "games.archive.archive_password_or_checksum",
-          ].includes(message)
-        )
-          setPasswordRequired(true);
-      }
-    } finally {
-      pending.current = false;
-      operation.current = "";
-      if (live.current) {
-        setBusy(null);
-        setProgress(null);
-      }
-    }
+    await action(operation.current)
+      .catch((reason) => {
+        if (live.current) {
+          const message = archiveError(reason);
+          setError(message);
+          if (
+            [
+              "games.archive.archive_encrypted",
+              "games.archive.archive_password",
+              "games.archive.archive_password_or_checksum",
+            ].includes(message)
+          )
+            setPasswordRequired(true);
+        }
+      })
+      .finally(() => {
+        pending.current = false;
+        operation.current = "";
+        if (live.current) {
+          setBusy(null);
+          setProgress(null);
+        }
+      });
   };
   const choose = (kind: "source" | "parent") =>
     task("choose", async () => {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const value = await open({
         directory: kind === "parent",
         multiple: false,
@@ -254,7 +259,7 @@ export function GameArchiveDialog({
   const extract = () =>
     task("extract", async () => {
       const held = token.current;
-      try {
+      const work = async () => {
         const sameSource = setupPath(source) === setupPath(initialSource);
         const value = await invoke<ArchiveJob>("games_start_archive", {
           profile,
@@ -270,7 +275,8 @@ export function GameArchiveDialog({
           setAccepted(value);
           setPlan(null);
         }
-      } catch (reason) {
+      };
+      await work().catch((reason) => {
         if (live.current) {
           if (String(reason) === "archive_space") spaceAtFailure.current = space.value;
           if (
@@ -282,12 +288,13 @@ export function GameArchiveDialog({
           else setPlan(null);
         }
         throw reason;
-      }
+      });
     });
-  const reveal = async (path = receipt?.destination ?? job?.destination) => {
+  const reveal = async (chosen?: string) => {
+    const path = chosen === undefined ? (receipt?.destination ?? job?.destination) : chosen;
     if (!path) return;
     try {
-      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+      const { revealItemInDir } = await loadOpener();
       await revealItemInDir(path);
     } catch (reason) {
       setError(archiveError(reason));

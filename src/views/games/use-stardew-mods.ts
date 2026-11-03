@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import {
   readStardewFolder,
@@ -25,7 +25,9 @@ export function useStardewMods(profile: string, active: boolean) {
   const task = useRef<{ id: string; canceled: boolean } | null>(null);
   const alive = useRef(true);
   const available = useRef(active);
-  available.current = active;
+  useLayoutEffect(() => {
+    available.current = active;
+  }, [active]);
   const initialized = useRef(false);
   const cancel = () => {
     const own = task.current;
@@ -47,7 +49,7 @@ export function useStardewMods(profile: string, active: boolean) {
     setReport(null);
     if (inventory?.path !== next) setInventory(null);
     let stop: (() => void) | undefined;
-    try {
+    const work = async () => {
       stop = await listen<StardewProgress>("games:stardew-progress", ({ payload }) => {
         if (payload.profile !== profile || payload.operationId !== own.id) return;
         if (own.canceled || !alive.current || !available.current) {
@@ -66,17 +68,20 @@ export function useStardewMods(profile: string, active: boolean) {
       setPath(data.path);
       rememberStardewFolder(profile, data.path);
       if ("updates" in result) setReport(result);
-    } catch (reason) {
-      if (alive.current && !own.canceled && available.current) setError(stardewError(reason));
-    } finally {
-      stop?.();
-      if (task.current === own) task.current = null;
-      if (alive.current) {
-        setBusy(false);
-        setCanceling(false);
-        setProgress(null);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current && !own.canceled && available.current) setError(stardewError(reason));
+      })
+      .finally(() => {
+        stop?.();
+        if (task.current === own) task.current = null;
+        if (alive.current) {
+          setBusy(false);
+          setCanceling(false);
+          setProgress(null);
+        }
+      });
   };
   useEffect(() => {
     alive.current = true;
@@ -89,7 +94,13 @@ export function useStardewMods(profile: string, active: boolean) {
       }
     };
   }, [profile]);
+  const latest = useRef({ cancel, run, path });
+  useLayoutEffect(() => {
+    latest.current = { cancel, run, path };
+  });
+  // This initializes one profile-scoped, keyed companion instance.
   useEffect(() => {
+    const { cancel, run, path } = latest.current;
     if (!active) {
       cancel();
       return;
@@ -109,8 +120,6 @@ export function useStardewMods(profile: string, active: boolean) {
     return () => {
       mounted = false;
     };
-    // This initializes one profile-scoped, keyed companion instance.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active]);
   return {
     path,

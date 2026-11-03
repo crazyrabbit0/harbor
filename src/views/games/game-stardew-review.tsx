@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ArrowUpRight, Check, ChevronDown, LoaderCircle, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
@@ -49,6 +49,7 @@ export function GameStardewReview({
     token = useRef("");
   const task = useRef<{ id: string; canceled: boolean } | null>(null);
   const [progress, setProgress] = useState<StardewProgress | null>(null);
+  const [isApplying, setIsApplying] = useState(false);
   const { closing, close: animateClose } = useModalExit(onClose);
   const cancel = () => {
     const own = task.current;
@@ -70,12 +71,13 @@ export function GameStardewReview({
     const own = { id: crypto.randomUUID(), canceled: false };
     task.current = own;
     applying.current = apply;
+    setIsApplying(apply);
     setBusy(true);
     setError("");
     setCanceling(false);
     setProgress(null);
     let stop: (() => void) | undefined;
-    try {
+    const work = async () => {
       stop = await listen<StardewProgress>("games:stardew-progress", ({ payload }) => {
         if (payload.profile !== profile || payload.operationId !== own.id) return;
         if (own.canceled || !alive.current) void stardewCancel(profile, own.id).catch(() => {});
@@ -101,30 +103,46 @@ export function GameStardewReview({
         token.current = value.token;
         setReview(value);
       }
-    } catch (e) {
-      if (alive.current) {
-        setError(stardewError(e));
-        if (apply) {
-          token.current = "";
-          setReview(null);
+    };
+    await work()
+      .catch((e) => {
+        if (alive.current) {
+          setError(stardewError(e));
+          if (apply) {
+            token.current = "";
+            setReview(null);
+          }
         }
-      }
-    } finally {
-      stop?.();
-      if (task.current === own) task.current = null;
-      applying.current = false;
-      if (alive.current) {
-        setBusy(false);
-        setCanceling(false);
-      }
-    }
+      })
+      .finally(() => {
+        stop?.();
+        if (task.current === own) task.current = null;
+        applying.current = false;
+        setIsApplying(false);
+        if (alive.current) {
+          setBusy(false);
+          setCanceling(false);
+        }
+      });
   };
+  const latestRun = useRef(run);
+  useLayoutEffect(() => {
+    latestRun.current = run;
+  });
+  // Each selection owns exactly one immutable review and restores its original trigger.
+  const [initial] = useState(() => ({
+    profile,
+    trigger,
+    fallback,
+    recover: action.kind === "recover",
+  }));
   useEffect(() => {
+    const { profile, trigger, fallback } = initial;
     let mounted = true;
     alive.current = true;
     root.current?.querySelector<HTMLElement>("button")?.focus({ preventScroll: true });
     queueMicrotask(() => {
-      if (mounted && action.kind !== "recover") void run(false);
+      if (mounted && !initial.recover) void latestRun.current(false);
     });
     const trap = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;
@@ -158,9 +176,7 @@ export function GameStardewReview({
           (trigger?.isConnected ? trigger : fallback)?.focus({ preventScroll: true });
       });
     };
-    // Each selection owns exactly one immutable review and restores its original trigger.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initial]);
   const item = review?.after ?? review?.before;
   return (
     <ModalShell closing={closing} onDismiss={close} labelledBy={id} width={560}>
@@ -170,7 +186,7 @@ export function GameStardewReview({
           <button
             className="games-detail-text-button"
             aria-label={t("common.close")}
-            disabled={busy && applying.current}
+            disabled={busy && isApplying}
             onClick={close}
           >
             <X size={20} />
@@ -278,7 +294,7 @@ export function GameStardewReview({
                     {text(
                       canceling
                         ? "canceling"
-                        : applying.current
+                        : isApplying
                           ? "applying"
                           : progress?.phase === "downloading"
                             ? "downloading"

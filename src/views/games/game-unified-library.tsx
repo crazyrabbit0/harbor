@@ -230,16 +230,13 @@ export function GameUnifiedLibraryView({
         if (controller.signal.aborted) break;
         const key = catalogArtKey(game);
         if (catalogArt[key]) continue;
-        try {
-          const value = await loadAtlasGame(game, controller.signal);
-          if (value && !controller.signal.aborted)
-            setCatalogArt((previous) => ({
-              ...previous,
-              [key]: { igdbId: value.igdbId, capsule: value.capsule, portrait: value.portrait },
-            }));
-        } catch {
-          /* Keep the readable local fallback. */
-        }
+        // Keep the readable local fallback on failure.
+        const value = await loadAtlasGame(game, controller.signal).catch(() => null);
+        if (value && !controller.signal.aborted)
+          setCatalogArt((previous) => ({
+            ...previous,
+            [key]: { igdbId: value.igdbId, capsule: value.capsule, portrait: value.portrait },
+          }));
       }
     })();
     return () => controller.abort();

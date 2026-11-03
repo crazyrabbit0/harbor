@@ -66,17 +66,16 @@ export function DownloadMenu({
       ? buildTxt(root, documentTitle)
       : JSON.stringify(buildJson(root, documentTitle), null, 2);
     setBusy(true);
-    try {
-      const { path } = await saveTextFileWithPath(
-        isTxt ? "harbor-relay-docs.txt" : "harbor-relay-docs.json",
-        content,
-        [isTxt ? "txt" : "json"],
-        t("Harbor Relay docs"),
-      );
-      if (path) onSaved(path);
-    } finally {
-      setBusy(false);
-    }
+    await saveTextFileWithPath(
+      isTxt ? "harbor-relay-docs.txt" : "harbor-relay-docs.json",
+      content,
+      [isTxt ? "txt" : "json"],
+      t("Harbor Relay docs"),
+    )
+      .then(({ path }) => {
+        if (path) onSaved(path);
+      })
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -143,16 +142,18 @@ function DownloadGlyph() {
   );
 }
 
+async function revealSaved(path: string) {
+  try {
+    const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+    await revealItemInDir(path);
+  } catch {
+    /* best-effort */
+  }
+}
+
 export function SavePill({ path, onDismiss }: { path: string; onDismiss: () => void }) {
   const t = useT();
-  const reveal = async () => {
-    try {
-      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
-      await revealItemInDir(path);
-    } catch {
-      /* best-effort */
-    }
-  };
+  const reveal = () => revealSaved(path);
   const name = path.split(/[\\/]/).pop() ?? path;
   const dir = path.slice(0, Math.max(0, path.length - name.length)).replace(/[\\/]+$/, "");
   return (

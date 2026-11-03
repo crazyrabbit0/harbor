@@ -13,6 +13,7 @@ export const ShellLayer = memo(function ShellLayer({
   isLive,
   snapRef,
   bridgeRef,
+  bridge,
   engine,
   visible,
   fullscreen,
@@ -73,6 +74,7 @@ export const ShellLayer = memo(function ShellLayer({
   isLive?: boolean;
   snapRef: RefObject<PlayerSnapshot>;
   bridgeRef: RefObject<PlayerBridge | null>;
+  bridge: PlayerBridge | null;
   engine: "html5" | "mpv";
   visible: boolean;
   fullscreen: boolean;
@@ -137,7 +139,7 @@ export const ShellLayer = memo(function ShellLayer({
       useOverlayPopups={false}
       onMenuOpenChange={onMenuOpenChange}
       capabilities={
-        bridgeRef.current?.capabilities() ?? {
+        bridge?.capabilities() ?? {
           engine: "html5",
           pictureInPicture: false,
           airplay: false,

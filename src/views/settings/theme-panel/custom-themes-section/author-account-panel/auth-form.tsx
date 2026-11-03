@@ -44,7 +44,7 @@ export function AuthForm({ onRecovery }: { onRecovery: (code: string) => void })
     if (!ready || busy) return;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       if (mode === "signin") {
         await loginAuthor(username.trim(), password);
       } else if (mode === "register") {
@@ -58,11 +58,10 @@ export function AuthForm({ onRecovery }: { onRecovery: (code: string) => void })
         );
         onRecovery(code);
       }
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((err: unknown) => setError((err as Error).message))
+      .finally(() => setBusy(false));
   };
 
   const active = MODES.find((m) => m.value === mode)!;

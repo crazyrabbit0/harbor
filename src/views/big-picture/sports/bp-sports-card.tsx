@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type ReactNode,
+} from "react";
 import { useUiLanguage } from "@/lib/i18n/store";
 import { SFX } from "@/lib/sfx";
 import { matchCardContext, relativeCardStart } from "@/lib/sports/card-context";
@@ -68,7 +76,9 @@ export function useBpSportsWatchNow(): BpSportsWatch {
 function BpSportsCountdown({ startMs, locale }: { startMs: number; locale: string }) {
   const ref = useRef<HTMLSpanElement | null>(null);
   const at = useRef(locale);
-  at.current = locale;
+  useLayoutEffect(() => {
+    at.current = locale;
+  }, [locale]);
 
   useEffect(() => {
     const apply = () => {

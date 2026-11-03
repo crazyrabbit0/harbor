@@ -66,15 +66,15 @@ export function CommentComposer({ onSubmit }: { onSubmit: (text: string) => Prom
       return;
     }
     setBusy(true);
-    try {
-      await onSubmit(clean.text);
-      setText("");
-      setPreview(false);
-    } catch (e) {
-      setErr(e instanceof Error ? e.message : t("Could not post your comment."));
-    } finally {
-      setBusy(false);
-    }
+    await onSubmit(clean.text)
+      .then(() => {
+        setText("");
+        setPreview(false);
+      })
+      .catch((e: unknown) =>
+        setErr(e instanceof Error ? e.message : t("Could not post your comment.")),
+      )
+      .finally(() => setBusy(false));
   };
 
   const over = text.length > MAX_COMMENT_LEN;

@@ -116,7 +116,7 @@ export function GamePreparationReview({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       if (disable)
         await invoke("games_disable_preparation", {
           profile: choice.target.profile,
@@ -132,12 +132,15 @@ export function GamePreparationReview({
         await preparations.refresh();
         close();
       }
-    } catch (reason) {
-      if (live.current) setError(preparationError(reason));
-    } finally {
-      pending.current = false;
-      if (live.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (live.current) setError(preparationError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (live.current) setBusy(false);
+      });
   };
   return (
     <ModalShell

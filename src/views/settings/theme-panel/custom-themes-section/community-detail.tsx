@@ -22,14 +22,11 @@ export function CommunityDetail({ theme, onClose }: { theme: StoreTheme; onClose
   const download = async () => {
     setDownloading(true);
     setError(null);
-    try {
-      await downloadTheme(t.id, t.cover ?? t.screenshots[0] ?? null);
-      setDone(true);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setDownloading(false);
-    }
+    const cover = t.cover ?? t.screenshots[0] ?? null;
+    await downloadTheme(t.id, cover)
+      .then(() => setDone(true))
+      .catch((e: unknown) => setError((e as Error).message))
+      .finally(() => setDownloading(false));
   };
 
   const rate = async (v: number) => {

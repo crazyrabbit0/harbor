@@ -66,6 +66,8 @@ import {
 import { osClass } from "@/lib/platform";
 import "./game-library-sidebar.css";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function GameLibrarySidebar({
   active,
   query,
@@ -413,7 +415,7 @@ export function GameLibrarySidebar({
       const url = gameVideoSearchUrl(game.name, action);
       if (!url) throw Error("game_changed");
       if (isTauri()) {
-        const { openUrl } = await import("@tauri-apps/plugin-opener");
+        const { openUrl } = await loadOpener();
         await openUrl(url);
       } else window.open(url, "_blank", "noopener,noreferrer");
       return;
@@ -427,7 +429,7 @@ export function GameLibrarySidebar({
       if (action === "browse") {
         const path = managementFile(game);
         if (!path) throw Error("game_changed");
-        const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+        const { revealItemInDir } = await loadOpener();
         await revealItemInDir(path);
         return;
       }

@@ -145,7 +145,7 @@ export function LetterboxdPanel() {
     if (!url) return;
     setListBusy(true);
     setListError(null);
-    try {
+    const work = async () => {
       const ref = await resolveLetterboxdListPublic(url);
       const catalogId = `letterboxd-list-${ref.id}`;
       const next = {
@@ -161,9 +161,8 @@ export function LetterboxdPanel() {
       update({ letterboxd: { ...next, encodedConfig: buildStremboxdConfig(next) } });
       setListUrl("");
       invalidateLetterboxdCache();
-    } catch {
-      setListError(t("Could not resolve that Letterboxd list URL."));
-    }
+    };
+    await work().catch(() => setListError(t("Could not resolve that Letterboxd list URL.")));
     setListBusy(false);
   };
 

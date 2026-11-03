@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Loader2 } from "../icons";
 import { Dropdown } from "@/components/dropdown";
 import { useT } from "@/lib/i18n";
@@ -33,7 +33,9 @@ export function PluginSettingsModal({
   const t = useT();
   // `t` changes on a language switch, which must not restart the read below; the ref keeps its error in the current language.
   const tRef = useRef(t);
-  tRef.current = t;
+  useLayoutEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const [fields, setFields] = useState<SettingsField[] | null>(null);
   const [values, setValues] = useState<Values>({});
   const [error, setError] = useState<string | null>(null);
@@ -66,14 +68,11 @@ export function PluginSettingsModal({
   const save = async () => {
     if (!fields || !adapter.saveSettings) return;
     setSaving(true);
-    try {
-      await adapter.saveSettings(plugin.id, values, fields);
-      onClose();
-    } catch (e) {
-      setError(errorText(t, e));
-    } finally {
-      setSaving(false);
-    }
+    await adapter
+      .saveSettings(plugin.id, values, fields)
+      .then(() => onClose())
+      .catch((e: unknown) => setError(errorText(t, e)))
+      .finally(() => setSaving(false));
   };
 
   const set = (key: string, v: string | boolean) => setValues((cur) => ({ ...cur, [key]: v }));

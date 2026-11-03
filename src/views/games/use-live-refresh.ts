@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 
 /** Refresh live discovery while in use, and catch up once after returning. */
-export function useLiveRefresh(active: boolean, interval = 16 * 60_000) {
+export function useLiveRefresh(active: boolean, every?: number) {
+  const interval = every === undefined ? 16 * 60_000 : every;
   const [revision, setRevision] = useState(0);
   const last = useRef(Date.now());
   useEffect(() => {

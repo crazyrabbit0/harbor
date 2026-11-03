@@ -34,6 +34,11 @@ import { BAND_SETTLE_MS, publishBpBand, useBpBandState } from "./use-bp-sections
 const VISIBLE_ROWS = 60;
 const SERVICES_SLOT = 2;
 
+function bpHomeSeedRow(cwCount: number, rowCount: number): "cw" | "catalog" | null {
+  if (cwCount > 0) return "cw";
+  return rowCount > 0 ? "catalog" : null;
+}
+
 export function BpHome({ onSelect }: { onSelect: (m: Meta) => void }) {
   const { rows, loading, failed } = useBpCatalog();
   const cwAll = useMobileCw(16);
@@ -81,12 +86,10 @@ export function BpHome({ onSelect }: { onSelect: (m: Meta) => void }) {
   // Live only ever holds the seed provisionally: BpLiveRow renders nothing
   // without playlists, so latching it would leave the view with no autofocus at
   // all and park the ring in the top bar.
-  const seedRowRef = useRef<"cw" | "catalog" | null>(null);
-  if (seedRowRef.current === null && cwReady && !loading) {
-    if (cw.length > 0) seedRowRef.current = "cw";
-    else if (rows.length > 0) seedRowRef.current = "catalog";
-  }
-  const seedRow: "cw" | "catalog" | "live" = seedRowRef.current ?? "live";
+  const [latchedSeed, setLatchedSeed] = useState<"cw" | "catalog" | null>(null);
+  const settledSeed = cwReady && !loading ? bpHomeSeedRow(cw.length, rows.length) : null;
+  if (latchedSeed === null && settledSeed !== null) setLatchedSeed(settledSeed);
+  const seedRow: "cw" | "catalog" | "live" = latchedSeed ?? settledSeed ?? "live";
 
   // Continue watching reorders by recency, so a remembered card points at a
   // different title on the way back. Home always opens on the first one, and

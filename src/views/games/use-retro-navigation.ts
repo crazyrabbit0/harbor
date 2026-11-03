@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { isGamepadCaptured, setGamepadCapture } from "@/lib/gamepad/capture";
 import { isLikelyGamepad } from "@/lib/gamepad/web-source";
 import { RETRO_PAD_AXES, RETRO_PAD_BUTTONS, type RetroPad } from "@/lib/games/retro-controls";
@@ -17,7 +17,9 @@ export function useRetroNavigation(
   action: (value: Action) => void,
 ) {
   const live = useRef({ playing, action });
-  live.current = { playing, action };
+  useLayoutEffect(() => {
+    live.current = { playing, action };
+  }, [playing, action]);
   const [pads, setPads] = useState<RetroPad[]>([]);
   useEffect(() => {
     const previous = isGamepadCaptured();
@@ -179,16 +181,17 @@ export function useRetroNavigation(
         if (live.current.playing || document.hidden || !document.hasFocus()) continue;
         if (edge(0)) (document.activeElement as HTMLElement)?.click();
         if (edge(1)) back();
-        direction ||=
-          pad.buttons[12]?.pressed || pad.axes[1] < -0.6
-            ? "up"
-            : pad.buttons[13]?.pressed || pad.axes[1] > 0.6
-              ? "down"
-              : pad.buttons[14]?.pressed || pad.axes[0] < -0.6
-                ? "left"
-                : pad.buttons[15]?.pressed || pad.axes[0] > 0.6
-                  ? "right"
-                  : "";
+        if (!direction)
+          direction =
+            pad.buttons[12]?.pressed || pad.axes[1] < -0.6
+              ? "up"
+              : pad.buttons[13]?.pressed || pad.axes[1] > 0.6
+                ? "down"
+                : pad.buttons[14]?.pressed || pad.axes[0] < -0.6
+                  ? "left"
+                  : pad.buttons[15]?.pressed || pad.axes[0] > 0.6
+                    ? "right"
+                    : "";
       }
       if (direction && (direction !== lastDirection || now >= repeatAt)) {
         navigate(direction);

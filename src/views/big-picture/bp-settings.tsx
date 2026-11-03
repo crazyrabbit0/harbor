@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { exitBigPicture, goBigPictureTab } from "@/lib/big-picture";
 import {
   getSportsConsentServerSnapshot,
@@ -54,7 +61,9 @@ export function BpSettings() {
   const [active, setActive] = useState(0);
   const colRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef(0);
-  activeRef.current = active;
+  useLayoutEffect(() => {
+    activeRef.current = active;
+  }, [active]);
 
   const consent = useSyncExternalStore(
     subscribeSportsConsent,

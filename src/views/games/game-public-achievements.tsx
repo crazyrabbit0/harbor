@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, Eye, EyeOff, LockKeyhole, RefreshCw, Search, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -36,7 +36,9 @@ export function PublicAchievementsModal({
     root = useRef<HTMLDivElement>(null);
   const destination = useRef<{ id?: string } | null>(null),
     actions = useRef({ onClose, onManage });
-  actions.current = { onClose, onManage };
+  useLayoutEffect(() => {
+    actions.current = { onClose, onManage };
+  }, [onClose, onManage]);
   const finish = useCallback(() => {
     if (destination.current) actions.current.onManage(destination.current.id);
     else actions.current.onClose();

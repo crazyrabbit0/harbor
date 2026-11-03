@@ -199,7 +199,9 @@ export function BpPlayerShell({
   // tick, and a handler that changes four times a second tears the idle key
   // listener down and rebuilds it four times a second with it.
   const playbackRef = useRef(playback);
-  playbackRef.current = playback;
+  useLayoutEffect(() => {
+    playbackRef.current = playback;
+  }, [playback]);
   const onSelect = useCallback(() => {
     playbackRef.current.playPause();
     wakeChrome();

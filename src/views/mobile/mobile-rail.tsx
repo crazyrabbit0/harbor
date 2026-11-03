@@ -5,6 +5,7 @@ import { useSettings } from "@/lib/settings";
 import { usePosterChain } from "@/components/poster";
 import { findTopAward, awardSourceMeta, parseAwardYear } from "@/lib/anime-awards";
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useMobileRemote } from "./mobile-remote";
 
 type OpenDetail = (m: Meta) => void;
@@ -178,10 +179,10 @@ export function PosterTile({ meta, onOpenDetail }: { meta: Meta; onOpenDetail?: 
 }
 
 function AwardCorner({ award }: { award: ReturnType<typeof findTopAward> }) {
-  useAwardPacks();
+  const awardPacks = useAwardPacks();
   if (!award) return null;
   const src = awardSourceMeta(award.source);
-  const custom = resolveAwardIcon(award.source);
+  const custom = readAtVersion(awardPacks, () => resolveAwardIcon(award.source));
   return (
     <span className="pointer-events-none absolute end-1.5 top-1.5 flex items-center gap-1 rounded-md bg-black/65 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white backdrop-blur-md">
       <img

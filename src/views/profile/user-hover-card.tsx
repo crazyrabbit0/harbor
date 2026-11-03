@@ -7,6 +7,7 @@ import {
   type FocusEvent as ReactFocusEvent,
   type MouseEvent as ReactMouseEvent,
   type ReactElement,
+  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import { requestOpenProfile } from "@/lib/social/open-profile";
@@ -118,35 +119,34 @@ export function UserHoverCard({
     onClick?: (e: unknown) => void;
   };
 
-  const trigger = cloneElement(children, {
-    ref,
-    onMouseEnter: (e: ReactMouseEvent) => {
-      childProps.onMouseEnter?.(e);
-      scheduleOpen();
-    },
-    onMouseLeave: (e: ReactMouseEvent) => {
-      childProps.onMouseLeave?.(e);
-      scheduleClose();
-    },
-    onFocus: (e: ReactFocusEvent) => {
-      childProps.onFocus?.(e);
-      scheduleOpen();
-    },
-    onBlur: (e: ReactFocusEvent) => {
-      childProps.onBlur?.(e);
-      scheduleClose();
-    },
-    onClick: (e: ReactMouseEvent) => {
-      clearOpen();
-      clearClose();
-      setAnchor(null);
-      childProps.onClick?.(e);
-    },
-  });
-
   return (
     <>
-      {trigger}
+      <TriggerClone
+        element={children}
+        triggerRef={ref}
+        onMouseEnter={(e: ReactMouseEvent) => {
+          childProps.onMouseEnter?.(e);
+          scheduleOpen();
+        }}
+        onMouseLeave={(e: ReactMouseEvent) => {
+          childProps.onMouseLeave?.(e);
+          scheduleClose();
+        }}
+        onFocus={(e: ReactFocusEvent) => {
+          childProps.onFocus?.(e);
+          scheduleOpen();
+        }}
+        onBlur={(e: ReactFocusEvent) => {
+          childProps.onBlur?.(e);
+          scheduleClose();
+        }}
+        onClick={(e: ReactMouseEvent) => {
+          clearOpen();
+          clearClose();
+          setAnchor(null);
+          childProps.onClick?.(e);
+        }}
+      />
       {anchor && (
         <ProfileHoverCard
           handle={handle}
@@ -158,6 +158,23 @@ export function UserHoverCard({
       )}
     </>
   );
+}
+
+// Clones the trigger with the hover ref and handlers in its own render, so the parent passes them as props only.
+function TriggerClone({
+  element,
+  triggerRef,
+  ...handlers
+}: {
+  element: ReactElement<any>;
+  triggerRef: RefObject<HTMLElement | null>;
+  onMouseEnter: (e: ReactMouseEvent) => void;
+  onMouseLeave: (e: ReactMouseEvent) => void;
+  onFocus: (e: ReactFocusEvent) => void;
+  onBlur: (e: ReactFocusEvent) => void;
+  onClick: (e: ReactMouseEvent) => void;
+}) {
+  return cloneElement(element, { ref: triggerRef, ...handlers });
 }
 
 export const HOVER_CARD_OPEN_MS = 250;

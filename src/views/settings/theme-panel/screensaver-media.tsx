@@ -21,19 +21,18 @@ export function ScreensaverMediaManager() {
 
   const add = async () => {
     setBusy(true);
-    try {
-      const paths = await pickScreensaverFiles();
-      const fresh = paths
-        .map(newScreensaverMedia)
-        .filter((m): m is ScreensaverMedia => m !== null && !list.some((x) => x.path === m.path));
-      if (fresh.length === 0) return;
-      update({
-        screensaverMedia: [...list, ...fresh],
-        screensaverMediaId: active ? settings.screensaverMediaId : fresh[0].id,
-      });
-    } finally {
-      setBusy(false);
-    }
+    await pickScreensaverFiles()
+      .then((paths) => {
+        const fresh = paths
+          .map(newScreensaverMedia)
+          .filter((m): m is ScreensaverMedia => m !== null && !list.some((x) => x.path === m.path));
+        if (fresh.length === 0) return;
+        update({
+          screensaverMedia: [...list, ...fresh],
+          screensaverMediaId: active ? settings.screensaverMediaId : fresh[0].id,
+        });
+      })
+      .finally(() => setBusy(false));
   };
 
   const remove = (id: string) => {

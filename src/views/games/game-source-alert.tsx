@@ -7,6 +7,8 @@ import { setSourceAlert } from "@/lib/games/source-alerts";
 import type { GameSummary } from "@/lib/games/types";
 import "./game-source-alert.css";
 
+const loadCalendar = () => import("@/lib/calendar");
+
 export function GameSourceAlert({
   game,
   profile,
@@ -40,7 +42,7 @@ export function GameSourceAlert({
       setSourceAlert(profile, game, !enabled);
       // Only this explicit opt-in may request OS permission; denial still keeps in-app alerts.
       if (!enabled)
-        void import("@/lib/calendar")
+        void loadCalendar()
           .then((module) => module.ensureDesktopNotifyPermission())
           .catch(() => {});
     } catch (error) {

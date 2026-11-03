@@ -36,6 +36,24 @@ import { PackCard } from "./pack-card";
 const FIELD =
   "h-11 min-w-0 rounded-[10px] border border-edge-soft bg-elevated px-4 text-[16.5px] text-ink outline-none placeholder:text-ink-subtle/55 focus-visible:border-edge focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent";
 
+const INVALID_PACK = Symbol("invalid-pack");
+
+function parsePackOrNull(text: string): unknown {
+  try {
+    return parsePackText(text);
+  } catch {
+    return INVALID_PACK;
+  }
+}
+
+function importPackText(text: string): BadgeImportResult | typeof INVALID_PACK {
+  try {
+    return importBadgesJson(parsePackText(text));
+  } catch {
+    return INVALID_PACK;
+  }
+}
+
 function importToast(t: ReturnType<typeof useT>, r: BadgeImportResult): void {
   if (r.remapped === 0 && r.rules === 0) {
     emitListToast(t("Nothing usable in that file"));
@@ -63,27 +81,24 @@ function PacksSection() {
 
   const installFromUrl = async (packUrl: string, id: string) => {
     setBusy(id);
-    try {
+    const work = async () => {
       const res = await safeFetch(packUrl);
       if (!res.ok) {
         emitListToast(t("Couldn't reach that pack (HTTP {n})", { n: res.status }));
         return;
       }
       const text = await res.text();
-      let json: unknown;
-      try {
-        json = parsePackText(text);
-      } catch {
+      const json = parsePackOrNull(text);
+      if (json === INVALID_PACK) {
         emitListToast(t("That pack's file isn't valid JSON"));
         return;
       }
       importToast(t, importBadgesJson(json));
       setInstalled((m) => ({ ...m, [id]: true }));
-    } catch {
-      emitListToast(t("Couldn't reach that pack"));
-    } finally {
-      setBusy(null);
-    }
+    };
+    await work()
+      .catch(() => emitListToast(t("Couldn't reach that pack")))
+      .finally(() => setBusy(null));
   };
 
   const installPack = (p: CommunityPack) => {
@@ -100,11 +115,12 @@ function PacksSection() {
     if (!f) return;
     const reader = new FileReader();
     reader.onload = () => {
-      try {
-        importToast(t, importBadgesJson(parsePackText(String(reader.result || ""))));
-      } catch {
+      const result = importPackText(String(reader.result || ""));
+      if (result === INVALID_PACK) {
         emitListToast(t("That file isn't valid JSON"));
+        return;
       }
+      importToast(t, result);
     };
     reader.readAsText(f);
   };

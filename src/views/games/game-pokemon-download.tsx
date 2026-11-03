@@ -13,14 +13,18 @@ export function PokemonImageDownload({ id, name }: { id: number; name: string })
     const controller = new AbortController();
     request.current = controller;
     setState("busy");
-    try {
-      const saved = await downloadPokemonImage(id, controller.signal);
-      if (!controller.signal.aborted) setState(saved ? "done" : "idle");
-    } catch {
-      if (!controller.signal.aborted) setState("error");
-    } finally {
-      if (request.current === controller) request.current = null;
-    }
+    await downloadPokemonImage(id, controller.signal)
+      .then(
+        (saved) => {
+          if (!controller.signal.aborted) setState(saved ? "done" : "idle");
+        },
+        () => {
+          if (!controller.signal.aborted) setState("error");
+        },
+      )
+      .finally(() => {
+        if (request.current === controller) request.current = null;
+      });
   };
   return (
     <>

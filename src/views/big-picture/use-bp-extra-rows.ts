@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import type { HomeRow } from "@/lib/home/home-types";
 import { buildAnimeHomeRows } from "@/views/home/home-rows";
@@ -17,6 +17,7 @@ import { useLocalWatchlist } from "@/lib/local-watchlist";
 import { usePinnedRows } from "@/views/home/hooks/use-pinned-rows";
 import { useSettings } from "@/lib/settings";
 import { useUiLanguage } from "@/lib/i18n";
+import { useBpKeyed } from "./use-bp-keyed";
 
 function listRow(key: string, name: string, metas: Meta[]): HomeRow {
   return { key, type: "movie", name, metas, page: 1, hasMore: false, noDedup: true };
@@ -27,13 +28,20 @@ function useAsyncRows(
   deps: React.DependencyList,
 ): HomeRow[] {
   const [rows, setRows] = useState<HomeRow[]>([]);
+  const buildRef = useRef(build);
+  useLayoutEffect(() => {
+    buildRef.current = build;
+  });
+  // A fresh token whenever deps change, so the fetch re-runs on deps alone and not on each new build closure.
+  const token = useBpKeyed(deps, () => ({}));
   useEffect(() => {
-    if (!build) {
+    const run = buildRef.current;
+    if (!run) {
       setRows([]);
       return;
     }
     let cancelled = false;
-    build()
+    run()
       .then((rs) => {
         if (!cancelled) setRows(rs);
       })
@@ -41,8 +49,7 @@ function useAsyncRows(
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, deps);
+  }, [token]);
   return rows;
 }
 

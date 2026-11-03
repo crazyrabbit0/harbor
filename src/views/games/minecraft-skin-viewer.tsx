@@ -5,6 +5,20 @@ import type { SkinViewer } from "skinview3d";
 import { useT } from "@/lib/i18n";
 import type { SkinModel } from "@/lib/games/minecraft-skin";
 
+const loadSkinview = () => import("skinview3d");
+
+function skinCanvas(pixels: Uint8ClampedArray) {
+  const source = document.createElement("canvas");
+  source.width = 64;
+  source.height = 64;
+  const context = source.getContext("2d");
+  if (!context) throw new Error("skin_canvas");
+  const image = context.createImageData(64, 64);
+  image.data.set(pixels);
+  context.putImageData(image, 0, 0);
+  return source;
+}
+
 export function MinecraftSkinViewer({
   pixels,
   model,
@@ -38,7 +52,7 @@ export function MinecraftSkinViewer({
     let disposed = false;
     let observer: ResizeObserver | undefined;
     setFailed(false);
-    void import("skinview3d")
+    void loadSkinview()
       .then(({ SkinViewer }) => {
         if (disposed || !canvas.current || !host.current) return;
         const instance = new SkinViewer({
@@ -80,16 +94,10 @@ export function MinecraftSkinViewer({
   useEffect(() => {
     const instance = viewer.current;
     if (!instance) return;
+    const skinModel = model === "classic" ? "default" : "slim";
     try {
-      const source = document.createElement("canvas");
-      source.width = 64;
-      source.height = 64;
-      const context = source.getContext("2d");
-      if (!context) throw new Error("skin_canvas");
-      const image = context.createImageData(64, 64);
-      image.data.set(pixels);
-      context.putImageData(image, 0, 0);
-      instance.loadSkin(source, { model: model === "classic" ? "default" : "slim" });
+      const source = skinCanvas(pixels);
+      instance.loadSkin(source, { model: skinModel });
       instance.render();
     } catch {
       setFailed(true);
@@ -138,7 +146,7 @@ export function MinecraftSkinViewer({
       instance.animation = null;
       instance.render();
     } else
-      void import("skinview3d").then(({ WalkingAnimation }) => {
+      void loadSkinview().then(({ WalkingAnimation }) => {
         if (!disposed && viewer.current === instance) {
           instance.animation = new WalkingAnimation();
           instance.animation.speed = 0.65;

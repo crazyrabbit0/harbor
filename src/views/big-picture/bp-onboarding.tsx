@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useId, useRef, useState, type ComponentType } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ComponentType,
+} from "react";
 import { useBigPicture } from "@/lib/big-picture";
 import { useOnboarding } from "@/lib/onboarding";
 import { SFX } from "@/lib/sfx";
@@ -250,7 +258,9 @@ export function BpOnboarding({
   const [leaveOpen, setLeaveOpen] = useState(false);
   const [satisfiedAt, setSatisfiedAt] = useState<number | null>(null);
   const indexRef = useRef(index);
-  indexRef.current = index;
+  useLayoutEffect(() => {
+    indexRef.current = index;
+  }, [index]);
 
   const step = BP_ONBOARD_STEPS[index];
   const satisfied = satisfiedAt === index;

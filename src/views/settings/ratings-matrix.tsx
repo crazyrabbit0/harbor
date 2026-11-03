@@ -293,7 +293,8 @@ export function RatingsMatrix({
       {sources.map((src) => {
         const lock = lockReason(src.lockKey);
         const cardVal = settings[src.cardKey] === true;
-        const detailVal = src.detailKey ? settings[src.detailKey] === true : false;
+        const detailKey = src.detailKey;
+        const detailVal = detailKey ? settings[detailKey] === true : false;
         return (
           <SettingRow
             key={src.id}
@@ -316,13 +317,13 @@ export function RatingsMatrix({
               label={`${src.name} ${t("Cards")}`}
               onClick={() => setCard(src, !cardVal)}
             />
-            {src.detailKey ? (
+            {detailKey ? (
               <MiniToggle
                 on={detailVal}
                 label={`${src.name} ${t("Details")}`}
                 onClick={() =>
                   update({
-                    [src.detailKey!]: !detailVal,
+                    [detailKey]: !detailVal,
                     showDetailRatings: true,
                   } as Partial<Settings>)
                 }

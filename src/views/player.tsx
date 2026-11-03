@@ -1,4 +1,13 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { SportsDockControls } from "./sports/dock-controls";
 import { useDockDrag, type DockSpot } from "./sports/use-dock-drag";
 import { readEmbedRect } from "@/lib/player/embed-rect";
@@ -6,7 +15,6 @@ import { EmbeddedBroadcastPlayer } from "./sports/embedded-broadcast-player";
 import { resolveChromeTheme } from "@/lib/theme";
 import { useBigPicture } from "@/lib/big-picture";
 import { useActiveKid } from "@/lib/profiles";
-import { type PlayerBridge } from "@/lib/player/bridge";
 import { useDebridClients } from "@/lib/debrid/registry";
 import { useSettings } from "@/lib/settings";
 import { writePlayerVolume } from "@/lib/player-volume";
@@ -60,7 +68,7 @@ import { hostSourceMatchesMedia } from "@/lib/together/room-derive";
 import { useLiveChannelOverlay } from "./player/hooks/use-live-channel-overlay";
 import { useStreamSwitcher } from "./player/hooks/use-stream-switcher";
 import { useMpvEmbed } from "./player/hooks/use-mpv-embed";
-import { usePlayerBridge } from "./player/hooks/use-player-bridge";
+import { usePlayerBridge, usePlayerBridgeSlot } from "./player/hooks/use-player-bridge";
 import { useTextSync } from "./player/hooks/use-text-sync";
 import { useT } from "@/lib/i18n";
 import { useEpisodeNavigation } from "./player/hooks/use-episode-navigation";
@@ -215,7 +223,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     [],
   );
   const videoMountRef = useRef<HTMLDivElement>(null);
-  const bridgeRef = useRef<PlayerBridge | null>(null);
+  const [bridgeRef, bridge] = usePlayerBridgeSlot();
   // The URL actually playing (manual swap, transcode or src.url); recovery reloads read it, set below once known.
   const activeUrlRef = useRef<string | null>(null);
   const selfFrameReadyRef = useRef(false);
@@ -244,7 +252,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
         ) ?? false
       );
     },
-    [nativeDock],
+    [bridgeRef, nativeDock],
   );
   const dockDrag = useDockDrag(stageRef, docked, refreshDockGeometry, prepareDockMove);
   useSportsDockSurface(nativeDock && !src.pipDocked, videoMountRef);
@@ -294,9 +302,10 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     src.meta.id,
     snap.durationSec,
   ]);
-  const shellSnapRef = useRef(snap);
   const snapRef = useRef(snap);
-  snapRef.current = snap;
+  useLayoutEffect(() => {
+    snapRef.current = snap;
+  }, [snap]);
   const [foreignNotice, setForeignNotice] = useState<{ title: string | null; from: string } | null>(
     null,
   );
@@ -340,7 +349,9 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   const isHost = inRoom && roomSnapshot.hostClientId === clientId;
   const canControl = !inRoom || hasStarted;
   const guestPickRef = useRef(settings.togetherGuestsPick);
-  guestPickRef.current = settings.togetherGuestsPick;
+  useLayoutEffect(() => {
+    guestPickRef.current = settings.togetherGuestsPick;
+  }, [settings.togetherGuestsPick]);
 
   usePauseOnInactive({ bridgeRef, snapRef });
 
@@ -507,7 +518,10 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     snap,
     debrids,
   });
-  activeUrlRef.current = liveUrl !== src.url ? liveUrl : (transcodedUrl ?? src.url);
+  const activeUrl = liveUrl !== src.url ? liveUrl : (transcodedUrl ?? src.url);
+  useLayoutEffect(() => {
+    activeUrlRef.current = activeUrl;
+  }, [activeUrl]);
   const activeMediaSrc = useMemo(
     () =>
       liveUrl === src.url && liveStreamRef === src.streamRef
@@ -616,7 +630,9 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     exitPlayback,
     openPicker,
   });
-  closePlayerRef.current = () => void closePlayer();
+  useLayoutEffect(() => {
+    closePlayerRef.current = () => void closePlayer();
+  }, [closePlayer]);
   const backFromPlayer = useCallback(async () => {
     if (src.sportsDocked === false) {
       // Keep the mounted playback engine and current source; only change its surface.
@@ -655,16 +671,19 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     autoAdvancedRef.current = false;
     playbackStartedRef.current = false;
   }, [src.url]);
-  if (
-    hasPlaybackStartedForStallCheck({
-      status: snap.status,
-      positionSec: getPlaybackPosition(),
-      videoWidth: snap.videoWidth,
-      videoHeight: snap.videoHeight,
-    })
-  ) {
-    playbackStartedRef.current = true;
-  }
+  // Runs after every render, before the passive effects below that read it.
+  useLayoutEffect(() => {
+    if (
+      hasPlaybackStartedForStallCheck({
+        status: snap.status,
+        positionSec: getPlaybackPosition(),
+        videoWidth: snap.videoWidth,
+        videoHeight: snap.videoHeight,
+      })
+    ) {
+      playbackStartedRef.current = true;
+    }
+  });
   useEffect(() => {
     if (snap.status !== "error" || autoAdvancedRef.current) return;
     if (!src.autoFired || playbackStartedRef.current || src.isLive || inRoom) return;
@@ -682,7 +701,9 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   // 10s (dead addon / stalled source). First-load only — a hard error is already
   // handled above, and mid-playback buffering is left untouched.
   const stallSrcRef = useRef(src);
-  stallSrcRef.current = src;
+  useLayoutEffect(() => {
+    stallSrcRef.current = src;
+  }, [src]);
   useEffect(() => {
     if (!settings.autoNextStreamOnStall || !src.autoFired || src.isLive || inRoom) return;
     const timer = window.setTimeout(() => {
@@ -827,7 +848,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
       sendCommand,
     });
 
-  const textSync = useTextSync(bridgeRef.current, src.meta.id, rememberSubChoice);
+  const textSync = useTextSync(bridge, src.meta.id, rememberSubChoice);
   const [syncToast, setSyncToast] = useState<ToastInfo | null>(null);
   const syncToastTimerRef = useRef<number | null>(null);
   const showSyncToast = useCallback((kind: "ok" | "error", text: string) => {
@@ -850,10 +871,11 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
       );
     };
   }, [showSyncToast, t]);
+  const enterTextSync = textSync.enter;
   const handleEnterSync = useCallback(() => {
     suspendAutoSyncForManualTiming();
-    void textSync.enter(src.url, src.headers);
-  }, [textSync.enter, src.url, src.headers, suspendAutoSyncForManualTiming]);
+    void enterTextSync(src.url, src.headers);
+  }, [enterTextSync, src.url, src.headers, suspendAutoSyncForManualTiming]);
 
   const volumeIndicatorTimerRef = useRef<number | null>(null);
   const [volumeIndicator, setVolumeIndicator] = useState<VolumeIndicatorState>({
@@ -1338,7 +1360,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
       isLive: true,
       headers: src.headers,
     });
-  }, [src.url, src.subtitles, src.notWebReady, src.headers]);
+  }, [bridgeRef, src.url, src.subtitles, src.notWebReady, src.headers]);
 
   useAutoEndExit({
     src,
@@ -1468,12 +1490,19 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     !loaderShowing &&
     !tenFoot &&
     (chromeVisible || drawMode);
-  const liveShellSnap =
-    cast.castDevice && !cast.audioRouting
-      ? { ...snap, status: (cast.castPlaying ? "playing" : "paused") as typeof snap.status }
-      : snap;
-  if (showChrome) shellSnapRef.current = liveShellSnap;
-  const shellSnap = showChrome ? liveShellSnap : shellSnapRef.current;
+  const castOverridesSnap = !!cast.castDevice && !cast.audioRouting;
+  const liveShellSnap = useMemo(
+    () =>
+      castOverridesSnap
+        ? { ...snap, status: (cast.castPlaying ? "playing" : "paused") as typeof snap.status }
+        : snap,
+    [castOverridesSnap, cast.castPlaying, snap],
+  );
+  // While chrome is hidden the shell keeps the snapshot it had when chrome was hidden.
+  const [frozenShellSnap, setFrozenShellSnap] = useState<typeof liveShellSnap | null>(null);
+  if (showChrome && frozenShellSnap) setFrozenShellSnap(null);
+  else if (!showChrome && !frozenShellSnap) setFrozenShellSnap(liveShellSnap);
+  const shellSnap = showChrome ? liveShellSnap : (frozenShellSnap ?? liveShellSnap);
   const volumeRef = useRef(snap.volume);
   useEffect(() => {
     volumeRef.current = snap.volume;
@@ -1492,7 +1521,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
       if (settings.playerVolumeSfx) SFX.volumeChange(dir > 0);
       showVolumeFeedback(next, false);
     },
-    [showVolumeFeedback, isKid, settings.playerVolumeSfx, settings.volumeBoostMax],
+    [bridgeRef, showVolumeFeedback, isKid, settings.playerVolumeSfx, settings.volumeBoostMax],
   );
 
   const onLoaderRetry = useCallback(() => {
@@ -1506,7 +1535,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
         headers: src.headers,
       });
     }
-  }, [src]);
+  }, [bridgeRef, src]);
 
   const playerExtras: PlayerExtras = {
     loop: quickToolsEnabled ? ab : undefined,
@@ -1518,9 +1547,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     onReloadSource: reloadSource,
     onRestartServer: isWeb() ? undefined : restartStreamServer,
     onPrevChannel: liveOverlay.isLive ? liveOverlay.goPrevChannel : undefined,
-    onFrameStep: bridgeRef.current?.frameStep
-      ? (dir) => bridgeRef.current?.frameStep?.(dir)
-      : undefined,
+    onFrameStep: bridge?.frameStep ? (dir) => bridgeRef.current?.frameStep?.(dir) : undefined,
     onJump: seekTo,
     onEditLayout: tenFoot ? undefined : () => setLayoutEditorOpen(true),
   };
@@ -1578,6 +1605,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     setLoaderShowing,
     onLoaderRetry,
     bridgeRef,
+    bridge,
     strokes,
     hideOthersDrawings,
     clientId,
@@ -1795,7 +1823,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
           dragHandlers={dockDrag.handlers}
           src={src}
           snap={snap}
-          bridge={bridgeRef.current}
+          bridge={bridge}
           minimized={dockMinimized}
           onMinimize={() => setDockMinimized((value) => !value)}
           onPlayPause={playPauseToggle}

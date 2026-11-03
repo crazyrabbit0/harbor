@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { isAndroidTv } from "@/lib/platform";
 import { hubLeague } from "@/lib/sports/hub-data";
 import { useSportsArtwork } from "@/views/sports/use-artwork";
@@ -36,7 +36,9 @@ function useSettledSubject(subject: BpSportsSubject): BpSportsSubject {
   const [settled, setSettled] = useState(subject);
   const key = `${subject.game?.id ?? ""}:${subject.group}`;
   const live = useRef(subject);
-  live.current = subject;
+  useLayoutEffect(() => {
+    live.current = subject;
+  }, [subject]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setSettled(live.current), SETTLE_MS);
@@ -67,7 +69,7 @@ export function BpSportsBackdrop({ subject }: { subject: BpSportsSubject }) {
   }, [gameScenery, game?.artwork, game?.poster, art.backdrop, scenery]);
 
   const [layers, setLayers] = useState<BpLayer[]>([]);
-  const scenerySrcs = useRef(new Set<string>());
+  const [scenerySrcs, setScenerySrcs] = useState<ReadonlySet<string>>(() => new Set());
   const seq = useRef(0);
   const committedFor = useRef("");
   const committedSrc = useRef("");
@@ -97,7 +99,9 @@ export function BpSportsBackdrop({ subject }: { subject: BpSportsSubject }) {
         settledOnce = true;
         committedFor.current = key;
         committedSrc.current = src;
-        if (src === scenery || src === gameScenery) scenerySrcs.current.add(src);
+        if (src === scenery || src === gameScenery) {
+          setScenerySrcs((prev) => (prev.has(src) ? prev : new Set(prev).add(src)));
+        }
         seq.current += 1;
         setLayers((prev) => bpPushLayer(prev, { src, id: seq.current }));
       };
@@ -142,7 +146,7 @@ export function BpSportsBackdrop({ subject }: { subject: BpSportsSubject }) {
         >
           {layers.map((l, i) => {
             const top = i === layers.length - 1;
-            const dim = scenerySrcs.current.has(l.src);
+            const dim = scenerySrcs.has(l.src);
             return (
               <img
                 key={l.id}

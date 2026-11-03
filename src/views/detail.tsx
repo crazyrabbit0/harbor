@@ -1324,9 +1324,15 @@ export function DetailView({
     };
   }, [isAnime, animeCanonicalId, meta.id, meta.type, meta.name, title, settings.tmdbKey]);
 
-  useSyncExternalStore(subscribeMovieWatched, movieWatchedVersion, movieWatchedVersion);
+  const movieWatchedVer = useSyncExternalStore(
+    subscribeMovieWatched,
+    movieWatchedVersion,
+    movieWatchedVersion,
+  );
   const watchedMark =
-    meta.type === "movie" && (isMovieWatchedLocal(meta.id) || stremioMovieWatched(libraryItem));
+    meta.type === "movie" &&
+    (readAtVersion(movieWatchedVer, () => isMovieWatchedLocal(meta.id)) ||
+      stremioMovieWatched(libraryItem));
   const markThisMovieWatched = () => {
     const tmdb = meta.id.startsWith("tmdb:") ? meta.id.split(":")[2] : null;
     if (watchedMark) {

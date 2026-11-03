@@ -33,6 +33,14 @@ import {
 import { GameArt } from "./game-art";
 import "./game-tft-companion.css";
 
+type TftTrait = TftSet["traits"][number];
+const compareTraits = (
+  counts: ReturnType<typeof tftCounts>,
+  language: string,
+  a: TftTrait,
+  b: TftTrait,
+) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0) || a.name.localeCompare(b.name, language);
+
 function Portrait({ champion }: { champion: TftChampion }) {
   return (
     <span className="games-tft-portrait">
@@ -232,15 +240,13 @@ function TftPlanner({
   const t = useT(),
     language = useUiLanguage(),
     label = (key: string) => t(`games.tft.${key}`),
-    initial = useRef(readTftPlans(profile, set.id)),
+    [initial] = useState(() => readTftPlans(profile, set.id)),
     valid = (units: string[]) => units.filter((id) => set.champions.some((c) => c.id === id));
   const [plans, setPlans] = useState<TftPlans>({
-      ...initial.current,
-      draft: valid(initial.current.draft),
+      ...initial,
+      draft: valid(initial.draft),
     }),
-    [missing, setMissing] = useState(
-      valid(initial.current.draft).length !== initial.current.draft.length,
-    ),
+    [missing, setMissing] = useState(valid(initial.draft).length !== initial.draft.length),
     [saveFailed, setSaveFailed] = useState(false);
   const [query, setQuery] = useState(""),
     [cost, setCost] = useState("all"),
@@ -280,10 +286,7 @@ function TftPlanner({
       const c = set.champions.find((c) => c.id === id);
       return c ? [c] : [];
     }),
-    traits = [...set.traits].sort(
-      (a, b) =>
-        (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0) || a.name.localeCompare(b.name, language),
-    );
+    traits = [...set.traits].sort((a, b) => compareTraits(counts, language, a, b));
   const roster = set.champions
     .filter(
       (c) =>

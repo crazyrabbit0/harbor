@@ -1,18 +1,23 @@
 import { awardSourceMeta, groupWinsBySource, parseAwardYear } from "@/lib/anime-awards";
+import { useAwardMasterVersion } from "@/lib/anime-awards-source";
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
 import type { Meta } from "@/lib/cinemeta";
+import { readAtVersion } from "@/lib/read-at-version";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { CollectionBadges } from "@/views/manga/collection-badge";
 
 export function HeroSlideBadges({ meta }: { meta: Meta }) {
-  useAwardPacks();
-  const groups = groupWinsBySource(meta.name ?? "", parseAwardYear(meta.releaseInfo), meta.id);
+  const awardPacks = useAwardPacks();
+  const awardMasterVer = useAwardMasterVersion();
+  const groups = readAtVersion(awardMasterVer, () =>
+    groupWinsBySource(meta.name ?? "", parseAwardYear(meta.releaseInfo), meta.id),
+  );
   return (
     <div className="flex items-center gap-3">
       {groups.map((g) => {
         const src = awardSourceMeta(g.source);
         const wins = g.wins.length;
-        const custom = resolveAwardIcon(g.source);
+        const custom = readAtVersion(awardPacks, () => resolveAwardIcon(g.source));
         const icon = custom ?? src.iconSmall;
         const invert = !custom && g.source === "animation_kobe";
         const sub =

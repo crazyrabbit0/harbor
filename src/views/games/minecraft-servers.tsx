@@ -17,6 +17,8 @@ import { DiscoveryFooter } from "./minecraft-discovery-shared";
 import "./minecraft-catalog.css";
 import "./minecraft-discovery.css";
 
+const loadClipboard = () => import("@tauri-apps/plugin-clipboard-manager");
+
 function DirectoryMark({ source }: { source: ServerSource }) {
   return (
     <span className={`mc-directory-mark is-${source}`}>
@@ -145,8 +147,7 @@ function ServerRow({ server }: { server: MinecraftServer }) {
   }, [copied]);
   const copy = async () => {
     try {
-      if (isTauri())
-        await (await import("@tauri-apps/plugin-clipboard-manager")).writeText(server.address);
+      if (isTauri()) await (await loadClipboard()).writeText(server.address);
       else await navigator.clipboard.writeText(server.address);
       setCopied(true);
       setError(false);

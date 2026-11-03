@@ -48,8 +48,7 @@ export function CardsTab() {
     if (enabledBadgeCount > prev && enabledBadgeCount > settings.cardBadgeLimit) {
       update({ cardBadgeLimit: Math.min(6, enabledBadgeCount) });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enabledBadgeCount]);
+  }, [enabledBadgeCount, settings.cardBadgeLimit, update]);
 
   return (
     <>

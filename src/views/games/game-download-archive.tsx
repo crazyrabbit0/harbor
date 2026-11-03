@@ -159,9 +159,7 @@ function ArchiveRow({
       element?.nextElementSibling ?? element?.previousElementSibling
     )?.querySelector<HTMLButtonElement>("button");
     setBusy(true);
-    try {
-      await archives.action(job, "remove");
-    } finally {
+    await archives.action(job, "remove").finally(() => {
       setBusy(false);
       requestAnimationFrame(() => {
         if (restore && !element?.isConnected && document.activeElement === document.body) {
@@ -173,7 +171,7 @@ function ArchiveRow({
           )?.focus({ preventScroll: true });
         }
       });
-    }
+    });
   };
   return (
     <article

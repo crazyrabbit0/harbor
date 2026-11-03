@@ -27,7 +27,9 @@ function Notes({
     [failed, setFailed] = useState(false),
     [retry, setRetry] = useState(0);
   const onReady = useRef(ready);
-  onReady.current = ready;
+  useLayoutEffect(() => {
+    onReady.current = ready;
+  }, [ready]);
   useLayoutEffect(() => {
     if (notes) onReady.current();
   }, [notes]);

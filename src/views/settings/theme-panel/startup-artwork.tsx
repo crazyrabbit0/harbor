@@ -11,6 +11,12 @@ import { Section } from "../shared";
 import { SettingRow } from "../kit";
 import "./startup-artwork.css";
 
+async function importAndSave(role: ArtworkRole, next: File | undefined, alive: () => boolean) {
+  const imported = next ? await importArtwork(next) : null;
+  if (!alive()) return;
+  await saveArtwork(role, imported?.choice ?? null, imported?.blob);
+}
+
 function ArtworkSetting({ role }: { role: ArtworkRole }) {
   const t = useT(),
     choice = useCustomArtwork(role);
@@ -30,21 +36,19 @@ function ArtworkSetting({ role }: { role: ArtworkRole }) {
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
-      const imported = next ? await importArtwork(next) : null;
-      if (!alive.current) return;
-      await saveArtwork(role, imported?.choice ?? null, imported?.blob);
-    } catch (err) {
-      if (alive.current)
-        setError(
-          err instanceof Error && ["large", "external", "storage"].includes(err.message)
-            ? err.message
-            : "invalid",
-        );
-    } finally {
-      pending.current = false;
-      if (alive.current) setBusy(false);
-    }
+    await importAndSave(role, next, () => alive.current)
+      .catch((err: unknown) => {
+        if (alive.current)
+          setError(
+            err instanceof Error && ["large", "external", "storage"].includes(err.message)
+              ? err.message
+              : "invalid",
+          );
+      })
+      .finally(() => {
+        pending.current = false;
+        if (alive.current) setBusy(false);
+      });
   }
   return (
     <SettingRow wide label={t(`artwork.${role}`)} desc={t(`artwork.${role}Hint`)}>

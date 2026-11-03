@@ -1,10 +1,20 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import { Maximize, Minimize, Pause, RotateCcw, Volume1, Volume2, VolumeX } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { effectiveBinding, eventToBinding } from "@/lib/hotkeys";
 import { useSettings } from "@/lib/settings";
 import "./game-detail-media.css";
+
+const loadHls = () => import("hls.js");
+const loadMusicPlayer = () => import("@/lib/music/player");
 
 const VOLUME_KEY = "harbor.games.trailer-volume.v1";
 const clamp = (value: number) => Math.max(0, Math.min(1, value));
@@ -70,9 +80,13 @@ export function GameTrailer({
     video = useRef<HTMLVideoElement>(null),
     volumeArea = useRef<HTMLDivElement>(null);
   const errorHandler = useRef(onError);
-  errorHandler.current = onError;
+  useLayoutEffect(() => {
+    errorHandler.current = onError;
+  }, [onError]);
   const playbackHandler = useRef(onPlaybackChange);
-  playbackHandler.current = onPlaybackChange;
+  useLayoutEffect(() => {
+    playbackHandler.current = onPlaybackChange;
+  }, [onPlaybackChange]);
   const [visible, setVisible] = useState(false),
     [pastTop, setPastTop] = useState(false),
     [manualPlay, setManualPlay] = useState(intentional),
@@ -105,13 +119,17 @@ export function GameTrailer({
       wantsPlay &&
       !fault,
     eligibleRef = useRef(eligible);
-  eligibleRef.current = eligible;
+  useLayoutEffect(() => {
+    eligibleRef.current = eligible;
+  }, [eligible]);
   const streaming = useRef<{ startLoad: (position?: number) => void; stopLoad: () => void } | null>(
       null,
     ),
     hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const volumeRef = useRef(volume);
-  volumeRef.current = volume;
+  useLayoutEffect(() => {
+    volumeRef.current = volume;
+  }, [volume]);
   const reveal = () => {
     setChrome(true);
     clearTimeout(hideTimer.current);
@@ -181,7 +199,7 @@ export function GameTrailer({
       }
     };
     if (url.includes(".m3u8")) {
-      void import("hls.js")
+      void loadHls()
         .then(({ default: Hls }) => {
           if (cancelled) return;
           if (!Hls.isSupported()) {
@@ -261,7 +279,7 @@ export function GameTrailer({
       ".games-view audio,.games-view video",
     ))
       if (other !== video.current && !other.paused) other.pause();
-    void import("@/lib/music/player")
+    void loadMusicPlayer()
       .then(({ getMusicState, toggleMusicPlayback }) => {
         if (getMusicState().phase === "playing") toggleMusicPlayback();
       })
@@ -280,7 +298,9 @@ export function GameTrailer({
     }
   };
   const changeVolumeRef = useRef(changeVolume);
-  changeVolumeRef.current = changeVolume;
+  useLayoutEffect(() => {
+    changeVolumeRef.current = changeVolume;
+  });
   useEffect(() => {
     const node = volumeArea.current;
     if (!node) return;

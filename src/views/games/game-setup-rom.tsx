@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Check, Plus } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
@@ -30,7 +30,9 @@ export function GameSetupRom({
   const revision = useRef(0),
     pending = useRef(false),
     currentAccess = useRef(access);
-  currentAccess.current = access;
+  useLayoutEffect(() => {
+    currentAccess.current = access;
+  }, [access]);
   useEffect(
     () => () => {
       revision.current++;
@@ -48,7 +50,7 @@ export function GameSetupRom({
     setBusy(true);
     setError("");
     const token = revision.current;
-    try {
+    const work = async () => {
       const parent = entry.path.replace(/[\\/][^\\/]+$/, "");
       const scan = await invoke<RomScan>("games_scan_roms", { root: parent, system });
       if (revision.current !== token || currentAccess.current?.profile !== profile) return;
@@ -56,12 +58,15 @@ export function GameSetupRom({
       if (!game || !game.available) throw Error(game?.issue || "emulation_missing_file");
       if (!currentAccess.current.emulation.addOutput({ ...game, root: scan.root }))
         throw Error("import failed");
-    } catch (reason) {
-      if (revision.current === token) setError(emulationError(reason));
-    } finally {
-      pending.current = false;
-      if (revision.current === token) setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (revision.current === token) setError(emulationError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (revision.current === token) setBusy(false);
+      });
   };
   if (!systems.length) return null;
   return (

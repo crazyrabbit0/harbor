@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowUpRight, ChevronDown, FolderOpen, LoaderCircle, Plus, RotateCcw } from "lucide-react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
@@ -35,20 +35,25 @@ export function GameStardewManager({
     [picking, setPicking] = useState(false),
     [selection, setSelection] = useState<Selection | null>(null);
   const alive = useRef(true),
-    current = useRef(active),
-    fallback = useRef<HTMLButtonElement>(null);
-  current.current = active;
+    current = useRef(active);
+  const [fallback, setFallback] = useState<HTMLButtonElement | null>(null);
+  useLayoutEffect(() => {
+    current.current = active;
+  }, [active]);
   const load = async () => {
     setLoading(true);
     setError("");
-    try {
+    const work = async () => {
       const result = await stardewWorkspace(path);
       if (alive.current) setWorkspace(result);
-    } catch (e) {
-      if (alive.current) setError(stardewError(e));
-    } finally {
-      if (alive.current) setLoading(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        if (alive.current) setError(stardewError(e));
+      })
+      .finally(() => {
+        if (alive.current) setLoading(false);
+      });
   };
   useEffect(() => {
     let mounted = true;
@@ -68,7 +73,7 @@ export function GameStardewManager({
     setPicking(true);
     setError("");
     const trigger = document.activeElement as HTMLElement | null;
-    try {
+    const work = async () => {
       const archive = await open({
         multiple: false,
         title: text("import"),
@@ -76,11 +81,14 @@ export function GameStardewManager({
       });
       if (typeof archive === "string" && alive.current && current.current)
         setSelection({ action: { kind: "import", archive }, trigger });
-    } catch (e) {
-      if (alive.current) setError(stardewError(e));
-    } finally {
-      if (alive.current) setPicking(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        if (alive.current) setError(stardewError(e));
+      })
+      .finally(() => {
+        if (alive.current) setPicking(false);
+      });
   };
   const reveal = async () => {
     try {
@@ -102,7 +110,7 @@ export function GameStardewManager({
           <p>{text("manageNote")}</p>
         </div>
         <button
-          ref={fallback}
+          ref={setFallback}
           className="games-button"
           disabled={disabled}
           onClick={() => void choose()}
@@ -240,14 +248,14 @@ export function GameStardewManager({
           path={path}
           action={selection.action}
           trigger={selection.trigger}
-          fallback={fallback.current}
+          fallback={fallback}
           onClose={() => {
             const trigger = selection.trigger;
             setSelection(null);
             void load().finally(() =>
               requestAnimationFrame(() => {
                 if (alive.current && current.current)
-                  (trigger?.isConnected ? trigger : fallback.current)?.focus({
+                  (trigger?.isConnected ? trigger : fallback)?.focus({
                     preventScroll: true,
                   });
               }),

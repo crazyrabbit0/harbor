@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 export function usePokemonFeed<T>(
   key: string,
   enabled: boolean,
@@ -11,6 +11,11 @@ export function usePokemonFeed<T>(
   });
   const [attempt, setAttempt] = useState(0);
   const settled = useRef<{ key: string; attempt: number; data: T } | null>(null);
+  const loader = useRef(load);
+  useLayoutEffect(() => {
+    loader.current = load;
+  }, [load]);
+  // The key captures every input used by the request.
   useEffect(() => {
     if (!enabled) return;
     if (settled.current?.key === key && settled.current.attempt === attempt) {
@@ -19,7 +24,7 @@ export function usePokemonFeed<T>(
     }
     const controller = new AbortController();
     setState({ key, busy: true, failed: false });
-    void load(controller.signal).then(
+    void loader.current(controller.signal).then(
       (data) => {
         if (!controller.signal.aborted) {
           settled.current = { key, attempt, data };
@@ -31,8 +36,6 @@ export function usePokemonFeed<T>(
       },
     );
     return () => controller.abort();
-    // The key captures every input used by the request.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, enabled, attempt]);
   return {
     ...(state.key === key

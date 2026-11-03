@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+} from "react";
 import {
   Download,
   Eraser,
@@ -104,7 +112,10 @@ export function MinecraftSkinStudio({
     updated: Date.now(),
   });
   const pendingDraft = useRef<SkinDraft | null>(null);
-  pendingDraft.current = edited ? record() : null;
+  useLayoutEffect(() => {
+    pendingDraft.current = edited ? record() : null;
+  });
+  const loadLatest = useRef<((source: SkinDraft) => Promise<void>) | null>(null);
   const persist = () => {
     if (!edited) return true;
     try {
@@ -137,7 +148,7 @@ export function MinecraftSkinStudio({
   );
   useEffect(() => {
     const previous = skinDrafts(profile)[0];
-    if (previous) void load(previous);
+    if (previous) void loadLatest.current?.(previous);
   }, [profile]);
   useEffect(() => {
     onReady?.();
@@ -243,7 +254,7 @@ export function MinecraftSkinStudio({
     const revision = ++loadRevision.current;
     setLoading(true);
     setError("");
-    try {
+    const work = async () => {
       source = typeof source === "function" ? await source() : source;
       if (revision !== loadRevision.current) return;
       const draft = "texture" in source ? source : null,
@@ -257,12 +268,18 @@ export function MinecraftSkinStudio({
       setHistory({ past: [], future: [] });
       setEdited(true);
       setSaved(!!draft);
-    } catch {
-      if (revision === loadRevision.current) setError("games.minecraft.errorImport");
-    } finally {
-      if (revision === loadRevision.current) setLoading(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (revision === loadRevision.current) setError("games.minecraft.errorImport");
+      })
+      .finally(() => {
+        if (revision === loadRevision.current) setLoading(false);
+      });
   };
+  useLayoutEffect(() => {
+    loadLatest.current = load;
+  });
   const create = () => {
     if (!persist()) return;
     loadRevision.current++;

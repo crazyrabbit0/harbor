@@ -4,6 +4,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
@@ -51,6 +52,8 @@ type PackContext = {
   cancel: () => void;
 };
 const Context = createContext<PackContext | null>(null);
+const customIn = (installations: SimsInstallation[], folder: string) =>
+  installations.find((item) => item.key === simsInstallationKey(folder))?.custom ?? [];
 export const useSimsPackSelection = () => {
   const value = useContext(Context);
   return { selection: value?.selection ?? null, busy: value?.busy ?? false };
@@ -72,10 +75,13 @@ export function SimsPackProvider({
     [error, setError] = useState(""),
     [checkedCustom, setCheckedCustom] = useState("");
   const known = useRef(installations);
-  known.current = installations;
-  const customFor = (folder: string) =>
-    known.current.find((item) => item.key === simsInstallationKey(folder))?.custom ?? [];
-  const selection = rawReport ? { path: rawReport.path, custom: customFor(rawReport.path) } : null;
+  useLayoutEffect(() => {
+    known.current = installations;
+  }, [installations]);
+  const customFor = (folder: string) => customIn(known.current, folder);
+  const selection = rawReport
+    ? { path: rawReport.path, custom: customIn(installations, rawReport.path) }
+    : null;
   const report: SimsPackReport | null =
     rawReport && JSON.stringify(selection?.custom) !== checkedCustom
       ? { ...rawReport, launch: { source: "custom", state: "unknown", disabled: [] } }
@@ -88,7 +94,9 @@ export function SimsPackProvider({
     task = useRef<{ id: string; canceled: boolean } | null>(null),
     picker = useRef(0);
   const restoreFocus = useRef<HTMLElement | null>(null);
-  enabled.current = active;
+  useLayoutEffect(() => {
+    enabled.current = active;
+  }, [active]);
   const cancel = useCallback(() => {
     const own = task.current;
     if (own) {
@@ -107,7 +115,7 @@ export function SimsPackProvider({
       setReport(null);
       setError("");
       let stop: (() => void) | undefined;
-      try {
+      const work = async () => {
         stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
           if (
             payload.profile === profile &&
@@ -127,16 +135,19 @@ export function SimsPackProvider({
           setPath(value.path);
           rememberSimsInstallation(profile, value.path);
         }
-      } catch (reason) {
-        if (task.current === own && !own.canceled && alive.current && enabled.current)
-          setError(simsError(reason));
-      } finally {
-        stop?.();
-        if (task.current === own) {
-          task.current = null;
-          if (alive.current) setBusy(false);
-        }
-      }
+      };
+      await work()
+        .catch((reason) => {
+          if (task.current === own && !own.canceled && alive.current && enabled.current)
+            setError(simsError(reason));
+        })
+        .finally(() => {
+          stop?.();
+          if (task.current === own) {
+            task.current = null;
+            if (alive.current) setBusy(false);
+          }
+        });
     },
     [profile, cancel],
   );
@@ -180,7 +191,7 @@ export function SimsPackProvider({
       trigger = document.activeElement as HTMLElement | null;
     setPicking(true);
     restoreFocus.current = trigger;
-    try {
+    const work = async () => {
       const selected = await open({
         directory: true,
         multiple: false,
@@ -189,11 +200,14 @@ export function SimsPackProvider({
       });
       if (own === picker.current && alive.current && enabled.current && selected)
         await run(selected, trigger);
-    } catch (reason) {
-      if (own === picker.current && alive.current && enabled.current) setError(simsError(reason));
-    } finally {
-      if (alive.current) setPicking(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (own === picker.current && alive.current && enabled.current) setError(simsError(reason));
+      })
+      .finally(() => {
+        if (alive.current) setPicking(false);
+      });
   };
   const select = async (folder: string, trigger: HTMLElement) => {
     if (busy || picking || !active || !installations.some((item) => item.path === folder)) return;

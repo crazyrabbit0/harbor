@@ -33,19 +33,19 @@ export function SeekImageUpload({
   const onFile = async (file: File) => {
     setError(null);
     setBusy(true);
-    try {
-      const result = await processSeekImage(file, targetDim, targetQuality);
-      if ("error" in result) {
-        setError(result.error);
-        return;
-      }
-      onSelect(result.url);
-    } catch (e) {
-      console.warn("[seek-image] processing failed", e);
-      setError(tr("Couldn't read that image. Try a different file."));
-    } finally {
-      setBusy(false);
-    }
+    await processSeekImage(file, targetDim, targetQuality)
+      .then((result) => {
+        if ("error" in result) {
+          setError(result.error);
+          return;
+        }
+        onSelect(result.url);
+      })
+      .catch((e: unknown) => {
+        console.warn("[seek-image] processing failed", e);
+        setError(tr("Couldn't read that image. Try a different file."));
+      })
+      .finally(() => setBusy(false));
   };
 
   return (

@@ -118,7 +118,7 @@ export function SubTabBar({
 
   return (
     <div
-      onKeyDown={stripArrowKeys(btnRefs, (i) => onChange(tabs[i].id))}
+      onKeyDown={(e) => stripArrowKeys(btnRefs, (i) => onChange(tabs[i].id))(e)}
       className="relative flex flex-wrap items-center gap-x-6 gap-y-2"
     >
       <span

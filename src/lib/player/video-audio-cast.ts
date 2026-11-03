@@ -10,6 +10,11 @@ type Receiver = {
   stop: () => Promise<void>;
   status: () => Promise<CastStatus | null>;
 };
+// Reads and replaces the player's current bridge; the route swaps in a guarded bridge while it owns audio.
+export type BridgeSlot = {
+  get: () => PlayerBridge | null;
+  set: (bridge: PlayerBridge | null) => void;
+};
 export type VideoAudioCastState = {
   device: CastDeviceInfo | null;
   phase: "idle" | "connecting" | "playing" | "paused" | "stopping" | "error";
@@ -32,17 +37,14 @@ export class VideoAudioCast {
   private offSnapshot: (() => void) | null = null;
   private local: PlayerSnapshot | null = null;
   private polling = false;
-  private receiver: Receiver;
-  private bridgeRef: { current: PlayerBridge | null };
-  private snapshot: () => PlayerSnapshot;
+  private receiver!: Receiver;
+  private bridgeSlot!: BridgeSlot;
+  private snapshot!: () => PlayerSnapshot;
 
-  constructor(
-    receiver: Receiver,
-    bridgeRef: { current: PlayerBridge | null },
-    snapshot: () => PlayerSnapshot,
-  ) {
+  // Wired after construction so a React hook can create the route in render and connect its refs in an effect.
+  connect(receiver: Receiver, bridgeSlot: BridgeSlot, snapshot: () => PlayerSnapshot) {
     this.receiver = receiver;
-    this.bridgeRef = bridgeRef;
+    this.bridgeSlot = bridgeSlot;
     this.snapshot = snapshot;
   }
 
@@ -75,7 +77,7 @@ export class VideoAudioCast {
   }
 
   private guardBridge() {
-    const bridge = this.bridgeRef.current;
+    const bridge = this.bridgeSlot.get();
     if (!bridge) throw new Error("video.cast.noPlayer");
     this.bridge = bridge;
     this.local = this.snapshot();
@@ -111,14 +113,14 @@ export class VideoAudioCast {
         await bridge.load(source);
       },
     };
-    this.bridgeRef.current = this.guardedBridge;
+    this.bridgeSlot.set(this.guardedBridge);
     bridge.pause();
   }
 
   private release(resume: boolean) {
     const bridge = this.bridge;
-    const stillLocal = this.bridgeRef.current === this.guardedBridge;
-    if (stillLocal) this.bridgeRef.current = bridge;
+    const stillLocal = this.bridgeSlot.get() === this.guardedBridge;
+    if (stillLocal) this.bridgeSlot.set(bridge);
     this.offSnapshot?.();
     this.offSnapshot = null;
     this.guardedBridge = null;
@@ -281,7 +283,7 @@ export class VideoAudioCast {
     this.polling = true;
     try {
       await this.control(async () => {
-        if (this.bridgeRef.current !== this.guardedBridge) {
+        if (this.bridgeSlot.get() !== this.guardedBridge) {
           throw new Error("video.cast.playerChanged");
         }
         if (this.local?.status === "ended" || this.local?.status === "error") {

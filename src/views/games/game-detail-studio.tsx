@@ -41,7 +41,9 @@ export function GameDetailStudio({
     [attempt, setAttempt] = useState(0),
     [pending, setPending] = useState(false);
   const held = useRef(catalog);
-  held.current = catalog;
+  useLayoutEffect(() => {
+    held.current = catalog;
+  }, [catalog]);
   const request = useRef<AbortController | null>(null),
     busy = useRef(false),
     identity = useRef("");
@@ -50,7 +52,9 @@ export function GameDetailStudio({
     [page, setPage] = useState(0);
   const rtl = isRtl(useUiLanguage());
   const currentGame = useRef(game);
-  currentGame.current = game;
+  useLayoutEffect(() => {
+    currentGame.current = game;
+  }, [game]);
   const studioCompany = company;
   const name = developer || studioCompany?.name;
   const games = catalog?.games;
@@ -155,17 +159,18 @@ export function GameDetailStudio({
       !name
     )
       return;
+    const offset = previous.nextOffset;
     busy.current = true;
     setPending(true);
     setFailed(false);
-    try {
+    const work = async () => {
       const next =
         previous.source === "company" && studioCompany
-          ? await loadStudioRowPage(studioCompany.id, previous.nextOffset, controller.signal)
+          ? await loadStudioRowPage(studioCompany.id, offset, controller.signal)
           : await loadGameCatalog(
               "",
               { ...DEFAULT_CATALOG_FILTERS, developer: name, sort: "Reviews_DESC" },
-              previous.nextOffset,
+              offset,
               controller.signal,
             );
       if (controller.signal.aborted) return;
@@ -173,14 +178,17 @@ export function GameDetailStudio({
       held.current = { ...previous, ...next, games: combined };
       setCatalog(held.current);
       if (advance && combined.length > (currentPage + 1) * slots) setPage(currentPage + 1);
-    } catch {
-      if (!controller.signal.aborted) setFailed(true);
-    } finally {
-      if (!controller.signal.aborted) {
-        busy.current = false;
-        setPending(false);
-      }
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!controller.signal.aborted) setFailed(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          busy.current = false;
+          setPending(false);
+        }
+      });
   };
   useEffect(() => {
     // Fetch the next API page near the loaded edge; keep current cards and focus in place.

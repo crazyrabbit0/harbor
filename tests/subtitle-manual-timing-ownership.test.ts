@@ -47,6 +47,7 @@ test("manual timing cancels background work without reverting the chosen delay",
     stopDrift: () => stopped++,
     setOffer() {},
     setStatus() {},
+    setStatusScope() {},
   };
   callback("suspendForManualTiming", scope)();
   assert.equal(disposed, 1);

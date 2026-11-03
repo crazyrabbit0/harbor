@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export type GameRowPage<T> = { games: T[]; nextOffset: number | null; cachedAt?: number };
 type RowState<T> = GameRowPage<T> & {
@@ -9,13 +9,14 @@ type RowState<T> = GameRowPage<T> & {
   failure?: "initial" | "more";
 };
 
+const gameId = (game: { id: string }) => game.id;
 /** Keep the current cards on screen while fetching the next provider page. */
 export function usePagedGameRow<T extends { id: string }>({
   id,
   active,
   load,
   snapshot,
-  keyOf = (game: T) => game.id,
+  keyOf: keyOfOption,
 }: {
   id: string;
   active: boolean;
@@ -23,8 +24,11 @@ export function usePagedGameRow<T extends { id: string }>({
   snapshot?: () => Promise<GameRowPage<T> | null>;
   keyOf?: (game: T) => string;
 }) {
+  const keyOf = keyOfOption ?? gameId;
   const loaders = useRef({ load, snapshot, keyOf });
-  loaders.current = { load, snapshot, keyOf };
+  useLayoutEffect(() => {
+    loaders.current = { load, snapshot, keyOf };
+  });
   const cache = useRef(new Map<string, RowState<T>>());
   const [state, setState] = useState<RowState<T>>({
     key: id,
@@ -35,7 +39,9 @@ export function usePagedGameRow<T extends { id: string }>({
     failed: false,
   });
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useLayoutEffect(() => {
+    stateRef.current = state;
+  }, [state]);
   const request = useRef<AbortController | null>(null),
     [attempt, setAttempt] = useState(0);
   const publish = (value: RowState<T>) => {
@@ -93,7 +99,7 @@ export function usePagedGameRow<T extends { id: string }>({
     request.current?.abort();
     request.current = controller;
     publish({ ...previous, busy: true, failed: false });
-    try {
+    const work = async () => {
       // A provider page can contain overlaps or filtered entries. Continue a
       // bounded batch until the visible row fills, without inventing records.
       for (let batch = 0; batch < 3 && previous.nextOffset !== null; batch++) {
@@ -114,11 +120,12 @@ export function usePagedGameRow<T extends { id: string }>({
       }
       publish({ ...previous, busy: false, failed: false });
       return true;
-    } catch {
+    };
+    return await work().catch(() => {
       if (!controller.signal.aborted)
         publish({ ...stateRef.current, busy: false, failed: true, failure: "more" });
       return false;
-    }
+    });
   };
   const current =
     state.key === id

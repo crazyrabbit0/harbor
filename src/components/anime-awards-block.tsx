@@ -9,10 +9,10 @@ import {
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function AnimeAwardsBlock({ name, year }: { name: string; year?: number }) {
   const t = useT();
-  useAwardPacks();
   const wins = findAnyAwardWins(name, year);
   if (wins.length === 0) return null;
   const groups = groupWinsBySource(name, year);
@@ -43,7 +43,11 @@ function SourceGroup({ source, wins }: { source: AwardSourceId; wins: AwardWin[]
   const t = useT();
   const meta = awardSourceMeta(source);
   const years = uniqueYears(wins);
-  const customLogo = resolveAwardIcon(`${source}_logo`) ?? resolveAwardIcon(source);
+  const awardPacks = useAwardPacks();
+  const customLogo = readAtVersion(
+    awardPacks,
+    () => resolveAwardIcon(`${source}_logo`) ?? resolveAwardIcon(source),
+  );
   const iconSrc = customLogo ?? meta.icon;
   const logoClass = `h-auto max-h-12 w-auto max-w-[180px] shrink-0 ${
     source === "animation_kobe" ? "max-h-14" : ""

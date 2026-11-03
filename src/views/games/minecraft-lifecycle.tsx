@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -28,6 +28,8 @@ import { transferBytes } from "@/lib/games/transfers";
 import { GameArt } from "./game-art";
 import "./minecraft-pack-updates.css";
 import "./minecraft-lifecycle.css";
+
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
 
 const k = (key: string) => `games.minecraft.lifecycle.${key}`;
 const loaderName = (value: string) =>
@@ -59,7 +61,9 @@ export function MinecraftLifecycle({
     id = useId(),
     root = useRef<HTMLDivElement>(null),
     closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  useLayoutEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
   const dismiss = useCallback(() => closeRef.current(), []),
     { closing, close } = useModalExit(dismiss);
   const [version, setVersion] = useState(instance.pack?.version || "1.0.0"),
@@ -81,8 +85,11 @@ export function MinecraftLifecycle({
     operation = useRef(""),
     token = useRef(""),
     closingRef = useRef(closing);
-  closingRef.current = closing;
-  const discard = (value = token.current) => {
+  useLayoutEffect(() => {
+    closingRef.current = closing;
+  }, [closing]);
+  const discard = (held?: string) => {
+    const value = held === undefined ? token.current : held;
     if (value)
       void invoke("games_minecraft_lifecycle_discard", { profile, token: value }).catch(() => {});
     if (value === token.current) token.current = "";
@@ -155,7 +162,7 @@ export function MinecraftLifecycle({
     setCancelling(false);
     operation.current = crypto.randomUUID();
     const ticket = generation.current;
-    try {
+    const work = async () => {
       const result = await invoke<
         MinecraftExportPlan | MinecraftRemovePlan | MinecraftExported | MinecraftRemoved
       >(command, { profile, ...args, operationId: operation.current });
@@ -171,24 +178,27 @@ export function MinecraftLifecycle({
         token.current = "";
         setDone(result);
       }
-    } catch (reason) {
-      if (mounted.current && ticket === generation.current) {
-        setError(minecraftLifecycleError(reason));
-        setExportPlan(null);
-        setRemovePlan(null);
-        discard();
-      }
-    } finally {
-      // The OS may finish moving a folder after this modal closes, or partially move copies.
-      if (phase === "removing") refresh();
-      if (mounted.current && ticket === generation.current) {
-        pending.current = false;
-        operation.current = "";
-        setBusy("");
-        setProgress(null);
-        setCancelling(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current && ticket === generation.current) {
+          setError(minecraftLifecycleError(reason));
+          setExportPlan(null);
+          setRemovePlan(null);
+          discard();
+        }
+      })
+      .finally(() => {
+        // The OS may finish moving a folder after this modal closes, or partially move copies.
+        if (phase === "removing") refresh();
+        if (mounted.current && ticket === generation.current) {
+          pending.current = false;
+          operation.current = "";
+          setBusy("");
+          setProgress(null);
+          setCancelling(false);
+        }
+      });
   };
   const reviewRemove = (backup: string | null) => {
     discard();
@@ -229,8 +239,8 @@ export function MinecraftLifecycle({
     setError("");
     const ticket = generation.current;
     let destination: string | null = null;
-    try {
-      const { save } = await import("@tauri-apps/plugin-dialog");
+    const choose = async () => {
+      const { save } = await loadDialog();
       destination = await save({
         title: t(k("export")),
         defaultPath: `${
@@ -241,15 +251,18 @@ export function MinecraftLifecycle({
         }.mrpack`,
         filters: [{ name: "Modrinth modpack", extensions: ["mrpack"] }],
       });
-    } catch (reason) {
-      if (mounted.current && ticket === generation.current)
-        setError(minecraftLifecycleError(reason));
-    } finally {
-      if (mounted.current && ticket === generation.current) {
-        pending.current = false;
-        setBusy("");
-      }
-    }
+    };
+    await choose()
+      .catch((reason) => {
+        if (mounted.current && ticket === generation.current)
+          setError(minecraftLifecycleError(reason));
+      })
+      .finally(() => {
+        if (mounted.current && ticket === generation.current) {
+          pending.current = false;
+          setBusy("");
+        }
+      });
     if (destination && mounted.current && ticket === generation.current && !closingRef.current)
       void run(
         "games_minecraft_instance_export_apply",

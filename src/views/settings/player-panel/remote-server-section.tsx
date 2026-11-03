@@ -90,14 +90,15 @@ export function RemoteServerSection() {
     const requestId = ++requestRef.current;
     setTesting(true);
     setResult(null);
-    try {
-      const r = await probeServer(saved);
-      if (requestRef.current !== requestId) return;
-      setResult(r);
-      setReach(r.ok);
-    } finally {
-      if (requestRef.current === requestId) setTesting(false);
-    }
+    await probeServer(saved)
+      .then((r) => {
+        if (requestRef.current !== requestId) return;
+        setResult(r);
+        setReach(r.ok);
+      })
+      .finally(() => {
+        if (requestRef.current === requestId) setTesting(false);
+      });
   };
 
   const pill = !saved

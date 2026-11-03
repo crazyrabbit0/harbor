@@ -167,7 +167,7 @@ export function GameMatch({
     setArtworkError(false);
     const controller = new AbortController();
     artworkRequest.current = controller;
-    try {
+    const work = async () => {
       if (!value) {
         await commit(null);
         return;
@@ -196,14 +196,17 @@ export function GameMatch({
       const next = prepared.current!;
       if (next.review) setArtReview({ game: next.game, screenshots: next.screenshots });
       else await commit(next.game);
-    } catch {
-      if (!controller.signal.aborted) {
-        setSaveError(true);
-        setArtworkError(!!value && prepared.current?.game.igdbId !== value.igdbId);
-      }
-    } finally {
-      if (!controller.signal.aborted) setSaving(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          setSaveError(true);
+          setArtworkError(!!value && prepared.current?.game.igdbId !== value.igdbId);
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setSaving(false);
+      });
   };
   const reviewedChoice: LibraryArtwork | undefined =
     artReview?.game.importedArtwork &&

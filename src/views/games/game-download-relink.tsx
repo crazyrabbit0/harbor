@@ -21,6 +21,20 @@ import {
 import { GameFileIcon } from "./game-file-icon";
 import "./game-download-relink.css";
 
+function SourcePickerSlot({
+  render,
+  link,
+  picker,
+  close,
+}: {
+  render: (link: SourceLink, picker: GameTransfers, close: () => void) => ReactNode;
+  link: SourceLink;
+  picker: GameTransfers;
+  close: () => void;
+}) {
+  return render(link, picker, close);
+}
+
 export function GameDownloadRelink({
   record,
   downloads,
@@ -123,20 +137,23 @@ export function GameDownloadRelink({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       await downloads.relink(record, candidate);
       if (live.current) close();
-    } catch (reason) {
-      if (live.current)
-        setError(
-          String(reason).includes("games_relink_transfer")
-            ? "games.download.relink.native"
-            : transferError(reason),
-        );
-    } finally {
-      pending.current = false;
-      if (live.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (live.current)
+          setError(
+            String(reason).includes("games_relink_transfer")
+              ? "games.download.relink.native"
+              : transferError(reason),
+          );
+      })
+      .finally(() => {
+        pending.current = false;
+        if (live.current) setBusy(false);
+      });
   };
   return (
     <>
@@ -262,13 +279,14 @@ export function GameDownloadRelink({
           </footer>
         </div>
       </ModalShell>
-      {picking &&
-        origin &&
-        sourcePicker(
-          { url: origin, title: record.game?.name ?? record.name, game: record.game },
-          picker,
-          () => setPicking(false),
-        )}
+      {picking && origin && (
+        <SourcePickerSlot
+          render={sourcePicker}
+          link={{ url: origin, title: record.game?.name ?? record.name, game: record.game }}
+          picker={picker}
+          close={() => setPicking(false)}
+        />
+      )}
     </>
   );
 }

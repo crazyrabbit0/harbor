@@ -60,21 +60,19 @@ export function BackgroundPicker({
     if (!file) return;
     setError(null);
     setBusy(true);
-    try {
-      const processed = await processBackgroundImage(file);
-      if (!processed) {
-        flashError(
-          t("Couldn't compress this image small enough. Try a different photo or crop it down."),
-        );
-        return;
-      }
-      justSetRef.current = true;
-      onImageChange(processed);
-    } catch {
-      flashError(t("Couldn't read that image. Try a different file."));
-    } finally {
-      setBusy(false);
-    }
+    await processBackgroundImage(file)
+      .then((processed) => {
+        if (!processed) {
+          flashError(
+            t("Couldn't compress this image small enough. Try a different photo or crop it down."),
+          );
+          return;
+        }
+        justSetRef.current = true;
+        onImageChange(processed);
+      })
+      .catch(() => flashError(t("Couldn't read that image. Try a different file.")))
+      .finally(() => setBusy(false));
   };
 
   return (

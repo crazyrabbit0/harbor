@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowRight,
   Check,
@@ -67,7 +67,9 @@ export function PokemonBank({
     busyRef = useRef(false),
     mounted = useRef(true),
     sessionRef = useRef("");
-  sessionRef.current = session;
+  useLayoutEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
   useEffect(() => {
     mounted.current = true;
     return () => {
@@ -84,7 +86,7 @@ export function PokemonBank({
     setOperation(String(input.op));
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       const result = await pokemonBankRequest(profile, { session, ...input });
       if (!mounted.current) {
         if (result.session)
@@ -142,12 +144,16 @@ export function PokemonBank({
         setSlot(undefined);
       }
       return result;
-    } catch (err) {
-      if (mounted.current) setError(String(err));
-    } finally {
-      busyRef.current = false;
-      if (mounted.current) setBusy(false);
-    }
+    };
+    return await work()
+      .catch((err) => {
+        if (mounted.current) setError(String(err));
+        return undefined;
+      })
+      .finally(() => {
+        busyRef.current = false;
+        if (mounted.current) setBusy(false);
+      });
   };
   useEffect(() => {
     if (active && ready === undefined) void request({ op: "status" });
@@ -167,26 +173,29 @@ export function PokemonBank({
     picking.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       const path = await open({
         multiple: false,
         directory: false,
         title: t("games.pokemon.openSave"),
       });
       if (typeof path === "string" && mounted.current) await openSave(path);
-    } catch (error) {
-      if (mounted.current) setError(String(error));
-    } finally {
-      picking.current = false;
-      if (mounted.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((error) => {
+        if (mounted.current) setError(String(error));
+      })
+      .finally(() => {
+        picking.current = false;
+        if (mounted.current) setBusy(false);
+      });
   };
   const pickEntity = async () => {
     if (picking.current || busyRef.current) return;
     picking.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       const path = await open({
         multiple: false,
         directory: false,
@@ -214,12 +223,15 @@ export function PokemonBank({
         ],
       });
       if (typeof path === "string" && mounted.current) await request({ op: "import_file", path });
-    } catch (error) {
-      if (mounted.current) setError(String(error));
-    } finally {
-      picking.current = false;
-      if (mounted.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((error) => {
+        if (mounted.current) setError(String(error));
+      })
+      .finally(() => {
+        picking.current = false;
+        if (mounted.current) setBusy(false);
+      });
   };
   const choose = (next: number) => {
     if (busyRef.current) return;

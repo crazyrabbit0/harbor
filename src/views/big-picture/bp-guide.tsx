@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { EpgProgram, IptvChannel } from "@/lib/iptv/types";
 import { formatTimeLabel, startOfWindow } from "@/views/live/guide/guide-utils";
 import {
@@ -80,13 +80,21 @@ export function BpGuide({
   });
 
   const winRef = useRef(win);
-  winRef.current = win;
+  useLayoutEffect(() => {
+    winRef.current = win;
+  }, [win]);
   const metricsRef = useRef(metrics);
-  metricsRef.current = metrics;
+  useLayoutEffect(() => {
+    metricsRef.current = metrics;
+  }, [metrics]);
   const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  useLayoutEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
   const laneRef = useRef(laneFor);
-  laneRef.current = laneFor;
+  useLayoutEffect(() => {
+    laneRef.current = laneFor;
+  }, [laneFor]);
 
   const extendWindow = useCallback(() => {
     const w = winRef.current;

@@ -29,14 +29,10 @@ export function TempFilesCard() {
   const clear = async () => {
     setBusy(true);
     setFailed(false);
-    try {
-      await invoke<number>("temp_clear");
-      load();
-    } catch {
-      setFailed(true);
-    } finally {
-      setBusy(false);
-    }
+    await invoke<number>("temp_clear")
+      .then(() => load())
+      .catch(() => setFailed(true))
+      .finally(() => setBusy(false));
   };
 
   if (bytes === null) return null;

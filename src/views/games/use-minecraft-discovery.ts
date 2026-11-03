@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export type DiscoveryBatch<T, M> = { items: T[]; next: string; meta: M };
 export function useMinecraftDiscovery<T extends { id: string }, M>(
@@ -19,7 +19,9 @@ export function useMinecraftDiscovery<T extends { id: string }, M>(
     busy = useRef(false),
     failedUrl = useRef(url);
   const latest = useRef(state);
-  latest.current = state;
+  useLayoutEffect(() => {
+    latest.current = state;
+  }, [state]);
   const fetchPage = useCallback(
     (pageUrl: string, append: boolean, refresh = false) => {
       request.current?.abort();

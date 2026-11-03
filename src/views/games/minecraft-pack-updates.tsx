@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { ArrowRight, Check, FileArchive, History, RotateCcw, Search, X } from "lucide-react";
@@ -19,6 +19,8 @@ import {
 import { transferBytes } from "@/lib/games/transfers";
 import { GameArt } from "./game-art";
 import "./minecraft-pack-updates.css";
+
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
 
 const k = (key: string) => `games.minecraft.update.${key}`;
 const phaseKey = (phase: string) =>
@@ -55,7 +57,9 @@ export function MinecraftPackUpdates({
     id = useId(),
     root = useRef<HTMLDivElement>(null),
     closeRef = useRef(onClose);
-  closeRef.current = onClose;
+  useLayoutEffect(() => {
+    closeRef.current = onClose;
+  }, [onClose]);
   const dismiss = useCallback(() => closeRef.current(), []),
     { closing, close } = useModalExit(dismiss);
   const [versions, setVersions] = useState<MinecraftVersion[]>([]),
@@ -79,7 +83,9 @@ export function MinecraftPackUpdates({
     pending = useRef(false),
     generation = useRef(0);
   const closingRef = useRef(closing);
-  closingRef.current = closing;
+  useLayoutEffect(() => {
+    closingRef.current = closing;
+  }, [closing]);
   const originalFile = useRef(""),
     lastSource = useRef<{ source: string | null; remote: boolean } | null>(null);
   const discard = () => {
@@ -206,7 +212,7 @@ export function MinecraftPackUpdates({
     setCancelling(false);
     operation.current = crypto.randomUUID();
     const ticket = generation.current;
-    try {
+    const work = async () => {
       const result = await invoke<MinecraftPackUpdate | MinecraftInstance>(command, {
         profile,
         ...args,
@@ -227,20 +233,23 @@ export function MinecraftPackUpdates({
         changed(result);
         setCompleted(result);
       }
-    } catch (reason) {
-      if (mounted.current && ticket === generation.current) {
-        setError(minecraftPackUpdateError(reason));
-        setPlan(null);
-      }
-    } finally {
-      if (mounted.current && ticket === generation.current) {
-        operation.current = "";
-        pending.current = false;
-        setBusy("");
-        setProgress(null);
-        setCancelling(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current && ticket === generation.current) {
+          setError(minecraftPackUpdateError(reason));
+          setPlan(null);
+        }
+      })
+      .finally(() => {
+        if (mounted.current && ticket === generation.current) {
+          operation.current = "";
+          pending.current = false;
+          setBusy("");
+          setProgress(null);
+          setCancelling(false);
+        }
+      });
   };
   const review = (source: string | null, remote: boolean) => {
     lastSource.current = { source, remote };
@@ -258,8 +267,8 @@ export function MinecraftPackUpdates({
     if (pending.current) return;
     pending.current = true;
     setBusy("choose");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const value = await open({
         multiple: false,
         filters: [{ name: "Modrinth modpack", extensions: ["mrpack"] }],
@@ -282,14 +291,17 @@ export function MinecraftPackUpdates({
           return;
         }
       }
-    } catch (reason) {
-      if (mounted.current) setError(minecraftPackUpdateError(reason));
-    } finally {
-      if (mounted.current && !operation.current) {
-        pending.current = false;
-        setBusy("");
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current) setError(minecraftPackUpdateError(reason));
+      })
+      .finally(() => {
+        if (mounted.current && !operation.current) {
+          pending.current = false;
+          setBusy("");
+        }
+      });
   };
   const apply = () => {
     if (!plan || !token.current || plan.conflicts || plan.environmentBlocked) return;

@@ -16,11 +16,15 @@ export function useReviewPages(appId: number, filters: GameReviewFilters, ready:
   const index = position.query === query ? position.index : 0;
   const [result, setResult] = useState<{ key: string; page: GameReviewPage } | null>(null);
   const [failure, setFailure] = useState(""),
-    [attempt, setAttempt] = useState(0);
+    [attempt, setAttempt] = useState(0),
+    [cursorCount, setCursorCount] = useState({ query, count: 1 });
   const key = `${query}:${index}`,
     page = result?.key === key ? result.page : null;
-  if (cache.current.query !== query) cache.current = { query, pages: new Map(), cursors: ["*"] };
   useEffect(() => {
+    if (cache.current.query !== query) {
+      cache.current = { query, pages: new Map(), cursors: ["*"] };
+      setCursorCount({ query, count: 1 });
+    }
     if (!ready) return;
     const request = new AbortController(),
       own = cache.current,
@@ -44,6 +48,7 @@ export function useReviewPages(appId: number, filters: GameReviewFilters, ready:
             const last = { ...previous, cursor: null };
             own.pages.set(index - 1, last);
             own.cursors.length = index;
+            setCursorCount({ query, count: own.cursors.length });
             setPosition({ query, index: index - 1 });
             setResult({ key: `${query}:${index - 1}`, page: last });
             return;
@@ -54,6 +59,7 @@ export function useReviewPages(appId: number, filters: GameReviewFilters, ready:
           data = { ...data, cursor: null };
         if (data.cursor) own.cursors[index + 1] = data.cursor;
         else own.cursors.length = index + 1;
+        setCursorCount({ query, count: own.cursors.length });
         own.pages.set(index, data);
         if (own.pages.size > 12) {
           const farthest = [...own.pages.keys()].sort(
@@ -79,6 +85,6 @@ export function useReviewPages(appId: number, filters: GameReviewFilters, ready:
     failed: failure === key,
     go,
     retry: () => setAttempt((n) => n + 1),
-    visited: cache.current.cursors.length,
+    visited: cursorCount.query === query ? cursorCount.count : 1,
   };
 }

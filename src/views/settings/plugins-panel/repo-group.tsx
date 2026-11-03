@@ -27,6 +27,33 @@ function foreignText(t: (k: string) => string, kind: RepoView["foreign"]): strin
   );
 }
 
+async function installPending(
+  adapter: KindAdapter,
+  repoUrl: string,
+  pending: EntryView[],
+  onProgress: (done: number, total: number) => void,
+) {
+  if (adapter.installAll) {
+    await adapter.installAll(repoUrl, onProgress);
+    return;
+  }
+  let done = 0;
+  let installed = 0;
+  let failure: unknown = null;
+  for (const e of pending) {
+    try {
+      await adapter.install(repoUrl, e.id);
+      installed += 1;
+    } catch (e2) {
+      failure ??= e2;
+    }
+    done += 1;
+    onProgress(done, pending.length);
+  }
+  // One bad entry shows on its own row, but a run where nothing landed needs to say why.
+  if (!installed && failure) throw failure;
+}
+
 type Confirm = "remove" | "remove-all" | null;
 
 export function RepoGroup({ repo, adapter }: { repo: RepoView; adapter: KindAdapter }) {
@@ -52,13 +79,9 @@ export function RepoGroup({ repo, adapter }: { repo: RepoView; adapter: KindAdap
       delete next[key];
       return next;
     });
-    try {
-      await fn();
-    } catch (e) {
-      setErrors((cur) => ({ ...cur, [key]: errorText(t, e) }));
-    } finally {
-      setBusy(null);
-    }
+    await fn()
+      .catch((e: unknown) => setErrors((cur) => ({ ...cur, [key]: errorText(t, e) })))
+      .finally(() => setBusy(null));
   };
 
   const arm = (what: Exclude<Confirm, null>, action: () => void) => {
@@ -80,29 +103,9 @@ export function RepoGroup({ repo, adapter }: { repo: RepoView; adapter: KindAdap
   const installAll = () =>
     run("install-all", async () => {
       setProgress({ done: 0, total: pending.length });
-      try {
-        if (adapter.installAll) {
-          await adapter.installAll(repo.url, (done, total) => setProgress({ done, total }));
-          return;
-        }
-        let done = 0;
-        let installed = 0;
-        let failure: unknown = null;
-        for (const e of pending) {
-          try {
-            await adapter.install(repo.url, e.id);
-            installed += 1;
-          } catch (e2) {
-            failure ??= e2;
-          }
-          done += 1;
-          setProgress({ done, total: pending.length });
-        }
-        // One bad entry shows on its own row, but a run where nothing landed needs to say why.
-        if (!installed && failure) throw failure;
-      } finally {
-        setProgress(null);
-      }
+      await installPending(adapter, repo.url, pending, (done, total) =>
+        setProgress({ done, total }),
+      ).finally(() => setProgress(null));
     });
 
   const updateAll = () =>

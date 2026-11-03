@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { SportsGame } from "@/lib/sports/espn-types";
 import { SPORTS_BROADCASTS } from "@/lib/sports/broadcasts";
 import { esportsGame } from "@/lib/sports/esports-catalog";
@@ -101,7 +101,9 @@ export function useBpOfficialBroadcasts(game: SportsGame): BpBroadcasts {
   const catalog = useMemo(() => bpCatalogBroadcasts(league, source), [league, source]);
   const [feed, setFeed] = useState<EsportsStream[]>([]);
   const gameRef = useRef(game);
-  gameRef.current = game;
+  useLayoutEffect(() => {
+    gameRef.current = game;
+  }, [game]);
 
   useEffect(() => {
     setFeed([]);

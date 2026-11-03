@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Check, Layers } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -42,7 +42,9 @@ export function MinecraftLoaderChoice({
     [failedArt, setFailedArt] = useState<Record<string, boolean>>({});
   const loaderName = loaders[value.loader].name;
   const update = useRef(change);
-  update.current = change;
+  useLayoutEffect(() => {
+    update.current = change;
+  }, [change]);
   useEffect(() => {
     let disposed = false;
     const controller = new AbortController();

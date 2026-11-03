@@ -187,12 +187,12 @@ function EveFlightPlanner({
   const t = useT(),
     language = useUiLanguage(),
     label = (key: string) => t(`games.eve.${key}`),
-    initial = useRef(readEvePlan(profile)),
+    [initial] = useState(() => readEvePlan(profile)),
     form = useRef<HTMLFormElement>(null);
-  const [origin, setOrigin] = useState<number | null>(initial.current.origin),
-    [destination, setDestination] = useState<number | null>(initial.current.destination),
-    [preference, setPreference] = useState(initial.current.preference),
-    [avoid, setAvoid] = useState(initial.current.avoid);
+  const [origin, setOrigin] = useState<number | null>(initial.origin),
+    [destination, setDestination] = useState<number | null>(initial.destination),
+    [preference, setPreference] = useState(initial.preference),
+    [avoid, setAvoid] = useState(initial.avoid);
   const [request, setRequest] = useState<{ plan: EvePlan; revision: number } | null>(null),
     [result, setResult] = useState<{
       plan: EvePlan;

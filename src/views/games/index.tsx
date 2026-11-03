@@ -129,6 +129,9 @@ type GamesViewProps = {
   openEsports?: (match: EsportsMatch) => void;
   openSports?: () => void;
 };
+const markConsumed = (consumed: { current: number }, id: number) => {
+  consumed.current = id;
+};
 export function GamesView(props: GamesViewProps) {
   const shared = useOptionalGameAccess();
   return shared ? (
@@ -328,6 +331,7 @@ function GamesViewContent({
       }
     >
   >([]);
+  const [hasReturn, setHasReturn] = useState(false);
   const pendingRestore = useRef<ReturnFocus | null>(null);
   const pendingHeading = useRef<string | null>(null);
   const searchMode = query.trim().length >= 2;
@@ -365,6 +369,7 @@ function GamesViewContent({
     setSaveFailed(false);
     externalReturn.current = false;
     returnStack.current = [];
+    setHasReturn(false);
   }, [profileId]);
   useEffect(() => {
     if (!homeActive) return;
@@ -419,7 +424,7 @@ function GamesViewContent({
       current = false;
     };
   }, [active, data]);
-  const remember = (origin = document.activeElement as HTMLElement) =>
+  const remember = (origin = document.activeElement as HTMLElement) => {
     returnStack.current.push({
       top: scroll.current?.scrollTop ?? 0,
       element: origin,
@@ -438,6 +443,8 @@ function GamesViewContent({
       atlasFilters,
       recentOpen,
     });
+    setHasReturn(true);
+  };
   const open = (game: GameSummary, origin?: HTMLElement) => {
     remember(origin);
     setSelected(game);
@@ -449,9 +456,10 @@ function GamesViewContent({
   useLayoutEffect(() => {
     const intent = access.intent;
     if (!active || !intent || access.consumed.current === intent.id) return;
-    access.consumed.current = intent.id;
+    markConsumed(access.consumed, intent.id);
     if (intent.external) {
       returnStack.current = [];
+      setHasReturn(false);
       externalReturn.current = true;
     } else
       remember(
@@ -543,6 +551,7 @@ function GamesViewContent({
   };
   const back = () => {
     const previous = returnStack.current.pop();
+    setHasReturn(returnStack.current.length > 0);
     if (!previous && externalReturn.current && access.leave) {
       externalReturn.current = false;
       setSelected(null);
@@ -573,8 +582,7 @@ function GamesViewContent({
         atlasRoute !== null ||
         recentOpen ||
         (tab === "explore" && (catalogOpen || searchMode)) ||
-        ((tab === "library" || tab === "downloads" || tab === "mods") &&
-          returnStack.current.length > 0)),
+        ((tab === "library" || tab === "downloads" || tab === "mods") && hasReturn)),
   );
   useEffect(() => {
     if (!leavingExternal) return;
@@ -735,6 +743,7 @@ function GamesViewContent({
     setRecentOpen(false);
     setQuery("");
     returnStack.current = [];
+    setHasReturn(false);
     scroll.current?.scrollTo({ top: 0, behavior: "instant" });
   };
   const exploreHome = () => {
@@ -787,6 +796,7 @@ function GamesViewContent({
     if (destination === "roms") {
       setCatalogOpen(false);
       returnStack.current = [];
+      setHasReturn(false);
       scroll.current?.scrollTo({ top: 0, behavior: "instant" });
     }
   };

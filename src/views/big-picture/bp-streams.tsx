@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { Loader2, PackageX } from "lucide-react";
 import { isCurrentStream } from "@/components/player/stream-switcher/switcher-row";
 import type { Meta } from "@/lib/cinemeta";
@@ -175,20 +183,22 @@ export function BpStreams({
       );
       if (!connection || !item) return;
       setHomeServerError(null);
-      try {
+      const imdbId = s.imdbId ?? undefined;
+      const open = async () => {
         play.openLocal(
           await createMediaServerPlayerSrc({
             meta,
-            imdbId: s.imdbId ?? undefined,
+            imdbId,
             episode,
             connection,
             item,
             versionId: copy.version.id,
           }),
         );
-      } catch (cause) {
+      };
+      await open().catch((cause: unknown) => {
         setHomeServerError(cause instanceof Error ? cause.message : String(cause));
-      }
+      });
     },
     [episode, homeServerCopies, meta, play, s.homeServerConnections, s.homeServerItems, s.imdbId],
   );
@@ -311,9 +321,13 @@ export function BpStreams({
   // observer. Seventeen rounds later all 1017 sources were in the DOM, 23,187
   // nodes, and the page stopped answering the remote for 25 seconds.
   const shownRef = useRef(shown);
-  shownRef.current = shown;
+  useLayoutEffect(() => {
+    shownRef.current = shown;
+  }, [shown]);
   const totalRef = useRef(list.length);
-  totalRef.current = list.length;
+  useLayoutEffect(() => {
+    totalRef.current = list.length;
+  }, [list.length]);
   useEffect(() => {
     const el = moreRef.current;
     if (!el) return;

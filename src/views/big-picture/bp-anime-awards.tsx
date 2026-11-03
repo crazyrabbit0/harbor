@@ -257,17 +257,17 @@ function BpAwardWinner({
     }
     if (!settings.tmdbKey) return;
     setBusy(true);
-    try {
-      const tv = await searchTmdb(settings.tmdbKey, title, year, "tv");
+    const tmdbKey = settings.tmdbKey;
+    const lookup = async () => {
+      const tv = await searchTmdb(tmdbKey, title, year, "tv");
       if (tv) {
         open({ id: `tmdb:tv:${tv}`, type: "series", name: title });
         return;
       }
-      const movie = await searchTmdb(settings.tmdbKey, title, year, "movie");
+      const movie = await searchTmdb(tmdbKey, title, year, "movie");
       if (movie) open({ id: `tmdb:movie:${movie}`, type: "movie", name: title });
-    } finally {
-      setBusy(false);
-    }
+    };
+    await lookup().finally(() => setBusy(false));
   };
 
   // Still focusable when inert: with no TMDB key every unmapped winner drops out

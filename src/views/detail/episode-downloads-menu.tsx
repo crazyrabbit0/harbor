@@ -9,15 +9,16 @@ import { useDownloads } from "@/lib/download/downloads-store";
 import { useViewActions } from "@/lib/view";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function EpisodeDownloadsMenu({ meta, episodes }: { meta: Meta; episodes: PlayEpisode[] }) {
   const t = useT();
   const { openPicker, setView } = useViewActions();
-  useDownloads();
+  const downloads = useDownloads();
   const autoOn = useIsAutoDownloaded(meta.id);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
-  const pendingEpisodes = pendingSeasonEpisodes(meta.id, episodes);
+  const pendingEpisodes = readAtVersion(downloads, () => pendingSeasonEpisodes(meta.id, episodes));
   const pending = pendingEpisodes.length;
 
   useEffect(() => {

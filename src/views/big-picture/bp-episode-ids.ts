@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useBpKeyed } from "./use-bp-keyed";
 import { lruSet } from "@/lib/cache";
 import type { Meta } from "@/lib/cinemeta";
 import { registerCache } from "@/lib/memory-profiler";
@@ -114,7 +115,7 @@ export function bpEpisodeAt(season: number, episode: number, ids: BpEpisodeIds):
 
 export function useBpEpisodeIds(meta: Meta | null | undefined): BpEpisodeIds {
   const { settings } = useSettings();
-  const source = useMemo(() => bpEpisodeIdSource(meta), [meta?.id, meta?.videos?.length]);
+  const source = useBpKeyed([meta?.id, meta?.videos?.length], () => bpEpisodeIdSource(meta));
   const [ids, setIds] = useState<BpEpisodeIds>(
     () => (source ? indexCache.get(source) : null) ?? BP_NO_EPISODE_IDS,
   );

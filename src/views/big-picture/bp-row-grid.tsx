@@ -111,7 +111,7 @@ export function BpRowGrid({
     const fetcher = row.fetcher;
     if (!fetcher || doneRef.current || busyRef.current) return;
     busyRef.current = true;
-    try {
+    const step = async () => {
       const next = pageRef.current + 1;
       const page = await fetcher(next);
       pageRef.current = next;
@@ -124,11 +124,14 @@ export function BpRowGrid({
         if (fresh.length === 0) doneRef.current = true;
         return fresh.length > 0 ? [...prev, ...fresh] : prev;
       });
-    } catch {
-      doneRef.current = true;
-    } finally {
-      busyRef.current = false;
-    }
+    };
+    await step()
+      .catch(() => {
+        doneRef.current = true;
+      })
+      .finally(() => {
+        busyRef.current = false;
+      });
   }, [row.fetcher]);
 
   useEffect(() => {

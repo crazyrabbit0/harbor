@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, ChevronDown, FileArchive } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import {
@@ -58,7 +58,9 @@ function Dependencies({
     [busy, setBusy] = useState(false),
     [retry, setRetry] = useState(0);
   const known = useRef(resolved);
-  known.current = resolved;
+  useLayoutEffect(() => {
+    known.current = resolved;
+  }, [resolved]);
   const visible = version.dependencyRefs.slice(0, limit);
   useEffect(() => {
     const controller = new AbortController(),
@@ -74,16 +76,17 @@ function Dependencies({
     setFailed([]);
     void Promise.allSettled(
       ids.map(async (id) => {
-        try {
+        const work = async () => {
           const detail = minecraftProject(
             await minecraftCatalogRequest({ kind: "project", query: id }, controller.signal),
           );
           if (detail.id !== id) throw Error("mods_metadata");
           if (!controller.signal.aborted) setResolved((current) => ({ ...current, [id]: detail }));
-        } catch (error) {
+        };
+        await work().catch((error: unknown) => {
           if (!controller.signal.aborted) setFailed((current) => [...current, id]);
           throw error;
-        }
+        });
       }),
     ).then(() => {
       if (!controller.signal.aborted) setBusy(false);

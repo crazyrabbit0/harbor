@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, BookOpen, Loader2, UploadCloud, X } from "../../icons";
 import { getActiveModal, isBackKey, isEditable } from "@/lib/keyboard-navigation/geometry";
@@ -50,7 +50,9 @@ export function ThemeUpdateFlow({
     else onClose();
   };
   const stepBackRef = useRef(stepBack);
-  stepBackRef.current = stepBack;
+  useLayoutEffect(() => {
+    stepBackRef.current = stepBack;
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -104,7 +106,7 @@ export function ThemeUpdateFlow({
     if (!theme || !changelog.trim()) return;
     setSubmitting(true);
     setError(null);
-    try {
+    const work = async () => {
       const shared: CustomTheme = theme.background?.image
         ? {
             ...theme,
@@ -123,11 +125,10 @@ export function ThemeUpdateFlow({
         changelog.trim(),
       );
       setResult({ share: updated.share });
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
+    };
+    await work()
+      .catch((e: unknown) => setError((e as Error).message))
+      .finally(() => setSubmitting(false));
   };
 
   return createPortal(

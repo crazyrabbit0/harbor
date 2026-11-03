@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type MouseEvent } from "react";
 import { Check, Eye, EyeOff, FolderPlus, Pin, PinOff, SquareCheck, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useSectionBack } from "@/lib/section-back";
@@ -45,7 +45,9 @@ export function useLibrarySelection({
     trigger = useRef<HTMLButtonElement>(null),
     liveScope = useRef(scope),
     pending = useRef(false);
-  liveScope.current = scope;
+  useLayoutEffect(() => {
+    liveScope.current = scope;
+  }, [scope]);
   const ids = items.map((item) => item.id),
     key = JSON.stringify(ids),
     selectedSet = new Set(selected),
@@ -80,7 +82,7 @@ export function useLibrarySelection({
     setBusy(true);
     setNotice(null);
     const requestedScope = scope;
-    try {
+    const work = async () => {
       const result = await update(
         chosen.map((item) => item.id),
         patch,
@@ -109,12 +111,15 @@ export function useLibrarySelection({
         // Hiding can remove the focused card. Keep the selection controls reachable.
         requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
       }
-    } catch {
-      if (liveScope.current === requestedScope) setNotice({ key: "games.selection.failed" });
-    } finally {
-      pending.current = false;
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (liveScope.current === requestedScope) setNotice({ key: "games.selection.failed" });
+      })
+      .finally(() => {
+        pending.current = false;
+        setBusy(false);
+      });
   };
   const props = (
     id: string,
@@ -162,17 +167,18 @@ export function LibrarySelectButton({
   selection: LibrarySelection;
   disabled?: boolean;
 }) {
-  const t = useT();
+  const t = useT(),
+    { trigger, mode, busy, close, start } = selection;
   return (
     <button
-      ref={selection.trigger}
+      ref={trigger}
       className="games-button games-library-select"
-      aria-pressed={selection.mode}
-      disabled={(!selection.mode && disabled) || selection.busy}
-      onClick={selection.mode ? selection.close : selection.start}
+      aria-pressed={mode}
+      disabled={(!mode && disabled) || busy}
+      onClick={mode ? close : start}
     >
-      {selection.mode ? <X size={16} /> : <SquareCheck size={16} />}
-      {t(selection.mode ? "common.done" : "games.selection.start")}
+      {mode ? <X size={16} /> : <SquareCheck size={16} />}
+      {t(mode ? "common.done" : "games.selection.start")}
     </button>
   );
 }

@@ -202,6 +202,7 @@ export function GamePreviewTrigger({
     root = useRef<HTMLDivElement>(null),
     timer = useRef<number | null>(null),
     [preview, setPreview] = useState(false),
+    [anchor, setAnchor] = useState<HTMLElement | null>(null),
     [tracking, setTracking] = useState(false);
   const cancel = () => {
     if (timer.current !== null) clearTimeout(timer.current);
@@ -216,7 +217,11 @@ export function GamePreviewTrigger({
     if (!active) return;
     cancel();
     setTracking(true);
-    timer.current = window.setTimeout(() => setPreview(true), 320);
+    timer.current = window.setTimeout(() => {
+      const node = root.current;
+      setAnchor(node?.querySelector<HTMLElement>(".games-card-art, [data-pick]") ?? node);
+      setPreview(true);
+    }, 320);
   };
   const leave = () => {
     cancel();
@@ -255,14 +260,12 @@ export function GamePreviewTrigger({
       onClick={close}
     >
       {children(preview && active ? id : undefined)}
-      {preview && root.current && active && (
+      {preview && anchor && active && (
         <GamePreview
           key={game.id}
           game={game}
           reviews={review}
-          anchor={
-            root.current.querySelector<HTMLElement>(".games-card-art, [data-pick]") ?? root.current
-          }
+          anchor={anchor}
           id={id}
           enter={keep}
           leave={leave}

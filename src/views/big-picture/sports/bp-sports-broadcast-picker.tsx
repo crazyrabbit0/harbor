@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { Check, Pin, Plug, Search, Tv } from "lucide-react";
 import { SFX } from "@/lib/sfx";
 import type { IptvChannel } from "@/lib/iptv/types";
@@ -83,7 +83,9 @@ export function BpSportsWatchPicker({
   const [playing, setPlaying] = useState<EsportsStream | null>(autoBroadcast ?? null);
   const straight = useRef(autoBroadcast != null);
   const onStage = useRef(playing != null);
-  onStage.current = playing != null;
+  useLayoutEffect(() => {
+    onStage.current = playing != null;
+  });
 
   const shows = broadcasts ?? [];
   const league = fixture?.league ?? "";

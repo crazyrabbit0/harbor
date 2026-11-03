@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { BackToTop } from "@/components/back-to-top";
 
 /** Use the real page scroller; Games may be nested inside a desktop shell. */
@@ -15,7 +15,9 @@ export function ModBackToTop() {
     }
     setScroller(document.scrollingElement as HTMLElement);
   }, []);
-  scrollRef.current = scroller;
+  useLayoutEffect(() => {
+    scrollRef.current = scroller;
+  }, [scroller]);
   return (
     <>
       <span ref={anchor} hidden />

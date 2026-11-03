@@ -109,15 +109,16 @@ export function GameEmulation({
           query,
         ) || game.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
     )
-    .sort(
-      (a, b) =>
+    .sort((a, b) => {
+      const pinned =
         Number(preferences.get(romPreferenceId(b.system, b.path)).pinned) -
-          Number(preferences.get(romPreferenceId(a.system, a.path)).pinned) ||
-        (sort === "title"
-          ? title(a).localeCompare(title(b))
-          : (library.data.lastPlayed[b.path] ?? 0) - (library.data.lastPlayed[a.path] ?? 0) ||
-            title(a).localeCompare(title(b))),
-    );
+        Number(preferences.get(romPreferenceId(a.system, a.path)).pinned);
+      if (pinned) return pinned;
+      if (sort === "title") return title(a).localeCompare(title(b));
+      const playedB = library.data.lastPlayed[b.path] ?? 0;
+      const playedA = library.data.lastPlayed[a.path] ?? 0;
+      return playedB - playedA || title(a).localeCompare(title(b));
+    });
   const selection = useLibrarySelection({
     items: games.map((game) => ({
       id: romPreferenceId(game.system, game.path),

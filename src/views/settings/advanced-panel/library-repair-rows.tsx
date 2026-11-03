@@ -26,14 +26,10 @@ export function LibraryRepairRow() {
     setError(null);
     setResult(null);
     setProgress({ phase: "fetching" });
-    try {
-      const r = await repairStremioLibrary(authKey, (p) => setProgress(p));
-      setResult(r);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setBusy(false);
-    }
+    await repairStremioLibrary(authKey, (p) => setProgress(p))
+      .then((r) => setResult(r))
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBusy(false));
   };
 
   if (!authKey) {

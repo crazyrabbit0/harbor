@@ -55,13 +55,9 @@ export function PluginRow({
   const run = async (kind: Busy, fn: () => Promise<unknown>) => {
     setBusy(kind);
     setError(null);
-    try {
-      await fn();
-    } catch (e) {
-      setError(errorText(t, e));
-    } finally {
-      setBusy(null);
-    }
+    await fn()
+      .catch((e: unknown) => setError(errorText(t, e)))
+      .finally(() => setBusy(null));
   };
 
   const remove = () => {

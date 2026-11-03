@@ -3,15 +3,16 @@ import { useT } from "@/lib/i18n";
 import "./mod-identity.css";
 
 export type ModCatalogView = "grid" | "list";
+function readView(key: string, fallback: ModCatalogView): ModCatalogView {
+  try {
+    const saved = localStorage.getItem(`harbor:mods:view:${key}`);
+    return saved === "grid" || saved === "list" ? saved : fallback;
+  } catch {
+    return fallback;
+  }
+}
 export function useModCatalogView(key: string, fallback: ModCatalogView) {
-  const [view, setView] = useState<ModCatalogView>(() => {
-    try {
-      const saved = localStorage.getItem(`harbor:mods:view:${key}`);
-      return saved === "grid" || saved === "list" ? saved : fallback;
-    } catch {
-      return fallback;
-    }
-  });
+  const [view, setView] = useState<ModCatalogView>(() => readView(key, fallback));
   return [
     view,
     (next: ModCatalogView) => {

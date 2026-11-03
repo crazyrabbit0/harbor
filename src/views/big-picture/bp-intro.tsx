@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Poster } from "@/components/poster";
 import { CustomArtwork } from "@/components/custom-artwork";
 import type { Meta } from "@/lib/cinemeta";
@@ -55,36 +55,37 @@ function BpIntroColumn({ idx, posters }: { idx: number; posters: string[] }) {
   );
 }
 
+function bpIntroPick(pool: Meta[], remembered: string[]): string[] | null {
+  const live = pool.map((m) => m.poster).filter((p): p is string => !!p);
+  const urls = live.length >= COLUMNS * 2 ? live : remembered;
+  if (urls.length < COLUMNS * 2) return null;
+  const shuffled = [...urls];
+  for (let i = shuffled.length - 1; i > 0; i -= 1) {
+    const j = (i * 2654435761) % (i + 1);
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  const cell = bpIntroCellWidth();
+  return shuffled.slice(0, COLUMNS * PER_COLUMN).map((u) => bpCardArt(u, cell) ?? u);
+}
+
 export function BpIntro({ pool, leaving }: { pool: Meta[]; leaving: boolean }) {
-  const frozen = useRef<string[] | null>(null);
+  const [frozen, setFrozen] = useState<string[] | null>(null);
   // Read once, at the first render, so the mosaic is never blank while the
   // shell is still fetching rows. Reading it inside the effect below would be
   // one paint too late and the viewer would see the placeholder blocks first.
-  const remembered = useRef<string[] | null>(null);
-  if (remembered.current === null) remembered.current = bpIntroPoolLoad();
+  const [remembered] = useState(bpIntroPoolLoad);
   // The boot splash draws this same mark in the same place, so the handoff is
   // a removal and not a cross-fade. Fading two identical images through each
   // other reads as a flicker, which is the artefact this whole pass is for.
-  const handoff = useRef(bpBootSplashUp());
+  const [handoff] = useState(bpBootSplashUp);
   useEffect(() => {
     bpBootSplashDismiss(false);
   }, []);
 
-  if (!frozen.current) {
-    const live = pool.map((m) => m.poster).filter((p): p is string => !!p);
-    const urls = live.length >= COLUMNS * 2 ? live : remembered.current;
-    if (urls.length >= COLUMNS * 2) {
-      const shuffled = [...urls];
-      for (let i = shuffled.length - 1; i > 0; i -= 1) {
-        const j = (i * 2654435761) % (i + 1);
-        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-      }
-      const cell = bpIntroCellWidth();
-      frozen.current = shuffled.slice(0, COLUMNS * PER_COLUMN).map((u) => bpCardArt(u, cell) ?? u);
-    }
-  }
+  const picked = frozen ?? bpIntroPick(pool, remembered);
+  if (!frozen && picked) setFrozen(picked);
 
-  const posters = frozen.current ?? [];
+  const posters = picked ?? [];
 
   return (
     <div
@@ -111,9 +112,9 @@ export function BpIntro({ pool, leaving }: { pool: Meta[]; leaving: boolean }) {
         <CustomArtwork
           role="launch"
           className="h-[min(22vh,200px)] w-[min(24vw,200px)]"
-          fallback={<BpIntroMark settled={handoff.current} />}
+          fallback={<BpIntroMark settled={handoff} />}
         />
-        <BpIntroSpinner settled={handoff.current} />
+        <BpIntroSpinner settled={handoff} />
       </div>
     </div>
   );
@@ -122,6 +123,8 @@ export function BpIntro({ pool, leaving }: { pool: Meta[]; leaving: boolean }) {
 // The logo animation is 161 frames. Stopping a little short lets it settle
 // rather than snapping at the very end.
 const LOTTIE_LAST_FRAME = 146;
+
+const loadLottie = () => Promise.all([import("lottie-web"), import("@/assets/harbor-lottie.json")]);
 
 // Static twin of the animation's resting pose, and the same art index-tv.html
 // inlines. Used whenever the boot splash already played the arrival, so the
@@ -155,25 +158,21 @@ function BpIntroMark({ settled }: { settled: boolean }) {
     if (!el || settled) return;
     let anim: import("lottie-web").AnimationItem | null = null;
     let dead = false;
-    void (async () => {
-      try {
-        const [{ default: lottie }, { default: data }] = await Promise.all([
-          import("lottie-web"),
-          import("@/assets/harbor-lottie.json"),
-        ]);
-        if (dead) return;
-        const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-        anim = lottie.loadAnimation({
-          container: el,
-          renderer: "svg",
-          loop: false,
-          autoplay: false,
-          animationData: data as object,
-        });
-        if (reduce) anim.goToAndStop(LOTTIE_LAST_FRAME, true);
-        else anim.playSegments([0, LOTTIE_LAST_FRAME], true);
-      } catch {}
-    })();
+    const mount = async () => {
+      const [{ default: lottie }, { default: data }] = await loadLottie();
+      if (dead) return;
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      anim = lottie.loadAnimation({
+        container: el,
+        renderer: "svg",
+        loop: false,
+        autoplay: false,
+        animationData: data as object,
+      });
+      if (reduce) anim.goToAndStop(LOTTIE_LAST_FRAME, true);
+      else anim.playSegments([0, LOTTIE_LAST_FRAME], true);
+    };
+    void mount().catch(() => {});
     return () => {
       dead = true;
       anim?.destroy();

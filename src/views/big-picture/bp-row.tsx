@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { isAndroidTv } from "@/lib/platform";
 import { useSettings } from "@/lib/settings";
@@ -123,15 +131,19 @@ export function BpRow({
   );
 
   const shownRef = useRef(shown);
-  shownRef.current = shown;
+  useLayoutEffect(() => {
+    shownRef.current = shown;
+  }, [shown]);
   const totalRef = useRef(all.length);
-  totalRef.current = all.length;
+  useLayoutEffect(() => {
+    totalRef.current = all.length;
+  }, [all.length]);
 
   const loadMore = useCallback(async () => {
     const fetcher = row?.fetcher;
     if (!fetcher || ranked || exhaustedRef.current || busyRef.current) return;
     busyRef.current = true;
-    try {
+    const step = async () => {
       const next = pageRef.current + 1;
       const page = await fetcher(next);
       pageRef.current = next;
@@ -144,11 +156,14 @@ export function BpRow({
         if (merged.length === 0) exhaustedRef.current = true;
         return merged.length > 0 ? [...prev, ...merged] : prev;
       });
-    } catch {
-      exhaustedRef.current = true;
-    } finally {
-      busyRef.current = false;
-    }
+    };
+    await step()
+      .catch(() => {
+        exhaustedRef.current = true;
+      })
+      .finally(() => {
+        busyRef.current = false;
+      });
   }, [row?.fetcher, row?.key, metas, ranked]);
 
   useEffect(() => {

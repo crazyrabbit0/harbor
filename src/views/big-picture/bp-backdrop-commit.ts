@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export const BP_META_SETTLE_MS = 200;
 export const BP_COPY_CEILING_MS = 900;
@@ -36,7 +36,9 @@ export function useBpCopyGate<T>(value: T, key: string): { shown: T | null; on: 
   const [on, setOn] = useState(false);
   const shownKey = useRef("");
   const live = useRef(value);
-  live.current = value;
+  useLayoutEffect(() => {
+    live.current = value;
+  }, [value]);
 
   // An enrichment that fills in a logo or an overview must land in place. Only a
   // new key is a new subject, and only a new subject is worth a fade.

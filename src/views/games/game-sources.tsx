@@ -113,11 +113,16 @@ export function GameSourceSection({
     game.platforms,
     game.sourceOrigin,
   ]);
-  const heldGroups = useMemo(() => ({ value: [] as SourceMatchGroup[] }), [groupingKey]);
-  const groups = useMemo(
-    () => (heldGroups.value = retainSourceMatchGroups(matches, heldGroups.value)),
-    [matches, heldGroups],
-  );
+  const [held, setHeld] = useState<{
+    key: string;
+    matches: typeof matches | null;
+    groups: SourceMatchGroup[];
+  }>({ key: groupingKey, matches: null, groups: [] });
+  let groups = held.groups;
+  if (held.key !== groupingKey || held.matches !== matches) {
+    groups = retainSourceMatchGroups(matches, held.key === groupingKey ? held.groups : []);
+    setHeld({ key: groupingKey, matches, groups });
+  }
   const [shown, setShown] = useState({ key: browseKey, limit: 8 });
   const limit = shown.key === browseKey ? shown.limit : 8;
   const root = useRef<HTMLElement>(null),
@@ -485,7 +490,9 @@ export function SourceReleaseRow({
   const alive = useRef(true),
     pending = useRef(false);
   const owner = useRef({ profile: downloads.profile, source: source.id, release });
-  owner.current = { profile: downloads.profile, source: source.id, release };
+  useLayoutEffect(() => {
+    owner.current = { profile: downloads.profile, source: source.id, release };
+  }, [downloads.profile, source.id, release]);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -507,13 +514,14 @@ export function SourceReleaseRow({
       owner.current.profile === before.profile &&
       owner.current.source === before.source &&
       owner.current.release === before.release;
-    try {
+    const work = async () => {
       const metadata = await context();
       if (valid()) await action(metadata);
-    } finally {
+    };
+    await work().finally(() => {
       pending.current = false;
       if (alive.current) setResolving(false);
-    }
+    });
   };
   const busy = downloads.busy.includes("new");
   const body = (
@@ -874,7 +882,11 @@ export function GameSourcesModal({
     publishedOn?: { website: string; icon?: string };
   }>({ url: "" });
   const cancelVerification = useRef(sources.cancelVerification);
-  cancelVerification.current = sources.cancelVerification;
+  useLayoutEffect(() => {
+    cancelVerification.current = sources.cancelVerification;
+  }, [sources.cancelVerification]);
+  const request = useRef<AbortController | null>(null),
+    mounted = useRef(true);
   useEffect(() => () => cancelVerification.current(), []);
   useEffect(() => {
     if (closing) {
@@ -898,8 +910,6 @@ export function GameSourcesModal({
   } | null>(null);
   const [editing, setEditing] = useState<GameSource | null>(null),
     [saving, setSaving] = useState(false);
-  const request = useRef<AbortController | null>(null),
-    mounted = useRef(true);
   const formVersion = useRef(0),
     formProfile = useRef(sources.profile),
     returnButton = useRef<HTMLElement | null>(null),
@@ -1004,7 +1014,7 @@ export function GameSourcesModal({
     setVerifyingForm(verify);
     setError("");
     sources.dismissError();
-    try {
+    const work = async () => {
       const reviewed = editing ? sources.sources.find((item) => item.id === editing.id) : null;
       if (editing && !reviewed) throw Error("source_changed");
       const result = await sources.inspect(
@@ -1032,19 +1042,22 @@ export function GameSourcesModal({
             : result,
         );
       }
-    } catch (error) {
-      if (mounted.current && !controller.signal.aborted)
-        setError(
-          error instanceof DOMException && error.name === "AbortError"
-            ? previousError
-            : sourceError(error),
-        );
-    } finally {
-      if (mounted.current && request.current === controller) {
-        setBusy(false);
-        setVerifyingForm(false);
-      }
-    }
+    };
+    await work()
+      .catch((error: unknown) => {
+        if (mounted.current && !controller.signal.aborted)
+          setError(
+            error instanceof DOMException && error.name === "AbortError"
+              ? previousError
+              : sourceError(error),
+          );
+      })
+      .finally(() => {
+        if (mounted.current && request.current === controller) {
+          setBusy(false);
+          setVerifyingForm(false);
+        }
+      });
   };
   const reset = () => {
     formVersion.current++;

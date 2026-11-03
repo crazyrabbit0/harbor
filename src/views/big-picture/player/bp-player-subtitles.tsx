@@ -46,6 +46,7 @@ export type BpPlayerSubtitlesProps = SubtitleMenuProps & { onClose: () => void }
 type Lane = "tracks" | "find" | "sync" | "style";
 
 const ALL = "__all__";
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
 
 // data-bp-dialog, never data-bp-overlay, and the slot that mounts this MUST
 // declare shellNav. The dialog attribute narrows the shell's own focus engine to
@@ -115,8 +116,8 @@ export function BpPlayerSubtitles(props: BpPlayerSubtitlesProps) {
 
   const loadLocal = useCallback(async () => {
     setLocalError(null);
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const pick = async () => {
+      const { open } = await loadDialog();
       const path = await open({
         multiple: false,
         filters: [{ name: t("Subtitles"), extensions: ["srt", "ass", "ssa", "vtt", "sub"] }],
@@ -129,9 +130,10 @@ export function BpPlayerSubtitles(props: BpPlayerSubtitlesProps) {
       }
       markImportedSub(name);
       setActiveLang(ALL);
-    } catch {
+    };
+    await pick().catch(() => {
       setLocalError(t("Couldn't load that subtitle file. Try another."));
-    }
+    });
   }, [t, onAddSubtitle]);
 
   // The shell seeds focus from routeKey, which carries the panel id but not the

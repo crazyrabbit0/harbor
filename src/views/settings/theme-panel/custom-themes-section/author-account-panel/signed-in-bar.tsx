@@ -93,28 +93,25 @@ function AvatarButton({ author }: { author: Author }) {
   const use = async () => {
     if (!profileAvatar) return;
     setBusy("set");
-    try {
+    const work = async () => {
       const blob = await (await fetch(profileAvatar)).blob();
       await uploadAvatar(blob);
       markAvatarSynced(profileAvatar);
-    } catch {
-      void 0;
-    } finally {
-      setBusy(null);
-    }
+    };
+    await work()
+      .catch(() => {})
+      .finally(() => setBusy(null));
   };
   const remove = async () => {
     setBusy("remove");
-    try {
-      await removeEcosystemAvatar();
-      updateSettings({ harborAvatar: null });
-      if (activeProfile) updateProfile(activeProfile.id, { avatar: null });
-      markAvatarSynced(null);
-    } catch {
-      void 0;
-    } finally {
-      setBusy(null);
-    }
+    await removeEcosystemAvatar()
+      .then(() => {
+        updateSettings({ harborAvatar: null });
+        if (activeProfile) updateProfile(activeProfile.id, { avatar: null });
+        markAvatarSynced(null);
+      })
+      .catch(() => {})
+      .finally(() => setBusy(null));
   };
 
   const hint = !profileAvatar ? t("Set a Harbor profile picture first") : undefined;
@@ -205,15 +202,13 @@ function ChangePassword({ onDone }: { onDone: () => void }) {
     if (!ready || busy) return;
     setBusy(true);
     setError(null);
-    try {
-      await changeAuthorPassword(oldPassword, newPassword);
-      setDone(true);
-      setTimeout(onDone, 1200);
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setBusy(false);
-    }
+    await changeAuthorPassword(oldPassword, newPassword)
+      .then(() => {
+        setDone(true);
+        setTimeout(onDone, 1200);
+      })
+      .catch((err: unknown) => setError((err as Error).message))
+      .finally(() => setBusy(false));
   };
 
   return (

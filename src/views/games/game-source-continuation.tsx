@@ -26,7 +26,9 @@ export function GameSourceContinuation({
   const focusAnchor = useRef<{ count: number; browse: Element } | null>(null);
   const [fallback, setFallback] = useState(false),
     [focused, setFocused] = useState(false);
-  request.current = load;
+  useLayoutEffect(() => {
+    request.current = load;
+  }, [load]);
   useLayoutEffect(() => {
     const anchor = focusAnchor.current;
     if (!anchor) return;

@@ -12,6 +12,7 @@ import { useBpT } from "./bp-i18n";
 import { BpChipDivider } from "./bp-library-chips";
 import { BpLeadTile } from "./bp-lead-tile";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
+import { readAtVersion } from "@/lib/read-at-version";
 import { bpAwardSummaries, type BpAwardSummary } from "./use-bp-discover";
 
 const CELL = "clamp(178px, 15vw, 300px)";
@@ -132,8 +133,8 @@ export function BpAwardsBand({
   onTint?: (tint: string) => void;
 }) {
   const t = useBpT();
-  useBundledAwardsVersion();
-  const summaries = bpAwardSummaries();
+  const awardsVer = useBundledAwardsVersion();
+  const summaries = readAtVersion(awardsVer, () => bpAwardSummaries());
   const sources = allAwardSources();
   if (summaries.length === 0) return null;
 

@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from "react";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const NEW_BADGE_RESET_GENERATION = 1;
 
@@ -75,21 +76,21 @@ export function markSettingSeen(id: string): void {
 }
 
 export function useSettingsNew(): (id: string) => boolean {
-  useSyncExternalStore(
+  const snap = useSyncExternalStore(
     subscribe,
     () => snapshot,
     () => snapshot,
   );
-  const seen = new Set(store.sections);
+  const seen = readAtVersion(snap, () => new Set(store.sections));
   return (id: string) => NEW_SECTIONS.has(id) && !seen.has(id);
 }
 
 export function useSettingNew(): (id: string) => boolean {
-  useSyncExternalStore(
+  const snap = useSyncExternalStore(
     subscribe,
     () => snapshot,
     () => snapshot,
   );
-  const seen = new Set(store.items);
+  const seen = readAtVersion(snap, () => new Set(store.items));
   return (id: string) => NEW_SETTINGS.has(id) && !seen.has(id);
 }

@@ -6,6 +6,7 @@ import { useSettings } from "@/lib/settings";
 import { useHeroLogos } from "@/components/anime-hero/use-hero-logos";
 import tmdbIcon from "@/assets/addon-logos/tmdb.png";
 import { useBpFocusedMeta } from "./bp-focus-meta";
+import { useBpKeyed } from "./use-bp-keyed";
 import { useBpEnrich } from "./use-bp-enrich";
 import { BP_COPY_IN, BP_COPY_OUT, useBpCopyGate } from "./bp-backdrop-commit";
 import type { BpPagePhase } from "./bp-catalog-page";
@@ -41,7 +42,7 @@ export function BpSpotlight(_props: { phase?: BpPagePhase }) {
   const meta = useBpFocusedMeta();
   const detail = useBpEnrich(meta);
   const { settings } = useSettings();
-  const slides = useMemo(() => (meta ? [meta] : []), [meta?.id]);
+  const slides = useBpKeyed([meta?.id], () => (meta ? [meta] : []));
   const logos = useHeroLogos(slides, settings);
   const mark = useProxiedImageSrc(meta?.providerBadge?.logo);
   // No ref: the spotlight is on screen by definition, so the score prefetch runs

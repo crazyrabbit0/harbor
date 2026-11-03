@@ -140,7 +140,8 @@ export function MangaGrid({
   // virtualize, otherwise every page of results mounts all its cards at once
   // and the page lags once several pages have loaded. Give the grid its own
   // bounded scroll surface so it always windows.
-  if (!scrollRef || scrollRef.current === null) {
+  // A passed scrollRef belongs to an ancestor that committed before the feed loaded, so it is already attached here.
+  if (!scrollRef) {
     return (
       <div ref={innerRef} className="max-h-[72vh] w-full overflow-y-auto">
         {grid(innerRef)}

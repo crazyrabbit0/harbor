@@ -200,27 +200,30 @@ export function MinecraftRuntimeDialog({
     setError("");
     setProgress(null);
     setCancelling(false);
-    try {
+    const work = async () => {
       const result = await invoke<MinecraftRuntimeState>("games_minecraft_runtime_install", {
         profile,
         token: held,
         operationId: operation.current,
       });
       if (mounted.current) setState(result);
-    } catch (reason) {
-      if (mounted.current) {
-        setError(minecraftRuntimeError(reason));
-        setPlan(null);
-      }
-    } finally {
-      if (mounted.current) {
-        pending.current = false;
-        operation.current = "";
-        setBusy("");
-        setProgress(null);
-        setCancelling(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current) {
+          setError(minecraftRuntimeError(reason));
+          setPlan(null);
+        }
+      })
+      .finally(() => {
+        if (mounted.current) {
+          pending.current = false;
+          operation.current = "";
+          setBusy("");
+          setProgress(null);
+          setCancelling(false);
+        }
+      });
   };
   return (
     <>

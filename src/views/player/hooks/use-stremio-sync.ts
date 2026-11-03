@@ -11,6 +11,7 @@ import { recordAnimeCwId } from "@/lib/anime-cw-ids";
 import type { PlayerSrc } from "@/lib/view";
 import { resumeLibraryGetOne } from "@/lib/player/resume-start";
 import { playerLoadIdentity } from "@/lib/player/load-identity";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const ANIME_SCHEME = /^(kitsu|mal|anilist|anidb):/;
 
@@ -97,7 +98,11 @@ export function useStremioSync(params: {
     src.episode?.episode,
   );
   const progress = useMemo(
-    () => ({ latest: null as typeof latestRef.current | null, position: 0 }),
+    () =>
+      readAtVersion(sourceIdentity, () => ({
+        latest: null as typeof latestRef.current | null,
+        position: 0,
+      })),
     [sourceIdentity],
   );
   const progressRef = useRef(progress);

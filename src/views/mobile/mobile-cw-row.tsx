@@ -195,7 +195,6 @@ export function MobileCwRow({
   const t = useT();
   const { settings } = useSettings();
   const { authKey } = useAuth();
-  useSnapshotVersion();
   const metas = useMemo(() => items.map(toMeta), [items]);
   const logos = useHeroLogos(metas, settings);
 
@@ -246,7 +245,10 @@ function MobileCwCard({
         ? t("Ep {episode}", { episode: ep.episode })
         : t("S{season} · E{episode}", { season: ep.season, episode: ep.episode })
       : "";
-  const bg = downscaleTmdb(readSnapshot(item._id) ?? item.background ?? item.poster);
+  const snapshotVer = useSnapshotVersion();
+  const bg = readAtVersion(snapshotVer, () =>
+    downscaleTmdb(readSnapshot(item._id) ?? item.background ?? item.poster),
+  );
 
   return (
     <div className="w-[260px] shrink-0">

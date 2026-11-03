@@ -53,6 +53,23 @@ function buildLane(
   return out;
 }
 
+function lanesFor(
+  epg: EpgIndex | null,
+  tvgCounts: ReadonlyMap<string, number>,
+): (channel: IptvChannel, windowStart: number, windowEnd: number) => BpGuideCell[] {
+  const cache = new Map<string, BpGuideCell[]>();
+  return (channel, windowStart, windowEnd) => {
+    const key = `${channel.id}:${windowStart}:${windowEnd}`;
+    const hit = cache.get(key);
+    if (hit) return hit;
+    const programs = epgProgramsForChannel(channel, epg, tvgCounts) ?? [];
+    const lane = buildLane(programs, windowStart, windowEnd);
+    if (cache.size >= CACHE_MAX) cache.clear();
+    cache.set(key, lane);
+    return lane;
+  };
+}
+
 export function useBpGuideData(args: {
   channels: IptvChannel[];
   epg: EpgIndex | null;
@@ -68,19 +85,7 @@ export function useBpGuideData(args: {
 
   // Every mounted row, the ruler and each nav step ask for the same lane, so the
   // resolver runs once per channel and window instead of once per read.
-  const laneFor = useMemo(() => {
-    const cache = new Map<string, BpGuideCell[]>();
-    return (channel: IptvChannel, windowStart: number, windowEnd: number): BpGuideCell[] => {
-      const key = `${channel.id}:${windowStart}:${windowEnd}`;
-      const hit = cache.get(key);
-      if (hit) return hit;
-      const programs = epgProgramsForChannel(channel, epg, tvgCounts) ?? [];
-      const lane = buildLane(programs, windowStart, windowEnd);
-      if (cache.size >= CACHE_MAX) cache.clear();
-      cache.set(key, lane);
-      return lane;
-    };
-  }, [epg, tvgCounts]);
+  const laneFor = useMemo(() => lanesFor(epg, tvgCounts), [epg, tvgCounts]);
 
   return { rows, laneFor };
 }

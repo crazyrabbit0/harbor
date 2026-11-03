@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import type { BpBandId } from "./use-bp-sections";
 
 export type BpRailEntry = { key: string; band?: BpBandId; node: ReactNode };
@@ -29,7 +36,9 @@ export function BpRail({
   const [reach, setReach] = useState(BP_RAIL_LEAD);
   const reachRef = useRef(BP_RAIL_LEAD);
   const totalRef = useRef(entries.length);
-  totalRef.current = entries.length;
+  useLayoutEffect(() => {
+    totalRef.current = entries.length;
+  }, [entries.length]);
 
   useEffect(() => {
     if (reachRef.current < activeRow + BP_RAIL_LEAD) reachRef.current = activeRow + BP_RAIL_LEAD;

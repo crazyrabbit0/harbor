@@ -12,6 +12,8 @@ import { requestAddonsTab } from "@/views/addons";
 import { SettingRow } from "../kit";
 import { SButton } from "../ui";
 
+const loadAddons = () => import("@/lib/addons");
+
 const CAPTION = "text-[13px] font-bold uppercase leading-[17px] tracking-[0.72px] text-ink-subtle";
 
 export function SyncedAddonsCard() {
@@ -25,16 +27,14 @@ export function SyncedAddonsCard() {
   const sync = async () => {
     if (!authKey || busy) return;
     setBusy(true);
-    try {
-      const mod = await import("@/lib/addons");
-      const list = await mod.userAddons(authKey);
-      setAddons(list);
-      setLastSynced(Date.now());
-    } catch {
-      setAddons(null);
-    } finally {
-      setBusy(false);
-    }
+    await loadAddons()
+      .then((mod) => mod.userAddons(authKey))
+      .then((list) => {
+        setAddons(list);
+        setLastSynced(Date.now());
+      })
+      .catch(() => setAddons(null))
+      .finally(() => setBusy(false));
   };
 
   useEffect(() => {

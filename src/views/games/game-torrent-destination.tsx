@@ -36,7 +36,7 @@ export function TorrentDestination({
     let live = true;
     setPending(true);
     const refresh = async () => {
-      try {
+      const work = async () => {
         const value = await invoke<Locations>("games_download_locations", {
           parent: parent || null,
         });
@@ -44,14 +44,17 @@ export function TorrentDestination({
           setLocations(value);
           setUnavailable(false);
         }
-      } catch {
-        if (live) {
-          setLocations({ drives: [], selected: null });
-          setUnavailable(true);
-        }
-      } finally {
-        if (live) setPending(false);
-      }
+      };
+      await work()
+        .catch(() => {
+          if (live) {
+            setLocations({ drives: [], selected: null });
+            setUnavailable(true);
+          }
+        })
+        .finally(() => {
+          if (live) setPending(false);
+        });
     };
     void refresh();
     const interval = window.setInterval(() => void refresh(), 15000);

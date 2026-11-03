@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { BpChromePhase } from "./bp-player-context";
 
 const IDLE_UP_MS = 4600;
@@ -34,7 +34,9 @@ export function useBpPlayerChrome(params: { playing: boolean; pinned: boolean })
   const [activity, setActivity] = useState(0);
   const lastNote = useRef(0);
   const phaseRef = useRef(phase);
-  phaseRef.current = phase;
+  useLayoutEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
 
   // A held D-pad direction repeats every few frames. Restarting the countdown
   // on each repeat would re-render the whole surface at controller repeat rate,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, ArrowRight, ArrowUp, Pause } from "lucide-react";
 import { createPortal } from "react-dom";
 import { Play } from "@/components/icons/play-filled";
@@ -41,7 +41,9 @@ export function GameAtlasHero({
   const { root, playing, reduced, visible } = useHeroMotion(active, !!target, motion);
   const [art, setArt] = useState({ id: "", src: "", previous: "" });
   const artRef = useRef(art);
-  artRef.current = art;
+  useLayoutEffect(() => {
+    artRef.current = art;
+  }, [art]);
   // Keep the controls and copy with the displayed artwork until the next scene is decoded.
   const game = candidates.find((item) => item.id === art.id) ?? target;
   const index = candidates.findIndex((item) => item.id === target?.id),

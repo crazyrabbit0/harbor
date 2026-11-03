@@ -23,6 +23,37 @@ import {
 import type { NotebookGuide } from "./game-notes-launcher";
 import "./game-notes.css";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+const firstNoteId = (notes: GameNote[]) => notes[0]?.id ?? "";
+const keptNoteId = (notes: GameNote[], selected: string) =>
+  notes.some((note) => note.id === selected) ? selected : firstNoteId(notes);
+function initialNotebook(key: string) {
+  try {
+    const saved = localStorage.getItem(key),
+      data = parseNotebook(saved),
+      draft = retained.get(key);
+    return { raw: draft ? draft.raw : saved, notes: draft?.notes ?? data.notes, error: "" };
+  } catch {
+    return { raw: null, notes: retained.get(key)?.notes ?? [], error: "games.notes.readError" };
+  }
+}
+function importReview(
+  importing: boolean,
+  guide: NotebookGuide | null | undefined,
+  split: boolean,
+  incoming: GameNote[],
+): { notes: GameNote[]; error: boolean } {
+  if (!importing) return { notes: [], error: false };
+  try {
+    return {
+      notes: guide ? guideNoteImport(guide.item, guide.article, split) : incoming,
+      error: false,
+    };
+  } catch {
+    return { notes: [], error: true };
+  }
+}
+
 // Retain unsaved drafts across in-app game/profile navigation, never across identities.
 export function GameNotes({
   profile,
@@ -44,16 +75,7 @@ export function GameNotes({
     file = useRef<HTMLInputElement>(null),
     live = useRef(true),
     lock = useRef(false);
-  const [initial] = useState(() => {
-    try {
-      const saved = localStorage.getItem(key),
-        data = parseNotebook(saved),
-        draft = retained.get(key);
-      return { raw: draft ? draft.raw : saved, notes: draft?.notes ?? data.notes, error: "" };
-    } catch {
-      return { raw: null, notes: retained.get(key)?.notes ?? [], error: "games.notes.readError" };
-    }
-  });
+  const [initial] = useState(() => initialNotebook(key));
   const [raw, setRaw] = useState(initial.raw),
     [notes, setNotes] = useState<GameNote[]>(initial.notes),
     [selected, select] = useState(initial.notes[0]?.id ?? ""),
@@ -135,9 +157,7 @@ export function GameNotes({
           data = parseNotebook(next);
         setRaw(next);
         setNotes(data.notes);
-        select(
-          data.notes.some((note) => note.id === selected) ? selected : (data.notes[0]?.id ?? ""),
-        );
+        select(keptNoteId(data.notes, selected));
         setError("");
         setUnreadable(false);
         setNotice(false);
@@ -247,7 +267,7 @@ export function GameNotes({
     lock.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       const result = await saveNotebook(profile, gameId, raw, notes);
       retained.delete(key);
       if (live.current) {
@@ -255,17 +275,20 @@ export function GameNotes({
         setNotes(result.data.notes);
         setNotice(true);
       }
-    } catch (failure) {
-      if (live.current)
-        setError(
-          failure instanceof Error && failure.message.startsWith("games.notes.")
-            ? failure.message
-            : "games.notes.saveError",
-        );
-    } finally {
-      lock.current = false;
-      if (live.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((failure) => {
+        if (live.current)
+          setError(
+            failure instanceof Error && failure.message.startsWith("games.notes.")
+              ? failure.message
+              : "games.notes.saveError",
+          );
+      })
+      .finally(() => {
+        lock.current = false;
+        if (live.current) setBusy(false);
+      });
   };
   const reload = () => {
     try {
@@ -274,7 +297,7 @@ export function GameNotes({
       retained.delete(key);
       setRaw(next);
       setNotes(data.notes);
-      select(data.notes[0]?.id ?? "");
+      select(firstNoteId(data.notes));
       setUnreadable(false);
       setError("");
       setConfirm(null);
@@ -286,25 +309,28 @@ export function GameNotes({
     if (lock.current) return;
     lock.current = true;
     setBusy(true);
-    try {
+    const work = async () => {
       const data = unreadable
         ? (localStorage.getItem(key) ?? "")
         : JSON.stringify({ version: 1, revision: 0, notes }, null, 2);
       await saveTextFileWithPath("Harbor game notes.json", data, ["json"], "Harbor", {
         nativeFailure: "throw",
       });
-    } catch {
-      if (live.current) setError("games.notes.saveError");
-    } finally {
-      lock.current = false;
-      if (live.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (live.current) setError("games.notes.saveError");
+      })
+      .finally(() => {
+        lock.current = false;
+        if (live.current) setBusy(false);
+      });
   };
   const importFile = async (chosen: File | undefined) => {
     if (!chosen || lock.current) return;
     lock.current = true;
     setBusy(true);
-    try {
+    const work = async () => {
       if (chosen.size > NOTE_STORE_LIMIT) throw Error();
       const data = parseNotebook(await chosen.text());
       if (live.current) {
@@ -313,30 +339,26 @@ export function GameNotes({
         setImporting(true);
         setReplace(false);
       }
-    } catch {
-      if (live.current) setError("games.notes.readError");
-    } finally {
-      lock.current = false;
-      if (live.current) setBusy(false);
-      if (file.current) file.current.value = "";
-    }
+    };
+    await work()
+      .catch(() => {
+        if (live.current) setError("games.notes.readError");
+      })
+      .finally(() => {
+        lock.current = false;
+        if (live.current) setBusy(false);
+        if (file.current) file.current.value = "";
+      });
   };
-  const review = useMemo(() => {
-    if (!importing) return { notes: [], error: false };
-    try {
-      return {
-        notes: guide && usingGuide ? guideNoteImport(guide.item, guide.article, split) : incoming,
-        error: false,
-      };
-    } catch {
-      return { notes: [], error: true };
-    }
-  }, [importing, guide, usingGuide, split, incoming]);
+  const review = useMemo(
+    () => importReview(importing, usingGuide ? guide : null, split, incoming),
+    [importing, guide, usingGuide, split, incoming],
+  );
   const applyImport = () => {
     try {
       const next = mergeGameNotes(notes, review.notes, replace);
       change(next);
-      select(next[0]?.id ?? "");
+      select(firstNoteId(next));
       setImporting(false);
     } catch {
       setError("games.notes.limit");
@@ -352,7 +374,7 @@ export function GameNotes({
         onClick={(event) => {
           if (!isTauri()) return;
           event.preventDefault();
-          void import("@tauri-apps/plugin-opener")
+          void loadOpener()
             .then(({ openUrl }) => openUrl(url))
             .catch(() => {
               if (live.current) setError("games.links.openError");

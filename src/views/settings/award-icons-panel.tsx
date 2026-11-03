@@ -145,16 +145,14 @@ export function AwardIconsPanel() {
     setBusy(true);
     setErr(null);
     setImportSummary(null);
-    try {
-      await installPackFromUrl(url.trim());
-      setUrl("");
-    } catch (e) {
-      setErr(
-        e instanceof Error ? { kind: "remote", message: e.message } : { kind: "install-failed" },
-      );
-    } finally {
-      setBusy(false);
-    }
+    await installPackFromUrl(url.trim())
+      .then(() => setUrl(""))
+      .catch((e: unknown) =>
+        setErr(
+          e instanceof Error ? { kind: "remote", message: e.message } : { kind: "install-failed" },
+        ),
+      )
+      .finally(() => setBusy(false));
   };
 
   const importZip = () => {
@@ -167,16 +165,14 @@ export function AwardIconsPanel() {
       setBusy(true);
       setErr(null);
       setImportSummary(null);
-      try {
-        const r = await installPackFromZip(file);
-        setImportSummary({ matched: r.matched, skipped: r.unmatched.length });
-      } catch (e) {
-        setErr(
-          e instanceof Error ? { kind: "remote", message: e.message } : { kind: "import-failed" },
-        );
-      } finally {
-        setBusy(false);
-      }
+      await installPackFromZip(file)
+        .then((r) => setImportSummary({ matched: r.matched, skipped: r.unmatched.length }))
+        .catch((e: unknown) =>
+          setErr(
+            e instanceof Error ? { kind: "remote", message: e.message } : { kind: "import-failed" },
+          ),
+        )
+        .finally(() => setBusy(false));
     };
     input.click();
   };
@@ -192,16 +188,14 @@ export function AwardIconsPanel() {
       setBusy(true);
       setErr(null);
       setImportSummary(null);
-      try {
-        const r = await installPackFromFiles(files);
-        setImportSummary({ matched: r.matched, skipped: r.unmatched.length });
-      } catch (e) {
-        setErr(
-          e instanceof Error ? { kind: "remote", message: e.message } : { kind: "import-failed" },
-        );
-      } finally {
-        setBusy(false);
-      }
+      await installPackFromFiles(files)
+        .then((r) => setImportSummary({ matched: r.matched, skipped: r.unmatched.length }))
+        .catch((e: unknown) =>
+          setErr(
+            e instanceof Error ? { kind: "remote", message: e.message } : { kind: "import-failed" },
+          ),
+        )
+        .finally(() => setBusy(false));
     };
     input.click();
   };

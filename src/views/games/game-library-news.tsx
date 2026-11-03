@@ -51,9 +51,9 @@ function LibraryNews({
   request,
 }: Omit<Props, "games"> & { targets: GameSummary[] }) {
   // A new recent/pinned order must not discard checked feeds or a reader's page.
-  const order = useRef(currentTargets.map((game) => game.steamId!));
+  const [order] = useState(() => currentTargets.map((game) => game.steamId!));
   const byId = new Map(currentTargets.map((game) => [game.steamId, game])),
-    targets = order.current.map((id) => byId.get(id)!);
+    targets = order.map((id) => byId.get(id)!);
   const t = useT(),
     language = useUiLanguage(),
     root = useRef<HTMLElement>(null),

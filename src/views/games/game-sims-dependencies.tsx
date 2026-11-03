@@ -84,7 +84,7 @@ export function GameSimsDependencies({
     setReport(null);
     setLimit(12);
     let stop: (() => void) | undefined;
-    try {
+    const work = async () => {
       stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
         if (payload.profile !== profile || payload.operationId !== own.id) return;
         if (own.canceled || !alive.current) {
@@ -94,17 +94,20 @@ export function GameSimsDependencies({
       if (own.canceled || !alive.current) return;
       const value = await simsDependencies(profile, data.folder.path, own.id, packs.selection);
       if (alive.current && !own.canceled) setReport(value);
-    } catch (reason) {
-      if (alive.current && !own.canceled) setError(simsError(reason));
-    } finally {
-      stop?.();
-      if (task.current === own) task.current = null;
-      if (alive.current) {
-        returnFocus.current = document.activeElement === cancelButton.current;
-        setBusy(false);
-        setFile("");
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current && !own.canceled) setError(simsError(reason));
+      })
+      .finally(() => {
+        stop?.();
+        if (task.current === own) task.current = null;
+        if (alive.current) {
+          returnFocus.current = document.activeElement === cancelButton.current;
+          setBusy(false);
+          setFile("");
+        }
+      });
   };
   const statusKey = {
     found: "depsFound",

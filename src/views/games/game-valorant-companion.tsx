@@ -73,7 +73,7 @@ function Companion({ active, onGuides }: { active: boolean; onGuides?: () => voi
     [busy, setBusy] = useState(false),
     [attempt, setAttempt] = useState(0),
     [expanded, setExpanded] = useState(false);
-  const options = useRef<Pick<ValorantMeta, "ranks" | "maps"> | null>(null),
+  const [options, setOptions] = useState<Pick<ValorantMeta, "ranks" | "maps"> | null>(null),
     refreshed = useRef(0);
   const filterKey = `${tier}:${map}`,
     current = meta?.key === filterKey ? meta : null;
@@ -112,7 +112,7 @@ function Companion({ active, onGuides }: { active: boolean; onGuides?: () => voi
     void loadValorantMeta({ tier, map }, controller.signal, refresh).then(
       (value) => {
         if (!controller.signal.aborted) {
-          options.current = value.data;
+          setOptions(value.data);
           setMeta({ ...value, key: filterKey });
           setBusy(false);
         }
@@ -173,7 +173,7 @@ function Companion({ active, onGuides }: { active: boolean; onGuides?: () => voi
           <Dropdown
             ariaLabel={t("games.valorant.rank")}
             value={tier}
-            options={(options.current?.ranks ?? [{ value: "", label: "", icon: "" }]).map((o) => ({
+            options={(options?.ranks ?? [{ value: "", label: "", icon: "" }]).map((o) => ({
               ...o,
               label: o.value ? o.label : t("games.valorant.allRanks"),
               left: o.icon ? (
@@ -188,7 +188,7 @@ function Companion({ active, onGuides }: { active: boolean; onGuides?: () => voi
           <Dropdown
             ariaLabel={t("games.valorant.map")}
             value={map}
-            options={(options.current?.maps ?? [{ value: "", label: "", icon: "" }]).map((o) => ({
+            options={(options?.maps ?? [{ value: "", label: "", icon: "" }]).map((o) => ({
               value: o.value,
               label: o.value ? o.label : t("games.valorant.allMaps"),
             }))}
@@ -353,7 +353,7 @@ function Companion({ active, onGuides }: { active: boolean; onGuides?: () => voi
       <div hidden={tab !== "maps"}>
         <ValorantMaps
           active={active && engaged && tab === "maps"}
-          availableMaps={options.current?.maps.map((m) => m.value) ?? []}
+          availableMaps={options?.maps.map((m) => m.value) ?? []}
           onMeta={(name) => {
             changeMap(name);
             setTab("meta");

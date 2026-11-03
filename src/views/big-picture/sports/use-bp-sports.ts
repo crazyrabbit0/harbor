@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { pushBigPicture } from "@/lib/big-picture";
 import { useUiLanguage } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
+import { readAtVersion } from "@/lib/read-at-version";
 import { getGroupLabel, type SportsGame } from "@/lib/sports/espn";
 import { involvesTeam, useFavourites } from "@/lib/sports/favourites";
 import { HOT_EVENT_LEAGUES, hotEvents } from "@/lib/sports/hot-events";
@@ -95,9 +96,11 @@ export function useBpSports(active: boolean): BpSportsState {
   const { group, leagues } = scope;
   const groups = useMemo(
     () =>
-      HUB_GROUPS.filter(
-        (item) => scope.groups.has(item.key) || (browsing && item.key === group),
-      ).map((item) => ({ key: item.key, label: getGroupLabel(item) })),
+      readAtVersion(locale, () =>
+        HUB_GROUPS.filter(
+          (item) => scope.groups.has(item.key) || (browsing && item.key === group),
+        ).map((item) => ({ key: item.key, label: getGroupLabel(item) })),
+      ),
     [scope.groups, browsing, group, locale],
   );
   const esportsLeagues = useMemo(
@@ -208,51 +211,56 @@ export function useBpSports(active: boolean): BpSportsState {
     [day, locale],
   );
 
-  const rows = useMemo(() => {
-    if (mode === "live") return bpSportsLeagueRows(currentLiveGames(boardGames), "live");
-    if (mode === "schedule") return bpSportsLeagueRows(eventCards(boardGames), "schedule");
-    if (mode === "hot") return bpSportsHotRows(hot, t);
-    if (mode === "explore") return [];
-    return bpSportsForYouRows({
+  const rows = useMemo(
+    () =>
+      readAtVersion(locale, () => {
+        if (mode === "live") return bpSportsLeagueRows(currentLiveGames(boardGames), "live");
+        if (mode === "schedule") return bpSportsLeagueRows(eventCards(boardGames), "schedule");
+        if (mode === "hot") return bpSportsHotRows(hot, t);
+        if (mode === "explore") return [];
+        return bpSportsForYouRows({
+          t,
+          live,
+          following: filtered.filter((game) => fav.teams.some((team) => involvesTeam(game, team))),
+          coming,
+          fights: next.filter((game) =>
+            ["combat", "boxing"].includes(hubLeague(game.league)?.group || ""),
+          ),
+          esports: all.filter((game) => hubLeague(game.league)?.group === "esports"),
+          dayGames: eventCards(boardGames),
+          pitchGame:
+            boardGames.find(
+              (game) => game.state === "in" && hubLeague(game.league)?.group === "soccer",
+            ) ??
+            boardGames.find(
+              (game) => game.state === "pre" && hubLeague(game.league)?.group === "soccer",
+            ) ??
+            null,
+          dateTitle,
+          otherDay: day !== today,
+          showFights: group === "all" || group === "combat" || group === "boxing",
+          showEsports: group === "all" && esportsLeagues.length > 0,
+        });
+      }),
+    [
+      mode,
+      boardGames,
+      hot,
       t,
+      locale,
       live,
-      following: filtered.filter((game) => fav.teams.some((team) => involvesTeam(game, team))),
+      filtered,
+      fav.teams,
       coming,
-      fights: next.filter((game) =>
-        ["combat", "boxing"].includes(hubLeague(game.league)?.group || ""),
-      ),
-      esports: all.filter((game) => hubLeague(game.league)?.group === "esports"),
-      dayGames: eventCards(boardGames),
-      pitchGame:
-        boardGames.find(
-          (game) => game.state === "in" && hubLeague(game.league)?.group === "soccer",
-        ) ??
-        boardGames.find(
-          (game) => game.state === "pre" && hubLeague(game.league)?.group === "soccer",
-        ) ??
-        null,
+      next,
+      all,
       dateTitle,
-      otherDay: day !== today,
-      showFights: group === "all" || group === "combat" || group === "boxing",
-      showEsports: group === "all" && esportsLeagues.length > 0,
-    });
-  }, [
-    mode,
-    boardGames,
-    hot,
-    locale,
-    live,
-    filtered,
-    fav.teams,
-    coming,
-    next,
-    all,
-    dateTitle,
-    day,
-    today,
-    group,
-    esportsLeagues,
-  ]);
+      day,
+      today,
+      group,
+      esportsLeagues,
+    ],
+  );
 
   const busy =
     mode === "hot"

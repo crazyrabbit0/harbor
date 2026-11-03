@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
   ArrowLeft,
@@ -93,7 +93,9 @@ export function GameSaveModal({
     [query, setQuery] = useState("");
   const reviewed = useRef<string | null>(null),
     changeCallback = useRef(onChanged);
-  changeCallback.current = onChanged;
+  useLayoutEffect(() => {
+    changeCallback.current = onChanged;
+  }, [onChanged]);
   useEffect(() => {
     if (saves.receipt) changeCallback.current?.();
   }, [saves.receipt]);

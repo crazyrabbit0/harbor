@@ -15,6 +15,14 @@ import {
 } from "@/lib/games/source-browser";
 import "./game-source-public.css";
 
+function genericHost(url: string) {
+  try {
+    return new URL(url).hostname.replace(/^www\./, "");
+  } catch {
+    return BROWSER_SOURCE_HOSTS.generic;
+  }
+}
+
 export function SourceBrowserFiles({
   link,
   downloads,
@@ -31,16 +39,7 @@ export function SourceBrowserFiles({
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
   const key = sourceBrowserHost(link.url) ?? "gofile";
-  const host =
-    key !== "generic"
-      ? BROWSER_SOURCE_HOSTS[key]
-      : (() => {
-          try {
-            return new URL(link.url).hostname.replace(/^www\./, "");
-          } catch {
-            return BROWSER_SOURCE_HOSTS.generic;
-          }
-        })();
+  const host = key !== "generic" ? BROWSER_SOURCE_HOSTS[key] : genericHost(link.url);
   const alive = useRef(true),
     session = useRef<string | null>(null),
     saving = downloads.busy.includes("new"),
@@ -69,43 +68,45 @@ export function SourceBrowserFiles({
     setBusy(true);
     setError("");
     downloads.dismissError();
-    try {
-      const next = await invoke<BrowserSourceFile>("games_source_browser_choose", {
-        profile: downloads.profile,
-        session: id,
-        url: link.url,
+    await invoke<BrowserSourceFile>("games_source_browser_choose", {
+      profile: downloads.profile,
+      session: id,
+      url: link.url,
+    })
+      .then(
+        (next) => {
+          if (alive.current && session.current === id) setFile(next);
+        },
+        (reason) => {
+          if (alive.current && session.current === id) setError(sourceBrowserError(reason) ?? "");
+        },
+      )
+      .finally(() => {
+        if (session.current === id) {
+          session.current = null;
+          if (alive.current) setBusy(false);
+        }
       });
-      if (alive.current && session.current === id) setFile(next);
-    } catch (reason) {
-      if (alive.current && session.current === id) setError(sourceBrowserError(reason) ?? "");
-    } finally {
-      if (session.current === id) {
-        session.current = null;
-        if (alive.current) setBusy(false);
-      }
-    }
   };
   const download = async () => {
     if (!alive.current || !file || busy || saving || pending.current) return;
     pending.current = true;
-    try {
-      if (
-        (await downloads.start(
-          {
-            url: file.url,
-            sourceLink: link.url,
-            browserTicket: file.browserTicket,
-            name: link.title,
-            game: link.game,
-          },
-          file.name,
-        )) &&
-        alive.current
-      )
-        onDone();
-    } finally {
+    const work = async () => {
+      const started = await downloads.start(
+        {
+          url: file.url,
+          sourceLink: link.url,
+          browserTicket: file.browserTicket,
+          name: link.title,
+          game: link.game,
+        },
+        file.name,
+      );
+      if (started && alive.current) onDone();
+    };
+    await work().finally(() => {
       pending.current = false;
-    }
+    });
   };
   return (
     <>

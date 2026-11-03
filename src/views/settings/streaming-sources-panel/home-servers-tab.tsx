@@ -29,6 +29,7 @@ import type {
 import { MEDIA_SERVER_QUALITIES } from "@/lib/media-server/quality";
 import { signInWithPlex } from "@/lib/media-server/plex-auth";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 import { trackReposition } from "@/lib/reposition";
 import { Dropdown } from "@/components/dropdown";
 import { MediaServerBrand, mediaServerProviderName } from "@/components/media-server-brand";
@@ -105,36 +106,39 @@ export function HomeServersTab() {
   const [syncingIds, setSyncingIds] = useState<Set<string>>(() => new Set());
   const [removeTarget, setRemoveTarget] = useState<MediaServerConnection | null>(null);
   const addServer = useRef<HTMLSpanElement>(null);
-  const connections = useMemo(() => mediaServerConnections(), [revision]);
+  const connections = useMemo(
+    () => readAtVersion(revision, () => mediaServerConnections()),
+    [revision],
+  );
   const reachability = useMediaServerHealth(connections);
   useEffect(() => subscribeMediaServerConnections(() => setRevision((value) => value + 1)), []);
   const sync = useCallback(
     async (connection: MediaServerConnection) => {
       if (syncingIds.has(connection.id)) return;
       setSyncingIds((current) => new Set(current).add(connection.id));
-      try {
-        await synchronizeMediaServer(connection);
-      } catch (cause) {
-        const at = Date.now();
-        markMediaServerInactive(connection.id);
-        updateMediaServerConnection(
-          connection.id,
-          {
-            lastSyncResult: {
-              ok: false,
-              message: cause instanceof Error ? cause.message : String(cause),
-              at,
+      await synchronizeMediaServer(connection)
+        .catch((cause: unknown) => {
+          const at = Date.now();
+          markMediaServerInactive(connection.id);
+          updateMediaServerConnection(
+            connection.id,
+            {
+              lastSyncResult: {
+                ok: false,
+                message: cause instanceof Error ? cause.message : String(cause),
+                at,
+              },
             },
-          },
-          connection.profileId,
+            connection.profileId,
+          );
+        })
+        .finally(() =>
+          setSyncingIds((current) => {
+            const next = new Set(current);
+            next.delete(connection.id);
+            return next;
+          }),
         );
-      } finally {
-        setSyncingIds((current) => {
-          const next = new Set(current);
-          next.delete(connection.id);
-          return next;
-        });
-      }
     },
     [syncingIds],
   );
@@ -423,14 +427,12 @@ function HomeServerRemoveDialog({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
-      await onConfirm();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      pending.current = false;
-      setBusy(false);
-    }
+    await onConfirm()
+      .catch((cause: unknown) => setError(cause instanceof Error ? cause.message : String(cause)))
+      .finally(() => {
+        pending.current = false;
+        setBusy(false);
+      });
   };
   return (
     <SettingsModal
@@ -476,6 +478,7 @@ function TokenHelpButton({ open, setOpen }: { open: boolean; setOpen: (open: boo
   const closeTimer = useRef<number | null>(null);
   const pointer = useRef<{ x: number; y: number } | null>(null);
   const [box, setBox] = useState<{ top: number; left: number; below: boolean } | null>(null);
+  const [host, setHost] = useState<HTMLElement | null>(null);
   const place = (x?: number, y?: number) => {
     const rect = anchor.current?.getBoundingClientRect();
     const point = x != null && y != null ? { x, y } : pointer.current;
@@ -488,6 +491,7 @@ function TokenHelpButton({ open, setOpen }: { open: boolean; setOpen: (open: boo
     const anchorY = point?.y ?? rect!.top;
     const below = anchorY - 12 < TOKEN_HELP_MIN_H;
     setBox({ top: below ? anchorY + 20 : Math.max(12, anchorY - 12), left, below });
+    setHost(anchor.current?.closest<HTMLElement>('[role="dialog"]') ?? document.body);
   };
   const dismissed = useRef(false);
   const cancelHide = () => {
@@ -538,7 +542,6 @@ function TokenHelpButton({ open, setOpen }: { open: boolean; setOpen: (open: boo
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, [open, setOpen]);
-  const host = anchor.current?.closest<HTMLElement>('[role="dialog"]') ?? document.body;
   return (
     <>
       <button
@@ -560,6 +563,7 @@ function TokenHelpButton({ open, setOpen }: { open: boolean; setOpen: (open: boo
       </button>
       {open &&
         box &&
+        host &&
         createPortal(
           <div
             data-plex-token-help
@@ -605,6 +609,10 @@ function TokenHelpButton({ open, setOpen }: { open: boolean; setOpen: (open: boo
         )}
     </>
   );
+}
+
+function plexCredential(servers: Awaited<ReturnType<typeof signInWithPlex>>) {
+  return servers.find((server) => server.available)?.token ?? servers[0]?.token;
 }
 
 function ConnectionEditor({
@@ -658,7 +666,7 @@ function ConnectionEditor({
     connectionAbort.current = abort;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       let connection: MediaServerConnection;
       let secret: string | undefined;
       if (existing) {
@@ -696,14 +704,17 @@ function ConnectionEditor({
       if (abort.signal.aborted || profileId.current !== activeProfileId()) return;
       saveMediaServerConnection(connection, secret);
       onSaved(connection);
-    } catch (cause) {
-      if (!abort.signal.aborted) setError(cause instanceof Error ? cause.message : String(cause));
-    } finally {
-      if (connectionAbort.current === abort) {
-        connectionAbort.current = null;
-        if (!abort.signal.aborted) setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((cause: unknown) => {
+        if (!abort.signal.aborted) setError(cause instanceof Error ? cause.message : String(cause));
+      })
+      .finally(() => {
+        if (connectionAbort.current === abort) {
+          connectionAbort.current = null;
+          if (!abort.signal.aborted) setBusy(false);
+        }
+      });
   };
   const addressHint =
     provider === "plex"
@@ -718,22 +729,23 @@ function ConnectionEditor({
     plexAbort.current = abort;
     setError("");
     setPlexStatus("opening");
-    try {
-      const servers = await signInWithPlex(abort.signal, () => {
-        if (!abort.signal.aborted) setPlexStatus("waiting");
+    await signInWithPlex(abort.signal, () => {
+      if (!abort.signal.aborted) setPlexStatus("waiting");
+    })
+      .then((servers) => {
+        if (abort.signal.aborted || plexAbort.current !== abort) return;
+        const credential = plexCredential(servers);
+        if (credential) setToken(credential);
+        setPlexStatus(credential ? "ready" : "idle");
+        if (!credential)
+          setError(t("Plex sign-in succeeded, but no server credential was returned."));
+      })
+      .catch((cause: unknown) => {
+        if (abort.signal.aborted || plexAbort.current !== abort) return;
+        if ((cause as Error).name !== "AbortError")
+          setError(cause instanceof Error ? cause.message : String(cause));
+        setPlexStatus("idle");
       });
-      if (abort.signal.aborted || plexAbort.current !== abort) return;
-      const credential = servers.find((server) => server.available)?.token ?? servers[0]?.token;
-      if (credential) setToken(credential);
-      setPlexStatus(credential ? "ready" : "idle");
-      if (!credential)
-        setError(t("Plex sign-in succeeded, but no server credential was returned."));
-    } catch (cause) {
-      if (abort.signal.aborted || plexAbort.current !== abort) return;
-      if ((cause as Error).name !== "AbortError")
-        setError(cause instanceof Error ? cause.message : String(cause));
-      setPlexStatus("idle");
-    }
   };
   return (
     <SettingsModal

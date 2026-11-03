@@ -748,10 +748,11 @@ const LICENSES: LicenseDoc[] = [
 export function LicensesPanel() {
   const t = useT();
   const download = useAssetDownload();
+  const saveAsset = download.save;
 
   const save = useCallback(
     (doc: LicenseDoc) => {
-      void download.save(
+      void saveAsset(
         doc.id,
         `${doc.file}.txt`,
         async () => {
@@ -763,7 +764,7 @@ export function LicensesPanel() {
         t("Licence"),
       );
     },
-    [download.save, t],
+    [saveAsset, t],
   );
 
   return (

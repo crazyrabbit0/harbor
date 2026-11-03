@@ -308,6 +308,16 @@ function Callout({ children }: { children: ReactNode }) {
   );
 }
 
+function channelList(channels: Rule["channels"]): string {
+  return [
+    channels.desktop && "Desktop",
+    channels.discord && "Discord",
+    channels.telegram && "Telegram",
+  ]
+    .filter(Boolean)
+    .join(" + ");
+}
+
 function RuleRow({
   rule,
   trackedPeople,
@@ -319,14 +329,7 @@ function RuleRow({
 }) {
   const t = useT();
   const name = rule.name || t(EVENT_LABELS[rule.trigger.event]);
-  const channels =
-    [
-      rule.channels.desktop && "Desktop",
-      rule.channels.discord && "Discord",
-      rule.channels.telegram && "Telegram",
-    ]
-      .filter(Boolean)
-      .join(" + ") || t("nowhere yet");
+  const channels = channelList(rule.channels) || t("nowhere yet");
   return (
     <SRow
       title={
@@ -380,7 +383,9 @@ function RuleEditor({
     !(draft.channels.telegram && canTelegram) &&
     !(draft.channels.desktop && canDesktop);
   const live = useRef({ draft, onSave, onDelete, onCancel });
-  live.current = { draft, onSave, onDelete, onCancel };
+  useLayoutEffect(() => {
+    live.current = { draft, onSave, onDelete, onCancel };
+  });
 
   usePageActions(
     [

@@ -5,6 +5,8 @@ import { Play } from "@/components/icons/play-filled";
 import { useT } from "@/lib/i18n";
 import { gameVideoSearchUrl } from "@/lib/games/video-search";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function GameVideoSearchLinks({ name }: { name: string }) {
   const t = useT(),
     [error, setError] = useState(false);
@@ -25,7 +27,7 @@ export function GameVideoSearchLinks({ name }: { name: string }) {
                 if (!isTauri()) return;
                 event.preventDefault();
                 setError(false);
-                void import("@tauri-apps/plugin-opener")
+                void loadOpener()
                   .then(({ openUrl }) => openUrl(url))
                   .catch(() => setError(true));
               }}

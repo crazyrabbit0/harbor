@@ -111,7 +111,9 @@ export function GameLaunchers({ active, selected, select, open, installed, libra
   const [loading, setLoading] = useState<LauncherDiscoveryId | null>(null),
     [featured, setFeatured] = useState<string | null>(null);
   const selectedRef = useRef(selected);
-  selectedRef.current = selected;
+  useLayoutEffect(() => {
+    selectedRef.current = selected;
+  }, [selected]);
   useEffect(() => {
     const node = root.current;
     if (!node) return;

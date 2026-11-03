@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { lruSet } from "@/lib/cache";
 import { get, IMG } from "@/lib/providers/tmdb/tmdb-client";
 import type { BpBandArt } from "./use-bp-sections";
@@ -95,7 +95,9 @@ export function useBpLivePanels(art: BpBandArt | null, tmdbKey: string): BpLiveP
   const key = art?.key.startsWith("iptv:") ? art.key : "";
   const slot = key ? `${tmdbKey ? "k" : "n"}:${key}` : "";
   const held = useRef<BpBandArt | null>(null);
-  held.current = art;
+  useLayoutEffect(() => {
+    held.current = art;
+  }, [art]);
   const [, setSettled] = useState(0);
 
   // Scanning the row must not fire sixteen searches, and a key that has already

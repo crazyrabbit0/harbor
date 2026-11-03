@@ -59,11 +59,12 @@ export function useGuideResults(
   ]);
   const cache = useRef(new Map<string, Result>()),
     [revision, render] = useState(0),
+    [results, setResults] = useState(() => new Map<string, Result>()),
     [work, setWork] = useState({ key: "", busy: false, error: false, retryAt: 0 });
   const wanted = useRef(24),
     refresh = useRef(false);
   const pokemon = pokemonEdition(game.name);
-  const result = cache.current.get(key),
+  const result = results.get(key),
     requestable =
       tab !== "configs" && !(tab === "written" && !game.steamId && (!pokemon || pokemon.hack));
   useEffect(() => {
@@ -214,6 +215,7 @@ export function useGuideResults(
       cache.current.set(key, { ...next, limit: target, at: Date.now() });
       // Keep tab/search return state without an unbounded session cache.
       while (cache.current.size > 12) cache.current.delete(cache.current.keys().next().value!);
+      setResults(new Map(cache.current));
       setWork({ key, busy: false, error: false, retryAt: 0 });
     })().catch((error) => {
       if (!controller.signal.aborted)

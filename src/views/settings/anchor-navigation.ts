@@ -37,7 +37,9 @@ export function useSettingsAnchor(
     const restoreTab = request.tab ?? tabsRef.current?.value;
     if (tabsRef.current) triedTabs.add(tabsRef.current.value);
     const retry = () => {
-      if (tries++ < 30) timer = window.setTimeout(tryScroll, 50);
+      const attempt = tries;
+      tries = attempt + 1;
+      if (attempt < 30) timer = window.setTimeout(tryScroll, 50);
       else {
         if (!request.tab && restoreTab) tabsRef.current?.onChange(restoreTab);
         complete(null);

@@ -11,6 +11,7 @@ import {
 } from "@/lib/providers/anime-hero-art-static";
 import { useSettings } from "@/lib/settings";
 import type { LibraryItem } from "@/lib/stremio";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useAnilistTrending } from "@/lib/use-anilist-top";
 import { useAnimeTopPicks } from "@/lib/use-anime-top-picks";
 import { useWatchHistoryRecommendations } from "@/lib/use-watch-history-recs";
@@ -195,31 +196,34 @@ export function useBpAnimeHero(
     filterOpts,
   ]);
 
-  const slides = useMemo(() => {
-    void poolVersion;
-    const front = frontSlides(hero.metas, filterOpts);
-    if (front.length === 0) return front;
-    const seenBg = new Set(front.map((m) => m.background));
-    const seenFr = new Set(front.filter((m) => m.name).map((m) => animeFranchiseKey(m.name)));
-    const consider = (m: Meta): boolean => {
-      if (seenBg.has(m.background) || animeFiltered(m, filterOpts)) return false;
-      const fr = m.name ? animeFranchiseKey(m.name) : "";
-      if (fr && seenFr.has(fr)) return false;
-      seenBg.add(m.background);
-      if (fr) seenFr.add(fr);
-      return true;
-    };
-    const malPool: Meta[] = [];
-    for (const m of peekHostedHero() ?? [])
-      if (m.source === "MyAnimeList" && consider(m)) malPool.push(m);
-    for (const it of malExtra) {
-      const m = malHeroMeta(it);
-      if (m && consider(m)) malPool.push(m);
-    }
-    const bulk: Meta[] = [];
-    for (const m of staticHeroPool()) if (consider(m)) bulk.push(m);
-    return [...front, ...interleave(bulk, malPool)];
-  }, [hero.metas, filterOpts, malExtra, poolVersion]);
+  const slides = useMemo(
+    () =>
+      readAtVersion(poolVersion, () => {
+        const front = frontSlides(hero.metas, filterOpts);
+        if (front.length === 0) return front;
+        const seenBg = new Set(front.map((m) => m.background));
+        const seenFr = new Set(front.filter((m) => m.name).map((m) => animeFranchiseKey(m.name)));
+        const consider = (m: Meta): boolean => {
+          if (seenBg.has(m.background) || animeFiltered(m, filterOpts)) return false;
+          const fr = m.name ? animeFranchiseKey(m.name) : "";
+          if (fr && seenFr.has(fr)) return false;
+          seenBg.add(m.background);
+          if (fr) seenFr.add(fr);
+          return true;
+        };
+        const malPool: Meta[] = [];
+        for (const m of peekHostedHero() ?? [])
+          if (m.source === "MyAnimeList" && consider(m)) malPool.push(m);
+        for (const it of malExtra) {
+          const m = malHeroMeta(it);
+          if (m && consider(m)) malPool.push(m);
+        }
+        const bulk: Meta[] = [];
+        for (const m of staticHeroPool()) if (consider(m)) bulk.push(m);
+        return [...front, ...interleave(bulk, malPool)];
+      }),
+    [hero.metas, filterOpts, malExtra, poolVersion],
+  );
 
   const trending = useMemo(() => {
     const out: Record<string, string> = { ...hero.trending };

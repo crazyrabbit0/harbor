@@ -22,6 +22,7 @@ import {
   setActiveProfile,
 } from "@/lib/player-chrome-profiles";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 import { sameConfig } from "./config-helpers";
 import { useChromeEdits } from "./use-chrome-edits";
 
@@ -40,9 +41,12 @@ export function useLayoutEditor(theme: ThemeId, onThemeChange: (theme: ThemeId) 
     if (reloadConfig) setConfigVersion((v) => v + 1);
   }, []);
 
-  const profiles = useMemo(() => listProfiles(theme), [theme, profileVersion]);
+  const profiles = useMemo(
+    () => readAtVersion(profileVersion, () => listProfiles(theme)),
+    [theme, profileVersion],
+  );
   const activeProfileId = useMemo(
-    () => getActiveProfile(theme)?.id ?? null,
+    () => readAtVersion(profileVersion, () => getActiveProfile(theme)?.id ?? null),
     [theme, profileVersion],
   );
 

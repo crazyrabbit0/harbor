@@ -97,21 +97,17 @@ export function BpConnecting({
 
   useLayoutEffect(() => ensureBigPictureTokens(), []);
 
-  const everPlayedRef = useRef(false);
   const hasProgress = usePlaybackFlag(() => getPlaybackPosition() > 0.3);
-  if (hasProgress && (snap.durationSec > 0 || snap.status === "playing")) {
-    everPlayedRef.current = true;
-  }
+  const reached = hasProgress && (snap.durationSec > 0 || snap.status === "playing");
   const sessionKey = `${src.meta.id}::${src.episode?.season ?? ""}:${src.episode?.episode ?? ""}`;
-  const lastSessionRef = useRef(sessionKey);
-  if (lastSessionRef.current !== sessionKey) {
-    lastSessionRef.current = sessionKey;
-    everPlayedRef.current = false;
-  }
+  const [played, setPlayed] = useState({ key: sessionKey, ever: false });
+  const sameSession = played.key === sessionKey;
+  const everPlayed = sameSession && (played.ever || reached);
+  if (!sameSession) setPlayed({ key: sessionKey, ever: false });
+  else if (reached && !played.ever) setPlayed({ key: sessionKey, ever: true });
 
   const showing =
-    forceShow ||
-    (!everPlayedRef.current && !failed && snap.errorCode == null && snap.status !== "ended");
+    forceShow || (!everPlayed && !failed && snap.errorCode == null && snap.status !== "ended");
   const done = !showing && snap.errorCode == null;
   const [mounted, setMounted] = useState(showing);
 

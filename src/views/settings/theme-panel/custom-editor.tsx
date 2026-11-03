@@ -1,5 +1,5 @@
 import { RotateCcw, Trash2 } from "../icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { applyCustomColorsPreview, CustomColors, type FontPairId } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 import { SettingGroup, SettingRow } from "../kit";
@@ -26,6 +26,13 @@ const COLOR_FIELDS: Array<{ key: keyof CustomColors; label: string; hint: string
     { key: "danger", label: "Danger", hint: "Errors, destructive.", group: "Accents" },
   ];
 
+function groupColorFields() {
+  return COLOR_FIELDS.reduce<Record<string, typeof COLOR_FIELDS>>((acc, f) => {
+    (acc[f.group] ??= []).push(f);
+    return acc;
+  }, {});
+}
+
 export function CustomEditor({
   seed,
   fontPair,
@@ -42,7 +49,9 @@ export function CustomEditor({
   const t = useT();
   const [draft, setDraft] = useState<CustomColors>(seed);
   const live = useRef({ draft, seed, onSave, onDelete });
-  live.current = { draft, seed, onSave, onDelete };
+  useLayoutEffect(() => {
+    live.current = { draft, seed, onSave, onDelete };
+  });
 
   useEffect(() => {
     applyCustomColorsPreview(draft, fontPair);
@@ -74,10 +83,7 @@ export function CustomEditor({
     },
   ]);
 
-  const groups = COLOR_FIELDS.reduce<Record<string, typeof COLOR_FIELDS>>((acc, f) => {
-    (acc[f.group] ??= []).push(f);
-    return acc;
-  }, {});
+  const groups = groupColorFields();
 
   return (
     <div className="animate-fade-in flex flex-col gap-6">

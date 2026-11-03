@@ -3,6 +3,7 @@ import type { SportsGame, SportsMatchDetail } from "@/lib/sports/espn";
 import { gameKey } from "@/lib/sports/hub-cache";
 import { fetchGameSummary } from "@/lib/sports/provider";
 import { sportsApiRevision, subscribeSportsApiCredentials } from "@/lib/sports/api-credentials";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const cache = new Map<string, { detail: SportsMatchDetail; at: number }>();
 const inflight = new Map<string, Promise<SportsMatchDetail | null>>();
@@ -24,8 +25,8 @@ function load(game: SportsGame) {
   return task;
 }
 export function useMatchDetail(game: SportsGame, enabled = true) {
-  useSyncExternalStore(subscribeSportsApiCredentials, sportsApiRevision);
-  const key = detailKey(game);
+  const apiRevision = useSyncExternalStore(subscribeSportsApiCredentials, sportsApiRevision);
+  const key = readAtVersion(apiRevision, () => detailKey(game));
   const [refresh, setRefresh] = useState(0);
   const [state, setState] = useState<{
     key: string;

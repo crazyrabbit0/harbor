@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { COLLECTIONS_CATALOG } from "@/lib/collections-catalog";
 import { useCollections } from "@/lib/collections";
 import { useSettings } from "@/lib/settings";
@@ -123,7 +123,9 @@ export function useBpCollectionFeed(
   const runRef = useRef(0);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const doneRef = useRef(false);
-  doneRef.current = chainDone;
+  useLayoutEffect(() => {
+    doneRef.current = chainDone;
+  }, [chainDone]);
   const nearRef = useRef(false);
   const autoRef = useRef(0);
   const timerRef = useRef(0);
@@ -185,7 +187,9 @@ export function useBpCollectionFeed(
       pullRef.current();
     }, RECHECK_MS);
   }, []);
-  pullRef.current = () => void pull();
+  useLayoutEffect(() => {
+    pullRef.current = () => void pull();
+  });
 
   // Armed against the sentinel ELEMENT and the feed identity, never against the
   // paging state. Keyed on `tick` it was rebuilt after every settled pull, and a

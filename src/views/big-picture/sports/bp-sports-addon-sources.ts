@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { gatherCatalogAddons, type Addon } from "@/lib/addons";
 import { isAddonEnabled } from "@/lib/addon-store";
 import { useAuth } from "@/lib/auth";
@@ -36,7 +36,9 @@ export function useBpSportsAddonSources(game: SportsGame): BpSportsAddonSources 
   const [tick, setTick] = useState(0);
   const providers = useRef<Addon[]>([]);
   const gameRef = useRef(game);
-  gameRef.current = game;
+  useLayoutEffect(() => {
+    gameRef.current = game;
+  }, [game]);
 
   const active = consent.status === "accepted" && game.state !== "post";
   const identity = JSON.stringify([

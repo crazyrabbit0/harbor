@@ -61,16 +61,17 @@ export function useBpSportsAddonPick(sources: BpSportsAddonSources): BpSportsAdd
       setPending(true);
       setPlaying(null);
       setError("");
-      void (async () => {
-        try {
-          const found = await loadSportsAddonStreams(row, controller.signal, enabledProviders());
-          if (!controller.signal.aborted) setStreams(found);
-        } catch {
+      const load = async () => {
+        const found = await loadSportsAddonStreams(row, controller.signal, enabledProviders());
+        if (!controller.signal.aborted) setStreams(found);
+      };
+      void load()
+        .catch(() => {
           if (!controller.signal.aborted) setError("listing");
-        } finally {
+        })
+        .finally(() => {
           if (!controller.signal.aborted) setPending(false);
-        }
-      })();
+        });
     },
     [reload, enabledProviders],
   );
@@ -91,9 +92,8 @@ export function useBpSportsAddonPick(sources: BpSportsAddonSources): BpSportsAdd
       run.current = controller;
       setPlaying(index);
       setError("");
-      let session: string | undefined;
-      let transferred = false;
-      try {
+      const handed: { session?: string; transferred: boolean } = { transferred: false };
+      const attempt = async () => {
         const result = await resolveStream(
           parseStream(stream),
           [],
@@ -110,7 +110,7 @@ export function useBpSportsAddonPick(sources: BpSportsAddonSources): BpSportsAdd
         if (result.data.headers && Object.keys(result.data.headers).length > 0) {
           const proxy = await registerStreamProxy(url, result.data.headers);
           url = proxy.url;
-          session = proxy.sessionId;
+          handed.session = proxy.sessionId;
         }
         if (controller.signal.aborted) return;
         openPlayer({
@@ -122,15 +122,20 @@ export function useBpSportsAddonPick(sources: BpSportsAddonSources): BpSportsAdd
           notWebReady: result.data.notWebReady ?? true,
           subtitles: result.data.subtitles,
           historyUrl: result.data.url,
-          proxySessionId: session,
+          proxySessionId: handed.session,
         });
-        transferred = true;
-      } catch {
-        if (!controller.signal.aborted) setError("stream");
-      } finally {
-        if (session && !transferred) void unregisterStreamProxy(session).catch(() => {});
-        if (!controller.signal.aborted) setPlaying(null);
-      }
+        handed.transferred = true;
+      };
+      await attempt()
+        .catch(() => {
+          if (!controller.signal.aborted) setError("stream");
+        })
+        .finally(() => {
+          if (handed.session && !handed.transferred) {
+            void unregisterStreamProxy(handed.session).catch(() => {});
+          }
+          if (!controller.signal.aborted) setPlaying(null);
+        });
     },
     [openPlayer],
   );

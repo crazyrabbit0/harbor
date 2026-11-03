@@ -84,7 +84,7 @@ export function GameStudioGames({
     request.current = controller;
     setLoading(true);
     setFailed(false);
-    try {
+    const work = async () => {
       const additions: AtlasGame[] = [],
         known = new Set(games.map((game) => game.id));
       let cursor: number | null = offset;
@@ -110,14 +110,17 @@ export function GameStudioGames({
         setExtra((old) => [...old, ...additions]);
         if (additions.length) setPage(current + 1);
       }
-    } catch {
-      if (!controller.signal.aborted) setFailed(true);
-    } finally {
-      if (request.current === controller) {
-        request.current = null;
-        setLoading(false);
-      }
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!controller.signal.aborted) setFailed(true);
+      })
+      .finally(() => {
+        if (request.current === controller) {
+          request.current = null;
+          setLoading(false);
+        }
+      });
   };
   const visible = games.slice(current * slots, (current + 1) * slots),
     canNext = (current + 1) * slots < games.length || offset !== null;

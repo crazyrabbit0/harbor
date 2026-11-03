@@ -54,6 +54,10 @@ const CACHE_LIMITS: Array<{ gb: number; label: string }> = [
   { gb: 100, label: "100 GB" },
 ];
 
+async function revealEngineDir(cachePath: string) {
+  await revealItemInDir(cachePath || (await join(await appCacheDir(), "engine")));
+}
+
 function useCachePath(customDir: string): string {
   const [defaultPath, setDefaultPath] = useState("");
   useEffect(() => {
@@ -109,11 +113,7 @@ export function StreamCacheSection() {
     }
     setConfirmClear(false);
     setClearing(true);
-    try {
-      await torrentEngineHardReset();
-    } finally {
-      setClearing(false);
-    }
+    await torrentEngineHardReset().finally(() => setClearing(false));
   };
 
   return (
@@ -309,13 +309,10 @@ export function P2PPowerToolsSection() {
   const revealEngineFolder = async () => {
     if (!isTauri) return;
     setOpening(true);
-    try {
-      await revealItemInDir(cachePath || (await join(await appCacheDir(), "engine")));
-    } catch {
-      /* folder not created until the engine runs once */
-    } finally {
-      setOpening(false);
-    }
+    // The engine folder does not exist until the engine runs once.
+    await revealEngineDir(cachePath)
+      .catch(() => {})
+      .finally(() => setOpening(false));
   };
 
   return (

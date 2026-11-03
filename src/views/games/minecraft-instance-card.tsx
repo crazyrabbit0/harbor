@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { ArrowDownToLine, Box, FolderOpen, History, Layers } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { minecraftCatalogRequest, minecraftProject } from "@/lib/games/minecraft-catalog";
@@ -22,7 +22,9 @@ export function useMinecraftInstanceArtwork(
 ) {
   const [artwork, setArtwork] = useState<Record<string, Artwork>>({});
   const known = useRef(artwork);
-  known.current = artwork;
+  useLayoutEffect(() => {
+    known.current = artwork;
+  }, [artwork]);
   useEffect(() => {
     if (!active || !root.current) return;
     const controller = new AbortController(),

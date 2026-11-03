@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { FileUp, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useT } from "@/lib/i18n";
@@ -38,7 +38,9 @@ export function GameSteamImport({
     pending = useRef(false),
     live = useRef(true),
     known = useRef(existing);
-  known.current = existing;
+  useLayoutEffect(() => {
+    known.current = existing;
+  }, [existing]);
   const [text, setText] = useState(""),
     [rows, setRows] = useState<SteamImportRow[] | null>(null),
     [selected, setSelected] = useState<Set<number>>(new Set()),
@@ -149,19 +151,22 @@ export function GameSteamImport({
     setError("");
     const abort = new AbortController();
     controller.current = abort;
-    try {
+    const work = async () => {
       if (profile && profile.size > STEAM_PROFILE_BYTES) throw Error("steam_import_limit");
       const value = profile ? await profile.text() : text;
       abort.signal.throwIfAborted();
       await review(profile ? parseSteamImportProfile(value) : parseSteamImportText(value), abort);
-    } catch (reason) {
-      if (!abort.signal.aborted && live.current) fail(reason);
-    } finally {
-      if (live.current && controller.current === abort) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (!abort.signal.aborted && live.current) fail(reason);
+      })
+      .finally(() => {
+        if (live.current && controller.current === abort) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const add = async () => {
     if (pending.current || !rows) return;
@@ -170,7 +175,7 @@ export function GameSteamImport({
     setError("");
     const abort = new AbortController();
     controller.current = abort;
-    try {
+    const work = async () => {
       const games = rows
         .filter(
           (row) =>
@@ -188,19 +193,22 @@ export function GameSteamImport({
         }));
       const count = await library.update(games, [], abort.signal);
       if (live.current) setDone(count);
-    } catch (reason) {
-      if (live.current && !abort.signal.aborted)
-        setError(
-          reason instanceof Error && reason.message === "steam_import_limit"
-            ? "games.steamImport.limit"
-            : "games.steamImport.writeError",
-        );
-    } finally {
-      if (live.current) {
-        pending.current = false;
-        setSaving(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (live.current && !abort.signal.aborted)
+          setError(
+            reason instanceof Error && reason.message === "steam_import_limit"
+              ? "games.steamImport.limit"
+              : "games.steamImport.writeError",
+          );
+      })
+      .finally(() => {
+        if (live.current) {
+          pending.current = false;
+          setSaving(false);
+        }
+      });
   };
   const toggle = (id: number) =>
     setSelected((previous) => {
@@ -217,7 +225,7 @@ export function GameSteamImport({
     setIgnoreSaved(false);
     const abort = new AbortController();
     controller.current = abort;
-    try {
+    const work = async () => {
       const items = ignoreText.trim() ? parseSteamImportText(ignoreText) : [];
       if (items.some((item) => item.issue && item.issue !== "duplicate"))
         throw Error("steam_import_record");
@@ -232,19 +240,22 @@ export function GameSteamImport({
         setIgnoreSaved(true);
         setIgnoreOpen(false);
       }
-    } catch (reason) {
-      if (live.current && !abort.signal.aborted)
-        setError(
-          reason instanceof Error && reason.message === "steam_import_record"
-            ? "games.steamImport.inputError"
-            : "games.steamImport.writeError",
-        );
-    } finally {
-      if (live.current) {
-        pending.current = false;
-        setSaving(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (live.current && !abort.signal.aborted)
+          setError(
+            reason instanceof Error && reason.message === "steam_import_record"
+              ? "games.steamImport.inputError"
+              : "games.steamImport.writeError",
+          );
+      })
+      .finally(() => {
+        if (live.current) {
+          pending.current = false;
+          setSaving(false);
+        }
+      });
   };
   return (
     <ModalShell

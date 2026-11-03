@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, Monitor, Plus } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { useT } from "@/lib/i18n";
@@ -34,7 +34,9 @@ export function GameShortcuts({ game }: { game: CustomGame }) {
     supported = osClass() === "windows" && game.config.mode === "native";
   const identity = JSON.stringify([game.id, game.name, game.config]);
   const currentIdentity = useRef(identity);
-  currentIdentity.current = identity;
+  useLayoutEffect(() => {
+    currentIdentity.current = identity;
+  }, [identity]);
   useEffect(() => {
     live.current = true;
     if (!supported) return;
@@ -79,7 +81,7 @@ export function GameShortcuts({ game }: { game: CustomGame }) {
     pending.current = true;
     setBusy(target);
     setError("");
-    try {
+    const work = async () => {
       const value = await invoke<GameShortcuts>("games_game_shortcuts", {
         id: game.id,
         name: game.name,
@@ -87,12 +89,15 @@ export function GameShortcuts({ game }: { game: CustomGame }) {
         target,
       });
       if (live.current && currentIdentity.current === identity) setResult(value);
-    } catch (reason) {
-      if (live.current && currentIdentity.current === identity) setError(shortcutError(reason));
-    } finally {
-      pending.current = false;
-      if (live.current && currentIdentity.current === identity) setBusy(null);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (live.current && currentIdentity.current === identity) setError(shortcutError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (live.current && currentIdentity.current === identity) setBusy(null);
+      });
   };
   if (!supported) return null;
   return (

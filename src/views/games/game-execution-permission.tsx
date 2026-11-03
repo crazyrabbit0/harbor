@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Check } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -20,7 +20,9 @@ export function GameExecutionPermission({
   const current = useRef(path),
     alive = useRef(true),
     pending = useRef(false);
-  current.current = path;
+  useLayoutEffect(() => {
+    current.current = path;
+  }, [path]);
   useEffect(() => {
     alive.current = true;
     return () => {
@@ -34,15 +36,18 @@ export function GameExecutionPermission({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       await invoke("games_allow_game_execution", { path: selected });
       if (alive.current && current.current === selected) onFixed();
-    } catch (reason) {
-      if (alive.current && current.current === selected) setError(customLaunchError(reason));
-    } finally {
-      pending.current = false;
-      if (alive.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current && current.current === selected) setError(customLaunchError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (alive.current) setBusy(false);
+      });
   };
   return (
     <div>

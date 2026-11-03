@@ -5,6 +5,7 @@ import { useGroupPrefs } from "@/lib/iptv/group-order";
 import { usePinnedOrder } from "@/lib/iptv/pins";
 import type { IptvChannel } from "@/lib/iptv/types";
 import { useSettings } from "@/lib/settings";
+import { readAtVersion } from "@/lib/read-at-version";
 import { SFX } from "@/lib/sfx";
 import { BpGrid, BpGridScroller } from "./bp-grid";
 import { BpGuide } from "./bp-guide";
@@ -101,14 +102,16 @@ export function BpLive() {
   const { key: catKey, channels: catChannels } = category;
   const ordered = useMemo(
     () =>
-      bpGuideOrder({
-        channels: catChannels,
-        favoriteIds: favorites.ids,
-        pinnedOrder,
-        hiddenGroups: groupPrefs.hidden,
-        region: settings.region,
-        promoteNetworks: catKey === ALL_KEY,
-      }),
+      readAtVersion(statsVersion, () =>
+        bpGuideOrder({
+          channels: catChannels,
+          favoriteIds: favorites.ids,
+          pinnedOrder,
+          hiddenGroups: groupPrefs.hidden,
+          region: settings.region,
+          promoteNetworks: catKey === ALL_KEY,
+        }),
+      ),
     [
       catChannels,
       catKey,

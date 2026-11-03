@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type RefObject } from "react";
 import {
   emptySnapshot,
   initialPlayerSnapshot,
@@ -49,6 +49,43 @@ function snapChangedIgnoringClock(a: PlayerSnapshot, b: PlayerSnapshot): boolean
     a.errorMessage !== b.errorMessage ||
     a.errorCode !== b.errorCode
   );
+}
+
+type BridgeSlot = {
+  ref: RefObject<PlayerBridge | null>;
+  get: () => PlayerBridge | null;
+  subscribe: (listener: () => void) => () => void;
+};
+
+function createBridgeSlot(): BridgeSlot {
+  let value: PlayerBridge | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    ref: {
+      get current() {
+        return value;
+      },
+      set current(next) {
+        if (next === value) return;
+        value = next;
+        listeners.forEach((listener) => listener());
+      },
+    },
+    get: () => value,
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+  };
+}
+
+// The bridge ref for handlers plus the same bridge as render state; every ref write re-renders the owner.
+export function usePlayerBridgeSlot(): [RefObject<PlayerBridge | null>, PlayerBridge | null] {
+  const [slot] = useState(createBridgeSlot);
+  const bridge = useSyncExternalStore(slot.subscribe, slot.get, slot.get);
+  return [slot.ref, bridge];
 }
 
 export function usePlayerBridge(params: {

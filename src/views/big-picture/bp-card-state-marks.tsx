@@ -6,6 +6,7 @@ import { isAndroidTv } from "@/lib/platform";
 import { useSettings } from "@/lib/settings";
 import type { Settings } from "@/lib/settings/types";
 import { isTop10, useTop10Version } from "@/lib/top10-set";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useMetaWatched } from "@/lib/watched-flag";
 import { useInWatchlist } from "@/lib/watchlist";
 import { useBpT } from "./bp-i18n";
@@ -63,7 +64,7 @@ export function useBpCardState(
     imdbId,
   );
   const inLocal = useInLocalLibrary(settings.showLocalLibraryBadge ? meta.id : undefined, altIds);
-  useTop10Version();
+  const top10Ver = useTop10Version();
   // On a television the ribbon is not a preference, it is the mark. The only
   // control that writes settings.top10Ribbon is desktop Settings then Library,
   // and it defaults to false, so a viewer who only ever sees Harbor on a TV had
@@ -71,7 +72,9 @@ export function useBpCardState(
   // Defaulting it here rather than in lib/settings/defaults.ts on purpose: that
   // file is shared, and flipping it there would turn the ribbon on for every
   // desktop user who has never asked for it.
-  const top10 = (isAndroidTv() || settings.top10Ribbon) && isTop10(meta.id, meta.name);
+  const top10 =
+    (isAndroidTv() || settings.top10Ribbon) &&
+    readAtVersion(top10Ver, () => isTop10(meta.id, meta.name));
   return { inWatchlist, watched, inLocal, top10 };
 }
 

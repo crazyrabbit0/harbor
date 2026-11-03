@@ -60,7 +60,7 @@ export function useComments(handle: string): CommentsController {
       setCursor(page.nextCursor);
       setHasMore(!!page.nextCursor);
     });
-  }, [handle, cursor, authKey]);
+  }, [handle, cursor]);
 
   const submit = useCallback(
     async (raw: string, parentId?: string): Promise<ComposeIssue> => {

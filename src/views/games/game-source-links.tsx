@@ -254,23 +254,27 @@ function SourceLinkDialog({
     setLoading(true);
     setError("");
     downloads.dismissError();
-    try {
-      const result = await invoke<CloudDownload[]>("games_cloud_resolve_link", {
-        args: { provider, key, url: link.url },
+    await invoke<CloudDownload[]>("games_cloud_resolve_link", {
+      args: { provider, key, url: link.url },
+    })
+      .then(
+        (result) => {
+          if (alive.current && current === revision.current) {
+            setFiles(result);
+            setSelected([0]);
+            setError(result.length ? "" : "games.sources.links.empty");
+          }
+        },
+        (reason) => {
+          if (alive.current && current === revision.current) setError(sourceLinkError(reason));
+        },
+      )
+      .finally(() => {
+        if (alive.current && current === revision.current) {
+          pending.current = false;
+          setLoading(false);
+        }
       });
-      if (alive.current && current === revision.current) {
-        setFiles(result);
-        setSelected([0]);
-        setError(result.length ? "" : "games.sources.links.empty");
-      }
-    } catch (reason) {
-      if (alive.current && current === revision.current) setError(sourceLinkError(reason));
-    } finally {
-      if (alive.current && current === revision.current) {
-        pending.current = false;
-        setLoading(false);
-      }
-    }
   };
   const chosen = files?.filter((_, index) => selected.includes(index)) ?? [],
     multiple = (files?.length ?? 0) > 1 && !downloads.selectionOnly;
@@ -278,7 +282,7 @@ function SourceLinkDialog({
     if (closing || pending.current || saving || !chosen.length) return;
     pending.current = true;
     const current = revision.current;
-    try {
+    const work = async () => {
       const started =
         chosen.length === 1
           ? await downloads.start(
@@ -302,9 +306,10 @@ function SourceLinkDialog({
               })),
             );
       if (started && alive.current && current === revision.current) close();
-    } finally {
+    };
+    await work().finally(() => {
       if (current === revision.current) pending.current = false;
-    }
+    });
   };
   return (
     <ModalShell

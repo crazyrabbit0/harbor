@@ -13,8 +13,10 @@ import { applyHomeRowCustomization } from "@/lib/home-customization";
 import { bpHomeCacheLoad, bpHomeCacheSave } from "./bp-home-cache";
 import { useBpExtraRows } from "./use-bp-extra-rows";
 import { useBpTop10Base } from "./bp-top10-feed";
+import { useBpKeyed } from "./use-bp-keyed";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/lib/settings";
+import type { Settings } from "@/lib/settings/types";
 import { useHideAnimeRows } from "@/lib/anime-hide";
 
 export type BpCatalog = { rows: HomeRow[]; hero: Meta[]; loading: boolean; failed: boolean };
@@ -24,6 +26,21 @@ type Built = { rows: HomeRow[]; hero: Meta[] };
 const EMPTY: Built = { rows: [], hero: [] };
 const NO_METAS: Meta[] = [];
 let cache: { key: string; built: Built } | null = null;
+
+async function buildBase(settings: Settings): Promise<Built> {
+  let base: Built = EMPTY;
+  if (settings.homeMode !== "classic") {
+    base = settings.tmdbKey
+      ? await buildTmdbRows(settings).catch(() => EMPTY)
+      : await buildCinemetaRows().catch(() => EMPTY);
+  }
+  if (base.rows.length === 0) base = await buildCinemetaRows().catch(() => EMPTY);
+  return base;
+}
+
+function usableAddonRows(addons: AddonRow[], classic: boolean): AddonRow[] {
+  return classic ? addons : addons.filter((a) => !isAnimeRow(a) && !isStreamingServiceRow(a.name));
+}
 
 export function useBpCatalog(): BpCatalog {
   const { authKey } = useAuth();
@@ -65,43 +82,34 @@ export function useBpCatalog(): BpCatalog {
       setLoading(false);
     });
 
-    (async () => {
-      try {
-        const classic = settings.homeMode === "classic";
-        let base: Built = EMPTY;
-        if (!classic) {
-          base = settings.tmdbKey
-            ? await buildTmdbRows(settings).catch(() => EMPTY)
-            : await buildCinemetaRows().catch(() => EMPTY);
-        }
-        if (base.rows.length === 0) base = await buildCinemetaRows().catch(() => EMPTY);
-        if (!alive) return;
+    const run = async () => {
+      const classic = settings.homeMode === "classic";
+      const base = await buildBase(settings);
+      if (!alive) return;
 
-        const merged = { rows: mergeRows(base.rows, []), hero: base.hero };
-        live = true;
-        cache = { key, built: merged };
-        setBuilt(merged);
-        setFailed(merged.rows.length === 0);
+      const merged = { rows: mergeRows(base.rows, []), hero: base.hero };
+      live = true;
+      cache = { key, built: merged };
+      setBuilt(merged);
+      setFailed(merged.rows.length === 0);
+      setLoading(false);
+      void bpHomeCacheSave(key, merged);
+
+      const dedup = !classic && !settings.homeShowAllAddonRows;
+      const addons = await loadAddonRows(authKey, { dedup }).catch(() => [] as AddonRow[]);
+      if (!alive || addons.length === 0) return;
+      const usable = usableAddonRows(addons, classic);
+      const withAddons = { rows: mergeRows(base.rows, usable, { dedup }), hero: base.hero };
+      cache = { key, built: withAddons };
+      setBuilt(withAddons);
+      void bpHomeCacheSave(key, withAddons);
+    };
+    void run().catch(() => {
+      if (alive) {
+        setFailed(true);
         setLoading(false);
-        void bpHomeCacheSave(key, merged);
-
-        const dedup = classic ? false : !settings.homeShowAllAddonRows;
-        const addons = await loadAddonRows(authKey, { dedup }).catch(() => [] as AddonRow[]);
-        if (!alive || addons.length === 0) return;
-        const usable = classic
-          ? addons
-          : addons.filter((a) => !isAnimeRow(a) && !isStreamingServiceRow(a.name));
-        const withAddons = { rows: mergeRows(base.rows, usable, { dedup }), hero: base.hero };
-        cache = { key, built: withAddons };
-        setBuilt(withAddons);
-        void bpHomeCacheSave(key, withAddons);
-      } catch {
-        if (alive) {
-          setFailed(true);
-          setLoading(false);
-        }
       }
-    })();
+    });
 
     return () => {
       alive = false;
@@ -126,7 +134,7 @@ export function useBpCatalog(): BpCatalog {
   // late addon merge does not hand the store a new array of the same titles.
   const lead = rows[0]?.metas.slice(0, 10) ?? NO_METAS;
   const leadKey = lead.map((m) => m.id).join("|");
-  const top10 = useMemo(() => lead, [leadKey]);
+  const top10 = useBpKeyed([leadKey], () => lead);
   useBpTop10Base(top10);
 
   return { rows, hero: built.hero, loading, failed };

@@ -42,6 +42,7 @@ export function ListDetail({
   const [missingId, setMissingId] = useState<string | null>(null);
   const itemElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const dragCleanupRef = useRef<(() => void) | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
   const suppressClick = useRef(false);
   useEffect(() => () => dragCleanupRef.current?.(), []);
   const [order, setOrder] = useState<string[]>(() => list?.items.map((it) => it.id) ?? []);
@@ -136,6 +137,7 @@ export function ListDetail({
       if (!moved) {
         if (Math.hypot(dx, dy) < 4) return;
         moved = true;
+        setDraggingId(itemId);
         document.body.style.userSelect = "none";
         dragged.style.zIndex = "50";
         dragged.style.willChange = "transform";
@@ -166,6 +168,7 @@ export function ListDetail({
       window.removeEventListener("pointercancel", onUp);
       document.body.style.userSelect = "";
       dragCleanupRef.current = null;
+      setDraggingId(null);
     }
 
     function onUp() {
@@ -250,7 +253,7 @@ export function ListDetail({
                 }
               }}
               className={`group/item relative touch-none rounded-lg transition-[opacity,box-shadow] ${
-                dragCleanupRef.current ? "opacity-40 cursor-grabbing" : "cursor-grab"
+                draggingId === it.id ? "opacity-40 cursor-grabbing" : "cursor-grab"
               }`}
             >
               <PickCard meta={itemToMeta(it)} onOpenManga={() => void openMangaItem(it)} />

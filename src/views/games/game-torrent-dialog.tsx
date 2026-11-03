@@ -38,6 +38,8 @@ import { TorrentFiles, TorrentReviewSkeleton } from "./game-torrent-files";
 import { TorrentDestination } from "./game-torrent-destination";
 import "./game-torrent.css";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 // Step storyboard: content settles over 200ms; the shell finishes opening at
 // 320ms. Exit uses Harbor's shared modal timing. Reduced motion skips both.
 const STEP_MOTION = { duration: 320, easing: "cubic-bezier(.22,1,.36,1)" };
@@ -58,6 +60,7 @@ export function GameTorrentDialog({
     root = useRef<HTMLDivElement>(null),
     started = useRef<GameTorrent | null>(null),
     profile = torrents.profile;
+  const [hasStarted, setHasStarted] = useState(false);
   const finish = useCallback(() => {
     onClose();
     if (started.current) onStarted?.(started.current);
@@ -97,7 +100,9 @@ export function GameTorrentDialog({
     operation = useRef(""),
     token = useRef(""),
     closingRef = useRef(false);
-  closingRef.current = closing;
+  useLayoutEffect(() => {
+    closingRef.current = closing;
+  }, [closing]);
   const lastHeight = useRef(0),
     heightAnimation = useRef<Animation | null>(null);
   const stage = plan ? "review" : busy === "inspect" ? "loading" : "source";
@@ -202,18 +207,21 @@ export function GameTorrentDialog({
     pending.current = true;
     setBusy(kind);
     setError("");
-    try {
+    const work = async () => {
       await action();
-    } catch (reason) {
-      if (live.current && !closingRef.current)
-        setError(
-          String(reason).includes("archive_") ? preparationError(reason) : torrentError(reason),
-        );
-    } finally {
-      pending.current = false;
-      operation.current = "";
-      if (live.current) setBusy(null);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (live.current && !closingRef.current)
+          setError(
+            String(reason).includes("archive_") ? preparationError(reason) : torrentError(reason),
+          );
+      })
+      .finally(() => {
+        pending.current = false;
+        operation.current = "";
+        if (live.current) setBusy(null);
+      });
   };
   const changeSource = (value: string) => {
     discard();
@@ -225,7 +233,7 @@ export function GameTorrentDialog({
   };
   const pick = (directory: boolean) =>
     task("pick", async () => {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const value = await open({
         directory,
         multiple: false,
@@ -267,8 +275,9 @@ export function GameTorrentDialog({
   const start = () =>
     task("start", async () => {
       if (!plan || insufficient || invalidPreparation || preparationBrowsing) return;
-      try {
-        const record = await torrents.start(
+      const game = source.trim() === initialSource.trim() ? torrents.draftGame : undefined;
+      const record = await torrents
+        .start(
           {
             token: token.current,
             parent,
@@ -276,20 +285,21 @@ export function GameTorrentDialog({
             selected: [...selected],
             downloadBps: download,
             uploadBps: upload,
-            game: source.trim() === initialSource.trim() ? torrents.draftGame : undefined,
+            game,
           },
           unpack,
-        );
-        token.current = "";
-        started.current = record;
-        close();
-      } catch (reason) {
-        if (String(reason) === "torrent_expired") {
-          discard();
-          setPlan(null);
-        }
-        throw reason;
-      }
+        )
+        .catch((reason: unknown) => {
+          if (String(reason) === "torrent_expired") {
+            discard();
+            setPlan(null);
+          }
+          throw reason;
+        });
+      token.current = "";
+      started.current = record;
+      setHasStarted(true);
+      close();
     });
   const copy = async () => {
     const success = await copyText(source);
@@ -498,7 +508,7 @@ export function GameTorrentDialog({
         </div>
         <footer>
           <span aria-live="polite">
-            {started.current ? (
+            {hasStarted ? (
               t("games.torrent.added")
             ) : plan ? (
               <>
@@ -531,11 +541,11 @@ export function GameTorrentDialog({
             >
               {busy ? (
                 <LoaderCircle size={17} className="games-torrent-spinner" />
-              ) : started.current ? (
+              ) : hasStarted ? (
                 <Check size={17} />
               ) : null}
               {t(
-                started.current
+                hasStarted
                   ? "games.torrent.added"
                   : busy === "start"
                     ? "games.torrent.starting"
@@ -543,7 +553,7 @@ export function GameTorrentDialog({
                       ? "games.torrent.start"
                       : "games.torrent.review",
               )}
-              {!busy && !started.current && <ArrowRight size={17} />}
+              {!busy && !hasStarted && <ArrowRight size={17} />}
             </button>
           )}
         </footer>

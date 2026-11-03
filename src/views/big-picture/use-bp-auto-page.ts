@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { observe } from "@/lib/visibility";
 
 const RECHECK_MS = 300;
@@ -24,9 +24,13 @@ export function useBpAutoPage(
   const nearRef = useRef(false);
   const autoRef = useRef(0);
   const moreRef = useRef(onMore);
-  moreRef.current = onMore;
+  useLayoutEffect(() => {
+    moreRef.current = onMore;
+  }, [onMore]);
   const hasMoreRef = useRef(hasMore);
-  hasMoreRef.current = hasMore;
+  useLayoutEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
 
   useEffect(() => {
     const el = sentinelRef.current;

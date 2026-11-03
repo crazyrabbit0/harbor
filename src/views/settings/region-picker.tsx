@@ -4,6 +4,7 @@ import { AnchoredMenu } from "@/components/anchored-menu";
 import { advanceFocus } from "@/lib/keyboard-navigation";
 import { getDirection, isBackKey } from "@/lib/keyboard-navigation/geometry";
 import { t, useUiLanguage } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 import { regionFlagSrc } from "@/lib/region-flags";
 
 const REGIONS: Array<{ code: string; label: string }> = [
@@ -126,18 +127,22 @@ export function RegionPicker({
     advanceFocus(next, dir);
   };
 
-  const filtered: Array<{ code: string; label: string }> = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase();
-    if (!q) return REGIONS;
-    return REGIONS.filter((region) => {
-      const localizedLabel = t(region.label).toLocaleLowerCase();
-      return (
-        localizedLabel.includes(q) ||
-        region.label.toLocaleLowerCase().includes(q) ||
-        region.code.toLocaleLowerCase().includes(q)
-      );
-    });
-  }, [language, query]);
+  const filtered: Array<{ code: string; label: string }> = useMemo(
+    () =>
+      readAtVersion(language, () => {
+        const q = query.trim().toLocaleLowerCase();
+        if (!q) return REGIONS;
+        return REGIONS.filter((region) => {
+          const localizedLabel = t(region.label).toLocaleLowerCase();
+          return (
+            localizedLabel.includes(q) ||
+            region.label.toLocaleLowerCase().includes(q) ||
+            region.code.toLocaleLowerCase().includes(q)
+          );
+        });
+      }),
+    [language, query],
+  );
 
   return (
     <div className="relative">

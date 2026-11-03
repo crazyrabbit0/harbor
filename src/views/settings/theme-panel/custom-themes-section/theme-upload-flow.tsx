@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -60,7 +60,9 @@ export function ThemeUploadFlow({ onClose }: { onClose: () => void }) {
     else onClose();
   };
   const stepBackRef = useRef(stepBack);
-  stepBackRef.current = stepBack;
+  useLayoutEffect(() => {
+    stepBackRef.current = stepBack;
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -128,7 +130,7 @@ export function ThemeUploadFlow({ onClose }: { onClose: () => void }) {
     if (!theme || !coverBlob) return;
     setSubmitting(true);
     setError(null);
-    try {
+    const work = async () => {
       const payload = { ...theme, name: name.trim() || theme.name, blurb: blurb.trim() };
       if (payload.background?.image) {
         const slim = await optimizeBackgroundForShare(payload.background.image);
@@ -149,11 +151,10 @@ export function ThemeUploadFlow({ onClose }: { onClose: () => void }) {
       });
       if (author.trim()) localStorage.setItem("harbor.theme-author", author.trim());
       setResult({ share: res.share });
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
+    };
+    await work()
+      .catch((e: unknown) => setError((e as Error).message))
+      .finally(() => setSubmitting(false));
   };
 
   return createPortal(

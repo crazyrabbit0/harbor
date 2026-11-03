@@ -17,6 +17,11 @@ import { GameShowcaseMedia, HERO_TIMING } from "./game-showcase-media";
 import { useHeroMotion } from "./use-hero-motion";
 import { GameDiscoveryRatings } from "./game-discovery-ratings";
 
+function rememberVisitPosition(visit: ExploreVisit, selected: number | undefined, page: number) {
+  visit.selected = selected;
+  visit.page = page;
+}
+
 export function GameShowcase({
   active,
   open,
@@ -62,8 +67,7 @@ export function GameShowcase({
   const ordered = games;
   const game = ordered.find((item) => item.steamId === selected) ?? ordered[0];
   useEffect(() => {
-    visit.selected = selected;
-    visit.page = page;
+    rememberVisitPosition(visit, selected, page);
   }, [visit, selected, page]);
   const [motion, setMotion] = useState(true);
   const [hovered, setHovered] = useState(false);

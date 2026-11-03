@@ -19,6 +19,8 @@ import { DetailDisclosure } from "./game-detail-disclosure";
 import "./game-library-titles.css";
 import "./game-library-links.css";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 function LinkList({ links }: { links: GameLink[] }) {
   const t = useT(),
     [error, setError] = useState(false);
@@ -35,7 +37,7 @@ function LinkList({ links }: { links: GameLink[] }) {
                 if (!isTauri()) return;
                 event.preventDefault();
                 setError(false);
-                void import("@tauri-apps/plugin-opener")
+                void loadOpener()
                   .then(({ openUrl }) => openUrl(link.url))
                   .catch(() => setError(true));
               }}
@@ -124,9 +126,9 @@ export function GameLibraryLinks({
     language = useUiLanguage(),
     title = useId(),
     root = useRef<HTMLDivElement>(null);
-  const initial = useRef(preferences.data),
-    source = useRef(items),
-    selected = useRef(new Set(selectedIds)),
+  const [initial] = useState(() => preferences.data),
+    [source] = useState(() => items),
+    [selected] = useState(() => new Set(selectedIds)),
     pending = useRef(false),
     live = useRef(true);
   const [scope, setScope] = useState(selectedIds.length ? "selected" : "all"),
@@ -178,7 +180,7 @@ export function GameLibraryLinks({
     setLoaded(null);
     setProgress(0);
     setError(false);
-    void readLibraryLinks(source.current, abort.signal, setProgress)
+    void readLibraryLinks(source, abort.signal, setProgress)
       .then((items) => {
         if (!abort.signal.aborted) setLoaded(items);
       })
@@ -186,17 +188,17 @@ export function GameLibraryLinks({
         if (!abort.signal.aborted) setError(true);
       });
     return () => abort.abort();
-  }, [attempt]);
+  }, [attempt, source]);
   const targets = useMemo(
     () =>
       scope === "selected"
-        ? (loaded ?? []).filter((item) => selected.current.has(item.id))
+        ? (loaded ?? []).filter((item) => selected.has(item.id))
         : (loaded ?? []),
-    [loaded, scope],
+    [loaded, scope, selected],
   );
   const rows = useMemo(
-      () => reviewLibraryLinks(targets, initial.current.entries, language, restore),
-      [targets, language, restore],
+      () => reviewLibraryLinks(targets, initial.entries, language, restore),
+      [targets, initial, language, restore],
     ),
     changed = rows.filter((row) => row.changed);
   const save = async () => {
@@ -205,14 +207,15 @@ export function GameLibraryLinks({
     const changes = rows
       .filter((row) => row.changed || (restore && row.expectedOrder?.length))
       .map(({ id, order, expectedOrder }) => ({ id, order, expectedOrder }));
-    try {
+    const work = async () => {
       if ((await preferences.updateLinkOrders(changes)) && live.current) {
         onApplied?.(changed.length);
         close();
       }
-    } finally {
+    };
+    await work().finally(() => {
       pending.current = false;
-    }
+    });
   };
   return (
     <ModalShell
@@ -239,7 +242,7 @@ export function GameLibraryLinks({
           </button>
         </header>
         <div className="games-title-scroll">
-          {source.current.length > 1 && (
+          {source.length > 1 && (
             <div className="games-title-scope" role="group" aria-label={t("games.links.sort")}>
               <button
                 disabled={preferences.busy}
@@ -249,8 +252,7 @@ export function GameLibraryLinks({
                   setLimit(40);
                 }}
               >
-                {t("games.sidebar.allGames")}{" "}
-                <span>{source.current.length.toLocaleString(language)}</span>
+                {t("games.sidebar.allGames")} <span>{source.length.toLocaleString(language)}</span>
               </button>
               {selectedIds.length > 0 && (
                 <button
@@ -278,7 +280,7 @@ export function GameLibraryLinks({
           </label>
           {!loaded && !error && (
             <p role="status">
-              {t("games.links.loading", { count: progress, total: source.current.length })}
+              {t("games.links.loading", { count: progress, total: source.length })}
             </p>
           )}
           {error && (
@@ -294,7 +296,7 @@ export function GameLibraryLinks({
               <details
                 key={row.id}
                 data-link-id={row.id}
-                open={source.current.length === 1 ? true : undefined}
+                open={source.length === 1 ? true : undefined}
               >
                 <summary>
                   <strong dir="auto">{row.name}</strong>

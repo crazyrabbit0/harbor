@@ -186,7 +186,6 @@ export function useEpisodeNavigation(params: {
       src.episode,
       src.imdbId,
       src.isAnime,
-      src.url,
       settings.localPlaybackMode,
       inRoom,
       isHost,

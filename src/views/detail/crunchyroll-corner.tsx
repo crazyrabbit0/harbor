@@ -1,6 +1,7 @@
 import { awardSourceMeta, findAnyAwardWins, groupWinsBySource } from "@/lib/anime-awards";
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 import { scrollToDetailSection } from "@/lib/section-scroll";
 
 const MAX_LINES = 3;
@@ -15,13 +16,16 @@ export function CrunchyrollAwardsCorner({
   inline?: boolean;
 }) {
   const t = useT();
-  useAwardPacks();
+  const awardPacks = useAwardPacks();
   const wins = findAnyAwardWins(name, year);
   if (wins.length === 0) return null;
   const groups = groupWinsBySource(name, year);
   const top = groups[0];
   const topSource = awardSourceMeta(top.source);
-  const customLogo = resolveAwardIcon(`${top.source}_logo`) ?? resolveAwardIcon(top.source);
+  const customLogo = readAtVersion(
+    awardPacks,
+    () => resolveAwardIcon(`${top.source}_logo`) ?? resolveAwardIcon(top.source),
+  );
   const iconSrc = customLogo ?? topSource.icon;
   const otherGroups = groups.slice(1);
 

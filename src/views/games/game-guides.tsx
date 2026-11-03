@@ -9,6 +9,17 @@ import "./game-guides.css";
 
 export type GuideGame = GameSummary & { hero?: string; logo?: string };
 type Position = { top: number; element: HTMLElement | null };
+function GuidesChildren({
+  render,
+  open,
+  detailActive,
+}: {
+  render: (open: (game: GuideGame) => void, detailActive: boolean) => ReactNode;
+  open: (game: GuideGame) => void;
+  detailActive: boolean;
+}) {
+  return render(open, detailActive);
+}
 /** A retained page layer keeps game details and the guide catalog's exact Back position. */
 export function GameGuidesScope({
   active,
@@ -79,7 +90,9 @@ export function GameGuidesScope({
   }, [game, item]);
   return (
     <div ref={root} className="games-guides-scope">
-      <div hidden={!!game}>{children(open, active && !game)}</div>
+      <div hidden={!!game}>
+        <GuidesChildren render={children} open={open} detailActive={active && !game} />
+      </div>
       {game && (
         <>
           <div hidden={!!item}>

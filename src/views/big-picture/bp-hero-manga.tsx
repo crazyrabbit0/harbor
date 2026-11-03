@@ -12,6 +12,9 @@ import { useBpT } from "./bp-i18n";
 // 2:3 against the clamp(52px, 6.6vh, 96px) height below, taken at its tallest.
 const THUMB_W = 64;
 
+const loadEbookApi = () => import("@/lib/ebook/api");
+const loadMangaApi = () => import("@/lib/manga/api");
+
 export function BpHeroManga({ meta }: { meta: Meta }) {
   const t = useBpT();
   const { openEBook, openManga } = useViewActions();
@@ -38,13 +41,13 @@ export function BpHeroManga({ meta }: { meta: Meta }) {
   const open = async () => {
     SFX.click();
     if (kind === "ebook") {
-      const { ebookDetail } = await import("@/lib/ebook/api");
+      const { ebookDetail } = await loadEbookApi();
       const ebook = await ebookDetail(`anilist:${node.anilistId}`).catch(() => null);
       openEBook(ebook?.id ?? `anilist:${node.anilistId}`);
       exitBigPicture();
       return;
     }
-    const { searchManga } = await import("@/lib/manga/api");
+    const { searchManga } = await loadMangaApi();
     const found = (await searchManga(node.title, 0).catch(() => []))[0];
     openManga(found?.id);
     exitBigPicture();

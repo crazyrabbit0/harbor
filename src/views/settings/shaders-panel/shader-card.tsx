@@ -92,20 +92,20 @@ export function ShaderCard({ entry }: { entry: ShaderCatalogEntry }) {
     setBusy(true);
     setError(null);
     setJustUpdated(false);
-    try {
-      const dir = await downloadShader(entry.id, force);
-      patch({ dir, enabled: force ? state?.enabled : true });
-      if (force) {
-        setJustUpdated(true);
-        window.setTimeout(() => setJustUpdated(false), 2200);
-      }
-    } catch (e) {
-      setError(
-        typeof e === "string" ? e : t("Download failed. Check your connection and try again."),
-      );
-    } finally {
-      setBusy(false);
-    }
+    await downloadShader(entry.id, force)
+      .then((dir) => {
+        patch({ dir, enabled: force ? state?.enabled : true });
+        if (force) {
+          setJustUpdated(true);
+          window.setTimeout(() => setJustUpdated(false), 2200);
+        }
+      })
+      .catch((e: unknown) =>
+        setError(
+          typeof e === "string" ? e : t("Download failed. Check your connection and try again."),
+        ),
+      )
+      .finally(() => setBusy(false));
   };
 
   const startDownload = () => {

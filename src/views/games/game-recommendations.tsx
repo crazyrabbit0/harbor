@@ -53,6 +53,13 @@ type RelatedLoader = (
   language?: string,
   offset?: number,
 ) => Promise<RecommendationPool | GameSummary[]>;
+type Preferences = ReturnType<typeof readRecommendationPreferences>;
+const railChanged = (previous: Preferences, next: Preferences) =>
+  next.saved !== previous.saved ||
+  next.recent !== previous.recent ||
+  next.hideLibrary !== previous.hideLibrary ||
+  next.hideSaved !== previous.hideSaved ||
+  next.platform !== previous.platform;
 
 export function GameRecommendations({
   profile,
@@ -104,24 +111,29 @@ export function GameRecommendations({
     undoButton = useRef<HTMLButtonElement>(null),
     retryButton = useRef<HTMLButtonElement>(null),
     settingsId = useId();
+  const contextSteam = libraryContext?.steam,
+    contextCustom = libraryContext?.custom,
+    contextLaunchers = libraryContext?.launchers,
+    hasContext = !!libraryContext;
   const library = useMemo(
-    () => buildRecommendationLibrary(installed, emulation, libraryContext),
-    [
-      installed,
-      emulation,
-      libraryContext?.steam,
-      libraryContext?.custom,
-      libraryContext?.launchers,
-    ],
+    () =>
+      buildRecommendationLibrary(
+        installed,
+        emulation,
+        hasContext
+          ? { steam: contextSteam, custom: contextCustom, launchers: contextLaunchers }
+          : undefined,
+      ),
+    [installed, emulation, hasContext, contextSteam, contextCustom, contextLaunchers],
   );
   const seeds = useMemo(
     () => chooseRecommendationSeeds(saved, installed, emulation, preferences, library),
-    [saved, library, preferences.saved, preferences.recent, preferences.excludedSeeds],
+    [saved, installed, emulation, preferences, library],
   );
   const seedKey = seeds.map((s) => `${s.game.id}:${s.reason}`).join("|");
   const known = useMemo(
     () => recommendationExclusions(saved, library, preferences),
-    [saved, library, preferences.hideSaved, preferences.hideLibrary],
+    [saved, library, preferences],
   );
   const libraryIds = useMemo(() => new Set(library.games.flatMap(gameIdentities)), [library]);
   const savedByIdentity = useMemo(
@@ -144,7 +156,7 @@ export function GameRecommendations({
       excluded.push(...picks.flatMap((pick) => gameIdentities(pick.game)));
     }
     return ranked;
-  }, [groups, known, preferences.hidden, seedKey]);
+  }, [groups, known, preferences.hidden, seeds]);
   const matchingPicks = useMemo(
     () => recommendationsForPlatform(allPicks, preferences.platform),
     [allPicks, preferences.platform],
@@ -277,19 +289,12 @@ export function GameRecommendations({
     });
   }, []);
   const update = (next: typeof preferences, resetPage = false) => {
+    const resets = resetPage || railChanged(preferences, next);
     try {
       writeRecommendationPreferences(profile, next);
       setPreferences(next);
       setSaveError(false);
-      if (
-        resetPage ||
-        next.saved !== preferences.saved ||
-        next.recent !== preferences.recent ||
-        next.hideLibrary !== preferences.hideLibrary ||
-        next.hideSaved !== preferences.hideSaved ||
-        next.platform !== preferences.platform
-      )
-        setRailVersion((value) => value + 1);
+      if (resets) setRailVersion((value) => value + 1);
       return true;
     } catch {
       setSaveError(true);

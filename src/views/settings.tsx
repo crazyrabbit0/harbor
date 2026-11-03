@@ -343,6 +343,11 @@ function measureTopChrome(shell: HTMLElement): number {
 
 type SavedKey = LibraryKey | DebridKey;
 
+// useSettingsAnchor holds this ref, so the compiler only allows the write through a module helper.
+function syncTabsRef(ref: { current: SubTabReg }, value: SubTabReg) {
+  ref.current = value;
+}
+
 export function Settings({ visible = true }: { visible?: boolean }) {
   const t = useT();
   const { settings, update } = useSettings();
@@ -498,7 +503,9 @@ export function Settings({ visible = true }: { visible?: boolean }) {
   const [subRegRaw, setSubReg] = useState<SubTabReg>(null);
   const subReg = subRegRaw?.section === active && subRegRaw.tabs.length > 0 ? subRegRaw : null;
   const subRegRef = useRef<SubTabReg>(null);
-  subRegRef.current = subReg;
+  useLayoutEffect(() => {
+    syncTabsRef(subRegRef, subReg);
+  }, [subReg]);
   useEffect(() => {
     if (!import.meta.env.DEV || !subReg) return;
     const listed = tabsFor(active).map((tab) => tab.id);
@@ -529,7 +536,9 @@ export function Settings({ visible = true }: { visible?: boolean }) {
   }, [active, pendingPage, subReg?.value]);
 
   const pendingAnchorRef = useRef<SettingsAnchorRequest | null>(null);
-  pendingAnchorRef.current = pendingAnchor;
+  useLayoutEffect(() => {
+    pendingAnchorRef.current = pendingAnchor;
+  }, [pendingAnchor]);
 
   useEffect(() => {
     if (pendingAnchorRef.current) return;
@@ -601,7 +610,9 @@ export function Settings({ visible = true }: { visible?: boolean }) {
   const chromeHidden = wide || (active === "relay" && relayMode !== "panel");
 
   const navRef = useRef({ handleNav, openPage });
-  navRef.current = { handleNav, openPage };
+  useLayoutEffect(() => {
+    navRef.current = { handleNav, openPage };
+  });
   // Stable wrappers call the latest handlers, so panels reading this context do not redraw per render.
   const [settingsNav] = useState(() => ({
     setActive: (id: SectionId, anchor?: string, tab?: string) =>

@@ -24,6 +24,8 @@ import { GamePreparationOptions } from "./game-preparation-options";
 import type { DownloadDestinationPrompt } from "@/hooks/use-game-download-destination";
 import "./game-download-destination.css";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 type Choice = SetupLocation & { kind: "recent" | "downloads" | "drive" | "custom" };
 
 export function GameDownloadDestination({
@@ -55,7 +57,13 @@ export function GameDownloadDestination({
   const live = useRef(true),
     chosen = useRef(false);
   // Capture recent folders once: transfer progress events must not restart disk enumeration.
-  const recent = useMemo(() => recentDownloadFolders(records, prompt.profile), [prompt]);
+  const [captured, setCaptured] = useState(() => ({
+    prompt,
+    folders: recentDownloadFolders(records, prompt.profile),
+  }));
+  if (captured.prompt !== prompt)
+    setCaptured({ prompt, folders: recentDownloadFolders(records, prompt.profile) });
+  const recent = captured.folders;
   useSectionBack(() => {
     if (!blocked) close();
   }, true);
@@ -162,12 +170,14 @@ export function GameDownloadDestination({
     if (!parent) return;
     let current = true;
     const refresh = async () => {
-      try {
-        const value = await invoke<SetupLocations>("games_download_locations", { parent });
-        if (current) setSpace({ path: parent, bytes: value.selected?.availableBytes ?? null });
-      } catch {
-        if (current) setSpace({ path: parent, bytes: null });
-      }
+      await invoke<SetupLocations>("games_download_locations", { parent }).then(
+        (value) => {
+          if (current) setSpace({ path: parent, bytes: value.selected?.availableBytes ?? null });
+        },
+        () => {
+          if (current) setSpace({ path: parent, bytes: null });
+        },
+      );
     };
     void refresh();
     const timer = window.setInterval(() => void refresh(), 15000);
@@ -182,8 +192,8 @@ export function GameDownloadDestination({
   const browse = async () => {
     if (blocked) return;
     setBrowsing(true);
-    try {
-      const dialog = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const dialog = await loadDialog();
       const next = prompt.filename
         ? await dialog.save({ defaultPath: path || prompt.filename })
         : await dialog.open({ directory: true, multiple: false, defaultPath: path || undefined });
@@ -199,32 +209,38 @@ export function GameDownloadDestination({
               ...old.filter((item) => item.kind !== "custom"),
             ],
       );
-    } catch {
-      if (live.current) setUnavailable(true);
-    } finally {
-      if (live.current) setBrowsing(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (live.current) setUnavailable(true);
+      })
+      .finally(() => {
+        if (live.current) setBrowsing(false);
+      });
   };
   const submit = async () => {
     if (submitting.current || blocked || !path || insufficient || invalidPreparation) return;
     submitting.current = true;
     setStarting(true);
     setError("");
-    try {
+    const work = async () => {
       const result = await prompt.accept({ path, preparation: unpack });
       if (live.current && result) {
         accepted.current = true;
         close();
       }
-    } catch (reason) {
-      if (live.current)
-        setError(
-          String(reason).includes("archive_") ? preparationError(reason) : transferError(reason),
-        );
-    } finally {
-      submitting.current = false;
-      if (live.current) setStarting(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (live.current)
+          setError(
+            String(reason).includes("archive_") ? preparationError(reason) : transferError(reason),
+          );
+      })
+      .finally(() => {
+        submitting.current = false;
+        if (live.current) setStarting(false);
+      });
   };
   return (
     <ModalShell

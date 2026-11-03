@@ -2,6 +2,9 @@ import { useEffect, useState } from "react";
 import { decodeGameLogo, gameLogoSource, type GameLogoArt } from "@/lib/games/logo-art";
 import { retroHeroLogos, RETRO_LOGO_FOLDERS } from "@/lib/games/hero-logo-data";
 
+const loadHeroLogo = () => import("@/lib/games/hero-logo");
+const loadRetroLogoIndex = () => import("@/lib/games/retro-logo-index.json");
+
 export function GameHeroLogo({
   sources,
   name,
@@ -57,14 +60,14 @@ export function GameHeroLogo({
     if (!needsRemote) return;
     const request = new AbortController();
     if (steamId) {
-      void import("@/lib/games/hero-logo")
+      void loadHeroLogo()
         .then((module) => module.loadSteamHeroLogo(steamId, request.signal))
         .then((src) => {
           if (!request.signal.aborted && src) setRemote([src]);
         })
         .catch(() => {});
     } else if (platforms.split(",").some((id) => Object.hasOwn(RETRO_LOGO_FOLDERS, id))) {
-      void import("@/lib/games/retro-logo-index.json")
+      void loadRetroLogoIndex()
         .then(({ default: index }) => {
           if (!request.signal.aborted)
             setRemote(

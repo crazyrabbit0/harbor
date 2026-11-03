@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { convertFileSrc, invoke } from "@tauri-apps/api/core";
 import type { PlayerBridge, PlayerSnapshot, TrackInfo } from "@/lib/player/bridge";
 import type { PlayerSrc } from "@/lib/view";
@@ -141,15 +141,22 @@ export function useAutoSync(params: {
   } | null>(null);
   const statusScopeRef = useRef<AutoSyncScope | null>(null);
   const manualTimingMediaRef = useRef<string | null>(null);
+  // Render-time mirrors of doneKeyRef and statusScopeRef, written at the same points; callbacks keep the refs.
+  const [doneKey, setDoneKey] = useState<string | null>(null);
+  const [statusScope, setStatusScope] = useState<AutoSyncScope | null>(null);
   const liveSnapRef = useRef(snap);
   const srcRef = useRef(src);
   const settingsRef = useRef(settings);
-  liveSnapRef.current = snap;
-  srcRef.current = src;
-  settingsRef.current = settings;
+  useLayoutEffect(() => {
+    liveSnapRef.current = snap;
+    srcRef.current = src;
+    settingsRef.current = settings;
+  }, [snap, src, settings]);
 
   const flagsRef = useRef<AutoSyncFlags>({});
-  flagsRef.current = settings as AutoSyncFlags;
+  useLayoutEffect(() => {
+    flagsRef.current = settings as AutoSyncFlags;
+  }, [settings]);
 
   const selected = snap.subtitleTracks.find((t) => t.selected) ?? null;
   const selectedSynced = isSyncedTrack(selected);
@@ -166,7 +173,7 @@ export function useAutoSync(params: {
       selectedLanguage: selected.lang,
     });
   const runKey = selectedSynced
-    ? doneKeyRef.current
+    ? doneKey
     : ready && selected
       ? autoSyncRunKey(mediaKey, selected.id)
       : null;
@@ -373,13 +380,15 @@ export function useAutoSync(params: {
       activeDisposeRef.current?.();
 
       doneKeyRef.current = key;
-      const statusScope = { mediaKey: activeMediaKey, trackId: activeSelected.id };
-      statusScopeRef.current = statusScope;
+      setDoneKey(key);
+      const runScope = { mediaKey: activeMediaKey, trackId: activeSelected.id };
+      statusScopeRef.current = runScope;
+      setStatusScope(runScope);
       appliedRef.current = {
         transform: null,
         originalTrackId: activeSelected.id,
         subDelayBefore: activeSnap.subDelaySec,
-        scope: statusScope,
+        scope: runScope,
         changed: false,
       };
       bestScoreRef.current = -1;
@@ -392,7 +401,7 @@ export function useAutoSync(params: {
         async () => {
           const b = bridgeRef.current;
           if (!b) return;
-          try {
+          const work = async () => {
             const cues = await loadCues(b);
             if (cancelled.current) return;
             if (!cues || cues.length < MIN_CUES) {
@@ -411,10 +420,10 @@ export function useAutoSync(params: {
               allowStructuralAutoApply: settingsRef.current.autoSyncApplyStructural,
             });
             const applyAndCapture = (o: PipelineOutcome) => {
-              handleOutcome(o, cues, fmt, cancelled, statusScope);
+              handleOutcome(o, cues, fmt, cancelled, runScope);
               if (
                 !cancelled.current &&
-                isCurrentAutoSyncScope(statusScope) &&
+                isCurrentAutoSyncScope(runScope) &&
                 o.candidate &&
                 o.candidate.kind === "affine" &&
                 o.decision.decision !== "refuse"
@@ -431,13 +440,14 @@ export function useAutoSync(params: {
               return async (base: PipelineOutcome): Promise<PipelineOutcome> => {
                 if (base.decision.decision === "apply") return base;
                 try {
-                  pivotPromise ??= runExperimentalPivotAutoSync({
-                    ctx,
-                    ports,
-                    settings: settingsRef.current,
-                    src: active,
-                    authKey,
-                  });
+                  if (!pivotPromise)
+                    pivotPromise = runExperimentalPivotAutoSync({
+                      ctx,
+                      ports,
+                      settings: settingsRef.current,
+                      src: active,
+                      authKey,
+                    });
                   return preferAutoSyncOutcome(base, await pivotPromise);
                 } catch (error) {
                   dwarn("[auto-sync/pivot] experimental pivot failed", error);
@@ -482,13 +492,14 @@ export function useAutoSync(params: {
               retryRef.current = () => void runDirect(true);
               await runDirect(force);
             }
-          } catch (e) {
+          };
+          await work().catch((e) => {
             dwarn("[auto-sync] failed", e);
             if (!cancelled.current) setStatus("error");
-          }
+          });
         },
         cancelled,
-        () => isCurrentAutoSyncScope(statusScope),
+        () => isCurrentAutoSyncScope(runScope),
       );
 
       const dispose = () => {
@@ -513,11 +524,7 @@ export function useAutoSync(params: {
     ],
   );
 
-  const selKey = selectedSynced
-    ? doneKeyRef.current
-    : selected
-      ? autoSyncRunKey(mediaKey, selected.id)
-      : null;
+  const selKey = selectedSynced ? doneKey : selected ? autoSyncRunKey(mediaKey, selected.id) : null;
   useEffect(() => {
     if (!runKey) return () => activeDisposeRef.current?.();
     const snapSel = liveSnapRef.current.subtitleTracks.find((t) => t.selected) ?? null;
@@ -554,6 +561,7 @@ export function useAutoSync(params: {
       changed: false,
     };
     statusScopeRef.current = null;
+    setStatusScope(null);
     bestScoreRef.current = -1;
     setOffer(null);
     setStatus("idle");
@@ -591,6 +599,7 @@ export function useAutoSync(params: {
     activeDisposeRef.current?.();
     stopDrift();
     statusScopeRef.current = null;
+    setStatusScope(null);
     setOffer(null);
     setStatus("idle");
   }, [stopDrift]);
@@ -652,7 +661,7 @@ export function useAutoSync(params: {
     startDrift,
   ]);
 
-  const scopeCurrent = isAutoSyncScopeCurrent(statusScopeRef.current, {
+  const scopeCurrent = isAutoSyncScopeCurrent(statusScope, {
     mediaKey,
     trackId: selected?.id ?? null,
     syncedTrack: selectedSynced,

@@ -2,7 +2,7 @@ import { GameNotesButton } from "./game-notes-launcher";
 import { HydraOriginalSettings } from "./game-hydra-settings";
 import { GamePlayButton } from "./game-play-button";
 import { GameExecutionPermission } from "./game-execution-permission";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   Check,
@@ -53,17 +53,20 @@ import { CustomLaunchSetup, CustomLaunchStatus } from "./game-custom-launch-heal
 import { customLaunchHealth, relocateCustomExecutable } from "@/lib/games/custom-launch-health";
 import "./game-custom-library.css";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 export function CustomPlayButton({
   game,
   library,
   active = true,
-  name = game.name,
+  name: nameProp,
 }: {
   game: CustomGame;
   library: CustomGameLibrary;
   active?: boolean;
   name?: string;
 }) {
+  const name = nameProp === undefined ? game.name : nameProp;
   const t = useT(),
     running = library.running.some((p) => p.id === game.id),
     busy = library.busy.includes(game.id);
@@ -531,7 +534,9 @@ function CustomGameEditor({
       setPlaytimeEditing(!!handler);
     }, []);
   const closeHandler = useRef(onClose);
-  closeHandler.current = onClose;
+  useLayoutEffect(() => {
+    closeHandler.current = onClose;
+  }, [onClose]);
   const finishClose = useCallback(() => closeHandler.current(), []);
   const { closing, close } = useModalExit(finishClose);
   const [id] = useState(() => game?.id ?? crypto.randomUUID()),
@@ -599,8 +604,8 @@ function CustomGameEditor({
     if (busy) return;
     setChoosing(true);
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const path = await open({
         multiple: false,
         directory: ["workingDirectory", "prefix", "steamDirectory"].includes(field),
@@ -617,17 +622,20 @@ function CustomGameEditor({
         );
         if (field === "executable" && !name.trim()) setName(customGameName(path));
       }
-    } catch {
-      if (live.current) setError("games.custom.launch_path");
-    } finally {
-      if (live.current) setChoosing(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (live.current) setError("games.custom.launch_path");
+      })
+      .finally(() => {
+        if (live.current) setChoosing(false);
+      });
   };
   const save = async () => {
     if (busy || !name.trim()) return;
     setSaving(true);
     setError("");
-    try {
+    const work = async () => {
       const value: CustomGame = {
         id,
         name: name.trim(),
@@ -641,11 +649,14 @@ function CustomGameEditor({
         measuredSeconds: game?.measuredSeconds ?? 0,
       };
       if (await library.save(value)) close();
-    } catch {
-      setError("games.custom.launch_arguments");
-    } finally {
-      if (live.current) setSaving(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError("games.custom.launch_arguments");
+      })
+      .finally(() => {
+        if (live.current) setSaving(false);
+      });
   };
   const pathField = (
     field: "executable" | "workingDirectory" | "runner" | "prefix" | "steamDirectory",

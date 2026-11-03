@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, Search, X } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { RomStudioFilter } from "./rom-studio-filter";
@@ -132,10 +132,11 @@ export function GameConsolePage({
   const library = useMemo(
     () => [
       ...new Map(
-        [...(popular.page?.games ?? []), ...(rated.page?.games ?? []), ...games].map((game) => [
-          game.igdbId,
-          game,
-        ]),
+        [
+          ...(popular.page?.games ?? []),
+          ...(rated.page?.games ?? []),
+          ...(catalog.page?.games ?? []),
+        ].map((game) => [game.igdbId, game]),
       ).values(),
     ],
     [popular.page, rated.page, catalog.page],
@@ -154,7 +155,10 @@ export function GameConsolePage({
     (game) => game.screenshots.length > 0 || (game.hero && game.hero !== game.portrait),
   );
   const more = useRef(catalog.more);
-  more.current = catalog.more;
+  const catalogMore = catalog.more;
+  useLayoutEffect(() => {
+    more.current = catalogMore;
+  }, [catalogMore]);
   useEffect(() => {
     const node = catalogRoot.current;
     if (!active || !node) return;

@@ -49,6 +49,7 @@ const folderName = (path: string) =>
     .join(" / ");
 const loaderName = (name: string) =>
   name === "neoforge" ? "NeoForge" : name[0].toUpperCase() + name.slice(1);
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
 async function external(url: string) {
   const { openUrl } = await import("@tauri-apps/plugin-opener");
   await openUrl(url);
@@ -186,7 +187,7 @@ export function GameMods({
       return;
     }
     if (bound) setConnecting(true);
-    try {
+    const work = async () => {
       if (bound) {
         const value = await invoke<MinecraftContentState>("games_minecraft_content", {
           profile,
@@ -211,14 +212,17 @@ export function GameMods({
           setWorkspaceError("");
         }
       }
-    } catch (reason) {
-      if (mounted.current && request === revision.current) {
-        setWorkspace(null);
-        setWorkspaceError(modError(reason));
-      }
-    } finally {
-      if (mounted.current && request === revision.current) setConnecting(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current && request === revision.current) {
+          setWorkspace(null);
+          setWorkspaceError(modError(reason));
+        }
+      })
+      .finally(() => {
+        if (mounted.current && request === revision.current) setConnecting(false);
+      });
   };
   useEffect(() => {
     let disposed = false;
@@ -235,8 +239,8 @@ export function GameMods({
     pending.current = true;
     setBusy("folder");
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const folder = await open({
         directory: true,
         multiple: false,
@@ -253,12 +257,15 @@ export function GameMods({
       setFolders(saveModFolder(profile, { path: folder, loader, game }));
       setWorkspace(value);
       setPath(folder);
-    } catch (reason) {
-      if (mounted.current) setError(modError(reason));
-    } finally {
-      pending.current = false;
-      if (mounted.current) setBusy("");
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current) setError(modError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (mounted.current) setBusy("");
+      });
   };
   const action = async (p: ModPackage, action: "enable" | "disable" | "remove" | "rollback") => {
     if (pending.current) return false;
@@ -266,7 +273,7 @@ export function GameMods({
     setBusy(p.project);
     setError("");
     setNotice("");
-    try {
+    const work = async () => {
       const value = await invoke<ModWorkspace>("games_mod_action", {
         profile,
         path,
@@ -285,13 +292,16 @@ export function GameMods({
           );
       }
       return true;
-    } catch (reason) {
-      if (mounted.current) setError(modError(reason));
-      return false;
-    } finally {
-      pending.current = false;
-      if (mounted.current) setBusy("");
-    }
+    };
+    return await work()
+      .catch((reason) => {
+        if (mounted.current) setError(modError(reason));
+        return false;
+      })
+      .finally(() => {
+        pending.current = false;
+        if (mounted.current) setBusy("");
+      });
   };
   const environment = (next: Partial<ModFolder>) => {
     revision.current++;
@@ -743,7 +753,7 @@ function ModDialog({
     operation.current = crypto.randomUUID();
     setBusy(plan ? "install" : "review");
     setError("");
-    try {
+    const work = async () => {
       if (plan) {
         const held = token.current;
         token.current = "";
@@ -769,19 +779,22 @@ function ModDialog({
           setPlan(value);
         } else void invoke("games_discard_mods", { profile, token: value.token }).catch(() => {});
       }
-    } catch (reason) {
-      if (mounted.current) {
-        setError(modError(reason));
-        if (!token.current) setPlan(null);
-      }
-    } finally {
-      pending.current = false;
-      operation.current = "";
-      if (mounted.current) {
-        setBusy("");
-        setProgress(null);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current) {
+          setError(modError(reason));
+          if (!token.current) setPlan(null);
+        }
+      })
+      .finally(() => {
+        pending.current = false;
+        operation.current = "";
+        if (mounted.current) {
+          setBusy("");
+          setProgress(null);
+        }
+      });
   };
   useEffect(() => {
     if (error) root.current?.querySelector('[role="alert"]')?.scrollIntoView({ block: "nearest" });

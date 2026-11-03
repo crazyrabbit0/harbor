@@ -215,6 +215,7 @@ function HdrOverlayChrome() {
         shellSnap={snap}
         snapRef={snapRef}
         bridgeRef={bridgeRef}
+        bridge={bridge}
         engine={payload.engine}
         visible={payload.visible}
         fullscreen={payload.fullscreen}

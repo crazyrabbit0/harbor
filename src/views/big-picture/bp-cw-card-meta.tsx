@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore, type RefObject } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type RefObject,
+} from "react";
 import { Check, Clock } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import simklLogo from "@/assets/simkl.png";
@@ -174,7 +182,9 @@ function useCwLogoAndTitle(
   const [logo, setLogo] = useState<string | undefined>(() => peekCachedLogo(tmdbKey, shell));
   const [episodeTitle, setEpisodeTitle] = useState("");
   const itemRef = useRef(item);
-  itemRef.current = item;
+  useLayoutEffect(() => {
+    itemRef.current = item;
+  }, [item]);
 
   useEffect(() => {
     setLogo(peekCachedLogo(tmdbKey, shell));

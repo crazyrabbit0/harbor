@@ -21,15 +21,13 @@ export function useNotifications() {
       return;
     }
     setLoading(true);
-    try {
-      const d = await listNotifications();
-      setItems(d.notifications);
-      setUnread(d.unread);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(false);
-    }
+    await listNotifications()
+      .then((d) => {
+        setItems(d.notifications);
+        setUnread(d.unread);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
@@ -57,11 +55,7 @@ export function useNotifications() {
     if (!unread) return;
     setUnread(0);
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    try {
-      await markNotificationsRead();
-    } catch {
-      /* ignore */
-    }
+    await markNotificationsRead().catch(() => {});
   }, [unread]);
 
   return { items, unread, loading, authed, refresh, markAllRead };

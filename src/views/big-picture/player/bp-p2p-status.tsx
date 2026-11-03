@@ -131,8 +131,7 @@ export function useBpP2pStatus(params: {
   // from whatever the caller already fetched. It has no terminal failure state,
   // but it still needs a clock: the "still looking" note is gated on elapsed
   // time and would otherwise never appear on this path.
-  const relayStartRef = useRef(0);
-  if (relayStartRef.current === 0) relayStartRef.current = Date.now();
+  const [relayStart] = useState(() => Date.now());
   const relayed = useMemo<Sample>(() => {
     if (!torrent || !stats) return IDLE;
     const peers = stats.unchoked > 0 ? stats.unchoked : stats.peers;
@@ -143,9 +142,9 @@ export function useBpP2pStatus(params: {
       downloaded: stats.downloaded,
       total: stats.streamLen,
       readiness: readinessScore(stats, true),
-      elapsedMs: Date.now() - relayStartRef.current,
+      elapsedMs: Date.now() - relayStart,
     };
-  }, [torrent, stats]);
+  }, [torrent, stats, relayStart]);
 
   const retry = useCallback(() => setAttempt((a) => a + 1), []);
   const current = live ? sample : relayed;

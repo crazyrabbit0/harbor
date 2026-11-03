@@ -16,6 +16,7 @@ import { useBpAutoPage } from "./use-bp-auto-page";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
 import { bpAwardDetail } from "./use-bp-discover";
 import { resolveBpAwardWork } from "./use-bp-award-work";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const ALL = "all";
 const COLUMNS = "repeat(auto-fill, minmax(clamp(240px, 22vw, 420px), 1fr))";
@@ -41,7 +42,10 @@ export function BpAward({
 }) {
   const t = useBpT();
   const awardsV = useBundledAwardsVersion();
-  const detail = useMemo(() => bpAwardDetail(awardType), [awardsV, awardType]);
+  const detail = useMemo(
+    () => readAtVersion(awardsV, () => bpAwardDetail(awardType)),
+    [awardsV, awardType],
+  );
   const [decade, setDecade] = useState<number | null>(null);
   const [categoryKey, setCategoryKey] = useState<string>(ALL);
   const tint = bpAwardTint(awardType);
@@ -274,8 +278,9 @@ function BpAwardWinner({
     }
     setBusy(true);
     setMissing(false);
-    try {
-      const hit = await resolveBpAwardWork(settings.tmdbKey, entry.workTitle, entry.year, preferTv);
+    const tmdbKey = settings.tmdbKey;
+    const lookup = async () => {
+      const hit = await resolveBpAwardWork(tmdbKey, entry.workTitle, entry.year, preferTv);
       if (hit) {
         open({
           id: `tmdb:${hit.type}:${hit.id}`,
@@ -285,9 +290,8 @@ function BpAwardWinner({
       } else {
         setMissing(true);
       }
-    } finally {
-      setBusy(false);
-    }
+    };
+    await lookup().finally(() => setBusy(false));
   };
 
   // Still focusable with no key: every keyless winner would drop out at once,

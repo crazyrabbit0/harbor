@@ -1,5 +1,5 @@
 import { SliderRow } from "../theme-panel/display-section";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import harborStyleImg from "@/assets/onboarding/harborstyle.webp";
 import traditionalStyleImg from "@/assets/onboarding/traditional.webp";
 import simklLogo from "@/assets/simkl.png";
@@ -442,7 +442,7 @@ function ClearSnapshotsButton() {
   const [count, setCount] = useState<number>(() => snapshotCount());
   const [confirming, setConfirming] = useState(false);
   const [spent, setSpent] = useState(false);
-  const startedEmpty = useRef(count === 0).current;
+  const [startedEmpty] = useState(count === 0);
   useEffect(() => {
     if (!confirming) return;
     const timer = window.setTimeout(() => setConfirming(false), 4000);

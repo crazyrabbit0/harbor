@@ -30,6 +30,7 @@ import { SuwayomiWorkspace } from "./manga-sources-panel/suwayomi/suwayomi-works
 import { listServers, subscribeServers } from "./manga-sources-panel/suwayomi/servers-store";
 import { sourceMatchesServer } from "@/lib/manga/sources/suwayomi/server-link";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const loadDialog = () => import("@tauri-apps/plugin-dialog");
 
@@ -284,18 +285,26 @@ export function MangaSourcesView({
 
   useEffect(() => subscribeServers(() => setTick((n) => n + 1)), []);
 
-  const customs = useMemo(() => {
-    const servers = listServers();
-    return listMangaSources().filter(
-      (s) =>
-        !s.builtin &&
-        s.id !== "all" &&
-        !(
-          s.kind === "suwayomi" && servers.some((sv) => sourceMatchesServer(s.baseUrl, sv.baseUrl))
-        ),
-    );
-  }, [tick]);
-  const total = useMemo(() => listMangaSources().filter((s) => s.id !== "all").length, [tick]);
+  const customs = useMemo(
+    () =>
+      readAtVersion(tick, () => {
+        const servers = listServers();
+        return listMangaSources().filter(
+          (s) =>
+            !s.builtin &&
+            s.id !== "all" &&
+            !(
+              s.kind === "suwayomi" &&
+              servers.some((sv) => sourceMatchesServer(s.baseUrl, sv.baseUrl))
+            ),
+        );
+      }),
+    [tick],
+  );
+  const total = useMemo(
+    () => readAtVersion(tick, () => listMangaSources().filter((s) => s.id !== "all").length),
+    [tick],
+  );
 
   const prevIds = useRef<Set<string>>(new Set(customs.map((s) => s.id)));
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());

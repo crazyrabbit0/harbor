@@ -217,7 +217,7 @@ export function GameCloudDialog({
     setResolving(entry.id);
     setError("");
     downloads.dismissError();
-    try {
+    const work = async () => {
       const value = await invoke<CloudFileDownload>(
         jobs && !folder ? `${jobCommand}_download` : "games_cloud_download",
         { args: { provider, key, parent, file: entry.id } },
@@ -228,14 +228,17 @@ export function GameCloudDialog({
           body.current?.querySelector<HTMLElement>(".games-cloud-save")?.focus(),
         );
       }
-    } catch (reason) {
-      if (alive.current && current === revision.current) setError(cloudError(reason));
-    } finally {
-      if (alive.current && current === revision.current) {
-        setResolving("");
-        pending.current = false;
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current && current === revision.current) setError(cloudError(reason));
+      })
+      .finally(() => {
+        if (alive.current && current === revision.current) {
+          setResolving("");
+          pending.current = false;
+        }
+      });
   };
   const matches =
     result?.entries.filter((entry) =>

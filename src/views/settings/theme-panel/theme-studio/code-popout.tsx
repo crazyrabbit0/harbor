@@ -1,5 +1,5 @@
 import { BookOpen, Check, Copy, Download, Play, Redo2, Undo2, X } from "../../icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CodeEditor, type CodeLang } from "@/components/code-editor";
 import { downloadText } from "@/lib/download-text";
@@ -54,7 +54,9 @@ export function CodePopout({
     window.setTimeout(onClose, 150);
   };
   const closeRef = useRef(requestClose);
-  closeRef.current = requestClose;
+  useLayoutEffect(() => {
+    closeRef.current = requestClose;
+  });
 
   useEffect(() => {
     if (tvNav && doneRef.current) tvFocus(doneRef.current);
