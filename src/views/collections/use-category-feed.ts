@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { tmdbCollection, tmdbSearchCollections, type TmdbCollection } from "@/lib/providers/tmdb";
 
 const FEED_QUERY = "collection";
@@ -75,7 +75,6 @@ export function useCategoryFeed(params: {
   const loadingRef = useRef(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
   const doneRef = useRef(false);
-  doneRef.current = done;
   const runRef = useRef(0);
   const nearRef = useRef(false);
   const autoRef = useRef(0);
@@ -159,7 +158,10 @@ export function useCategoryFeed(params: {
       pullRef.current();
     }, RECHECK_MS);
   }, [tmdbKey, category, excludeNames, stripSuffix]);
-  pullRef.current = () => void pull();
+  useLayoutEffect(() => {
+    doneRef.current = done;
+    pullRef.current = () => void pull();
+  }, [done, pull]);
 
   // Armed against the sentinel ELEMENT and the feed identity, never against the
   // paging state. Keyed on `tick` it was rebuilt after every settled pull, and a

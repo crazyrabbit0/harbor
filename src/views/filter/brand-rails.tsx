@@ -108,6 +108,16 @@ export function LongestRunningRail({ stats, name }: { stats: BrandStats; name: s
   );
 }
 
+function decadeParams(browseKey: string, browseId: string, dateKey: string, decade: number) {
+  return {
+    [browseKey]: browseId,
+    [`${dateKey}.gte`]: `${decade}-01-01`,
+    [`${dateKey}.lte`]: `${decade + 9}-12-31`,
+    sort_by: "popularity.desc",
+    "vote_count.gte": "20",
+  };
+}
+
 export function DecadesSection({ filter, stats }: { filter: Browsed; stats: BrandStats }) {
   const t = useT();
   const firstYear = stats.first?.year ?? null;
@@ -130,13 +140,7 @@ export function DecadesSection({ filter, stats }: { filter: Browsed; stats: Bran
       id: `decade-${active}`,
       title: `${active}s`,
       kicker: "Through the decades",
-      params: {
-        [browseDiscoverKey(filter.kind)]: String(browseId),
-        [`${dateKey}.gte`]: `${active}-01-01`,
-        [`${dateKey}.lte`]: `${active + 9}-12-31`,
-        sort_by: "popularity.desc",
-        "vote_count.gte": "20",
-      },
+      params: decadeParams(browseDiscoverKey(filter.kind), String(browseId), dateKey, active),
       noDedup: true,
     };
   }, [active, filter.kind, browseId, filter.mediaType]);

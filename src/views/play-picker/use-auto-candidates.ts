@@ -15,6 +15,11 @@ import { hasInstantMarker, isWatchHub, needsDownload, streamMatchesLangs } from 
 import { titleTokensPresent } from "@/lib/streams/trust";
 import { episodeSpanContains } from "@/lib/episode-span";
 
+// Marks a candidate whose release name lacks the title; the sort and auto-fire read the flag.
+function flagNameAbsent(s: ScoredStream, absent: boolean) {
+  s.nameAbsent = absent;
+}
+
 const RES_PREF: Record<string, number> = { "1080p": 0, "720p": 1, "480p": 2, "4K": 3, SD: 4 };
 const LIKELY_PACK_BYTES = 12 * 1024 * 1024 * 1024;
 
@@ -112,7 +117,7 @@ export function useAutoCandidates(args: {
     const previousMatch = previousPlayback
       ? (filteredPicker.allRaw.find((s) => streamMatchesEntry(s, previousPlayback)) ?? null)
       : null;
-    for (const s of filteredPicker.all) s.nameAbsent = !nameKnown(s);
+    for (const s of filteredPicker.all) flagNameAbsent(s, !nameKnown(s));
     const sorted = filteredPicker.all.slice().sort((a, b) => {
       if (matchScores) {
         const dm = (matchScores.get(b) ?? 0) - (matchScores.get(a) ?? 0);
@@ -162,7 +167,7 @@ export function useAutoCandidates(args: {
     const seen = new Set<string>();
     const push = (s: ScoredStream | null | undefined) => {
       if (!s) return;
-      s.nameAbsent = !nameKnown(s);
+      flagNameAbsent(s, !nameKnown(s));
       if (isStreamDead(s)) return;
       if (isWatchHub(s)) return;
       if (episodeConflict(s)) return;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { GamepadCursor } from "@/components/gamepad-cursor";
 import { tvHover } from "@/lib/keyboard-navigation";
@@ -59,9 +59,7 @@ export function GamepadRunner() {
   const axes = useRef(live.axes);
   const active = useRef(false);
   const cursorEnabled = useRef(settings.controllerCursorEnabled);
-  cursorEnabled.current = settings.controllerCursorEnabled;
   const cursorHideMs = useRef(settings.controllerCursorHideMs);
-  cursorHideMs.current = settings.controllerCursorHideMs;
   const lastActivity = useRef(0);
   const hovered = useRef<HTMLElement>(null);
   const hoverPath = useRef<HTMLElement[]>([]);
@@ -70,8 +68,12 @@ export function GamepadRunner() {
   const pads = useGamepads();
   const captured = useGamepadCapture();
   const capturedRef = useRef(captured);
-  capturedRef.current = captured;
-  axes.current = live.axes;
+  useLayoutEffect(() => {
+    cursorEnabled.current = settings.controllerCursorEnabled;
+    cursorHideMs.current = settings.controllerCursorHideMs;
+    capturedRef.current = captured;
+    axes.current = live.axes;
+  }, [settings.controllerCursorEnabled, settings.controllerCursorHideMs, captured, live.axes]);
 
   // Mirroring every :hover rule means walking every rule in every stylesheet. These styles
   // only do anything once a pad is driving hover, and re-running the walk per inserted

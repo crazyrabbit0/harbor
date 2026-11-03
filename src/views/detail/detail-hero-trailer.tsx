@@ -8,6 +8,10 @@ import { useT } from "@/lib/i18n";
 
 const VIDEO_CLASS = "absolute inset-0 h-full w-full object-cover";
 
+function setVideoMuted(v: HTMLVideoElement, muted: boolean) {
+  v.muted = muted;
+}
+
 export function DetailHeroTrailer({
   candidateId,
   paused = false,
@@ -46,7 +50,7 @@ export function DetailHeroTrailer({
 
   useEffect(() => {
     const v = video.current;
-    if (v) v.muted = muted;
+    if (v) setVideoMuted(v, muted);
   }, [muted, ready, video]);
 
   useEffect(() => {
@@ -55,7 +59,7 @@ export function DetailHeroTrailer({
     if (wantsPlayback && ready) {
       v.play().catch(() => {
         if (!v.muted) {
-          v.muted = true;
+          setVideoMuted(v, true);
           setMuted(true);
           v.play().catch(() => {});
         }

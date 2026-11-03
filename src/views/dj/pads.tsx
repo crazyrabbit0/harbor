@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Plus, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { Knob } from "./controls";
@@ -23,9 +23,13 @@ export function SamplePads({ gain, onGain }: { gain: number; onGain: (gain: numb
   const picking = useRef<number>(0);
   const input = useRef<HTMLInputElement>(null);
   const level = useRef(gain);
-  level.current = gain;
+  useLayoutEffect(() => {
+    level.current = gain;
+  }, [gain]);
   const loaded = useRef(pads);
-  loaded.current = pads;
+  useLayoutEffect(() => {
+    loaded.current = pads;
+  }, [pads]);
 
   useEffect(() => {
     let live = true;

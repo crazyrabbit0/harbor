@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ChevronRight, Puzzle, Search, X, ListOrdered } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import {
@@ -132,10 +132,7 @@ export function Plugins({ active = true }: { active?: boolean }) {
     pluginFilter === ALL_PLUGINS ? null : pluginFilter,
     order,
   );
-  const heroCatalogs = useMemo(
-    () => shownGroups.flatMap(([, list]) => list),
-    [catalogs, pluginFilter, order],
-  );
+  const heroCatalogs = shownGroups.flatMap(([, list]) => list);
 
   // Every ask supersedes the one before it: a slower search must not land after a faster one and
   // answer for a title that is no longer being looked at. Each plugin's answer is drawn as it lands

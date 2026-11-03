@@ -35,6 +35,21 @@ import {
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
 
+// Keyed on the manual-watched store version so a compiled memo recomputes when the store changes.
+function readAtVersion<T>(_version: number, read: () => T): T {
+  return read();
+}
+
+function isEpisodeWatched(
+  metaId: string,
+  stremioWatched: Set<string> | undefined,
+  season: number,
+  number: number,
+): boolean {
+  const st = manualWatchedState(metaId, season, number);
+  return st === true || (st === undefined && (stremioWatched?.has(`${season}:${number}`) ?? false));
+}
+
 export function CinemetaEpisodes({
   meta,
   videos,
@@ -63,15 +78,19 @@ export function CinemetaEpisodes({
     setWatchedMenu({ x: e.clientX, y: e.clientY, season, episode, watched });
   };
   const grouped = useMemo(() => groupEpisodes(videos), [videos]);
-  const combinedWatched = useMemo(() => {
-    const watched = new Set(stremioWatched ?? []);
-    const manual = manualEpisodeKeys(meta.id);
+  const combinedWatched = useMemo(
+    () =>
+      readAtVersion(mwVersion, () => {
+        const watched = new Set(stremioWatched ?? []);
+        const manual = manualEpisodeKeys(meta.id);
 
-    for (const key of manual.watched) watched.add(key);
-    for (const key of manual.unwatched) watched.delete(key);
+        for (const key of manual.watched) watched.add(key);
+        for (const key of manual.unwatched) watched.delete(key);
 
-    return watched;
-  }, [meta.id, stremioWatched, mwVersion]);
+        return watched;
+      }),
+    [meta.id, stremioWatched, mwVersion],
+  );
   const seasonStats = useMemo(
     () =>
       grouped.map((group) => ({
@@ -114,19 +133,22 @@ export function CinemetaEpisodes({
 
   const activeEps = grouped.find((g) => g.seasonNumber === active)?.episodes ?? [];
 
-  const watchedAt = (season: number, number: number): boolean => {
-    const st = manualWatchedState(meta.id, season, number);
-    return (
-      st === true || (st === undefined && (stremioWatched?.has(`${season}:${number}`) ?? false))
-    );
-  };
+  const watchedAt = (season: number, number: number): boolean =>
+    isEpisodeWatched(meta.id, stremioWatched, season, number);
 
-  const autoScrollTarget = useMemo<AutoScrollTarget>(() => {
-    const idx = activeEps.findIndex((ep, i) => !watchedAt(episodeSeason(ep), episodeNumber(ep, i)));
-    if (idx < 0) return null;
-    return { episode: episodeNumber(activeEps[idx], idx), first: idx === 0 };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeEps, meta.id, stremioWatched, mwVersion]);
+  const metaId = meta.id;
+  const autoScrollTarget = useMemo<AutoScrollTarget>(
+    () =>
+      readAtVersion(mwVersion, () => {
+        const idx = activeEps.findIndex(
+          (ep, i) =>
+            !isEpisodeWatched(metaId, stremioWatched, episodeSeason(ep), episodeNumber(ep, i)),
+        );
+        if (idx < 0) return null;
+        return { episode: episodeNumber(activeEps[idx], idx), first: idx === 0 };
+      }),
+    [activeEps, metaId, stremioWatched, mwVersion],
+  );
   const markPicked = useEpisodeAutoScroll({
     scrollRef,
     scopeKey: meta.id,

@@ -1,4 +1,4 @@
-import { memo, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   Check,
   ChevronRight,
@@ -106,6 +106,11 @@ export const Hero = memo(function Hero({
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoResolved, setLogoResolved] = useState<boolean>(!!meta.logo);
   const sectionRef = useRef<HTMLElement>(null);
+  // Logo/backdrop effects key on meta fields, not the meta object; they read the rest from here.
+  const metaRef = useRef(meta);
+  useLayoutEffect(() => {
+    metaRef.current = meta;
+  }, [meta]);
   const [visibleRatio, setVisibleRatio] = useState(1);
   const [lingered, setLingered] = useState(false);
   const omdb = useOmdbScores(resolvedImdb ?? undefined);
@@ -166,13 +171,12 @@ export const Hero = memo(function Hero({
   useEffect(() => {
     // peekCachedLogo, not meta.logo: when the image language is not English the
     // meta's own (English) logo is not final, and must be re-resolved below.
-    const seed = peekCachedLogo(settings.tmdbKey, meta);
+    const seed = peekCachedLogo(settings.tmdbKey, metaRef.current);
     setLogo(seed);
     setLogoLoaded(false);
     setLogoResolved(!!seed);
     setBgUrl(meta.background);
     setBgResolved(!!meta.background);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meta.id, meta.logo, meta.background, settings.tmdbKey]);
 
   useEffect(() => {
@@ -182,7 +186,7 @@ export const Hero = memo(function Hero({
       // resolveLogo honours the configured image languages for tt ids too, by
       // mapping them to a TMDB id first. Resolving it here rather than inline
       // is what keeps Cinemeta's English logo from winning on those.
-      resolveLogo(settings.tmdbKey, meta)
+      resolveLogo(settings.tmdbKey, metaRef.current)
         .then((l) => {
           if (cancelled) return;
           setLogo(l);
@@ -208,7 +212,6 @@ export const Hero = memo(function Hero({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [logoResolved, bgResolved, meta.id, meta.type, settings.tmdbKey]);
 
   useEffect(() => {

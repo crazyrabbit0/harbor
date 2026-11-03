@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { useViewActions } from "@/lib/view";
 import { useSettingsSelector } from "@/lib/settings";
@@ -34,6 +34,7 @@ type NativeModule = {
     onIntent: (message: Intent) => void;
   }) => Promise<Runtime>;
 };
+const loadNativeModule = (url: string) => import(/* @vite-ignore */ url) as Promise<NativeModule>;
 type SpooktoberViewProps = {
   active: boolean;
   onBack: () => void;
@@ -66,7 +67,10 @@ function SpooktoberContent({ active, onBack, playlistRequest, entryToken }: Spoo
   const [attempt, setAttempt] = useState(0);
   const isVisible = active && !playlist;
   const visibility = useRef(isVisible);
-  visibility.current = isVisible;
+  useLayoutEffect(() => {
+    visibility.current = isVisible;
+  }, [isVisible]);
+  const [shadowRoot, setShadowRoot] = useState<ShadowRoot | null>(null);
   useEffect(() => {
     if (playlistRequest) setPlaylist(playlistRequest.id);
   }, [playlistRequest]);
@@ -82,76 +86,79 @@ function SpooktoberContent({ active, onBack, playlistRequest, entryToken }: Spoo
   useSectionBack(back, active && !playlist);
 
   const onIntent = useRef<(message: Intent) => void>(() => {});
-  onIntent.current = (message) => {
-    if (!visibility.current) return;
-    if (message.intent === "back") {
-      onBack();
-      return;
-    }
-    if (message.intent === "reload") {
-      setAttempt((value) => value + 1);
-      return;
-    }
-    if (message.intent === "playlist" && message.id && SPOOKTOBER_PLAYLISTS.has(message.id)) {
-      const focused = host.current?.shadowRoot?.activeElement;
-      playlistReturnFocus.current = focused instanceof HTMLElement ? focused : null;
-      setPlaylist(message.id);
-      return;
-    }
-    if (
-      message.intent === "external" &&
-      typeof message.url === "string" &&
-      /^https?:\/\//i.test(message.url)
-    ) {
-      void openExternalUrlStrict(message.url).catch(() => setLinkFailed(true));
-      return;
-    }
-    const item = message.item;
-    if (!item || typeof item !== "object") return;
-    const title = text(item, "title");
-    if (!title) return;
-    if (message.intent === "meta") {
-      const id = text(item, "imdbId");
-      if (!/^tt\d{5,12}$/.test(id)) return;
-      openMeta({
-        id,
-        name: title,
-        type: item.type === "Series" ? "series" : "movie",
-        poster: text(item, "poster"),
-        description: text(item, "description"),
-        releaseInfo: String(item.year ?? ""),
-        genres: Array.isArray(item.genres)
-          ? item.genres.filter((value): value is string => typeof value === "string")
-          : undefined,
-      });
-    } else if (message.intent === "video" && /^[\w-]{11}$/.test(text(item, "id"))) {
-      playVideo(
-        spooktoberVideoToTrack({
-          id: text(item, "id"),
-          title,
-          artist: text(item, "artist"),
-          image: text(item, "image"),
-        }),
-      );
-    } else if (message.intent === "track" && text(item, "id") && text(item, "creator")) {
-      play(
-        spooktoberSongToTrack({
-          id: text(item, "id"),
-          title,
-          creator: text(item, "creator"),
-          album: text(item, "album"),
+  useLayoutEffect(() => {
+    onIntent.current = (message) => {
+      if (!visibility.current) return;
+      if (message.intent === "back") {
+        onBack();
+        return;
+      }
+      if (message.intent === "reload") {
+        setAttempt((value) => value + 1);
+        return;
+      }
+      if (message.intent === "playlist" && message.id && SPOOKTOBER_PLAYLISTS.has(message.id)) {
+        const focused = host.current?.shadowRoot?.activeElement;
+        playlistReturnFocus.current = focused instanceof HTMLElement ? focused : null;
+        setPlaylist(message.id);
+        return;
+      }
+      if (
+        message.intent === "external" &&
+        typeof message.url === "string" &&
+        /^https?:\/\//i.test(message.url)
+      ) {
+        void openExternalUrlStrict(message.url).catch(() => setLinkFailed(true));
+        return;
+      }
+      const item = message.item;
+      if (!item || typeof item !== "object") return;
+      const title = text(item, "title");
+      if (!title) return;
+      if (message.intent === "meta") {
+        const id = text(item, "imdbId");
+        if (!/^tt\d{5,12}$/.test(id)) return;
+        openMeta({
+          id,
+          name: title,
+          type: item.type === "Series" ? "series" : "movie",
           poster: text(item, "poster"),
-          duration: Number(item.duration) || 0,
-          explicit: item.explicit === true,
-        }),
-      );
-    }
-  };
+          description: text(item, "description"),
+          releaseInfo: String(item.year ?? ""),
+          genres: Array.isArray(item.genres)
+            ? item.genres.filter((value): value is string => typeof value === "string")
+            : undefined,
+        });
+      } else if (message.intent === "video" && /^[\w-]{11}$/.test(text(item, "id"))) {
+        playVideo(
+          spooktoberVideoToTrack({
+            id: text(item, "id"),
+            title,
+            artist: text(item, "artist"),
+            image: text(item, "image"),
+          }),
+        );
+      } else if (message.intent === "track" && text(item, "id") && text(item, "creator")) {
+        play(
+          spooktoberSongToTrack({
+            id: text(item, "id"),
+            title,
+            creator: text(item, "creator"),
+            album: text(item, "album"),
+            poster: text(item, "poster"),
+            duration: Number(item.duration) || 0,
+            explicit: item.explicit === true,
+          }),
+        );
+      }
+    };
+  });
 
   useEffect(() => {
     const scroller = host.current;
     if (!scroller) return;
     const root = scroller.shadowRoot ?? scroller.attachShadow({ mode: "open" });
+    setShadowRoot(root);
     let cancelled = false;
     let mounted: Runtime | null = null;
     setReady(false);
@@ -159,7 +166,7 @@ function SpooktoberContent({ active, onBack, playlistRequest, entryToken }: Spoo
     void (async () => {
       try {
         const entryUrl = new URL(NATIVE_ENTRY, window.location.href).href;
-        const module = (await import(/* @vite-ignore */ entryUrl)) as NativeModule;
+        const module = await loadNativeModule(entryUrl);
         if (cancelled) return;
         mounted = await module.mountSpooktober({
           root,
@@ -211,9 +218,7 @@ function SpooktoberContent({ active, onBack, playlistRequest, entryToken }: Spoo
         data-local-keyboard
         data-show-imdb={settings.showImdbBadge}
       />
-      {ready && host.current?.shadowRoot && (
-        <SpooktoberPlaylistIndicator root={host.current.shadowRoot} active={isVisible} />
-      )}
+      {ready && shadowRoot && <SpooktoberPlaylistIndicator root={shadowRoot} active={isVisible} />}
       {playlist && (
         <SpooktoberPlaylist
           playlistId={playlist}

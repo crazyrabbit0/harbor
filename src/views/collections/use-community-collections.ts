@@ -26,9 +26,12 @@ const initial: Feed = {
 export function useCommunityCollections(active: boolean) {
   const [state, setState] = useState<Feed>(initial);
   const current = useRef(state);
-  current.current = state;
   const enabled = useRef(active);
-  enabled.current = active;
+  // Declared before the load effects so they and later handlers read this commit's values.
+  useEffect(() => {
+    current.current = state;
+    enabled.current = active;
+  }, [state, active]);
   const request = useRef<AbortController | null>(null);
   const dirty = useRef(false),
     failedRefresh = useRef(false);
@@ -48,7 +51,7 @@ export function useCommunityCollections(active: boolean) {
     const controller = new AbortController();
     request.current = controller;
     setState((old) => ({ ...old, loading: true, failed: false }));
-    try {
+    const work = async () => {
       const page = await fetchCommunityCollectionsPage(
         reset ? null : previous.cursor,
         controller.signal,
@@ -72,14 +75,17 @@ export function useCommunityCollections(active: boolean) {
         };
       });
       failedRefresh.current = false;
-    } catch {
-      if (!controller.signal.aborted) {
-        failedRefresh.current = reset;
-        setState((old) => ({ ...old, loading: false, failed: true }));
-      }
-    } finally {
-      if (request.current === controller) request.current = null;
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!controller.signal.aborted) {
+          failedRefresh.current = reset;
+          setState((old) => ({ ...old, loading: false, failed: true }));
+        }
+      })
+      .finally(() => {
+        if (request.current === controller) request.current = null;
+      });
   }, []);
 
   useEffect(() => {

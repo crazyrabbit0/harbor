@@ -245,7 +245,9 @@ export function StandingsPanel({
     };
   }, [leagueTag]);
 
-  const marks = useMemo(() => new Set(highlight.filter(Boolean)), [highlight.join(",")]);
+  const highlightKey = highlight.join(",");
+  // Keyed by content, so a new array with the same teams keeps the set.
+  const marks = useMemo(() => new Set(highlightKey.split(",").filter(Boolean)), [highlightKey]);
 
   const group = useMemo(() => {
     if (!table) return null;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { isWindowsDesktop } from "@/lib/platform";
 import {
@@ -10,6 +10,9 @@ import {
 } from "@/lib/hdr-overlay";
 import type { Settings } from "@/lib/settings";
 import { startHdrStageSession } from "@/lib/player/hdr-stage-session";
+
+const loadApiWindow = () => import("@tauri-apps/api/window");
+const loadApiEvent = () => import("@tauri-apps/api/event");
 
 const HDR_GAMMAS = new Set(["pq", "hlg"]);
 const MONITOR_DEBOUNCE_MS = 600;
@@ -41,7 +44,9 @@ export function useHdrStage(params: {
   const [confirmed, setConfirmed] = useState(false);
   const [failed, setFailed] = useState(false);
   const onFallbackRef = useRef(onFallback);
-  onFallbackRef.current = onFallback;
+  useLayoutEffect(() => {
+    onFallbackRef.current = onFallback;
+  });
 
   useEffect(() => setFailed(false), [sourceKey, playerHdrStage, playerHdrToSdr]);
 
@@ -75,7 +80,7 @@ export function useHdrStage(params: {
     };
     void recheck();
     void (async () => {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const { getCurrentWindow } = await loadApiWindow();
       const off = await getCurrentWindow().onMoved(() => {
         if (timer != null) window.clearTimeout(timer);
         timer = window.setTimeout(() => void recheck(), MONITOR_DEBOUNCE_MS);
@@ -86,7 +91,7 @@ export function useHdrStage(params: {
     // The display-info script flips the display a beat after the video
     // opens; re-check once the OS-level flip lands so staging follows it.
     void (async () => {
-      const { listen } = await import("@tauri-apps/api/event");
+      const { listen } = await loadApiEvent();
       const off = await listen("hdr-stage://display-status", () => {
         if (timer != null) window.clearTimeout(timer);
         timer = window.setTimeout(() => void recheck(), 250);

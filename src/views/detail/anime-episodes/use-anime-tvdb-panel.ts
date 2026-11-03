@@ -59,6 +59,22 @@ const isCloseDate = (d1: string, d2: string) => {
   return Math.abs(t1 - t2) <= 86400000;
 };
 
+type TvdbText = { name: string; nameEn?: string; overview: string; overviewEn?: string };
+
+function tvdbTitle(e: TvdbText, current: KitsuEpisode | undefined, lang: string): string {
+  const candidates = [{ text: e.name }, { text: e.nameEn ?? "" }, { text: current?.title ?? "" }];
+  return pickLocalizedText(candidates, { forName: true, lang }) ?? e.name;
+}
+
+function tvdbSynopsis(e: TvdbText, current: KitsuEpisode | undefined, lang: string): string {
+  const candidates = [
+    { text: e.overview },
+    { text: e.overviewEn ?? "" },
+    { text: current?.synopsis ?? "" },
+  ];
+  return pickLocalizedText(candidates, { lang }) ?? e.overview;
+}
+
 export function useAnimeTvdbPanel(
   kitsuId: number | null,
   imdbId: string | null,
@@ -299,20 +315,8 @@ export function useAnimeTvdbPanel(
               id: -e.id,
               number: e.episodeNumber,
               seasonNumber: e.seasonNumber,
-              title:
-                pickLocalizedText(
-                  [{ text: e.name }, { text: e.nameEn ?? "" }, { text: currentMatch?.title ?? "" }],
-                  { forName: true, lang },
-                ) ?? e.name,
-              synopsis:
-                pickLocalizedText(
-                  [
-                    { text: e.overview },
-                    { text: e.overviewEn ?? "" },
-                    { text: currentMatch?.synopsis ?? "" },
-                  ],
-                  { lang },
-                ) ?? e.overview,
+              title: tvdbTitle(e, currentMatch, lang),
+              synopsis: tvdbSynopsis(e, currentMatch, lang),
               thumbnail: img ?? null,
               airdate: e.airDate ?? null,
               length: e.runtime ?? null,

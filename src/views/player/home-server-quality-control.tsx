@@ -37,17 +37,21 @@ export function HomeServerQualityControl({
     if (quality === context.quality || switching) return;
     setSwitching(true);
     setError("");
-    try {
+    const work = async () => {
       // The snapshot's position only refreshes on non-clock changes; the clock holds the live one.
       const positionMs = Math.max(0, getPlaybackPosition() * 1000);
       replace(await switchMediaServerQuality({ src, quality, positionMs, playing }));
-    } catch (cause) {
-      setError(
-        `${cause instanceof Error ? cause.message : String(cause)} Original quality remains available.`,
-      );
-    } finally {
-      setSwitching(false);
-    }
+    };
+    await work()
+      .then(
+        () => {},
+        (cause) => {
+          setError(
+            `${cause instanceof Error ? cause.message : String(cause)} Original quality remains available.`,
+          );
+        },
+      )
+      .finally(() => setSwitching(false));
   };
 
   const label =

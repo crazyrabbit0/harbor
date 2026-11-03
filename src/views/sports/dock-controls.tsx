@@ -10,7 +10,7 @@ import {
   Minus,
   PictureInPicture2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import type { PlayerSrc } from "@/lib/view";
@@ -45,7 +45,9 @@ export function SportsDockControls({
   const audio = useDockAudio(bridge, snap);
   const volumeControl = useRef<HTMLDivElement>(null);
   const audioRef = useRef(audio);
-  audioRef.current = audio;
+  useLayoutEffect(() => {
+    audioRef.current = audio;
+  }, [audio]);
   const logo = src.meta.logo || src.meta.poster;
   const [failedLogo, setFailedLogo] = useState<string>();
   useEffect(() => {

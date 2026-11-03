@@ -18,8 +18,8 @@ export function FeaturedBanner({ items }: { items: Meta[] }) {
   const visible = usePageVisible();
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
-  const hasLoadedRef = useRef(false);
-  if (items.length > 0) hasLoadedRef.current = true;
+  const [hasLoaded, setHasLoaded] = useState(false);
+  if (items.length > 0 && !hasLoaded) setHasLoaded(true);
 
   useEffect(() => {
     const el = ref.current;
@@ -38,7 +38,7 @@ export function FeaturedBanner({ items }: { items: Meta[] }) {
   }, [items.length, active]);
 
   if (items.length === 0) {
-    if (hasLoadedRef.current) return null;
+    if (hasLoaded) return null;
     return (
       <section className="flex flex-col gap-5">
         <h2 className="font-display text-[28px] font-medium leading-tight tracking-tight text-ink">

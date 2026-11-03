@@ -88,7 +88,6 @@ export function MangaRail({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [seen]);
 
   if (items && items.length === 0) return null;

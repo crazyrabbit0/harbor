@@ -22,6 +22,7 @@ import { BackupsPanel } from "./backups-card";
 import { OrganizeList, SectionCard, SkeletonRows } from "./section-card";
 import { entriesOf, noticeFor, stepLabel as stepLabelFor, urlsOf, type Notice } from "./utils";
 import { useDragList } from "./use-drag-list";
+import { readAtVersion } from "@/lib/read-at-version";
 
 type Phase =
   | { kind: "loading" }
@@ -50,7 +51,10 @@ export function OrganizeAddonsPage({
   const [moving, setMoving] = useState<MoveStep | null>(null);
   const backupsWrapRef = useRef<HTMLDivElement>(null);
   const backedUpRef = useRef(false);
-  const backupCount = useMemo(() => loadBackups().length, [backupsKey]);
+  const backupCount = useMemo(
+    () => readAtVersion(backupsKey, () => loadBackups().length),
+    [backupsKey],
+  );
 
   const load = useCallback(async () => {
     setPhase({ kind: "loading" });
@@ -149,7 +153,7 @@ export function OrganizeAddonsPage({
   const handleSave = async () => {
     if (!dirty || phase.kind !== "ready") return;
     setNotice(null);
-    try {
+    const work = async () => {
       if (cloudDirty && authKey) {
         setPhase({ kind: "saving", step: "checking" });
         const result = await saveCollectionOrder(
@@ -176,7 +180,8 @@ export function OrganizeAddonsPage({
       }
       mirrorLocal();
       onSaved("local");
-    } catch (e) {
+    };
+    await work().catch((e) => {
       console.warn("[addons] reorder save failed", e);
       setPhase({ kind: "ready" });
       setNotice({
@@ -186,14 +191,14 @@ export function OrganizeAddonsPage({
         ),
         retry: true,
       });
-    }
+    });
   };
 
   const handleMoveAll = async () => {
     if (!authKey || moving != null || saving || dirty || workingDevice.length === 0) return;
     setNotice(null);
     setMoving("preparing");
-    try {
+    const work = async () => {
       const result = await moveDeviceAddonsToAccount(authKey, workingDevice, setMoving);
       setBackupsKey((k) => k + 1);
       if (!result.ok) {
@@ -232,9 +237,10 @@ export function OrganizeAddonsPage({
             })
           : "";
       setNotice({ tone: "info", text: movedText + skippedText });
-    } finally {
+    };
+    await work().finally(() => {
       setMoving(null);
-    }
+    });
   };
 
   const handleBackupNow = () => {

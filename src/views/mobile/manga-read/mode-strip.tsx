@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ProxiedImg } from "./proxied-img";
 import { usePinchZoom } from "./hooks/use-pinch-zoom";
 
@@ -35,9 +35,13 @@ export function ModeStrip({
   const rootRef = useRef<HTMLDivElement>(null);
   const els = useRef<Array<HTMLDivElement | null>>([]);
   const change = useRef(onPageChange);
-  change.current = onPageChange;
+  useLayoutEffect(() => {
+    change.current = onPageChange;
+  }, [onPageChange]);
   const scrollState = useRef(onScrollState);
-  scrollState.current = onScrollState;
+  useLayoutEffect(() => {
+    scrollState.current = onScrollState;
+  }, [onScrollState]);
   const pinch = usePinchZoom({ zoom, onZoom, onPan, rootRef });
 
   const onRootClick = () => {
@@ -53,21 +57,27 @@ export function ModeStrip({
   const lastInput = useRef(0);
   const currentRef = useRef(initialPage);
   const targetRef = useRef(initialPage);
-  targetRef.current = initialPage;
+  useLayoutEffect(() => {
+    targetRef.current = initialPage;
+  }, [initialPage]);
   const firstUrl = useRef(pages[0]);
   const firstDir = useRef(horizontal);
   const firstRtl = useRef(rtl);
-  if (
-    firstUrl.current !== pages[0] ||
-    firstDir.current !== horizontal ||
-    firstRtl.current !== rtl
-  ) {
-    firstUrl.current = pages[0];
+  const firstPage = pages[0];
+  // A new chapter, direction or reading order re-runs the initial scroll and mutes reports briefly.
+  useLayoutEffect(() => {
+    if (
+      firstUrl.current === firstPage &&
+      firstDir.current === horizontal &&
+      firstRtl.current === rtl
+    )
+      return;
+    firstUrl.current = firstPage;
     firstDir.current = horizontal;
     firstRtl.current = rtl;
     didScroll.current = false;
     quietUntil.current = performance.now() + 200;
-  }
+  }, [firstPage, horizontal, rtl]);
 
   useEffect(() => {
     const root = rootRef.current;

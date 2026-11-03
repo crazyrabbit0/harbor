@@ -42,6 +42,7 @@ import {
 import { useAnimeAnilistDetails } from "@/views/detail/use-anime-anilist-details";
 import { useAnimeCharacters } from "@/views/detail/use-anime-characters";
 import { useMalRating } from "@/lib/mal-rating";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function MobileDetail({ meta, onClose }: { meta: Meta; onClose: () => void }) {
   const [reduced] = useState(prefersReducedMotion);
@@ -171,7 +172,7 @@ function DetailBody({
   const liveAwards = useAwards(imdbId ?? undefined, isSeries);
   const awardsV = useBundledAwardsVersion();
   const awards = useMemo(
-    () => mergeBundledAwards(liveAwards, meta.name, releaseYear),
+    () => readAtVersion(awardsV, () => mergeBundledAwards(liveAwards, meta.name, releaseYear)),
     [awardsV, liveAwards, meta.name, releaseYear],
   );
   const awardGroups = useMemo(() => awardSummary(awards), [awards]);

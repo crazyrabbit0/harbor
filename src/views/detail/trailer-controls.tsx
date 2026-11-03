@@ -3,6 +3,14 @@ import { useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { Tooltip } from "./tooltip";
 
+function releasePointer(el: HTMLElement | null, pointerId: number) {
+  try {
+    el?.releasePointerCapture(pointerId);
+  } catch {
+    void 0;
+  }
+}
+
 export function formatTime(s: number) {
   if (!isFinite(s) || s < 0) return "0:00";
   const m = Math.floor(s / 60);
@@ -69,11 +77,7 @@ export function Scrubber({
     onSeek(r);
     setActive(false);
     onScrubEnd();
-    try {
-      ref.current?.releasePointerCapture(e.pointerId);
-    } catch {
-      void 0;
-    }
+    releasePointer(ref.current, e.pointerId);
   };
 
   const previewTime = hoverRatio != null && duration > 0 ? hoverRatio * duration : null;
@@ -203,11 +207,7 @@ export function VolumeControl({
   };
   const onPointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     setActive(false);
-    try {
-      ref.current?.releasePointerCapture(e.pointerId);
-    } catch {
-      void 0;
-    }
+    releasePointer(ref.current, e.pointerId);
   };
 
   const expanded = hover || active;

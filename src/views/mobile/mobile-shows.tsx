@@ -56,7 +56,7 @@ export function MobileShows() {
     setLoading(true);
     setFailed(false);
     (async () => {
-      try {
+      const work = async () => {
         let heroPool: Meta[] = [];
         let rowList: RowData[] = [];
         if (settings.tmdbKey) {
@@ -94,11 +94,14 @@ export function MobileShows() {
         setHero(dedupeMetas(heroPool.filter((m) => m.background)).slice(0, 8));
         setRows(rowList);
         setFailed(rowList.length === 0);
-      } catch {
-        if (alive) setFailed(true);
-      } finally {
-        if (alive) setLoading(false);
-      }
+      };
+      await work()
+        .catch(() => {
+          if (alive) setFailed(true);
+        })
+        .finally(() => {
+          if (alive) setLoading(false);
+        });
     })();
     return () => {
       alive = false;

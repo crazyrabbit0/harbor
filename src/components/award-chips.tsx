@@ -7,6 +7,7 @@ import { awardSummary, useAwards, type AwardType } from "@/lib/providers/wikidat
 import { parseAwardYear } from "@/lib/anime-awards";
 import { useViewActions } from "@/lib/view";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
+import { readAtVersion } from "@/lib/read-at-version";
 
 function shortName(type: AwardType): string {
   return AWARD_CATALOG[type]?.shorthand ?? "Award";
@@ -27,13 +28,17 @@ export function AwardChips({
   const live = useAwards(isAnime ? undefined : (imdbId ?? undefined), meta.type === "series");
   const { openAward } = useViewActions();
   const awardsV = useBundledAwardsVersion(!isAnime);
-  const chips = useMemo(() => {
-    if (isAnime) return [];
-    const awards = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));
-    return awardSummary(awards)
-      .filter((s) => s.wins > 0 || s.nominations > 0)
-      .slice(0, limit);
-  }, [awardsV, isAnime, live, meta.name, meta.releaseInfo, limit]);
+  const chips = useMemo(
+    () =>
+      readAtVersion(awardsV, () => {
+        if (isAnime) return [];
+        const awards = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));
+        return awardSummary(awards)
+          .filter((s) => s.wins > 0 || s.nominations > 0)
+          .slice(0, limit);
+      }),
+    [awardsV, isAnime, live, meta.name, meta.releaseInfo, limit],
+  );
 
   if (chips.length === 0) return null;
   const iconPx = size === "sm" ? 13 : 15;

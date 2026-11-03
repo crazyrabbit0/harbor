@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { MusicCatalogRow } from "@/components/music/music-catalog-row";
 import { MusicSectionHead } from "@/components/music/music-track-grid";
 import { useMusicPlayback } from "@/lib/music/use-music-playback";
@@ -43,9 +43,17 @@ export function MusicExploreRecommendations({
   const [result, setResult] = useState<
     (ExploreRecommendation & { key: string; error: boolean }) | null
   >(null);
+  const historyTracks = useMemo(
+    () => [...player.recents, ...player.likedTracks, ...player.queue],
+    [player.recents, player.likedTracks, player.queue],
+  );
   const root = useRef<HTMLElement>(null),
-    history = useRef<MusicTrack[]>([]);
-  history.current = [...player.recents, ...player.likedTracks, ...player.queue];
+    history = useRef<MusicTrack[]>(historyTracks),
+    request = useRef({ seed, seeds });
+  useLayoutEffect(() => {
+    history.current = historyTracks;
+    request.current = { seed, seeds };
+  }, [historyTracks, seed, seeds]);
   const key = seed ? `${profile}:${musicTrackIdentity(seed)}` : "";
   useEffect(() => {
     const node = root.current;
@@ -59,7 +67,9 @@ export function MusicExploreRecommendations({
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
+  // Track identity owns a request; playback ticks and provider enrichment do not restart it.
   useEffect(() => {
+    const { seed, seeds } = request.current;
     if (!active || !visible || !seed) return;
     let live = true;
     setResult(null);
@@ -76,12 +86,10 @@ export function MusicExploreRecommendations({
     return () => {
       live = false;
     };
-    // Track identity owns a request; playback ticks and provider enrichment do not restart it.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, active, visible, retry]);
   const current = result?.key === key ? result : null;
   const fresh = current?.seed
-    ? freshContinuationTracks(current.tracks, history.current)
+    ? freshContinuationTracks(current.tracks, historyTracks)
     : (current?.tracks ?? []);
   const shown = useBlockedArtistFilter(useBlockedArtistFilter(fresh, "show"), "play");
   const items: MusicCatalogItem[] = shown

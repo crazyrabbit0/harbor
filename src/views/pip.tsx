@@ -71,10 +71,11 @@ export function PipApp() {
     let closeTimer: number | null = null;
     let readVersion = 0;
     const readSession = async () => {
-      const version = ++readVersion;
-      try {
-        const s = await invoke<PipSession | null>("pip_get_session");
-        if (cancelled || version !== readVersion) return;
+      readVersion += 1;
+      const version = readVersion;
+      const stale = () => cancelled || version !== readVersion;
+      const apply = (s: PipSession | null) => {
+        if (stale()) return;
         if (closeTimer != null) window.clearTimeout(closeTimer);
         if (!s) {
           setError(t("No PiP session. Closing."));
@@ -86,15 +87,18 @@ export function PipApp() {
         setMuted(s.muted);
         setVol(s.volume);
         setPlaying(s.playing);
-      } catch (e) {
-        if (!cancelled && version === readVersion) {
-          setError(
-            t("Failed to read session: {message}", {
-              message: e instanceof Error ? e.message : String(e),
-            }),
-          );
-        }
-      }
+      };
+      await invoke<PipSession | null>("pip_get_session")
+        .then(apply)
+        .catch((e) => {
+          if (!stale()) {
+            setError(
+              t("Failed to read session: {message}", {
+                message: e instanceof Error ? e.message : String(e),
+              }),
+            );
+          }
+        });
     };
     void readSession();
     listen("pip://session-replaced", () => void readSession()).then((u) => {

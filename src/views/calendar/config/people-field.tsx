@@ -52,12 +52,15 @@ export function PeopleField({
     let cancelled = false;
     setBusy(true);
     const handle = window.setTimeout(async () => {
-      try {
-        const r = await searchAll(tmdbKey, q);
-        if (!cancelled) setResults(r.people.slice(0, 8));
-      } finally {
-        if (!cancelled) setBusy(false);
-      }
+      await new Promise<Awaited<ReturnType<typeof searchAll>>>((resolve) =>
+        resolve(searchAll(tmdbKey, q)),
+      )
+        .then((r) => {
+          if (!cancelled) setResults(r.people.slice(0, 8));
+        })
+        .finally(() => {
+          if (!cancelled) setBusy(false);
+        });
     }, 220);
     return () => {
       cancelled = true;

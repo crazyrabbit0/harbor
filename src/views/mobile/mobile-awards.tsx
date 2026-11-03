@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, KeyRound, LayoutGrid, List, Trophy } from "lucide-react";
 import { AwardLogo, laurelColorFor } from "@/components/icons/award-logo";
@@ -495,7 +495,9 @@ function LoadMoreSentinel({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const cb = useRef(onLoadMore);
-  cb.current = onLoadMore;
+  useLayoutEffect(() => {
+    cb.current = onLoadMore;
+  }, [onLoadMore]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

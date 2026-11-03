@@ -182,12 +182,16 @@ export function SkipPillContainer({
       }
     : undefined;
 
-  skipActionRef.current = () => {
-    if (!realActiveSkip) return;
-    setUndo({ fromSec: positionSec, key: segmentKey(realActiveSkip) });
-    onSkip(realActiveSkip.endSec);
-  };
-  undoActionRef.current = () => undoSkip?.();
+  useEffect(() => {
+    skipActionRef.current = () => {
+      if (!realActiveSkip) return;
+      setUndo({ fromSec: positionSec, key: segmentKey(realActiveSkip) });
+      onSkip(realActiveSkip.endSec);
+    };
+  });
+  useEffect(() => {
+    undoActionRef.current = () => undoSkip?.();
+  });
   const skipBinding = effectiveBinding("playerSkipSegment", settings.hotkeys ?? {});
   const undoBinding = effectiveBinding("playerUndoSkip", settings.hotkeys ?? {});
   useEffect(() => {

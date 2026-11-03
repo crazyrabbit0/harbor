@@ -132,7 +132,7 @@ export function PeopleView({ init }: { init: PeopleInit }) {
       );
     }
     return base.map((p, i) => ({ ...p, rank: i + 1 }));
-  }, [people, query, genre, country]);
+  }, [people, query, genre, country, serverCountry]);
 
   const heroCandidate = filtered[0];
   const heroEligible = (status === "ready" || status === "offline") && query.trim() === "";

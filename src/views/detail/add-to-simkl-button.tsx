@@ -32,6 +32,14 @@ function errMsg(t: Translator, e: unknown): string {
   return t("Couldn't reach Simkl");
 }
 
+function statusForTarget(
+  map: Awaited<ReturnType<typeof loadSimklStatusMap>>,
+  harborId: string,
+  malKey: string | null,
+): WatchlistStatus | null {
+  return statusForId(map, harborId) ?? (malKey ? statusForId(map, malKey) : null);
+}
+
 export function AddToSimklButton({
   harborId,
   title,
@@ -78,7 +86,7 @@ export function AddToSimklButton({
       try {
         const map = await loadSimklStatusMap();
         if (cancelled) return;
-        setStatus(statusForId(map, harborId) ?? (malKey ? statusForId(map, malKey) : null));
+        setStatus(statusForTarget(map, harborId, malKey));
         setReady(true);
       } catch {
         if (!cancelled) setReady(true);
@@ -110,9 +118,8 @@ export function AddToSimklButton({
     } catch (e) {
       setStatus(prev);
       flash(errMsg(t, e));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const remove = async () => {
@@ -126,9 +133,8 @@ export function AddToSimklButton({
     } catch (e) {
       setStatus(prev);
       flash(errMsg(t, e));
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   return (

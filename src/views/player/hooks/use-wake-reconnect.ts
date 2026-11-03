@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import { getPlaybackPosition } from "@/lib/player/playback-clock";
 import { isLocalUrl } from "@/lib/player/local-url";
@@ -16,9 +16,13 @@ export function useWakeReconnect(params: {
 }) {
   const { bridgeRef, src, snap, activeUrlRef } = params;
   const srcRef = useRef(src);
-  srcRef.current = src;
+  useLayoutEffect(() => {
+    srcRef.current = src;
+  });
   const snapRef = useRef(snap);
-  snapRef.current = snap;
+  useLayoutEffect(() => {
+    snapRef.current = snap;
+  });
 
   useEffect(() => {
     let last = Date.now();

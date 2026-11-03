@@ -39,6 +39,11 @@ import { InstalledPane } from "./addons/installed-pane";
 import { SearchBar } from "./addons/search-bar";
 import { Toaster } from "./addons/toaster";
 
+const loadAddonsIndex = () => import("@/lib/providers/stremio-addons-index");
+const loadDeepLink = () => import("@/lib/deep-link");
+const loadPendingDetail = () => import("@/lib/addons-store/pending-detail");
+const loadStremioAddons = () => import("@/lib/providers/stremio-addons");
+
 export { requestAddonsTab } from "./addons/addons-types";
 
 void streamsIcon;
@@ -78,9 +83,7 @@ export function AddonsView({ active = true }: { active?: boolean }) {
 
   useEffect(() => {
     void prefetchTopAddonLogos();
-    void import("@/lib/providers/stremio-addons-index").then((m) =>
-      m.ensureCommunityIndex().catch(() => undefined),
-    );
+    void loadAddonsIndex().then((m) => m.ensureCommunityIndex().catch(() => undefined));
   }, []);
   const [categoryFilter, setCategoryFilter] = useState<string | null>(null);
   const [browseMode, setBrowseMode] = useState<BrowseModeId>("top");
@@ -125,7 +128,7 @@ export function AddonsView({ active = true }: { active?: boolean }) {
 
   useEffect(() => {
     let unlisten: (() => void) | null = null;
-    void import("@/lib/deep-link").then(
+    void loadDeepLink().then(
       ({ onDeepLinkInstall, consumePendingDeepLink, clearPendingDeepLink }) => {
         const pending = consumePendingDeepLink();
         if (pending && !window.__harborInstallerOpen) {
@@ -185,7 +188,7 @@ export function AddonsView({ active = true }: { active?: boolean }) {
   }, [trimmedQuery, tab]);
 
   const onInstall = async (r: ResolvedAddon) => {
-    try {
+    const install = async () => {
       let manifest = r.manifest ?? null;
       if (!manifest?.behaviorHints) {
         manifest = await fetchManifestAt(r.transportUrl).catch(() => manifest);
@@ -210,14 +213,15 @@ export function AddonsView({ active = true }: { active?: boolean }) {
         name: addon.manifest.name,
         logo: addon.manifest.logo ?? r.manifest?.logo ?? null,
       });
-    } catch (e) {
+    };
+    await install().catch((e) => {
       const msg = e instanceof Error ? e.message : t("Install failed.");
       console.warn("[addons] install failed", e);
       showToast("error", msg);
-    }
+    });
   };
   const onInstallUrl = async (rawUrl: string): Promise<string | null> => {
-    try {
+    const install = async (): Promise<string | null> => {
       const result = await installFromUrl(rawUrl);
       window.dispatchEvent(
         new CustomEvent("harbor:addons-changed", {
@@ -239,17 +243,18 @@ export function AddonsView({ active = true }: { active?: boolean }) {
         },
       );
       return result.addon.manifest.id;
-    } catch (e) {
+    };
+    return install().catch((e) => {
       const msg = e instanceof Error ? e.message : t("Install failed.");
       console.warn("[addons] installFromUrl failed", e);
       showToast("error", msg);
       return null;
-    }
+    });
   };
   const onUninstall = async (r: ResolvedAddon) => {
     const id = r.manifest?.id ?? r.curated?.id;
     if (!id) return;
-    try {
+    const uninstall = async () => {
       await uninstallAddon(id, r.transportUrl);
       window.dispatchEvent(
         new CustomEvent("harbor:addons-changed", {
@@ -262,10 +267,11 @@ export function AddonsView({ active = true }: { active?: boolean }) {
         name: r.manifest?.name ?? id,
         logo: r.manifest?.logo ?? null,
       });
-    } catch (e) {
+    };
+    await uninstall().catch((e) => {
       console.warn("[addons] uninstall failed", e);
       showToast("error", t("Couldn't remove. Try again."));
-    }
+    });
   };
 
   if (addonDetailId) {
@@ -533,7 +539,7 @@ export function AddonsView({ active = true }: { active?: boolean }) {
           mode={installModal}
           onClose={() => setInstallModal(null)}
           onInstall={async (rawUrl, opts) => {
-            try {
+            const install = async () => {
               const result = await installFromUrl(rawUrl, opts);
               refetch();
               showToast(
@@ -550,11 +556,12 @@ export function AddonsView({ active = true }: { active?: boolean }) {
                 },
               );
               return { replaced: result.replaced, addon: result.addon };
-            } catch (e) {
+            };
+            return install().catch((e) => {
               const msg = e instanceof Error ? e.message : t("Install failed.");
               showToast("error", msg);
               return null;
-            }
+            });
           }}
         />
       )}
@@ -614,7 +621,7 @@ function RemoteOrLocalDetail({
     setRemote(null);
     setFailed(false);
     (async () => {
-      const { recallPendingAddon } = await import("@/lib/addons-store/pending-detail");
+      const { recallPendingAddon } = await loadPendingDetail();
       const carried = recallPendingAddon(addonDetailId);
       if (carried) {
         const manifest =
@@ -633,28 +640,29 @@ function RemoteOrLocalDetail({
           return;
         }
       }
-      const { communityForLoose, ensureCommunityIndex } =
-        await import("@/lib/providers/stremio-addons-index");
+      const { communityForLoose, ensureCommunityIndex } = await loadAddonsIndex();
       await ensureCommunityIndex().catch(() => undefined);
       const community = communityForLoose(addonDetailId);
       if (!community) {
         if (!cancelled) setFailed(true);
         return;
       }
-      const { getAddon } = await import("@/lib/providers/stremio-addons");
-      try {
-        const d = await getAddon(community.slug);
-        if (cancelled) return;
-        const synthetic: ResolvedAddon = {
-          manifest: d.manifest as ResolvedAddon["manifest"],
-          transportUrl: d.manifestUrl,
-          source: "community",
-          installed: installedIds.has(addonDetailId),
-        };
-        setRemote(synthetic);
-      } catch {
-        if (!cancelled) setFailed(true);
-      }
+      const { getAddon } = await loadStremioAddons();
+      await getAddon(community.slug).then(
+        (d) => {
+          if (cancelled) return;
+          const synthetic: ResolvedAddon = {
+            manifest: d.manifest as ResolvedAddon["manifest"],
+            transportUrl: d.manifestUrl,
+            source: "community",
+            installed: installedIds.has(addonDetailId),
+          };
+          setRemote(synthetic);
+        },
+        () => {
+          if (!cancelled) setFailed(true);
+        },
+      );
     })();
     return () => {
       cancelled = true;

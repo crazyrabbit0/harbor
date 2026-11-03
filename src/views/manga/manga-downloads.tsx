@@ -21,6 +21,9 @@ import {
   type MangaDownloadGroup,
 } from "@/lib/manga-downloads";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 type MangaMeta = { id: string; title: string; cover?: string };
 
 function readerChapters(group: MangaDownloadGroup): MangaChapter[] {
@@ -230,22 +233,23 @@ function LocationCard() {
   const shown = custom || fallback;
 
   const change = async () => {
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const picked = await open({ directory: true, title: t("Choose manga download folder") });
       if (typeof picked !== "string" || !picked) return;
       // Chapters are written into subfolders, which the dialog's own grant does not reach.
       await allowFsPaths([picked]);
       setMangaDownloadDir(picked);
-    } catch {
+    };
+    await work().catch(() => {
       return;
-    }
+    });
   };
 
   const reveal = async () => {
     if (!shown) return;
     try {
-      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+      const { revealItemInDir } = await loadOpener();
       await revealItemInDir(shown);
     } catch {
       return;

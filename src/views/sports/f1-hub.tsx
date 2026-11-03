@@ -16,12 +16,11 @@ function usePortraits() {
   const [portraits, setPortraits] = useState<Portrait[]>([]);
   useEffect(() => {
     let active = true;
-    portraitsPromise ??= sportsJson(
-      "https://api.openf1.org/v1/drivers?session_key=latest",
-      AbortSignal.timeout(9000),
-    )
-      .then((data) => (Array.isArray(data) ? (data as Portrait[]) : []))
-      .catch(() => []);
+    portraitsPromise =
+      portraitsPromise ??
+      sportsJson("https://api.openf1.org/v1/drivers?session_key=latest", AbortSignal.timeout(9000))
+        .then((data) => (Array.isArray(data) ? (data as Portrait[]) : []))
+        .catch(() => []);
     void portraitsPromise.then((data) => {
       if (active) setPortraits(data);
     });

@@ -55,14 +55,17 @@ export function PostItem({
     }
     setBusy(true);
     setEditError(null);
-    try {
+    const work = async () => {
       onChanged(await editGroupPost(groupId, post.id, next));
       setEditing(false);
-    } catch (e) {
-      setEditError((e as Error).message || t("Could not save that edit."));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setEditError((e as Error).message || t("Could not save that edit."));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const toggleLike = async () => {

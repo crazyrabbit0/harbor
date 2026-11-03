@@ -11,6 +11,10 @@ type Sort = "popular" | "titles" | "rated" | "alpha";
 
 const PAGE = 30;
 
+function byRatingThenScore(a: BrandSummary, b: BrandSummary): number {
+  return (b.rating ?? 0) - (a.rating ?? 0) || b.score - a.score;
+}
+
 const SORTS: Array<{ id: Sort; label: string }> = [
   { id: "popular", label: "Most popular" },
   { id: "titles", label: "Most titles" },
@@ -85,8 +89,7 @@ export function BrandsView({ brand }: { brand: BrandKind }) {
       (b) => (!country || b.country === country) && (!q || b.name.toLowerCase().includes(q)),
     );
     if (sort === "titles") list.sort((a, b) => b.count - a.count);
-    else if (sort === "rated")
-      list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || b.score - a.score);
+    else if (sort === "rated") list.sort(byRatingThenScore);
     else if (sort === "alpha") list.sort((a, b) => a.name.localeCompare(b.name));
     return list;
   }, [brands, country, query, sort]);

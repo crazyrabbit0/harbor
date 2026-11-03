@@ -61,13 +61,16 @@ export function PluginRow({
   const install = async () => {
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       await installPlugin(manifest, repoUrl);
-    } catch {
-      setError(t("Install failed"));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError(t("Install failed"));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const remove = async () => {

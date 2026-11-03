@@ -36,7 +36,7 @@ function VisibleOdds({ game }: { game: SportsGame }) {
     const run = async () => {
       if (busy) return;
       busy = true;
-      try {
+      const work = async () => {
         let entry = cache.get(key);
         if (!entry || Date.now() - entry.at > 60000) {
           const query = new URLSearchParams({
@@ -61,11 +61,14 @@ function VisibleOdds({ game }: { game: SportsGame }) {
           while (cache.size > 40) cache.delete(cache.keys().next().value!);
         }
         if (!controller.signal.aborted) setResult({ key, ...entry, failed: false });
-      } catch {
-        if (!controller.signal.aborted) setResult({ key, at: 0, markets: [], failed: true });
-      } finally {
-        busy = false;
-      }
+      };
+      await work()
+        .catch(() => {
+          if (!controller.signal.aborted) setResult({ key, at: 0, markets: [], failed: true });
+        })
+        .finally(() => {
+          busy = false;
+        });
     };
     void run();
     const timer = setInterval(() => void run(), 60000);

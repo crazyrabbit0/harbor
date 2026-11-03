@@ -22,6 +22,20 @@ const DRAG_BUDGE = 6;
 const SNAP_RATIO = 0.18;
 const FLICK_VELOCITY = 0.45;
 
+function capturePointer(el: HTMLElement | null, pointerId: number): void {
+  try {
+    el?.setPointerCapture(pointerId);
+  } catch {}
+}
+
+function releasePointer(el: HTMLElement | null, pointerId: number): void {
+  try {
+    if (el?.hasPointerCapture?.(pointerId)) {
+      el.releasePointerCapture(pointerId);
+    }
+  } catch {}
+}
+
 function rubberBand(distance: number, dim: number, c = 0.55): number {
   return (1 - 1 / (distance / dim / c + 1)) * dim * c;
 }
@@ -83,11 +97,7 @@ export function CinemaHero({
     if (!dragging) return;
     const dx = e.clientX - startX.current;
     if (Math.abs(dx) > DRAG_BUDGE) {
-      if (!moved.current) {
-        try {
-          viewportRef.current?.setPointerCapture(e.pointerId);
-        } catch {}
-      }
+      if (!moved.current) capturePointer(viewportRef.current, e.pointerId);
       moved.current = true;
     }
     const now = performance.now();
@@ -107,11 +117,7 @@ export function CinemaHero({
   };
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!dragging) return;
-    try {
-      if (viewportRef.current?.hasPointerCapture?.(e.pointerId)) {
-        viewportRef.current.releasePointerCapture(e.pointerId);
-      }
-    } catch {}
+    releasePointer(viewportRef.current, e.pointerId);
     setDragging(false);
     const W = widthRef.current || 1000;
     const distance = offset;

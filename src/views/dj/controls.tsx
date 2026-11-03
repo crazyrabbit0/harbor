@@ -1,11 +1,13 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type MouseEvent,
   type PointerEvent,
   type ReactNode,
+  type CSSProperties,
 } from "react";
 
 const REACH = 200;
@@ -35,7 +37,9 @@ function isFine(event: { shiftKey: boolean; buttons: number }): boolean {
 function useWheelAdjust(nudge: (direction: number, fine: boolean) => void) {
   const ref = useRef<HTMLDivElement>(null);
   const latest = useRef(nudge);
-  latest.current = nudge;
+  useLayoutEffect(() => {
+    latest.current = nudge;
+  }, [nudge]);
   useEffect(() => {
     const node = ref.current;
     if (!node) return;
@@ -56,7 +60,9 @@ function useLatch(value: number) {
   const aim = useRef<number | null>(null);
   const live = useRef(value);
   const timer = useRef(0);
-  live.current = value;
+  useLayoutEffect(() => {
+    live.current = value;
+  }, [value]);
 
   useEffect(() => {
     const target = aim.current;
@@ -87,7 +93,9 @@ function useLatch(value: number) {
 function useThrow(span: number, min: number, max: number, apply: (value: number) => void) {
   const grip = useRef<{ value: number; moved: number } | null>(null);
   const latest = useRef(apply);
-  latest.current = apply;
+  useLayoutEffect(() => {
+    latest.current = apply;
+  }, [apply]);
 
   const grab = useCallback((event: PointerEvent<HTMLElement>, from: number) => {
     if (event.button === 1) event.preventDefault();
@@ -170,7 +178,9 @@ export function Knob({
   }, [span]);
   const { shown, read, push } = useLatch(value);
   const settle = useRef(onSettle ?? (() => {}));
-  settle.current = onSettle ?? (() => {});
+  useLayoutEffect(() => {
+    settle.current = onSettle ?? (() => {});
+  });
   const rest = useRef(0);
   const restSettle = useCallback(() => {
     window.clearTimeout(rest.current);
@@ -220,11 +230,13 @@ export function Knob({
         aria-valuemin={min}
         aria-valuemax={max}
         aria-valuenow={Number(shown.toFixed(2))}
-        style={{
-          ["--dj-angle" as string]: `${-140 + ratio * 280}deg`,
-          ["--dj-arc-from" as string]: `${Math.min(centre, ratio)}`,
-          ["--dj-arc-to" as string]: `${Math.max(centre, ratio)}`,
-        }}
+        style={
+          {
+            "--dj-angle": `${-140 + ratio * 280}deg`,
+            "--dj-arc-from": `${Math.min(centre, ratio)}`,
+            "--dj-arc-to": `${Math.max(centre, ratio)}`,
+          } as CSSProperties
+        }
         onPointerDown={(event) => {
           if (event.button !== 0 && event.button !== 1) return;
           grab(event, read());
@@ -282,7 +294,9 @@ export function Fader({
   const span = max - min;
   const { shown, read, push } = useLatch(value);
   const send = useRef(onCommit);
-  send.current = onCommit;
+  useLayoutEffect(() => {
+    send.current = onCommit;
+  }, [onCommit]);
   const rest = useRef(0);
   const restCommit = useCallback(() => {
     window.clearTimeout(rest.current);
@@ -320,7 +334,7 @@ export function Fader({
     <div
       className="dj-fader"
       data-bipolar={bipolar || undefined}
-      style={{ ["--dj-fill" as string]: `${ratio}` }}
+      style={{ "--dj-fill": `${ratio}` } as CSSProperties}
       ref={wheel}
     >
       <span className="dj-fader-label">{label}</span>

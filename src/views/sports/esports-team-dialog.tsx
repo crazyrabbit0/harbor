@@ -14,6 +14,18 @@ import { fetchTeamProfile, type TeamProfileData } from "@/lib/sports/team-profil
 export type EsportsTeamSelection = { game: EsportsMatch["game"]; team: EsportsTeam };
 
 /** Team data is loaded only after an explicit team selection, never once per card. */
+function bo3MatchSlug(sourceUrl: string): string | undefined {
+  try {
+    const url = new URL(sourceUrl);
+    return url.hostname === "bo3.gg"
+      ? url.pathname.match(/^\/matches\/([^/]+)\/?$/)?.[1]
+      : undefined;
+  } catch {
+    /* Feed records without a valid match URL still have a team summary. */
+    return undefined;
+  }
+}
+
 export function EsportsTeamDialog({
   selection,
   matches,
@@ -97,16 +109,7 @@ export function EsportsTeamDialog({
         if (!controller.signal.aborted) setFailed(true);
       }
       if (!ranked && sourceMatch) {
-        let slug: string | undefined;
-        try {
-          const url = new URL(sourceMatch.sourceUrl);
-          slug =
-            url.hostname === "bo3.gg"
-              ? url.pathname.match(/^\/matches\/([^/]+)\/?$/)?.[1]
-              : undefined;
-        } catch {
-          /* Feed records without a valid match URL still have a team summary. */
-        }
+        const slug = bo3MatchSlug(sourceMatch.sourceUrl);
         if (slug)
           try {
             const value = await fetchCsMatchDetail(slug, controller.signal);

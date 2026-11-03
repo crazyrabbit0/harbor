@@ -19,7 +19,9 @@ export function useAutoNextEpisode(params: {
   const firedForRef = useRef<string | null>(null);
   // The previous episode's "ended" snapshot survives a source change until the new load starts; never act on it.
   const loadSeenForRef = useRef<string | null>(src.url);
-  if (snap.status === "loading" || snap.status === "idle") loadSeenForRef.current = src.url;
+  useEffect(() => {
+    if (snap.status === "loading" || snap.status === "idle") loadSeenForRef.current = src.url;
+  });
 
   useEffect(() => {
     if (cancelled) return;

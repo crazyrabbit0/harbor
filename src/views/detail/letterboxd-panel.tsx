@@ -175,13 +175,16 @@ function LetterboxdPanelInner({ meta, imdbId }: { meta: Meta; imdbId: string | n
     // Optimistic update — flip immediately
     optimisticUpdate({ [key]: nextSet } as Partial<LetterboxdStreamInfo>);
 
-    try {
-      await fetch(actionUrl).catch(() => {});
-      // Don't re-fetch immediately — server caches rating data for 5 min
-      // and would return stale data. The optimistic update is enough.
-    } finally {
-      setActionBusy(null);
-    }
+    // Don't re-fetch immediately — server caches rating data for 5 min
+    // and would return stale data. The optimistic update is enough.
+    await new Promise<void>((resolve) =>
+      resolve(
+        fetch(actionUrl).then(
+          () => {},
+          () => {},
+        ),
+      ),
+    ).finally(() => setActionBusy(null));
   };
 
   const performRate = async (rating: number | "remove") => {
@@ -197,11 +200,14 @@ function LetterboxdPanelInner({ meta, imdbId }: { meta: Meta; imdbId: string | n
     setShowRater(false);
     setPendingRating(null);
 
-    try {
-      await fetch(submitUrl).catch(() => {});
-    } finally {
-      setActionBusy(null);
-    }
+    await new Promise<void>((resolve) =>
+      resolve(
+        fetch(submitUrl).then(
+          () => {},
+          () => {},
+        ),
+      ),
+    ).finally(() => setActionBusy(null));
   };
 
   return (

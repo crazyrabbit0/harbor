@@ -83,14 +83,20 @@ export function useAutoRetry(params: {
   const ENGINE_COMPLETE_FAILURE_MS = 20_000;
   const urlAtRef = useRef(0);
   const urlSeenRef = useRef<string | null>(null);
-  if (urlSeenRef.current !== src.url) {
-    urlSeenRef.current = src.url;
-    urlAtRef.current = Date.now();
-  }
+  useEffect(() => {
+    if (urlSeenRef.current !== src.url) {
+      urlSeenRef.current = src.url;
+      urlAtRef.current = Date.now();
+    }
+  });
   const snapRef = useRef(snap);
-  snapRef.current = snap;
+  useEffect(() => {
+    snapRef.current = snap;
+  });
   const engineStatsRef = useRef(engineStats);
-  engineStatsRef.current = engineStats;
+  useEffect(() => {
+    engineStatsRef.current = engineStats;
+  });
   const dlRef = useRef({ bytes: 0, at: 0 });
 
   const hasProgress = usePlaybackFlag(

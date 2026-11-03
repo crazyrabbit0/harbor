@@ -39,6 +39,7 @@ import { useScrollMemory } from "@/lib/view";
 import { buildShowHero, bucketCopy } from "./shows/hero-curation";
 import { showSpecs } from "./shows/show-specs";
 import { useCollectionRowsForPage } from "@/lib/page-collection-rows";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const HERO_POOL_TARGET = 6;
 const MAX_PER_ROW = 30;
@@ -184,32 +185,38 @@ export function Shows({ active = true }: { active?: boolean }) {
   const localCwVer = useSyncExternalStore(subscribeLocalCw, localCwVersion);
   const continueWatching = useMemo(
     () =>
-      (hideSharedCw ? listLocalCw(true).map(localToLibraryItem) : items)
-        .filter(
-          (i) =>
-            i.type === "series" &&
-            !ANIME_CLOUD_ID.test(i._id) &&
-            isCwMember(i) &&
-            !isCwDismissed(i),
-        )
-        .map((i) => ({ i, k: cwSortKey(i) }))
-        .sort((a, b) => b.k - a.k)
-        .map((e) => e.i)
-        .slice(0, 16),
+      readAtVersion([cwVersion, localCwVer, activeProfile?.id], () =>
+        (hideSharedCw ? listLocalCw(true).map(localToLibraryItem) : items)
+          .filter(
+            (i) =>
+              i.type === "series" &&
+              !ANIME_CLOUD_ID.test(i._id) &&
+              isCwMember(i) &&
+              !isCwDismissed(i),
+          )
+          .map((i) => ({ i, k: cwSortKey(i) }))
+          .sort((a, b) => b.k - a.k)
+          .map((e) => e.i)
+          .slice(0, 16),
+      ),
     [items, cwVersion, hideSharedCw, localCwVer, activeProfile?.id],
   );
 
   const manualWatchedVer = useSyncExternalStore(subscribeManualWatched, manualWatchedVersion);
-  const resurfaceLibrary = useMemo(() => {
-    const base = items.filter((i) => !ANIME_CLOUD_ID.test(i._id));
-    const manual = manualWatchedLibraryItems().filter((i) => !isAnimeCwItem(i));
-    if (manual.length === 0) return base;
-    const cwMemberIds = new Set(base.filter(isCwMember).map((i) => i._id));
-    const usable = manual.filter((i) => !cwMemberIds.has(i._id));
-    if (usable.length === 0) return base;
-    const overrideIds = new Set(usable.map((i) => i._id));
-    return [...base.filter((i) => !overrideIds.has(i._id)), ...usable];
-  }, [items, manualWatchedVer]);
+  const resurfaceLibrary = useMemo(
+    () =>
+      readAtVersion(manualWatchedVer, () => {
+        const base = items.filter((i) => !ANIME_CLOUD_ID.test(i._id));
+        const manual = manualWatchedLibraryItems().filter((i) => !isAnimeCwItem(i));
+        if (manual.length === 0) return base;
+        const cwMemberIds = new Set(base.filter(isCwMember).map((i) => i._id));
+        const usable = manual.filter((i) => !cwMemberIds.has(i._id));
+        if (usable.length === 0) return base;
+        const overrideIds = new Set(usable.map((i) => i._id));
+        return [...base.filter((i) => !overrideIds.has(i._id)), ...usable];
+      }),
+    [items, manualWatchedVer],
+  );
   const cwItems = useCwAdvance(
     continueWatching,
     settings.tmdbKey,

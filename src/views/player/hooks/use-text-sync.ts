@@ -11,6 +11,19 @@ import { writePlayerPrefs } from "@/lib/player-prefs";
 
 const round3 = (v: number) => Math.round(v * 1000) / 1000;
 
+function serializeCues(cues: SubCue[], format: "srt" | "vtt"): string {
+  return format === "vtt" ? toVtt(cues) : toSrt(cues);
+}
+
+function syncedTitle(format: "srt" | "vtt", source: TrackInfo | null) {
+  const release = source?.release?.trim() || undefined;
+  const sourceName = release || source?.title?.trim() || undefined;
+  const title = sourceName
+    ? `Synced (${format.toUpperCase()}) · ${sourceName}`
+    : `Synced (${format.toUpperCase()})`;
+  return { release, title };
+}
+
 interface State {
   syncMode: "idle" | "loading" | "active";
   error: string | null;
@@ -48,17 +61,25 @@ export function useTextSync(
 ) {
   const [state, setState] = useState<State>(INITIAL);
   const bridgeRef = useRef(bridge);
-  bridgeRef.current = bridge;
+  useEffect(() => {
+    bridgeRef.current = bridge;
+  }, [bridge]);
   const metaIdRef = useRef(metaId);
-  metaIdRef.current = metaId;
+  useEffect(() => {
+    metaIdRef.current = metaId;
+  }, [metaId]);
   const stateRef = useRef(state);
-  stateRef.current = state;
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
   const regenTimer = useRef<number | null>(null);
   const previewGeneration = useRef(0);
   const sessionGeneration = useRef(0);
   const previewSelected = useRef(false);
   const onSavedTrackRef = useRef(onSavedTrack);
-  onSavedTrackRef.current = onSavedTrack;
+  useEffect(() => {
+    onSavedTrackRef.current = onSavedTrack;
+  }, [onSavedTrack]);
 
   const constant = state.points.length <= 1 && state.segments.length === 0;
 
@@ -77,12 +98,13 @@ export function useTextSync(
     }
     if (regenTimer.current) window.clearTimeout(regenTimer.current);
     const { cues, points, nudge, segments, sourceFormat } = state;
+    const previewLang = state.sourceTrack?.lang;
     const generation = ++previewGeneration.current;
     regenTimer.current = window.setTimeout(() => {
       void (async () => {
-        try {
+        {
           const corrected = applyLinear(cues, points, nudge, segments);
-          const text = sourceFormat === "vtt" ? toVtt(corrected) : toSrt(corrected);
+          const text = serializeCues(corrected, sourceFormat);
           const path = await writeSubtitleFile(
             text,
             sourceFormat,
@@ -90,16 +112,16 @@ export function useTextSync(
           );
           if (path && generation === previewGeneration.current) {
             previewSelected.current = true;
-            await b.addSubtitle(path, state.sourceTrack?.lang, "Preview", true, {
+            await b.addSubtitle(path, previewLang, "Preview", true, {
               provider: "Harbor Live Sync",
               providerDerived: false,
             });
             if (generation === previewGeneration.current) b.setSubDelay(0);
           }
-        } catch {
-          /* preview best-effort */
         }
-      })();
+      })().catch(() => {
+        /* preview best-effort */
+      });
     }, 220);
     return () => {
       previewGeneration.current += 1;
@@ -234,12 +256,13 @@ export function useTextSync(
     if (!b || cur.syncMode !== "active" || !cur.cues) {
       return { ok: false, reason: "not-active" };
     }
-    try {
+    const cues = cur.cues;
+    const attempt = async (): Promise<SaveResult> => {
       previewGeneration.current += 1;
       if (regenTimer.current) window.clearTimeout(regenTimer.current);
       regenTimer.current = null;
-      const corrected = applyLinear(cur.cues, cur.points, cur.nudge, cur.segments);
-      const text = cur.sourceFormat === "vtt" ? toVtt(corrected) : toSrt(corrected);
+      const corrected = applyLinear(cues, cur.points, cur.nudge, cur.segments);
+      const text = serializeCues(corrected, cur.sourceFormat);
       const fileName = `${syncedFileName(metaIdRef.current, cur.sourceTrack)}-${crypto.randomUUID()}`;
       const path = await writeSubtitleFile(text, cur.sourceFormat, fileName, true);
       if (session !== sessionGeneration.current || b !== bridgeRef.current) {
@@ -248,11 +271,7 @@ export function useTextSync(
       if (!path) return { ok: false, reason: "saved-write-failed" };
 
       const source = cur.sourceTrack;
-      const release = source?.release?.trim() || undefined;
-      const sourceName = release || source?.title?.trim() || undefined;
-      const title = sourceName
-        ? `Synced (${cur.sourceFormat.toUpperCase()}) · ${sourceName}`
-        : `Synced (${cur.sourceFormat.toUpperCase()})`;
+      const { release, title } = syncedTitle(cur.sourceFormat, source);
       const previewDelay =
         cur.points.length <= 1 && cur.segments.length === 0 ? deltaFn(cur.points, cur.nudge)(0) : 0;
 
@@ -300,9 +319,11 @@ export function useTextSync(
       writePlayerPrefs(metaIdRef.current, { subDelaySec: 0 });
       exit();
       return { ok: true };
-    } catch (e) {
-      return { ok: false, reason: e instanceof Error ? e.message : String(e) };
-    }
+    };
+    return attempt().catch((e): SaveResult => ({
+      ok: false,
+      reason: e instanceof Error ? e.message : String(e),
+    }));
   }, [exit]);
 
   useEffect(

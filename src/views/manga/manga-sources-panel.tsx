@@ -31,6 +31,8 @@ import { listServers, subscribeServers } from "./manga-sources-panel/suwayomi/se
 import { sourceMatchesServer } from "@/lib/manga/sources/suwayomi/server-link";
 import { useT } from "@/lib/i18n";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 const KIND_LABEL: Record<string, string> = {
   local: "Folder",
   suwayomi: "Server",
@@ -173,7 +175,7 @@ function ByosOption({
 
   const pickFolder = async () => {
     try {
-      const { open: openDialog } = await import("@tauri-apps/plugin-dialog");
+      const { open: openDialog } = await loadDialog();
       const dir = await openDialog({
         directory: true,
         multiple: false,

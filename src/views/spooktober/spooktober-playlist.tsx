@@ -272,7 +272,7 @@ export function SpooktoberPlaylist({
     const run = generation.current;
     setSaving(true);
     setSaveFailed(false);
-    try {
+    const save = async () => {
       let id = unfinishedCopies.get(saveKey);
       if (!id) {
         id = (await createMusicPlaylist(title)).id;
@@ -283,11 +283,14 @@ export function SpooktoberPlaylist({
       unfinishedCopies.delete(saveKey);
       savedCopies.set(saveKey, id);
       if (generation.current === run) setSavedId(id);
-    } catch {
-      if (generation.current === run) setSaveFailed(true);
-    } finally {
-      if (generation.current === run) setSaving(false);
-    }
+    };
+    await save()
+      .catch(() => {
+        if (generation.current === run) setSaveFailed(true);
+      })
+      .finally(() => {
+        if (generation.current === run) setSaving(false);
+      });
   };
 
   return (

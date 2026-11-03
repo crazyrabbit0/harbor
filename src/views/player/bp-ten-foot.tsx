@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type RefObject,
+} from "react";
 import { Captions, Check, Gauge, Languages, LoaderCircle } from "lucide-react";
 import { AllAddonsIcon } from "@/components/icons/harbor-glyphs";
 import type { SubtitleMenuProps } from "@/components/player/subtitle-menu/types";
@@ -284,20 +292,22 @@ export function BpTenFootLayer({ p }: { p: PlayerOverlayLayersProps }) {
   const settings = useSettingsSelector((s) => ({ playerConfirmLeave: s.playerConfirmLeave }));
   const update = useSettingsUpdate();
   const closeRef = useRef<() => void>(() => {});
-  closeRef.current = () => {
-    if (p.src.sportsDocked === false && !p.drawMode) {
-      p.onBack();
-      return;
-    }
-    void requestPlayerClose({
-      drawMode: p.drawMode,
-      setDrawMode: (v) => p.setDrawMode(() => v),
-      closePlayer: p.closePlayer,
-      playerEscExitsFullscreen: false,
-      playerConfirmLeave: settings.playerConfirmLeave,
-      onRememberConfirmLeave: () => update({ playerConfirmLeave: false }),
-    });
-  };
+  useLayoutEffect(() => {
+    closeRef.current = () => {
+      if (p.src.sportsDocked === false && !p.drawMode) {
+        p.onBack();
+        return;
+      }
+      void requestPlayerClose({
+        drawMode: p.drawMode,
+        setDrawMode: (v) => p.setDrawMode(() => v),
+        closePlayer: p.closePlayer,
+        playerEscExitsFullscreen: false,
+        playerConfirmLeave: settings.playerConfirmLeave,
+        onRememberConfirmLeave: () => update({ playerConfirmLeave: false }),
+      });
+    };
+  });
 
   useEffect(
     () =>
@@ -373,6 +383,10 @@ function SourcesPanel(props: Omit<Parameters<typeof BpPlayerSources>[0], "onClos
   return <BpPlayerSources {...props} onClose={closePanel} />;
 }
 
+function causeText(cause: unknown): string {
+  return cause instanceof Error ? cause.message : String(cause);
+}
+
 function HomeServerQualityPanel({
   src,
   positionMs,
@@ -399,11 +413,10 @@ function HomeServerQualityPanel({
       closePanel();
     } catch (cause) {
       setError(
-        `${cause instanceof Error ? cause.message : String(cause)} ${t("The current stream is still playing. Original remains available.")}`,
+        `${causeText(cause)} ${t("The current stream is still playing. Original remains available.")}`,
       );
-    } finally {
-      setSwitching(null);
     }
+    setSwitching(null);
   };
   return (
     <div

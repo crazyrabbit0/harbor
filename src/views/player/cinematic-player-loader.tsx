@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { HarborLoader } from "@/components/harbor-loader";
 import { CustomArtwork } from "@/components/custom-artwork";
 import type { PlayerSnapshot } from "@/lib/player/bridge";
@@ -75,20 +75,17 @@ export function CinematicPlayerLoader({
   const streamBytes = src.streamRef?.size ?? engineStats?.streamLen ?? null;
   const ready = isInfoHash ? readinessScore(engineStats ?? null, true) : 0;
   const heavyForP2p = isInfoHash && streamBytes != null && streamBytes > 20 * 1024 ** 3;
-  const everPlayedRef = useRef(false);
-  if (snap.firstFrameReady) {
-    everPlayedRef.current = true;
-  }
   const sessionKey = `${src.meta.id}::${src.episode?.season ?? ""}:${src.episode?.episode ?? ""}`;
-  const lastSessionRef = useRef(sessionKey);
-  if (lastSessionRef.current !== sessionKey) {
-    lastSessionRef.current = sessionKey;
-    everPlayedRef.current = false;
+  const [played, setPlayed] = useState({ sessionKey, everPlayed: false });
+  const sameSession = played.sessionKey === sessionKey;
+  let everPlayed = sameSession && played.everPlayed;
+  if (snap.firstFrameReady) {
+    everPlayed = sameSession;
   }
+  if (!sameSession || everPlayed !== played.everPlayed) setPlayed({ sessionKey, everPlayed });
   const showing =
-    forceShow ||
-    (!everPlayedRef.current && !failed && snap.errorCode == null && snap.status !== "ended");
-  // The refs above update only on render; while showing, the clock keeps re-rendering so a session reset cannot stick.
+    forceShow || (!everPlayed && !failed && snap.errorCode == null && snap.status !== "ended");
+  // While showing, the clock keeps re-rendering so a session reset cannot stick.
   usePlaybackPositionGated(showing);
   const done = !showing && snap.errorCode == null;
   const [mounted, setMounted] = useState(showing);

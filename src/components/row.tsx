@@ -491,6 +491,48 @@ export function Row({
     }
   }, [childCount, cellWidth, trackEl, scrollKey, recallRowScroll]);
 
+  const rafId = useRef<number | null>(null);
+  const strideRef = useRef(effMin + GAP);
+  const stride = (cellWidth ?? effMin) + GAP;
+  useLayoutEffect(() => {
+    strideRef.current = stride;
+  }, [stride]);
+
+  const cancelGlide = () => {
+    if (rafId.current != null) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
+  };
+
+  const glideTo = (el: HTMLDivElement, target: number, snappy = false) => {
+    const start = rtl ? -el.scrollLeft : el.scrollLeft;
+    const distance = target - start;
+    if (Math.abs(distance) < 2) {
+      el.style.scrollSnapType = "";
+      el.style.scrollBehavior = "";
+      return;
+    }
+    const startTime = performance.now();
+    const duration = snappy
+      ? Math.max(140, Math.min(300, Math.abs(distance) * 0.9))
+      : Math.max(280, Math.min(620, 260 + Math.abs(distance) * 0.45));
+    const tick = (now: number) => {
+      const t = Math.min(1, (now - startTime) / duration);
+      const eased = 1 - Math.pow(1 - t, 3);
+      const next = start + distance * eased;
+      el.scrollLeft = rtl ? -next : next;
+      if (t < 1) {
+        rafId.current = requestAnimationFrame(tick);
+      } else {
+        rafId.current = null;
+        el.style.scrollSnapType = "";
+        el.style.scrollBehavior = "";
+      }
+    };
+    rafId.current = requestAnimationFrame(tick);
+  };
+
   useEffect(() => {
     const container = containerRef.current;
     const track = trackRef.current;
@@ -604,13 +646,11 @@ export function Row({
     glideTo(el, target, false);
   };
   const scrollRef = useRef(scroll);
-  scrollRef.current = scroll;
+  useLayoutEffect(() => {
+    scrollRef.current = scroll;
+  });
   const scrollPrev = useCallback(() => scrollRef.current(-1), []);
   const scrollNext = useCallback(() => scrollRef.current(1), []);
-
-  const rafId = useRef<number | null>(null);
-  const strideRef = useRef(effMin + GAP);
-  strideRef.current = (cellWidth ?? effMin) + GAP;
 
   const dockFrameRef = useRef<number | null>(null);
   const dockPointerXRef = useRef<number | null>(null);
@@ -655,41 +695,6 @@ export function Row({
   useEffect(() => {
     if (!dockEnabled) resetPosterDock();
   }, [dockEnabled, resetPosterDock]);
-
-  const cancelGlide = () => {
-    if (rafId.current != null) {
-      cancelAnimationFrame(rafId.current);
-      rafId.current = null;
-    }
-  };
-
-  const glideTo = (el: HTMLDivElement, target: number, snappy = false) => {
-    const start = rtl ? -el.scrollLeft : el.scrollLeft;
-    const distance = target - start;
-    if (Math.abs(distance) < 2) {
-      el.style.scrollSnapType = "";
-      el.style.scrollBehavior = "";
-      return;
-    }
-    const startTime = performance.now();
-    const duration = snappy
-      ? Math.max(140, Math.min(300, Math.abs(distance) * 0.9))
-      : Math.max(280, Math.min(620, 260 + Math.abs(distance) * 0.45));
-    const tick = (now: number) => {
-      const t = Math.min(1, (now - startTime) / duration);
-      const eased = 1 - Math.pow(1 - t, 3);
-      const next = start + distance * eased;
-      el.scrollLeft = rtl ? -next : next;
-      if (t < 1) {
-        rafId.current = requestAnimationFrame(tick);
-      } else {
-        rafId.current = null;
-        el.style.scrollSnapType = "";
-        el.style.scrollBehavior = "";
-      }
-    };
-    rafId.current = requestAnimationFrame(tick);
-  };
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     dockPointerXRef.current = null;

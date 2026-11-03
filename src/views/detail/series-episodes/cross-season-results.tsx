@@ -7,6 +7,10 @@ import { EpisodeResultRow } from "./episode-result-row";
 
 type Video = NonNullable<Meta["videos"]>[number];
 
+function bySeasonEpisode(a: Video, b: Video): number {
+  return (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0);
+}
+
 export function CrossSeasonResults({
   meta,
   videos,
@@ -38,7 +42,7 @@ export function CrossSeasonResults({
           `s${v.season}e${v.episode}`.includes(q)
         );
       })
-      .sort((a, b) => (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0));
+      .sort(bySeasonEpisode);
   }, [videos, q]);
 
   if (results.length === 0) {

@@ -93,9 +93,9 @@ export function SportsVideoPreview({
     const fine = matchMedia("(any-hover: hover) and (any-pointer: fine)");
     let timer: ReturnType<typeof setTimeout> | undefined;
     let cleanup: (() => void) | undefined;
-    let serial = 0;
+    const serial = { value: 0 };
     const stop = () => {
-      serial++;
+      serial.value += 1;
       clearTimeout(timer);
       timer = undefined;
       cleanup?.();
@@ -174,12 +174,12 @@ export function SportsVideoPreview({
         }
         player?.destroy();
       };
-      const generation = serial;
+      const generation = serial.value;
       timer = setTimeout(async () => {
         if (!eligible()) return stop();
         setState("loading");
         deadline = setTimeout(unavailable, 12000);
-        try {
+        const work = async () => {
           const videos = await loadSportsYoutubeVideos(
             {
               ...query,
@@ -190,10 +190,10 @@ export function SportsVideoPreview({
             },
             controller.signal,
           );
-          if (controller.signal.aborted || generation !== serial) return;
+          if (controller.signal.aborted || generation !== serial.value) return;
           if (!videos.length) return unavailable();
           const api = await youtubeApi();
-          if (controller.signal.aborted || generation !== serial || !eligible()) return;
+          if (controller.signal.aborted || generation !== serial.value || !eligible()) return;
           const host = document.createElement("span");
           layer.querySelector(".sh-video-preview-host")?.appendChild(host);
           videoId = videos[0].id;
@@ -268,9 +268,10 @@ export function SportsVideoPreview({
             frame.title = videos[0].title || title;
             frame.setAttribute("aria-hidden", "true");
           }
-        } catch {
+        };
+        return await work().catch(() => {
           if (!controller.signal.aborted) unavailable();
-        }
+        });
       }, 900);
     };
     const pointer = (event: PointerEvent) => {

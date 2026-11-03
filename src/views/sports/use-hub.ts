@@ -8,6 +8,7 @@ import { fetchHubSlice } from "@/lib/sports/hub-data";
 import { readHubSourceSlice, saveHubSourceSlice } from "@/lib/sports/api-hub-cache";
 import { sportsApiRevision, subscribeSportsApiCredentials } from "@/lib/sports/api-credentials";
 import { hydrateSportsSlices } from "@/lib/sports/slice-storage";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function useSportsHub(
   leagues: string[],
@@ -28,7 +29,7 @@ export function useSportsHub(
     [signature, day, mode],
   );
   const initial = useMemo(
-    () => cachedSportsSnapshot(keys, readHubSourceSlice),
+    () => readAtVersion(credentialRevision, () => cachedSportsSnapshot(keys, readHubSourceSlice)),
     [keys, credentialRevision],
   );
   const [result, setResult] = useState({ request, snapshot: initial });
@@ -47,7 +48,7 @@ export function useSportsHub(
       controller = new AbortController();
       const bypassCache = first && force;
       first = false;
-      try {
+      const work = async () => {
         await hydrateSportsSlices();
         if (!alive || controller.signal.aborted) return;
         await loadSportsSlices(
@@ -76,9 +77,10 @@ export function useSportsHub(
           5,
           bypassCache ? 0 : mode === "upcoming" ? 15 * 60_000 : 15_000,
         );
-      } finally {
+      };
+      await work().finally(() => {
         busy = false;
-      }
+      });
     };
     let timer: number | null = null;
     // The refresh timer runs only while the window is shown; a reveal refreshes at once.

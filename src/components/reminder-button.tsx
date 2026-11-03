@@ -1,5 +1,5 @@
 import { Check, ChevronRight } from "lucide-react";
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { UiIcon } from "@/components/ui-icon";
 import { AnchoredMenu } from "@/components/anchored-menu";
 import { HoverTooltip } from "@/components/hover-tooltip";
@@ -44,13 +44,18 @@ function ReminderMenu({
   const [episodes, setEpisodes] = useState(true);
   const [seasons, setSeasons] = useState(true);
   const [tone, setTone] = useState<ReminderTone>("chime");
+  // Seeds the menu once per opening, not on every reminder change while it is open.
+  const existingRef = useRef(existing);
+  useLayoutEffect(() => {
+    existingRef.current = existing;
+  }, [existing]);
 
   useEffect(() => {
     if (!open) return;
-    setEpisodes(existing?.episodes ?? true);
-    setSeasons(existing?.seasons ?? true);
-    setTone(existing?.tone ?? "chime");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    const current = existingRef.current;
+    setEpisodes(current?.episodes ?? true);
+    setSeasons(current?.seasons ?? true);
+    setTone(current?.tone ?? "chime");
   }, [open]);
 
   const save = () => {

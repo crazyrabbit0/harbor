@@ -59,6 +59,8 @@ export function EmbeddedBroadcastPip({
   );
 }
 
+const loadTauriWindow = () => import("@tauri-apps/api/window");
+
 function BroadcastPlayer({
   src,
   stream,
@@ -185,31 +187,35 @@ function BroadcastPlayer({
     openingPipRef.current = true;
     setOpeningPip(true);
     setPipFailed(false);
-    try {
+    const work = async () => {
       await invoke("pip_open", { session: broadcastPipSession(stream) });
       // Only release the in-app player once the separate native window was created.
       await leaveFullscreen();
       exitPlayback();
-    } catch {
-      setPipFailed(true);
-    } finally {
-      openingPipRef.current = false;
-      setOpeningPip(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setPipFailed(true);
+      })
+      .finally(() => {
+        openingPipRef.current = false;
+        setOpeningPip(false);
+      });
   };
   const popOutChat = async () => {
     if (!chatPopoutUrl) return;
     setChatFailed(false);
-    try {
+    const work = async () => {
       if ("__TAURI_INTERNALS__" in window) {
         await invoke("browser_open", { url: chatPopoutUrl });
-        const { Window: NativeWindow, LogicalSize } = await import("@tauri-apps/api/window");
+        const { Window: NativeWindow, LogicalSize } = await loadTauriWindow();
         const chatWindow = await NativeWindow.getByLabel("harbor-browser");
         await chatWindow?.setSize(new LogicalSize(400, 640)).catch(() => {});
       } else openUrl(chatPopoutUrl);
-    } catch {
+    };
+    await work().catch(() => {
       setChatFailed(true);
-    }
+    });
   };
   return createPortal(
     <section

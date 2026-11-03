@@ -133,8 +133,11 @@ function SportsHubView({ active = false }: { active?: boolean }) {
       if (target?.getClientRects().length) {
         target.focus({ preventScroll: true });
         eventTrigger.current = null;
-      } else if (++attempts < 20) frame = requestAnimationFrame(restore);
-      else eventTrigger.current = null;
+      } else {
+        attempts += 1;
+        if (attempts < 20) frame = requestAnimationFrame(restore);
+        else eventTrigger.current = null;
+      }
     };
     frame = requestAnimationFrame(restore);
     return () => cancelAnimationFrame(frame);

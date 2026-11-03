@@ -59,17 +59,19 @@ export function usePlaybackControls(params: {
 
   const pendingSubtitleCacheRef = useRef<(() => void) | null>(null);
   const subtitleCacheContextRef = useRef({ mediaKey, subtitleStreamKey, revision: 0 });
-  if (
-    subtitleCacheContextRef.current.mediaKey !== mediaKey ||
-    subtitleCacheContextRef.current.subtitleStreamKey !== subtitleStreamKey
-  ) {
-    pendingSubtitleCacheRef.current?.();
-    subtitleCacheContextRef.current = {
-      mediaKey,
-      subtitleStreamKey,
-      revision: subtitleCacheContextRef.current.revision + 1,
-    };
-  }
+  useEffect(() => {
+    if (
+      subtitleCacheContextRef.current.mediaKey !== mediaKey ||
+      subtitleCacheContextRef.current.subtitleStreamKey !== subtitleStreamKey
+    ) {
+      pendingSubtitleCacheRef.current?.();
+      subtitleCacheContextRef.current = {
+        mediaKey,
+        subtitleStreamKey,
+        revision: subtitleCacheContextRef.current.revision + 1,
+      };
+    }
+  }, [mediaKey, subtitleStreamKey]);
   useEffect(() => () => pendingSubtitleCacheRef.current?.(), []);
 
   const rememberSubChoice = useCallback(

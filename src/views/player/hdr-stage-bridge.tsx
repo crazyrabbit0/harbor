@@ -16,6 +16,8 @@ import type { PlayerBridge } from "@/lib/player/bridge";
 import { buildSubtitleTimingMediaKey } from "@/lib/player/subtitle-fps";
 import type { HdrStagePayload } from "../hdr-overlay-app";
 
+const loadApiEvent = () => import("@tauri-apps/api/event");
+
 export type HdrStageHandlers = {
   playPause: () => void;
   fullscreen: () => void;
@@ -46,12 +48,18 @@ export function HdrStageBridge({
 }) {
   const navigation = usePlayerNavigation();
   const navigationRef = useRef(navigation);
-  navigationRef.current = navigation;
+  useEffect(() => {
+    navigationRef.current = navigation;
+  });
   const listening = useRef(false);
   const handlersRef = useRef(handlers);
-  handlersRef.current = handlers;
+  useEffect(() => {
+    handlersRef.current = handlers;
+  });
   const payloadRef = useRef(payload);
-  payloadRef.current = payload;
+  useEffect(() => {
+    payloadRef.current = payload;
+  });
   const sentRef = useRef<string | null>(null);
   // The player passes a fresh object each render, so only a changed serialized payload is sent.
   const send = (next: HdrStagePayload, force = false) => {
@@ -77,7 +85,7 @@ export function HdrStageBridge({
     let cancelled = false;
     const offs: Array<() => void> = [];
     void (async () => {
-      const { emitTo, listen } = await import("@tauri-apps/api/event");
+      const { emitTo, listen } = await loadApiEvent();
       const bind = async (event: string, fn: (p: unknown) => void) => {
         const off = await listen(event, (e) => fn(e.payload));
         if (cancelled) off();
@@ -163,19 +171,7 @@ export function HdrStageBridge({
             typeof request.url === "string" &&
             request.url.length > 0
           ) {
-            try {
-              ok = await h().addSubtitle(
-                request.url,
-                typeof request.lang === "string" ? request.lang : undefined,
-                typeof request.title === "string" ? request.title : undefined,
-                typeof request.select === "boolean" ? request.select : undefined,
-                request.metadata && typeof request.metadata === "object"
-                  ? request.metadata
-                  : undefined,
-              );
-            } catch (error) {
-              console.warn("[hdr-overlay] forwarded subtitle addition failed", error);
-            }
+            ok = await addSubtitleSafely(request, h());
           }
           const result: HdrStageAddSubtitleResult = { requestId, ok };
           await emitTo(HDR_OVERLAY_WINDOW_LABEL, HDR_STAGE_ADD_SUBTITLE_RESULT, result).catch(
@@ -196,4 +192,22 @@ export function HdrStageBridge({
   }, [active]);
 
   return null;
+}
+
+async function addSubtitleSafely(
+  request: Partial<HdrStageAddSubtitleRequest>,
+  handlers: HdrStageHandlers,
+): Promise<boolean> {
+  try {
+    return await handlers.addSubtitle(
+      request.url as string,
+      typeof request.lang === "string" ? request.lang : undefined,
+      typeof request.title === "string" ? request.title : undefined,
+      typeof request.select === "boolean" ? request.select : undefined,
+      request.metadata && typeof request.metadata === "object" ? request.metadata : undefined,
+    );
+  } catch (error) {
+    console.warn("[hdr-overlay] forwarded subtitle addition failed", error);
+    return false;
+  }
 }

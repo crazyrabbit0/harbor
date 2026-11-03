@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { useSettingsSelector } from "@/lib/settings";
 
 export type AutoScrollTarget = { episode: number; id?: number | null; first: boolean } | null;
@@ -50,9 +50,11 @@ export function useEpisodeAutoScroll({
   const userRef = useRef(false);
   const holdRef = useRef<{ until: number; target: Target } | null>(null);
   const beforeRef = useRef(beforeScroll);
-  beforeRef.current = beforeScroll;
   const centeredRef = useRef(centered);
-  centeredRef.current = centered;
+  useLayoutEffect(() => {
+    beforeRef.current = beforeScroll;
+    centeredRef.current = centered;
+  }, [beforeScroll, centered]);
 
   useEffect(() => {
     userRef.current = false;
@@ -158,7 +160,9 @@ export function useEpisodeAutoScroll({
     let tries = 0;
     const run = () => {
       if (!holdRef.current) return;
-      if (!align() && tries++ < 60) requestAnimationFrame(run);
+      if (align() || tries >= 60) return;
+      tries += 1;
+      requestAnimationFrame(run);
     };
     requestAnimationFrame(run);
   }, [enabled, ready, scopeKey, seasonKey, target, scrollRef, align]);

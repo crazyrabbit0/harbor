@@ -3,6 +3,8 @@ import type { PlayerSnapshot } from "@/lib/player/bridge";
 import type { PlayerSrc } from "@/lib/view";
 import { SHORT_PLAYBACK_SEC } from "@/lib/dead-streams";
 
+const loadDeadStreams = () => import("@/lib/dead-streams");
+
 export function useStubDetection(params: {
   src: PlayerSrc;
   snap: PlayerSnapshot;
@@ -24,7 +26,7 @@ export function useStubDetection(params: {
     stubCheckedRef.current = src.url;
     const runtimeMin = src.meta.runtime ? parseInt(src.meta.runtime, 10) : null;
     const isAnime = src.meta.id?.startsWith("kitsu:") || src.meta.id?.startsWith("mal:");
-    void import("@/lib/dead-streams").then(
+    void loadDeadStreams().then(
       ({ shouldFlagAsStub, markStreamDead, recordStubEvent, STUB_TTL_MS }) => {
         const flag = shouldFlagAsStub({
           durationSec: snap.durationSec,

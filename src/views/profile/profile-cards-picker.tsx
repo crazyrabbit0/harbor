@@ -100,16 +100,19 @@ export function ProfileCardsPicker({
   const save = async () => {
     setSaving(true);
     setError(null);
-    try {
+    const work = async () => {
       const cardLayout = { order, hidden };
       const next = await socialPatch<ProfileSummary>("/social/me/profile", { cardLayout });
       onSaved({ ...next, cardLayout });
       onClose();
-    } catch (e) {
-      setError((e as Error).message || t("Could not save. Try again."));
-    } finally {
-      setSaving(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not save. Try again."));
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   return createPortal(

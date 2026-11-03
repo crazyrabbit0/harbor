@@ -26,16 +26,19 @@ export function FaviconField({
     if (!file || busy) return;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       const blob = await fileToFaviconWebp(file);
       const next = await uploadFavicon(blob);
       set("profileFavicon", next.profileFavicon ?? "");
       onSaved?.(next);
-    } catch (e) {
-      setError((e as Error).message || t("Could not upload favicon."));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not upload favicon."));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   return (

@@ -16,6 +16,7 @@ import { genreSearchKey } from "@/lib/music/genre-catalog";
 import type { MusicDiscoveryGenre } from "@/lib/music/genre-catalog";
 import type { MusicCatalogItem, MusicTrack } from "@/lib/music/types";
 import { localRow, trackItem } from "./music-band-types";
+import { readAtVersion } from "@/lib/read-at-version";
 
 type Props = {
   recents: MusicTrack[];
@@ -95,7 +96,7 @@ function HabitRow({
 
 export function MusicExploreBands({ recents, liked, active, onPlay, onOpen, genre }: Props) {
   const t = useT();
-  const now = useMemo(() => new Date(), [active]);
+  const now = useMemo(() => readAtVersion(active, () => new Date()), [active]);
   const season = useMemo(() => seasonalMoment(now), [now]);
   const part = useMemo(() => dayPart(now), [now]);
   const seasonTracks = useMomentTracks(season, active);

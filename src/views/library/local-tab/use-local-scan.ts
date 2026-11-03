@@ -21,6 +21,9 @@ export type PendingScan = {
 };
 export type SourceFolder = { path: string; count: number };
 
+const loadTauriCore = () => import("@tauri-apps/api/core");
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 export function useLocalScan({
   items,
   setToast,
@@ -32,7 +35,9 @@ export function useLocalScan({
   const { settings, update } = useSettings();
   const sweeping = useRef(false);
   const itemsRef = useRef(items);
-  itemsRef.current = items;
+  useEffect(() => {
+    itemsRef.current = items;
+  }, [items]);
   const foldersRef = useRef<SourceFolder[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -43,8 +48,8 @@ export function useLocalScan({
     async (folder: string, restoreRemoved = false) => {
       setError(null);
       setBusy(true);
-      try {
-        const { invoke } = await import("@tauri-apps/api/core");
+      const work = async () => {
+        const { invoke } = await loadTauriCore();
         const scanned = (await invoke("harbor_scan_folder", {
           folder,
           minSizeMb: Math.max(0, Math.round(settings.localMinFileSizeMb ?? 50)),
@@ -66,17 +71,18 @@ export function useLocalScan({
         const nfoCount = await countNfoFor(files.map((f) => f.path));
         setBusy(false);
         setPending({ folder, files, nfoCount, restoreRemoved });
-      } catch (e) {
+      };
+      await work().catch((e) => {
         console.warn("[library] folder scan failed", e);
         setError(e instanceof Error ? e.message : t("Couldn't scan that folder."));
         setBusy(false);
-      }
+      });
     },
     [t, settings.localMinFileSizeMb],
   );
 
   const onAddFolder = useCallback(async () => {
-    const { open } = await import("@tauri-apps/plugin-dialog");
+    const { open } = await loadDialog();
     const folder = await open({ directory: true, multiple: false });
     if (typeof folder !== "string") return;
     // Sidecars and posters sit in subfolders and the parent folder, beyond the dialog's own grant.
@@ -91,7 +97,7 @@ export function useLocalScan({
       setProgress({ found: 0, total: files.length });
       const tmdbKey = settings.tmdbKey?.trim() || null;
       const entries: LocalEntry[] = [];
-      try {
+      const work = async () => {
         for (let i = 0; i < files.length; i++) {
           const f = files[i];
           const parsed = parseFilename(f.filename);
@@ -103,13 +109,16 @@ export function useLocalScan({
           setProgress({ found: i + 1, total: files.length });
         }
         addLocalEntries(entries, restoreRemoved);
-      } catch (e) {
-        console.warn("[library] scan failed", e);
-        setError(e instanceof Error ? e.message : t("Couldn't scan that folder."));
-      } finally {
-        setProgress(null);
-        setBusy(false);
-      }
+      };
+      await work()
+        .catch((e) => {
+          console.warn("[library] scan failed", e);
+          setError(e instanceof Error ? e.message : t("Couldn't scan that folder."));
+        })
+        .finally(() => {
+          setProgress(null);
+          setBusy(false);
+        });
     },
     [settings.tmdbKey, t],
   );
@@ -151,17 +160,18 @@ export function useLocalScan({
     const targets = foldersRef.current;
     if (!targets.length) return;
     sweeping.current = true;
-    try {
+    const work = async () => {
       const known = new Set(itemsRef.current.map((entry) => localPathKey(entry.path)));
       const removed = removedLocalPaths();
       const fresh: { file: ScannedFile; folder: string }[] = [];
-      const { invoke } = await import("@tauri-apps/api/core");
+      const { invoke } = await loadTauriCore();
+      const minSizeMb = Math.max(0, Math.round(settings.localMinFileSizeMb ?? 50));
       for (const folder of targets) {
         let scanned: ScannedFile[] = [];
         try {
           scanned = (await invoke("harbor_scan_folder", {
             folder: folder.path,
-            minSizeMb: Math.max(0, Math.round(settings.localMinFileSizeMb ?? 50)),
+            minSizeMb,
           })) as ScannedFile[];
         } catch (cause) {
           console.warn("[library] auto-scan skipped a folder", folder.path, cause);
@@ -195,12 +205,15 @@ export function useLocalScan({
           ? t("Added 1 new title from your folders")
           : t("Added {n} new titles from your folders", { n: added }),
       );
-    } catch (cause) {
-      console.warn("[library] auto-scan failed", cause);
-    } finally {
-      setProgress(null);
-      sweeping.current = false;
-    }
+    };
+    await work()
+      .catch((cause) => {
+        console.warn("[library] auto-scan failed", cause);
+      })
+      .finally(() => {
+        setProgress(null);
+        sweeping.current = false;
+      });
   }, [
     busy,
     pending,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { PlayerSnapshot } from "@/lib/player/bridge";
 import { getPlaybackPosition } from "@/lib/player/playback-clock";
 import type { PartialSyncState } from "@/lib/together/provider";
@@ -49,16 +49,18 @@ export function useHostSource(params: {
     setValidDurationSec(snap.durationSec);
   }, [snap.durationSec, snap.status]);
 
-  const stableRef = useRef<SourceDescriptor | null>(null);
+  const [stable, setStable] = useState<SourceDescriptor | null>(null);
   const next = buildSourceDescriptor(
     liveStreamRef ?? src.streamRef ?? null,
     validDurationSec > 0 ? validDurationSec : undefined,
   );
-  if (!descriptorsEqual(stableRef.current, next)) stableRef.current = next;
-  const descriptor = stableRef.current;
+  const descriptor = descriptorsEqual(stable, next) ? stable : next;
+  if (descriptor !== stable) setStable(descriptor);
 
   const hostSourceRef = useRef<SourceDescriptor | null>(null);
-  hostSourceRef.current = descriptor;
+  useLayoutEffect(() => {
+    hostSourceRef.current = descriptor;
+  }, [descriptor]);
 
   const lastSeedRef = useRef<SourceDescriptor | null>(null);
   useEffect(() => {

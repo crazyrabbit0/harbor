@@ -31,6 +31,31 @@ import { openUrl } from "@/lib/window";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
+function prependCachedComment(key: string, created: TraktComment) {
+  const existing = JSON.parse(localStorage.getItem(key) ?? "[]") as TraktComment[];
+  existing.unshift(created);
+  localStorage.setItem(key, JSON.stringify(existing));
+}
+
+function postErrorMessage(e: unknown, t: Translate): string {
+  if (e instanceof TraktApiError) {
+    try {
+      const parsed = JSON.parse(e.body);
+      let msg = "";
+      if (parsed.errors && typeof parsed.errors === "object") {
+        const first = Object.values(parsed.errors)[0];
+        if (Array.isArray(first) && first.length > 0) msg = first[0];
+      }
+      if (!msg) msg = parsed.error_description ?? parsed.error ?? `HTTP ${e.status}`;
+      return msg.replace(/^\w+\s*-\s*/, "");
+    } catch {
+      const body = e.body.slice(0, 100) || t("(empty body)");
+      return t("HTTP {status}: {body}", { status: e.status, body });
+    }
+  }
+  return e instanceof TypeError ? t("Network error") : t("Failed to post comment");
+}
+
 function timeAgo(dateStr: string, t: Translate): string {
   const diff = Date.now() - new Date(dateStr).getTime();
   const mins = Math.floor(diff / 60000);
@@ -519,32 +544,10 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
       setSpoiler(false);
       setComments((prev) => [created, ...prev]);
       setText("");
-      if (commentsCacheKey) {
-        const existing = JSON.parse(
-          localStorage.getItem(commentsCacheKey) ?? "[]",
-        ) as TraktComment[];
-        existing.unshift(created);
-        localStorage.setItem(commentsCacheKey, JSON.stringify(existing));
-      }
+      if (commentsCacheKey) prependCachedComment(commentsCacheKey, created);
     } catch (e) {
       console.error("Post comment error:", e);
-      if (e instanceof TraktApiError) {
-        try {
-          const parsed = JSON.parse(e.body);
-          let msg = "";
-          if (parsed.errors && typeof parsed.errors === "object") {
-            const first = Object.values(parsed.errors)[0];
-            if (Array.isArray(first) && first.length > 0) msg = first[0];
-          }
-          if (!msg) msg = parsed.error_description ?? parsed.error ?? `HTTP ${e.status}`;
-          setPostError(msg.replace(/^\w+\s*-\s*/, ""));
-        } catch {
-          const body = e.body.slice(0, 100) || t("(empty body)");
-          setPostError(t("HTTP {status}: {body}", { status: e.status, body }));
-        }
-      } else {
-        setPostError(e instanceof TypeError ? t("Network error") : t("Failed to post comment"));
-      }
+      setPostError(postErrorMessage(e, t));
     }
     setPosting(false);
   }, [target, text, posting, commentsCacheKey, spoiler, t]);

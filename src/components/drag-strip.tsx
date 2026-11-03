@@ -46,8 +46,9 @@ export function DragStrip({
         onReachEnd();
       }
     }
-  }, [ref, onReachEnd, language]);
+  }, [ref, onReachEnd]);
 
+  // A language switch can flip RTL, so it re-measures too.
   useEffect(() => {
     sync();
     const el = ref.current;
@@ -56,7 +57,7 @@ export function DragStrip({
     ro.observe(el);
     if (barTrackRef.current) ro.observe(barTrackRef.current);
     return () => ro.disconnect();
-  }, [itemCount, sync, bar.show]);
+  }, [itemCount, sync, bar.show, language]);
 
   const page = (dir: -1 | 1) => {
     const el = ref.current;

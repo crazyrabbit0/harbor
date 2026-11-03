@@ -18,6 +18,7 @@ export function HandleChangeConfirm({
   onCancel: () => void;
 }) {
   const t = useT();
+  const { closing, close } = useModalExit(onCancel);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -30,9 +31,7 @@ export function HandleChangeConfirm({
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [onConfirm, onCancel]);
-
-  const { closing, close } = useModalExit(onCancel);
+  }, [onConfirm, close]);
 
   return createPortal(
     <div

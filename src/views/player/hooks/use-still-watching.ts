@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PlayEpisode } from "@/lib/view";
 
 export function useStillWatching(params: {
@@ -17,8 +17,12 @@ export function useStillWatching(params: {
   const runsRef = useRef(0);
   const onContinueRef = useRef(onContinue);
   const onStopRef = useRef(onStop);
-  onContinueRef.current = onContinue;
-  onStopRef.current = onStop;
+  useLayoutEffect(() => {
+    onContinueRef.current = onContinue;
+  });
+  useLayoutEffect(() => {
+    onStopRef.current = onStop;
+  });
 
   useEffect(() => {
     if (!enabled) return;

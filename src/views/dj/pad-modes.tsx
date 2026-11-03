@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
 import { sendDeckCommand } from "@/lib/music/deck-sync";
 import { Hardware } from "./controls";
@@ -49,7 +49,9 @@ function Pad({
 }) {
   const armed = useRef(false);
   const latest = useRef(onRelease);
-  latest.current = onRelease;
+  useLayoutEffect(() => {
+    latest.current = onRelease;
+  }, [onRelease]);
 
   useEffect(() => {
     const up = () => {

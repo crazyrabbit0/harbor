@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import type { PlayEpisode } from "@/lib/view";
 
@@ -55,7 +55,9 @@ export function usePlayOnTrigger(resolve: () => PlayOnRequest | null): PlayOnTri
   const origin = useRef<{ x: number; y: number } | null>(null);
   const fired = useRef(false);
   const resolveRef = useRef(resolve);
-  resolveRef.current = resolve;
+  useLayoutEffect(() => {
+    resolveRef.current = resolve;
+  }, [resolve]);
 
   const cancel = useCallback(() => {
     if (timer.current) window.clearTimeout(timer.current);

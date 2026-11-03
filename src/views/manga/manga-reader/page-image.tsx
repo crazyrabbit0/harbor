@@ -29,7 +29,7 @@ export function PageImage({
   const [headerFailed, setHeaderFailed] = useState(false);
   const [nativeFallback, setNativeFallback] = useState(false);
   const autoRetried = useRef(false);
-  const prevUrl = useRef(url);
+  const [prevUrl, setPrevUrl] = useState(url);
 
   const wantHeaderFetch = isTauri && !!headers && Object.keys(headers).length > 0 && !headerFailed;
   const nativeFetch = wantHeaderFetch || (isTauri && nativeFallback);
@@ -39,15 +39,19 @@ export function PageImage({
     setHeaderFailed(true);
   };
 
-  if (prevUrl.current !== url) {
-    prevUrl.current = url;
+  if (prevUrl !== url) {
+    setPrevUrl(url);
     setStatus("loading");
     setBust(0);
     setBlobUrl(null);
     setHeaderFailed(false);
     setNativeFallback(false);
-    autoRetried.current = false;
   }
+
+  // A new url starts a fresh auto-retry budget.
+  useEffect(() => {
+    autoRetried.current = false;
+  }, [url]);
 
   useEffect(() => {
     if (status !== "error" || autoRetried.current) return;

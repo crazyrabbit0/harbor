@@ -472,17 +472,17 @@ function RemoteBody({
   const t = useT();
   const mode = useRemoteSurfaceMode(snapshot.idle);
   const browsing = mode === "browse";
-  const heldSnap = useRef(snapshot);
-  if (!snapshot.idle) heldSnap.current = snapshot;
+  const [heldSnap, setHeldSnap] = useState(snapshot);
+  if (!snapshot.idle && heldSnap !== snapshot) setHeldSnap(snapshot);
   // While leaving Now Playing, keep last media on screen until browse mode settles.
-  const view = browsing || !snapshot.idle ? snapshot : heldSnap.current;
+  const view = browsing || !snapshot.idle ? snapshot : heldSnap;
   const textEntry = snapshot.textEntry;
   const textInputRef = useRef<HTMLTextAreaElement | null>(null);
   const [typing, setTyping] = useState(false);
   const [textDismissed, setTextDismissed] = useState(false);
   const textEntryActive = !!textEntry;
-  const heldTextEntry = useRef(textEntry);
-  if (textEntry) heldTextEntry.current = textEntry;
+  const [heldTextEntry, setHeldTextEntry] = useState(textEntry);
+  if (textEntry && heldTextEntry !== textEntry) setHeldTextEntry(textEntry);
   const setTextTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const episodeLine = useMemo(() => {
@@ -562,13 +562,13 @@ function RemoteBody({
     [onSubmitText],
   );
 
-  const showTextOverlay = !textDismissed && (textEntryActive || typing) && !!heldTextEntry.current;
+  const showTextOverlay = !textDismissed && (textEntryActive || typing) && !!heldTextEntry;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-[clamp(0.75rem,2.2vh,1.25rem)] px-4 pb-[calc(env(safe-area-inset-bottom,0px)+96px)] pt-[max(0.75rem,env(safe-area-inset-top))]">
-      {showTextOverlay && heldTextEntry.current ? (
+      {showTextOverlay && heldTextEntry ? (
         <FullscreenTextEntry
-          entry={heldTextEntry.current}
+          entry={heldTextEntry}
           inputRef={textInputRef}
           onChange={pushText}
           onSubmit={submitTextEntry}

@@ -15,6 +15,15 @@ import { AiExampleHint } from "@/components/ai-example-hint";
 type Video = NonNullable<Meta["videos"]>[number];
 type Status = "idle" | "loading" | "done";
 
+function videosFor(refs: { season: number; episode: number }[], videos: Meta["videos"]): Video[] {
+  const found: Video[] = [];
+  for (const r of refs) {
+    const v = videos?.find((x) => x.season === r.season && x.episode === r.episode);
+    if (v) found.push(v);
+  }
+  return found;
+}
+
 export function EpisodeAiMode({
   meta,
   videos,
@@ -66,11 +75,7 @@ export function EpisodeAiMode({
         candidates,
         q,
       );
-      const found: Video[] = [];
-      for (const r of refs) {
-        const v = videos?.find((x) => x.season === r.season && x.episode === r.episode);
-        if (v) found.push(v);
-      }
+      const found = videosFor(refs, videos);
       setMatches(found);
       setFellBack(found.length === 0);
       setStatus("done");

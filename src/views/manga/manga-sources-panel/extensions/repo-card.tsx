@@ -99,7 +99,7 @@ export function RepoCard({ url, onRemove }: { url: string; onRemove: () => void 
     if (outdated.length === 0) return;
     setUpdateBusy(true);
     setUpdateProgress({ done: 0, total: outdated.length });
-    try {
+    const work = async () => {
       for (let i = 0; i < outdated.length; i++) {
         const m = outdated[i];
         try {
@@ -110,10 +110,11 @@ export function RepoCard({ url, onRemove }: { url: string; onRemove: () => void 
         setUpdateProgress({ done: i + 1, total: outdated.length });
         setTick((n) => n + 1);
       }
-    } finally {
+    };
+    await work().finally(() => {
       setUpdateBusy(false);
       setUpdateProgress(null);
-    }
+    });
   };
 
   const remove = () => {

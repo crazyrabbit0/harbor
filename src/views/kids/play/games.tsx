@@ -144,6 +144,7 @@ const EMBED_H = 402;
 const CROP_TOP = 40;
 const CROP_LEFT = 2.5;
 
+const loadTauriCore = () => import("@tauri-apps/api/core");
 const embedUrl = (id: number) => `https://scratch.mit.edu/projects/${id}/embed`;
 const thumbUrl = (id: number) => `https://cdn2.scratch.mit.edu/get_image/project/${id}_480x360.png`;
 
@@ -272,7 +273,7 @@ function GamePlayer({ game, onBack }: { game: Game; onBack: () => void }) {
 
   useEffect(() => {
     let restore = () => {};
-    void import("@tauri-apps/api/core").then(({ invoke, isTauri }) => {
+    void loadTauriCore().then(({ invoke, isTauri }) => {
       if (!isTauri()) return;
       void invoke("harbor_set_context_menu", { enabled: false }).catch(() => {});
       restore = () => void invoke("harbor_set_context_menu", { enabled: true }).catch(() => {});

@@ -84,9 +84,8 @@ export function SportsMarquee({
 }) {
   const t = useT();
   useUiLanguage();
-  const cards = useRail();
-  const chips = useRail();
-  const trackRef = cards.ref;
+  const { ref: trackRef, edges: cardEdges, nudge: nudgeCards } = useRail();
+  const { ref: chipsRef, edges: chipEdges, nudge: nudgeChips } = useRail();
   const pausedRef = useRef(false);
   const live = liveCount(games);
   const [showCustomize, setShowCustomize] = useState(false);
@@ -144,7 +143,7 @@ export function SportsMarquee({
         </div>
         <div className="relative min-w-0">
           <div
-            ref={chips.ref}
+            ref={chipsRef}
             className="flex gap-2 overflow-x-auto overflow-y-hidden pb-1 pe-[9px] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             <LeagueChip
@@ -164,11 +163,11 @@ export function SportsMarquee({
                 />
               ))}
           </div>
-          {chips.edges.left && (
-            <RailArrow side="start" label={t("Scroll left")} onClick={() => chips.nudge(-1)} />
+          {chipEdges.left && (
+            <RailArrow side="start" label={t("Scroll left")} onClick={() => nudgeChips(-1)} />
           )}
-          {chips.edges.right && (
-            <RailArrow side="end" label={t("Scroll right")} onClick={() => chips.nudge(1)} />
+          {chipEdges.right && (
+            <RailArrow side="end" label={t("Scroll right")} onClick={() => nudgeChips(1)} />
           )}
         </div>
         {games.length > 0 ? (
@@ -187,11 +186,11 @@ export function SportsMarquee({
                 <SportsCard key={g.id} game={g} onSelect={onSelect} />
               ))}
             </div>
-            {cards.edges.left && (
-              <RailArrow side="start" label={t("Scroll left")} onClick={() => cards.nudge(-1)} />
+            {cardEdges.left && (
+              <RailArrow side="start" label={t("Scroll left")} onClick={() => nudgeCards(-1)} />
             )}
-            {cards.edges.right && (
-              <RailArrow side="end" label={t("Scroll right")} onClick={() => cards.nudge(1)} />
+            {cardEdges.right && (
+              <RailArrow side="end" label={t("Scroll right")} onClick={() => nudgeCards(1)} />
             )}
           </div>
         ) : (

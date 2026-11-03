@@ -67,7 +67,9 @@ export function Rail({
   const shelf = useMemo(() => (def ? { ...def.shelf, title, kicker } : null), [def, title, kicker]);
   // Callbacks read the latest values through a ref so parking the page does not hand the row new props.
   const latest = useRef({ active, loadMore, railId, def, items, title });
-  latest.current = { active, loadMore, railId, def, items, title };
+  useEffect(() => {
+    latest.current = { active, loadMore, railId, def, items, title };
+  }, [active, loadMore, railId, def, items, title]);
   const onEndReached = useCallback(() => {
     const l = latest.current;
     if (l.active) l.loadMore(l.railId);

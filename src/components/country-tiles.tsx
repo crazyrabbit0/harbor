@@ -55,17 +55,19 @@ const FALLBACK: Record<string, string> = {
   TH: "Thailand",
 };
 
+function regionNamer(uiLang: string): (iso: string) => string {
+  try {
+    const names = new Intl.DisplayNames([uiLang], { type: "region", style: "short" });
+    return (iso: string) => names.of(iso) ?? FALLBACK[iso] ?? iso;
+  } catch {
+    return (iso: string) => FALLBACK[iso] ?? iso;
+  }
+}
+
 export function CountryTiles({ title }: { title?: string }) {
   const t = useT();
   const uiLang = useUiLanguage();
-  const regionName = useMemo(() => {
-    try {
-      const names = new Intl.DisplayNames([uiLang], { type: "region", style: "short" });
-      return (iso: string) => names.of(iso) ?? FALLBACK[iso] ?? iso;
-    } catch {
-      return (iso: string) => FALLBACK[iso] ?? iso;
-    }
-  }, [uiLang]);
+  const regionName = useMemo(() => regionNamer(uiLang), [uiLang]);
   return (
     <Row title={title ?? t("Browse by Country")} min={210} shape="tile">
       {ISO.map((iso) => (

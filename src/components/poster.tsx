@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { needsImdbForPoster, needsTmdbForPoster, rpdbPoster } from "@/lib/providers/rpdb";
 import { useTitlePoster } from "@/lib/title-poster";
 import {
@@ -125,6 +125,8 @@ function useAnimeRpdbIds(
   return { animeImdb, animeTvdb, animeTmdb };
 }
 
+const NO_FAILED_URLS: ReadonlySet<string> = new Set();
+
 export function usePosterChain(
   rpdbKey: string,
   metaId: string,
@@ -172,20 +174,22 @@ export function usePosterChain(
     pinned,
   ]);
   const sig = candidates.join("|");
-  const failedRef = useRef<Set<string>>(new Set());
-  const sigRef = useRef(sig);
-  const [, bump] = useReducer((n: number) => n + 1, 0);
-  if (sigRef.current !== sig) {
-    sigRef.current = sig;
-    failedRef.current = new Set();
-  }
-  const src = candidates.find((u) => !failedRef.current.has(u));
+  // Failed URLs belong to one candidate list; a new list starts with none failed.
+  const [failed, setFailed] = useState<{ sig: string; urls: ReadonlySet<string> }>(() => ({
+    sig,
+    urls: new Set(),
+  }));
+  const failedUrls = failed.sig === sig ? failed.urls : NO_FAILED_URLS;
+  const src = candidates.find((u) => !failedUrls.has(u));
   return {
     src,
     onError: () => {
-      if (src && !failedRef.current.has(src)) {
-        failedRef.current.add(src);
-        bump();
+      if (src && !failedUrls.has(src)) {
+        setFailed((prev) => {
+          const urls = prev.sig === sig ? prev.urls : NO_FAILED_URLS;
+          if (urls.has(src)) return prev;
+          return { sig, urls: new Set([...urls, src]) };
+        });
       }
     },
   };
@@ -271,15 +275,20 @@ function PosterBody({
   const [displayed, setDisplayed] = useState<string | undefined>(undefined);
   const [retry, setRetry] = useState(0);
   const failedRef = useRef<Set<string>>(new Set());
+  // Render-side copy of failedRef; every failedRef change also sets this.
+  const [failedSet, setFailedSet] = useState<ReadonlySet<string>>(NO_FAILED_URLS);
   const firedRef = useRef(false);
   const failBurstRef = useRef<{ t: number; n: number }>({ t: 0, n: 0 });
   const onErrorRef = useRef(onError);
-  onErrorRef.current = onError;
+  useLayoutEffect(() => {
+    onErrorRef.current = onError;
+  }, [onError]);
   useEffect(() => {
     setIdx(0);
     setLoaded(false);
     setRetry(0);
     failedRef.current = new Set();
+    setFailedSet(NO_FAILED_URLS);
     firedRef.current = false;
   }, [sig]);
 
@@ -316,7 +325,7 @@ function PosterBody({
   }, [lazy]);
 
   let cursor = idx;
-  while (cursor < candidates.length && failedRef.current.has(candidates[cursor])) cursor++;
+  while (cursor < candidates.length && failedSet.has(candidates[cursor])) cursor++;
   const current: string | undefined = candidates[cursor];
   const exhausted = cursor >= candidates.length;
   // Remote plain-HTTP images (e.g. a Suwayomi server on a VPS) are mixed-content
@@ -335,6 +344,7 @@ function PosterBody({
     if (!exhausted) return;
     const retryNow = () => {
       failedRef.current = new Set();
+      setFailedSet(NO_FAILED_URLS);
       firedRef.current = false;
       setIdx(0);
       setRetry((r) => r + 1);
@@ -347,22 +357,29 @@ function PosterBody({
     };
   }, [exhausted, retry]);
 
-  const fail = useCallback((url: string) => {
-    const now = Date.now();
-    const b = failBurstRef.current;
-    if (now - b.t > 1000) {
-      b.t = now;
-      b.n = 0;
-    }
-    if (++b.n > 24) return;
-    if (failedRef.current.has(url)) return;
-    failedRef.current.add(url);
-    setLoaded(false);
-    setIdx((i) => i + 1);
-  }, []);
+  const fail = useCallback(
+    (url: string) => {
+      const now = Date.now();
+      const b = failBurstRef.current;
+      if (now - b.t > 1000) {
+        b.t = now;
+        b.n = 0;
+      }
+      if (++b.n > 24) return;
+      if (failedRef.current.has(url)) return;
+      failedRef.current.add(url);
+      setFailedSet(new Set(failedRef.current));
+      setLoaded(false);
+      setIdx((i) => i + 1);
+    },
+    [setFailedSet, setLoaded, setIdx],
+  );
   const currentRef = useRef(current);
-  currentRef.current = current;
+  useLayoutEffect(() => {
+    currentRef.current = current;
+  }, [current]);
   const imgElRef = useRef<HTMLImageElement | null>(null);
+  // Ref callbacks run before this component's layout effects, so the attach reads `current` directly.
   const handleImgRef = useCallback(
     (el: HTMLImageElement | null) => {
       imgElRef.current = el;
@@ -370,11 +387,11 @@ function PosterBody({
       if (el.complete) {
         if (el.naturalWidth > 0) {
           setLoaded(true);
-          setDisplayed(currentRef.current);
-        } else if (currentRef.current) fail(currentRef.current);
+          setDisplayed(current);
+        } else if (current) fail(current);
         return;
       }
-      const target = currentRef.current;
+      const target = current;
       el.decode().then(
         () => {
           if (imgElRef.current === el && currentRef.current === target && target) {
@@ -385,7 +402,7 @@ function PosterBody({
         () => {},
       );
     },
-    [fail],
+    [fail, current, setLoaded, setDisplayed],
   );
   useEffect(() => {
     if (loaded || !current) return;

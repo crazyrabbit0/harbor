@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { observe, usePageVisible } from "@/lib/visibility";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { isRtl, useT, useUiLanguage } from "@/lib/i18n";
@@ -108,7 +108,9 @@ export function HeroCarousel({
   // Held in a ref, so a caller that places something over the slide is told when it changes rather
   // than on every render.
   const onActiveRef = useRef(onActive);
-  onActiveRef.current = onActive;
+  useLayoutEffect(() => {
+    onActiveRef.current = onActive;
+  }, [onActive]);
   useEffect(() => {
     onActiveRef.current?.(safeActive);
   }, [safeActive]);
@@ -147,9 +149,7 @@ export function HeroCarousel({
     if (Math.abs(dx) > DRAG_BUDGE && !moved.current) {
       moved.current = true;
       setDragging(true);
-      try {
-        viewportRef.current?.setPointerCapture(e.pointerId);
-      } catch {}
+      capturePointer(viewportRef.current, e.pointerId);
     }
     const now = performance.now();
     const dt = now - lastT.current;
@@ -171,11 +171,7 @@ export function HeroCarousel({
   const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     if (!downRef.current) return;
     downRef.current = false;
-    try {
-      if (viewportRef.current?.hasPointerCapture?.(e.pointerId)) {
-        viewportRef.current.releasePointerCapture(e.pointerId);
-      }
-    } catch {}
+    releasePointer(viewportRef.current, e.pointerId);
     if (!moved.current) {
       setDragging(false);
       return;
@@ -358,6 +354,20 @@ export function HeroCarousel({
       )}
     </div>
   );
+}
+
+function capturePointer(el: HTMLElement | null, pointerId: number): void {
+  try {
+    el?.setPointerCapture(pointerId);
+  } catch {}
+}
+
+function releasePointer(el: HTMLElement | null, pointerId: number): void {
+  try {
+    if (el?.hasPointerCapture?.(pointerId)) {
+      el.releasePointerCapture(pointerId);
+    }
+  } catch {}
 }
 
 function rubberBand(distance: number, dim: number, c = 0.55): number {

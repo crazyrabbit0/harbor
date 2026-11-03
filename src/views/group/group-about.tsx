@@ -46,15 +46,18 @@ export function GroupAbout({
   const save = async () => {
     setSaving(true);
     setError(null);
-    try {
+    const work = async () => {
       onApply(
         await editGroup(detail.id, { visibility: vis, tags, description: description.trim() }),
       );
-    } catch (e) {
-      setError((e as Error).message || t("Could not save changes."));
-    } finally {
-      setSaving(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not save changes."));
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   if (!perms.editGroup) {

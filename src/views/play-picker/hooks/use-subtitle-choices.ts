@@ -7,7 +7,7 @@ import { subtitleStreamDescriptor } from "@/lib/subtitles/provider-label";
 import { rankSubtitleCandidates, searchSubtitles } from "@/lib/subtitles/search";
 import { resolveAnimeSearchCoords } from "@/lib/subtitles/anime-numbering";
 import type { SubResult } from "@/lib/subtitles/types";
-import { useSettingsSelector } from "@/lib/settings";
+import { useSettingsSelector, type Settings } from "@/lib/settings";
 import { buildStreamIds } from "@/lib/streams/stream-ids";
 import type { PlayerSrc } from "@/lib/view";
 
@@ -26,6 +26,84 @@ function isJapanese(lang: string): boolean {
   return l === "ja" || l === "jpn" || l === "jp" || l === "japanese";
 }
 
+type SubtitleSearchArgs = {
+  src: PlayerSrc;
+  candidateIds: string[];
+  imdbEpAligned: boolean;
+  preferredLangs: string[];
+  addons: Addon[];
+  enabled: Partial<Settings["subProvidersEnabled"]>;
+  subdlApiKey: string;
+  subsourceApiKey: string;
+};
+
+// Lives outside the hook: the React Compiler cannot lower value blocks inside a try.
+async function runSubtitleSearch(args: SubtitleSearchArgs): Promise<SubResult[]> {
+  const {
+    src,
+    candidateIds,
+    imdbEpAligned,
+    preferredLangs,
+    addons,
+    enabled,
+    subdlApiKey,
+    subsourceApiKey,
+  } = args;
+  const coords = await resolveAnimeSearchCoords({
+    isAnime: isAnimeSrc(src),
+    metaId: src.meta.id,
+    imdbId: src.imdbId ?? (src.meta.id?.startsWith("tt") ? src.meta.id : undefined),
+    imdbVerified: src.imdbIdVerified === true || !!src.meta.id?.startsWith("tt"),
+    episode: src.episode,
+  });
+  const r = await searchSubtitles(
+    {
+      imdbId: src.imdbId ?? (src.meta.id?.startsWith("tt") ? src.meta.id : undefined),
+      stremioId: src.meta.id,
+      candidateIds,
+      type: src.meta.type === "series" ? "series" : "movie",
+      season: coords
+        ? coords.season
+        : imdbEpAligned
+          ? (src.episode?.imdbSeason ?? src.episode?.season)
+          : src.episode?.season,
+      episode: coords
+        ? coords.episode
+        : imdbEpAligned
+          ? (src.episode?.imdbEpisode ?? src.episode?.episode)
+          : src.episode?.episode,
+      langs: preferredLangs,
+      filename: subtitleStreamDescriptor(src.streamRef),
+    },
+    {
+      timeoutMs: 7_000,
+      providers: {
+        wyzie: enabled.wyzie === true,
+        addons: enabled.addons !== false,
+        opensubtitles: enabled.opensubtitles !== false,
+      },
+      addons,
+      preferredLangs,
+      streamHints: {
+        release: src.streamRef?.title ?? src.streamRef?.parsedTitle ?? null,
+        source: src.streamRef?.source ?? null,
+        resolution: src.streamRef?.resolution ?? null,
+      },
+      extra: {
+        userAgent: "Harbor",
+        netAllowed: true,
+        subdlApiKey: subdlApiKey || null,
+        subsourceApiKey: subsourceApiKey || null,
+        enabled: {
+          subdl: enabled.subdl === true,
+          subsource: enabled.subsource === true,
+        },
+      },
+    },
+  );
+  return r;
+}
+
 export function useSubtitleChoices(src: PlayerSrc) {
   const settings = useSettingsSelector((s) => ({
     preferredLanguages: s.preferredLanguages,
@@ -39,13 +117,14 @@ export function useSubtitleChoices(src: PlayerSrc) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
+  const srcIsAnime = isAnimeSrc(src);
   const preferredLangs = useMemo(() => {
     const primary = settings.preferredSubLangs?.length
       ? settings.preferredSubLangs
       : (settings.preferredLanguages ?? []);
     const base = primary.length > 0 ? primary : ["English"];
-    return isAnimeSrc(src) ? base : base.filter((l) => !isJapanese(l));
-  }, [settings.preferredSubLangs, settings.preferredLanguages, src.meta.id]);
+    return srcIsAnime ? base : base.filter((l) => !isJapanese(l));
+  }, [settings.preferredSubLangs, settings.preferredLanguages, srcIsAnime]);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,58 +151,16 @@ export function useSubtitleChoices(src: PlayerSrc) {
         src.episode?.imdbEpisode == null ||
         src.episode.episode === src.episode.imdbEpisode;
       try {
-        const coords = await resolveAnimeSearchCoords({
-          isAnime: isAnimeSrc(src),
-          metaId: src.meta.id,
-          imdbId: src.imdbId ?? (src.meta.id?.startsWith("tt") ? src.meta.id : undefined),
-          imdbVerified: src.imdbIdVerified === true || !!src.meta.id?.startsWith("tt"),
-          episode: src.episode,
+        const r = await runSubtitleSearch({
+          src,
+          candidateIds,
+          imdbEpAligned,
+          preferredLangs,
+          addons,
+          enabled,
+          subdlApiKey: settings.subdlApiKey,
+          subsourceApiKey: settings.subsourceApiKey,
         });
-        const r = await searchSubtitles(
-          {
-            imdbId: src.imdbId ?? (src.meta.id?.startsWith("tt") ? src.meta.id : undefined),
-            stremioId: src.meta.id,
-            candidateIds,
-            type: src.meta.type === "series" ? "series" : "movie",
-            season: coords
-              ? coords.season
-              : imdbEpAligned
-                ? (src.episode?.imdbSeason ?? src.episode?.season)
-                : src.episode?.season,
-            episode: coords
-              ? coords.episode
-              : imdbEpAligned
-                ? (src.episode?.imdbEpisode ?? src.episode?.episode)
-                : src.episode?.episode,
-            langs: preferredLangs,
-            filename: subtitleStreamDescriptor(src.streamRef),
-          },
-          {
-            timeoutMs: 7_000,
-            providers: {
-              wyzie: enabled.wyzie === true,
-              addons: enabled.addons !== false,
-              opensubtitles: enabled.opensubtitles !== false,
-            },
-            addons,
-            preferredLangs,
-            streamHints: {
-              release: src.streamRef?.title ?? src.streamRef?.parsedTitle ?? null,
-              source: src.streamRef?.source ?? null,
-              resolution: src.streamRef?.resolution ?? null,
-            },
-            extra: {
-              userAgent: "Harbor",
-              netAllowed: true,
-              subdlApiKey: settings.subdlApiKey || null,
-              subsourceApiKey: settings.subsourceApiKey || null,
-              enabled: {
-                subdl: enabled.subdl === true,
-                subsource: enabled.subsource === true,
-              },
-            },
-          },
-        );
         if (!cancelled) {
           setResults(r);
           setLoading(false);

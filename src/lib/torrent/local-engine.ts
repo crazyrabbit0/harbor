@@ -1,70 +1,30 @@
 import { invoke } from "@tauri-apps/api/core";
 import { stopFullDownload } from "./full-download";
+import type {
+  AddResult,
+  EngineStatus,
+  SelfTestResult,
+  TorrentEngineStats,
+  TorrentListItem,
+} from "@/lib/generated/torrent-ipc";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 const PENDING_DELETE_KEY = "harbor-internal.torrent.pending-delete.v1";
 const INFO_HASH_RE = /^[a-f0-9]{40}$/;
 
-export type EngineStatus = {
-  ready: boolean;
-  port: number | null;
-  active_torrents: number;
-  last_error: string | null;
-  dht_tier?: number;
-  dht_nodes?: number;
-};
-
-export type EngineFile = {
-  idx: number;
-  name: string;
-  length: number;
-};
-
-export type AddResult = {
-  info_hash: string;
-  files: EngineFile[];
-  stream_base: string;
-  already_managed?: boolean;
-};
+export type {
+  AddResult,
+  EngineFile,
+  EngineStatus,
+  SelfTestResult,
+  SelfTestStep,
+  TorrentEngineStats,
+  TorrentListItem,
+} from "@/lib/generated/torrent-ipc";
 
 export type LocalEngineStreamRef = {
   infoHash: string;
   fileIdx: number;
-};
-
-export type TorrentEngineStats = {
-  peers: number;
-  unchoked: number;
-  downloaded: number;
-  downloadSpeed: number;
-  streamProgress: number;
-  streamLen: number;
-  peerSearchRunning: boolean;
-  finished: boolean;
-  state: string;
-};
-
-export type TorrentListItem = {
-  infoHash: string;
-  name: string;
-  downloaded: number;
-  total: number;
-  downloadSpeed: number;
-  finished: boolean;
-  paused: boolean;
-  state: string;
-};
-
-export type SelfTestStep = {
-  label: string;
-  ok: boolean;
-  warn?: boolean;
-  detail: string;
-};
-
-export type SelfTestResult = {
-  pass: boolean;
-  steps: SelfTestStep[];
 };
 
 export async function torrentEngineSetEnabled(enabled: boolean): Promise<EngineStatus | null> {

@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import { useSettingsSelector } from "@/lib/settings";
 
+const loadApiEvent = () => import("@tauri-apps/api/event");
+
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 export function usePauseOnInactive({
@@ -23,7 +25,7 @@ export function usePauseOnInactive({
     if (!isTauri) return;
     let unlisten: (() => void) | undefined;
     let cancelled = false;
-    void import("@tauri-apps/api/event").then(({ listen }) =>
+    void loadApiEvent().then(({ listen }) =>
       listen("harbor://window-activity", () => {
         window.dispatchEvent(new Event("harbor:mpv-force-geom"));
       }).then((u) => {
@@ -42,7 +44,7 @@ export function usePauseOnInactive({
     if (!pauseMinimized && !pauseUnfocused) return;
     let unlisten: (() => void) | undefined;
     let cancelled = false;
-    void import("@tauri-apps/api/event").then(({ listen }) =>
+    void loadApiEvent().then(({ listen }) =>
       listen<{ focused: boolean; minimized: boolean }>("harbor://window-activity", (e) => {
         const bridge = bridgeRef.current;
         if (!bridge) return;

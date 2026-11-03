@@ -208,7 +208,7 @@ export function Lcd({
         data-live={playing || undefined}
         data-load={loading || undefined}
         aria-hidden="true"
-        style={{ ["--dj-rows" as string]: String(height) }}
+        style={{ "--dj-rows": String(height) } as CSSProperties}
       >
         <span className="dj-lcd-glass" />
         {BANDS.map((band) => (
@@ -218,7 +218,7 @@ export function Lcd({
               columns.current[band] = node;
             }}
             className="dj-lcd-col"
-            style={{ ["--dj-ramp" as string]: `linear-gradient(to top, ${gradient})` }}
+            style={{ "--dj-ramp": `linear-gradient(to top, ${gradient})` } as CSSProperties}
           >
             <i className="dj-lcd-fill" />
             <i className="dj-lcd-cap" />

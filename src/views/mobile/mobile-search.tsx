@@ -814,7 +814,7 @@ function CollectionsBrowser({
     let alive = true;
     setList(null);
     (async () => {
-      try {
+      const work = async () => {
         const cats = await listBrowseCatalogs(authKey, {
           pluginRows: settings.pluginsOutsideTab,
         });
@@ -835,9 +835,10 @@ function CollectionsBrowser({
           }
         }
         setList(merged);
-      } catch {
+      };
+      await work().catch(() => {
         if (alive) setList([]);
-      }
+      });
     })();
     return () => {
       alive = false;

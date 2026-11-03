@@ -181,32 +181,38 @@ export function EBookWheelMenu({
   const markCompleted = async () => {
     const next = !completed;
     setCompleted(next);
-    try {
+    const work = async () => {
       await saveEBookTracking(ebook, {
         status: next ? "COMPLETED" : "PLANNING",
         progress: next ? (ebook.chapters ?? getEBookTracking(ebook.id).progress) : 0,
         progressVolumes: next ? (ebook.volumes ?? getEBookTracking(ebook.id).progressVolumes) : 0,
       });
       emitListToast(next ? t("Marked as read") : t("Marked as unread"));
-    } catch {
+    };
+    await work().catch(() => {
       emitListToast(t("Saved locally; AniList sync is pending"));
-    }
+    });
     onClose();
   };
 
   const startExport = async (format: EBookExportFormat) => {
     if (exporting) return;
     setExporting(format);
-    try {
+    const work = async () => {
       await enqueueEBookExport(ebook, format);
       emitListToast(t("{format} added to Downloads", { format: format.toUpperCase() }));
       onClose();
       setView("downloads");
-    } catch (error) {
-      emitListToast(error instanceof Error ? error.message : t("This eBook could not be exported"));
-    } finally {
-      setExporting(null);
-    }
+    };
+    await work()
+      .catch((error) => {
+        emitListToast(
+          error instanceof Error ? error.message : t("This eBook could not be exported"),
+        );
+      })
+      .finally(() => {
+        setExporting(null);
+      });
   };
 
   const actions = useMemo<WheelAction[]>(
@@ -254,7 +260,7 @@ export function EBookWheelMenu({
         onClick: () => void markCompleted(),
       },
     ],
-    [completed, ebook, onClose, onShelf, onStartReading, readLater, resume, t],
+    [completed, ebook, markCompleted, onClose, onShelf, onStartReading, readLater, resume, t],
   );
 
   const node = (

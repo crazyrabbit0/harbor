@@ -205,6 +205,34 @@ function isInstalled(a: SAAddon, installedIds: Set<string>): boolean {
   return installedIds.has(id);
 }
 
+async function installCommunityAddon(
+  addon: SAAddon,
+  id: string,
+  name: string,
+  logo: string | null | undefined,
+  onChange: (() => void) | undefined,
+): Promise<void> {
+  try {
+    let hints = (
+      addon.manifest as {
+        behaviorHints?: { configurable?: boolean; configurationRequired?: boolean };
+      }
+    ).behaviorHints;
+    if (!hints) {
+      const full = await fetchManifestAt(addon.manifestUrl).catch(() => null);
+      hints = full?.behaviorHints;
+    }
+    if (hints?.configurable === true || hints?.configurationRequired === true) {
+      openInstallerViewport(manifestToConfigureUrl(addon.manifestUrl), name, logo ?? null);
+      return;
+    }
+    await installAddon(id, addon.manifestUrl);
+    onChange?.();
+  } catch (err) {
+    console.warn("[community-rail] install failed", err);
+  }
+}
+
 function CommunityCard({
   addon,
   installed,
@@ -223,34 +251,17 @@ function CommunityCard({
   const description = m?.description ?? "";
   const logo = m?.logo;
   const background = m?.background;
+  const manifestTypes = m?.types;
   const types = useMemo(() => {
-    const list = Array.isArray(m?.types) ? m!.types! : [];
+    const list = Array.isArray(manifestTypes) ? manifestTypes : [];
     return list.slice(0, 3);
-  }, [m?.types]);
+  }, [manifestTypes]);
 
   const install = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!m?.id || busy) return;
     setBusy(true);
-    try {
-      let hints = (
-        m as { behaviorHints?: { configurable?: boolean; configurationRequired?: boolean } }
-      ).behaviorHints;
-      if (!hints) {
-        const full = await fetchManifestAt(addon.manifestUrl).catch(() => null);
-        hints = full?.behaviorHints;
-      }
-      if (hints?.configurable === true || hints?.configurationRequired === true) {
-        openInstallerViewport(manifestToConfigureUrl(addon.manifestUrl), name, logo ?? null);
-        return;
-      }
-      await installAddon(m.id, addon.manifestUrl);
-      onChange?.();
-    } catch (err) {
-      console.warn("[community-rail] install failed", err);
-    } finally {
-      setBusy(false);
-    }
+    await installCommunityAddon(addon, m.id, name, logo, onChange).finally(() => setBusy(false));
   };
 
   const openDetail = () => {

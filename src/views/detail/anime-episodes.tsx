@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { scrollToDataEp } from "@/lib/episode-scroll";
 import { type FranchiseEntry } from "@/lib/providers/anime-detail";
@@ -188,7 +196,7 @@ export function AnimeEpisodes({
     if (best != null && best >= 2) return String(best);
     if (episodeHint && episodeHint.season >= 2) return String(episodeHint.season);
     return null;
-  }, [episodes, episodeHint]);
+  }, [episodes, episodeHint, meta.id]);
   const { settings, update } = useSettings();
   const order = useAnimeOrder(
     imdbId ?? null,
@@ -247,7 +255,9 @@ export function AnimeEpisodes({
   );
 
   const onSeasonArtRef = useRef(onSeasonArt);
-  onSeasonArtRef.current = onSeasonArt;
+  useLayoutEffect(() => {
+    onSeasonArtRef.current = onSeasonArt;
+  }, [onSeasonArt]);
   const tvdbActiveSeason = tvdbPanel.panel
     ? tvdbPanel.panel.items.find((i) => i.key === tvdbPanel.panel!.activeKey)
     : undefined;

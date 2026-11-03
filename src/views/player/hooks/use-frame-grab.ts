@@ -35,7 +35,7 @@ export function useFrameGrab(params: {
     const bridge = bridgeRef.current;
     if (!bridge) return;
     busyRef.current = true;
-    try {
+    const work = async () => {
       const filename = `${safeName(captureBaseTitle(src))} - ${formatStamp(new Date())} - ${formatPosition(
         getPlaybackPosition(),
       )}.png`;
@@ -58,10 +58,11 @@ export function useFrameGrab(params: {
         });
       }
       dismissTimer.current = window.setTimeout(() => setToast(null), 5200);
-    } finally {
+    };
+    await work().finally(() => {
       busyRef.current = false;
-    }
-  }, [bridgeRef, src.meta.name, src.episode, folder]);
+    });
+  }, [bridgeRef, src, folder]);
 
   useEffect(
     () => () => {

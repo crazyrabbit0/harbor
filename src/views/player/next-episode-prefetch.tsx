@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import type { Meta } from "@/lib/cinemeta";
 import { prepareCachedDebridStreams } from "@/lib/debrid/playback-preparation";
@@ -41,7 +41,9 @@ export function NextEpisodePrefetch({
   );
   const { settings } = useSettings();
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  useLayoutEffect(() => {
+    settingsRef.current = settings;
+  });
   const { authKey } = useAuth();
   const debrids = useDebridClients();
   const imdb = useImdbId(meta, settings.tmdbKey);

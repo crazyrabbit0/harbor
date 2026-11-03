@@ -93,12 +93,16 @@ function SpotlightCard({
   const logo = m?.logo;
   const background = m?.background;
   const installed = !!m?.id && installedIds.has(m.id);
-  const types = useMemo(() => (Array.isArray(m?.types) ? m!.types!.slice(0, 4) : []), [m?.types]);
+  const manifestTypes = m?.types;
+  const types = useMemo(
+    () => (Array.isArray(manifestTypes) ? manifestTypes.slice(0, 4) : []),
+    [manifestTypes],
+  );
 
   const install = async () => {
     if (!m?.id || busy || installed) return;
     setBusy(true);
-    try {
+    const work = async () => {
       let hints = (
         m as { behaviorHints?: { configurable?: boolean; configurationRequired?: boolean } }
       ).behaviorHints;
@@ -110,11 +114,14 @@ function SpotlightCard({
       }
       await installAddon(m.id, addon.manifestUrl);
       onChange?.();
-    } catch (err) {
-      console.warn("[spotlight] install failed", err);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((err) => {
+        console.warn("[spotlight] install failed", err);
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   return (

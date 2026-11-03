@@ -69,6 +69,7 @@ import { CustomHoverOverlay, customHoverPosterProps } from "./pick-card/custom-h
 import { ExpandingCardArtwork, useExpandingCard } from "./pick-card/use-expanding-card";
 import { getCustomHover } from "@/lib/custom-hover";
 import { ClassicAwardBadge, ClassicAwardTab, useClassicAwardWin } from "./card-award";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const WATCHLIST_POS: Record<string, string> = {
   topStart: "top-1.5 start-1.5",
@@ -108,6 +109,25 @@ function getTitleFromKitsu(
   if (lang === "romaji") return titles.en_jp || titles.en || titles.ja_jp || null;
   if (lang === "native") return titles.ja_jp || titles.en_jp || titles.en || null;
   return null;
+}
+
+// Null when the request failed or carried no titles; otherwise the picked title, possibly empty.
+async function fetchKitsuTitle(
+  kitsuId: number,
+  preferred: "english" | "romaji" | "native",
+): Promise<{ title: string | null } | null> {
+  try {
+    const res = await safeFetch(`https://kitsu.io/api/edge/anime/${kitsuId}`, {
+      headers: { Accept: "application/vnd.api+json" },
+    });
+    if (!res.ok) return null;
+    const j = await res.json();
+    const attr = j?.data?.attributes;
+    if (!attr?.titles) return null;
+    return { title: getTitleFromKitsu(attr.titles, preferred) || attr.canonicalTitle };
+  } catch {
+    return null;
+  }
 }
 
 // Every field PosterCard reads, so a change to any other setting leaves the cards alone.
@@ -328,41 +348,45 @@ const PosterCard = memo(function PosterCard({
     ((posterNeedsImdb && resolvedImdb === undefined) ||
       (wantTmdbPoster && resolvedTmdb === undefined));
   const pinnedPoster = useTitlePoster(meta.id);
-  const posterCandidates = useMemo(() => {
-    if (posterPending && !pinnedPoster) return [];
-    if (posterLocalizing) return pinnedPoster ? [pinnedPoster] : [];
-    const base = localizedPoster ?? meta.poster;
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const u of [
-      pinnedPoster,
-      animeImdb ? rpdbPoster(settings.rpdbKey, animeImdb, base, animeTmdb) : undefined,
-      animeTvdb ? rpdbPoster(settings.rpdbKey, `tvdb:${animeTvdb}`, base) : undefined,
-      rpdbPoster(settings.rpdbKey, meta.id, base, posterAltId),
-      localizedPoster,
+  const posterCandidates = useMemo(
+    () =>
+      readAtVersion(meta.background, () => {
+        if (posterPending && !pinnedPoster) return [];
+        if (posterLocalizing) return pinnedPoster ? [pinnedPoster] : [];
+        const base = localizedPoster ?? meta.poster;
+        const seen = new Set<string>();
+        const out: string[] = [];
+        for (const u of [
+          pinnedPoster,
+          animeImdb ? rpdbPoster(settings.rpdbKey, animeImdb, base, animeTmdb) : undefined,
+          animeTvdb ? rpdbPoster(settings.rpdbKey, `tvdb:${animeTvdb}`, base) : undefined,
+          rpdbPoster(settings.rpdbKey, meta.id, base, posterAltId),
+          localizedPoster,
+          meta.poster,
+          hydratedPoster,
+        ]) {
+          if (!u || seen.has(u)) continue;
+          seen.add(u);
+          out.push(u);
+        }
+        return out;
+      }),
+    [
+      settings.rpdbKey,
+      meta.id,
+      posterAltId,
       meta.poster,
+      meta.background,
       hydratedPoster,
-    ]) {
-      if (!u || seen.has(u)) continue;
-      seen.add(u);
-      out.push(u);
-    }
-    return out;
-  }, [
-    settings.rpdbKey,
-    meta.id,
-    posterAltId,
-    meta.poster,
-    meta.background,
-    hydratedPoster,
-    animeImdb,
-    animeTvdb,
-    animeTmdb,
-    localizedPoster,
-    posterLocalizing,
-    posterPending,
-    pinnedPoster,
-  ]);
+      animeImdb,
+      animeTvdb,
+      animeTmdb,
+      localizedPoster,
+      posterLocalizing,
+      posterPending,
+      pinnedPoster,
+    ],
+  );
   const posterSrc = posterCandidates[imgIdx];
 
   useEffect(() => {
@@ -539,24 +563,13 @@ const PosterCard = memo(function PosterCard({
       }
 
       if (kitsuId) {
-        try {
-          const res = await safeFetch(`https://kitsu.io/api/edge/anime/${kitsuId}`, {
-            headers: { Accept: "application/vnd.api+json" },
-          });
-          if (res.ok) {
-            const j = await res.json();
-            const attr = j?.data?.attributes;
-            if (attr?.titles) {
-              const title = getTitleFromKitsu(attr.titles, preferred) || attr.canonicalTitle;
-              if (cancelled) return;
-              if (title) {
-                setTranslatedTitle(title);
-                return;
-              }
-            }
+        const found = await fetchKitsuTitle(kitsuId, preferred);
+        if (found) {
+          if (cancelled) return;
+          if (found.title) {
+            setTranslatedTitle(found.title);
+            return;
           }
-        } catch {
-          /* ignore */
         }
       }
     };

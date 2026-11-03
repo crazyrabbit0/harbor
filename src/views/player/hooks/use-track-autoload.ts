@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import { langScore, pickBestTrack, normalizeLang } from "@/lib/subtitles/language";
@@ -49,23 +49,25 @@ export function useTrackAutoload(params: {
 }) {
   const { bridgeRef, src, snap, engine, settings, authKey } = params;
   const snapRef = useRef(snap);
-  snapRef.current = snap;
   const selectedSubtitleId = snap.subtitleTracks.find((track) => track.selected)?.id ?? null;
   const subtitleSelectionStateRef = useRef({
     mediaUrl: src.url,
     selectedId: selectedSubtitleId,
     revision: 0,
   });
-  if (subtitleSelectionStateRef.current.mediaUrl !== src.url) {
-    subtitleSelectionStateRef.current = {
-      mediaUrl: src.url,
-      selectedId: selectedSubtitleId,
-      revision: 0,
-    };
-  } else if (subtitleSelectionStateRef.current.selectedId !== selectedSubtitleId) {
-    subtitleSelectionStateRef.current.selectedId = selectedSubtitleId;
-    subtitleSelectionStateRef.current.revision += 1;
-  }
+  useLayoutEffect(() => {
+    snapRef.current = snap;
+    if (subtitleSelectionStateRef.current.mediaUrl !== src.url) {
+      subtitleSelectionStateRef.current = {
+        mediaUrl: src.url,
+        selectedId: selectedSubtitleId,
+        revision: 0,
+      };
+    } else if (subtitleSelectionStateRef.current.selectedId !== selectedSubtitleId) {
+      subtitleSelectionStateRef.current.selectedId = selectedSubtitleId;
+      subtitleSelectionStateRef.current.revision += 1;
+    }
+  });
 
   const [resolvedImdbId, setResolvedImdbId] = useState<string | null>(null);
   const [resolvedImdbVerified, setResolvedImdbVerified] = useState(false);
@@ -428,7 +430,7 @@ export function useTrackAutoload(params: {
       };
       setRefreshReady(true);
       setInitialSearches((count) => count + 1);
-      try {
+      const unifiedStage = async () => {
         const res = await fetchSubtitlesIntoPlayer({
           ...base,
           bridge: b,
@@ -438,12 +440,13 @@ export function useTrackAutoload(params: {
         if (isActive() && res.selected) autoSubSourceRef.current = res.selected.url;
         if (isActive()) setGenerated(res.generated);
         console.info(`[subs/autoload] unified stage found ${res.found}, added ${res.added} tracks`);
-      } finally {
+      };
+      await unifiedStage().finally(() => {
         if (autoSubLoadKeyRef.current === key) {
           setInitialSearches((count) => Math.max(0, count - 1));
           setInitialPreflight({ mediaUrl: src.url, settled: true });
         }
-      }
+      });
 
       // MovieHash improves exact-file matching, but remote range reads can be slow. Never
       // make the normal progressive search wait for it. Once ready, query only the built-in
@@ -461,7 +464,7 @@ export function useTrackAutoload(params: {
                 .filter(Boolean),
             );
             setInitialSearches((count) => count + 1);
-            try {
+            const hashStage = async () => {
               const result = await fetchSubtitlesIntoPlayer({
                 ...base,
                 bridge,
@@ -483,11 +486,12 @@ export function useTrackAutoload(params: {
               console.info(
                 `[subs/autoload] moviehash stage found ${result.found}, added ${result.added} tracks`,
               );
-            } finally {
+            };
+            await hashStage().finally(() => {
               if (autoSubLoadKeyRef.current === key) {
                 setInitialSearches((count) => Math.max(0, count - 1));
               }
-            }
+            });
           })
           .catch((error) =>
             console.warn("[subs/autoload] moviehash enrichment failed", {

@@ -31,25 +31,27 @@ export function CinemetaFallback({ filter }: { filter: MetaFilter }) {
     if (loading || exhausted || !genre) return;
     setLoading(true);
     const fetcher = mediaType === "tv" ? topSeries : topMovies;
-    try {
-      const batch = await fetcher(genre, skipRef.current);
-      const fresh = batch.filter((m) => {
-        if (!m.poster) return false;
-        if (seenRef.current.has(m.id)) return false;
-        seenRef.current.add(m.id);
-        return true;
-      });
-      setItems((prev) => [...prev, ...fresh].slice(0, MAX_ITEMS));
-      if (batch.length < PAGE_SIZE) {
+    await new Promise<Meta[]>((resolve) => resolve(fetcher(genre, skipRef.current)))
+      .then((batch) => {
+        const fresh = batch.filter((m) => {
+          if (!m.poster) return false;
+          if (seenRef.current.has(m.id)) return false;
+          seenRef.current.add(m.id);
+          return true;
+        });
+        setItems((prev) => [...prev, ...fresh].slice(0, MAX_ITEMS));
+        if (batch.length < PAGE_SIZE) {
+          setExhausted(true);
+        } else {
+          skipRef.current += batch.length;
+        }
+      })
+      .catch(() => {
         setExhausted(true);
-      } else {
-        skipRef.current += batch.length;
-      }
-    } catch {
-      setExhausted(true);
-    } finally {
-      setLoading(false);
-    }
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [exhausted, genre, loading, mediaType]);
 
   useEffect(() => {

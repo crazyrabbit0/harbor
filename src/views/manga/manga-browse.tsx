@@ -1,6 +1,14 @@
 import { BookCheck, ChevronDown, Clock3, Loader2, Sparkles } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { useT } from "@/lib/i18n";
 import { Row } from "@/components/row";
 import {
@@ -80,8 +88,10 @@ export function MangaBrowse({
   const reqRef = useRef(0);
   const queryRef = useRef("");
   const tagRef = useRef("");
-  queryRef.current = query;
-  tagRef.current = tagId;
+  useLayoutEffect(() => {
+    queryRef.current = query;
+    tagRef.current = tagId;
+  }, [query, tagId]);
 
   const fetchPage = useCallback((offset: number) => {
     const q = queryRef.current.trim();

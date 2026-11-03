@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSettingsSelector } from "@/lib/settings";
 import { useTogether, type RemoteCursor } from "@/lib/together/provider";
 import { useViewSelector } from "@/lib/view";
@@ -72,7 +72,9 @@ export function TogetherCursors() {
   });
   const lastClientRef = useRef<{ cx: number; cy: number } | null>(null);
   const pathRef = useRef(topPath);
-  pathRef.current = topPath;
+  useLayoutEffect(() => {
+    pathRef.current = topPath;
+  }, [topPath]);
 
   const live = snapshot.state === "joined" && settings.togetherShareCursors && !chromeHidden;
 

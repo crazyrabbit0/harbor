@@ -102,8 +102,8 @@ export function EpisodeDetailView({
     setEpisodeData(null);
     setSeriesMeta(initialSeriesMeta ?? null);
 
-    (async () => {
-      try {
+    const load = async () => {
+      {
         let meta: Meta | undefined = initialSeriesMeta;
         if (!meta) {
           const fetched = await fetchCinemetaMeta("series", seriesId);
@@ -132,16 +132,19 @@ export function EpisodeDetailView({
         } else {
           setError(t("Episode information is not available"));
         }
-      } catch (err) {
+      }
+    };
+    void load()
+      .catch((err) => {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : t("An unexpected error occurred"));
         }
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) {
           setLoading(false);
         }
-      }
-    })();
+      });
 
     return () => {
       cancelled = true;

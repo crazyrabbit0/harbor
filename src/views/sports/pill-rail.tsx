@@ -13,9 +13,8 @@ export function PillRail({
   label: string;
   children: ReactNode;
 }) {
-  const rail = useDragScroll<HTMLDivElement>();
+  const { ref, handlers } = useDragScroll<HTMLDivElement>();
   const [edges, setEdges] = useState({ start: true, end: true });
-  const ref = rail.ref;
   const frame = useRef<number | null>(null);
 
   const measure = useCallback(() => {
@@ -62,7 +61,7 @@ export function PillRail({
     <div className="sh-pill-rail group/edge">
       <div
         ref={ref}
-        {...rail.handlers}
+        {...handlers}
         className={className}
         role="group"
         aria-label={label}

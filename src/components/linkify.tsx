@@ -12,8 +12,7 @@ export function Linkify({ text }: { text: string }): ReactNode {
   const nodes: ReactNode[] = [];
   let last = 0;
   let key = 0;
-  URL_RE.lastIndex = 0;
-  for (let m = URL_RE.exec(text); m; m = URL_RE.exec(text)) {
+  for (const m of text.matchAll(URL_RE)) {
     if (m.index > last) nodes.push(<Fragment key={key++}>{text.slice(last, m.index)}</Fragment>);
     const raw = m[0];
     nodes.push(

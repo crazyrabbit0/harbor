@@ -1,7 +1,7 @@
 import { MediaStartPage } from "@/components/media-start-page";
 import { ArrowDownToLine, ChevronLeft, ChevronRight, Layers } from "lucide-react";
 import { CoverImg } from "@/components/cover-img";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { LazyMount } from "@/components/lazy-mount";
 import { useMangaDownloadsCount } from "@/lib/manga-downloads";
@@ -70,6 +70,37 @@ type Mode =
       startScroll?: number;
     };
 
+function resumeChapterIndex(
+  chs: Awaited<ReturnType<typeof resumeChapters>>,
+  entry: MangaProgressEntry,
+): number {
+  let i = chs.findIndex((c) => c.id === entry.chapterId);
+  if (i < 0) {
+    const want = chapterNumberKey(entry.chapterNumber) ?? chapterNumberKey(entry.chapterLabel);
+    if (want != null) {
+      i = chs.findIndex((c) => chapterNumberKey(c.chapter ?? c.title ?? "") === want);
+    }
+  }
+  if (i < 0 && entry.chapterNumber != null) {
+    i = chs.findIndex((c) => c.chapter != null && c.chapter === entry.chapterNumber);
+  }
+  return i;
+}
+
+async function findMangaByTitle(
+  title: string,
+  pick: (hits: MangaSummary[]) => MangaSummary | null,
+): Promise<string | null> {
+  const hit = pick(await searchManga(title, 0));
+  if (hit) return hit.id;
+  const alt = title.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  if (alt && alt !== title) {
+    const hit2 = pick(await searchManga(alt, 0));
+    if (hit2) return hit2.id;
+  }
+  return null;
+}
+
 export function MangaView() {
   const t = useT();
   const settings = useSettingsSelector((s) => ({ mangaEnabled: s.mangaEnabled }));
@@ -84,9 +115,13 @@ export function MangaView() {
   const downloadsCount = useMangaDownloadsCount();
 
   const modeRef = useRef(mode);
-  modeRef.current = mode;
+  useLayoutEffect(() => {
+    modeRef.current = mode;
+  });
   const topKindRef = useRef(topKind);
-  topKindRef.current = topKind;
+  useLayoutEffect(() => {
+    topKindRef.current = topKind;
+  });
   const detailScrollRef = useRef<HTMLElement>(null);
   const browseScrollRef = useRef<HTMLElement>(null);
   const browseExtensionScrollRef = useRef<HTMLElement>(null);
@@ -110,17 +145,8 @@ export function MangaView() {
       hits[0] ??
       null;
     void (async () => {
-      try {
-        const hit = pick(await searchManga(item.title, 0));
-        if (hit) return openId(hit.id);
-        const alt = item.title.replace(/[^\p{L}\p{N}]+/gu, " ").trim();
-        if (alt && alt !== item.title) {
-          const hit2 = pick(await searchManga(alt, 0));
-          if (hit2) return openId(hit2.id);
-        }
-      } catch {
-        /* fall through to reading progress */
-      }
+      const found = await findMangaByTitle(item.title, pick).catch(() => null);
+      if (found) return openId(found);
       const entry = listMangaProgress(activeId ?? "default").find((e) => norm(e.title) === key);
       if (entry) openId(entry.id);
     })();
@@ -184,6 +210,45 @@ export function MangaView() {
     return () => setChromeHidden(false);
   }, [mode.screen, setChromeHidden]);
 
+  const resume = async (entry: MangaProgressEntry) => {
+    const target = entry.sourceId || activeMangaSourceId();
+    if (target && activeMangaSourceId() !== target) setActiveMangaSource(target);
+    try {
+      const chs = await resumeChapters(entry.id);
+      const i = resumeChapterIndex(chs, entry);
+      if (i >= 0) {
+        setMode({
+          screen: "reader",
+          mangaId: entry.id,
+          manga: { id: entry.id, title: entry.title, cover: entry.cover },
+          chapters: chs,
+          index: i,
+          startPage: Math.max(0, entry.page - 1),
+          startScroll: entry.scroll,
+        });
+        return;
+      }
+      if (chs.length > 0) {
+        setMode({
+          screen: "reader",
+          mangaId: entry.id,
+          manga: { id: entry.id, title: entry.title, cover: entry.cover },
+          chapters: chs,
+          index: 0,
+          startPage: Math.max(0, entry.page - 1),
+          startScroll: entry.scroll,
+        });
+        return;
+      }
+    } catch {
+      /* noop */
+    }
+    setMode({ screen: "detail", mangaId: entry.id });
+  };
+  useLayoutEffect(() => {
+    resumeRef.current = resume;
+  });
+
   if (!settings.mangaEnabled) {
     return <EnableGate onEnable={() => update({ mangaEnabled: true })} />;
   }
@@ -231,52 +296,6 @@ export function MangaView() {
       </main>
     );
   }
-
-  const resume = async (entry: MangaProgressEntry) => {
-    const target = entry.sourceId || activeMangaSourceId();
-    if (target && activeMangaSourceId() !== target) setActiveMangaSource(target);
-    try {
-      const chs = await resumeChapters(entry.id);
-      let i = chs.findIndex((c) => c.id === entry.chapterId);
-      if (i < 0) {
-        const want = chapterNumberKey(entry.chapterNumber) ?? chapterNumberKey(entry.chapterLabel);
-        if (want != null) {
-          i = chs.findIndex((c) => chapterNumberKey(c.chapter ?? c.title ?? "") === want);
-        }
-      }
-      if (i < 0 && entry.chapterNumber != null) {
-        i = chs.findIndex((c) => c.chapter != null && c.chapter === entry.chapterNumber);
-      }
-      if (i >= 0) {
-        setMode({
-          screen: "reader",
-          mangaId: entry.id,
-          manga: { id: entry.id, title: entry.title, cover: entry.cover },
-          chapters: chs,
-          index: i,
-          startPage: Math.max(0, entry.page - 1),
-          startScroll: entry.scroll,
-        });
-        return;
-      }
-      if (chs.length > 0) {
-        setMode({
-          screen: "reader",
-          mangaId: entry.id,
-          manga: { id: entry.id, title: entry.title, cover: entry.cover },
-          chapters: chs,
-          index: 0,
-          startPage: Math.max(0, entry.page - 1),
-          startScroll: entry.scroll,
-        });
-        return;
-      }
-    } catch {
-      /* noop */
-    }
-    setMode({ screen: "detail", mangaId: entry.id });
-  };
-  resumeRef.current = resume;
 
   return (
     <>

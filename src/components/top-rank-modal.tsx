@@ -314,6 +314,19 @@ function toMeta(k: KnownForEntry): Meta {
   };
 }
 
+async function fetchImdbPersonId(personId: number, tmdbKey: string): Promise<string | null> {
+  try {
+    const r = await safeFetch(
+      `https://api.themoviedb.org/3/person/${personId}/external_ids?api_key=${encodeURIComponent(tmdbKey)}`,
+    );
+    if (!r.ok) return null;
+    const data = await r.json();
+    return typeof data?.imdb_id === "string" && data.imdb_id.startsWith("nm") ? data.imdb_id : null;
+  } catch {
+    return null;
+  }
+}
+
 function useImdbOpener(personId: number, tmdbKey: string) {
   const [loading, setLoading] = useState(false);
   const cache = useRef<string | null | undefined>(undefined);
@@ -325,27 +338,10 @@ function useImdbOpener(personId: number, tmdbKey: string) {
     if (cache.current) return openUrl(`https://www.imdb.com/name/${cache.current}`);
     if (!tmdbKey) return fallback();
     setLoading(true);
-    try {
-      const r = await safeFetch(
-        `https://api.themoviedb.org/3/person/${personId}/external_ids?api_key=${encodeURIComponent(tmdbKey)}`,
-      );
-      if (r.ok) {
-        const data = await r.json();
-        const id =
-          typeof data?.imdb_id === "string" && data.imdb_id.startsWith("nm") ? data.imdb_id : null;
-        cache.current = id;
-        if (id) openUrl(`https://www.imdb.com/name/${id}`);
-        else fallback();
-      } else {
-        cache.current = null;
-        fallback();
-      }
-    } catch {
-      cache.current = null;
-      fallback();
-    } finally {
-      setLoading(false);
-    }
+    const id = await fetchImdbPersonId(personId, tmdbKey).finally(() => setLoading(false));
+    cache.current = id;
+    if (id) openUrl(`https://www.imdb.com/name/${id}`);
+    else fallback();
   };
 
   return { open, loading };

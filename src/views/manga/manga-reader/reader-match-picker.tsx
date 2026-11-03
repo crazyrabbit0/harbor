@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, Loader2, RefreshCw, Search, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { CoverImg } from "@/components/cover-img";
@@ -39,8 +39,10 @@ export function ReaderMatchPicker({
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const confirmedRef = useRef(false);
   const activeRef = useRef(active);
-  activeRef.current = active;
-  const doneRef = useRef<Set<MangaTracker>>(new Set());
+  useLayoutEffect(() => {
+    activeRef.current = active;
+  }, [active]);
+  const [done, setDone] = useState<ReadonlySet<MangaTracker>>(() => new Set());
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -62,8 +64,9 @@ export function ReaderMatchPicker({
   );
 
   const markDone = (tracker: MangaTracker) => {
-    doneRef.current.add(tracker);
-    const remaining = trackers.filter((tr) => !doneRef.current.has(tr));
+    const nextDone = new Set(done).add(tracker);
+    setDone(nextDone);
+    const remaining = trackers.filter((tr) => !nextDone.has(tr));
     if (remaining.length > 0) switchTracker(remaining[0]);
     else onClose();
   };
@@ -78,14 +81,17 @@ export function ReaderMatchPicker({
   const load = useCallback(async (q: string) => {
     const tracker = activeRef.current;
     setBusy(true);
-    try {
+    const work = async () => {
       const res = await searchCandidates(tracker, q);
       if (activeRef.current === tracker) setHits(res);
-    } catch {
-      if (activeRef.current === tracker) setHits([]);
-    } finally {
-      if (activeRef.current === tracker) setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (activeRef.current === tracker) setHits([]);
+      })
+      .finally(() => {
+        if (activeRef.current === tracker) setBusy(false);
+      });
   }, []);
 
   useEffect(() => {
@@ -146,7 +152,7 @@ export function ReaderMatchPicker({
             <div className="border-b border-edge-soft px-3 py-2.5">
               <div className="flex items-center gap-1 rounded-xl bg-surface/70 p-1 ring-1 ring-edge-soft">
                 {trackers.map((tr) => {
-                  const done = doneRef.current.has(tr);
+                  const isDone = done.has(tr);
                   const isActive = tr === active;
                   return (
                     <button
@@ -159,7 +165,7 @@ export function ReaderMatchPicker({
                           : "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-medium text-ink-subtle transition hover:text-ink"
                       }
                     >
-                      {done && <Check size={13} className="text-accent" />}
+                      {isDone && <Check size={13} className="text-accent" />}
                       {TRACKER_LABEL[tr]}
                     </button>
                   );

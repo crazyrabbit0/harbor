@@ -53,6 +53,11 @@ export function TogetherDeployModal({
   useEffect(() => {
     if (phase !== "deploying") return;
     let cancelled = false;
+    const pickFirstAccount = async (): Promise<string> => {
+      const list = await listAccounts(token);
+      if (list.length === 0) throw new Error("No Cloudflare accounts found for this token.");
+      return list[0].id;
+    };
     (async () => {
       let acctId = accountId;
       try {
@@ -79,12 +84,6 @@ export function TogetherDeployModal({
     return () => {
       cancelled = true;
     };
-
-    async function pickFirstAccount(): Promise<string> {
-      const list = await listAccounts(token);
-      if (list.length === 0) throw new Error("No Cloudflare accounts found for this token.");
-      return list[0].id;
-    }
   }, [phase, token, accountId, update]);
 
   const verifyTokenAndPickAccount = async () => {
@@ -93,18 +92,18 @@ export function TogetherDeployModal({
       setError(t("Paste your API token first."));
       return;
     }
-    try {
-      const list = await listAccounts(token.trim());
-      if (list.length === 0) {
-        setError(t("Token works, but no accounts came back. Check the token's permissions."));
-        return;
-      }
-      setAccounts(list);
-      setAccountId(list[0].id);
-      setPhase(list.length === 1 ? "deploying" : "account");
-    } catch (e) {
+    const list = await listAccounts(token.trim()).catch((e: unknown) => {
       setError(e instanceof Error ? e.message : String(e));
+      return null;
+    });
+    if (!list) return;
+    if (list.length === 0) {
+      setError(t("Token works, but no accounts came back. Check the token's permissions."));
+      return;
     }
+    setAccounts(list);
+    setAccountId(list[0].id);
+    setPhase(list.length === 1 ? "deploying" : "account");
   };
 
   const body = (

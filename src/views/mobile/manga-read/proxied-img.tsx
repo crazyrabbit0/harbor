@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { proxied } from "./local-reader-types";
 
 export function ProxiedImg({
@@ -13,14 +13,16 @@ export function ProxiedImg({
   const [src, setSrc] = useState(url);
   const [loaded, setLoaded] = useState(false);
   const triedProxy = useRef(false);
-  const prev = useRef(url);
+  const [prev, setPrev] = useState(url);
 
-  if (prev.current !== url) {
-    prev.current = url;
+  if (prev !== url) {
+    setPrev(url);
     setSrc(url);
     setLoaded(false);
-    triedProxy.current = false;
   }
+  useLayoutEffect(() => {
+    triedProxy.current = false;
+  }, [url]);
 
   return (
     <img

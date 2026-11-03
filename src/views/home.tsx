@@ -120,6 +120,15 @@ import { mergeLoadedHomeRows } from "./home/merge-loaded-rows";
 import { RowSkeleton } from "./home/row-skeleton";
 import { AddSourceModal } from "@/components/add-source-modal";
 import type { SourceRow } from "@/lib/custom-sources";
+import { readAtVersion } from "@/lib/read-at-version";
+
+function readImportedSince(key: string): number {
+  try {
+    return Number(localStorage.getItem(key) ?? 0) || 0;
+  } catch {
+    return 0;
+  }
+}
 
 export function Home({
   active = true,
@@ -573,10 +582,7 @@ export function Home({
           if (!hideSharedCw) absorbCloudAnimeCw(view);
           reconcileRemoteWatched(view);
           const importKey = `harbor.discover.libImported.${user?._id ?? "anon"}`;
-          let importedSince = 0;
-          try {
-            importedSince = Number(localStorage.getItem(importKey) ?? 0) || 0;
-          } catch {}
+          const importedSince = readImportedSince(importKey);
           const resumeEntries: {
             id: string;
             ms: number;
@@ -660,96 +666,107 @@ export function Home({
     for (const i of items) if ((i.state?.flaggedWatched ?? 0) > 0) s.add(i._id);
     return s;
   }, [items]);
-  const localCwItems = useMemo<LibraryItem[]>(() => {
-    void localCwVer;
-    return listLocalCw(hideSharedCw).map((e) => ({
-      _id: e.id,
-      type: e.type,
-      name: e.name,
-      poster: e.poster,
-      background: e.background,
-      isAnime: e.isAnime,
-      state: {
-        timeOffset: e.positionMs,
-        duration: e.durationMs,
-        season: e.season,
-        episode: e.episode,
-        video_id:
-          e.videoId ??
-          (e.season != null && e.episode != null ? `${e.id}:${e.season}:${e.episode}` : undefined),
-        flaggedWatched: e.durationMs > 0 && e.positionMs / e.durationMs >= 0.9 ? 1 : 0,
-        lastWatched: new Date(e.t).toISOString(),
-      },
-      removed: false,
-      temp: false,
-      _ctime: new Date(e.t).toISOString(),
-      _mtime: new Date(e.t).toISOString(),
-      local: true,
-    }));
-  }, [localCwVer, hideSharedCw, activeProfile?.id]);
-  const continueWatching = useMemo(() => {
-    const cwBase = hideSharedCw
-      ? []
-      : [...items.filter((i) => !ANIME_CLOUD_ID.test(i._id)), ...externalCw];
-    const eligible = [...cwBase, ...localCwItems]
-      .filter(
-        (i) =>
-          (i.type as string) !== "other" &&
-          !i._id.startsWith("iptv:") &&
-          !isCwDismissed(i) &&
-          isCwMember(i) &&
-          !((settings.animeOnlyInAnimeRoom || settings.hideContent.anime) && isAnimeCwItem(i)),
-      )
-      .map((i) => ({ i, k: cwSortKey(i) }))
-      .sort((a, b) => b.k - a.k)
-      .map((e) => e.i);
-    const norm = (s: string) => franchiseDedupKey(s);
-    const lastWatchedOf = (i: LibraryItem) => {
-      const lw = Date.parse(i.state?.lastWatched ?? "");
-      if (Number.isFinite(lw) && lw > 0) return lw;
-      const m = i._mtime as unknown;
-      const mt = typeof m === "number" ? m : Date.parse(String(m ?? ""));
-      return Number.isFinite(mt) ? mt : 0;
-    };
-    const byId = new Map<string, LibraryItem>();
-    const byName = new Map<string, LibraryItem>();
-    for (const i of eligible) {
-      if (byId.has(i._id)) continue;
-      const nm = norm(i.name ?? "");
-      const key = `${i.type}:${nm}`;
-      if (nm) {
-        const held = byName.get(key);
-        if (held) {
-          if (lastWatchedOf(i) > lastWatchedOf(held)) {
-            byId.delete(held._id);
+  const localCwItems = useMemo<LibraryItem[]>(
+    () =>
+      readAtVersion(localCwVer, () =>
+        readAtVersion(activeProfile?.id, () => {
+          return listLocalCw(hideSharedCw).map((e) => ({
+            _id: e.id,
+            type: e.type,
+            name: e.name,
+            poster: e.poster,
+            background: e.background,
+            isAnime: e.isAnime,
+            state: {
+              timeOffset: e.positionMs,
+              duration: e.durationMs,
+              season: e.season,
+              episode: e.episode,
+              video_id:
+                e.videoId ??
+                (e.season != null && e.episode != null
+                  ? `${e.id}:${e.season}:${e.episode}`
+                  : undefined),
+              flaggedWatched: e.durationMs > 0 && e.positionMs / e.durationMs >= 0.9 ? 1 : 0,
+              lastWatched: new Date(e.t).toISOString(),
+            },
+            removed: false,
+            temp: false,
+            _ctime: new Date(e.t).toISOString(),
+            _mtime: new Date(e.t).toISOString(),
+            local: true,
+          }));
+        }),
+      ),
+    [localCwVer, hideSharedCw, activeProfile?.id],
+  );
+  const continueWatching = useMemo(
+    () =>
+      readAtVersion([cwVersion, cwRootVersion, animeDetectVer], () => {
+        const cwBase = hideSharedCw
+          ? []
+          : [...items.filter((i) => !ANIME_CLOUD_ID.test(i._id)), ...externalCw];
+        const eligible = [...cwBase, ...localCwItems]
+          .filter(
+            (i) =>
+              (i.type as string) !== "other" &&
+              !i._id.startsWith("iptv:") &&
+              !isCwDismissed(i) &&
+              isCwMember(i) &&
+              !((settings.animeOnlyInAnimeRoom || settings.hideContent.anime) && isAnimeCwItem(i)),
+          )
+          .map((i) => ({ i, k: cwSortKey(i) }))
+          .sort((a, b) => b.k - a.k)
+          .map((e) => e.i);
+        const norm = (s: string) => franchiseDedupKey(s);
+        const lastWatchedOf = (i: LibraryItem) => {
+          const lw = Date.parse(i.state?.lastWatched ?? "");
+          if (Number.isFinite(lw) && lw > 0) return lw;
+          const m = i._mtime as unknown;
+          const mt = typeof m === "number" ? m : Date.parse(String(m ?? ""));
+          return Number.isFinite(mt) ? mt : 0;
+        };
+        const byId = new Map<string, LibraryItem>();
+        const byName = new Map<string, LibraryItem>();
+        for (const i of eligible) {
+          if (byId.has(i._id)) continue;
+          const nm = norm(i.name ?? "");
+          const key = `${i.type}:${nm}`;
+          if (nm) {
+            const held = byName.get(key);
+            if (held) {
+              if (lastWatchedOf(i) > lastWatchedOf(held)) {
+                byId.delete(held._id);
+                byName.set(key, i);
+                byId.set(i._id, i);
+              }
+              continue;
+            }
             byName.set(key, i);
-            byId.set(i._id, i);
           }
-          continue;
+          byId.set(i._id, i);
+          if (byId.size >= 100) break;
         }
-        byName.set(key, i);
-      }
-      byId.set(i._id, i);
-      if (byId.size >= 100) break;
-    }
-    const seenRoot = new Set<string>();
-    for (const i of [...byId.values()].sort((a, b) => lastWatchedOf(b) - lastWatchedOf(a))) {
-      const root = franchiseRootSync(i._id);
-      if (root && seenRoot.has(root)) byId.delete(i._id);
-      if (root) seenRoot.add(root);
-    }
-    return [...byId.values()].sort((a, b) => cwSortKey(b) - cwSortKey(a));
-  }, [
-    items,
-    externalCw,
-    localCwItems,
-    cwVersion,
-    cwRootVersion,
-    settings.animeOnlyInAnimeRoom,
-    settings.hideContent.anime,
-    hideSharedCw,
-    animeDetectVer,
-  ]);
+        const seenRoot = new Set<string>();
+        for (const i of [...byId.values()].sort((a, b) => lastWatchedOf(b) - lastWatchedOf(a))) {
+          const root = franchiseRootSync(i._id);
+          if (root && seenRoot.has(root)) byId.delete(i._id);
+          if (root) seenRoot.add(root);
+        }
+        return [...byId.values()].sort((a, b) => cwSortKey(b) - cwSortKey(a));
+      }),
+    [
+      items,
+      externalCw,
+      localCwItems,
+      cwVersion,
+      cwRootVersion,
+      settings.animeOnlyInAnimeRoom,
+      settings.hideContent.anime,
+      hideSharedCw,
+      animeDetectVer,
+    ],
+  );
   useEffect(() => {
     let cancelled = false;
     const ids = [...localCwItems, ...externalCw].filter((i) => isCwMember(i)).map((i) => i._id);
@@ -764,19 +781,23 @@ export function Home({
       cancelled = true;
     };
   }, [localCwItems, externalCw]);
-  const resurfaceLibrary = useMemo(() => {
-    const pool = [
-      ...items.filter((i) => !ANIME_CLOUD_ID.test(i._id)),
-      ...localCwItems.filter((i) => i.type === "series"),
-    ];
-    const manual = manualWatchedLibraryItems();
-    if (manual.length === 0) return pool;
-    const cwMemberIds = new Set(pool.filter(isCwMember).map((i) => i._id));
-    const usable = manual.filter((i) => !cwMemberIds.has(i._id));
-    if (usable.length === 0) return pool;
-    const overrideIds = new Set(usable.map((i) => i._id));
-    return [...pool.filter((i) => !overrideIds.has(i._id)), ...usable];
-  }, [items, localCwItems, manualWatchedVer]);
+  const resurfaceLibrary = useMemo(
+    () =>
+      readAtVersion(manualWatchedVer, () => {
+        const pool = [
+          ...items.filter((i) => !ANIME_CLOUD_ID.test(i._id)),
+          ...localCwItems.filter((i) => i.type === "series"),
+        ];
+        const manual = manualWatchedLibraryItems();
+        if (manual.length === 0) return pool;
+        const cwMemberIds = new Set(pool.filter(isCwMember).map((i) => i._id));
+        const usable = manual.filter((i) => !cwMemberIds.has(i._id));
+        if (usable.length === 0) return pool;
+        const overrideIds = new Set(usable.map((i) => i._id));
+        return [...pool.filter((i) => !overrideIds.has(i._id)), ...usable];
+      }),
+    [items, localCwItems, manualWatchedVer],
+  );
   useEffect(() => {
     if (!anilistConnected) {
       setAnilistWatchedMap((prev) => (prev.size ? new Map() : prev));

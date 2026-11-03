@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, Info, Plus, TrendingUp } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import type { Meta } from "@/lib/cinemeta";
@@ -43,13 +43,21 @@ export function MobileHero({
   const [reduce, setReduce] = useState(prefersReduced);
 
   const slotsRef = useRef(slots);
-  slotsRef.current = slots;
+  useLayoutEffect(() => {
+    slotsRef.current = slots;
+  }, [slots]);
   const frontRef = useRef(front);
-  frontRef.current = front;
+  useLayoutEffect(() => {
+    frontRef.current = front;
+  }, [front]);
   const activeRef = useRef(active);
-  activeRef.current = active;
+  useLayoutEffect(() => {
+    activeRef.current = active;
+  }, [active]);
   const reduceRef = useRef(reduce);
-  reduceRef.current = reduce;
+  useLayoutEffect(() => {
+    reduceRef.current = reduce;
+  }, [reduce]);
   const busyRef = useRef(false);
   const pausedUntil = useRef(0);
   const timers = useRef<number[]>([]);

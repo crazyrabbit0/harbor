@@ -49,14 +49,17 @@ export function StatusBubble({
   const commit = async (next: string) => {
     setBusy(true);
     setError(false);
-    try {
+    const work = async () => {
       await onSave(next.trim());
       setEditing(false);
-    } catch {
-      setError(true);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError(true);
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const trimmed = value.trim();

@@ -21,12 +21,13 @@ export function SaveListButton({
   const onSave = async () => {
     if (state === "saving" || state === "saved") return;
     setState("saving");
-    try {
+    const work = async () => {
       const res = await saveList(handle, listId);
       setState(res.ok ? "saved" : res.full ? "full" : "error");
-    } catch {
+    };
+    await work().catch(() => {
       setState("error");
-    }
+    });
   };
 
   const done = state === "saved";

@@ -165,6 +165,7 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
     "mpv-geometry",
     "mpv-subtitles",
     "mpv-audio",
+    "mpv-controls",
   ]) {
     const sibling = { exports: {} };
     new Function(

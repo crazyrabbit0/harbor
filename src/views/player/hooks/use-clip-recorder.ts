@@ -43,7 +43,7 @@ export function useClipRecorder(params: { src: PlayerSrc; seconds: number; folde
       setSaving(true);
       if (dismissRef.current) window.clearTimeout(dismissRef.current);
       setToast({ id: Date.now(), kind: "busy", text: t("Saving clip…") });
-      try {
+      const work = async () => {
         const filename = `${safeName(captureBaseTitle(src))} - ${formatStamp(new Date())}.mp4`;
         const dir = await captureDir(folder);
         const outPath = dir ? await joinPath(dir, filename) : filename;
@@ -58,17 +58,23 @@ export function useClipRecorder(params: { src: PlayerSrc; seconds: number; folde
           text: t("Clip saved to {path}", { path: captureDirLabel(dir, folder) }),
           path: result.path,
         });
-      } catch (e) {
-        setToast({
-          id: Date.now(),
-          kind: "error",
-          text: typeof e === "string" ? e : t("Clip save failed"),
+      };
+      await work()
+        .then(
+          () => {},
+          (e) => {
+            setToast({
+              id: Date.now(),
+              kind: "error",
+              text: typeof e === "string" ? e : t("Clip save failed"),
+            });
+          },
+        )
+        .finally(() => {
+          setSaving(false);
+          busyRef.current = false;
+          dismissRef.current = window.setTimeout(() => setToast(null), 6000);
         });
-      } finally {
-        setSaving(false);
-        busyRef.current = false;
-        dismissRef.current = window.setTimeout(() => setToast(null), 6000);
-      }
     },
     [src, seconds, folder],
   );

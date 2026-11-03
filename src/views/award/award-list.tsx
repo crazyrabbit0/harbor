@@ -10,13 +10,14 @@ import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
 import { safeFetch } from "@/lib/safe-fetch";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function AwardList({ awardType, tint }: { awardType: AwardType; tint: string }) {
   const t = useT();
   const meta = AWARD_CATALOG[awardType];
   const awardsV = useBundledAwardsVersion();
   const history = useMemo(
-    () => readAwardHistory(awardType, meta.categories),
+    () => readAtVersion(awardsV, () => readAwardHistory(awardType, meta.categories)),
     [awardsV, awardType, meta.categories],
   );
   const [decade, setDecade] = useState<number | null>(null);
@@ -235,18 +236,20 @@ function WinnerRow({
     }
     if (resolving || !settings.tmdbKey) return;
     setResolving(true);
-    try {
-      const hit = await resolveAwardWork(settings.tmdbKey, entry.workTitle, entry.year, preferTv);
-      if (hit) {
-        openMeta({
-          id: `tmdb:${hit.type}:${hit.id}`,
-          type: hit.type === "movie" ? "movie" : "series",
-          name: entry.workTitle,
-        });
-      }
-    } finally {
-      setResolving(false);
-    }
+    const tmdbKey = settings.tmdbKey;
+    await new Promise<Awaited<ReturnType<typeof resolveAwardWork>>>((resolve) =>
+      resolve(resolveAwardWork(tmdbKey, entry.workTitle, entry.year, preferTv)),
+    )
+      .then((hit) => {
+        if (hit) {
+          openMeta({
+            id: `tmdb:${hit.type}:${hit.id}`,
+            type: hit.type === "movie" ? "movie" : "series",
+            name: entry.workTitle,
+          });
+        }
+      })
+      .finally(() => setResolving(false));
   };
 
   const onNomineeClick = (nominee: { title: string; imdb?: string }) => {
@@ -261,7 +264,7 @@ function WinnerRow({
   const onRecipientClick = async (name: string) => {
     if (resolving) return;
     setResolving(true);
-    try {
+    const open = async () => {
       if (isStudioName(name)) {
         const id = await tmdbCompanyIdByName(settings.tmdbKey, name);
         if (id) {
@@ -271,9 +274,8 @@ function WinnerRow({
       }
       const id = await tmdbPersonIdByName(settings.tmdbKey, name);
       if (id) openPerson(id);
-    } finally {
-      setResolving(false);
-    }
+    };
+    await open().finally(() => setResolving(false));
   };
 
   const workClickable = !!settings.tmdbKey || !!entry.imdb;

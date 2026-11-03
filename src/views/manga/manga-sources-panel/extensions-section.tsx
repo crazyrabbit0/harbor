@@ -89,14 +89,17 @@ export function ExtensionsSection() {
     }
     setAdding(true);
     setError(null);
-    try {
+    const work = async () => {
       await addRepo(value);
       setUrl("");
-    } catch {
-      setError(t("Could not load that repository"));
-    } finally {
-      setAdding(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError(t("Could not load that repository"));
+      })
+      .finally(() => {
+        setAdding(false);
+      });
   };
 
   return (

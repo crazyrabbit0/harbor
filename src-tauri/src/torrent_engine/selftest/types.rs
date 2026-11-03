@@ -1,12 +1,14 @@
 use serde::Serialize;
 
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SelfTestResult {
     pub pass: bool,
     pub steps: Vec<SelfTestStep>,
 }
 
 #[derive(Serialize, Clone)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SelfTestStep {
     pub label: String,
     pub ok: bool,

@@ -186,11 +186,12 @@ function InstalledRow({
     e.stopPropagation();
     if (busy) return;
     setBusy(true);
-    try {
+    const work = async () => {
       await onUninstall(r);
-    } finally {
+    };
+    await work().finally(() => {
       setBusy(false);
-    }
+    });
   };
 
   const handleToggle = (e: React.MouseEvent) => {

@@ -64,9 +64,11 @@ export function HoverPreview() {
   const reduced = useMedia("(prefers-reduced-motion: reduce)");
 
   const viewRef = useRef(view);
-  viewRef.current = view;
   const menuRef = useRef(menu);
-  menuRef.current = menu;
+  useLayoutEffect(() => {
+    viewRef.current = view;
+    menuRef.current = menu;
+  }, [view, menu]);
 
   useEffect(() => {
     setPreviewTmdbKey(settings.tmdbKey);
@@ -95,7 +97,9 @@ export function HoverPreview() {
 
   const [scene, setScene] = useState<Scene | null>(null);
   const sceneRef = useRef<Scene | null>(null);
-  sceneRef.current = scene;
+  useLayoutEffect(() => {
+    sceneRef.current = scene;
+  }, [scene]);
 
   const frameRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -347,7 +351,7 @@ export function HoverPreview() {
       autoPlay: getSettings().instantPlay,
       resume: true,
     });
-  }, []);
+  }, [getSettings]);
 
   const onPanelPointerMove = useCallback((e: React.PointerEvent) => {
     const last = lastPosRef.current;
@@ -359,31 +363,34 @@ export function HoverPreview() {
     downPosRef.current = { x: e.clientX, y: e.clientY };
   }, []);
 
-  const onPanelClick = useCallback((e: React.MouseEvent) => {
-    const s = sceneRef.current;
-    if (!s || s.exiting) return;
-    const down = downPosRef.current;
-    downPosRef.current = null;
-    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > PANEL_DRAG_CLICK_PX) return;
-    const payload = s.current.payload;
-    const shielded =
-      performance.now() - openedAtRef.current < CLICK_SHIELD_MS &&
-      travelRef.current < CLICK_SHIELD_MOVE_PX;
-    closeHoverPreview("hard");
-    const resume = payload.data.resume;
-    if (!shielded && resume && !resume.external) {
-      const episode =
-        resume.season != null && resume.episode != null
-          ? { season: resume.season, episode: resume.episode }
-          : undefined;
-      viewRef.current.openPicker(payload.meta, episode, {
-        autoPlay: getSettings().instantPlay,
-        resume: true,
-      });
-    } else {
-      viewRef.current.openMeta(payload.meta);
-    }
-  }, []);
+  const onPanelClick = useCallback(
+    (e: React.MouseEvent) => {
+      const s = sceneRef.current;
+      if (!s || s.exiting) return;
+      const down = downPosRef.current;
+      downPosRef.current = null;
+      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > PANEL_DRAG_CLICK_PX) return;
+      const payload = s.current.payload;
+      const shielded =
+        performance.now() - openedAtRef.current < CLICK_SHIELD_MS &&
+        travelRef.current < CLICK_SHIELD_MOVE_PX;
+      closeHoverPreview("hard");
+      const resume = payload.data.resume;
+      if (!shielded && resume && !resume.external) {
+        const episode =
+          resume.season != null && resume.episode != null
+            ? { season: resume.season, episode: resume.episode }
+            : undefined;
+        viewRef.current.openPicker(payload.meta, episode, {
+          autoPlay: getSettings().instantPlay,
+          resume: true,
+        });
+      } else {
+        viewRef.current.openMeta(payload.meta);
+      }
+    },
+    [getSettings],
+  );
 
   const onPanelContextMenu = useCallback((e: React.MouseEvent) => {
     const payload = sceneRef.current?.current.payload;

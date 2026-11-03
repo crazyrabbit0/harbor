@@ -52,6 +52,57 @@ import { useSeriesTvdbStills } from "./series-episodes/use-series-tvdb-stills";
 import { TvdbOrderPanel } from "./series-episodes/tvdb-order-panel";
 import { SeasonStepper, pickerStepKeys } from "./season-stepper";
 import { useEpisodeAutoScroll, type AutoScrollTarget } from "./use-episode-auto-scroll";
+import { readAtVersion } from "@/lib/read-at-version";
+
+type PreferredVideo = Parameters<typeof preferredVideoName>[0];
+
+function orderedName(
+  ep: OrderedEpisode,
+  pref: PreferredVideo,
+  tmdbEp: Episode | undefined,
+  lang: string,
+): string {
+  return (
+    pickLocalizedText(
+      [
+        { text: preferredVideoName(pref), score: PREFERRED_TEXT_SCORE },
+        { text: ep.name },
+        { text: ep.nameEn ?? "" },
+        { text: tmdbEp?.name ?? "" },
+      ],
+      { forName: true, lang },
+    ) ?? ep.name
+  );
+}
+
+function orderedOverview(
+  ep: OrderedEpisode,
+  pref: PreferredVideo,
+  tmdbEp: Episode | undefined,
+  lang: string,
+): string {
+  return (
+    pickLocalizedText(
+      [
+        { text: preferredVideoOverview(pref), score: PREFERRED_TEXT_SCORE },
+        { text: ep.overview },
+        { text: ep.overviewEn ?? "" },
+        { text: tmdbEp?.overview ?? "" },
+      ],
+      { lang },
+    ) ?? ep.overview
+  );
+}
+
+function rememberSeason(m: Map<number, Episode[]>, season: number, eps: Episode[]) {
+  m.delete(season);
+  m.set(season, eps);
+  while (m.size > 2) {
+    const oldest = m.keys().next().value;
+    if (oldest === undefined) break;
+    m.delete(oldest);
+  }
+}
 
 export function SeriesEpisodes({
   meta,
@@ -132,27 +183,32 @@ export function SeriesEpisodes({
     imdbId,
     metaId: meta.id,
   });
-  const combinedWatched = useMemo(() => {
-    const s = new Set<string>(stremioWatched ?? []);
-    for (const k of simklWatched) s.add(k);
-    // Trakt answers with the whole account's history, not this show's.
-    const mine = new Set<string>();
-    if (imdbId) mine.add(`imdb:${imdbId}`);
-    const tmdb = /^tmdb:(\d+)/.exec(meta.id)?.[1];
-    if (tmdb) mine.add(`tmdb:${tmdb}`);
-    for (const k of traktWatched) {
-      const e = k.lastIndexOf(":");
-      const se = e > 0 ? k.lastIndexOf(":", e - 1) : -1;
-      if (se < 0) continue;
-      if (!mine.has(k.slice(0, se))) continue;
-      s.add(k.slice(se + 1));
-    }
-    const manual = manualEpisodeKeys(meta.id);
-    for (const k of manual.watched) s.add(k);
-    for (const k of manual.unwatched) s.delete(k);
-    return s;
-  }, [stremioWatched, simklWatched, traktWatched, meta.id, imdbId, mwVersion]);
-  const cache = useRef<Map<number, Episode[]>>(new Map());
+  const combinedWatched = useMemo(
+    () =>
+      readAtVersion(mwVersion, () => {
+        const s = new Set<string>(stremioWatched ?? []);
+        for (const k of simklWatched) s.add(k);
+        // Trakt answers with the whole account's history, not this show's.
+        const mine = new Set<string>();
+        if (imdbId) mine.add(`imdb:${imdbId}`);
+        const tmdb = /^tmdb:(\d+)/.exec(meta.id)?.[1];
+        if (tmdb) mine.add(`tmdb:${tmdb}`);
+        for (const k of traktWatched) {
+          const e = k.lastIndexOf(":");
+          const se = e > 0 ? k.lastIndexOf(":", e - 1) : -1;
+          if (se < 0) continue;
+          if (!mine.has(k.slice(0, se))) continue;
+          s.add(k.slice(se + 1));
+        }
+        const manual = manualEpisodeKeys(meta.id);
+        for (const k of manual.watched) s.add(k);
+        for (const k of manual.unwatched) s.delete(k);
+        return s;
+      }),
+    [stremioWatched, simklWatched, traktWatched, meta.id, imdbId, mwVersion],
+  );
+  // Two most recent TMDB seasons; a plain Map held for the component's life, filled by the loader.
+  const [cache] = useState(() => new Map<number, Episode[]>());
 
   const traktKey = imdbId ?? meta.id;
 
@@ -273,17 +329,10 @@ export function SeriesEpisodes({
     const load = (season: number): Promise<Episode[]> =>
       tmdbSeasonEpisodes(settings.tmdbKey, tvId, season).then((eps) => {
         if (cancelled || eps.length === 0) return [];
-        const m = cache.current;
-        m.delete(season);
-        m.set(season, eps);
-        while (m.size > 2) {
-          const oldest = m.keys().next().value;
-          if (oldest === undefined) break;
-          m.delete(oldest);
-        }
+        rememberSeason(cache, season, eps);
         return eps;
       });
-    const cached = cache.current.get(active);
+    const cached = cache.get(active);
     if (cached) {
       setEpisodes(cached);
       setLoading(false);
@@ -295,7 +344,7 @@ export function SeriesEpisodes({
         setLoading(false);
       });
     }
-    if (orderActive && orderSeasonEff !== active && !cache.current.has(orderSeasonEff)) {
+    if (orderActive && orderSeasonEff !== active && !cache.has(orderSeasonEff)) {
       void load(orderSeasonEff);
     }
     return () => {
@@ -315,7 +364,7 @@ export function SeriesEpisodes({
       (settings.tvdbSeasonType === "aired" || settings.tvdbSeasonType === "official");
     const tmdbByKey = new Map<string, Episode>();
     if (airedLike) {
-      for (const e of cache.current.get(orderSeasonEff) ?? []) {
+      for (const e of cache.get(orderSeasonEff) ?? []) {
         tmdbByKey.set(`${e.seasonNumber}:${e.episodeNumber}`, e);
       }
     }
@@ -324,26 +373,8 @@ export function SeriesEpisodes({
         ? tmdbByKey.get(`${ep.seasonNumber}:${ep.episodeNumber}`)
         : undefined;
       const pref = preferredVideos.get(`${ep.seasonNumber}:${ep.episodeNumber}`);
-      const name =
-        pickLocalizedText(
-          [
-            { text: preferredVideoName(pref), score: PREFERRED_TEXT_SCORE },
-            { text: ep.name },
-            { text: ep.nameEn ?? "" },
-            { text: tmdbEp?.name ?? "" },
-          ],
-          { forName: true, lang },
-        ) ?? ep.name;
-      const overview =
-        pickLocalizedText(
-          [
-            { text: preferredVideoOverview(pref), score: PREFERRED_TEXT_SCORE },
-            { text: ep.overview },
-            { text: ep.overviewEn ?? "" },
-            { text: tmdbEp?.overview ?? "" },
-          ],
-          { lang },
-        ) ?? ep.overview;
+      const name = orderedName(ep, pref, tmdbEp, lang);
+      const overview = orderedOverview(ep, pref, tmdbEp, lang);
       let next = { ...ep, name, overview };
       const abs = orderActive ? ordering?.absByEpId.get(ep.id) : undefined;
       if (ep.absoluteNumber == null && abs != null) next = { ...next, absoluteNumber: abs };
@@ -361,6 +392,7 @@ export function SeriesEpisodes({
     settings.tvdbSeasonType,
     preferredVideos,
     ordering,
+    cache,
   ]);
   const visibleOrderedEps = useMemo(
     () =>
@@ -399,38 +431,41 @@ export function SeriesEpisodes({
     mwVersion,
     settings,
   });
-  const autoScrollTarget = useMemo<AutoScrollTarget>(() => {
-    const list = altActive ? visibleOrderedEps : visibleEpisodes;
-    const idx = list.findIndex((ep) =>
-      altActive
-        ? !getEpisodeProgress(
-            meta.id,
-            ep.seasonNumber,
-            ep.episodeNumber,
-            ep.runtime,
-            traktKey,
-            traktWatched,
-            stremioWatched,
-            undefined,
-            simklWatched,
-          ).watched
-        : ep.episodeNumber === nextUpEp,
-    );
-    if (idx < 0) return null;
-    return { episode: list[idx].episodeNumber, first: idx === 0 };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    altActive,
-    visibleOrderedEps,
-    visibleEpisodes,
-    nextUpEp,
-    meta.id,
-    traktKey,
-    traktWatched,
-    stremioWatched,
-    simklWatched,
-    mwVersion,
-  ]);
+  const autoScrollTarget = useMemo<AutoScrollTarget>(
+    () =>
+      readAtVersion(mwVersion, () => {
+        const list = altActive ? visibleOrderedEps : visibleEpisodes;
+        const idx = list.findIndex((ep) =>
+          altActive
+            ? !getEpisodeProgress(
+                meta.id,
+                ep.seasonNumber,
+                ep.episodeNumber,
+                ep.runtime,
+                traktKey,
+                traktWatched,
+                stremioWatched,
+                undefined,
+                simklWatched,
+              ).watched
+            : ep.episodeNumber === nextUpEp,
+        );
+        if (idx < 0) return null;
+        return { episode: list[idx].episodeNumber, first: idx === 0 };
+      }),
+    [
+      altActive,
+      visibleOrderedEps,
+      visibleEpisodes,
+      nextUpEp,
+      meta.id,
+      traktKey,
+      traktWatched,
+      stremioWatched,
+      simklWatched,
+      mwVersion,
+    ],
+  );
   const markPicked = useEpisodeAutoScroll({
     scrollRef,
     scopeKey: meta.id,

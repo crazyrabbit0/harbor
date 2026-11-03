@@ -144,7 +144,9 @@ function HdrOverlayChrome() {
         void hdrOverlayEmitAction("hdr-stage://request", {});
         let tries = 0;
         id = window.setInterval(() => {
-          if (gotPayloadRef.current || tries++ > 40) {
+          const exhausted = tries > 40;
+          tries += 1;
+          if (gotPayloadRef.current || exhausted) {
             window.clearInterval(id);
             return;
           }

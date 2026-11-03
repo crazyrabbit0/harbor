@@ -235,13 +235,14 @@ export function MangaUniverses({
   const select = async (u: MangaUniverse) => {
     if (selecting) return;
     setSelecting(u.id);
-    try {
+    const work = async () => {
       const results = await searchMangaEverywhere(u.query).catch(() => []);
       const found = pickBestMatch(results, u.query, u.name);
       if (found) onOpen(found.id);
-    } finally {
+    };
+    await work().finally(() => {
       setSelecting(null);
-    }
+    });
   };
   return (
     <div className="animate-fade-in flex flex-col gap-6">

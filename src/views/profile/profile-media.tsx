@@ -68,7 +68,7 @@ export function ProfileMedia({
     if (!file || avatarBusy) return;
     setAvatarBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       const blob = await fileToWebp(file, 512, t);
       const result = await uploadAvatar(blob);
       const next = result.avatarUrl ?? undefined;
@@ -76,59 +76,71 @@ export function ProfileMedia({
       syncLocalAvatar(next ?? null);
       markAvatarSynced(next ?? null);
       onSaved({ ...summary, avatarUrl: next });
-    } catch (e) {
-      setError((e as Error).message || t("Could not update photo."));
-    } finally {
-      setAvatarBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not update photo."));
+      })
+      .finally(() => {
+        setAvatarBusy(false);
+      });
   };
 
   const removeAvatar = async () => {
     if (avatarBusy) return;
     setAvatarBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       await removeEcosystemAvatar();
       setAvatarUrl(undefined);
       syncLocalAvatar(null);
       markAvatarSynced(null);
       onSaved({ ...summary, avatarUrl: undefined });
-    } catch (e) {
-      setError((e as Error).message || t("Could not remove photo."));
-    } finally {
-      setAvatarBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not remove photo."));
+      })
+      .finally(() => {
+        setAvatarBusy(false);
+      });
   };
 
   const pickBanner = async (file: File | undefined) => {
     if (!file || bannerBusy) return;
     setBannerBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       const blob = await fileToBannerWebp(file);
       const next = await uploadBanner(blob);
       setBannerUrl(next.bannerUrl);
       onSaved({ ...summary, bannerUrl: next.bannerUrl });
-    } catch (e) {
-      setError((e as Error).message || t("Could not update banner."));
-    } finally {
-      setBannerBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not update banner."));
+      })
+      .finally(() => {
+        setBannerBusy(false);
+      });
   };
 
   const clearBanner = async () => {
     if (bannerBusy) return;
     setBannerBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       const next = await removeBanner();
       setBannerUrl(undefined);
       onSaved({ ...summary, bannerUrl: next.bannerUrl });
-    } catch (e) {
-      setError((e as Error).message || t("Could not remove banner."));
-    } finally {
-      setBannerBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not remove banner."));
+      })
+      .finally(() => {
+        setBannerBusy(false);
+      });
   };
 
   return (

@@ -59,6 +59,13 @@ export function SourcePicker({
   const [actions, setActions] = useState<ActionsState | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
 
+  const close = () => {
+    setOpen(false);
+    setMode("list");
+    setEditingId(null);
+    setActions(null);
+  };
+
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
@@ -78,13 +85,6 @@ export function SourcePicker({
       document.removeEventListener("keydown", onKey);
     };
   }, [open, mode, actions]);
-
-  const close = () => {
-    setOpen(false);
-    setMode("list");
-    setEditingId(null);
-    setActions(null);
-  };
 
   const editing = editingId ? (sources.find((s) => s.id === editingId) ?? null) : null;
   const active = sources.find((s) => s.id === activeId);

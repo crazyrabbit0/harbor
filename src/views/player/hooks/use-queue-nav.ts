@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { queueIndexOf, useQueue } from "@/lib/queue";
 import type { PlayEpisode, PlayerSrc } from "@/lib/view";
@@ -39,8 +39,12 @@ export function useQueueNav(params: {
     else if (canChangeEpisode && adjacent.prev) goToEpisode(adjacent.prev);
   };
   const playNextRef = useRef(playNext);
-  playNextRef.current = playNext;
+  useLayoutEffect(() => {
+    playNextRef.current = playNext;
+  });
   const playPrevRef = useRef(playPrev);
-  playPrevRef.current = playPrev;
+  useLayoutEffect(() => {
+    playPrevRef.current = playPrev;
+  });
   return { hasNextEpisodeNow, hasPrevEpisodeNow, playNext, playPrev, playNextRef, playPrevRef };
 }

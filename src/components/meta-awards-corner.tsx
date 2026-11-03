@@ -7,6 +7,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { awardSummary, pickHeroAwards, useAwards, type AwardType } from "@/lib/providers/wikidata";
 import { mergeBundledAwards } from "@/lib/awards-history";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const HEADLINE_FOR: Record<string, string> = {
   oscar: "Academy Award",
@@ -148,7 +149,10 @@ function ClassicCorner({
   const { ref, tier } = useHostTier();
   const live = useAwards(imdbId ?? undefined, isSeries);
   const awardsV = useBundledAwardsVersion();
-  const awards = useMemo(() => mergeBundledAwards(live, name, year), [awardsV, live, name, year]);
+  const awards = useMemo(
+    () => readAtVersion(awardsV, () => mergeBundledAwards(live, name, year)),
+    [awardsV, live, name, year],
+  );
   const summary = useMemo(() => pickHeroAwards(awardSummary(awards)), [awards]);
   const top = summary[0];
   const show = !!top && tier !== "hidden";

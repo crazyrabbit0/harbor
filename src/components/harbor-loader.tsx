@@ -1,6 +1,6 @@
 import type { AnimationItem } from "lottie-web";
 import { withLottie } from "@/lib/lottie";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CustomArtwork } from "./custom-artwork";
 import {
   prefetchTopAddonLogos,
@@ -108,7 +108,9 @@ function Boat({ size, keyed, logos }: { size: Size; keyed: boolean; logos?: stri
   const fetched = useTopAddonLogos(keyed && logos === undefined);
   const effective = logos ?? fetched;
   const logosRef = useRef<string[]>([]);
-  logosRef.current = effective;
+  useLayoutEffect(() => {
+    logosRef.current = effective;
+  }, [effective]);
   const cycleRef = useRef(0);
   const [dark] = useState(darkBackground);
 

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const FOLLOW_IDLE_MS = 1200;
 
@@ -9,16 +9,20 @@ function clamp(n: number, total: number): number {
 
 export function useLocalPager(chapterId: string, total: number, snapshotPage: number) {
   const [page, setPageRaw] = useState(() => clamp(snapshotPage, total));
-  const seen = useRef(chapterId);
+  const [seen, setSeen] = useState(chapterId);
   const lastLocal = useRef(0);
   const pageRef = useRef(page);
-  pageRef.current = page;
+  useLayoutEffect(() => {
+    pageRef.current = page;
+  }, [page]);
 
-  if (seen.current !== chapterId) {
-    seen.current = chapterId;
-    lastLocal.current = 0;
+  if (seen !== chapterId) {
+    setSeen(chapterId);
     setPageRaw(clamp(snapshotPage, total));
   }
+  useLayoutEffect(() => {
+    lastLocal.current = 0;
+  }, [chapterId]);
 
   const setPage = (n: number) => {
     lastLocal.current = performance.now();

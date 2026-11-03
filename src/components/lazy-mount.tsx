@@ -90,14 +90,15 @@ export function LazyMount({
     const stopNear = observeWithin(el, "0px", (e) => {
       if (e.isIntersecting) reveal();
     });
-    let tries = 0;
+    const probe = { tries: 0 };
     const stopProbe = addProbe(() => {
       if (el.offsetParent === null) return false;
       if (typeof el.checkVisibility === "function" && !el.checkVisibility()) return false;
       const vh = window.innerHeight || 800;
       const r = el.getBoundingClientRect();
       if (r.top > vh * 3 || r.bottom < -vh * 3) return false;
-      if (++tries > 60) return true;
+      probe.tries += 1;
+      if (probe.tries > 60) return true;
       if (inViewport(r)) reveal();
       else startTransition(() => setShown(true));
       return true;

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { RefObject } from "react";
 import { recordMangaProgress } from "@/lib/manga-progress";
 import { setMangaReading } from "@/lib/manga-reading-state";
@@ -45,21 +45,27 @@ export function useReaderProgress(a: Args): (page: number) => void {
   } = a;
 
   const onCompletedRef = useRef(onCompleted);
-  onCompletedRef.current = onCompleted;
+  useLayoutEffect(() => {
+    onCompletedRef.current = onCompleted;
+  }, [onCompleted]);
   const completedKeyRef = useRef<string | null>(null);
   const completedStateRef = useRef(false);
   const liveRef = useRef({ loading, failed, total, currentPage, paged, book, settled: false });
-  liveRef.current = {
-    loading,
-    failed,
-    total,
-    currentPage,
-    paged,
-    book,
-    settled: settled.current,
-  };
+  useLayoutEffect(() => {
+    liveRef.current = {
+      loading,
+      failed,
+      total,
+      currentPage,
+      paged,
+      book,
+      settled: settled.current,
+    };
+  });
   const idsRef = useRef({ mangaId: manga.id, chapterId: chapter.id });
-  idsRef.current = { mangaId: manga.id, chapterId: chapter.id };
+  useLayoutEffect(() => {
+    idsRef.current = { mangaId: manga.id, chapterId: chapter.id };
+  });
 
   const isCompleteNow = (page?: number) => {
     const s = liveRef.current;

@@ -116,6 +116,7 @@ import {
 import { loadAnilistWatchedMap } from "@/lib/anilist/watched-map";
 import { useSimkl } from "@/lib/simkl/provider";
 import { useScrollMemory, useViewActions } from "@/lib/view";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export { isAnimeRow } from "./anime/anime-rows";
 
@@ -428,70 +429,79 @@ export function AnimeView({ active = true }: { active?: boolean }) {
   const trackerCw = useExternalCw(!hideSharedCw && settings.cwSources.trakt);
   const [cwRootVersion, setCwRootVersion] = useState(0);
   const localCwVer = useSyncExternalStore(subscribeLocalCw, localCwVersion);
-  const localAnimeCw = useMemo<LibraryItem[]>(() => {
-    void localCwVer;
-    return listLocalCw(hideSharedCw)
-      .filter((e) => ANIME_CLOUD_ID.test(e.id) || e.isAnime)
-      .map((e) => ({
-        _id: e.id,
-        type: e.type,
-        name: e.name,
-        poster: e.poster,
-        background: e.background,
-        isAnime: true,
-        state: {
-          timeOffset: e.positionMs,
-          duration: e.durationMs,
-          season: e.season,
-          episode: e.episode,
-          video_id: e.videoId,
-          flaggedWatched: e.durationMs > 0 && e.positionMs / e.durationMs >= 0.9 ? 1 : 0,
-          lastWatched: new Date(e.t).toISOString(),
-        },
-        removed: false,
-        temp: false,
-        _ctime: new Date(e.t).toISOString(),
-        _mtime: new Date(e.t).toISOString(),
-        local: true,
-      }));
-  }, [localCwVer, hideSharedCw, activeProfile?.id]);
-  const continueWatching = useMemo(() => {
-    const seen = new Set<string>();
-    const seenRoot = new Set<string>();
-    return [
-      ...localAnimeCw,
-      ...(hideSharedCw ? [] : libItems.filter((i) => !ANIME_CLOUD_ID.test(i._id))),
-      ...(hideSharedCw ? [] : simklCw),
-      ...(hideSharedCw ? [] : trackerCw.filter((i) => i.external === "trakt")),
-    ]
-      .filter((i) => {
-        if (!isCwMember(i)) return false;
-        if (!i.local && !isAnimeCwItem(i)) return false;
-        if (isCwDismissed(i)) return false;
-        if (seen.has(i._id)) return false;
-        seen.add(i._id);
-        return true;
-      })
-      .sort((a, b) => cwSortKey(b) - cwSortKey(a))
-      .filter((i) => {
-        const root = franchiseRootSync(i._id);
-        if (!root) return true;
-        if (seenRoot.has(root)) return false;
-        seenRoot.add(root);
-        return true;
-      })
-      .slice(0, 20);
-  }, [
-    localAnimeCw,
-    libItems,
-    simklCw,
-    trackerCw,
-    cwVersion,
-    animeDetectVer,
-    cwRootVersion,
-    hideSharedCw,
-    localCwVer,
-  ]);
+  const localAnimeCw = useMemo<LibraryItem[]>(
+    () =>
+      readAtVersion(localCwVer, () =>
+        readAtVersion(activeProfile?.id, () => {
+          return listLocalCw(hideSharedCw)
+            .filter((e) => ANIME_CLOUD_ID.test(e.id) || e.isAnime)
+            .map((e) => ({
+              _id: e.id,
+              type: e.type,
+              name: e.name,
+              poster: e.poster,
+              background: e.background,
+              isAnime: true,
+              state: {
+                timeOffset: e.positionMs,
+                duration: e.durationMs,
+                season: e.season,
+                episode: e.episode,
+                video_id: e.videoId,
+                flaggedWatched: e.durationMs > 0 && e.positionMs / e.durationMs >= 0.9 ? 1 : 0,
+                lastWatched: new Date(e.t).toISOString(),
+              },
+              removed: false,
+              temp: false,
+              _ctime: new Date(e.t).toISOString(),
+              _mtime: new Date(e.t).toISOString(),
+              local: true,
+            }));
+        }),
+      ),
+    [localCwVer, hideSharedCw, activeProfile?.id],
+  );
+  const continueWatching = useMemo(
+    () =>
+      readAtVersion([cwVersion, animeDetectVer, cwRootVersion, localCwVer], () => {
+        const seen = new Set<string>();
+        const seenRoot = new Set<string>();
+        return [
+          ...localAnimeCw,
+          ...(hideSharedCw ? [] : libItems.filter((i) => !ANIME_CLOUD_ID.test(i._id))),
+          ...(hideSharedCw ? [] : simklCw),
+          ...(hideSharedCw ? [] : trackerCw.filter((i) => i.external === "trakt")),
+        ]
+          .filter((i) => {
+            if (!isCwMember(i)) return false;
+            if (!i.local && !isAnimeCwItem(i)) return false;
+            if (isCwDismissed(i)) return false;
+            if (seen.has(i._id)) return false;
+            seen.add(i._id);
+            return true;
+          })
+          .sort((a, b) => cwSortKey(b) - cwSortKey(a))
+          .filter((i) => {
+            const root = franchiseRootSync(i._id);
+            if (!root) return true;
+            if (seenRoot.has(root)) return false;
+            seenRoot.add(root);
+            return true;
+          })
+          .slice(0, 20);
+      }),
+    [
+      localAnimeCw,
+      libItems,
+      simklCw,
+      trackerCw,
+      cwVersion,
+      animeDetectVer,
+      cwRootVersion,
+      hideSharedCw,
+      localCwVer,
+    ],
+  );
 
   useEffect(() => {
     const ids = [
@@ -518,15 +528,19 @@ export function AnimeView({ active = true }: { active?: boolean }) {
   }, [continueWatching]);
 
   const manualWatchedVer = useSyncExternalStore(subscribeManualWatched, manualWatchedVersion);
-  const resurfaceLibrary = useMemo(() => {
-    const manual = manualWatchedLibraryItems().filter(isAnimeCwItem);
-    if (manual.length === 0) return libItems;
-    const cwMemberIds = new Set(libItems.filter(isCwMember).map((i) => i._id));
-    const usable = manual.filter((i) => !cwMemberIds.has(i._id));
-    if (usable.length === 0) return libItems;
-    const overrideIds = new Set(usable.map((i) => i._id));
-    return [...libItems.filter((i) => !overrideIds.has(i._id)), ...usable];
-  }, [libItems, manualWatchedVer]);
+  const resurfaceLibrary = useMemo(
+    () =>
+      readAtVersion(manualWatchedVer, () => {
+        const manual = manualWatchedLibraryItems().filter(isAnimeCwItem);
+        if (manual.length === 0) return libItems;
+        const cwMemberIds = new Set(libItems.filter(isCwMember).map((i) => i._id));
+        const usable = manual.filter((i) => !cwMemberIds.has(i._id));
+        if (usable.length === 0) return libItems;
+        const overrideIds = new Set(usable.map((i) => i._id));
+        return [...libItems.filter((i) => !overrideIds.has(i._id)), ...usable];
+      }),
+    [libItems, manualWatchedVer],
+  );
   useEffect(() => {
     if (!simklConnected) {
       setSimklWatchedMap(new Map());
@@ -671,68 +685,72 @@ export function AnimeView({ active = true }: { active?: boolean }) {
       cancelled = true;
     };
   }, [active, malExtra.length]);
-  const heroSlides = useMemo(() => {
-    const front =
-      settings.animeHideWatchedPicks && heroMetas.some((m) => !isAnimeWatched(m.id))
-        ? heroMetas.filter((m) => !isAnimeWatched(m.id))
-        : heroMetas;
-    if (front.length === 0) return front;
-    const opts: AnimeFilterOpts = {
-      excludeOrigins: settings.animeExcludeOrigins,
-      hideWatched: settings.animeHideWatchedPicks,
-      isWatched: isAnimeWatched,
-    };
-    const seenBg = new Set(front.map((m) => m.background));
-    const seenFr = new Set(front.filter((m) => m.name).map((m) => animeFranchiseKey(m.name)));
-    const consider = (m: Meta): boolean => {
-      if (seenBg.has(m.background) || animeFiltered(m, opts)) return false;
-      const fr = m.name ? animeFranchiseKey(m.name) : "";
-      if (fr && seenFr.has(fr)) return false;
-      seenBg.add(m.background);
-      if (fr) seenFr.add(fr);
-      return true;
-    };
-    const malPool: Meta[] = [];
-    for (const m of peekHostedHero() ?? [])
-      if ((m as { source?: string }).source === "MyAnimeList" && consider(m)) malPool.push(m);
-    for (const it of malExtra) {
-      const art = peekStaticHeroArt(it.id);
-      if (!art?.bg) continue;
-      const m: Meta & { source?: string } = {
-        id: it.id,
-        type: it.format === "MOVIE" ? "movie" : "series",
-        name: it.name,
-        description: it.description,
-        background: art.bg,
-        logo: art.logo ?? undefined,
-        poster: it.poster,
-        releaseInfo: it.year,
-        imdbRating: it.rating,
-        animeFormat: it.format,
-        source: "MyAnimeList",
-      };
-      if (consider(m)) malPool.push(m);
-    }
-    const bulk: Meta[] = [];
-    for (const m of staticHeroPool()) if (consider(m)) bulk.push(m);
-    if (malPool.length === 0) return [...front, ...bulk];
-    const step = Math.max(3, Math.floor(bulk.length / malPool.length));
-    const mixed: Meta[] = [];
-    let mi = 0;
-    for (let i = 0; i < bulk.length; i += 1) {
-      mixed.push(bulk[i]);
-      if (mi < malPool.length && (i + 1) % step === 0) mixed.push(malPool[mi++]);
-    }
-    while (mi < malPool.length) mixed.push(malPool[mi++]);
-    return [...front, ...mixed];
-  }, [
-    heroMetas,
-    isAnimeWatched,
-    settings.animeHideWatchedPicks,
-    settings.animeExcludeOrigins,
-    staticPoolReady,
-    malExtra,
-  ]);
+  const heroSlides = useMemo(
+    () =>
+      readAtVersion(staticPoolReady, () => {
+        const front =
+          settings.animeHideWatchedPicks && heroMetas.some((m) => !isAnimeWatched(m.id))
+            ? heroMetas.filter((m) => !isAnimeWatched(m.id))
+            : heroMetas;
+        if (front.length === 0) return front;
+        const opts: AnimeFilterOpts = {
+          excludeOrigins: settings.animeExcludeOrigins,
+          hideWatched: settings.animeHideWatchedPicks,
+          isWatched: isAnimeWatched,
+        };
+        const seenBg = new Set(front.map((m) => m.background));
+        const seenFr = new Set(front.filter((m) => m.name).map((m) => animeFranchiseKey(m.name)));
+        const consider = (m: Meta): boolean => {
+          if (seenBg.has(m.background) || animeFiltered(m, opts)) return false;
+          const fr = m.name ? animeFranchiseKey(m.name) : "";
+          if (fr && seenFr.has(fr)) return false;
+          seenBg.add(m.background);
+          if (fr) seenFr.add(fr);
+          return true;
+        };
+        const malPool: Meta[] = [];
+        for (const m of peekHostedHero() ?? [])
+          if ((m as { source?: string }).source === "MyAnimeList" && consider(m)) malPool.push(m);
+        for (const it of malExtra) {
+          const art = peekStaticHeroArt(it.id);
+          if (!art?.bg) continue;
+          const m: Meta & { source?: string } = {
+            id: it.id,
+            type: it.format === "MOVIE" ? "movie" : "series",
+            name: it.name,
+            description: it.description,
+            background: art.bg,
+            logo: art.logo ?? undefined,
+            poster: it.poster,
+            releaseInfo: it.year,
+            imdbRating: it.rating,
+            animeFormat: it.format,
+            source: "MyAnimeList",
+          };
+          if (consider(m)) malPool.push(m);
+        }
+        const bulk: Meta[] = [];
+        for (const m of staticHeroPool()) if (consider(m)) bulk.push(m);
+        if (malPool.length === 0) return [...front, ...bulk];
+        const step = Math.max(3, Math.floor(bulk.length / malPool.length));
+        const mixed: Meta[] = [];
+        let mi = 0;
+        for (let i = 0; i < bulk.length; i += 1) {
+          mixed.push(bulk[i]);
+          if (mi < malPool.length && (i + 1) % step === 0) mixed.push(malPool[mi++]);
+        }
+        while (mi < malPool.length) mixed.push(malPool[mi++]);
+        return [...front, ...mixed];
+      }),
+    [
+      heroMetas,
+      isAnimeWatched,
+      settings.animeHideWatchedPicks,
+      settings.animeExcludeOrigins,
+      staticPoolReady,
+      malExtra,
+    ],
+  );
   const heroTrendingAll = useMemo(() => {
     const m: Record<string, string> = { ...heroTrending };
     for (const s of heroSlides)

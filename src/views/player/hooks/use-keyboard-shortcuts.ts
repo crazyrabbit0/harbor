@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { PlayerBridge, PlayerSnapshot, TrackInfo } from "@/lib/player/bridge";
 import { writePlayerPrefs } from "@/lib/player-prefs";
 import { writePlayerVolume } from "@/lib/player-volume";
@@ -27,6 +27,8 @@ import { useT } from "@/lib/i18n";
 import { fmtTime } from "@/components/player/transport/transport-utils";
 import { subtitleTrackLanguageLabel } from "@/lib/subtitles/track-label";
 import { trackLanguageName } from "@/lib/subtitles/language";
+
+const loadApiEvent = () => import("@tauri-apps/api/event");
 
 export function useKeyboardShortcuts(params: {
   bridgeRef: RefObject<PlayerBridge | null>;
@@ -173,24 +175,6 @@ export function useKeyboardShortcuts(params: {
     [],
   );
 
-  const togglePlayRef = useRef(() => {});
-  togglePlayRef.current = () => {
-    const pausing = mediaRef.current.status === "playing";
-    playPauseToggle();
-    onOsd?.({
-      icon: pausing ? "pause" : "play",
-      title: t("Playback"),
-      value: pausing ? t("Paused") : t("Resumed"),
-    });
-  };
-
-  const holdRef = useRef<{
-    key: string | null;
-    timer: number | null;
-    engaged: boolean;
-    baseRate: number;
-  }>({ key: null, timer: null, engaged: false, baseRate: 1 });
-  const [holdSpeedActive, setHoldSpeedActive] = useState(false);
   const mediaRef = useRef({
     status: snap.status,
     muted: snap.muted,
@@ -205,20 +189,42 @@ export function useKeyboardShortcuts(params: {
     hasNextEp,
     hasPrevEp,
   });
-  mediaRef.current = {
-    status: snap.status,
-    muted: snap.muted,
-    volume: snap.volume,
-    seekBackStepSec,
-    seekForwardStepSec,
-    playPauseToggle,
-    seekStep,
-    seekTo,
-    onNextEp,
-    onPrevEp,
-    hasNextEp,
-    hasPrevEp,
-  };
+  const togglePlayRef = useRef(() => {});
+  useLayoutEffect(() => {
+    togglePlayRef.current = () => {
+      const pausing = mediaRef.current.status === "playing";
+      playPauseToggle();
+      onOsd?.({
+        icon: pausing ? "pause" : "play",
+        title: t("Playback"),
+        value: pausing ? t("Paused") : t("Resumed"),
+      });
+    };
+  });
+
+  const holdRef = useRef<{
+    key: string | null;
+    timer: number | null;
+    engaged: boolean;
+    baseRate: number;
+  }>({ key: null, timer: null, engaged: false, baseRate: 1 });
+  const [holdSpeedActive, setHoldSpeedActive] = useState(false);
+  useLayoutEffect(() => {
+    mediaRef.current = {
+      status: snap.status,
+      muted: snap.muted,
+      volume: snap.volume,
+      seekBackStepSec,
+      seekForwardStepSec,
+      playPauseToggle,
+      seekStep,
+      seekTo,
+      onNextEp,
+      onPrevEp,
+      hasNextEp,
+      hasPrevEp,
+    };
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -696,7 +702,6 @@ export function useKeyboardShortcuts(params: {
       window.removeEventListener("keyup", onKeyUp);
       window.removeEventListener("blur", onBlur);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     closePlayer,
     returnToPreview,
@@ -759,7 +764,7 @@ export function useKeyboardShortcuts(params: {
     setVideoOwnsMediaKeys(true);
     let dead = false;
     let cleanup: (() => void) | undefined;
-    void import("@tauri-apps/api/event").then(async ({ listen }) => {
+    void loadApiEvent().then(async ({ listen }) => {
       const u1 = await listen<string>("harbor://media-key", (e) => {
         const m = mediaRef.current;
         const playing = m.status === "playing";

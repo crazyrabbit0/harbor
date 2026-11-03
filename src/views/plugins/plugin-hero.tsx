@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { shuffle } from "@/lib/feed/tags";
 import { browseFetcher, type BrowseCatalog } from "@/lib/catalog-browse";
@@ -154,11 +154,16 @@ export function PluginHero({
   const [active, setActive] = useState(0);
   const key = catalogs.map((c) => c.key).join("|");
   const onActive = useCallback((index: number) => setActive(index), []);
+  // The rows are keyed by their ids: the same selection rebuilt as new objects is not a change.
+  const catalogsRef = useRef(catalogs);
+  useLayoutEffect(() => {
+    catalogsRef.current = catalogs;
+  }, [catalogs]);
 
   useEffect(() => {
     let cancelled = false;
     setSlides([]);
-    const rows = rowsAcrossPlugins(catalogs, HERO_ROWS);
+    const rows = rowsAcrossPlugins(catalogsRef.current, HERO_ROWS);
     if (!rows.length) return;
     void (async () => {
       const settled = await Promise.allSettled(rows.map((cat) => browseFetcher(cat, null)(1)));
@@ -182,8 +187,6 @@ export function PluginHero({
     return () => {
       cancelled = true;
     };
-    // The rows are keyed by their ids: the same selection rebuilt as new objects is not a change.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, tmdbKey]);
 
   if (!slides.length) {

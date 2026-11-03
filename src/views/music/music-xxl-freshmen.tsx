@@ -185,8 +185,8 @@ function FreshmanArtists({
   );
   useEffect(() => {
     if (!active) return;
-    let live = true,
-      next = 0;
+    let live = true;
+    const cursor = { next: 0 };
     // One exact-article portrait request per class; use the shared music identity
     // resolver only for missing portraits, three at a time.
     void loadPortraits(freshmanClass).then(async (artwork) => {
@@ -196,8 +196,8 @@ function FreshmanArtists({
       );
       await Promise.all(
         Array.from({ length: Math.min(3, freshmanClass.artists.length) }, async () => {
-          while (live && next < freshmanClass.artists.length) {
-            const name = freshmanClass.artists[next++];
+          while (live && cursor.next < freshmanClass.artists.length) {
+            const name = freshmanClass.artists[cursor.next++];
             if (artwork[name]) continue;
             const result = await resolveArtist(name).catch(() => null);
             const artist = result?.canonical;

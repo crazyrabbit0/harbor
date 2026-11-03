@@ -83,7 +83,9 @@ export function useStremioSync(params: {
   const wroteOnceRef = useRef(false);
   const loadResetSeenRef = useRef(true);
   const latestRef = useRef({ src, snap, authKey, canonicalId, resolutionSettled });
-  latestRef.current = { src, snap, authKey, canonicalId, resolutionSettled };
+  useEffect(() => {
+    latestRef.current = { src, snap, authKey, canonicalId, resolutionSettled };
+  });
 
   const ourVideoId = videoIdFor(src, canonicalId);
   // Preserve the outgoing playback's data through effect cleanup. latestRef
@@ -99,7 +101,9 @@ export function useStremioSync(params: {
     [sourceIdentity],
   );
   const progressRef = useRef(progress);
-  progressRef.current = progress;
+  useEffect(() => {
+    progressRef.current = progress;
+  });
 
   useEffect(() => {
     const vid = ourVideoId;
@@ -116,7 +120,6 @@ export function useStremioSync(params: {
         });
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ourVideoId, src.url]);
 
   useEffect(() => {
@@ -133,7 +136,6 @@ export function useStremioSync(params: {
         if (mt) lastWrittenMtimesRef.current.add(mt);
       });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [progress]);
 
   useEffect(() => {
@@ -151,8 +153,9 @@ export function useStremioSync(params: {
 
   useEffect(() => {
     if (!loadResetSeenRef.current || snap.status === "loading" || snap.status === "idle") return;
-    if (snap.durationSec > 0) progress.latest = latestRef.current;
-    if (snap.positionSec >= MIN_POSITION_SEC) progress.position = snap.positionSec;
+    const current = progressRef.current;
+    if (snap.durationSec > 0) current.latest = latestRef.current;
+    if (snap.positionSec >= MIN_POSITION_SEC) current.position = snap.positionSec;
   });
 
   useEffect(() => {
@@ -264,7 +267,9 @@ export function useStremioSync(params: {
     });
   };
   const writeFlushFastRef = useRef(writeFlushFast);
-  writeFlushFastRef.current = writeFlushFast;
+  useEffect(() => {
+    writeFlushFastRef.current = writeFlushFast;
+  });
 
   useEffect(() => {
     const flusher = () => writeFlushFastRef.current();
@@ -294,20 +299,17 @@ export function useStremioSync(params: {
       void writeWithFreshBase(false, false);
     }, TICK_MS);
     return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [authKey]);
 
   useEffect(() => {
     if (snap.status === "paused") void writeWithFreshBase(false, true);
     if (snap.status === "ended" || snap.status === "error") void writeWithFreshBase(true, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [snap.status]);
 
   useEffect(() => {
     return () => {
       void writeWithFreshBase(true, true);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

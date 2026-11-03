@@ -27,12 +27,11 @@ export function WatchNowCard({ watching }: { watching?: ProfileWatching }) {
   const t = useT();
   const { openMeta, openManga } = useViewActions();
   const livePos = useLivePosition(watching);
-  const media = useProfileTitle(
-    watching?.metaId,
-    watching?.title,
-    watching?.posterUrl,
-    watching?.metaType,
-  );
+  const {
+    ref: mediaRef,
+    title: mediaTitle,
+    poster: mediaPoster,
+  } = useProfileTitle(watching?.metaId, watching?.title, watching?.posterUrl, watching?.metaType);
   if (!watching || (watching.kind !== "party" && !watching.title)) return null;
 
   const isParty = watching.kind === "party";
@@ -47,8 +46,8 @@ export function WatchNowCard({ watching }: { watching?: ProfileWatching }) {
           id: watching.metaId as string,
           type:
             watching.metaType === "series" || watching.metaType === "anime" ? "series" : "movie",
-          name: media.title ?? "",
-          poster: media.poster,
+          name: mediaTitle ?? "",
+          poster: mediaPoster,
         });
       }
     : null;
@@ -71,10 +70,10 @@ export function WatchNowCard({ watching }: { watching?: ProfileWatching }) {
 
   return (
     <section
-      ref={media.ref}
+      ref={mediaRef}
       role={open ? "button" : undefined}
       tabIndex={open ? 0 : undefined}
-      aria-label={open ? t("Open {name}", { name: media.title ?? "" }) : undefined}
+      aria-label={open ? t("Open {name}", { name: mediaTitle ?? "" }) : undefined}
       onClick={open ?? undefined}
       onKeyDown={
         open
@@ -92,9 +91,9 @@ export function WatchNowCard({ watching }: { watching?: ProfileWatching }) {
       }`}
     >
       <div className="flex items-stretch gap-3.5">
-        {media.poster ? (
+        {mediaPoster ? (
           <img
-            src={media.poster}
+            src={mediaPoster}
             alt=""
             draggable={false}
             className="h-[68px] w-[46px] shrink-0 rounded-lg object-cover ring-1 ring-edge-soft"
@@ -114,7 +113,7 @@ export function WatchNowCard({ watching }: { watching?: ProfileWatching }) {
             {label}
           </span>
           <span className="truncate text-[14.5px] font-medium leading-tight text-ink">
-            {media.title ?? t("something")}
+            {mediaTitle ?? t("something")}
           </span>
           {sub && <span className="truncate text-[12px] text-ink-subtle">{sub}</span>}
           {hasTime && (

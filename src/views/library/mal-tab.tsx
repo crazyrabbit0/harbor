@@ -82,7 +82,7 @@ export function MalTab() {
         status: next,
         ...(completing ? { numEpisodesWatched: total } : {}),
       } as Partial<MalListEntry>);
-      try {
+      const work = async () => {
         const saved = await saveListEntry({
           malId: entry.anime.id,
           status: next,
@@ -92,14 +92,17 @@ export function MalTab() {
           status: saved.status,
           numEpisodesWatched: saved.numEpisodesWatched,
         } as Partial<MalListEntry>);
-      } catch {
-        applyLocal(entry.anime.id, {
-          status: entry.status,
-          numEpisodesWatched: entry.numEpisodesWatched,
-        } as Partial<MalListEntry>);
-      } finally {
-        setBusyFor(entry.anime.id, false);
-      }
+      };
+      await work()
+        .catch(() => {
+          applyLocal(entry.anime.id, {
+            status: entry.status,
+            numEpisodesWatched: entry.numEpisodesWatched,
+          } as Partial<MalListEntry>);
+        })
+        .finally(() => {
+          setBusyFor(entry.anime.id, false);
+        });
     },
     [applyLocal, setBusyFor],
   );
@@ -108,19 +111,22 @@ export function MalTab() {
     async (entry: MalListEntry, next: number) => {
       setBusyFor(entry.anime.id, true);
       applyLocal(entry.anime.id, { numEpisodesWatched: next } as Partial<MalListEntry>);
-      try {
+      const work = async () => {
         const saved = await saveListEntry({ malId: entry.anime.id, numEpisodesWatched: next });
         applyLocal(entry.anime.id, {
           status: saved.status,
           numEpisodesWatched: saved.numEpisodesWatched,
         } as Partial<MalListEntry>);
-      } catch {
-        applyLocal(entry.anime.id, {
-          numEpisodesWatched: entry.numEpisodesWatched,
-        } as Partial<MalListEntry>);
-      } finally {
-        setBusyFor(entry.anime.id, false);
-      }
+      };
+      await work()
+        .catch(() => {
+          applyLocal(entry.anime.id, {
+            numEpisodesWatched: entry.numEpisodesWatched,
+          } as Partial<MalListEntry>);
+        })
+        .finally(() => {
+          setBusyFor(entry.anime.id, false);
+        });
     },
     [applyLocal, setBusyFor],
   );
@@ -129,15 +135,18 @@ export function MalTab() {
     async (entry: MalListEntry) => {
       setBusyFor(entry.anime.id, true);
       setEntries((prev) => prev.filter((e) => e.anime.id !== entry.anime.id));
-      try {
+      const work = async () => {
         await deleteListEntry(entry.anime.id);
-      } catch {
-        setEntries((prev) =>
-          prev.some((e) => e.anime.id === entry.anime.id) ? prev : [...prev, entry],
-        );
-      } finally {
-        setBusyFor(entry.anime.id, false);
-      }
+      };
+      await work()
+        .catch(() => {
+          setEntries((prev) =>
+            prev.some((e) => e.anime.id === entry.anime.id) ? prev : [...prev, entry],
+          );
+        })
+        .finally(() => {
+          setBusyFor(entry.anime.id, false);
+        });
     },
     [setBusyFor],
   );

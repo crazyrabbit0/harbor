@@ -6,6 +6,8 @@ import { writePlayerPrefs } from "@/lib/player-prefs";
 import { markImportedSub } from "@/lib/player/imported-subs";
 import { writeRememberedSub } from "@/lib/subtitles/subtitle-memory";
 
+const loadApiWebview = () => import("@tauri-apps/api/webview");
+
 const SUB_EXT = /\.(srt|ass|ssa|vtt|sub)$/i;
 
 export function useSubDrop(
@@ -22,7 +24,7 @@ export function useSubDrop(
     let un: (() => void) | null = null;
     void (async () => {
       try {
-        const { getCurrentWebview } = await import("@tauri-apps/api/webview");
+        const { getCurrentWebview } = await loadApiWebview();
         const unlisten = await getCurrentWebview().onDragDropEvent((e) => {
           if (e.payload.type !== "drop") return;
           const path = e.payload.paths.find((p) => SUB_EXT.test(p));

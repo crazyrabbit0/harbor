@@ -13,32 +13,22 @@ export function TogetherInviteToast() {
   const { openPicker } = useViewActions();
   const t = useT();
   const handledRef = useRef<number | null>(null);
+  const [handledAt, setHandledAt] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     if (!incomingInvite) {
       handledRef.current = null;
+      setHandledAt(null);
       setProgress(0);
       return;
     }
     if (handledRef.current === incomingInvite.at) return;
-    setProgress(0);
-    const start = Date.now();
-    const id = window.setInterval(() => {
-      const elapsed = Date.now() - start;
-      const next = Math.min(1, elapsed / AUTO_JOIN_MS);
-      setProgress(next);
-      if (elapsed >= AUTO_JOIN_MS) {
-        window.clearInterval(id);
-        triggerJoin();
-      }
-    }, TICK_MS);
-    return () => window.clearInterval(id);
-
-    function triggerJoin() {
+    const triggerJoin = () => {
       if (!incomingInvite) return;
       if (handledRef.current === incomingInvite.at) return;
       handledRef.current = incomingInvite.at;
+      setHandledAt(incomingInvite.at);
       const { invite } = incomingInvite;
       const meta: Meta = {
         id: invite.mediaId,
@@ -51,11 +41,23 @@ export function TogetherInviteToast() {
       };
       openPicker(meta, invite.episode, { autoPlay: invite.guestPick !== true });
       dismissInvite();
-    }
+    };
+    setProgress(0);
+    const start = Date.now();
+    const id = window.setInterval(() => {
+      const elapsed = Date.now() - start;
+      const next = Math.min(1, elapsed / AUTO_JOIN_MS);
+      setProgress(next);
+      if (elapsed >= AUTO_JOIN_MS) {
+        window.clearInterval(id);
+        triggerJoin();
+      }
+    }, TICK_MS);
+    return () => window.clearInterval(id);
   }, [incomingInvite, openPicker, dismissInvite]);
 
   if (!incomingInvite) return null;
-  if (handledRef.current === incomingInvite.at) return null;
+  if (handledAt === incomingInvite.at) return null;
   const { name, invite } = incomingInvite;
   const guestPick = invite.guestPick === true;
   const subtitle = invite.episode
@@ -64,6 +66,7 @@ export function TogetherInviteToast() {
 
   const onJoin = () => {
     handledRef.current = incomingInvite.at;
+    setHandledAt(incomingInvite.at);
     const meta: Meta = {
       id: invite.mediaId,
       type: invite.mediaType,

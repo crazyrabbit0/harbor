@@ -76,6 +76,14 @@ function normalizeInstallUrl(raw: string): string | null {
   return null;
 }
 
+function installedSummary(
+  result: Awaited<ReturnType<typeof installFromUrl>>,
+  fallbackName: string,
+): { name: string; logo: string | null; id: string } {
+  const manifest = result.addon.manifest;
+  return { name: manifest.name ?? fallbackName, logo: manifest.logo ?? null, id: manifest.id };
+}
+
 function InstallerViewport({
   url,
   title,
@@ -155,10 +163,7 @@ function InstallerViewport({
       }
       setPhase({ kind: "installing", name: null });
       try {
-        const result = await installFromUrl(normalized);
-        const name = result.addon.manifest.name ?? t("Addon");
-        const logo = result.addon.manifest.logo ?? null;
-        const id = result.addon.manifest.id;
+        const { name, logo, id } = installedSummary(await installFromUrl(normalized), t("Addon"));
         setPhase({ kind: "success", name, logo });
         window.dispatchEvent(
           new CustomEvent("harbor:addons-changed", { detail: { id, installed: true } }),
@@ -181,9 +186,11 @@ function InstallerViewport({
   }, []);
 
   const phaseRef = useRef(phase);
-  phaseRef.current = phase;
   const submitRef = useRef(submit);
-  submitRef.current = submit;
+  useLayoutEffect(() => {
+    phaseRef.current = phase;
+    submitRef.current = submit;
+  }, [phase, submit]);
 
   useEffect(() => {
     const isBusy = () =>

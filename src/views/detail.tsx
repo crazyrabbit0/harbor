@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -10,6 +11,7 @@ import {
 import { Check, Plus } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { animePlayEpisode } from "./detail/anime-play-episode";
+import { readAtVersion } from "@/lib/read-at-version";
 import {
   animeDetails,
   type AnimeDetailExtras,
@@ -188,6 +190,41 @@ import { useTraktRelated } from "@/lib/providers/trakt-related";
 
 const NO_METAS: Meta[] = [];
 
+// Maps a Simkl item answer to a Harbor id and remembers the mapping in the local Simkl cache.
+function resolveFromSimklItem(
+  data: any,
+  mediaType: string,
+  cache: ReturnType<typeof getLocalCache>,
+  simklId: number,
+): string | null {
+  if (!data || !data.ids) return null;
+  const ids = data.ids;
+  let resolvedId: string | null = null;
+  if (ids.imdb) {
+    resolvedId = ids.imdb;
+  } else if (ids.kitsu) {
+    resolvedId = `kitsu:${ids.kitsu}`;
+  } else if (ids.mal) {
+    resolvedId = `mal:${ids.mal}`;
+  } else if (ids.tmdb) {
+    const tmdbType = mediaType === "movie" ? "movie" : "tv";
+    resolvedId = `tmdb:${tmdbType}:${ids.tmdb}`;
+  }
+
+  if (resolvedId && cache) {
+    if (ids.imdb) cache.imdbToSimkl[ids.imdb] = simklId;
+    if (ids.kitsu) cache.kitsuToSimkl[String(ids.kitsu)] = simklId;
+    if (ids.mal) cache.malToSimkl[String(ids.mal)] = simklId;
+    if (ids.tmdb) {
+      const tmdbType = mediaType === "movie" ? "movie" : "tv";
+      cache.tmdbToSimkl[`${tmdbType}:${ids.tmdb}`] = simklId;
+    }
+    saveLocalCache(cache);
+  }
+  return resolvedId;
+}
+const loadMangaApi = () => import("@/lib/manga/api");
+
 function parseYear(v: string | number | undefined | null): number {
   if (v == null) return 0;
   const n = Number(String(v).slice(0, 4));
@@ -321,16 +358,17 @@ export function DetailView({
           .catch(() => {});
       }
     },
-    [],
+    [getSettings],
   );
   // Season picker swaps franchise seasons in-place without re-running animeDetails, so the
   // localized TMDB series overview must be passed down for the season hero description.
+  const detailOverview = detail?.overview;
   const localizedAnimeOverview = useMemo(() => {
-    if (!detail?.overview) return undefined;
+    if (!detailOverview) return undefined;
     const iso1 = settings.tmdbLanguage || settings.uiLanguage || "en";
     if (iso1.split("-")[0]?.toLowerCase() === "en") return undefined;
-    return isTextInLanguage(detail.overview, iso1) ? detail.overview : undefined;
-  }, [settings.tmdbLanguage, settings.uiLanguage, detail?.overview]);
+    return isTextInLanguage(detailOverview, iso1) ? detailOverview : undefined;
+  }, [settings.tmdbLanguage, settings.uiLanguage, detailOverview]);
   const pinnedBackdrop = useTitleBackdrop(meta.id);
   const pinnedBackdropHi = pinnedBackdrop
     ? pinnedBackdrop.replace(/\/t\/p\/w\d+\//, "/t/p/original/")
@@ -424,30 +462,7 @@ export function DetailView({
         try {
           const data = await simklRequest<any>(path);
           if (cancelled) return;
-          if (data && data.ids) {
-            const ids = data.ids;
-            if (ids.imdb) {
-              resolvedId = ids.imdb;
-            } else if (ids.kitsu) {
-              resolvedId = `kitsu:${ids.kitsu}`;
-            } else if (ids.mal) {
-              resolvedId = `mal:${ids.mal}`;
-            } else if (ids.tmdb) {
-              const tmdbType = mediaType === "movie" ? "movie" : "tv";
-              resolvedId = `tmdb:${tmdbType}:${ids.tmdb}`;
-            }
-
-            if (resolvedId && cache) {
-              if (ids.imdb) cache.imdbToSimkl[ids.imdb] = simklId;
-              if (ids.kitsu) cache.kitsuToSimkl[String(ids.kitsu)] = simklId;
-              if (ids.mal) cache.malToSimkl[String(ids.mal)] = simklId;
-              if (ids.tmdb) {
-                const tmdbType = mediaType === "movie" ? "movie" : "tv";
-                cache.tmdbToSimkl[`${tmdbType}:${ids.tmdb}`] = simklId;
-              }
-              saveLocalCache(cache);
-            }
-          }
+          resolvedId = resolveFromSimklItem(data, mediaType, cache, simklId);
         } catch (e) {
           console.error("Failed to resolve SIMKL ID via API", e);
         }
@@ -478,10 +493,8 @@ export function DetailView({
   const isAnime = idAnime || detectedKitsu != null;
   const anilistExtra = useAnimeAnilistDetails(animeCanonicalId, isAnime);
   const animeCharacters = useAnimeCharacters(animeCanonicalId, isAnime);
-  const stickyAwardName = useRef<string | null>(null);
-  useEffect(() => {
-    stickyAwardName.current = null;
-  }, [meta.id]);
+  const [stickyAward, setStickyAward] = useState<{ metaId: string; name: string } | null>(null);
+  const stickyAwardName = stickyAward?.metaId === meta.id ? stickyAward.name : null;
   useEffect(() => {
     setHarborImdbRating(null);
     const tt = detail?.imdbId ?? (meta.id.startsWith("tt") ? meta.id : null);
@@ -520,7 +533,10 @@ export function DetailView({
    * replace-it branch, and drop the languages a plugin sent — which is what happened: a poster
    * showed Hindi and the page it opened did not. */
   const providerMetaRef = useRef<Meta | null>(null);
-  providerMetaRef.current = capstanMeta?.meta ?? null;
+  const providerMeta = capstanMeta?.meta ?? null;
+  useLayoutEffect(() => {
+    providerMetaRef.current = providerMeta;
+  }, [providerMeta]);
 
   /** Take a fetched meta as the page's full meta, keeping what a plugin told us about the listing.
    *
@@ -1199,30 +1215,33 @@ export function DetailView({
   );
   const liveAwards = useAwards(detail?.imdbId ?? undefined, meta.type === "series");
   const bundledAwardsV = useBundledAwardsVersion();
+  const releaseYear = releaseYearNum ?? undefined;
   const awards = useMemo(
-    () => mergeBundledAwards(liveAwards, meta.name, releaseYearNum ?? undefined),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [liveAwards, meta.name, releaseYearNum, bundledAwardsV],
+    () =>
+      readAtVersion(bundledAwardsV, () => mergeBundledAwards(liveAwards, meta.name, releaseYear)),
+    [liveAwards, meta.name, releaseYear, bundledAwardsV],
   );
   const heroAwardSummary = pickHeroAwards(awardSummary(awards));
   const awardsInDescription = (settings.themePreset as string) === "elegantfin";
+  const awardLookupName = animeAwardLookupName(releaseYearNum, title, meta.name, detail?.title);
+  // The last resolved award name stays shown for this title while a later lookup comes back empty.
+  const stickyCandidate =
+    awardLookupName && (isAnime || heroAwardSummary.length === 0) ? awardLookupName : null;
+  if (stickyCandidate && stickyCandidate !== stickyAwardName) {
+    setStickyAward({ metaId: meta.id, name: stickyCandidate });
+  }
+  const effectiveStickyAward = stickyCandidate ?? stickyAwardName;
   const renderHeroAwards = () => {
     if (isAnime) {
-      const animeName =
-        animeAwardLookupName(releaseYearNum, title, meta.name, detail?.title) ??
-        stickyAwardName.current;
+      const animeName = awardLookupName ?? effectiveStickyAward;
       if (animeName) {
-        stickyAwardName.current = animeName;
         return <CrunchyrollAwardsCorner name={animeName} year={releaseYearNum} inline />;
       }
     }
     if (heroAwardSummary.length > 0) {
       return <HeroAwardsCorner summary={heroAwardSummary} inline />;
     }
-    const resolved =
-      animeAwardLookupName(releaseYearNum, title, meta.name, detail?.title) ??
-      stickyAwardName.current;
-    if (resolved) stickyAwardName.current = resolved;
+    const resolved = awardLookupName ?? effectiveStickyAward;
     if (resolved) return <CrunchyrollAwardsCorner name={resolved} year={releaseYearNum} inline />;
     return null;
   };
@@ -1329,25 +1348,33 @@ export function DetailView({
   const stremioVideosRef = useRef<{ imdb: string; videos: NonNullable<Meta["videos"]> } | null>(
     null,
   );
+  const playMetaRef = useRef(playMeta);
+  useLayoutEffect(() => {
+    playMetaRef.current = playMeta;
+  });
+  const metaType = meta.type;
+  const detailImdbId = detail?.imdbId;
+  const cinemetaVideos = cinemetaFull?.videos;
   useEffect(() => {
     if (seriesWatchedVer === prevSeriesWatchedVerRef.current) return;
     if (!authKey || !isSeries || idAnime || meta.type === "anime") return;
     const imdb = meta.id.startsWith("tt")
       ? meta.id
-      : detail?.imdbId?.startsWith("tt")
-        ? detail.imdbId
+      : detailImdbId?.startsWith("tt")
+        ? detailImdbId
         : null;
-    const cid = cloudWriteId(meta.id, detail?.imdbId ?? null, !!detail?.imdbId);
+    const cid = cloudWriteId(meta.id, detailImdbId ?? null, !!detailImdbId);
     if (!cid) return;
+    const effectPlayMeta = playMetaRef.current;
     let cancelled = false;
     void (async () => {
-      let videos = cinemetaFull?.videos;
+      let videos = cinemetaVideos;
       const aligned = imdb ? (videos?.[0]?.id?.startsWith(imdb) ?? false) : true;
       if (imdb && !aligned) {
         if (stremioVideosRef.current?.imdb === imdb) {
           videos = stremioVideosRef.current.videos;
         } else {
-          const full = await fetchCinemetaMeta(narrowMediaType(meta.type), imdb).catch(() => null);
+          const full = await fetchCinemetaMeta(narrowMediaType(metaType), imdb).catch(() => null);
           if (full?.videos?.length) {
             videos = full.videos;
             stremioVideosRef.current = { imdb, videos: full.videos };
@@ -1358,7 +1385,7 @@ export function DetailView({
       const { watched: localWatched, unwatched: localUnwatched } = manualEpisodeKeys(meta.id);
       const ok = await setEpisodesWatchedStremio(
         authKey,
-        playMeta,
+        effectPlayMeta,
         cid,
         videos,
         localWatched,
@@ -1369,76 +1396,90 @@ export function DetailView({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seriesWatchedVer, authKey, isSeries, isAnime, cinemetaFull?.videos, detail?.imdbId, meta.id]);
+  }, [
+    seriesWatchedVer,
+    authKey,
+    isSeries,
+    isAnime,
+    idAnime,
+    metaType,
+    cinemetaVideos,
+    detailImdbId,
+    meta.id,
+  ]);
 
   const upcoming = !loading && isTitleUpcoming(detail, meta);
   const currentFranchiseId = animeCanonicalId ?? meta.id;
 
-  const lastPlay = useMemo(() => {
-    if (episodeHint) return episodeHint;
-    if (isAnime) return lastPlayedEpisode(meta.id);
-    const candidates: Array<{ season: number; episode: number; t: number }> = [];
-    const ids = Array.from(
-      new Set(
-        [
+  const detailTmdbId = detail?.id;
+  const lastPlay = useMemo(
+    () =>
+      readAtVersion(seriesWatchedVer, () => {
+        if (episodeHint) return episodeHint;
+        if (isAnime) return lastPlayedEpisode(meta.id);
+        const candidates: Array<{ season: number; episode: number; t: number }> = [];
+        const ids = Array.from(
+          new Set(
+            [
+              meta.id,
+              detail?.imdbId ?? null,
+              detailTmdbId != null ? `tmdb:tv:${detailTmdbId}` : null,
+            ].filter((x): x is string => !!x),
+          ),
+        );
+        for (const id of ids) {
+          const lc = localCwEntry(id);
+          if (
+            lc?.type === "series" &&
+            typeof lc.season === "number" &&
+            typeof lc.episode === "number" &&
+            lc.season >= 1 &&
+            lc.episode >= 1
+          ) {
+            candidates.push({ season: lc.season, episode: lc.episode, t: lc.t });
+          }
+          const lp = lastPlayedEpisode(id);
+          if (lp && lp.season >= 1 && lp.episode >= 1) {
+            candidates.push({ season: lp.season, episode: lp.episode, t: lp.t });
+          }
+        }
+        const st = libraryItem?.state;
+        if (libraryItem?.type === "series" && st && (st.timeOffset ?? 0) > 0) {
+          const se = episodeFromVideoId(st.video_id);
+          const season = st.season ?? se?.season;
+          const episode = st.episode ?? se?.episode;
+          if (
+            typeof season === "number" &&
+            typeof episode === "number" &&
+            season >= 1 &&
+            episode >= 1
+          ) {
+            const mt = Date.parse(libraryItem._mtime ?? st.lastWatched ?? "");
+            candidates.push({ season, episode, t: Number.isFinite(mt) ? mt : 0 });
+          }
+        }
+        const eligible = candidates.filter(
+          (c) => manualWatchedState(meta.id, c.season, c.episode) !== false,
+        );
+        if (eligible.length === 0) return null;
+        eligible.sort((a, b) => b.t - a.t);
+        return advancePastFinished(
           meta.id,
-          detail?.imdbId ?? null,
-          detail?.id != null ? `tmdb:tv:${detail.id}` : null,
-        ].filter((x): x is string => !!x),
-      ),
-    );
-    for (const id of ids) {
-      const lc = localCwEntry(id);
-      if (
-        lc?.type === "series" &&
-        typeof lc.season === "number" &&
-        typeof lc.episode === "number" &&
-        lc.season >= 1 &&
-        lc.episode >= 1
-      ) {
-        candidates.push({ season: lc.season, episode: lc.episode, t: lc.t });
-      }
-      const lp = lastPlayedEpisode(id);
-      if (lp && lp.season >= 1 && lp.episode >= 1) {
-        candidates.push({ season: lp.season, episode: lp.episode, t: lp.t });
-      }
-    }
-    const st = libraryItem?.state;
-    if (libraryItem?.type === "series" && st && (st.timeOffset ?? 0) > 0) {
-      const se = episodeFromVideoId(st.video_id);
-      const season = st.season ?? se?.season;
-      const episode = st.episode ?? se?.episode;
-      if (
-        typeof season === "number" &&
-        typeof episode === "number" &&
-        season >= 1 &&
-        episode >= 1
-      ) {
-        const mt = Date.parse(libraryItem._mtime ?? st.lastWatched ?? "");
-        candidates.push({ season, episode, t: Number.isFinite(mt) ? mt : 0 });
-      }
-    }
-    const eligible = candidates.filter(
-      (c) => manualWatchedState(meta.id, c.season, c.episode) !== false,
-    );
-    if (eligible.length === 0) return null;
-    eligible.sort((a, b) => b.t - a.t);
-    return advancePastFinished(
+          { season: eligible[0].season, episode: eligible[0].episode },
+          cinemetaFull?.videos,
+        );
+      }),
+    [
       meta.id,
-      { season: eligible[0].season, episode: eligible[0].episode },
+      detail?.imdbId,
+      detailTmdbId,
+      libraryItem,
+      isAnime,
+      episodeHint,
+      seriesWatchedVer,
       cinemetaFull?.videos,
-    );
-  }, [
-    meta.id,
-    detail?.imdbId,
-    detail?.id,
-    libraryItem,
-    isAnime,
-    episodeHint,
-    seriesWatchedVer,
-    cinemetaFull?.videos,
-  ]);
+    ],
+  );
 
   useEffect(() => {
     if (loading) return;
@@ -1612,14 +1653,14 @@ export function DetailView({
       openPicker,
       openPlayer,
       playMeta,
-      settings.instantPlay,
-      settings.playbackSourcePreference,
-      settings.preferredMediaServerId,
+      settings,
       inSession,
       claimHost,
       authKey,
       meta.id,
-      detail?.imdbId,
+      meta.type,
+      detail,
+      cinemetaFull,
       episodeName,
     ],
   );
@@ -2406,7 +2447,7 @@ export function DetailView({
                   nodes={anilistExtra.adaptations}
                   badgeCollections
                   onOpen={async (node) => {
-                    const { searchManga } = await import("@/lib/manga/api");
+                    const { searchManga } = await loadMangaApi();
                     const found = (await searchManga(node.title, 0))[0];
                     openManga(found?.id);
                   }}
@@ -2422,18 +2463,14 @@ export function DetailView({
               node: <MediaGallery detail={detail} title={title} logo={logo} metaId={meta.id} />,
             });
           }
-          if (isAnime || stickyAwardName.current) {
+          if (isAnime || effectiveStickyAward) {
             railSections.push({
               key: "animeAwards",
               label: t("Awards"),
               minHeight: 160,
               node: (
                 <AnimeAwardsBlock
-                  name={
-                    animeAwardLookupName(releaseYearNum, title, meta.name, detail?.title) ??
-                    stickyAwardName.current ??
-                    title
-                  }
+                  name={awardLookupName ?? effectiveStickyAward ?? title}
                   year={releaseYearNum}
                 />
               ),

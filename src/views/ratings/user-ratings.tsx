@@ -105,19 +105,24 @@ export function UserRatings({
       return;
     current.more = true;
     setMore(true);
-    try {
-      const page = await fetchUserRatings(handle, { type, cursor }, current.controller.signal);
-      if (request.current !== current || current.controller.signal.aborted) return;
-      setItems((prev) => [...prev, ...page.items]);
-      setCursor(page.nextCursor);
-    } catch {
-      // Keep the current page and cursor available for a retry.
-    } finally {
-      if (request.current === current && !current.controller.signal.aborted) {
-        current.more = false;
-        setMore(false);
-      }
-    }
+    const signal = current.controller.signal;
+    await new Promise<Awaited<ReturnType<typeof fetchUserRatings>>>((resolve) =>
+      resolve(fetchUserRatings(handle, { type, cursor }, signal)),
+    )
+      .then((page) => {
+        if (request.current !== current || current.controller.signal.aborted) return;
+        setItems((prev) => [...prev, ...page.items]);
+        setCursor(page.nextCursor);
+      })
+      .catch(() => {
+        // Keep the current page and cursor available for a retry.
+      })
+      .finally(() => {
+        if (request.current === current && !current.controller.signal.aborted) {
+          current.more = false;
+          setMore(false);
+        }
+      });
   }, [cursor, handle, type]);
 
   return createPortal(
@@ -212,14 +217,18 @@ function RatingRow({
   const t = useT();
   const [revealed, setRevealed] = useState(false);
   const poster = useRatingPoster(r.itemKey, r.mediaType, r.title, r.posterUrl);
-  const media = useProfileTitle(r.itemKey, r.title, poster, r.mediaType);
+  const {
+    ref: mediaRef,
+    title: mediaTitle,
+    poster: mediaPoster,
+  } = useProfileTitle(r.itemKey, r.title, poster, r.mediaType);
   const open = onOpenMeta
-    ? () => onOpenMeta(r.itemKey, r.mediaType, { name: media.title, poster: media.poster })
+    ? () => onOpenMeta(r.itemKey, r.mediaType, { name: mediaTitle, poster: mediaPoster })
     : undefined;
 
   return (
     <div
-      ref={media.ref}
+      ref={mediaRef}
       className="flex gap-4 rounded-2xl border border-edge-soft bg-canvas/40 p-3.5"
     >
       <button
@@ -229,7 +238,7 @@ function RatingRow({
         className="w-16 shrink-0 disabled:cursor-default"
       >
         <Poster
-          src={media.poster}
+          src={mediaPoster}
           seed={r.title}
           ratio="portrait"
           lazy
@@ -244,7 +253,7 @@ function RatingRow({
             disabled={!open}
             className="truncate text-start text-[15px] font-semibold text-ink hover:underline disabled:cursor-default disabled:no-underline"
           >
-            {media.title}
+            {mediaTitle}
           </button>
           <span className="shrink-0 text-[12px] tabular-nums text-ink-subtle">{timeAgo(r.at)}</span>
         </div>

@@ -63,6 +63,7 @@ import {
 } from "@/lib/ebook/translation";
 import { LANGUAGES as UI_LANGUAGES, useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const CARD = "ebook-source-card";
 const INPUT = "ebook-source-input";
@@ -267,14 +268,17 @@ function Translation() {
   const test = async () => {
     setTesting(true);
     setTestResult("");
-    try {
+    const work = async () => {
       await testEBookTranslationSettings(settings);
       setTestResult(t("DeepSeek model is working."));
-    } catch (error) {
-      setTestResult(error instanceof Error ? error.message : t("Translation test failed"));
-    } finally {
-      setTesting(false);
-    }
+    };
+    await work()
+      .catch((error) => {
+        setTestResult(error instanceof Error ? error.message : t("Translation test failed"));
+      })
+      .finally(() => {
+        setTesting(false);
+      });
   };
   return (
     <div className="flex flex-col gap-3">
@@ -539,13 +543,15 @@ function GutenbergQuickAdd() {
   );
 }
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 function LocalFolder() {
   const t = useT();
   const [tutorial, setTutorial] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const choose = async () => {
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const path = await open({
         directory: true,
         multiple: false,
@@ -633,14 +639,17 @@ function PluginRow({ item, repoUrl }: { item: EBookPluginManifest; repoUrl: stri
   const action = async () => {
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       if (!installed) await installEBookPlugin(item, repoUrl);
       else await removeEBookPlugin(item.id);
-    } catch {
-      setError(t("Install failed"));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError(t("Install failed"));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
   return (
     <div className="flex items-center gap-3.5 px-4 py-4">
@@ -712,7 +721,7 @@ function RepoCard({ url }: { url: string }) {
   const update = async () => {
     setUpdating(true);
     setUpdateError(false);
-    try {
+    const work = async () => {
       const next = await browseEBookRepo(url);
       const installed = new Map(
         installedEBookPlugins()
@@ -725,11 +734,14 @@ function RepoCard({ url }: { url: string }) {
       }
       setRepo(next);
       setState("ready");
-    } catch {
-      setUpdateError(true);
-    } finally {
-      setUpdating(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setUpdateError(true);
+      })
+      .finally(() => {
+        setUpdating(false);
+      });
   };
   return (
     <div className={`${CARD} overflow-hidden`}>
@@ -799,14 +811,17 @@ function Extensions() {
   const add = async () => {
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       await addEBookRepo(url.trim());
       setUrl("");
-    } catch {
-      setError(t("Could not load that eBook extension repository"));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError(t("Could not load that eBook extension repository"));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
   return (
     <div className="flex flex-col gap-3">
@@ -904,8 +919,8 @@ export function EBookSourcesView({ onBack }: { onBack: () => void }) {
       extensions();
     };
   }, []);
-  const sources = useMemo(() => listEBookSources(), [tick]);
-  const installed = useMemo(() => installedEBookPlugins(), [tick]);
+  const sources = useMemo(() => readAtVersion(tick, () => listEBookSources()), [tick]);
+  const installed = useMemo(() => readAtVersion(tick, () => installedEBookPlugins()), [tick]);
   const total = sources.length + installed.length;
   const [activeSection, setActiveSection] = useState("ebook-source-library");
   useEffect(() => {

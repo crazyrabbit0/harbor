@@ -40,13 +40,16 @@ export function GroupMembers({
   const changeRole = async (userId: string, role: GroupRole) => {
     setPending(userId);
     setError(null);
-    try {
+    const work = async () => {
       onApply?.(await setMemberRole(detail.id, userId, role));
-    } catch (e) {
-      setError((e as Error).message || t("Could not change that role."));
-    } finally {
-      setPending(null);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not change that role."));
+      })
+      .finally(() => {
+        setPending(null);
+      });
   };
 
   return (

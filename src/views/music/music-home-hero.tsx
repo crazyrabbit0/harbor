@@ -28,6 +28,23 @@ import { useT } from "@/lib/i18n";
 import type { MusicCatalogItem, MusicCatalogRow, MusicTrack } from "@/lib/music/types";
 import "./music-home.css";
 
+function heroCandidates(rows: MusicCatalogRow[]) {
+  const charts = rows.filter(
+    (row) => row.source !== "local" && classifyHomeRow(row, []) === "charts",
+  );
+  const catalog = [
+    ...charts,
+    ...rows.filter((row) => row.source !== "local" && !charts.includes(row)),
+  ].flatMap((row) => row.items);
+  return [
+    ...catalog.filter((item) => item.kind === "track"),
+    ...catalog.filter((item) => item.kind !== "track"),
+  ]
+    .filter((item) => item.kind === "track" || item.kind === "album")
+    .filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index)
+    .slice(0, 6);
+}
+
 export function MusicHomeHero({
   rows,
   recent: _recent,
@@ -69,21 +86,7 @@ export function MusicHomeHero({
   const charts = rows.filter(
     (row) => row.source !== "local" && classifyHomeRow(row, []) === "charts",
   );
-  const catalog = [
-    ...charts,
-    ...rows.filter((row) => row.source !== "local" && !charts.includes(row)),
-  ].flatMap((row) => row.items);
-  const candidates = useMemo(
-    () =>
-      [
-        ...catalog.filter((item) => item.kind === "track"),
-        ...catalog.filter((item) => item.kind !== "track"),
-      ]
-        .filter((item) => item.kind === "track" || item.kind === "album")
-        .filter((item, index, all) => all.findIndex((other) => other.id === item.id) === index)
-        .slice(0, 6),
-    [rows],
-  );
+  const candidates = useMemo(() => heroCandidates(rows), [rows]);
   const [selectedId, setSelectedId] = useState("");
   const selected = Math.max(
     0,

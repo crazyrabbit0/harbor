@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useHandoffClient } from "@/lib/tv-handoff/use-handoff-client";
 import type { HandoffClientReject } from "@/lib/tv-handoff/handoff-client";
 import type { HandoffOffer } from "@/lib/tv-handoff/handoff-protocol";
@@ -50,7 +50,9 @@ export function useSetupLink(token: string): SetupLink {
   const armed = offer !== null;
 
   const deliverRef = useRef(hc.deliver);
-  deliverRef.current = hc.deliver;
+  useLayoutEffect(() => {
+    deliverRef.current = hc.deliver;
+  });
 
   useEffect(() => {
     if (armed || phase !== "idleHost") {

@@ -99,7 +99,7 @@ function ApiSortedList({
   const loadMore = useCallback(async () => {
     if (loading || exhausted) return;
     setLoading(true);
-    try {
+    const work = async () => {
       const res = await listAddons({
         page,
         limit: 50,
@@ -117,11 +117,14 @@ function ApiSortedList({
       setItems((prev) => [...prev, ...fresh]);
       if (!res.pagination.hasNextPage) setExhausted(true);
       else setPage((p) => p + 1);
-    } catch {
-      setExhausted(true);
-    } finally {
-      setLoading(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setExhausted(true);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   }, [mode, page, loading, exhausted, category, search, allowAdult]);
 
   useEffect(() => {
@@ -129,7 +132,9 @@ function ApiSortedList({
   }, [items.length, loading, exhausted, loadMore]);
 
   const loadMoreRef = useRef(loadMore);
-  loadMoreRef.current = loadMore;
+  useLayoutEffect(() => {
+    loadMoreRef.current = loadMore;
+  }, [loadMore]);
   const observerRef = useRef<IntersectionObserver | null>(null);
   // One observer per list; it always calls the latest loadMore through a ref.
   useEffect(() => {
@@ -370,14 +375,17 @@ function CommunityRow({
       return;
     }
     setBusy(true);
-    try {
+    const work = async () => {
       await installAddon(m.id, addon.manifestUrl);
       onChange?.();
-    } catch (err) {
-      console.warn("[community-browse] install failed", err);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((err) => {
+        console.warn("[community-browse] install failed", err);
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   return (

@@ -2,6 +2,19 @@ import { useState } from "react";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
 import { aiFindEpisodes, type EpisodeCandidate } from "@/lib/ai-episode-search";
 
+function matchedNumbers(refs: { season: number; episode: number }[], episodes: KitsuEpisode[]) {
+  const nums = new Set<number>();
+  for (const r of refs) {
+    const ep = episodes.find(
+      (e) =>
+        (e.imdbSeason ?? e.seasonNumber ?? 1) === r.season &&
+        (e.imdbEpisode ?? e.number) === r.episode,
+    );
+    if (ep) nums.add(ep.number);
+  }
+  return nums;
+}
+
 export function useAnimeAiSearch(
   showName: string,
   episodes: KitsuEpisode[],
@@ -24,16 +37,7 @@ export function useAnimeAiSearch(
     }));
     try {
       const refs = await aiFindEpisodes(key, model, isGroq, showName, candidates, q);
-      const nums = new Set<number>();
-      for (const r of refs) {
-        const ep = episodes.find(
-          (e) =>
-            (e.imdbSeason ?? e.seasonNumber ?? 1) === r.season &&
-            (e.imdbEpisode ?? e.number) === r.episode,
-        );
-        if (ep) nums.add(ep.number);
-      }
-      setMatched(nums);
+      setMatched(matchedNumbers(refs, episodes));
     } catch {
       setMatched(new Set());
     }

@@ -1,11 +1,14 @@
 import type { FilmSoundtrack } from "@/lib/providers/musicbrainz-soundtrack";
 import { useViewActions } from "@/lib/view";
 
+const loadMusicNavigation = () => import("@/lib/music/navigation");
+const loadMusicDeepLink = () => import("@/lib/music/deep-link");
+
 export function SoundtrackRow({ album }: { album: FilmSoundtrack }) {
   const { setView } = useViewActions();
   const open = () => {
     setView("music");
-    void Promise.all([import("@/lib/music/navigation"), import("@/lib/music/deep-link")]).then(
+    void Promise.all([loadMusicNavigation(), loadMusicDeepLink()]).then(
       ([{ requestMusicSearch }, { musicDeepLinkQuery }]) =>
         requestMusicSearch(
           musicDeepLinkQuery({ kind: "album", artist: album.artist, name: album.title }).trim(),

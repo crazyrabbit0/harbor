@@ -79,6 +79,21 @@ function Chip({ children, onClick }: { children: React.ReactNode; onClick?: () =
   );
 }
 
+function regionNamer(uiLang: string): (code: string) => string {
+  try {
+    const names = new Intl.DisplayNames([uiLang], { type: "region" });
+    return (code: string) => {
+      try {
+        return names.of(code) ?? code;
+      } catch {
+        return code;
+      }
+    };
+  } catch {
+    return (code: string) => code;
+  }
+}
+
 export function BrandFacts({
   filter,
   details,
@@ -91,20 +106,7 @@ export function BrandFacts({
   const t = useT();
   const uiLang = useUiLanguage();
   const { openFilter } = useViewActions();
-  const region = useMemo(() => {
-    try {
-      const names = new Intl.DisplayNames([uiLang], { type: "region" });
-      return (code: string) => {
-        try {
-          return names.of(code) ?? code;
-        } catch {
-          return code;
-        }
-      };
-    } catch {
-      return (code: string) => code;
-    }
-  }, [uiLang]);
+  const region = useMemo(() => regionNamer(uiLang), [uiLang]);
   const tv = filter.mediaType === "tv";
   const acclaimedImdb = useCinemetaRating(stats?.mostAcclaimed?.imdbId ?? undefined);
   const genreTable = tv ? TV_GENRES : MOVIE_GENRES;

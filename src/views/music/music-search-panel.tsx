@@ -18,7 +18,7 @@ import {
   UserRound,
   X,
 } from "@/components/icons/music-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { MusicCatalogRow } from "@/components/music/music-catalog-row";
 import {
   MusicSectionEmpty,
@@ -82,7 +82,9 @@ export function MusicSearchPanel({
   }, [results]);
   const [settled, setSettled] = useState<{ results: MusicSearchResults } | null>(null);
   const queryRef = useRef(query);
-  queryRef.current = query;
+  useLayoutEffect(() => {
+    queryRef.current = query;
+  }, [query]);
   useEffect(() => {
     if (!results) {
       setSettled(null);

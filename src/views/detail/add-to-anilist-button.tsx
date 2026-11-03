@@ -78,9 +78,8 @@ export function AddToAnilistButton({ harborId, title }: { harborId: string; titl
       setStatus(saved.status);
     } catch {
       setStatus(prev);
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   const remove = async () => {
@@ -96,9 +95,8 @@ export function AddToAnilistButton({ harborId, title }: { harborId: string; titl
     } catch {
       setStatus(prevStatus);
       setEntryId(prevEntry);
-    } finally {
-      setBusy(false);
     }
+    setBusy(false);
   };
 
   if (status == null) {

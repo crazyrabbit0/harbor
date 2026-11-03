@@ -95,16 +95,20 @@ function RatingTile({
   onOpenMeta?: (metaId: string, kind?: string, hint?: { name?: string; poster?: string }) => void;
 }) {
   const poster = useRatingPoster(r.itemKey, r.mediaType, r.title, r.posterUrl);
-  const media = useProfileTitle(r.itemKey, r.title, poster, r.mediaType);
+  const {
+    ref: mediaRef,
+    title: mediaTitle,
+    poster: mediaPoster,
+  } = useProfileTitle(r.itemKey, r.title, poster, r.mediaType);
   return (
-    <div ref={media.ref} className="w-[104px] shrink-0">
+    <div ref={mediaRef} className="w-[104px] shrink-0">
       <RatingPoster
-        title={media.title || r.title}
-        posterUrl={media.poster}
+        title={mediaTitle || r.title}
+        posterUrl={mediaPoster}
         score={r.score}
         onOpen={
           onOpenMeta
-            ? () => onOpenMeta(r.itemKey, r.mediaType, { name: media.title, poster: media.poster })
+            ? () => onOpenMeta(r.itemKey, r.mediaType, { name: mediaTitle, poster: mediaPoster })
             : undefined
         }
       />

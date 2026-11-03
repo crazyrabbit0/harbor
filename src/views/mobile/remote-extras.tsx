@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -41,7 +42,9 @@ export function useSheetPresence(open: boolean) {
   const [render, setRender] = useState(open);
   const [leaving, setLeaving] = useState(false);
   const renderedRef = useRef(open);
-  renderedRef.current = render;
+  useLayoutEffect(() => {
+    renderedRef.current = render;
+  }, [render]);
 
   useEffect(() => {
     if (open) {
@@ -68,10 +71,12 @@ export function useSheetPresence(open: boolean) {
 
 export function useSheetDrag(onClose: () => void) {
   const [dy, setDy] = useState(0);
+  const [dragging, setDragging] = useState(false);
   const drag = useRef({ active: false, startY: 0, id: -1 });
 
   const onPointerDown = (e: ReactPointerEvent<HTMLElement>) => {
     drag.current = { active: true, startY: e.clientY, id: e.pointerId };
+    setDragging(true);
     try {
       e.currentTarget.setPointerCapture(e.pointerId);
     } catch {}
@@ -86,6 +91,7 @@ export function useSheetDrag(onClose: () => void) {
     const d = drag.current;
     if (!d.active || e.pointerId !== d.id) return;
     d.active = false;
+    setDragging(false);
     const delta = e.clientY - d.startY;
     if (delta > 110) onClose();
     else setDy(0);
@@ -93,7 +99,7 @@ export function useSheetDrag(onClose: () => void) {
 
   const panelStyle: CSSProperties = {
     transform: dy ? `translateY(${dy}px)` : undefined,
-    transition: drag.current.active ? "none" : "transform 260ms var(--ease-out)",
+    transition: dragging ? "none" : "transform 260ms var(--ease-out)",
   };
   return {
     handleProps: { onPointerDown, onPointerMove, onPointerUp: end, onPointerCancel: end },

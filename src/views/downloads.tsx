@@ -16,6 +16,10 @@ type DownloadGroup =
 
 type Filter = "all" | "active" | "saved" | "issues";
 
+function bySeasonEpisode(a: DownloadItem, b: DownloadItem): number {
+  return (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0);
+}
+
 function statusRank(s: DownloadItem["status"]): number {
   return s === "downloading" || s === "paused" ? 0 : s === "error" ? 1 : s === "done" ? 2 : 3;
 }
@@ -239,13 +243,7 @@ function ShowGroup({ group }: { group: Extract<DownloadGroup, { kind: "show" }> 
     group.poster ?? undefined,
     "series",
   );
-  const episodes = useMemo(
-    () =>
-      [...group.items].sort(
-        (a, b) => (a.season ?? 0) - (b.season ?? 0) || (a.episode ?? 0) - (b.episode ?? 0),
-      ),
-    [group.items],
-  );
+  const episodes = useMemo(() => [...group.items].sort(bySeasonEpisode), [group.items]);
   const totalBytes = episodes.reduce(
     (sum, d) => (d.status === "done" ? sum + (d.totalBytes ?? d.receivedBytes) : sum),
     0,

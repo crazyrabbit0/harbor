@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import {
   fitLevel,
   guardPageLoaded,
@@ -9,6 +9,36 @@ import {
   type FlipInstance,
 } from "./flipbook";
 import { IMAGE_FALLBACK_HEADERS, measureAspect } from "./reader-utils";
+
+const loadTauriHttp = () => import("@tauri-apps/plugin-http");
+
+// Runs one call into the flipbook library, which can throw on a torn-down instance; false when it did.
+function quietly(run: () => unknown): boolean {
+  try {
+    run();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function viewOf(local: FlipInstance | null): number {
+  try {
+    if (local == null) return 1;
+    const v = (local as unknown as { view?: unknown }).view;
+    return typeof v === "number" ? v : 1;
+  } catch {
+    return 1;
+  }
+}
+
+function zoomInstance(inst: FlipInstance, level: number) {
+  try {
+    inst.zoomTo?.(level, 0);
+  } catch {
+    /* noop */
+  }
+}
 
 const BASE = "/flipbook";
 const NAME = "harborBook";
@@ -136,13 +166,21 @@ export function BookFlip({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const report = useRef(onProgress);
-  report.current = onProgress;
+  useLayoutEffect(() => {
+    report.current = onProgress;
+  }, [onProgress]);
   const ready = useRef(onReady);
-  ready.current = onReady;
+  useLayoutEffect(() => {
+    ready.current = onReady;
+  }, [onReady]);
   const soundOn = useRef(soundEnabled);
-  soundOn.current = soundEnabled;
+  useLayoutEffect(() => {
+    soundOn.current = soundEnabled;
+  }, [soundEnabled]);
   const headersRef = useRef(pageHeaders);
-  headersRef.current = pageHeaders;
+  useLayoutEffect(() => {
+    headersRef.current = pageHeaders;
+  }, [pageHeaders]);
   const instRef = useRef<FlipInstance | null>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const panRef = useRef({ x: 0, y: 0 });
@@ -180,11 +218,7 @@ export function BookFlip({
     if (hasNativeZoom(inst) && inst) {
       resetWrapper();
       const level = z <= 1.001 ? fitLevel(inst) : z;
-      try {
-        inst.zoomTo?.(level, 0);
-      } catch {
-        /* noop */
-      }
+      zoomInstance(inst, level);
       return;
     }
     clampPan();
@@ -219,7 +253,7 @@ export function BookFlip({
     }
     const httpMod =
       hosts.size || (headersRef.current && Object.keys(headersRef.current).length > 0)
-        ? import("@tauri-apps/plugin-http")
+        ? loadTauriHttp()
         : null;
     let bookFetch: typeof fetch | null = null;
     if (httpMod) {
@@ -294,11 +328,7 @@ export function BookFlip({
         if (!page || typeof page._setAngle !== "function") return;
         const from = typeof page.angle === "number" ? (page.angle * 180) / Math.PI : rest;
         const settle = () => {
-          try {
-            page._setAngle?.(rest);
-          } catch {
-            /* noop */
-          }
+          quietly(() => page._setAngle?.(rest));
           page.dragging = false;
         };
         if (prefersReducedMotion() || Math.abs(from - rest) < 0.5) {
@@ -310,11 +340,7 @@ export function BookFlip({
           if (instRef.current !== local) return;
           const k = Math.min(1, (performance.now() - t0) / SNAP_BACK_MS);
           const eased = 1 - Math.pow(1 - k, 3);
-          try {
-            page._setAngle?.(from + (rest - from) * eased);
-          } catch {
-            return;
-          }
+          if (!quietly(() => page._setAngle?.(from + (rest - from) * eased))) return;
           if (k < 1) requestAnimationFrame(stepBack);
           else settle();
         };
@@ -322,34 +348,16 @@ export function BookFlip({
       };
       ready.current?.({
         goToPage: (n) => {
-          try {
-            local?.goToPage?.(n);
-          } catch {
-            /* noop */
-          }
+          quietly(() => local?.goToPage?.(n));
         },
         view: () => {
-          try {
-            if (local == null) return 1;
-            const v = (local as unknown as { view?: unknown }).view;
-            return typeof v === "number" ? v : 1;
-          } catch {
-            return 1;
-          }
+          return viewOf(local);
         },
         next: () => {
-          try {
-            local?.nextPage?.();
-          } catch {
-            /* noop */
-          }
+          quietly(() => local?.nextPage?.());
         },
         prev: () => {
-          try {
-            local?.prevPage?.();
-          } catch {
-            /* noop */
-          }
+          quietly(() => local?.prevPage?.());
         },
         pan: (dx, dy) => {
           if (hasNativeZoom(local)) {
@@ -368,20 +376,11 @@ export function BookFlip({
           if (!view || typeof view.onSwipe !== "function" || !(w > 0)) return;
           if (view.isZoomed?.()) return;
           const p = Math.max(-1, Math.min(1, progress));
-          try {
-            view.onSwipe(null, "move", p * w, 0, 0, 1);
-          } catch {
-            /* noop */
-          }
+          quietly(() => view.onSwipe?.(null, "move", p * w, 0, 0, 1));
         },
         dragEnd: (commit, dir) => {
           const turn = () => {
-            try {
-              if (dir === "next") local?.nextPage?.();
-              else local?.prevPage?.();
-            } catch {
-              /* noop */
-            }
+            quietly(() => (dir === "next" ? local?.nextPage?.() : local?.prevPage?.()));
           };
           const view = local?.Book;
           if (!view || typeof view.onSwipe !== "function") {
@@ -389,11 +388,8 @@ export function BookFlip({
             return;
           }
           if (commit) {
-            try {
-              view.onSwipe(null, "end", dir === "next" ? -1 : 1, 0, 0, 1);
-            } catch {
+            if (!quietly(() => view.onSwipe?.(null, "end", dir === "next" ? -1 : 1, 0, 0, 1)))
               turn();
-            }
             return;
           }
           snapBack(view, dir);
@@ -410,12 +406,10 @@ export function BookFlip({
       if (bookFetch && window.fetch === bookFetch) window.fetch = origFetch;
       window.onpopstate = origOnPopState;
       window.removeEventListener("r3d-pagechange", onPage);
-      try {
+      quietly(() => {
         inst?.dispose?.();
         inst?.destroy?.();
-      } catch {
-        /* noop */
-      }
+      });
       ref.current?.replaceChildren();
     };
   }, [pages, rtl, bg, resumePage, instanceName]);

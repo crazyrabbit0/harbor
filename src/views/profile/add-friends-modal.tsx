@@ -76,11 +76,12 @@ export function AddFriendsModal({
   const add = async (hit: UserHit) => {
     const key = hit.handle.toLowerCase();
     setStates((s) => ({ ...s, [key]: "sending" }));
-    try {
+    const work = async () => {
       const { edge } = await sendFriendRequest(hit.handle);
       const accepted = edge.status === "accepted" || edge.status === "friends";
       setStates((s) => ({ ...s, [key]: accepted ? "friends" : "requested" }));
-    } catch (err) {
+    };
+    await work().catch((err) => {
       const msg = err instanceof Error ? err.message : "";
       if (/already|friend|pending|exists|request/i.test(msg)) {
         setStates((s) => ({ ...s, [key]: "requested" }));
@@ -88,7 +89,7 @@ export function AddFriendsModal({
         setStates((s) => ({ ...s, [key]: "idle" }));
         setError(msg || t("Could not send request."));
       }
-    }
+    });
   };
 
   return createPortal(

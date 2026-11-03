@@ -11,7 +11,9 @@ export function HarborNameSync() {
   const { displayName, setDisplayName } = useTogether();
   const { activeProfile, updateProfile } = useProfiles();
   const latest = useRef({ displayName, activeProfile, setDisplayName, updateProfile });
-  latest.current = { displayName, activeProfile, setDisplayName, updateProfile };
+  useEffect(() => {
+    latest.current = { displayName, activeProfile, setDisplayName, updateProfile };
+  }, [displayName, activeProfile, setDisplayName, updateProfile]);
   const sessionRef = useRef<ReturnType<typeof createNameSyncSession> | null>(null);
 
   useEffect(() => subscribeAuthor(() => setAuthor(currentAuthor())), []);

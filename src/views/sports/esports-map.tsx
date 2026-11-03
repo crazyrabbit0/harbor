@@ -191,7 +191,7 @@ function EsportsMapPanel({
     const load = async () => {
       setLoading(true);
       setFailed(false);
-      try {
+      const work = async () => {
         const data = await fetchEsportsRoster(game, controller.signal, sourceUrl);
         if (!controller.signal.aborted) {
           setRoster(data);
@@ -200,14 +200,17 @@ function EsportsMapPanel({
             mapChosen.current = true;
           }
         }
-      } catch {
-        if (!controller.signal.aborted) setFailed(true);
-      } finally {
-        if (!controller.signal.aborted) {
-          setLoading(false);
-          if (game.state === "in") timer = setTimeout(load, kind === "cs2" ? 60_000 : 45_000);
-        }
-      }
+      };
+      await work()
+        .catch(() => {
+          if (!controller.signal.aborted) setFailed(true);
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) {
+            setLoading(false);
+            if (game.state === "in") timer = setTimeout(load, kind === "cs2" ? 60_000 : 45_000);
+          }
+        });
     };
     void load();
     return () => {

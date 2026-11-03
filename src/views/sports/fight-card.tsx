@@ -9,6 +9,42 @@ import "./competition-athletes.css";
 import { hubLeague } from "@/lib/sports/hub-data";
 
 const cache = new Map<string, { at: number; info: FightInfo }>();
+const isStale = (entry: { at: number } | undefined) => !entry || Date.now() - entry.at > 3600000;
+const leagueSlug = (league: string) => hubLeague(league)?.path.split("/").at(-1);
+
+// Null when the bout has no fetchable league or the request fails; callers keep the bout names then.
+async function fightInfoFor(
+  game: SportsGame,
+  event: string,
+  bout: string,
+  signal: AbortSignal,
+): Promise<FightInfo | null> {
+  let entry = cache.get(game.id);
+  try {
+    if (isStale(entry)) {
+      const league = leagueSlug(game.league);
+      if (!league || !/^[a-z0-9-]+$/.test(league)) return null;
+      const response = await safeFetch(
+        `https://sports.core.api.espn.com/v2/sports/mma/leagues/${league}/events/${event}/competitions/${bout}`,
+        {
+          signal: AbortSignal.any([signal, AbortSignal.timeout(7000)]),
+        },
+      );
+      if (!response.ok) return null;
+      entry = {
+        at: Date.now(),
+        info: parseFightInfo(await response.json()),
+      };
+      cache.set(game.id, entry);
+      while (cache.size > 200) cache.delete(cache.keys().next().value!);
+    }
+    return entry!.info;
+  } catch {
+    /* Keep the available bout names when the card metadata is unavailable. */
+    return null;
+  }
+}
+
 export function FightCard({
   games,
   onOpen,
@@ -26,36 +62,15 @@ export function FightCard({
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    let cursor = 0;
+    const cursor = { next: 0 };
     const run = async () => {
-      while (cursor < games.length && !controller.signal.aborted) {
-        const game = games[cursor++];
+      while (cursor.next < games.length && !controller.signal.aborted) {
+        const game = games[cursor.next++];
         const [event, bout] = game.id.split("|");
         if (!/^\d+$/.test(event) || !/^\d+$/.test(bout)) continue;
-        let entry = cache.get(game.id);
-        try {
-          if (!entry || Date.now() - entry.at > 3600000) {
-            const league = hubLeague(game.league)?.path.split("/").at(-1);
-            if (!league || !/^[a-z0-9-]+$/.test(league)) continue;
-            const response = await safeFetch(
-              `https://sports.core.api.espn.com/v2/sports/mma/leagues/${league}/events/${event}/competitions/${bout}`,
-              {
-                signal: AbortSignal.any([controller.signal, AbortSignal.timeout(7000)]),
-              },
-            );
-            if (!response.ok) continue;
-            entry = {
-              at: Date.now(),
-              info: parseFightInfo(await response.json()),
-            };
-            cache.set(game.id, entry);
-            while (cache.size > 200) cache.delete(cache.keys().next().value!);
-          }
-          if (!controller.signal.aborted)
-            setInfo((previous) => ({ ...previous, [game.id]: entry!.info }));
-        } catch {
-          /* Keep the available bout names when the card metadata is unavailable. */
-        }
+        const fetched = await fightInfoFor(game, event, bout, controller.signal);
+        if (fetched && !controller.signal.aborted)
+          setInfo((previous) => ({ ...previous, [game.id]: fetched }));
       }
     };
     void Promise.all(Array.from({ length: 3 }, run));

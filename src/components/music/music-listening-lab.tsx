@@ -167,7 +167,6 @@ export function ListeningProfiles({ draft, update }: Omit<Props, "applied">) {
 function ResponseCurve({ draft, applied }: Pick<Props, "draft" | "applied">) {
   const t = useT();
   const rate = draft.sampleRate || 48000;
-  const active = draft.eqEnabled && !draft.dspBypass;
   const path = (settings: MusicAudioSettingsValue) =>
     Array.from({ length: 361 }, (_, i) => {
       const gain =
@@ -176,11 +175,8 @@ function ResponseCurve({ draft, applied }: Pick<Props, "draft" | "applied">) {
           : 0;
       return `${i ? "L" : "M"}${48 + i * 1.95},${120 - Math.max(-24, Math.min(24, gain)) * 3.5}`;
     }).join(" ");
-  const currentPath = useMemo(
-    () => path(draft),
-    [draft.peqFilters, draft.eqStrength, active, rate],
-  );
-  const appliedPath = useMemo(() => path(applied), [applied, rate]);
+  const currentPath = path(draft);
+  const appliedPath = path(applied);
   return (
     <div className="music-lab-curve">
       <svg viewBox="0 0 800 255" role="img" aria-label={t("music.lab.response")}>

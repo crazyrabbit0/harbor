@@ -7,6 +7,8 @@ use super::{current_port, current_side_dht, ensure_session, netcheck};
 use types::{finish, step, warn_step};
 
 pub use types::SelfTestResult;
+#[cfg(test)]
+pub use types::SelfTestStep;
 
 pub fn unavailable(error: String) -> SelfTestResult {
     finish(vec![step("engine up", false, error)])

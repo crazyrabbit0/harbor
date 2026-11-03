@@ -21,6 +21,8 @@ import type { MusicCatalogItem, MusicTrack } from "@/lib/music/types";
 import { localRow, type MusicBand, type MusicBandContext } from "./music-band-types";
 
 type Translate = MusicBandContext["t"];
+const loadSpooktoberModule = () => import("@/views/spooktober/spooktober-music");
+const loadRadio = () => import("@/lib/music/radio");
 
 function contextItems(contexts: readonly MusicRecentContext[], t: Translate): MusicCatalogItem[] {
   return contexts.map((context) => ({
@@ -55,7 +57,7 @@ function MusicRecentContextsRow({
     );
     if (!stale.length) return;
     healed.current = true;
-    void import("@/views/spooktober/spooktober-music")
+    void loadSpooktoberModule()
       .then(({ loadSpooktoberMusic, spooktoberAsset }) =>
         loadSpooktoberMusic().then((data) => {
           const songs = new Map(data.songs.map((song) => [song.id, song]));
@@ -91,13 +93,12 @@ function MusicRecentContextsRow({
     const current = ++request.current;
     setBusy(`${context.kind}:${context.id}`);
     setNote(null);
-    try {
+    const work = async () => {
       const playlist =
         context.kind === "playlist"
           ? context.id.startsWith("spooktober:")
             ? await (async () => {
-                const { loadSpooktoberMusic, spooktoberSongToTrack } =
-                  await import("@/views/spooktober/spooktober-music");
+                const { loadSpooktoberMusic, spooktoberSongToTrack } = await loadSpooktoberModule();
                 const data = await loadSpooktoberMusic();
                 const festival = data.playlists.find(
                   (item) => `spooktober:${item.id}` === context.id,
@@ -117,7 +118,7 @@ function MusicRecentContextsRow({
         context.kind === "playlist"
           ? (playlist?.tracks ?? [])
           : context.seed
-            ? await (await import("@/lib/music/radio")).loadSimilarTracks(context.seed)
+            ? await (await loadRadio()).loadSimilarTracks(context.seed)
             : [];
       if (current !== request.current) return;
       const queue = tracks.length
@@ -133,11 +134,14 @@ function MusicRecentContextsRow({
       else if (context.seed)
         recordMusicSimilarPlayback(context.seed, queue, { id: context.id, name: context.name });
       openSourcePicker(queue[0], queue);
-    } catch {
-      if (current === request.current) setNote("error");
-    } finally {
-      if (current === request.current) setBusy(null);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (current === request.current) setNote("error");
+      })
+      .finally(() => {
+        if (current === request.current) setBusy(null);
+      });
   };
   const open = (context: MusicRecentContext) => {
     const current = ++request.current;

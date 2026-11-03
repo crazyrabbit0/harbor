@@ -50,7 +50,12 @@ export function CollectionsView() {
     [],
   );
 
-  const catFeed = useCategoryFeed({
+  const {
+    hits: catHits,
+    done: catDone,
+    loading: catLoading,
+    sentinelRef: catSentinelRef,
+  } = useCategoryFeed({
     tmdbKey: settings.tmdbKey,
     category,
     active: !searchActive && category !== "All",
@@ -243,9 +248,9 @@ export function CollectionsView() {
               <p className="text-[13px] text-ink-subtle">
                 {t("More {category}", { category: t(category) })}
               </p>
-              {catFeed.hits.length > 0 && (
+              {catHits.length > 0 && (
                 <div className="grid grid-cols-2 gap-5 lg:grid-cols-3 2xl:grid-cols-4">
-                  {catFeed.hits.map((h) => (
+                  {catHits.map((h) => (
                     <div
                       key={h.id}
                       style={{ contentVisibility: "auto", containIntrinsicSize: "auto 220px" }}
@@ -260,15 +265,15 @@ export function CollectionsView() {
                   ))}
                 </div>
               )}
-              {!catFeed.done && <div ref={catFeed.sentinelRef} className="h-2" />}
-              {catFeed.loading && (
+              {!catDone && <div ref={catSentinelRef} className="h-2" />}
+              {catLoading && (
                 <div className="flex justify-center py-6">
                   <HarborLoader size="sm" />
                 </div>
               )}
-              {catFeed.done && (
+              {catDone && (
                 <p className="py-4 text-center text-[12.5px] text-ink-subtle">
-                  {catFeed.hits.length > 0
+                  {catHits.length > 0
                     ? t("That's every {category} collection we could find.", {
                         category: t(category),
                       })

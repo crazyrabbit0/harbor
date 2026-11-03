@@ -75,14 +75,17 @@ export function PostCompose({
     if (!trimmed || busy) return;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       onPosted(await createGroupPost(groupId, trimmed));
       setBody("");
-    } catch (e) {
-      setError((e as Error).message || t("Could not post."));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not post."));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   return (

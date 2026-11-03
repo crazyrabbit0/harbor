@@ -19,6 +19,12 @@ const DRAG_THRESHOLD = 8;
 const SNAP_FRACTION = 0.15;
 const FLICK_VELOCITY = 0.45;
 
+function capturePointer(el: HTMLElement | null, pointerId: number): void {
+  try {
+    el?.setPointerCapture(pointerId);
+  } catch {}
+}
+
 export function PeekHero({ slides }: { slides: Meta[] }) {
   const t = useT();
   const [active, setActive] = useState(0);
@@ -34,7 +40,7 @@ export function PeekHero({ slides }: { slides: Meta[] }) {
   const lastT = useRef(0);
   const velocity = useRef(0);
   const moved = useRef(false);
-  const widthRef = useRef(0);
+  const [trackWidth, setTrackWidth] = useState(0);
 
   useEffect(() => {
     const el = ref.current;
@@ -60,7 +66,7 @@ export function PeekHero({ slides }: { slides: Meta[] }) {
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 || slides.length < 2) return;
-    widthRef.current = trackRef.current?.clientWidth ?? 1000;
+    setTrackWidth(trackRef.current?.clientWidth ?? 1000);
     setDragging(true);
     moved.current = false;
     startX.current = e.clientX;
@@ -74,11 +80,7 @@ export function PeekHero({ slides }: { slides: Meta[] }) {
     if (!dragging) return;
     const dx = e.clientX - startX.current;
     if (Math.abs(dx) > DRAG_THRESHOLD) {
-      if (!moved.current) {
-        try {
-          trackRef.current?.setPointerCapture(e.pointerId);
-        } catch {}
-      }
+      if (!moved.current) capturePointer(trackRef.current, e.pointerId);
       moved.current = true;
     }
     const now = performance.now();
@@ -95,7 +97,7 @@ export function PeekHero({ slides }: { slides: Meta[] }) {
   const endDrag = () => {
     if (!dragging) return;
     setDragging(false);
-    const total = widthRef.current || 1000;
+    const total = trackWidth || 1000;
     const dx = dragOffset;
     const flick = Math.abs(velocity.current) > FLICK_VELOCITY;
     const passed = Math.abs(dx) > total * SNAP_FRACTION;
@@ -144,7 +146,7 @@ export function PeekHero({ slides }: { slides: Meta[] }) {
               active={i === active}
               dragging={dragging}
               dragOffsetPx={dragOffset}
-              trackWidth={widthRef.current}
+              trackWidth={trackWidth}
               index={i}
               onSelect={setActive}
             />

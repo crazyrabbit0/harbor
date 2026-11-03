@@ -115,7 +115,7 @@ export function WatchlistTab({
         }),
       );
       setRawCount((c) => Math.max(0, c - 1));
-      try {
+      const work = async () => {
         const tr = stremioIdToTraktTarget(stremioId);
         const simklTarget = (() => {
           if (!simklConnected()) return null;
@@ -136,13 +136,16 @@ export function WatchlistTab({
         if (results.some((result) => result.status === "rejected"))
           throw new Error("Watchlist removal failed");
         for (const l of twins) removeFromWatchlist(l.id);
-      } catch {
-        setLocalEntries(readLocalEntries());
-      } finally {
-        pendingRemovals.current -= 1;
-        guardSeq.current += 1;
-        setRefreshSeq((value) => value + 1);
-      }
+      };
+      await work()
+        .catch(() => {
+          setLocalEntries(readLocalEntries());
+        })
+        .finally(() => {
+          pendingRemovals.current -= 1;
+          guardSeq.current += 1;
+          setRefreshSeq((value) => value + 1);
+        });
       const revalidate = () => {
         const s = guardSeq.current;
         const isCurrent = () => guardSeq.current === s && pendingRemovals.current === 0;
@@ -225,8 +228,9 @@ export function WatchlistTab({
   const [query, setQuery] = useState("");
   const [flat, setFlat] = useState(() => localStorage.getItem("harbor.watchlist.flat") === "1");
   useEffect(() => {
+    const value = flat ? "1" : "0";
     try {
-      localStorage.setItem("harbor.watchlist.flat", flat ? "1" : "0");
+      localStorage.setItem("harbor.watchlist.flat", value);
     } catch {}
   }, [flat]);
   const toggleFlat = useCallback(() => {

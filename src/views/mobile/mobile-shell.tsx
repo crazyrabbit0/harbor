@@ -230,8 +230,8 @@ function NowPlayingBar({ onExpand }: { onExpand: () => void }) {
   const { sheetOpen } = useSheetLock();
   const active = connected && !snapshot.idle && !!snapshot.mediaId;
   const [render, setRender] = useState(active);
-  const lastActive = useRef(snapshot);
-  if (active) lastActive.current = snapshot;
+  const [lastActive, setLastActive] = useState(snapshot);
+  if (active && lastActive !== snapshot) setLastActive(snapshot);
 
   useEffect(() => {
     if (active) {
@@ -248,7 +248,7 @@ function NowPlayingBar({ onExpand }: { onExpand: () => void }) {
   }
 
   if (!render) return null;
-  const snap = active ? snapshot : lastActive.current;
+  const snap = active ? snapshot : lastActive;
   const ep = snap.episode ? `S${snap.episode.season} · E${snap.episode.episode}` : null;
   return (
     <div
