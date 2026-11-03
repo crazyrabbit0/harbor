@@ -5,6 +5,55 @@ import { useT } from "@/lib/i18n";
 import { parseSourceRows, type SourceRow } from "@/lib/custom-sources";
 import { safeFetch } from "@/lib/safe-fetch";
 
+type SaveSourceRowsInput = {
+  mode: "url" | "json";
+  url: string;
+  jsonText: string;
+  t: (key: string) => string;
+  onSave: (rows: SourceRow[]) => void;
+  onClose: () => void;
+  setError: (message: string) => void;
+  setLoading: (loading: boolean) => void;
+};
+
+async function saveSourceRows({
+  mode,
+  url,
+  jsonText,
+  t,
+  onSave,
+  onClose,
+  setError,
+  setLoading,
+}: SaveSourceRowsInput): Promise<void> {
+  setError("");
+  setLoading(true);
+  let rows: SourceRow[] = [];
+
+  try {
+    if (mode === "url") {
+      if (!url.trim()) throw new Error(t("URL cannot be empty"));
+      const res = await safeFetch(url.trim());
+      if (!res.ok) throw new Error(t("Failed to fetch JSON"));
+      const text = await res.text();
+      rows = parseSourceRows(text);
+    } else {
+      if (!jsonText.trim()) throw new Error(t("JSON cannot be empty"));
+      rows = parseSourceRows(jsonText);
+    }
+
+    if (rows.length === 0) {
+      throw new Error(t("Invalid SourceRow JSON format"));
+    }
+    onSave(rows);
+    onClose();
+  } catch (err: any) {
+    setError(err.message || t("An error occurred"));
+  } finally {
+    setLoading(false);
+  }
+}
+
 export function AddSourceModal({
   isOpen,
   onClose,
@@ -30,34 +79,8 @@ export function AddSourceModal({
     return () => window.removeEventListener("keydown", onKey, true);
   }, [isOpen, onClose]);
 
-  const handleSave = async () => {
-    setError("");
-    setLoading(true);
-    let rows: SourceRow[] = [];
-
-    try {
-      if (mode === "url") {
-        if (!url.trim()) throw new Error(t("URL cannot be empty"));
-        const res = await safeFetch(url.trim());
-        if (!res.ok) throw new Error(t("Failed to fetch JSON"));
-        const text = await res.text();
-        rows = parseSourceRows(text);
-      } else {
-        if (!jsonText.trim()) throw new Error(t("JSON cannot be empty"));
-        rows = parseSourceRows(jsonText);
-      }
-
-      if (rows.length === 0) {
-        throw new Error(t("Invalid SourceRow JSON format"));
-      }
-      onSave(rows);
-      onClose();
-    } catch (err: any) {
-      setError(err.message || t("An error occurred"));
-    } finally {
-      setLoading(false);
-    }
-  };
+  const handleSave = () =>
+    saveSourceRows({ mode, url, jsonText, t, onSave, onClose, setError, setLoading });
 
   if (!isOpen) return null;
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, Mic, MicOff, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
@@ -95,8 +95,12 @@ export function VoiceSearch({
   const timersRef = useRef<number[]>([]);
   const onCloseRef = useRef(onClose);
   const onSubmitRef = useRef(onSubmit);
-  onCloseRef.current = onClose;
-  onSubmitRef.current = onSubmit;
+  useLayoutEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+  useLayoutEffect(() => {
+    onSubmitRef.current = onSubmit;
+  }, [onSubmit]);
 
   const stopRec = useCallback(() => {
     const rec = recRef.current;

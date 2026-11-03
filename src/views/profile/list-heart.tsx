@@ -32,16 +32,19 @@ export function ListHeart({
     setOn(next);
     setN(Math.max(0, prevN + (next ? 1 : -1)));
     setBusy(true);
-    try {
+    const work = async () => {
       const res = next ? await likeList(handle, listId) : await unlikeList(handle, listId);
       setOn(res.liked);
       setN(res.likeCount);
-    } catch {
-      setOn(prevOn);
-      setN(prevN);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setOn(prevOn);
+        setN(prevN);
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   if (!canInteract) {

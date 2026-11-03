@@ -1,4 +1,4 @@
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, X } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import simklLogo from "@/assets/simkl.png";
@@ -108,7 +108,11 @@ export const ContinueCard = memo(function ContinueCard({
     watcher.id !== activeProfile.id &&
     sharesStremioStorage(activeProfile, watcher, profiles);
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  const itemNameRef = useRef(item.name);
+  useLayoutEffect(() => {
+    settingsRef.current = settings;
+    itemNameRef.current = item.name;
+  }, [settings, item.name]);
   const { open: openContextMenu } = useContextMenu();
   useSnapshotVersion();
   const newEpisode = useHasNewEpisode(item);
@@ -334,17 +338,19 @@ export const ContinueCard = memo(function ContinueCard({
     };
   }, [item._id, item.type, item.state?.video_id, authKey]);
 
+  const epSeason = ep?.season;
+  const epEpisode = ep?.episode;
   useEffect(() => {
     setEpTitle(null);
     setEpStill(null);
-    if (!ep || kitsuThreeSeg) return;
+    if (epSeason == null || epEpisode == null || kitsuThreeSeg) return;
     if (/^(kitsu|mal|anilist|anidb):/.test(item._id)) return;
     let cancelled = false;
-    const epMeta: Meta = { id: item._id, type: "series", name: item.name };
-    fetchSeasonEpisodes(epMeta, ep.season, { tmdbKey: settingsRef.current.tmdbKey })
+    const epMeta: Meta = { id: item._id, type: "series", name: itemNameRef.current };
+    fetchSeasonEpisodes(epMeta, epSeason, { tmdbKey: settingsRef.current.tmdbKey })
       .then((eps) => {
         if (cancelled) return;
-        const found = eps.find((e) => e.episode === ep.episode);
+        const found = eps.find((e) => e.episode === epEpisode);
         if (found?.name) setEpTitle(found.name);
         if (found?.still) setEpStill(found.still);
       })
@@ -352,8 +358,7 @@ export const ContinueCard = memo(function ContinueCard({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [item._id, ep?.season, ep?.episode, kitsuThreeSeg]);
+  }, [item._id, epSeason, epEpisode, kitsuThreeSeg]);
 
   const episodeTitle = epTitle ?? kitsuVideo?.title ?? null;
 

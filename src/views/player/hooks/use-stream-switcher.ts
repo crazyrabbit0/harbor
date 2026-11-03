@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import { getPlaybackPosition, usePlaybackFlag } from "@/lib/player/playback-clock";
 import { pinPickerCache, unpinPickerCache } from "@/lib/picker-cache";
@@ -23,10 +23,14 @@ export function useStreamSwitcher(params: {
 }) {
   const { bridgeRef, src, snap, debrids } = params;
   const snapRef = useRef(snap);
-  snapRef.current = snap;
+  useLayoutEffect(() => {
+    snapRef.current = snap;
+  });
   // An in-place episode change keeps this hook mounted, so a swap reads the current episode, not the one it began with.
   const srcRef = useRef(src);
-  srcRef.current = src;
+  useLayoutEffect(() => {
+    srcRef.current = src;
+  });
 
   const checkShownRef = useRef(false);
   const [streamCheckOpen, setStreamCheckOpen] = useState(false);
@@ -134,7 +138,7 @@ export function useStreamSwitcher(params: {
         setSwapResolvingKey(null);
         return;
       }
-      try {
+      const swapIn = async () => {
         const current = getPlaybackPosition();
         const savedSec =
           readResumeMs(src.meta.id, src.episode?.season, src.episode?.episode) / 1000;
@@ -149,12 +153,17 @@ export function useStreamSwitcher(params: {
           startupProfile: playbackStartupProfile(stream),
         });
         await b.play().catch(() => {});
-      } catch (e) {
-        if (nextProxySessionId) void unregisterStreamProxy(nextProxySessionId).catch(() => {});
-        console.warn("[player] stream swap failed", e);
-        setSwapResolvingKey(null);
-        return;
-      }
+      };
+      const swapped = await swapIn().then(
+        () => true,
+        (e) => {
+          if (nextProxySessionId) void unregisterStreamProxy(nextProxySessionId).catch(() => {});
+          console.warn("[player] stream swap failed", e);
+          setSwapResolvingKey(null);
+          return false;
+        },
+      );
+      if (!swapped) return;
       const previousProxySessionId = switchProxySessionRef.current;
       switchProxySessionRef.current = nextProxySessionId;
       if (previousProxySessionId) {
@@ -210,7 +219,7 @@ export function useStreamSwitcher(params: {
       checkShownRef.current = false;
       setStreamCheckOpen(false);
     },
-    [debrids],
+    [debrids, bridgeRef],
   );
 
   useEffect(

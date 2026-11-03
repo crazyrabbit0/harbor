@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, Bookmark, Download, EyeOff } from "lucide-react";
 import { chapterPages, type MangaChapter } from "@/lib/manga/api";
@@ -163,13 +163,9 @@ export function MangaReader({
   // group - the group's newest winner. When the caller opened a specific
   // scanlator copy, its group is kept for the whole read session so
   // consecutive chapters stay on the same provider.
-  const pickedGroup = useMemo(
-    () =>
-      index >= 0 && index < chapters.length ? (chapters[index]?.group ?? undefined) : undefined,
-    // Captured on mount only - the index changes as the user navigates, but
-    // the intended provider is the one that was picked when the reader opened.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
+  // Captured on mount: the picked provider stays for the whole read session.
+  const [pickedGroup] = useState(() =>
+    index >= 0 && index < chapters.length ? (chapters[index]?.group ?? undefined) : undefined,
   );
   const collapsed = useMemo(
     () => resolveReaderChapters(chapters, { group: pickedGroup }),
@@ -197,7 +193,9 @@ export function MangaReader({
   const atLastChapter = orderPos === -1 || orderPos === readingOrder.length - 1;
   const effMode = autoLong ? "long" : prefs.mode;
   const effModeRef = useRef(effMode);
-  effModeRef.current = effMode;
+  useLayoutEffect(() => {
+    effModeRef.current = effMode;
+  }, [effMode]);
   const double = effMode === "double";
   const book = effMode === "book";
   const horizontal = effMode === "long-h";
@@ -578,10 +576,12 @@ export function MangaReader({
       (disableMangaPersistence
         ? 0
         : (resumePageForChapter(pid, manga.id, manga.title, chapter.id, chapter.chapter) ?? 0)),
-    [chapter.id, startPage, pid, manga.id, manga.title, disableMangaPersistence],
+    [chapter.id, chapter.chapter, startPage, pid, manga.id, manga.title, disableMangaPersistence],
   );
   const pageRef = useRef(currentPage);
-  pageRef.current = currentPage;
+  useLayoutEffect(() => {
+    pageRef.current = currentPage;
+  }, [currentPage]);
   const [bookStart, setBookStart] = useState(bookResume);
   const wasBookRef = useRef(book);
   useEffect(() => {

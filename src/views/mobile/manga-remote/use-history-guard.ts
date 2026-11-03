@@ -1,5 +1,12 @@
 import { useEffect } from "react";
 
+function leaveGuard() {
+  try {
+    const st = window.history.state as { harborMangaGuard?: boolean } | null;
+    if (st && st.harborMangaGuard) window.history.back();
+  } catch {}
+}
+
 export function useHistoryBackGuard(active: boolean) {
   useEffect(() => {
     if (!active || typeof window === "undefined") return;
@@ -21,10 +28,7 @@ export function useHistoryBackGuard(active: boolean) {
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop);
-      try {
-        const st = window.history.state as { harborMangaGuard?: boolean } | null;
-        if (st && st.harborMangaGuard) window.history.back();
-      } catch {}
+      leaveGuard();
     };
   }, [active]);
 }

@@ -4,6 +4,14 @@ import { useSettings } from "@/lib/settings";
 import { fetchEntryEpisodes } from "@/lib/providers/anime-franchise-episodes";
 import { parseKitsuId, type KitsuEpisode } from "@/lib/providers/kitsu";
 
+function byFranchiseOrder(a: KitsuEpisode, b: KitsuEpisode): number {
+  return (
+    (a.imdbSeason ?? 99) - (b.imdbSeason ?? 99) ||
+    (a.imdbEpisode ?? a.number) - (b.imdbEpisode ?? b.number) ||
+    (a.absoluteNumber ?? a.number) - (b.absoluteNumber ?? b.number)
+  );
+}
+
 export function useFranchiseEpisodes(
   franchise: FranchiseEntry[],
   currentId: string,
@@ -62,12 +70,7 @@ export function useFranchiseEpisodes(
       seen.add(k);
       combined.push(ep);
     }
-    combined.sort(
-      (a, b) =>
-        (a.imdbSeason ?? 99) - (b.imdbSeason ?? 99) ||
-        (a.imdbEpisode ?? a.number) - (b.imdbEpisode ?? b.number) ||
-        (a.absoluteNumber ?? a.number) - (b.absoluteNumber ?? b.number),
-    );
+    combined.sort(byFranchiseOrder);
     return combined;
   }, [enabled, otherIds.length, currentEpisodes, extra]);
 }

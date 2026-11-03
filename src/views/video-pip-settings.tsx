@@ -64,11 +64,12 @@ export function useFloatingMedia() {
   }, [take]);
   const property = useCallback(
     async (name: string, value: unknown) => {
+      const trackChange = name === "aid" || name === "sid";
       try {
         await invoke("mpv_set_property", { name, value });
         take(name, value);
         setError(false);
-        if (name === "aid" || name === "sid") {
+        if (trackChange) {
           const list = await invoke("mpv_get_property", { name: "track-list" });
           take("track-list", list);
         }

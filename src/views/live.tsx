@@ -1,6 +1,6 @@
 import { X } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePlaylistMutations } from "./live/hooks/use-playlist-mutations";
 import { useLiveActions } from "./live/hooks/use-live-actions";
 import { useT } from "@/lib/i18n";
@@ -129,9 +129,11 @@ export function LiveView({ active }: { active: boolean }) {
 
   const favorites = useFavorites();
   const favoritesCountRef = useRef(favorites.count);
-  favoritesCountRef.current = favorites.count;
+  useLayoutEffect(() => {
+    favoritesCountRef.current = favorites.count;
+  }, [favorites.count]);
   const [group, setGroup] = useState<string | null>(() =>
-    favoritesCountRef.current > 0 ? FAVORITES_GROUP_KEY : null,
+    favorites.count > 0 ? FAVORITES_GROUP_KEY : null,
   );
   const [query, setQuery] = useState("");
   const [mode, setModeState] = useState<ViewMode>(() => readMode());
@@ -143,7 +145,7 @@ export function LiveView({ active }: { active: boolean }) {
     setMode("home");
     setQuery("");
     setGroup(favoritesCountRef.current > 0 ? FAVORITES_GROUP_KEY : null);
-  }, [setMode]);
+  }, [setMode, setQuery, setGroup]);
   useEffect(() => {
     if (!active) return;
     const onLocalBack = (e: Event) => {

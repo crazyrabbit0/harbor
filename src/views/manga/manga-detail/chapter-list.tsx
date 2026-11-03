@@ -446,6 +446,8 @@ export function ChapterList({
   pending?: boolean;
   scrollRoot?: RefObject<HTMLElement | null>;
 }) {
+  // useVirtualizer returns fresh functions each render, which the React Compiler cannot memoize safely.
+  "use no memo";
   const t = useT();
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"newest" | "oldest">("oldest");

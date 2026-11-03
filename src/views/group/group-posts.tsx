@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { Loader2, MessagesSquare } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { fetchGroupPosts, type GroupPost } from "@/lib/social/group-posts";
@@ -78,7 +78,7 @@ export function GroupPosts({
             <div
               key={i}
               className="harbor-shimmer relative h-[104px] rounded-lg ring-1 ring-edge-soft"
-              style={{ ["--ai-delay" as string]: `${i * 110}ms` }}
+              style={{ "--ai-delay": `${i * 110}ms` } as CSSProperties}
             />
           ))}
         </div>

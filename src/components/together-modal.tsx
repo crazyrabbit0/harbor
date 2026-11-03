@@ -19,6 +19,20 @@ import { useListenTogether } from "@/lib/listen-together/provider";
 import { TogetherRelayBanner } from "./together-relay-banner";
 import { ThreeLiquidGlassSurface } from "@/components/ThreeLiquidGlassSurface";
 
+function parseInviteValue(value: string): { relay: string | null; room: string | null } | null {
+  try {
+    const url = new URL(
+      value.startsWith("http") ? value : `https://x${value.startsWith("?") ? value : `?${value}`}`,
+    );
+    return {
+      relay: url.searchParams.get("harbor-relay"),
+      room: url.searchParams.get("harbor-room"),
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function TogetherModalShell() {
   const { closeModal } = useTogether();
   const panelRef = useRef<HTMLDivElement>(null);
@@ -102,14 +116,9 @@ export function TogetherPopover({
     const value = joinCode.trim();
     if (!value) return;
     if (/^https?:\/\//i.test(value) || value.includes("harbor-relay=")) {
-      try {
-        const url = new URL(
-          value.startsWith("http")
-            ? value
-            : `https://x${value.startsWith("?") ? value : `?${value}`}`,
-        );
-        const relay = url.searchParams.get("harbor-relay");
-        const room = url.searchParams.get("harbor-room");
+      const invite = parseInviteValue(value);
+      if (invite) {
+        const { relay, room } = invite;
         if (relay && room) {
           if (settings.togetherRelayUrl !== relay) {
             update({ togetherRelayUrl: relay });
@@ -118,7 +127,7 @@ export function TogetherPopover({
           setTimeout(() => joinSession(room), 200);
           return;
         }
-      } catch {}
+      }
     }
     joinSession(value);
   };

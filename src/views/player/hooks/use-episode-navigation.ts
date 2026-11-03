@@ -130,7 +130,6 @@ export function useEpisodeNavigation(params: {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     src.meta.id,
     src.meta.type,
@@ -191,6 +190,7 @@ export function useEpisodeNavigation(params: {
       settings.localPlaybackMode,
       inRoom,
       isHost,
+      localShowKey,
     ],
   );
 

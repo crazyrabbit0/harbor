@@ -31,16 +31,15 @@ export function IdentifySongButton({
   const onClick = async () => {
     if (pending) return;
     setPending(true);
-    try {
-      await identifyNowPlaying({
-        provider: settings.songIdProvider,
-        auddKey: settings.auddKey ?? "",
-        aiKey: settings.songIdAiKey ?? "",
-        aiModel: settings.songIdAiModel ?? "",
-      });
-    } finally {
-      setPending(false);
-    }
+    const options = {
+      provider: settings.songIdProvider,
+      auddKey: settings.auddKey ?? "",
+      aiKey: settings.songIdAiKey ?? "",
+      aiModel: settings.songIdAiModel ?? "",
+    };
+    await new Promise<void>((resolve) => resolve(identifyNowPlaying(options))).finally(() =>
+      setPending(false),
+    );
   };
 
   return (

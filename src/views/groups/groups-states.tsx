@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import { useT } from "@/lib/i18n";
 import { PeopleSearchIcon } from "@/views/profile/people-search-icon";
 
@@ -8,7 +9,7 @@ export function GroupsSkeleton({ count = 8 }: { count?: number }) {
         <div
           key={i}
           className="harbor-shimmer relative flex h-[148px] flex-col gap-3 rounded-lg p-4 ring-1 ring-edge-soft"
-          style={{ ["--ai-delay" as string]: `${i * 90}ms` }}
+          style={{ "--ai-delay": `${i * 90}ms` } as CSSProperties}
         >
           <div className="flex items-center gap-3">
             <span className="h-12 w-12 shrink-0 rounded-full bg-elevated" />

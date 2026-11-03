@@ -315,8 +315,8 @@ export function ProfileSettings({
     friendsVisibility: summary.friendsVisibility ?? "everyone",
     private: summary.private ?? false,
   });
-  const initialForm = useRef(form);
-  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm.current);
+  const [initialForm] = useState(form);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
   const [section, setSection] = useState<SectionId>("general");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -368,7 +368,7 @@ export function ProfileSettings({
     if (urlBlocked) return setError(t("That custom url is not available."));
     setSaving(true);
     setError(null);
-    try {
+    const work = async () => {
       const next = await saveSettings(form);
       const trimmed = form.alias.trim();
       if (trimmed && !nameEquals(trimmed, displayName)) setDisplayName(trimmed);
@@ -377,11 +377,14 @@ export function ProfileSettings({
       }
       onSaved(next);
       (after ?? onClose)();
-    } catch {
-      setError(t("Could not save. Try again."));
-    } finally {
-      setSaving(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError(t("Could not save. Try again."));
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   if (customizing) {

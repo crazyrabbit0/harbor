@@ -7,6 +7,7 @@ import type { MusicCatalogItem } from "@/lib/music/types";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { MusicBillboardRank } from "./music-billboard-rank";
 import { MusicSearchAudience } from "./music-search-audience";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const DEBOUNCE_MS = 200;
 const MIN_CHARS = 2;
@@ -78,35 +79,39 @@ export function useMusicSuggest(query: string, connector: string | null, enabled
     return () => window.clearTimeout(timer);
   }, [query, connector, enabled]);
 
-  const groups = useMemo(() => {
-    if (!enabled || !found || found.query !== query.trim()) return [];
-    const res = found.results;
-    const next: Group[] = [
-      {
-        key: "artists",
-        label: t("music.search.artists"),
-        items: collapseArtistRows(
-          res.artists,
-          language,
-          t("music.metadata.deezerFans"),
-          artistIdentityKey(found.query),
-        )
-          .slice(0, CAP.artists)
-          .map((a) => ({ kind: "artist", ...a })),
-      },
-      {
-        key: "tracks",
-        label: t("music.search.tracks"),
-        items: res.tracks.slice(0, CAP.tracks).map((a) => ({ kind: "track", ...a })),
-      },
-      {
-        key: "albums",
-        label: t("music.search.albums"),
-        items: res.albums.slice(0, CAP.albums).map((a) => ({ kind: "album", ...a })),
-      },
-    ];
-    return next.filter((g) => g.items.length > 0);
-  }, [found, pass, t, language, enabled, query]);
+  const groups = useMemo(
+    () =>
+      readAtVersion(pass, () => {
+        if (!enabled || !found || found.query !== query.trim()) return [];
+        const res = found.results;
+        const next: Group[] = [
+          {
+            key: "artists",
+            label: t("music.search.artists"),
+            items: collapseArtistRows(
+              res.artists,
+              language,
+              t("music.metadata.deezerFans"),
+              artistIdentityKey(found.query),
+            )
+              .slice(0, CAP.artists)
+              .map((a) => ({ kind: "artist", ...a })),
+          },
+          {
+            key: "tracks",
+            label: t("music.search.tracks"),
+            items: res.tracks.slice(0, CAP.tracks).map((a) => ({ kind: "track", ...a })),
+          },
+          {
+            key: "albums",
+            label: t("music.search.albums"),
+            items: res.albums.slice(0, CAP.albums).map((a) => ({ kind: "album", ...a })),
+          },
+        ];
+        return next.filter((g) => g.items.length > 0);
+      }),
+    [found, pass, t, language, enabled, query],
+  );
   return { groups, loading };
 }
 

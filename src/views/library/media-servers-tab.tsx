@@ -238,14 +238,15 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
   const syncAll = async () => {
     setSyncing(true);
     setSyncMessage(t("Connecting to home servers…"));
-    try {
+    const work = async () => {
       for (const connection of connections.filter((entry) => entry.enabled))
         await synchronizeMediaServer(connection, setSyncMessage);
       await reload();
-    } finally {
+    };
+    await work().finally(() => {
       setSyncing(false);
       setSyncMessage("");
-    }
+    });
   };
   const resolveReview = async (title: MediaServerTitle, resolution: IdentifyResolution) => {
     const targets = items.filter((item) =>

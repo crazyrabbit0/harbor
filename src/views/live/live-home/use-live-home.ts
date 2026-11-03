@@ -18,6 +18,7 @@ import {
 } from "@/lib/iptv/country-detect";
 import { useFavorites, type StoredFavorite } from "@/lib/iptv/favorites";
 import type { EpgIndex, EpgProgram, IptvChannel } from "@/lib/iptv/types";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export type NowItem = {
   channel: IptvChannel;
@@ -192,124 +193,137 @@ export function useLiveHome(params: {
     [channels],
   );
 
-  const out = useMemo(() => {
-    const { byId, byGroup, themeCh, topGroups } = index;
-    const item = (ch: IptvChannel) => buildNowItem(ch, epg, tvgCounts, nowMs);
+  const out = useMemo(
+    () =>
+      readAtVersion(statsVersion, () => {
+        const { byId, byGroup, themeCh, topGroups } = index;
+        const item = (ch: IptvChannel) => buildNowItem(ch, epg, tvgCounts, nowMs);
 
-    const recentCh = recentChannels(20, sourceId).map((s) => byId.get(s.id) ?? statToChannel(s));
-    const topCh = topChannels(20, sourceId).map((s) => byId.get(s.id) ?? statToChannel(s));
-    const favCh = [...favorites.items.values()]
-      .filter((f) => (f.sourceId === sourceId || byId.has(f.id)) && (byId.get(f.id)?.url || f.url))
-      .map((f) => byId.get(f.id) ?? favToChannel(f));
+        const recentCh = recentChannels(20, sourceId).map(
+          (s) => byId.get(s.id) ?? statToChannel(s),
+        );
+        const topCh = topChannels(20, sourceId).map((s) => byId.get(s.id) ?? statToChannel(s));
+        const favCh = [...favorites.items.values()]
+          .filter(
+            (f) => (f.sourceId === sourceId || byId.has(f.id)) && (byId.get(f.id)?.url || f.url),
+          )
+          .map((f) => byId.get(f.id) ?? favToChannel(f));
 
-    const guide: NowItem[] = [];
-    const gseen = new Set<string>();
-    const pushGuide = (ch: IptvChannel) => {
-      if (gseen.has(ch.id)) return;
-      const it = item(ch);
-      if (!it.current) return;
-      gseen.add(ch.id);
-      guide.push(it);
-    };
-    for (const ch of [...recentCh, ...favCh, ...topCh]) pushGuide(ch);
-    for (let i = 0; i < channels.length && i < 600 && guide.length < 16; i += 1)
-      pushGuide(channels[i]);
+        const guide: NowItem[] = [];
+        const gseen = new Set<string>();
+        const pushGuide = (ch: IptvChannel) => {
+          if (gseen.has(ch.id)) return;
+          const it = item(ch);
+          if (!it.current) return;
+          gseen.add(ch.id);
+          guide.push(it);
+        };
+        for (const ch of [...recentCh, ...favCh, ...topCh]) pushGuide(ch);
+        for (let i = 0; i < channels.length && i < 600 && guide.length < 16; i += 1)
+          pushGuide(channels[i]);
 
-    const tiles: IptvChannel[] = [];
-    const tseen = new Set<string>();
-    const pushTile = (ch?: IptvChannel | null) => {
-      if (!ch || !ch.logo || tseen.has(ch.id)) return;
-      tseen.add(ch.id);
-      tiles.push(ch);
-    };
-    for (const ch of [...favCh, ...topCh]) pushTile(ch);
-    for (let i = 0; i < channels.length && i < 400 && tiles.length < 18; i += 1)
-      pushTile(channels[i]);
+        const tiles: IptvChannel[] = [];
+        const tseen = new Set<string>();
+        const pushTile = (ch?: IptvChannel | null) => {
+          if (!ch || !ch.logo || tseen.has(ch.id)) return;
+          tseen.add(ch.id);
+          tiles.push(ch);
+        };
+        for (const ch of [...favCh, ...topCh]) pushTile(ch);
+        for (let i = 0; i < channels.length && i < 400 && tiles.length < 18; i += 1)
+          pushTile(channels[i]);
 
-    const seen = new Set<string>();
-    const pool: IptvChannel[] = [];
-    for (const ch of [...favCh, ...topCh, ...recentCh]) {
-      if (seen.has(ch.id)) continue;
-      seen.add(ch.id);
-      pool.push(ch);
-    }
-    const score = (it: NowItem) =>
-      (it.current ? 4 : 0) + (it.current?.iconUrl ? 2 : 0) + (it.channel.logo ? 1 : 0);
-    const spotlight = pool
-      .map((ch, i) => ({ it: item(ch), i }))
-      .sort((a, b) => score(b.it) - score(a.it) || a.i - b.i)
-      .slice(0, 6)
-      .map((x) => x.it);
-    if (spotlight.length === 0) spotlight.push(...channels.slice(0, 6).map(item));
-
-    const rails: ChannelRail[] = [];
-    const used = new Set<string>();
-    if (recentCh.length)
-      rails.push({ key: "recent", title: t("Continue watching"), group: null, channels: recentCh });
-    if (favCh.length)
-      rails.push({ key: "fav", title: t("Your favorites"), group: null, channels: favCh });
-    for (const g of prefs.pinned) {
-      if (used.has(g) || !byGroup.has(g)) continue;
-      rails.push(railFor(g, byGroup.get(g) ?? []));
-      used.add(g);
-    }
-
-    const categoryRails: ChannelRail[] = [];
-    const selected = countryPrefs.selected.filter((c) => channelsByCountry.has(c));
-    if (selected.length) {
-      for (const code of selected.slice(0, 6)) {
-        const inCountry = new Map<string, IptvChannel[]>();
-        for (const ch of channelsByCountry.get(code) ?? []) {
-          const g = ch.group ?? UNCATEGORIZED;
-          let arr = inCountry.get(g);
-          if (!arr) {
-            arr = [];
-            inCountry.set(g, arr);
-          }
-          arr.push(ch);
+        const seen = new Set<string>();
+        const pool: IptvChannel[] = [];
+        for (const ch of [...favCh, ...topCh, ...recentCh]) {
+          if (seen.has(ch.id)) continue;
+          seen.add(ch.id);
+          pool.push(ch);
         }
-        const ordered = [...inCountry.entries()]
-          .filter(([g]) => !isJunk(g))
-          .sort((a, b) => b[1].length - a[1].length);
-        for (const [g, chs] of ordered) {
-          if (categoryRails.length >= MAX_RAILS) break;
-          categoryRails.push(railFor(g, chs, code));
-        }
-        if (categoryRails.length >= MAX_RAILS) break;
-      }
-    } else {
-      for (const theme of THEMES) {
-        const chs = themeCh[theme.key];
-        if (chs.length >= 3)
-          categoryRails.push({
-            key: `theme:${theme.key}`,
-            title: t(theme.title),
+        const score = (it: NowItem) =>
+          (it.current ? 4 : 0) + (it.current?.iconUrl ? 2 : 0) + (it.channel.logo ? 1 : 0);
+        const spotlight = pool
+          .map((ch, i) => ({ it: item(ch), i }))
+          .sort((a, b) => score(b.it) - score(a.it) || a.i - b.i)
+          .slice(0, 6)
+          .map((x) => x.it);
+        if (spotlight.length === 0) spotlight.push(...channels.slice(0, 6).map(item));
+
+        const rails: ChannelRail[] = [];
+        const used = new Set<string>();
+        if (recentCh.length)
+          rails.push({
+            key: "recent",
+            title: t("Continue watching"),
             group: null,
-            channels: chs.slice(0, 30),
+            channels: recentCh,
           });
-      }
-      for (const g of topGroups) {
-        if (categoryRails.length >= MAX_RAILS) break;
-        if (used.has(g)) continue;
-        categoryRails.push(railFor(g, byGroup.get(g) ?? []));
-      }
-    }
+        if (favCh.length)
+          rails.push({ key: "fav", title: t("Your favorites"), group: null, channels: favCh });
+        for (const g of prefs.pinned) {
+          if (used.has(g) || !byGroup.has(g)) continue;
+          rails.push(railFor(g, byGroup.get(g) ?? []));
+          used.add(g);
+        }
 
-    return { spotlight, tiles, guide, rails, categoryRails };
-  }, [
-    channels,
-    epg,
-    nowMs,
-    sourceId,
-    prefs,
-    favorites.items,
-    statsVersion,
-    index,
-    tvgCounts,
-    channelsByCountry,
-    countryPrefs.selected,
-    t,
-  ]);
+        const categoryRails: ChannelRail[] = [];
+        const selected = countryPrefs.selected.filter((c) => channelsByCountry.has(c));
+        if (selected.length) {
+          for (const code of selected.slice(0, 6)) {
+            const inCountry = new Map<string, IptvChannel[]>();
+            for (const ch of channelsByCountry.get(code) ?? []) {
+              const g = ch.group ?? UNCATEGORIZED;
+              let arr = inCountry.get(g);
+              if (!arr) {
+                arr = [];
+                inCountry.set(g, arr);
+              }
+              arr.push(ch);
+            }
+            const ordered = [...inCountry.entries()]
+              .filter(([g]) => !isJunk(g))
+              .sort((a, b) => b[1].length - a[1].length);
+            for (const [g, chs] of ordered) {
+              if (categoryRails.length >= MAX_RAILS) break;
+              categoryRails.push(railFor(g, chs, code));
+            }
+            if (categoryRails.length >= MAX_RAILS) break;
+          }
+        } else {
+          for (const theme of THEMES) {
+            const chs = themeCh[theme.key];
+            if (chs.length >= 3)
+              categoryRails.push({
+                key: `theme:${theme.key}`,
+                title: t(theme.title),
+                group: null,
+                channels: chs.slice(0, 30),
+              });
+          }
+          for (const g of topGroups) {
+            if (categoryRails.length >= MAX_RAILS) break;
+            if (used.has(g)) continue;
+            categoryRails.push(railFor(g, byGroup.get(g) ?? []));
+          }
+        }
+
+        return { spotlight, tiles, guide, rails, categoryRails };
+      }),
+    [
+      channels,
+      epg,
+      nowMs,
+      sourceId,
+      prefs,
+      favorites.items,
+      statsVersion,
+      index,
+      tvgCounts,
+      channelsByCountry,
+      countryPrefs.selected,
+      t,
+    ],
+  );
 
   return { ...out, countries: countries.filter((c) => c.count >= MIN_COUNTRY) };
 }

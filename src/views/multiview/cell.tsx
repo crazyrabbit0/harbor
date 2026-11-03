@@ -72,7 +72,8 @@ export function Cell({
   }
 
   const playerKey = `${channel.url}-${attempt}`;
-  const exhausted = status === "offline" && attemptsUsed.current >= MAX_AUTO_RETRIES;
+  // Offline is only set once the auto retries are used up, and every reset of the count leaves offline.
+  const exhausted = status === "offline";
 
   const onPlayerError = () => {
     if (retryTimer.current != null) return;

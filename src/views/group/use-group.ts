@@ -49,14 +49,17 @@ export function useGroup(id: string, onGone: () => void): GroupState {
   const run = useCallback(async (fn: () => Promise<GroupDetail | void>, fallback: string) => {
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       const next = await fn();
       if (next) setDetail(next);
-    } catch (e) {
-      setError((e as Error).message || fallback);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || fallback);
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   }, []);
 
   return {

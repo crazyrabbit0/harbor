@@ -112,17 +112,20 @@ export function ShownBadgesPicker({
   const save = async () => {
     setSaving(true);
     setError(null);
-    try {
+    const work = async () => {
       const body: Record<string, unknown> = { shownBadges: selected };
       if (verifiedBadge) body.hideVerified = !showVerified;
       const next = await socialPost<ProfileSummary>("/social/profile/customization", body);
       onSaved(next);
       onClose();
-    } catch (e) {
-      setError((e as Error).message || t("Could not save. Try again."));
-    } finally {
-      setSaving(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not save. Try again."));
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   return createPortal(

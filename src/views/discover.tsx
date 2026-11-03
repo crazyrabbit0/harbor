@@ -1,4 +1,13 @@
-import { memo, startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  startTransition,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { CollectionsRow as CollectionsRowImpl } from "@/components/collections-row";
 import { CriticsPick as CriticsPickImpl } from "@/components/critics-pick";
@@ -32,7 +41,7 @@ import { prewarmExternalWatched, subscribeExternalWatched } from "@/lib/feed/ext
 import { getStore, subscribe as subscribeTaste } from "@/lib/discover/store";
 import { getDownvotedIds, getUpvotedIds, subscribePrefs } from "@/lib/feed/preferences";
 import { recentlyPlayed, subscribePlayback, watchTitleKey } from "@/lib/playback-history";
-import { useSettings } from "@/lib/settings";
+import { useSettings, useSettingsGetter } from "@/lib/settings";
 import { useContentDrag } from "@/lib/window-drag";
 import { useScrollMemory } from "@/lib/view";
 import { useLetterboxd } from "@/lib/stremboxd/provider";
@@ -62,6 +71,9 @@ import {
   togglePageRowHidden,
   usePageRows,
 } from "@/lib/page-rows";
+import { readAtVersion } from "@/lib/read-at-version";
+
+const loadFeedSkipped = () => import("@/lib/feed/skipped");
 
 const MAX_RAIL_PAGES = 10;
 const MIN_PAGE_YIELD = 4;
@@ -116,6 +128,7 @@ export function Discover({ active = true }: { active?: boolean }) {
   useScrollMemory("discover", scrollRef, active);
 
   const { settings } = useSettings();
+  const getSettings = useSettingsGetter();
   const contentDrag = useContentDrag();
   const letterboxd = useLetterboxd();
   const t = useT();
@@ -124,7 +137,9 @@ export function Discover({ active = true }: { active?: boolean }) {
   const [featReady, setFeatReady] = useState(false);
   const featured = feat.featured;
   const poolRef = useRef<FeaturedItem[]>([]);
-  poolRef.current = feat.pool;
+  useLayoutEffect(() => {
+    poolRef.current = feat.pool;
+  });
   const [queue, setQueue] = useState<FeedItem[]>([]);
   const [criticsPickList, setCriticsPickList] = useState<Meta[]>([]);
   const [tasteVersion, setTasteVersion] = useState(0);
@@ -175,10 +190,24 @@ export function Discover({ active = true }: { active?: boolean }) {
   const railLoadingRef = useRef<Record<string, boolean>>({});
   const [epoch, setEpoch] = useState(0);
   const epochRef = useRef(0);
-  epochRef.current = epoch;
+  useLayoutEffect(() => {
+    epochRef.current = epoch;
+  }, [epoch]);
 
   const dailyRows = useMemo(
-    () => selectDailyRows(settings.tmdbKey, getStore().affinity, settings, ROW_COUNT),
+    () =>
+      readAtVersion(
+        [
+          settings.region,
+          settings.streaming,
+          settings.preferredLanguages,
+          settings.tmdbLanguage,
+          settings.feedLocaleBias,
+          settings.uiLanguage,
+          tasteVersion,
+        ],
+        () => selectDailyRows(settings.tmdbKey, getStore().affinity, getSettings(), ROW_COUNT),
+      ),
     [
       settings.tmdbKey,
       settings.region,
@@ -188,6 +217,7 @@ export function Discover({ active = true }: { active?: boolean }) {
       settings.feedLocaleBias,
       settings.uiLanguage,
       tasteVersion,
+      getSettings,
     ],
   );
   const rowSig = useMemo(() => dailyRows.map((r) => r.id).join("|"), [dailyRows]);
@@ -241,7 +271,7 @@ export function Discover({ active = true }: { active?: boolean }) {
     const hidden = new Set<string>([...getDownvotedIds(), ...getUpvotedIds()]);
     getPool(settings.tmdbKey).then(async (p) => {
       if (cancelled) return;
-      const { filterQueuePool } = await import("@/lib/feed/skipped");
+      const { filterQueuePool } = await loadFeedSkipped();
       setQueue(filterQueuePool(p).filter((it) => !hidden.has(it.meta.id)));
     });
     fetchCriticsPickList(settings.tmdbKey, settings).then(
@@ -346,7 +376,9 @@ export function Discover({ active = true }: { active?: boolean }) {
   );
 
   const ensureLoadedRef = useRef(ensureLoaded);
-  ensureLoadedRef.current = ensureLoaded;
+  useLayoutEffect(() => {
+    ensureLoadedRef.current = ensureLoaded;
+  }, [ensureLoaded]);
 
   const didInitRef = useRef(false);
   useEffect(() => {
@@ -360,7 +392,6 @@ export function Discover({ active = true }: { active?: boolean }) {
     railLoadingRef.current = {};
     epochRef.current += 1;
     setEpoch(epochRef.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rowSig, settings.tmdbKey, settings.region, settings.streaming, settings.tmdbLanguage]);
 
   useEffect(() => {
@@ -417,15 +448,19 @@ export function Discover({ active = true }: { active?: boolean }) {
   const deduped = useDedupedRows(rails, order, featuredIds, criticsPick?.id, DEDUP_PRIORITY);
   const hideAnime = useHideAnime();
   const animeVersion = useDetectedAnimeVersion();
-  const dedupedShown = useMemo(() => {
-    if (!hideAnime) return deduped;
-    const out: Record<string, Meta[] | null> = {};
-    for (const key in deduped) {
-      const v = deduped[key];
-      out[key] = v ? v.filter((m) => !metaLooksAnime(m)) : v;
-    }
-    return out;
-  }, [hideAnime, deduped, animeVersion]);
+  const dedupedShown = useMemo(
+    () =>
+      readAtVersion(animeVersion, () => {
+        if (!hideAnime) return deduped;
+        const out: Record<string, Meta[] | null> = {};
+        for (const key in deduped) {
+          const v = deduped[key];
+          out[key] = v ? v.filter((m) => !metaLooksAnime(m)) : v;
+        }
+        return out;
+      }),
+    [hideAnime, deduped, animeVersion],
+  );
 
   const railItems = useMemo(() => {
     const base: RowItem[] = dailyRows.map((r) => ({ key: r.id, title: r.shelf.title }));

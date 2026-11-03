@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { errorText } from "@/components/music/music-connections/connection-row";
 import { loadHomeRows } from "@/lib/music/catalog";
 import { getLastFmStatus, type LastFmStatus } from "@/lib/music/lastfm";
@@ -53,7 +53,9 @@ export function useMusicData(recents: MusicTrack[]): MusicData {
   }, []);
   const generation = useRef(0);
   const recentsRef = useRef(recents);
-  recentsRef.current = recents;
+  useLayoutEffect(() => {
+    recentsRef.current = recents;
+  }, [recents]);
 
   useEffect(() => {
     const run = ++generation.current;

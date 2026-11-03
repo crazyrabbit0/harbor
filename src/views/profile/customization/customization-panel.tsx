@@ -1,5 +1,5 @@
 import { ArrowLeft, Check, Eye } from "lucide-react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { socialPost } from "@/lib/social/client";
 import { useT } from "@/lib/i18n";
 import type { CustomizationInput, ProfileSummary } from "@/lib/social/profile-types";
@@ -32,12 +32,12 @@ export function CustomizationPanel({
     hideTopBanner: summary.hideTopBanner ?? false,
     hideCardTitles: summary.hideCardTitles ?? false,
   });
-  const initialForm = useRef(form);
+  const [initialForm] = useState(form);
   const [mode, setMode] = useState<"edit" | "preview">("edit");
   const [previewMounted, setPreviewMounted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm.current);
+  const isDirty = JSON.stringify(form) !== JSON.stringify(initialForm);
 
   const set = <K extends keyof CustomizationInput>(k: K, v: CustomizationInput[K]) =>
     setForm((f) => ({ ...f, [k]: v }));
@@ -52,7 +52,7 @@ export function CustomizationPanel({
     if (invalid) return setError(invalid);
     setSaving(true);
     setError(null);
-    try {
+    const work = async () => {
       const next = await socialPost<ProfileSummary>("/social/profile/customization", {
         profileFont: form.profileFont.trim(),
         profileFavicon: form.profileFavicon.trim(),
@@ -67,11 +67,14 @@ export function CustomizationPanel({
       });
       onSaved(next);
       onClose();
-    } catch (e) {
-      setError((e as Error).message || t("Could not save. Try again."));
-    } finally {
-      setSaving(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not save. Try again."));
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   const previewing = mode === "preview";

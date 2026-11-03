@@ -118,7 +118,7 @@ export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
         setReviewVisible(true);
       }, 190);
     },
-    [reviews.length],
+    [reviews.length, setReviewIdx, setReviewVisible],
   );
   const reviewFade = {
     transition: "opacity 200ms ease, transform 200ms ease",
@@ -165,7 +165,7 @@ export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
       setOverviewOpen(false);
       openPerson(id);
     },
-    [openPerson],
+    [openPerson, setOverviewOpen],
   );
 
   const draggedRef = useRef(false);

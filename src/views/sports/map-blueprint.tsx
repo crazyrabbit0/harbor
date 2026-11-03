@@ -4,6 +4,8 @@ import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
 import type { EsportsMapDef } from "@/lib/sports/esports-map-data";
 
+const loadMapBlueprints = () => import("@/lib/sports/map-blueprints");
+
 export function MapBlueprint({ map }: { map: EsportsMapDef }) {
   const t = useT();
   const [images, setImages] = useState<{ name: string; url: string }[]>([]);
@@ -15,7 +17,7 @@ export function MapBlueprint({ map }: { map: EsportsMapDef }) {
     setImages([]);
     setFailed(false);
     setSelected(0);
-    void import("@/lib/sports/map-blueprints")
+    void loadMapBlueprints()
       .then(({ readMapBlueprints }) => readMapBlueprints(map.blueprint!, controller.signal))
       .then((items) => {
         if (controller.signal.aborted) return;

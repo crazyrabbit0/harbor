@@ -89,9 +89,13 @@ export function useResumeAutosave(params: ResumeAutosaveParams) {
   const ownerId = activeProfile?.id;
   const taughtRef = useRef<Set<string>>(new Set());
   const anilistAutoSyncRef = useRef(settings.anilistAutoSync);
-  anilistAutoSyncRef.current = settings.anilistAutoSync;
+  useEffect(() => {
+    anilistAutoSyncRef.current = settings.anilistAutoSync;
+  });
   const malAutoSyncRef = useRef(settings.malAutoSync);
-  malAutoSyncRef.current = settings.malAutoSync;
+  useEffect(() => {
+    malAutoSyncRef.current = settings.malAutoSync;
+  });
   // Cleanup must retain the outgoing source, duration and position together.
   // A new episode can render before the bridge publishes its loading reset.
   const sourceIdentity = playerLoadIdentity(src, src.url, season, episode);
@@ -100,23 +104,26 @@ export function useResumeAutosave(params: ResumeAutosaveParams) {
     [sourceIdentity, ownerId],
   );
   const activeSessionRef = useRef(session);
-  activeSessionRef.current = session;
+  useEffect(() => {
+    activeSessionRef.current = session;
+  });
   useEffect(() => {
     if (
       snap.status === "loading" ||
       snap.status === "idle" ||
       (snap.positionSec === 0 && snap.durationSec === 0)
     ) {
-      session.ready = true;
+      activeSessionRef.current.ready = true;
       return;
     }
-    if (!session.ready) return;
+    const current = activeSessionRef.current;
+    if (!current.ready) return;
     // Keep the last usable duration through the bridge's teardown/reset event.
-    if (snap.durationSec > 0 || !session.latest) session.latest = params;
+    if (snap.durationSec > 0 || !current.latest) current.latest = params;
     // Position-only events update the playback clock, not this React snapshot.
     // A subtitle/settings rerender must not replace that newer clock position.
-    if (session.position === 0 && snap.positionSec >= MIN_POSITION_SEC)
-      session.position = snap.positionSec;
+    if (current.position === 0 && snap.positionSec >= MIN_POSITION_SEC)
+      current.position = snap.positionSec;
   });
 
   useEffect(

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   beatMs,
   clearMusicFx,
@@ -33,11 +33,17 @@ export function useDeckFx({
   const timer = useRef(0);
   const pending = useRef<MusicFx | null>(null);
   const latest = useRef(fx);
-  latest.current = fx;
+  useLayoutEffect(() => {
+    latest.current = fx;
+  }, [fx]);
   const live = useRef(readPosition);
-  live.current = readPosition;
+  useLayoutEffect(() => {
+    live.current = readPosition;
+  }, [readPosition]);
   const tempo = useRef(120);
-  tempo.current = bpm && bpm > 0 ? bpm : 120;
+  useLayoutEffect(() => {
+    tempo.current = bpm && bpm > 0 ? bpm : 120;
+  });
 
   const engine = useCallback(() => {
     if (!rig.current) rig.current = new ReleaseFx();

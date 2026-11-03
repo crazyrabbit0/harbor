@@ -160,13 +160,13 @@ export function TagDropdown({
 
   useEffect(() => {
     let alive = true;
-    let request = 0;
+    const request = { latest: 0 };
     const load = (opts?: { clear?: boolean }) => {
-      const id = ++request;
+      const id = ++request.latest;
       if (opts?.clear && alive) setTags([]);
       mangaTags()
         .then((list) => {
-          if (alive && id === request) setTags(list);
+          if (alive && id === request.latest) setTags(list);
         })
         .catch((err) => {
           console.warn("[manga] filter list refresh failed", err);

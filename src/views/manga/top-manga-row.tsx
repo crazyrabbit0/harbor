@@ -31,15 +31,18 @@ export function TopMangaRow({
   const open = async () => {
     if (busy || missing) return;
     setBusy(true);
-    try {
+    const work = async () => {
       const found = (await searchManga(item.title, 0))[0];
       if (found) onOpenManga(found.id);
       else setMissing(true);
-    } catch {
-      setMissing(true);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setMissing(true);
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const inner = (

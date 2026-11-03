@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import { markAddedSub } from "@/lib/subtitles/added-subs";
 import {
@@ -27,7 +27,9 @@ export function useTranslationAutoSelect({
 }) {
   const jobs = useTranslationJobs();
   const jobsRef = useRef(jobs);
-  jobsRef.current = jobs;
+  useLayoutEffect(() => {
+    jobsRef.current = jobs;
+  });
 
   useEffect(() => {
     clearTranslationJobs();

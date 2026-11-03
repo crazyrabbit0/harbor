@@ -21,7 +21,9 @@ export function usePendingSeekApply(params: {
     startPaused,
   } = params;
   const onApplied = useRef(clearPendingSeek);
-  onApplied.current = clearPendingSeek;
+  useEffect(() => {
+    onApplied.current = clearPendingSeek;
+  }, [clearPendingSeek]);
   useEffect(() => {
     if (pendingSeekSec == null) return;
     if (durationSec <= 0) return;

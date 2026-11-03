@@ -52,7 +52,7 @@ export function useGifRecorder(params: { src: PlayerSrc; folder?: string }): {
     const dir = await captureDir(folder);
     const outPath = dir ? await joinPath(dir, filename) : filename;
     if (dismissRef.current) window.clearTimeout(dismissRef.current);
-    try {
+    const work = async () => {
       const result = await invoke<{ path: string; frames: number }>("mpv_gif_stop", { outPath });
       setToast({
         id: Date.now(),
@@ -60,17 +60,23 @@ export function useGifRecorder(params: { src: PlayerSrc; folder?: string }): {
         text: t("GIF saved to {path}", { path: captureDirLabel(dir, folder) }),
         path: result.path,
       });
-    } catch (e) {
-      setToast({
-        id: Date.now(),
-        kind: "error",
-        text: typeof e === "string" ? e : t("GIF export failed"),
+    };
+    await work()
+      .then(
+        () => {},
+        (e) => {
+          setToast({
+            id: Date.now(),
+            kind: "error",
+            text: typeof e === "string" ? e : t("GIF export failed"),
+          });
+        },
+      )
+      .finally(() => {
+        setPhase("idle");
+        setElapsedSec(0);
+        dismissRef.current = window.setTimeout(() => setToast(null), 6000);
       });
-    } finally {
-      setPhase("idle");
-      setElapsedSec(0);
-      dismissRef.current = window.setTimeout(() => setToast(null), 6000);
-    }
   }, [src, folder]);
 
   const start = useCallback(async () => {

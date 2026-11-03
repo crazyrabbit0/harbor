@@ -73,7 +73,7 @@ export function MobileDiscover() {
       .catch(() => {});
 
     (async () => {
-      try {
+      const work = async () => {
         const defs = selectDailyRows(key, getStore().affinity, settings, 14);
         const [settled, critics] = await Promise.all([
           Promise.all(
@@ -97,11 +97,14 @@ export function MobileDiscover() {
         }
         setRawRows(rows);
         setFailed(rows.length === 0);
-      } catch {
-        if (alive) setFailed(true);
-      } finally {
-        if (alive) setLoading(false);
-      }
+      };
+      await work()
+        .catch(() => {
+          if (alive) setFailed(true);
+        })
+        .finally(() => {
+          if (alive) setLoading(false);
+        });
     })();
 
     return () => {

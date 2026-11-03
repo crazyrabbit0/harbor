@@ -33,7 +33,7 @@ function PlayerTable({
   const t = useT();
   const [open, setOpen] = useState(false),
     [limit, setLimit] = useState(60);
-  const drag = useDragScroll<HTMLDivElement>();
+  const { ref: dragRef, handlers: dragHandlers } = useDragScroll<HTMLDivElement>();
   const team = [detail.home, detail.away].find((side) => side.id === table.teamId);
   const title = [
     team?.name,
@@ -55,8 +55,8 @@ function PlayerTable({
         <>
           {table.summary && <p>{table.summary}</p>}
           <div
-            ref={drag.ref}
-            {...drag.handlers}
+            ref={dragRef}
+            {...dragHandlers}
             className="sh-player-stat-scroll"
             tabIndex={0}
             role="region"
@@ -117,7 +117,7 @@ function PartnershipTable({
 }) {
   const t = useT();
   const [open, setOpen] = useState(false);
-  const drag = useDragScroll<HTMLDivElement>();
+  const { ref: dragRef, handlers: dragHandlers } = useDragScroll<HTMLDivElement>();
   const team = [detail.home, detail.away].find((side) => side.id === table.teamId);
   const title = [team?.name, t("Partnerships"), t("Innings {n}", { n: table.innings })]
     .filter(Boolean)
@@ -133,8 +133,8 @@ function PartnershipTable({
       </summary>
       {open && (
         <div
-          ref={drag.ref}
-          {...drag.handlers}
+          ref={dragRef}
+          {...dragHandlers}
           className="sh-player-stat-scroll sh-partnership-scroll"
           tabIndex={0}
           role="region"

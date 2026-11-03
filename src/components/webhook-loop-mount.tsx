@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { useAuth } from "@/lib/auth";
 import { useSettingsGetter, useSettingsSelector } from "@/lib/settings";
 import { proactiveStorageCleanup } from "@/lib/storage-recovery";
@@ -8,12 +8,38 @@ const TICK_INTERVAL_MS = 30 * 60 * 1000;
 const INITIAL_DELAY_MS = 90 * 1000;
 const STATUS_KEY = "harbor.webhook.lastTick";
 
+async function runTickAndRecord(
+  getSettings: ReturnType<typeof useSettingsGetter>,
+  authKey: Parameters<typeof runWebhookTick>[1],
+): Promise<void> {
+  try {
+    const result = await runWebhookTick(getSettings(), authKey);
+    try {
+      localStorage.setItem(
+        STATUS_KEY,
+        JSON.stringify({
+          at: Date.now(),
+          fired: result.fired,
+          channels: result.channels,
+        }),
+      );
+    } catch {}
+    if (result.fired > 0) {
+      console.info(`[webhook] fired ${result.fired} new items`);
+    }
+  } catch (e) {
+    console.warn("[webhook] tick failed", e);
+  }
+}
+
 export function WebhookLoopMount() {
   const webhooks = useSettingsSelector((s) => s.webhooks);
   const getSettings = useSettingsGetter();
   const { authKey } = useAuth();
   const authRef = useRef(authKey);
-  authRef.current = authKey;
+  useLayoutEffect(() => {
+    authRef.current = authKey;
+  }, [authKey]);
   const runningRef = useRef(false);
 
   useEffect(() => {
@@ -29,26 +55,9 @@ export function WebhookLoopMount() {
     const tick = async () => {
       if (runningRef.current || cancelled) return;
       runningRef.current = true;
-      try {
-        const result = await runWebhookTick(getSettings(), authRef.current);
-        try {
-          localStorage.setItem(
-            STATUS_KEY,
-            JSON.stringify({
-              at: Date.now(),
-              fired: result.fired,
-              channels: result.channels,
-            }),
-          );
-        } catch {}
-        if (result.fired > 0) {
-          console.info(`[webhook] fired ${result.fired} new items`);
-        }
-      } catch (e) {
-        console.warn("[webhook] tick failed", e);
-      } finally {
+      await runTickAndRecord(getSettings, authRef.current).finally(() => {
         runningRef.current = false;
-      }
+      });
     };
 
     const initialTimer = window.setTimeout(() => {

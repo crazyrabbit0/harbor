@@ -18,7 +18,7 @@ export function SportsHoverPreview({
   const [hovered, setHovered] = useState(false);
   const [detail, setDetail] = useState<SportsMatchDetail | null>(null);
   const [loading, setLoading] = useState(false);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [container, setContainer] = useState<HTMLDivElement | null>(null);
   const timerRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function SportsHoverPreview({
 
   return (
     <div
-      ref={containerRef}
+      ref={setContainer}
       className="relative inline-flex"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
@@ -52,12 +52,7 @@ export function SportsHoverPreview({
     >
       {children}
       {hovered && (
-        <PreviewPortal
-          container={containerRef.current}
-          game={game}
-          detail={detail}
-          loading={loading}
-        />
+        <PreviewPortal container={container} game={game} detail={detail} loading={loading} />
       )}
     </div>
   );

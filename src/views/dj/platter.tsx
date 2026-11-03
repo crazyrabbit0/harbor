@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type PointerEvent,
+  type CSSProperties,
+} from "react";
 import { scratchDeck, sendDeckCommand } from "@/lib/music/deck-sync";
 import {
   HandTrack,
@@ -65,11 +73,17 @@ export function Platter({
   const owned = useRef(0);
   const [scratching, setScratching] = useState(false);
   const live = useRef(readPosition);
-  live.current = readPosition;
+  useLayoutEffect(() => {
+    live.current = readPosition;
+  }, [readPosition]);
   const spinning = useRef(playing);
-  spinning.current = playing;
+  useLayoutEffect(() => {
+    spinning.current = playing;
+  }, [playing]);
   const tempo = useRef(speed);
-  tempo.current = speed;
+  useLayoutEffect(() => {
+    tempo.current = speed;
+  }, [speed]);
 
   const cap = useCallback(
     (position: number) => {
@@ -248,7 +262,7 @@ export function Platter({
       data-size={size}
       data-spinning={playing && !scratching ? "" : undefined}
       data-scratching={scratching || undefined}
-      style={{ ["--dj-sweep" as string]: `${sweep}deg` }}
+      style={{ "--dj-sweep": `${sweep}deg` } as CSSProperties}
       onPointerDown={down}
       onPointerMove={move}
       onPointerUp={up}
@@ -257,7 +271,7 @@ export function Platter({
       <span className="dj-platter-progress" aria-hidden="true" />
       <span className="dj-platter-deck" aria-hidden="true">
         {STROBE.map((index) => (
-          <i key={index} style={{ ["--dj-dot" as string]: `${index * 6}deg` }} />
+          <i key={index} style={{ "--dj-dot": `${index * 6}deg` } as CSSProperties} />
         ))}
       </span>
       <span className="dj-platter-sheen" aria-hidden="true" />

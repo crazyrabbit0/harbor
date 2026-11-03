@@ -131,26 +131,32 @@ export function AddonDetail({
     if (busy) return;
     setBusy("install");
     setOptimisticInstalled(true);
-    try {
+    const work = async () => {
       await onInstall();
-    } catch {
-      setOptimisticInstalled(null);
-    } finally {
-      setBusy(null);
-    }
+    };
+    await work()
+      .catch(() => {
+        setOptimisticInstalled(null);
+      })
+      .finally(() => {
+        setBusy(null);
+      });
   };
 
   const handleUninstall = async () => {
     if (busy) return;
     setBusy("remove");
     setOptimisticInstalled(false);
-    try {
+    const work = async () => {
       await onUninstall();
-    } catch {
-      setOptimisticInstalled(null);
-    } finally {
-      setBusy(null);
-    }
+    };
+    await work()
+      .catch(() => {
+        setOptimisticInstalled(null);
+      })
+      .finally(() => {
+        setBusy(null);
+      });
   };
 
   const humanize = (v: string) => (v ? v.charAt(0).toUpperCase() + v.slice(1) : v);
@@ -173,14 +179,15 @@ export function AddonDetail({
 
   const copy = async (kind: "https" | "stremio") => {
     const text = kind === "stremio" ? stremioShareUrl : resolved.transportUrl;
-    try {
+    const work = async () => {
       await navigator.clipboard.writeText(text);
       setCopied(kind);
       setTimeout(() => setCopied(null), 1600);
       showToast("ok", kind === "stremio" ? t("Stremio link copied") : t("Manifest URL copied"));
-    } catch {
+    };
+    await work().catch(() => {
       showToast("error", t("Couldn't copy. Select the URL manually."));
-    }
+    });
   };
 
   const mainRef = useRef<HTMLElement>(null);

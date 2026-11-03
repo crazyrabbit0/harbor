@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownToLine,
   ArrowUp,
@@ -402,10 +402,12 @@ export function PlayPicker({
     return base.slice().sort((a, b) => (hostMatch.get(b) ?? 0) - (hostMatch.get(a) ?? 0));
   }, [filteredPicker, addonOrderMode, result, addons, hostMatch]);
 
+  const hasEpisode = !!episode;
+  const episodeSeason = episode?.season ?? null;
+  const episodeNumber = episode?.episode ?? null;
   const playbackPreparationHint = useMemo(
-    () =>
-      episode ? { season: episode.season ?? null, episode: episode.episode ?? null } : undefined,
-    [episode?.season, episode?.episode],
+    () => (hasEpisode ? { season: episodeSeason, episode: episodeNumber } : undefined),
+    [hasEpisode, episodeSeason, episodeNumber],
   );
   const playbackPreparationSignature = useMemo(
     () => cachedDebridPreparationSignature(displayStreams, debrids, playbackPreparationHint),
@@ -416,11 +418,13 @@ export function PlayPicker({
     debrids,
     hint: playbackPreparationHint,
   });
-  playbackPreparationInput.current = {
-    streams: displayStreams,
-    debrids,
-    hint: playbackPreparationHint,
-  };
+  useLayoutEffect(() => {
+    playbackPreparationInput.current = {
+      streams: displayStreams,
+      debrids,
+      hint: playbackPreparationHint,
+    };
+  }, [displayStreams, debrids, playbackPreparationHint]);
 
   useEffect(() => {
     if (!settings.instantPlaybackPreparation || isDownload || !playbackPreparationSignature) {
@@ -740,7 +744,7 @@ export function PlayPicker({
       });
     }
     return [...seen.values()];
-  }, [result, addonLogoMap]);
+  }, [filteredPicker, addonLogoMap]);
   const backdropSrc = episode?.still || meta.background || meta.poster;
 
   const [maxWaitElapsed, setMaxWaitElapsed] = useState(false);
@@ -768,11 +772,12 @@ export function PlayPicker({
     perEpisodeAcRef.current = ac;
     setPerEpisodeBusy(true);
     setPerEpisodeStatus({ code: "checking", total: targets.length });
+    const addonList = addons ?? [];
     try {
       const batch = await downloadSeasonPerEpisode({
         meta,
         episodes: targets,
-        addons: addons ?? [],
+        addons: addonList,
         debrids,
         allowP2p: directTorrentEnabled(),
         signal: ac.signal,
@@ -792,11 +797,10 @@ export function PlayPicker({
       }
     } catch {
       if (!ac.signal.aborted) setPerEpisodeStatus({ code: "failed" });
-    } finally {
-      if (!ac.signal.aborted) {
-        perEpisodeAcRef.current = null;
-        setPerEpisodeBusy(false);
-      }
+    }
+    if (!ac.signal.aborted) {
+      perEpisodeAcRef.current = null;
+      setPerEpisodeBusy(false);
     }
   }, [addons, debrids, meta, seasonEpisodes]);
   const [stubBanner, setStubBanner] = useState(false);

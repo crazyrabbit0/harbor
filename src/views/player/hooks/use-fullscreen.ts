@@ -11,6 +11,8 @@ import {
   toggleWindowFullscreen,
 } from "@/lib/fullscreen-state";
 
+const loadApiCore = () => import("@tauri-apps/api/core");
+
 export function useFullscreen() {
   const [fullscreen, setFullscreen] = useState(getWindowFullscreen);
 
@@ -47,7 +49,7 @@ export function useFullscreen() {
       window.dispatchEvent(new Event("resize"));
       window.dispatchEvent(new Event("harbor:mpv-refresh-geom"));
       try {
-        const { invoke } = await import("@tauri-apps/api/core");
+        const { invoke } = await loadApiCore();
         if (document.documentElement.dataset.mpvEmbed === "1") {
           await invoke("webview_reapply_transparency").catch(() => {});
         }

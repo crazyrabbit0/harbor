@@ -146,6 +146,7 @@ export function MusicTopPlaylists({
   const cursor = useRef(0);
   const seen = useRef(new Set<string>());
   const live = useRef(true);
+  const [drained, setDrained] = useState(false);
 
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
@@ -187,6 +188,7 @@ export function MusicTopPlaylists({
   const pull = useCallback(async () => {
     const slice = lanes.current.slice(cursor.current, cursor.current + LANES_PER_STEP);
     cursor.current += slice.length;
+    setDrained(cursor.current >= lanes.current.length);
     if (!slice.length) return;
     const batch = await Promise.allSettled(slice.map((lane) => lane.load()));
     if (live.current) absorb(batch);
@@ -201,13 +203,14 @@ export function MusicTopPlaylists({
     lanes.current = [];
     const picked = genreId === null ? null : (genres.find((g) => g.id === genreId) ?? null);
     void (async () => {
-      try {
+      const work = async () => {
         lanes.current = await topPlaylistLanes(picked);
         for (let step = 0; step < OPENING_STEPS; step += 1) await pull();
         if (live.current) setStatus("ready");
-      } catch {
+      };
+      await work().catch(() => {
         if (live.current) setStatus("error");
-      }
+      });
     })();
     return () => {
       live.current = false;
@@ -222,7 +225,7 @@ export function MusicTopPlaylists({
     });
   };
 
-  const exhausted = cursor.current >= lanes.current.length && status === "ready";
+  const exhausted = drained && status === "ready";
 
   return (
     <section className="music-tastes">

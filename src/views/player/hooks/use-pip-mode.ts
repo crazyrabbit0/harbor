@@ -1,7 +1,16 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import { useSettingsSelector } from "@/lib/settings";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
+
+const loadApiCore = () => import("@tauri-apps/api/core");
+const loadApiEvent = () => import("@tauri-apps/api/event");
+
+function safeUnlisten(off: (() => void) | null) {
+  try {
+    off?.();
+  } catch {}
+}
 
 export function usePipMode(params: {
   bridgeRef: RefObject<PlayerBridge | null>;
@@ -14,15 +23,21 @@ export function usePipMode(params: {
   const { bridgeRef, setChromeHidden, onDetach, onReattach } = params;
   const settings = useSettingsSelector((s) => ({ pipBehavior: s.pipBehavior }));
   const onDetachRef = useRef(onDetach);
-  onDetachRef.current = onDetach;
+  useLayoutEffect(() => {
+    onDetachRef.current = onDetach;
+  });
   const onReattachRef = useRef(onReattach);
-  onReattachRef.current = onReattach;
+  useLayoutEffect(() => {
+    onReattachRef.current = onReattach;
+  });
   // Detached moves the live surface into its own window; resize shrinks Harbor itself.
   const detached = settings.pipBehavior === "native";
   const [pipMode, setPipMode] = useState(false);
   const nativeDetached = useRef(false);
   const setChromeHiddenRef = useRef(setChromeHidden);
-  setChromeHiddenRef.current = setChromeHidden;
+  useLayoutEffect(() => {
+    setChromeHiddenRef.current = setChromeHidden;
+  });
 
   useEffect(() => {
     const isTauri = "__TAURI__" in window || "__TAURI_INTERNALS__" in window;
@@ -36,9 +51,7 @@ export function usePipMode(params: {
         try {
           window.dispatchEvent(new Event("resize"));
           window.dispatchEvent(new Event("harbor:mpv-refresh-geom"));
-          void import("@tauri-apps/api/core").then(({ invoke }) =>
-            invoke("hdr_overlay_sync").catch(() => {}),
-          );
+          void loadApiCore().then(({ invoke }) => invoke("hdr_overlay_sync").catch(() => {}));
         } catch {}
       };
       requestAnimationFrame(fire);
@@ -48,7 +61,7 @@ export function usePipMode(params: {
       window.setTimeout(fire, 900);
     };
     void (async () => {
-      const { listen } = await import("@tauri-apps/api/event");
+      const { listen } = await loadApiEvent();
       const onEntered = makeSafeTauriUnlisten(
         await listen("pip://entered", () => {
           setPipMode(true);
@@ -94,12 +107,8 @@ export function usePipMode(params: {
     })();
     return () => {
       cancelled = true;
-      try {
-        unlistenEntered?.();
-      } catch {}
-      try {
-        unlistenExited?.();
-      } catch {}
+      safeUnlisten(unlistenEntered);
+      safeUnlisten(unlistenExited);
       for (const off of unlistenDetached) {
         try {
           off();
@@ -110,12 +119,11 @@ export function usePipMode(params: {
       unlistenExited = null;
       if (nativeDetached.current) {
         nativeDetached.current = false;
-        void import("@tauri-apps/api/core")
+        void loadApiCore()
           .then(({ invoke }) => invoke("pip_window_exit"))
           .catch(() => {});
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const togglePipMode = useCallback(async () => {
@@ -124,8 +132,8 @@ export function usePipMode(params: {
       bridgeRef.current?.requestPiP();
       return;
     }
-    try {
-      const { invoke } = await import("@tauri-apps/api/core");
+    const toggle = async () => {
+      const { invoke } = await loadApiCore();
       if (pipMode) {
         setPipMode(false);
         setChromeHidden(false);
@@ -136,22 +144,24 @@ export function usePipMode(params: {
         }
         await invoke(detached ? "pip_window_enter" : "window_pip_enter");
       }
-    } catch (e) {
+    };
+    await toggle().catch((e) => {
       console.warn("[player] pip toggle failed, reverting", e);
       setPipMode(false);
       setChromeHidden(false);
       bridgeRef.current?.requestPiP();
-    }
-  }, [pipMode, setChromeHidden, detached]);
+    });
+  }, [pipMode, setChromeHidden, detached, bridgeRef]);
 
   const exitPip = useCallback(async () => {
     if (!pipMode) return;
     setPipMode(false);
     setChromeHidden(false);
-    try {
-      const { invoke } = await import("@tauri-apps/api/core");
+    const exit = async () => {
+      const { invoke } = await loadApiCore();
       await invoke(nativeDetached.current ? "pip_window_exit" : "window_pip_exit");
-    } catch {}
+    };
+    await exit().catch(() => {});
   }, [pipMode, setChromeHidden, detached]);
 
   return { pipMode, togglePipMode, exitPip };

@@ -45,6 +45,14 @@ import {
   normalizeName,
 } from "./calendar/utils";
 
+function saveFiltersOpen(open: boolean) {
+  try {
+    localStorage.setItem("harbor.calendar.filtersOpen", open ? "1" : "0");
+  } catch {
+    /* noop */
+  }
+}
+
 export function CalendarView({
   active = true,
   gamesAllowed = true,
@@ -80,11 +88,7 @@ export function CalendarView({
   const railHostRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    try {
-      localStorage.setItem("harbor.calendar.filtersOpen", configOpen ? "1" : "0");
-    } catch {
-      /* noop */
-    }
+    saveFiltersOpen(configOpen);
   }, [configOpen]);
 
   useEffect(() => {

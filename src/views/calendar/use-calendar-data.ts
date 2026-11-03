@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   fetchCalendarRange,
   fetchCustomCalendar,
@@ -101,10 +101,10 @@ export function useCalendarData({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const viewKey = `${source}|${animeDub}|${year}-${month}|${snapshotKey ?? ""}`;
-  const prevKeyRef = useRef(viewKey);
+  const [prevKey, setPrevKey] = useState(viewKey);
 
-  if (prevKeyRef.current !== viewKey) {
-    prevKeyRef.current = viewKey;
+  if (prevKey !== viewKey) {
+    setPrevKey(viewKey);
     setItems(readSnapshot(snapshotKey) ?? []);
     setLoading(true);
     setError(null);

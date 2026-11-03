@@ -53,20 +53,23 @@ export function SetupStremio({
     setError(null);
     if (!ready) return;
     setBusy(true);
-    try {
+    const work = async () => {
       const res = await login(email.trim(), password);
       setPassword("");
       onDeliver(res.authKey);
-    } catch (e) {
-      setError(
-        isReachFailure(e)
-          ? t("Could not reach Stremio. Check your phone's connection and try again.")
-          : ((e as { message?: string })?.message ??
-              t("Stremio did not accept that email and password.")),
-      );
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError(
+          isReachFailure(e)
+            ? t("Could not reach Stremio. Check your phone's connection and try again.")
+            : ((e as { message?: string })?.message ??
+                t("Stremio did not accept that email and password.")),
+        );
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const action = confirmed ? (

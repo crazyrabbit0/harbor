@@ -120,6 +120,7 @@ async function resolveAll(
 
 export function useRatingsImport(): RatingsImport {
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
+  const tmdbKey = settings.tmdbKey ?? "";
   const [status, setStatus] = useState<ImportStatus>("idle");
   const [cancelling, setCancelling] = useState(false);
   const [progress, setProgress] = useState<ImportProgress>(BLANK);
@@ -164,13 +165,13 @@ export function useRatingsImport(): RatingsImport {
       const startedAt = Date.now();
       let saved = 0;
 
-      try {
+      const work = async () => {
         const rows = await source.fetchRatings(input, (p) => push(p), ac.signal);
         if (ac.signal.aborted) throw abortError();
         const scanned = Math.max(snap.current.total ?? 0, snap.current.fetched, rows.length);
         push({ phase: "fetch", fetched: rows.length, total: rows.length }, true);
 
-        const found = await resolveAll(rows, push, ac.signal, settings.tmdbKey ?? "");
+        const found = await resolveAll(rows, push, ac.signal, tmdbKey);
         push(
           {
             phase: "write",
@@ -217,28 +218,31 @@ export function useRatingsImport(): RatingsImport {
           samples: found.samples,
         });
         setStatus("done");
-      } catch (e) {
-        if (stale()) return;
-        push({}, true);
-        if (isAbort(e)) {
-          setStatus("cancelled");
-          return;
-        }
-        setError(e instanceof Error ? e.message.trim() || null : null);
-        setStatus("error");
-      } finally {
-        if (saved > 0) {
-          recordImport({
-            sourceId: source.id,
-            sourceLabel: source.label,
-            count: saved,
-            startedAt,
-            finishedAt: Date.now(),
-          });
-        }
-      }
+      };
+      await work()
+        .catch((e: unknown) => {
+          if (stale()) return;
+          push({}, true);
+          if (isAbort(e)) {
+            setStatus("cancelled");
+            return;
+          }
+          setError(e instanceof Error ? e.message.trim() || null : null);
+          setStatus("error");
+        })
+        .finally(() => {
+          if (saved > 0) {
+            recordImport({
+              sourceId: source.id,
+              sourceLabel: source.label,
+              count: saved,
+              startedAt,
+              finishedAt: Date.now(),
+            });
+          }
+        });
     },
-    [push],
+    [push, tmdbKey],
   );
 
   const start = useCallback(

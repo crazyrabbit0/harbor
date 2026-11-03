@@ -24,6 +24,14 @@ import { useTrakt } from "@/lib/trakt/provider";
 import { pushWatched } from "@/lib/trakt/history";
 import { useT } from "@/lib/i18n";
 
+function statusForTarget(
+  map: Awaited<ReturnType<typeof loadSimklStatusMap>>,
+  harborId: string,
+  malKey: string | null,
+): WatchlistStatus | null {
+  return statusForId(map, harborId) ?? (malKey ? statusForId(map, malKey) : null);
+}
+
 const ANILIST_LABELS: Record<MediaListStatus, string> = {
   CURRENT: "Watching",
   PLANNING: "Plan to Watch",
@@ -128,7 +136,7 @@ export function SimklMenuItems({
       try {
         const m = await loadSimklStatusMap();
         if (cancelled) return;
-        setStatus(statusForId(m, harborId) ?? (malKey ? statusForId(m, malKey) : null));
+        setStatus(statusForTarget(m, harborId, malKey));
         setReady(true);
       } catch {
         if (!cancelled) setReady(true);

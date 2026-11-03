@@ -65,7 +65,7 @@ export function AddonInstallModal({
     setLoading(true);
     setError(null);
     setResolved(null);
-    try {
+    const work = async () => {
       const parsed = parseAddonUrl(rawUrl);
       if (parsed.kind === "error") throw new Error(parsed.message);
       const manifest = await fetchManifestAt(parsed.url);
@@ -91,11 +91,14 @@ export function AddonInstallModal({
         }
       }
       setResolved({ manifest, url: parsed.url, matchKind, replaceId, replaceName });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("Couldn't read that addon URL."));
-    } finally {
-      setLoading(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : t("Couldn't read that addon URL."));
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   useEffect(() => {
@@ -124,7 +127,7 @@ export function AddonInstallModal({
     setInstallStage(stages);
     await new Promise((r) => setTimeout(r, 220));
     setInstallStage((s) => (s ? s.map((x, i) => (i === 1 ? { ...x, done: true } : x)) : s));
-    try {
+    const work = async () => {
       const result = await onInstall(resolved.url, {
         replaceId: resolved.replaceId ?? undefined,
       });
@@ -132,10 +135,11 @@ export function AddonInstallModal({
       await new Promise((r) => setTimeout(r, 280));
       if (result) setDone({ replaced: result.replaced, manifest: resolved.manifest });
       else setInstallStage(null);
-    } catch (e) {
+    };
+    await work().catch((e) => {
       setError(e instanceof Error ? e.message : t("Install failed."));
       setInstallStage(null);
-    }
+    });
   };
 
   const isUpdate = resolved && resolved.matchKind !== "fresh";

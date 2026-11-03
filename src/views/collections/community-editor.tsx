@@ -815,13 +815,16 @@ function ImageField({
   const run = async (fn: () => Promise<void>) => {
     setError(null);
     setBusy(true);
-    try {
+    const work = async () => {
       await fn();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : t("Could not upload image."));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError(e instanceof Error ? e.message : t("Could not upload image."));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   return (

@@ -15,6 +15,29 @@ import { ExtensionRepos } from "./extension-repos";
 
 type Load = { state: "loading" | "ready" | "error"; items: SuwayomiExtension[] };
 
+// Updates every extension in turn; one the server refuses must not stop the rest of the batch.
+async function updateEach(
+  config: ServerConfig,
+  updatable: readonly { pkgName: string }[],
+  onProgress: (ok: number) => void,
+): Promise<{ ok: number; failed: number; reason: string | undefined }> {
+  let ok = 0;
+  let failed = 0;
+  let reason: string | undefined;
+  for (const ext of updatable) {
+    try {
+      await updateExtension(config, ext.pkgName);
+      ok += 1;
+      onProgress(ok);
+    } catch (err) {
+      // Keep the first reason so the user learns why instead of just seeing it halt.
+      failed += 1;
+      reason ??= err instanceof Error && err.message ? err.message : undefined;
+    }
+  }
+  return { ok, failed, reason };
+}
+
 function matches(ext: SuwayomiExtension, q: string): boolean {
   if (!q) return true;
   const needle = q.toLowerCase();
@@ -135,28 +158,14 @@ export function ExtensionsManager({ config }: { config: ServerConfig }) {
     setUpdating(true);
     setUpdatedCount(0);
     setUpdateSummary(null);
-    let ok = 0;
-    let failed = 0;
-    let reason: string | undefined;
-    try {
-      for (const ext of updatable) {
-        try {
-          await updateExtension(config, ext.pkgName);
-          ok += 1;
-          setUpdatedCount(ok);
-        } catch (err) {
-          // One extension the server refuses (e.g. a rebuild it considers the
-          // same version) must not stop the rest of the batch. Keep the first
-          // reason so the user learns why instead of just seeing it halt.
-          failed += 1;
-          reason ??= err instanceof Error && err.message ? err.message : undefined;
-        }
-      }
+    const work = async () => {
+      const { ok, failed, reason } = await updateEach(config, updatable, setUpdatedCount);
       if (failed > 0) setUpdateSummary({ ok, failed, reason });
       setReload((n) => n + 1);
-    } finally {
+    };
+    await work().finally(() => {
       setUpdating(false);
-    }
+    });
   };
 
   return (

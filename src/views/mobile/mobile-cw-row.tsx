@@ -24,6 +24,7 @@ import {
   libraryMetaType,
   type LibraryItem,
 } from "@/lib/stremio";
+import { readAtVersion } from "@/lib/read-at-version";
 
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
@@ -131,43 +132,47 @@ export function useMobileCw(limit = 14): LibraryItem[] {
 
   useEffect(() => subscribeLocalCw(() => setLocalVersion((v) => v + 1)), []);
 
-  return useMemo(() => {
-    void localVersion;
-    void dismissVersion;
-    const base = hideSharedCw
-      ? []
-      : [...items.filter((i) => !ANIME_CLOUD_ID.test(i._id)), ...externalCw];
-    const merged = [...base, ...listLocalCw(hideSharedCw).map(localToLibraryItem)]
-      .filter(
-        (i) =>
-          (i.type as string) !== "other" &&
-          !i._id.startsWith("iptv:") &&
-          !isCwDismissed(i) &&
-          isCwMember(i) &&
-          !(hideAnime && isAnimeCwItem(i)),
-      )
-      .map((i) => ({ i, k: cwSortKey(i) }))
-      .sort((a, b) => b.k - a.k)
-      .map((e) => e.i);
-    const seen = new Set<string>();
-    const out: LibraryItem[] = [];
-    for (const i of merged) {
-      if (seen.has(i._id)) continue;
-      seen.add(i._id);
-      out.push(i);
-      if (out.length >= limit) break;
-    }
-    return out;
-  }, [
-    items,
-    externalCw,
-    localVersion,
-    dismissVersion,
-    limit,
-    hideAnime,
-    hideSharedCw,
-    activeProfile?.id,
-  ]);
+  return useMemo(
+    () =>
+      readAtVersion([localVersion, dismissVersion], () =>
+        readAtVersion([items, externalCw, activeProfile?.id], () => {
+          const base = hideSharedCw
+            ? []
+            : [...items.filter((i) => !ANIME_CLOUD_ID.test(i._id)), ...externalCw];
+          const merged = [...base, ...listLocalCw(hideSharedCw).map(localToLibraryItem)]
+            .filter(
+              (i) =>
+                (i.type as string) !== "other" &&
+                !i._id.startsWith("iptv:") &&
+                !isCwDismissed(i) &&
+                isCwMember(i) &&
+                !(hideAnime && isAnimeCwItem(i)),
+            )
+            .map((i) => ({ i, k: cwSortKey(i) }))
+            .sort((a, b) => b.k - a.k)
+            .map((e) => e.i);
+          const seen = new Set<string>();
+          const out: LibraryItem[] = [];
+          for (const i of merged) {
+            if (seen.has(i._id)) continue;
+            seen.add(i._id);
+            out.push(i);
+            if (out.length >= limit) break;
+          }
+          return out;
+        }),
+      ),
+    [
+      items,
+      externalCw,
+      localVersion,
+      dismissVersion,
+      limit,
+      hideAnime,
+      hideSharedCw,
+      activeProfile?.id,
+    ],
+  );
 }
 
 function toMeta(item: LibraryItem): Meta {

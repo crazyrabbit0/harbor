@@ -94,12 +94,12 @@ export function MusicGenreVideos({
       alive.current = false;
     };
   }, []);
-  const more = useCallback(async () => {
+  const more = async () => {
     if (loading.current || ended) return;
     loading.current = true;
     setBusy(true);
     setFailed(false);
-    try {
+    const work = async () => {
       const page = await loadGenreArtistRoster(genre.id, cursor.current);
       if (!alive.current) return;
       setChoices((previous) => {
@@ -116,13 +116,16 @@ export function MusicGenreVideos({
       });
       if (page.next !== null) cursor.current = page.next;
       else setEnded(true);
-    } catch {
-      if (alive.current) setFailed(true);
-    } finally {
-      loading.current = false;
-      if (alive.current) setBusy(false);
-    }
-  }, [choices, ended, genre.id]);
+    };
+    await work()
+      .catch(() => {
+        if (alive.current) setFailed(true);
+      })
+      .finally(() => {
+        loading.current = false;
+        if (alive.current) setBusy(false);
+      });
+  };
   const measure = useCallback(() => {
     const el = rail.current;
     if (!el) return;

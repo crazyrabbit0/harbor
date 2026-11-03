@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useEffect, useRef, type RefObject, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, type RefObject, type CSSProperties } from "react";
 import { PickCard } from "@/components/pick-card";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
@@ -79,7 +79,9 @@ function LoadMoreSentinel({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const cb = useRef(onLoadMore);
-  cb.current = onLoadMore;
+  useLayoutEffect(() => {
+    cb.current = onLoadMore;
+  }, [onLoadMore]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

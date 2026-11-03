@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { getSeekHovering, subscribeSeekHovering } from "@/lib/player/playback-clock";
 import { getJumpMarks, subscribeJumpMarks } from "@/lib/player/jump-marks";
 import { isPlayerChromeHeld, subscribePlayerChromeHold } from "@/lib/player/chrome-hold";
@@ -40,11 +48,17 @@ export function useChromeVisibility(params: {
   const heldRef = useRef(false);
   const resumeHideRef = useRef(false);
   const playingRef = useRef(playing);
-  playingRef.current = playing;
+  useLayoutEffect(() => {
+    playingRef.current = playing;
+  });
   const drawModeRef = useRef(drawMode);
-  drawModeRef.current = drawMode;
+  useLayoutEffect(() => {
+    drawModeRef.current = drawMode;
+  });
   const pipModeRef = useRef(pipMode);
-  pipModeRef.current = pipMode;
+  useLayoutEffect(() => {
+    pipModeRef.current = pipMode;
+  });
 
   const wakeChrome = useCallback(() => {
     setChromeVisible(true);
@@ -64,7 +78,9 @@ export function useChromeVisibility(params: {
     }, wait);
   }, [setChromeHidden]);
   const wakeChromeRef = useRef(wakeChrome);
-  wakeChromeRef.current = wakeChrome;
+  useLayoutEffect(() => {
+    wakeChromeRef.current = wakeChrome;
+  });
 
   const hideForResume = useCallback(() => {
     resumeHideRef.current = true;

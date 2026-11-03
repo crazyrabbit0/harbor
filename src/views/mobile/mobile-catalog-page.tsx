@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { Poster, usePosterChain } from "@/components/poster";
@@ -47,7 +47,9 @@ export function MobileCatalogGrid({
   const reqRef = useRef(0);
   const loadingRef = useRef(false);
   const fetchRef = useRef(fetchPage);
-  fetchRef.current = fetchPage;
+  useLayoutEffect(() => {
+    fetchRef.current = fetchPage;
+  }, [fetchPage]);
 
   useEffect(() => {
     reqRef.current += 1;
@@ -158,7 +160,9 @@ function GridPoster({ meta, onOpen }: { meta: Meta; onOpen: (m: Meta) => void })
 function LoadMoreSentinel({ onLoadMore }: { onLoadMore: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const cb = useRef(onLoadMore);
-  cb.current = onLoadMore;
+  useLayoutEffect(() => {
+    cb.current = onLoadMore;
+  }, [onLoadMore]);
   useEffect(() => {
     const el = ref.current;
     if (!el) return;

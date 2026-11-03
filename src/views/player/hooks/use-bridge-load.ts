@@ -48,9 +48,13 @@ export function useBridgeLoad(params: {
 
   const { settings } = useSettings();
   const resumePromptRef = useRef(settings.resumePrompt);
-  resumePromptRef.current = settings.resumePrompt;
+  useEffect(() => {
+    resumePromptRef.current = settings.resumePrompt;
+  });
   const resumePlaybackRef = useRef(settings.resumePlayback);
-  resumePlaybackRef.current = settings.resumePlayback;
+  useEffect(() => {
+    resumePlaybackRef.current = settings.resumePlayback;
+  });
 
   const lastLoadedUrlRef = useRef<string | null>(null);
   const firstLoadRef = useRef(true);
@@ -139,7 +143,7 @@ export function useBridgeLoad(params: {
         resumePromptRef.current &&
         startSec > RESUME_PROMPT_MIN_SEC &&
         !guestInRoom;
-      try {
+      const loadOnce = async () => {
         await bridge.load({
           url: playUrl,
           traceId: src.playbackTraceId,
@@ -152,10 +156,15 @@ export function useBridgeLoad(params: {
           // while a later seek races automatic intro skipping.
           startAtSec: !guestInRoom && !eligibleForPrompt && startSec > 5 ? startSec : undefined,
         });
-      } catch (e) {
-        if (!cancelled) console.warn("[player] load failed", e);
-        return;
-      }
+      };
+      const loaded = await loadOnce().then(
+        () => true,
+        (e) => {
+          if (!cancelled) console.warn("[player] load failed", e);
+          return false;
+        },
+      );
+      if (!loaded) return;
       if (cancelled) return;
       lastLoadedUrlRef.current = loadKey;
       firstLoadRef.current = false;
@@ -187,7 +196,6 @@ export function useBridgeLoad(params: {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     bridgeReady,
     bridgeKey,

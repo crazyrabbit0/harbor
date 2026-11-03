@@ -29,8 +29,9 @@ export function MemoryHud() {
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
+    const stored = open ? "1" : "0";
     try {
-      localStorage.setItem(STORAGE_KEY, open ? "1" : "0");
+      localStorage.setItem(STORAGE_KEY, stored);
     } catch {}
   }, [open]);
 

@@ -371,7 +371,9 @@ async function resolveWork(entry: WorkLike, preferSeries: boolean): Promise<Meta
 function useWorkMeta(entry: WorkLike, preferSeries: boolean): Meta | null {
   const key = workKey(entry) + (preferSeries ? "|s" : "");
   const entryRef = useRef(entry);
-  entryRef.current = entry;
+  useLayoutEffect(() => {
+    entryRef.current = entry;
+  }, [entry]);
   const [v, setV] = useState<Meta | null>(() => workCache.get(key) ?? null);
   useEffect(() => {
     if (workCache.has(key)) {

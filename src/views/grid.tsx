@@ -27,8 +27,7 @@ export function GridView({ grid }: { grid: GridSpec }) {
   const loadedRef = useRef(initialPage === 0 ? 0 : (grid.initial?.length ?? 0));
   const loadingRef = useRef(false);
   const pageRef = useRef(page);
-  const idsRef = useRef<Set<string> | null>(null);
-  idsRef.current ??= new Set((grid.initial ?? []).map((m) => m.id));
+  const [seenIds] = useState(() => new Set((grid.initial ?? []).map((m) => m.id)));
   const observerRef = useRef<IntersectionObserver | null>(null);
   useScrollMemory(`grid:${grid.title}`, scrollRef);
 
@@ -49,7 +48,7 @@ export function GridView({ grid }: { grid: GridSpec }) {
             setPage(next);
             loadedRef.current += batch.length;
             if (batch.length === 0 || next >= PAGE_CAP) setDone(true);
-            const seen = idsRef.current!;
+            const seen = seenIds;
             const fresh = batch.filter((m) => {
               if (seen.has(m.id)) return false;
               seen.add(m.id);
@@ -70,7 +69,7 @@ export function GridView({ grid }: { grid: GridSpec }) {
       observerRef.current = null;
       io.disconnect();
     };
-  }, [grid, done]);
+  }, [grid, done, seenIds]);
 
   // Re-observing after each page fires a fresh entry when the sentinel never left the viewport.
   useEffect(() => {

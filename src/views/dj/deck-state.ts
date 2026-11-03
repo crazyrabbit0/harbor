@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   normalizeMusicAudio,
   saveMusicAudioSettings,
@@ -26,7 +26,9 @@ export function useLiveAudio() {
   const latest = useRef(stored);
 
   const settings = useMemo(() => ({ ...stored, ...draft }), [stored, draft]);
-  latest.current = settings;
+  useLayoutEffect(() => {
+    latest.current = settings;
+  }, [settings]);
 
   useEffect(() => {
     setDraft((current) => {
@@ -75,12 +77,16 @@ export function useLiveAudio() {
   return { settings, set, reset };
 }
 
+function clockAnchor(time: number) {
+  return { at: typeof performance === "undefined" ? 0 : performance.now(), time };
+}
+
 export function useDeckClock(currentTime: number, playing: boolean, speed: number) {
   const anchor = useRef({ at: 0, time: 0 });
-  anchor.current = useMemo(
-    () => ({ at: typeof performance === "undefined" ? 0 : performance.now(), time: currentTime }),
-    [currentTime],
-  );
+  const stamped = useMemo(() => clockAnchor(currentTime), [currentTime]);
+  useLayoutEffect(() => {
+    anchor.current = stamped;
+  }, [stamped]);
   return useCallback(() => {
     const { at, time } = anchor.current;
     if (!playing) return time;

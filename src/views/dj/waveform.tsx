@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { sendDeckCommand } from "@/lib/music/deck-sync";
 import { deckStates } from "@/lib/music/decks";
@@ -46,9 +46,13 @@ export function DeckWaveform({
   const scroll = useRef(createScroll());
   const ticked = useRef(performance.now());
   const rolling = useRef(playing);
-  rolling.current = playing;
+  useLayoutEffect(() => {
+    rolling.current = playing;
+  }, [playing]);
   const rate = useRef(speed);
-  rate.current = speed;
+  useLayoutEffect(() => {
+    rate.current = speed;
+  }, [speed]);
   const shell = useRef<HTMLDivElement>(null);
   const zoom = useRef<HTMLCanvasElement>(null);
   const board = useRef<HTMLCanvasElement>(null);
@@ -72,13 +76,21 @@ export function DeckWaveform({
   const reported = useRef<BeatGrid | null | undefined>(undefined);
 
   const clock = useRef(readPosition);
-  clock.current = readPosition;
+  useLayoutEffect(() => {
+    clock.current = readPosition;
+  }, [readPosition]);
   const total = useRef(duration);
-  total.current = duration;
+  useLayoutEffect(() => {
+    total.current = duration;
+  }, [duration]);
   const wide = useRef(size === "full");
-  wide.current = size === "full";
+  useLayoutEffect(() => {
+    wide.current = size === "full";
+  });
   const notify = useRef(onGrid);
-  notify.current = onGrid;
+  useLayoutEffect(() => {
+    notify.current = onGrid;
+  }, [onGrid]);
 
   useEffect(() => {
     held.current = null;

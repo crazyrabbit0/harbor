@@ -25,7 +25,7 @@ export function SourceEditor({ source, onDone }: { source: MangaSource; onDone: 
   const save = async () => {
     setError(null);
     setSaving(true);
-    try {
+    const work = async () => {
       if (isHtml) {
         const parsed = parseHtmlConfig(config);
         if (!parsed) {
@@ -57,9 +57,10 @@ export function SourceEditor({ source, onDone }: { source: MangaSource; onDone: 
         if (next.id !== source.id) removeMangaSource(source.id);
       }
       onDone();
-    } finally {
+    };
+    await work().finally(() => {
       setSaving(false);
-    }
+    });
   };
 
   return (

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import {
   Bookmark,
   BookOpen,
@@ -145,7 +145,11 @@ export function MangaRemote({
     m?.chapterId ?? "",
     m?.seq ?? 0,
   );
-  const feedUrls = useMemo(() => m?.pageUrls ?? [], [m?.chapterId, m?.pageCount]);
+  // Page URLs are re-read only when the chapter or its page count changes, not on every snapshot.
+  const feedKey = `${m?.chapterId ?? ""}|${m?.pageCount ?? ""}`;
+  const [feed, setFeed] = useState(() => ({ key: feedKey, urls: m?.pageUrls ?? [] }));
+  if (feed.key !== feedKey) setFeed({ key: feedKey, urls: m?.pageUrls ?? [] });
+  const feedUrls = feed.key === feedKey ? feed.urls : (m?.pageUrls ?? []);
 
   useEffect(() => {
     if (feedPage == null || displayPage === feedPage) return;

@@ -40,23 +40,26 @@ export function useEsports(
       setNow(Date.now());
       setPending(keys);
       // Independent providers publish as they finish; one outage cannot blank the arena.
-      let cursor = 0;
+      const cursor = { next: 0 };
       await Promise.all(
         Array.from({ length: Math.min(3, keys.length) }, async () => {
-          while (cursor < keys.length && !controller.signal.aborted) {
-            const key = keys[cursor++];
-            try {
+          while (cursor.next < keys.length && !controller.signal.aborted) {
+            const key = keys[cursor.next++];
+            const work = async () => {
               const result = await fetchEsportsFeed(key, {
                 signal: controller.signal,
                 force: refresh > 0,
               });
               if (!controller.signal.aborted) setFeeds((prev) => ({ ...prev, [key]: result }));
-            } catch {
-              /* The provider returns its own unavailable state; aborts don't publish. */
-            } finally {
-              if (!controller.signal.aborted)
-                setPending((prev) => prev.filter((value) => value !== key));
-            }
+            };
+            await work()
+              .catch(() => {
+                /* The provider returns its own unavailable state; aborts don't publish. */
+              })
+              .finally(() => {
+                if (!controller.signal.aborted)
+                  setPending((prev) => prev.filter((value) => value !== key));
+              });
           }
         }),
       );

@@ -7,6 +7,12 @@ import { useT } from "@/lib/i18n";
 
 type Cue = { text: string; lang: string | null; paused: boolean };
 
+function safeUnlisten(off: (() => void) | null) {
+  try {
+    off?.();
+  } catch {}
+}
+
 const SMALL = { w: 468, h: 168 };
 const LARGE = { w: 720, h: 260 };
 
@@ -49,9 +55,7 @@ export function CaptionsApp() {
     })();
     return () => {
       dead = true;
-      try {
-        off?.();
-      } catch {}
+      safeUnlisten(off);
     };
   }, []);
 

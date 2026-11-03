@@ -35,14 +35,9 @@ function formatCount(n: number) {
   return String(n);
 }
 
-export function AnimeStatsDonut({ slices }: { slices: StatusSlice[] }) {
-  const t = useT();
-  if (slices.length === 0) return null;
-  const total = slices.reduce((sum, s) => sum + s.amount, 0);
-  if (total <= 0) return null;
-
+function buildArcs(slices: StatusSlice[], total: number) {
   let offset = 0;
-  const arcs = slices.map((slice, index) => {
+  return slices.map((slice, index) => {
     const pct = (slice.amount / total) * 100;
     const dashoffset = 25 - offset;
     offset += pct;
@@ -55,6 +50,15 @@ export function AnimeStatsDonut({ slices }: { slices: StatusSlice[] }) {
       dashoffset,
     };
   });
+}
+
+export function AnimeStatsDonut({ slices }: { slices: StatusSlice[] }) {
+  const t = useT();
+  if (slices.length === 0) return null;
+  const total = slices.reduce((sum, s) => sum + s.amount, 0);
+  if (total <= 0) return null;
+
+  const arcs = buildArcs(slices, total);
 
   return (
     <div className="flex flex-wrap items-center gap-6">

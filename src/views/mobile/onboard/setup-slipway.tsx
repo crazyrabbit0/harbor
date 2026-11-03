@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { SetupBoat } from "./setup-boat";
 import { StepMark } from "./setup-marks";
 import type { SetupStepId } from "./setup-wire";
@@ -19,8 +19,8 @@ export function SetupSlipway({
   built: number;
   won?: boolean;
 }) {
-  const start = useRef(built);
-  const animate = built > start.current ? "latest" : "none";
+  const [start] = useState(built);
+  const animate = built > start ? "latest" : "none";
 
   return (
     <div

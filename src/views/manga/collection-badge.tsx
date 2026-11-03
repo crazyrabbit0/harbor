@@ -6,6 +6,8 @@ import { collectionsForTitle } from "@/lib/manga/collections";
 import { hasAnyMangaSource } from "@/lib/manga/sources";
 import { useViewActions } from "@/lib/view";
 
+const loadMangaApi = () => import("@/lib/manga/api");
+
 const BADGE_ART: Record<string, string> = {
   popular: "/awards/most-popular-clean.webp",
   acclaimed: "/awards/critically-acclaimed.webp",
@@ -40,7 +42,7 @@ export function MangaAwardCorner({
   useEffect(() => {
     if (!award || !title) return;
     let cancelled = false;
-    void import("@/lib/manga/api")
+    void loadMangaApi()
       .then(({ searchManga }) => searchManga(title, 0))
       .then((list) => {
         if (cancelled) return;

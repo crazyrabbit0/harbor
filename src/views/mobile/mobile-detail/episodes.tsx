@@ -22,6 +22,7 @@ import {
 } from "./data";
 import { Line, SectionTitle } from "./ui";
 import { OrderStyleSwitch, type OrderOption } from "./order-switch";
+import { readAtVersion } from "@/lib/read-at-version";
 
 type SeasonEntry = SeasonOption & { badge?: string };
 
@@ -93,20 +94,31 @@ export function EpisodeSection({
     else setOverride({ provider: "tvdb", seasonType: value });
   };
 
-  const seasonOptions = useMemo<SeasonEntry[]>(() => {
-    if (ordering) {
-      return ordering.seasons
-        .filter((s) => s.seasonNumber >= 1)
-        .map((s) => {
-          const label =
-            s.name && s.name.trim()
-              ? s.name
-              : translate("Season {number}", { number: s.seasonNumber });
-          return { number: s.seasonNumber, label, badge: seasonTypeBadge(s.seasonNumber, label) };
-        });
-    }
-    return seasons.map((n) => ({ number: n, label: translate("Season {number}", { number: n }) }));
-  }, [ordering, seasons, language]);
+  const seasonOptions = useMemo<SeasonEntry[]>(
+    () =>
+      readAtVersion(language, () => {
+        if (ordering) {
+          return ordering.seasons
+            .filter((s) => s.seasonNumber >= 1)
+            .map((s) => {
+              const label =
+                s.name && s.name.trim()
+                  ? s.name
+                  : translate("Season {number}", { number: s.seasonNumber });
+              return {
+                number: s.seasonNumber,
+                label,
+                badge: seasonTypeBadge(s.seasonNumber, label),
+              };
+            });
+        }
+        return seasons.map((n) => ({
+          number: n,
+          label: translate("Season {number}", { number: n }),
+        }));
+      }),
+    [ordering, seasons, language],
+  );
 
   const [season, setSeason] = useState<number>(() => {
     const v = getViewedSeason(meta.id);

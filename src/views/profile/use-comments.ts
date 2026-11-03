@@ -69,17 +69,20 @@ export function useComments(handle: string): CommentsController {
       if (!authKey) return "signin";
       const clean = stripUrls(raw.trim());
       setSending(true);
-      try {
+      const work = async () => {
         const created = await postComment(handle, clean, parentId);
         lastSentAt.current = Date.now();
         setComments((cur) => [{ ...created, parentId: created.parentId ?? parentId }, ...cur]);
         setState("ready");
         return null;
-      } catch (e) {
-        return e instanceof ProfileApiError && e.status === 429 ? "cooldown" : "failed";
-      } finally {
-        setSending(false);
-      }
+      };
+      return await work()
+        .catch((e) => {
+          return e instanceof ProfileApiError && e.status === 429 ? "cooldown" : "failed";
+        })
+        .finally(() => {
+          setSending(false);
+        });
     },
     [handle, authKey],
   );

@@ -12,10 +12,12 @@ export function useXtreamEpgFallback(
 ): EpgIndex | null {
   const [augmented, setAugmented] = useState<EpgIndex | null>(null);
 
+  const kind = source?.kind;
+  const xtream = source?.xtream;
   const creds = useMemo(() => {
-    if (source?.kind !== "xtream" || !source.xtream) return null;
-    return credsFromServer(source.xtream.server, source.xtream.username, source.xtream.password);
-  }, [source?.kind, source?.xtream]);
+    if (kind !== "xtream" || !xtream) return null;
+    return credsFromServer(xtream.server, xtream.username, xtream.password);
+  }, [kind, xtream]);
 
   const baseEmpty = !base || base.byChannel.size === 0;
   const subset = useMemo(() => channels.slice(0, MAX_CHANNELS), [channels]);

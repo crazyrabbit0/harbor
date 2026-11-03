@@ -166,7 +166,6 @@ export function usePlayerBridge(params: {
       setPlaybackClock(0, 0);
       setPlaybackStatus("idle");
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bridgeKey, svpPending]);
 
   useEffect(() => {

@@ -14,6 +14,7 @@ import { useChannelStatsVersion } from "@/lib/iptv/channel-stats";
 import { applyUserChannelOrder, applyUserGroupOrder } from "@/lib/iptv/channel-order";
 import { useGroupPrefs } from "@/lib/iptv/group-order";
 import { isLiveChannel } from "@/lib/iptv/vod-classify";
+import { readAtVersion } from "@/lib/read-at-version";
 
 type Favorites = ReturnType<typeof useFavorites>;
 type ViewMode = "home" | "grid" | "guide" | "multiview";
@@ -42,6 +43,8 @@ export function useChannelPipeline(params: {
   } = params;
   const inFavorites = group === FAVORITES_GROUP_KEY;
   const langKey = preferredLanguages.join(",");
+  // Keyed by content, so a new array with the same languages does not re-sort.
+  const languages = useMemo(() => (langKey ? langKey.split(",") : []), [langKey]);
   const sourceId = playlist?.id ?? "";
   const groupPrefs = useGroupPrefs(sourceId);
 
@@ -50,13 +53,13 @@ export function useChannelPipeline(params: {
     [playlist?.channels],
   );
   const sortedChannels = useMemo(
-    () => sortChannelsByGroupRelevance(liveChannels, region, preferredLanguages),
-    [liveChannels, region, langKey],
+    () => sortChannelsByGroupRelevance(liveChannels, region, languages),
+    [liveChannels, region, languages],
   );
   const pinnedOrder = usePinnedOrder();
   const statsVersion = useChannelStatsVersion();
   const userChannels = useMemo(
-    () => applyUserChannelOrder(sortedChannels, pinnedOrder),
+    () => readAtVersion(statsVersion, () => applyUserChannelOrder(sortedChannels, pinnedOrder)),
     [sortedChannels, pinnedOrder, statsVersion],
   );
   const shownChannels = useMemo(() => {
@@ -70,8 +73,8 @@ export function useChannelPipeline(params: {
     return [...set];
   }, [liveChannels]);
   const sortedGroups = useMemo(
-    () => sortGroupsByRelevance(liveGroups, region, preferredLanguages),
-    [liveGroups, region, langKey],
+    () => sortGroupsByRelevance(liveGroups, region, languages),
+    [liveGroups, region, languages],
   );
   const userGroups = useMemo(
     () => applyUserGroupOrder(sortedGroups, groupPrefs),
@@ -109,8 +112,8 @@ export function useChannelPipeline(params: {
         out.push(c);
       }
     }
-    return sortChannelsByGroupRelevance(out, region, preferredLanguages);
-  }, [allPlaylists, region, langKey]);
+    return sortChannelsByGroupRelevance(out, region, languages);
+  }, [allPlaylists, region, languages]);
 
   const favoriteChannels = useMemo(() => {
     if (!inFavorites) return [];

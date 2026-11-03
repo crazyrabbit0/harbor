@@ -72,7 +72,7 @@ export function SetupHarbor({
     setError(null);
     if (!ready) return;
     setBusy(true);
-    try {
+    const work = async () => {
       if (mode === "create") {
         const { recoveryCode } = await registerIdentity(username, password);
         setPassword("");
@@ -92,15 +92,18 @@ export function SetupHarbor({
         return;
       }
       onDeliver(s);
-    } catch (e) {
-      setError(
-        reachFailed(e)
-          ? t("Could not reach Harbor. Check your phone's connection and try again.")
-          : ((e as { message?: string })?.message ?? t("That did not work. Check your details.")),
-      );
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError(
+          reachFailed(e)
+            ? t("Could not reach Harbor. Check your phone's connection and try again.")
+            : ((e as { message?: string })?.message ?? t("That did not work. Check your details.")),
+        );
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const action = confirmed ? (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 const INITIAL_BATCH = 24;
 const BATCH_SIZE = 24;
@@ -24,7 +24,9 @@ export function useLazyVisible<T>(
     return Math.min(MAX_SHOWN, Math.max(INITIAL_BATCH, cached));
   });
   const itemsLenRef = useRef(items.length);
-  itemsLenRef.current = items.length;
+  useLayoutEffect(() => {
+    itemsLenRef.current = items.length;
+  });
   const [sentinel, setSentinel] = useState<HTMLDivElement | null>(null);
 
   useEffect(() => {

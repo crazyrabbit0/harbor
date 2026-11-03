@@ -85,14 +85,17 @@ export function GroupCustomizer({
       canvasHeight: form.canvasHeight,
       customEnabled: form.customEnabled,
     };
-    try {
+    const work = async () => {
       onApply(await editGroup(detail.id, patch));
       setSaved(true);
-    } catch (e) {
-      setError((e as Error).message || t("Could not save changes."));
-    } finally {
-      setSaving(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError((e as Error).message || t("Could not save changes."));
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   return (

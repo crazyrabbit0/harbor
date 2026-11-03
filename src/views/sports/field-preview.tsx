@@ -65,7 +65,7 @@ export function FieldPreview({
       return;
     }
     void (async () => {
-      try {
+      const work = async () => {
         const response = await safeFetch(
           `https://site.api.espn.com/apis/site/v2/sports/${path}/teams/${encodeURIComponent(side.id)}/depthcharts`,
           {
@@ -93,10 +93,12 @@ export function FieldPreview({
         depthCache.set(key, { at: Date.now(), data });
         while (depthCache.size > 40) depthCache.delete(depthCache.keys().next().value!);
         if (!controller.signal.aborted) setDepth({ key, data });
-      } catch {
-      } finally {
-        if (!controller.signal.aborted) setPending(false);
-      }
+      };
+      await work()
+        .catch(() => {})
+        .finally(() => {
+          if (!controller.signal.aborted) setPending(false);
+        });
     })();
     return () => controller.abort();
   }, [open, basketball, key, side.id, game.league, path]);

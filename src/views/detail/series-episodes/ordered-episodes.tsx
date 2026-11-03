@@ -8,6 +8,7 @@ import { spoilerMaskFor } from "@/lib/spoilers";
 import { EpisodeGridSkeleton } from "../episode-grid-skeleton";
 import { EpisodeRow } from "../series-episode-row";
 import { EpisodeStrip } from "../episode-strip";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function OrderedEpisodes({
   meta,
@@ -35,27 +36,30 @@ export function OrderedEpisodes({
   const { settings } = useSettings();
   const mwVersion = useSyncExternalStore(subscribeManualWatched, manualWatchedVersion);
 
-  const progressByKey = useMemo(() => {
-    const m = new Map<string, { ratio: number; watched: boolean; startedAt: number }>();
-    for (const ep of episodes) {
-      m.set(
-        `${ep.seasonNumber}:${ep.episodeNumber}`,
-        getEpisodeProgress(
-          meta.id,
-          ep.seasonNumber,
-          ep.episodeNumber,
-          ep.runtime,
-          traktKey,
-          traktWatched,
-          stremioWatched,
-          undefined,
-          simklWatched,
-        ),
-      );
-    }
-    return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [episodes, meta.id, traktKey, traktWatched, stremioWatched, simklWatched, mwVersion]);
+  const progressByKey = useMemo(
+    () =>
+      readAtVersion(mwVersion, () => {
+        const m = new Map<string, { ratio: number; watched: boolean; startedAt: number }>();
+        for (const ep of episodes) {
+          m.set(
+            `${ep.seasonNumber}:${ep.episodeNumber}`,
+            getEpisodeProgress(
+              meta.id,
+              ep.seasonNumber,
+              ep.episodeNumber,
+              ep.runtime,
+              traktKey,
+              traktWatched,
+              stremioWatched,
+              undefined,
+              simklWatched,
+            ),
+          );
+        }
+        return m;
+      }),
+    [episodes, meta.id, traktKey, traktWatched, stremioWatched, simklWatched, mwVersion],
+  );
 
   const nextUpKey = useMemo(() => {
     for (const ep of episodes) {

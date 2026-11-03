@@ -100,8 +100,9 @@ export function HistoryTab() {
   const [query, setQuery] = useState("");
   const [flat, setFlat] = useState(() => localStorage.getItem("harbor.history.flat") === "1");
   useEffect(() => {
+    const value = flat ? "1" : "0";
     try {
-      localStorage.setItem("harbor.history.flat", flat ? "1" : "0");
+      localStorage.setItem("harbor.history.flat", value);
     } catch {}
   }, [flat]);
   const toggleFlat = useCallback(() => {

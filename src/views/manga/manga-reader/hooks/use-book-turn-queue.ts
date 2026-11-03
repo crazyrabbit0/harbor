@@ -9,23 +9,26 @@ export function useBookTurnQueue(bookApi: RefObject<BookApi | null>) {
   const timer = useRef<number | undefined>(undefined);
 
   const fire = useCallback(
-    (dir: "next" | "prev") => {
-      const api = bookApi.current;
-      if (!api) {
-        pending.current = null;
-        return;
-      }
-      if (dir === "next") api.next();
-      else api.prev();
-      busyUntil.current = performance.now() + FLIP_MS;
-      window.clearTimeout(timer.current);
-      timer.current = window.setTimeout(() => {
-        const p = pending.current;
-        pending.current = null;
-        if (!p) return;
-        if (p.n > 1) pending.current = { dir: p.dir, n: p.n - 1 };
-        fire(p.dir);
-      }, FLIP_MS + 10);
+    (first: "next" | "prev") => {
+      const step = (dir: "next" | "prev") => {
+        const api = bookApi.current;
+        if (!api) {
+          pending.current = null;
+          return;
+        }
+        if (dir === "next") api.next();
+        else api.prev();
+        busyUntil.current = performance.now() + FLIP_MS;
+        window.clearTimeout(timer.current);
+        timer.current = window.setTimeout(() => {
+          const p = pending.current;
+          pending.current = null;
+          if (!p) return;
+          if (p.n > 1) pending.current = { dir: p.dir, n: p.n - 1 };
+          step(p.dir);
+        }, FLIP_MS + 10);
+      };
+      step(first);
     },
     [bookApi],
   );

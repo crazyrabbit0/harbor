@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
@@ -22,7 +22,9 @@ export function MobileFeatured({ items, onOpen }: { items: Meta[]; onOpen: (m: M
   const scrollRef = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const activeRef = useRef(0);
-  activeRef.current = active;
+  useLayoutEffect(() => {
+    activeRef.current = active;
+  }, [active]);
   const pausedUntil = useRef(0);
   const reduceRef = useRef(false);
   const shown = useMemo(() => items.filter((m) => m.background).slice(0, 8), [items]);

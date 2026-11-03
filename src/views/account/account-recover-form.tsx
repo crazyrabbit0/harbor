@@ -36,14 +36,17 @@ export function AccountRecoverForm({
     if (!keyReady || busy) return;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       const { recoveryCode } = await recoverIdentity(username.trim(), key, password);
       onReset(recoveryCode);
-    } catch (err) {
-      setError(accountErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((err) => {
+        setError(accountErrorMessage(err));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const switchMode = (next: Mode) => {

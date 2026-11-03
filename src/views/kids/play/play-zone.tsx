@@ -1,5 +1,5 @@
 import { ArrowLeft, Fish, Gamepad2, Hash, Puzzle } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { pushOverlayPin } from "@/lib/overlay-pin";
 import { useT } from "@/lib/i18n";
@@ -59,11 +59,13 @@ export function KidsPlayZone({ onClose }: { onClose: () => void }) {
   const [gameOpen, setGameOpen] = useState(false);
   const [gameExitSignal, setGameExitSignal] = useState(0);
   const gameOpenRef = useRef(false);
-  gameOpenRef.current = gameOpen;
+  useLayoutEffect(() => {
+    gameOpenRef.current = gameOpen;
+  }, [gameOpen]);
 
   useEffect(() => pushOverlayPin(), []);
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     if (gameOpenRef.current) {
       setGameExitSignal((n) => n + 1);
       return;
@@ -73,7 +75,7 @@ export function KidsPlayZone({ onClose }: { onClose: () => void }) {
       onClose();
       return cur;
     });
-  };
+  }, [onClose]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -84,8 +86,7 @@ export function KidsPlayZone({ onClose }: { onClose: () => void }) {
     };
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [onClose]);
+  }, [goBack]);
 
   const active = ACTIVITIES.find((a) => a.id === activity) ?? null;
 

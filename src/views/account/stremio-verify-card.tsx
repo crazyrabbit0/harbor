@@ -41,14 +41,17 @@ export function StremioVerifyCard({ author }: { author: Author }) {
     if (busy) return;
     setBusy(mode);
     setError(null);
-    try {
+    const work = async () => {
       if (mode === "current" && authKey) await verifyWithCurrentStremio(authKey);
       else await verifyWithStremioBrowser();
-    } catch (e) {
-      setError(accountErrorMessage(e));
-    } finally {
-      setBusy(null);
-    }
+    };
+    await work()
+      .catch((e) => {
+        setError(accountErrorMessage(e));
+      })
+      .finally(() => {
+        setBusy(null);
+      });
   };
 
   return (

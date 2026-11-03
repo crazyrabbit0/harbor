@@ -93,9 +93,11 @@ export function useRoomSync(params: {
   } = params;
 
   const inRoomRef = useRef(inRoom);
-  inRoomRef.current = inRoom;
   const isHostRef = useRef(isHost);
-  isHostRef.current = isHost;
+  useEffect(() => {
+    inRoomRef.current = inRoom;
+    isHostRef.current = isHost;
+  }, [inRoom, isHost]);
   const syncCatchUpRef = useRef(false);
   const lastAppliedStateAtRef = useRef(0);
   const mediaKey = `${src.meta.id}|${src.episode?.season ?? ""}|${src.episode?.episode ?? ""}`;
@@ -111,11 +113,13 @@ export function useRoomSync(params: {
     at: 0,
   });
   const statusRef = useRef(snap.status);
-  statusRef.current = snap.status;
   const durationRef = useRef(snap.durationSec);
-  durationRef.current = snap.durationSec;
   const rateRef = useRef(snap.rate);
-  rateRef.current = snap.rate;
+  useEffect(() => {
+    statusRef.current = snap.status;
+    durationRef.current = snap.durationSec;
+    rateRef.current = snap.rate;
+  }, [snap.status, snap.durationSec, snap.rate]);
   const initialSyncDoneRef = useRef(false);
 
   useEffect(() => {

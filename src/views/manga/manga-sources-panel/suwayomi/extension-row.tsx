@@ -41,16 +41,19 @@ export function ExtensionRow({
   const run = async (action: () => Promise<void>) => {
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       await action();
       onChanged();
-    } catch (err) {
-      // Suwayomi's refusal (e.g. "Extension can't be updated to the same version.
-      // Reinstall the extension instead") is far more useful than a generic label.
-      setError(err instanceof Error && err.message ? err.message : t("Action failed"));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((err) => {
+        // Suwayomi's refusal (e.g. "Extension can't be updated to the same version.
+        // Reinstall the extension instead") is far more useful than a generic label.
+        setError(err instanceof Error && err.message ? err.message : t("Action failed"));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const icon = ext.iconUrl ?? extensionIconUrl(config, ext.apkName);

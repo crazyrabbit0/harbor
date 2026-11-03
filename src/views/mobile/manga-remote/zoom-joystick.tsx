@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   ChevronLeft,
@@ -24,6 +24,18 @@ const DECAY = 16;
 const ZERO = { x: 0, y: 0 };
 
 type Phase = "idle" | "pending" | "drag" | "spring";
+
+function releasePointer(el: HTMLElement | null, pointerId: number) {
+  try {
+    el?.releasePointerCapture(pointerId);
+  } catch {}
+}
+
+function capturePointer(el: HTMLElement | null, pointerId: number) {
+  try {
+    el?.setPointerCapture(pointerId);
+  } catch {}
+}
 
 function clampUnit(n: number): number {
   return n < -1 ? -1 : n > 1 ? 1 : n;
@@ -77,7 +89,9 @@ export function ZoomJoystick({
 
   const padRef = useRef<HTMLDivElement>(null);
   const propsRef = useRef({ zoom, min, max, onZoom, onPan });
-  propsRef.current = { zoom, min, max, onZoom, onPan };
+  useLayoutEffect(() => {
+    propsRef.current = { zoom, min, max, onZoom, onPan };
+  });
 
   const rafRef = useRef(0);
   const tickRef = useRef((_now: number) => {});
@@ -157,7 +171,9 @@ export function ZoomJoystick({
       }
     }
   };
-  tickRef.current = tick;
+  useLayoutEffect(() => {
+    tickRef.current = tick;
+  }, [tick]);
 
   const stopAll = () => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current);
@@ -187,9 +203,7 @@ export function ZoomJoystick({
       cancelAnimationFrame(rafRef.current);
       rafRef.current = 0;
     }
-    try {
-      padRef.current?.setPointerCapture(e.pointerId);
-    } catch {}
+    capturePointer(padRef.current, e.pointerId);
     pidRef.current = e.pointerId;
     startRef.current = { x: e.clientX, y: e.clientY, t: performance.now() };
     lastRef.current = { x: e.clientX, y: e.clientY };
@@ -221,9 +235,7 @@ export function ZoomJoystick({
 
   const release = (e: React.PointerEvent<HTMLDivElement>, cancel: boolean) => {
     if (pidRef.current !== e.pointerId) return;
-    try {
-      padRef.current?.releasePointerCapture(e.pointerId);
-    } catch {}
+    releasePointer(padRef.current, e.pointerId);
     pidRef.current = -1;
     const ph = phaseRef.current;
     if (ph === "drag") {

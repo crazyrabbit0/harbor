@@ -13,6 +13,8 @@ import {
 
 type Settings = ReturnType<typeof useSettings>["settings"];
 
+const loadPluginAutoCheck = () => import("@/lib/plugins/auto-check");
+
 function hasAnyResources(a: Addon): boolean {
   return (a.manifest.resources ?? []).length > 0;
 }
@@ -109,7 +111,7 @@ export function useAddons(
             includeExtensions: settings.pluginsOutsideTab,
           }),
         );
-        void import("@/lib/plugins/auto-check").then((m) =>
+        void loadPluginAutoCheck().then((m) =>
           m.schedulePluginAutoCheck(settings.pluginsAutoCheck),
         );
       }

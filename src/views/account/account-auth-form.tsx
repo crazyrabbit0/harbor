@@ -112,18 +112,21 @@ export function AccountAuthForm({
     if (!ready || busy) return;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       if (mode === "register") {
         const { recoveryCode } = await registerIdentity(trimmed, password);
         onRecovery?.(recoveryCode);
       } else {
         await loginIdentity(trimmed, password);
       }
-    } catch (err) {
-      setError(accountErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((err) => {
+        setError(accountErrorMessage(err));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const active = MODES.find((m) => m.id === mode)!;

@@ -87,14 +87,12 @@ export function useVideoFill(
     zoom.current = 0;
     appliedSrc.current = null;
     apply(index.current, 0, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [srcKey]);
 
   useEffect(() => {
     if (!loaded || appliedSrc.current === srcKey) return;
     appliedSrc.current = srcKey;
     apply(index.current, zoom.current, false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded, srcKey]);
 
   const cycle = () => {
@@ -125,5 +123,5 @@ export function useVideoFill(
     update({ cropMode: MODES[i].id });
   };
 
-  return { cycle, step, setMode, mode: settings.cropMode, zoom: zoom.current };
+  return { cycle, step, setMode, mode: settings.cropMode };
 }

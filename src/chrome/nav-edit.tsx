@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Eye, Plus, RotateCcw, X } from "lucide-react";
 import { TvModalClose } from "@/components/tv-modal-close";
 import { useT } from "@/lib/i18n";
@@ -98,6 +98,158 @@ function clearShifts(): void {
   shiftedKids = [];
 }
 
+function endActiveDrag(): ActiveDrag | null {
+  const drag = activeDrag;
+  activeDrag = null;
+  cancelActiveDrag = null;
+  drag?.ghost?.remove();
+  if (draggedEl) {
+    draggedEl.style.display = "";
+    const wrapper = draggedEl.closest<HTMLElement>("[data-nav-edit-wrapper]");
+    if (wrapper) wrapper.style.display = "";
+  }
+  clearInline(draggedEl);
+  draggedEl = null;
+  clearShifts();
+  document.body.style.userSelect = "";
+  emitOver();
+  return drag;
+}
+
+function beginActiveDrag(drag: ActiveDrag, el: HTMLElement, cancel: () => void): void {
+  cancelActiveDrag?.();
+  activeDrag = drag;
+  cancelActiveDrag = cancel;
+  draggedEl = el;
+}
+
+function moveActiveDrag(e: PointerEvent, orientation: "vertical" | "horizontal"): void {
+  const drag = activeDrag;
+  if (!drag || e.pointerId !== drag.pointerId) return;
+  const dx = e.clientX - drag.startX;
+  const dy = e.clientY - drag.startY;
+  if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+  if (!drag.moved) {
+    drag.moved = true;
+    document.body.style.userSelect = "none";
+    if (draggedEl) {
+      const scope = draggedEl.closest("nav") ?? draggedEl.parentElement ?? document.body;
+      const before = new Map<HTMLElement, number>();
+      for (const k of scope.querySelectorAll<HTMLElement>("[data-nav-drop-id]")) {
+        const rect = k.getBoundingClientRect();
+        before.set(k, orientation === "vertical" ? rect.top : rect.left);
+      }
+      const r = draggedEl.getBoundingClientRect();
+      drag.w = r.width;
+      drag.h = r.height;
+      const g = draggedEl.cloneNode(true) as HTMLElement;
+      g.removeAttribute("id");
+      g.setAttribute("aria-hidden", "true");
+      g.inert = true;
+      g.style.position = "fixed";
+      g.style.left = `${r.left}px`;
+      g.style.top = `${r.top}px`;
+      g.style.width = `${r.width}px`;
+      g.style.height = `${r.height}px`;
+      g.style.margin = "0";
+      g.style.pointerEvents = "none";
+      g.style.zIndex = "60";
+      g.style.transition = "none";
+      document.body.appendChild(g);
+      drag.ghost = g;
+      draggedEl.style.display = "none";
+      const wrapper = draggedEl.closest<HTMLElement>("[data-nav-edit-wrapper]");
+      if (wrapper) wrapper.style.display = "none";
+      draggedEl.style.pointerEvents = "none";
+      for (const k of scope.querySelectorAll<HTMLElement>("[data-nav-drop-id]")) {
+        if (k === draggedEl) continue;
+        const rect = k.getBoundingClientRect();
+        const offset = (before.get(k) ?? 0) - (orientation === "vertical" ? rect.top : rect.left);
+        const axis = orientation === "vertical" ? "Y" : "X";
+        if (!drag.reducedMotion && Math.abs(offset) > 1) {
+          k.animate(
+            [{ transform: `translate${axis}(${offset}px)` }, { transform: `translate${axis}(0)` }],
+            {
+              duration: 180,
+              easing: "ease-out",
+            },
+          );
+        }
+      }
+    }
+  }
+  if (drag.ghost) {
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    drag.ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${drag.reducedMotion ? 1 : 1.06})`;
+    drag.ghost.style.boxShadow = "0 14px 30px -10px rgba(0,0,0,0.55)";
+  }
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const cell = el?.closest?.("[data-nav-drop-id]") as HTMLElement | null;
+  const vertical = orientation === "vertical";
+  let container: HTMLElement | null =
+    cell?.closest("nav") ?? (draggedEl?.parentElement as HTMLElement | null) ?? null;
+  const relevant = (scope: HTMLElement | null) =>
+    scope
+      ? [...scope.querySelectorAll<HTMLElement>("[data-nav-drop-id]")].filter(
+          (k) => k !== draggedEl && !k.closest('[aria-hidden="true"]'),
+        )
+      : [];
+  for (let d = 0; d < 5 && container && relevant(container).length < 1; d++) {
+    container = container.parentElement;
+  }
+  const kids = relevant(container);
+  const direction =
+    !vertical && container && getComputedStyle(container).direction === "rtl" ? -1 : 1;
+  const cursor = (vertical ? e.clientY : e.clientX) * direction;
+  let idx = kids.length;
+  for (let i = 0; i < kids.length; i++) {
+    const r = kids[i].getBoundingClientRect();
+    const mid = (vertical ? r.top + r.height / 2 : r.left + r.width / 2) * direction;
+    if (cursor < mid) {
+      idx = i;
+      break;
+    }
+  }
+  const extent = (vertical ? drag.h : drag.w) + 6;
+  const nextShifted: HTMLElement[] = [];
+  kids.forEach((k, j) => {
+    if (j < idx) {
+      if (shiftedKids.includes(k)) {
+        k.style.transform = "";
+      }
+      return;
+    }
+    k.style.transition = drag.reducedMotion ? "none" : "transform 160ms ease-out";
+    k.style.transform = vertical
+      ? `translateY(${extent}px)`
+      : `translateX(${extent * direction}px)`;
+    nextShifted.push(k);
+  });
+  for (const k of shiftedKids) {
+    if (!nextShifted.includes(k)) {
+      k.style.transform = "";
+    }
+  }
+  shiftedKids = nextShifted;
+  if (idx >= kids.length) {
+    const lastKid = kids[kids.length - 1];
+    const newTarget = lastKid?.dataset.navDropId ?? null;
+    if (drag.target !== newTarget || drag.pos !== "after") {
+      drag.target = newTarget;
+      drag.pos = "after";
+      emitOver();
+    }
+  } else {
+    const newTarget = kids[idx].dataset.navDropId ?? null;
+    if (drag.target !== newTarget || drag.pos !== "before") {
+      drag.target = newTarget;
+      drag.pos = "before";
+      emitOver();
+    }
+  }
+}
+
 export function useNavDrag(
   itemId: NavItemId | undefined,
   orientation: "vertical" | "horizontal" = "vertical",
@@ -106,7 +258,9 @@ export function useNavDrag(
   const editing = useNavEditMode();
   const cfgRef = useRef(cfg);
   const cleanupDrag = useRef<(() => void) | null>(null);
-  cfgRef.current = cfg;
+  useLayoutEffect(() => {
+    cfgRef.current = cfg;
+  }, [cfg]);
   const [, force] = useState(0);
   useEffect(() => {
     const tick = () => force((n) => n + 1);
@@ -121,21 +275,8 @@ export function useNavDrag(
   }, [editing]);
 
   const finish = (commitMove: boolean) => {
-    const drag = activeDrag;
-    activeDrag = null;
-    cancelActiveDrag = null;
     cleanupDrag.current = null;
-    drag?.ghost?.remove();
-    if (draggedEl) {
-      draggedEl.style.display = "";
-      const wrapper = draggedEl.closest<HTMLElement>("[data-nav-edit-wrapper]");
-      if (wrapper) wrapper.style.display = "";
-    }
-    clearInline(draggedEl);
-    draggedEl = null;
-    clearShifts();
-    document.body.style.userSelect = "";
-    emitOver();
+    const drag = endActiveDrag();
     window.removeEventListener("pointermove", onMove);
     window.removeEventListener("pointerup", onUp);
     window.removeEventListener("pointercancel", onCancel);
@@ -151,135 +292,7 @@ export function useNavDrag(
       window.setTimeout(() => window.removeEventListener("click", swallow, true), 50);
     }
   };
-  const onMove = (e: PointerEvent) => {
-    const drag = activeDrag;
-    if (!drag || e.pointerId !== drag.pointerId) return;
-    const dx = e.clientX - drag.startX;
-    const dy = e.clientY - drag.startY;
-    if (!drag.moved && Math.hypot(dx, dy) < 6) return;
-    if (!drag.moved) {
-      drag.moved = true;
-      document.body.style.userSelect = "none";
-      if (draggedEl) {
-        const scope = draggedEl.closest("nav") ?? draggedEl.parentElement ?? document.body;
-        const before = new Map<HTMLElement, number>();
-        for (const k of scope.querySelectorAll<HTMLElement>("[data-nav-drop-id]")) {
-          const rect = k.getBoundingClientRect();
-          before.set(k, orientation === "vertical" ? rect.top : rect.left);
-        }
-        const r = draggedEl.getBoundingClientRect();
-        drag.w = r.width;
-        drag.h = r.height;
-        const g = draggedEl.cloneNode(true) as HTMLElement;
-        g.removeAttribute("id");
-        g.setAttribute("aria-hidden", "true");
-        g.inert = true;
-        g.style.position = "fixed";
-        g.style.left = `${r.left}px`;
-        g.style.top = `${r.top}px`;
-        g.style.width = `${r.width}px`;
-        g.style.height = `${r.height}px`;
-        g.style.margin = "0";
-        g.style.pointerEvents = "none";
-        g.style.zIndex = "60";
-        g.style.transition = "none";
-        document.body.appendChild(g);
-        drag.ghost = g;
-        draggedEl.style.display = "none";
-        const wrapper = draggedEl.closest<HTMLElement>("[data-nav-edit-wrapper]");
-        if (wrapper) wrapper.style.display = "none";
-        draggedEl.style.pointerEvents = "none";
-        for (const k of scope.querySelectorAll<HTMLElement>("[data-nav-drop-id]")) {
-          if (k === draggedEl) continue;
-          const rect = k.getBoundingClientRect();
-          const offset = (before.get(k) ?? 0) - (orientation === "vertical" ? rect.top : rect.left);
-          const axis = orientation === "vertical" ? "Y" : "X";
-          if (!drag.reducedMotion && Math.abs(offset) > 1) {
-            k.animate(
-              [
-                { transform: `translate${axis}(${offset}px)` },
-                { transform: `translate${axis}(0)` },
-              ],
-              {
-                duration: 180,
-                easing: "ease-out",
-              },
-            );
-          }
-        }
-      }
-    }
-    if (drag.ghost) {
-      const dx = e.clientX - drag.startX;
-      const dy = e.clientY - drag.startY;
-      drag.ghost.style.transform = `translate(${dx}px, ${dy}px) scale(${drag.reducedMotion ? 1 : 1.06})`;
-      drag.ghost.style.boxShadow = "0 14px 30px -10px rgba(0,0,0,0.55)";
-    }
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const cell = el?.closest?.("[data-nav-drop-id]") as HTMLElement | null;
-    const vertical = orientation === "vertical";
-    let container: HTMLElement | null =
-      cell?.closest("nav") ?? (draggedEl?.parentElement as HTMLElement | null) ?? null;
-    const relevant = (scope: HTMLElement | null) =>
-      scope
-        ? [...scope.querySelectorAll<HTMLElement>("[data-nav-drop-id]")].filter(
-            (k) => k !== draggedEl && !k.closest('[aria-hidden="true"]'),
-          )
-        : [];
-    for (let d = 0; d < 5 && container && relevant(container).length < 1; d++) {
-      container = container.parentElement;
-    }
-    const kids = relevant(container);
-    const direction =
-      !vertical && container && getComputedStyle(container).direction === "rtl" ? -1 : 1;
-    const cursor = (vertical ? e.clientY : e.clientX) * direction;
-    let idx = kids.length;
-    for (let i = 0; i < kids.length; i++) {
-      const r = kids[i].getBoundingClientRect();
-      const mid = (vertical ? r.top + r.height / 2 : r.left + r.width / 2) * direction;
-      if (cursor < mid) {
-        idx = i;
-        break;
-      }
-    }
-    const extent = (vertical ? drag.h : drag.w) + 6;
-    const nextShifted: HTMLElement[] = [];
-    kids.forEach((k, j) => {
-      if (j < idx) {
-        if (shiftedKids.includes(k)) {
-          k.style.transform = "";
-        }
-        return;
-      }
-      k.style.transition = drag.reducedMotion ? "none" : "transform 160ms ease-out";
-      k.style.transform = vertical
-        ? `translateY(${extent}px)`
-        : `translateX(${extent * direction}px)`;
-      nextShifted.push(k);
-    });
-    for (const k of shiftedKids) {
-      if (!nextShifted.includes(k)) {
-        k.style.transform = "";
-      }
-    }
-    shiftedKids = nextShifted;
-    if (idx >= kids.length) {
-      const lastKid = kids[kids.length - 1];
-      const newTarget = lastKid?.dataset.navDropId ?? null;
-      if (drag.target !== newTarget || drag.pos !== "after") {
-        drag.target = newTarget;
-        drag.pos = "after";
-        emitOver();
-      }
-    } else {
-      const newTarget = kids[idx].dataset.navDropId ?? null;
-      if (drag.target !== newTarget || drag.pos !== "before") {
-        drag.target = newTarget;
-        drag.pos = "before";
-        emitOver();
-      }
-    }
-  };
+  const onMove = (e: PointerEvent) => moveActiveDrag(e, orientation);
   const onUp = (e: PointerEvent) => {
     if (!activeDrag || e.pointerId !== activeDrag.pointerId) return;
     finish(true);
@@ -312,8 +325,7 @@ export function useNavDrag(
     onPointerDown: (e: React.PointerEvent) => {
       if (!editing || itemId == null) return;
       if (e.button !== 0) return;
-      cancelActiveDrag?.();
-      activeDrag = {
+      const drag: ActiveDrag = {
         fromId: itemId,
         target: null,
         pos: "before",
@@ -326,9 +338,9 @@ export function useNavDrag(
         ghost: null,
         reducedMotion: window.matchMedia("(prefers-reduced-motion: reduce)").matches,
       };
-      cleanupDrag.current = () => finish(false);
-      cancelActiveDrag = cleanupDrag.current;
-      draggedEl = e.currentTarget as HTMLElement;
+      const cancel = () => finish(false);
+      beginActiveDrag(drag, e.currentTarget as HTMLElement, cancel);
+      cleanupDrag.current = cancel;
       window.addEventListener("pointermove", onMove);
       window.addEventListener("pointerup", onUp);
       window.addEventListener("pointercancel", onCancel);

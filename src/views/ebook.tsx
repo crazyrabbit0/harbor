@@ -128,6 +128,10 @@ import { EBookSetup } from "./ebook/ebook-setup";
 import { EBookReader } from "./ebook/ebook-reader";
 import { EBookWheelMenu, type EBookWheelTarget } from "./ebook/ebook-wheel-menu";
 import { MangaRail } from "./manga/manga-rail";
+import { readAtVersion } from "@/lib/read-at-version";
+
+const loadLibSearch = () => import("@/lib/search");
+const loadMangaApi = () => import("@/lib/manga/api");
 
 type Rail = {
   title: string;
@@ -323,30 +327,34 @@ export function EBookView() {
       favorites.map((ebook) => currentItems.get(ebook.id) ?? mergeEBookMetadata([ebook], [])[0]),
     [currentItems, favorites],
   );
-  const continueBookmarks = useMemo(() => {
-    const candidates = new Map<string, EBook>();
-    for (const ebook of [
-      ...(sourceItems ?? []),
-      ...(sourceCatalogItems ?? []),
-      ...(results ?? []),
-      ...displaySaved,
-      ...displayFavorites,
-    ])
-      candidates.set(ebook.id, ebook);
-    return [...candidates.values()]
-      .map((ebook) => ({ ebook, resume: loadEBookResume(activeId ?? "default", ebook.id) }))
-      .filter((item) => item.resume !== null)
-      .sort((left, right) => right.resume!.updatedAt - left.resume!.updatedAt)
-      .map((item) => item.ebook);
-  }, [
-    activeId,
-    displayFavorites,
-    displaySaved,
-    results,
-    resumeVersion,
-    sourceCatalogItems,
-    sourceItems,
-  ]);
+  const continueBookmarks = useMemo(
+    () =>
+      readAtVersion(resumeVersion, () => {
+        const candidates = new Map<string, EBook>();
+        for (const ebook of [
+          ...(sourceItems ?? []),
+          ...(sourceCatalogItems ?? []),
+          ...(results ?? []),
+          ...displaySaved,
+          ...displayFavorites,
+        ])
+          candidates.set(ebook.id, ebook);
+        return [...candidates.values()]
+          .map((ebook) => ({ ebook, resume: loadEBookResume(activeId ?? "default", ebook.id) }))
+          .filter((item) => item.resume !== null)
+          .sort((left, right) => right.resume!.updatedAt - left.resume!.updatedAt)
+          .map((item) => item.ebook);
+      }),
+    [
+      activeId,
+      displayFavorites,
+      displaySaved,
+      results,
+      resumeVersion,
+      sourceCatalogItems,
+      sourceItems,
+    ],
+  );
   const loadedSourceCandidates = useMemo(() => {
     const candidates = new Map<string, EBook>();
     for (const item of [
@@ -510,7 +518,7 @@ export function EBookView() {
         )
           return;
         awardSearchScopesRef.current.add(collectionScope);
-        try {
+        const stream = async () => {
           await streamSourceEBookAwardMatches(
             [...(sourceCatalogItems ?? []), ...cachedAwardBooks],
             (title) => searchSourceEBookCatalog(title, providerId),
@@ -520,9 +528,10 @@ export function EBookView() {
             },
           );
           if (active && seq === sourceSeq.current) markSourceEBookAwardsResolved(collectionScope);
-        } finally {
+        };
+        await stream().finally(() => {
           awardSearchScopesRef.current.delete(collectionScope);
-        }
+        });
       };
       await Promise.all([loadCatalog(), loadAwards()]);
     })()
@@ -2444,7 +2453,7 @@ function EBookInformation({ ebook }: { ebook: EBook }) {
       return;
     }
     if (item.kind === "anime") {
-      const { searchAnime } = await import("@/lib/search");
+      const { searchAnime } = await loadLibSearch();
       const matches = await searchAnime(item.title).catch(() => []);
       const titleKey = item.title.toLocaleLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
       const match =
@@ -2476,7 +2485,7 @@ function EBookInformation({ ebook }: { ebook: EBook }) {
     }
     if (item.kind === "manga") {
       setAdaptationStatus({ id: item.id, state: "resolving" });
-      const { searchMangaAcrossSources } = await import("@/lib/manga/api");
+      const { searchMangaAcrossSources } = await loadMangaApi();
       const normalizeTitle = (title: string) =>
         title
           .normalize("NFKD")

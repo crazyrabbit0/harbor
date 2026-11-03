@@ -25,6 +25,11 @@ export function GameCalendarPanel(props: CalendarProps) {
   );
 }
 
+const cardDetail = (entry: GameCalendarRelease) =>
+  [entry.source, entry.release?.platform, entry.release?.region?.replace(/_/g, " ")]
+    .filter(Boolean)
+    .join(" · ") || entry.game.platforms.join(" · ");
+
 export function GameReleaseCalendar({
   games,
   year,
@@ -121,11 +126,7 @@ export function GameReleaseCalendar({
       <span className="game-calendar-card-copy">
         <strong dir="auto">{entry.game.name}</strong>
         {window && <b dir="auto">{entry.release?.label || t("games.watchlist.unknown")}</b>}
-        <small dir="auto">
-          {[entry.source, entry.release?.platform, entry.release?.region?.replace(/_/g, " ")]
-            .filter(Boolean)
-            .join(" · ") || entry.game.platforms.join(" · ")}
-        </small>
+        <small dir="auto">{cardDetail(entry)}</small>
         {entry.retained ? (
           <em>{t("games.watchlist.saved")}</em>
         ) : !entry.checked ? (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { useMobileRemote } from "../mobile-remote";
@@ -62,7 +62,11 @@ export function MangaLocalReader({ onExit }: { onExit: () => void }) {
   const hasNext = m?.hasNext ?? false;
 
   const rawPages = m?.pageUrls;
-  const pages = useMemo(() => rawPages ?? [], [chapterId, rawPages?.length, rawPages?.[0]]);
+  // Keyed by chapter, length and first page, so an equal list re-sent in a snapshot keeps its identity.
+  const pagesKey = `${chapterId}|${rawPages?.length ?? ""}|${rawPages?.[0] ?? ""}`;
+  const [pagesFor, setPagesFor] = useState(() => ({ key: pagesKey, pages: rawPages ?? [] }));
+  if (pagesFor.key !== pagesKey) setPagesFor({ key: pagesKey, pages: rawPages ?? [] });
+  const pages = pagesFor.key === pagesKey ? pagesFor.pages : (rawPages ?? []);
   const total = pages.length || (m?.pageCount ?? 0);
 
   const { page, setPage } = useLocalPager(chapterId, total, m?.pageIndex ?? 0);
@@ -84,12 +88,16 @@ export function MangaLocalReader({ onExit }: { onExit: () => void }) {
       onExit();
     }
   }, [m?.exitLocalReader, onExit]);
+  // Mount-only: the desktop pages stay hidden for this reader session, whatever sendCommand identity follows.
+  const sendCommandRef = useRef(sendCommand);
+  useLayoutEffect(() => {
+    sendCommandRef.current = sendCommand;
+  }, [sendCommand]);
   useEffect(() => {
-    sendCommand({ action: "mangaSetPagesHidden", hidden: !loadStripPreview() });
+    sendCommandRef.current({ action: "mangaSetPagesHidden", hidden: !loadStripPreview() });
     return () => {
-      sendCommand({ action: "mangaSetPagesHidden", hidden: false });
+      sendCommandRef.current({ action: "mangaSetPagesHidden", hidden: false });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   useEffect(() => {
     if (firstChapter.current) {
@@ -99,6 +107,12 @@ export function MangaLocalReader({ onExit }: { onExit: () => void }) {
     setBookStart(0);
     setBookSpread("");
   }, [chapterId]);
+
+  const setLocalZoom = (z: number) => {
+    const clamped = Math.max(0.5, Math.min(3, Math.round(z * 100) / 100));
+    setLocalZoomState(clamped);
+    saveLocalZoom(clamped);
+  };
 
   const prevMode = useRef(mode);
   useEffect(() => {
@@ -191,12 +205,6 @@ export function MangaLocalReader({ onExit }: { onExit: () => void }) {
     saveStripPreview(true);
     sendCommand({ action: "mangaSetPagesHidden", hidden: false });
     onExit();
-  };
-
-  const setLocalZoom = (z: number) => {
-    const clamped = Math.max(0.5, Math.min(3, Math.round(z * 100) / 100));
-    setLocalZoomState(clamped);
-    saveLocalZoom(clamped);
   };
 
   const toggleChrome = () => setChromeHidden((v) => !v);

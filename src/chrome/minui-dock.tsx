@@ -33,7 +33,8 @@ export function MinUIDock() {
   const [cursor, setCursor] = useState<number | null>(null);
   const [mounted, setMounted] = useState(false);
   const trackRef = useRef<HTMLDivElement>(null);
-  const buttonCentersRef = useRef<number[]>([]);
+  // Centers of the buttons as last drawn, captured with each pointer move.
+  const [hoverCenters, setHoverCenters] = useState<number[]>([]);
   const editing = useNavEditMode();
   const { open: openContextMenu } = useContextMenu();
   const openEmptyMenu = (e: React.MouseEvent) => {
@@ -72,12 +73,9 @@ export function MinUIDock() {
   let firstPassScales = visible.map(() => 1);
   if (cursor != null) {
     const centers =
-      buttonCentersRef.current.length === visible.length
-        ? buttonCentersRef.current
-        : computeCenters(firstPassScales);
+      hoverCenters.length === visible.length ? hoverCenters : computeCenters(firstPassScales);
     firstPassScales = centers.map((c) => magnify(Math.abs(cursor - c)));
   }
-  buttonCentersRef.current = computeCenters(firstPassScales);
 
   const navigate = (it: NavItem) => {
     if (it.parentalKey && locked && hiddenTabs[it.parentalKey]) {
@@ -91,6 +89,7 @@ export function MinUIDock() {
     if (!trackRef.current) return;
     const rect = trackRef.current.getBoundingClientRect();
     const rtl = getComputedStyle(trackRef.current).direction === "rtl";
+    setHoverCenters(computeCenters(firstPassScales));
     setCursor(rtl ? rect.right - e.clientX : e.clientX - rect.left);
   };
 

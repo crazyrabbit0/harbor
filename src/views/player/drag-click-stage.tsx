@@ -1,3 +1,5 @@
+const loadApiWindow = () => import("@tauri-apps/api/window");
+
 export function DragClickStage(props: {
   drawMode: boolean;
   pipMode: boolean;
@@ -32,7 +34,7 @@ export function DragClickStage(props: {
             dragStarted = true;
             window.removeEventListener("mousemove", onMove);
             window.removeEventListener("mouseup", onUp);
-            import("@tauri-apps/api/window")
+            loadApiWindow()
               .then(({ getCurrentWindow }) => getCurrentWindow().startDragging())
               .catch(() => {});
           }

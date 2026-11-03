@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -54,7 +55,9 @@ export function DeckBrowser({
   const grip = useRef<{ slot: number; x: number; y: number; armed: boolean } | null>(null);
   const target = useRef<HTMLElement | null>(null);
   const level = useRef(gain);
-  level.current = gain;
+  useLayoutEffect(() => {
+    level.current = gain;
+  }, [gain]);
 
   useEffect(() => {
     let live = true;

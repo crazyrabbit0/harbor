@@ -37,8 +37,9 @@ export function CollapsibleSection({
   const toggle = () => {
     setOpen((o) => {
       const next = !o;
+      const value = next ? "1" : "0";
       try {
-        localStorage.setItem(storageKey, next ? "1" : "0");
+        localStorage.setItem(storageKey, value);
       } catch {
         void 0;
       }

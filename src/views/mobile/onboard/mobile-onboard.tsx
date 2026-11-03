@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { boatBuilt } from "./setup-boat";
 import { SetupHarbor, type HarborSession } from "./setup-harbor";
 import { SetupRecovery } from "./setup-recovery";
@@ -50,7 +50,9 @@ function OnboardFlow({ token, onExit }: { token: string; onExit: () => void }) {
   // unmount cleanup: the client's own effect was registered first, so by the
   // time this component tears down the socket is already closed.
   const abandonRef = useRef(link.abandon);
-  abandonRef.current = link.abandon;
+  useLayoutEffect(() => {
+    abandonRef.current = link.abandon;
+  });
   useEffect(() => {
     const bye = () => abandonRef.current();
     window.addEventListener("pagehide", bye);
@@ -65,12 +67,12 @@ function OnboardFlow({ token, onExit }: { token: string; onExit: () => void }) {
   // The TV drops a step out of `pending` the moment it lands. Recomputing the
   // queue from every offer would advance the phone off the success screen the
   // user is still reading, so the queue is taken once and held.
-  const lockedQueue = useRef<SetupStepId[] | null>(null);
+  const [lockedQueue, setLockedQueue] = useState<SetupStepId[] | null>(null);
   const pending = link.offer?.pending;
-  if (!lockedQueue.current && pending) {
-    lockedQueue.current = STEP_ORDER.filter((s) => pending.includes(s));
-  }
-  const queue = lockedQueue.current ?? [];
+  const takenQueue =
+    lockedQueue ?? (pending ? STEP_ORDER.filter((s) => pending.includes(s)) : null);
+  if (!lockedQueue && takenQueue) setLockedQueue(takenQueue);
+  const queue = takenQueue ?? [];
 
   const active = queue.find((s) => !passed.includes(s)) ?? null;
   const stepCount = queue.length;

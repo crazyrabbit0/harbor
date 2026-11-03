@@ -123,7 +123,7 @@ export function SourceFolderCard({
     const source = folder.catalogSources[0];
 
     setLoading(true);
-    try {
+    const openCatalog = async () => {
       const addons = await gatherCatalogAddons(authKey);
       const addon = addons.find((a) => a.manifest.id === source.addonId);
 
@@ -140,9 +140,8 @@ export function SourceFolderCard({
           id: source.catalogId,
         }),
       });
-    } finally {
-      setLoading(false);
-    }
+    };
+    await openCatalog().finally(() => setLoading(false));
   };
 
   const isPoster = folder.tileShape === "POSTER";

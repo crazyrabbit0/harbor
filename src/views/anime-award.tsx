@@ -307,19 +307,19 @@ function WinnerRow({ year, title, tint }: { year: number; title: string; tint: s
     }
     if (!settings.tmdbKey) return;
     setResolving(true);
-    try {
-      const tv = await searchTmdb(settings.tmdbKey, title, year, "tv");
+    const tmdbKey = settings.tmdbKey;
+    const resolve = async () => {
+      const tv = await searchTmdb(tmdbKey, title, year, "tv");
       if (tv) {
         openMeta({ id: `tmdb:tv:${tv.id}`, type: "series", name: title });
         return;
       }
-      const movie = await searchTmdb(settings.tmdbKey, title, year, "movie");
+      const movie = await searchTmdb(tmdbKey, title, year, "movie");
       if (movie) {
         openMeta({ id: `tmdb:movie:${movie.id}`, type: "movie", name: title });
       }
-    } finally {
-      setResolving(false);
-    }
+    };
+    await resolve().finally(() => setResolving(false));
   };
 
   return (

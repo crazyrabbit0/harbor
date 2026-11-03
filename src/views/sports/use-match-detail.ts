@@ -42,7 +42,7 @@ export function useMatchDetail(game: SportsGame, enabled = true) {
     const run = async () => {
       if (busy || document.visibilityState !== "visible") return;
       busy = true;
-      try {
+      const work = async () => {
         const detail = await load(game);
         if (active)
           setState((prior) => ({
@@ -51,11 +51,14 @@ export function useMatchDetail(game: SportsGame, enabled = true) {
             loading: false,
             failed: !detail,
           }));
-      } catch {
-        if (active) setState((prior) => ({ ...prior, loading: false, failed: true }));
-      } finally {
-        busy = false;
-      }
+      };
+      await work()
+        .catch(() => {
+          if (active) setState((prior) => ({ ...prior, loading: false, failed: true }));
+        })
+        .finally(() => {
+          busy = false;
+        });
     };
     void run();
     const timer = setInterval(() => {

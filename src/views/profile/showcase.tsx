@@ -165,7 +165,11 @@ export function Showcase({
   const t = useT();
   const [busy, setBusy] = useState(false);
   const [picking, setPicking] = useState(false);
-  const media = useProfileTitle(
+  const {
+    ref: mediaRef,
+    title: mediaTitle,
+    poster: mediaPoster,
+  } = useProfileTitle(
     item?.kind === "theme" ? undefined : item?.metaId,
     item?.title,
     item?.posterUrl,
@@ -178,28 +182,34 @@ export function Showcase({
   const remove = async () => {
     if (busy) return;
     setBusy(true);
-    try {
+    const work = async () => {
       const summary = await clearShowcase();
       onCleared?.(summary);
-    } catch {
-      emitListToast(t("Could not update showcase"));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        emitListToast(t("Could not update showcase"));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const pickTheme = async (id: string) => {
     if (busy) return;
     setBusy(true);
-    try {
+    const work = async () => {
       const summary = await setThemeShowcase(id);
       onCleared?.(summary);
       setPicking(false);
-    } catch {
-      emitListToast(t("Could not update showcase"));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        emitListToast(t("Could not update showcase"));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   return (
@@ -224,17 +234,17 @@ export function Showcase({
             <ThemeCard item={item} />
           ) : (
             <button
-              ref={media.ref}
+              ref={mediaRef}
               onClick={() =>
                 item.metaId &&
-                onOpen?.(item.metaId, undefined, { name: media.title, poster: media.poster })
+                onOpen?.(item.metaId, undefined, { name: mediaTitle, poster: mediaPoster })
               }
               disabled={!item.metaId}
               className="group flex w-full items-center gap-4 rounded-md p-2 text-start transition-colors hover:bg-elevated disabled:cursor-default"
             >
               <div className="w-24 shrink-0">
                 <Poster
-                  src={media.poster}
+                  src={mediaPoster}
                   seed={item.title}
                   ratio="portrait"
                   className="rounded-md"
@@ -244,7 +254,7 @@ export function Showcase({
                 <div className="text-[11px] uppercase tracking-[0.1em] text-accent">
                   {t(KIND_LABEL[item.kind])}
                 </div>
-                <div className="mt-1 truncate font-display text-[19px] text-ink">{media.title}</div>
+                <div className="mt-1 truncate font-display text-[19px] text-ink">{mediaTitle}</div>
                 {item.caption && (
                   <div className="mt-1 line-clamp-2 text-[13px] text-ink-muted">{item.caption}</div>
                 )}

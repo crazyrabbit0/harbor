@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { safeFetch } from "@/lib/safe-fetch";
 import { useT } from "@/lib/i18n";
 import { authToken } from "@/lib/theme-auth";
@@ -153,7 +153,9 @@ export function useFavorites(handle: string, initial?: FavoriteLists | null): Fa
   const [saving, setSaving] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const entriesRef = useRef(entries);
-  entriesRef.current = entries;
+  useLayoutEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
 
   useEffect(() => {
     if (attempt === 0 && hasSeed) {
@@ -189,7 +191,7 @@ export function useFavorites(handle: string, initial?: FavoriteLists | null): Fa
     const merged = { ...prev, [kind]: capped };
     setEntries(merged);
     setSaving(true);
-    try {
+    const work = async () => {
       const summary = await saveFavorites(merged);
       const echoed = readFavorites(summary);
       if (!persisted(capped, echoed[kind])) {
@@ -198,12 +200,15 @@ export function useFavorites(handle: string, initial?: FavoriteLists | null): Fa
       }
       setEntries(echoed);
       return summary;
-    } catch {
-      setEntries(prev);
-      return null;
-    } finally {
-      setSaving(false);
-    }
+    };
+    return await work()
+      .catch(() => {
+        setEntries(prev);
+        return null;
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   }, []);
 
   const reload = useCallback(() => setAttempt((n) => n + 1), []);

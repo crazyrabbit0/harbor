@@ -585,6 +585,7 @@ export function HarborReader({
   const [audioPosition, setAudioPosition] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const audio = useRef<HTMLAudioElement | null>(null);
+  const [hasAudio, setHasAudio] = useState(false);
   const audioUrl = useRef("");
   const voicePreviewAudio = useRef<HTMLAudioElement | null>(null);
   const voicePreviewUrl = useRef("");
@@ -1194,6 +1195,7 @@ export function HarborReader({
     narrationRequestId.current = "";
     audio.current?.pause();
     audio.current = null;
+    setHasAudio(false);
     if (audioUrl.current) URL.revokeObjectURL(audioUrl.current);
     audioUrl.current = "";
     window.speechSynthesis?.cancel();
@@ -1267,7 +1269,7 @@ export function HarborReader({
     if (translated || translating || !originalText) return;
     setTranslating(true);
     setTranslationError("");
-    try {
+    const work = async () => {
       const result = await translateEBookChapter(
         originalText,
         originalTitle,
@@ -1279,11 +1281,14 @@ export function HarborReader({
       setReaderTitle(result.title);
       setShowOriginal(false);
       setTranslated(true);
-    } catch (error) {
-      setTranslationError(error instanceof Error ? error.message : t("Translation failed"));
-    } finally {
-      setTranslating(false);
-    }
+    };
+    await work()
+      .catch((error) => {
+        setTranslationError(error instanceof Error ? error.message : t("Translation failed"));
+      })
+      .finally(() => {
+        setTranslating(false);
+      });
   };
 
   const toggleTranslation = () => {
@@ -1405,7 +1410,7 @@ export function HarborReader({
     setNarrationLoading(true);
     setGenerationPercent(1);
     setNarrationNotice("");
-    try {
+    const work = async () => {
       const ahead = narrationAhead.current;
       narrationAhead.current = null;
       const pending =
@@ -1426,6 +1431,7 @@ export function HarborReader({
       audioUrl.current = url;
       const player = new Audio(url);
       audio.current = player;
+      setHasAudio(true);
       setAudioPosition(0);
       setAudioDuration(0);
       player.ondurationchange = () =>
@@ -1479,7 +1485,8 @@ export function HarborReader({
         narrationLine.current = -1;
         if (!prefs.mouseLineTrack) setTrace(null);
       }
-    } catch (error) {
+    };
+    await work().catch((error) => {
       if (run !== narrationRun.current) return;
       setSpeaking(false);
       setNarrationLoading(false);
@@ -1499,7 +1506,7 @@ export function HarborReader({
           message,
         }),
       );
-    }
+    });
   };
 
   const addBookmark = (index = current) => {
@@ -2122,7 +2129,7 @@ export function HarborReader({
               max={Math.max(audioDuration, 0.01)}
               step={0.05}
               value={Math.min(audioPosition, Math.max(audioDuration, 0.01))}
-              disabled={!audio.current || !audioDuration}
+              disabled={!hasAudio || !audioDuration}
               onChange={(event) => {
                 const next = Number(event.target.value);
                 if (!audio.current || !Number.isFinite(next)) return;

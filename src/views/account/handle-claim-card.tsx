@@ -38,15 +38,18 @@ export function HandleClaimCard({ author }: { author: Author }) {
     if (busy) return;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       await claimHandle(handle);
       setValue("");
       setPending(null);
-    } catch (err) {
-      setError(accountErrorMessage(err));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((err) => {
+        setError(accountErrorMessage(err));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const startClaim = (handle: string) => {

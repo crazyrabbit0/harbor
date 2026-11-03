@@ -177,15 +177,18 @@ function SeriesLink({
   const open = async () => {
     if (busy) return;
     setBusy(true);
-    try {
+    const work = async () => {
       const found = (await searchManga(item.title, 0))[0];
       if (found) onOpenManga(found.id);
       else setMissing(true);
-    } catch {
-      setMissing(true);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setMissing(true);
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const meta = missing ? t("Not on this source") : item.relation;

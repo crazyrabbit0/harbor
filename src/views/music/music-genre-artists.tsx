@@ -44,7 +44,7 @@ export function MusicGenreArtists({
     loading.current = true;
     setBusy(true);
     setError(false);
-    try {
+    const work = async () => {
       const result = await loadGenreArtistRoster(genreId, cursor.current);
       if (!alive.current) return;
       const fresh = result.artists
@@ -59,12 +59,15 @@ export function MusicGenreArtists({
       if (result.next !== null) cursor.current = result.next;
       else setExhausted(true);
       void enrich(fresh);
-    } catch {
-      if (alive.current) setError(true);
-    } finally {
-      loading.current = false;
-      if (alive.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (alive.current) setError(true);
+      })
+      .finally(() => {
+        loading.current = false;
+        if (alive.current) setBusy(false);
+      });
   }, [genreId, exhausted, enrich, artists]);
   useEffect(() => {
     void more();

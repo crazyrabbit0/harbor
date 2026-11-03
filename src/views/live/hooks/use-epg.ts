@@ -17,15 +17,19 @@ export function useEpg(
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const extraKey = extraUrls.join("|");
+  const extraKey = JSON.stringify(extraUrls);
+  const sourceId = source?.id;
+  const sourceUrl = source?.url;
+  const sourceEpgUrl = source?.epgUrl;
 
   useEffect(() => {
-    if (!source) {
+    if (sourceId === undefined || sourceUrl === undefined) {
       setIndex(null);
       return;
     }
-    const own = source.epgUrl ? [source.epgUrl] : deriveEpgUrls(source.url);
-    const urls = [...new Set([...own, ...extraUrls.filter(Boolean)])];
+    const own = sourceEpgUrl ? [sourceEpgUrl] : deriveEpgUrls(sourceUrl);
+    const extras: string[] = JSON.parse(extraKey);
+    const urls = [...new Set([...own, ...extras.filter(Boolean)])];
     if (urls.length === 0) {
       setIndex(null);
       return;
@@ -33,7 +37,7 @@ export function useEpg(
     let cancelled = false;
     setError(null);
     setLoading(true);
-    loadEpg({ playlistId: source.id, urls })
+    loadEpg({ playlistId: sourceId, urls })
       .then((idx) => {
         if (cancelled) return;
         setIndex(idx);
@@ -46,15 +50,14 @@ export function useEpg(
       });
     const unsub = subscribeEpg(() => {
       if (cancelled) return;
-      const next = getCachedEpg(source.id);
+      const next = getCachedEpg(sourceId);
       if (next) setIndex(next);
     });
     return () => {
       cancelled = true;
       unsub();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [source?.id, source?.url, source?.epgUrl, extraKey]);
+  }, [sourceId, sourceUrl, sourceEpgUrl, extraKey]);
 
   return { index, loading, error };
 }

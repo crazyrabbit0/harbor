@@ -43,6 +43,7 @@ import {
   isCameoOrGuest,
   notableScore,
 } from "./person/person-utils";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function PersonView({ personId }: { personId: number }) {
   const t = useT();
@@ -66,7 +67,7 @@ export function PersonView({ personId }: { personId: number }) {
   const liveAwards = useAwards(person?.imdbId ?? undefined);
   const awardsV = useBundledAwardsVersion();
   const awardEntries = useMemo(
-    () => mergeBundledPersonAwards(liveAwards, person?.name),
+    () => readAtVersion(awardsV, () => mergeBundledPersonAwards(liveAwards, person?.name)),
     [awardsV, liveAwards, person?.name],
   );
   const awardChips = useMemo(() => awardSummary(awardEntries), [awardEntries]);
@@ -140,7 +141,10 @@ export function PersonView({ personId }: { personId: number }) {
     movieWatchedVersion,
   );
   const completion = useMemo(
-    () => filmographyCompletion(signatureFilms(person?.knownForDepartment, sortedCast, sortedCrew)),
+    () =>
+      readAtVersion(watchedVersion, () =>
+        filmographyCompletion(signatureFilms(person?.knownForDepartment, sortedCast, sortedCrew)),
+      ),
     [person?.knownForDepartment, sortedCast, sortedCrew, watchedVersion],
   );
 

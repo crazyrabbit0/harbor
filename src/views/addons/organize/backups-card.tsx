@@ -2,6 +2,7 @@ import { ArchiveRestore } from "lucide-react";
 import { useMemo } from "react";
 import { loadBackups, type AddonOrderBackup } from "@/lib/addons-store/reorder";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 
 function previewNames(
   names: string[],
@@ -34,7 +35,7 @@ export function BackupsPanel({
   onRestore: (backup: AddonOrderBackup) => void;
 }) {
   const t = useT();
-  const backups = useMemo(() => loadBackups(), [refreshKey]);
+  const backups = useMemo(() => readAtVersion(refreshKey, () => loadBackups()), [refreshKey]);
   return (
     <div className="flex flex-col gap-4 p-5">
       <p className="text-[12.5px] leading-relaxed text-ink-muted">

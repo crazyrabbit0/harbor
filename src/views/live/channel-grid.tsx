@@ -33,7 +33,6 @@ export function ChannelGrid({
   );
   const hydrations = useChannelHydration(visibleNames);
   const tvgIdCounts = useMemo(() => computeTvgIdCounts(channels), [channels]);
-  const nowMinute = Math.floor(nowMs / 60_000);
   const nowByChannel = useMemo(() => {
     const m = new Map<
       string,
@@ -47,8 +46,7 @@ export function ChannelGrid({
       m.set(ch.id, findCurrent(programs, nowMs));
     }
     return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, epg, tvgIdCounts, nowMinute]);
+  }, [visible, epg, tvgIdCounts, nowMs]);
   return (
     <div className="flex flex-col gap-5">
       <div className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-3.5">

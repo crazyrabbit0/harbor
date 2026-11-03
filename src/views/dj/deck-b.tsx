@@ -25,6 +25,16 @@ const HEARTBEAT = 8;
 let cued: MusicTrack | null = null;
 let ticket = 0;
 
+function candidateTrack(track: MusicTrack, next: MusicTrack): MusicTrack {
+  return {
+    ...track,
+    title: next.title,
+    artist: next.artist,
+    artwork: next.artwork ?? track.artwork,
+    collectionOrigin: next.collectionOrigin ?? { id: next.id, connectorId: next.connectorId },
+  };
+}
+
 export function DeckB({ next }: { next: MusicTrack | undefined }) {
   const t = useT();
   const [state, setState] = useState<MusicDeckState | null>(null);
@@ -168,13 +178,7 @@ export function DeckB({ next }: { next: MusicTrack | undefined }) {
       if (tried >= 3) break;
       tried += 1;
       try {
-        await cue({
-          ...candidate.track,
-          title: next.title,
-          artist: next.artist,
-          artwork: next.artwork ?? candidate.track.artwork,
-          collectionOrigin: next.collectionOrigin ?? { id: next.id, connectorId: next.connectorId },
-        });
+        await cue(candidateTrack(candidate.track, next));
         cueing.current = false;
         setFailed(null);
         return;

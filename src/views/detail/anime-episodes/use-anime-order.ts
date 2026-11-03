@@ -8,6 +8,7 @@ import { buildSoloAnimeOrder, buildAnimeOrder } from "./anime-order-utils";
 import { foreignAnimeProviderSeasons } from "@/lib/streams/anime-identity";
 import { parseKitsuId } from "@/lib/providers/kitsu";
 import { splitFranchiseDisplaySeason } from "@/lib/streams/anime-identity-core";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export type AnimeOrder = {
   items: PickerItem[];
@@ -35,11 +36,13 @@ export function useAnimeOrder(
   const built = useMemo(
     // pickLocalizedText keys its script tests by ISO-1 ("ko"), not TVDB codes ("kor").
     () =>
-      solo
-        ? buildSoloAnimeOrder(episodes, t("Specials"), (s) =>
-            t("Season {n}", { n: partSeason ?? s }),
-          )
-        : buildAnimeOrder(ordering, episodes, t("Specials"), tmdbLanguageIso()),
+      readAtVersion(metaId, () =>
+        solo
+          ? buildSoloAnimeOrder(episodes, t("Specials"), (s) =>
+              t("Season {n}", { n: partSeason ?? s }),
+            )
+          : buildAnimeOrder(ordering, episodes, t("Specials"), tmdbLanguageIso()),
+      ),
     [solo, ordering, episodes, t, partSeason, metaId],
   );
   const [sel, setSel] = useState<string | null>(null);

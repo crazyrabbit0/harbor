@@ -3,6 +3,8 @@ import { modalOverlayClose, modalOverlaySync } from "@/lib/modal-overlay";
 import { isLinuxDesktop, isMacDesktop } from "@/lib/platform";
 import type { Settings } from "@/lib/settings";
 
+const loadApiWindow = () => import("@tauri-apps/api/window");
+
 export function useMpvEmbed(params: { engine: "html5" | "mpv"; settings: Settings }) {
   const { engine, settings } = params;
 
@@ -21,7 +23,7 @@ export function useMpvEmbed(params: { engine: "html5" | "mpv"; settings: Setting
     let unResize: (() => void) | null = null;
     void (async () => {
       try {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const { getCurrentWindow } = await loadApiWindow();
         const win = getCurrentWindow();
         unMove = await win.onMoved(() => void modalOverlaySync());
         unResize = await win.onResized(() => void modalOverlaySync());

@@ -172,8 +172,8 @@ function Inductees({ inducted, active }: { inducted: RockHallClass; active: bool
   );
   useEffect(() => {
     if (!active) return;
-    let live = true,
-      next = 0;
+    let live = true;
+    const cursor = { next: 0 };
     // One exact-article portrait request per class; the shared identity resolver only
     // fills the gaps, three at a time, so a 14-name class stays polite to both services.
     void loadPortraits(inducted).then(async (artwork) => {
@@ -183,8 +183,8 @@ function Inductees({ inducted, active }: { inducted: RockHallClass; active: bool
       );
       await Promise.all(
         Array.from({ length: Math.min(3, inducted.artists.length) }, async () => {
-          while (live && next < inducted.artists.length) {
-            const name = inducted.artists[next++];
+          while (live && cursor.next < inducted.artists.length) {
+            const name = inducted.artists[cursor.next++];
             if (artwork[name]) continue;
             const result = await resolveArtist(name).catch(() => null);
             const artist = result?.canonical;

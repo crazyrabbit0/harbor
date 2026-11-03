@@ -90,20 +90,18 @@ export function useVideoDownload({ url, meta, episode, headers }: Args) {
       return;
     }
 
-    try {
-      const id = await enqueueDownload({
-        meta,
-        episode,
-        url,
-        headers,
-        destinationPath: path,
-      });
-      setDownloadId(id);
-    } catch (e) {
-      setLocalError(e instanceof Error ? e.message : t("Download failed"));
-    } finally {
-      setPreparing(false);
-    }
+    await enqueueDownload({
+      meta,
+      episode,
+      url,
+      headers,
+      destinationPath: path,
+    })
+      .then(
+        (id) => setDownloadId(id),
+        (e) => setLocalError(e instanceof Error ? e.message : t("Download failed")),
+      )
+      .finally(() => setPreparing(false));
   }, [current?.status, episode, headers, meta, preparing, settings.downloadDir, url]);
 
   const cancel = useCallback(() => {

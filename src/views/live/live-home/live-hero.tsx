@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { usePageVisible } from "@/lib/visibility";
 import { RotateCcw, Tv } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
@@ -26,9 +26,9 @@ export function LiveHero({
   const [paused, setPaused] = useState(false);
   const [playing, setPlaying] = useState(false);
   const key = items.map((i) => i.channel.id).join("|");
-  const resetRef = useRef(key);
-  if (resetRef.current !== key) {
-    resetRef.current = key;
+  const [resetKey, setResetKey] = useState(key);
+  if (resetKey !== key) {
+    setResetKey(key);
     if (idx !== 0) setIdx(0);
   }
 

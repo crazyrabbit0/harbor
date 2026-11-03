@@ -164,23 +164,27 @@ function ListItem({
   item: FeaturedItem;
   onOpenMeta?: (id: string, kind?: string, hint?: { name?: string; poster?: string }) => void;
 }) {
-  const media = useProfileTitle(item.id, item.name, item.poster, item.type);
+  const {
+    ref: mediaRef,
+    title: mediaTitle,
+    poster: mediaPoster,
+  } = useProfileTitle(item.id, item.name, item.poster, item.type);
   return (
     <button
-      ref={media.ref}
-      onClick={() => onOpenMeta?.(item.id, item.type, { name: media.title, poster: media.poster })}
+      ref={mediaRef}
+      onClick={() => onOpenMeta?.(item.id, item.type, { name: mediaTitle, poster: mediaPoster })}
       disabled={!onOpenMeta}
       className="group text-start disabled:cursor-default"
     >
       <Poster
-        src={media.poster || undefined}
+        src={mediaPoster || undefined}
         seed={item.name || item.id}
         ratio="portrait"
         className="rounded-md ring-1 ring-edge-soft transition-transform duration-300 ease-[cubic-bezier(0.32,0.72,0.24,1)] motion-safe:group-hover:will-change-transform motion-safe:group-hover:-translate-y-1"
         lazy
       />
-      {media.title && (
-        <div className="mt-1.5 line-clamp-2 text-[12px] text-ink-muted">{media.title}</div>
+      {mediaTitle && (
+        <div className="mt-1.5 line-clamp-2 text-[12px] text-ink-muted">{mediaTitle}</div>
       )}
     </button>
   );
@@ -241,17 +245,21 @@ function ActivitySection({
 }
 
 function ActivityRow({ a, onOpenMeta }: { a: ActivityItem; onOpenMeta?: (id: string) => void }) {
-  const media = useProfileTitle(a.kind === "imported" ? undefined : a.metaId, a.title, a.posterUrl);
+  const {
+    ref: mediaRef,
+    title: mediaTitle,
+    poster: mediaPoster,
+  } = useProfileTitle(a.kind === "imported" ? undefined : a.metaId, a.title, a.posterUrl);
   return (
     <button
-      ref={media.ref}
+      ref={mediaRef}
       onClick={() => a.metaId && onOpenMeta?.(a.metaId)}
       disabled={!a.metaId}
       className="group flex items-center gap-3 rounded-[12px] p-2.5 text-start transition-colors hover:bg-elevated disabled:cursor-default"
     >
       <div className="w-12 shrink-0">
         <Poster
-          src={media.poster}
+          src={mediaPoster}
           seed={a.title}
           ratio="portrait"
           className="rounded-[8px] ring-1 ring-edge-soft"
@@ -266,7 +274,7 @@ function ActivityRow({ a, onOpenMeta }: { a: ActivityItem; onOpenMeta?: (id: str
             <span className="text-accent">{a.rating}/10</span>
           )}
         </div>
-        <div className="mt-0.5 truncate text-[14px] font-medium text-ink">{media.title}</div>
+        <div className="mt-0.5 truncate text-[14px] font-medium text-ink">{mediaTitle}</div>
         {a.subtitle && <div className="truncate text-[12px] text-ink-muted">{a.subtitle}</div>}
       </div>
       <span className="shrink-0 text-[12px] tabular-nums text-ink-subtle">{timeAgo(a.at)}</span>

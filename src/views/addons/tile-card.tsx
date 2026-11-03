@@ -32,11 +32,12 @@ export function TileCard({
       return;
     }
     setInstalling(true);
-    try {
+    const work = async () => {
       await onInstall();
-    } finally {
+    };
+    await work().finally(() => {
       setInstalling(false);
-    }
+    });
   };
 
   return (

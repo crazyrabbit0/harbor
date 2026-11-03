@@ -21,6 +21,7 @@ import { fetchTvdbCast } from "@/lib/providers/tvdb-cast";
 import { PeopleRail, PosterRail, RailSection, RailSkeleton, type Person } from "./rails";
 import { useModalRatings } from "./use-modal-ratings";
 import { useTitleDetail } from "./use-title-detail";
+import { readAtVersion } from "@/lib/read-at-version";
 
 function isAnimeId(id: string): boolean {
   return id.startsWith("kitsu:") || id.startsWith("mal:") || id.startsWith("anilist:");
@@ -90,7 +91,10 @@ export function TitlePanel({
   const liveAwards = useAwards(imdbId ?? undefined, meta.type === "series");
   const awardsV = useBundledAwardsVersion();
   const awards = useMemo(
-    () => mergeBundledAwards(liveAwards, title, year ? Number(year) : undefined),
+    () =>
+      readAtVersion(awardsV, () =>
+        mergeBundledAwards(liveAwards, title, year ? Number(year) : undefined),
+      ),
     [awardsV, liveAwards, title, year],
   );
   const awardSummaryItems = pickHeroAwards(awardSummary(awards), 3);

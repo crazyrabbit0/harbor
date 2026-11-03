@@ -3,11 +3,13 @@ import { FAVORITES_GROUP_KEY } from "@/lib/iptv/favorites";
 import { arabicAwareMatch } from "@/lib/iptv/rtl";
 import type { IptvChannel } from "@/lib/iptv/types";
 
+const NO_FAVORITES: ReadonlySet<string> = new Set();
+
 export function useChannelFilter(
   channels: IptvChannel[],
   group: string | null,
   query: string,
-  favorites: ReadonlySet<string> = new Set(),
+  favorites: ReadonlySet<string> = NO_FAVORITES,
 ): {
   visible: IptvChannel[];
   counts: Map<string, number>;

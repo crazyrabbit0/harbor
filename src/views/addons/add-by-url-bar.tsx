@@ -17,12 +17,13 @@ export function AddByUrlBar({
     const v = value.trim();
     if (!v || busy) return;
     setBusy(true);
-    try {
+    const work = async () => {
       await onSubmit(v);
       setValue("");
-    } finally {
+    };
+    await work().finally(() => {
       setBusy(false);
-    }
+    });
   };
   const heightClass = compact ? "h-10" : "h-14";
   const fontSizeClass = compact ? "text-[13px]" : "text-[15.5px]";

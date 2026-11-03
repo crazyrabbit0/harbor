@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { LoaderCircle, Play } from "@/components/icons/music-icons";
 import { MUSIC_SHELF_MIN } from "@/components/music/music-catalog-row";
 import { MusicMixCover } from "@/components/music/music-mix-cover";
@@ -48,7 +48,9 @@ function MadeForYouRow({
       ? musicRecentContextIdentity(origin)
       : null;
   const inputs = useRef({ player, followed });
-  inputs.current = { player, followed };
+  useLayoutEffect(() => {
+    inputs.current = { player, followed };
+  });
   const [loadingPersonal, setLoadingPersonal] = useState(true);
   const [mixes, setMixes] = useState<Mix[]>([]);
   const [day, setDay] = useState(dailyDayKey);
@@ -143,7 +145,7 @@ function MadeForYouRow({
     const generation = ++request.current;
     setBusy(mix.id);
     setFailed(null);
-    try {
+    const work = async () => {
       const tracks = filterBlockedTracks(filterBlockedTracks(mix.tracks, "show"), "play");
       if (request.current !== generation) return;
       if (!tracks.length) throw new Error("music.radio.error");
@@ -152,11 +154,14 @@ function MadeForYouRow({
         name: mixName(mix, t),
       });
       await playMusic(tracks[0], tracks);
-    } catch {
-      if (request.current === generation) setFailed(mix.id);
-    } finally {
-      if (request.current === generation) setBusy(null);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (request.current === generation) setFailed(mix.id);
+      })
+      .finally(() => {
+        if (request.current === generation) setBusy(null);
+      });
   };
 
   // Nothing to personalise from yet, so the band stays out of the way entirely rather

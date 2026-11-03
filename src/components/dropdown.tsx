@@ -47,6 +47,7 @@ export function Dropdown({
 }) {
   const [open, setOpen] = useState(false);
   const [box, setBox] = useState<MenuBox | null>(null);
+  const [inSettings, setInSettings] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
@@ -178,7 +179,10 @@ export function Dropdown({
         onClick={() => {
           spinChevron(!open);
           if (open) close(holdsFocus());
-          else setOpen(true);
+          else {
+            setInSettings(!!btnRef.current?.closest(".harbor-settings-shell"));
+            setOpen(true);
+          }
         }}
         aria-label={ariaLabel ? `${ariaLabel}: ${selected?.label ?? placeholder ?? ""}` : undefined}
         aria-haspopup="listbox"
@@ -215,7 +219,7 @@ export function Dropdown({
             role="listbox"
             aria-label={ariaLabel}
             data-dropdown-menu
-            data-settings-menu={btnRef.current?.closest(".harbor-settings-shell") ? "" : undefined}
+            data-settings-menu={inSettings ? "" : undefined}
             onKeyDown={onMenuKeyDown}
             style={{
               position: "fixed",

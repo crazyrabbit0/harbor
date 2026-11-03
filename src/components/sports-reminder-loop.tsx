@@ -1,4 +1,4 @@
-import { useEffect, useRef, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useRef, useSyncExternalStore } from "react";
 import { useSettingsSelector } from "@/lib/settings";
 import { fireWebhook } from "@/lib/calendar";
 import { getUiLanguage } from "@/lib/i18n/store";
@@ -15,7 +15,9 @@ import {
 export function SportsReminderLoop() {
   const settings = useSettingsSelector((s) => ({ webhooks: s.webhooks }));
   const current = useRef(settings.webhooks);
-  current.current = settings.webhooks;
+  useLayoutEffect(() => {
+    current.current = settings.webhooks;
+  }, [settings.webhooks]);
   const consent = useSyncExternalStore(
     subscribeSportsConsent,
     getSportsConsentSnapshot,
@@ -62,15 +64,16 @@ export function SportsReminderLoop() {
     const tick = async () => {
       if (busy) return;
       busy = true;
-      try {
+      const run = async () => {
         if (navigator.locks)
           await navigator.locks.request("harbor-sports-reminders", { ifAvailable: true }, (lock) =>
             lock ? sendDue() : undefined,
           );
         else await sendDue();
-      } finally {
+      };
+      await run().finally(() => {
         busy = false;
-      }
+      });
     };
     void tick();
     const timer = setInterval(() => void tick(), 30_000);

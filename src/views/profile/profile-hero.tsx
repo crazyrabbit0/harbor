@@ -336,15 +336,18 @@ function FriendButton({
     if (busy) return;
     setBusy(true);
     setError(false);
-    try {
+    const work = async () => {
       await fn();
       setRel(next);
       setHover(false);
-    } catch {
-      setError(true);
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError(true);
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   if (rel === "blocked") return null;

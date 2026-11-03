@@ -73,13 +73,14 @@ export function TeamPicker({
     const worker = async () => {
       while (queue.length && !cancelled) {
         const key = queue.shift()!;
-        try {
+        const work = async () => {
           const teams = await fetchLeagueTeams(key);
           if (!cancelled && teams.length)
             setByLeague((previous) => ({ ...previous, [key]: teams }));
-        } catch {
+        };
+        await work().catch(() => {
           /* Other leagues can still finish. */
-        }
+        });
       }
     };
     void Promise.all(Array.from({ length: Math.min(3, keys.length) }, worker)).finally(() => {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { Loader2, UserPlus, Users } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useViewActions } from "@/lib/view";
@@ -8,6 +8,10 @@ import { FeedRow } from "./feed/feed-row";
 import { WatchingStrip } from "./feed/watching-strip";
 import { useFeed } from "./feed/use-feed";
 import { ScrollToTop } from "@/views/profile/scroll-to-top";
+
+function shimmerDelay(i: number): CSSProperties {
+  return { ["--ai-delay" as string]: `${i * 90}ms` };
+}
 
 export function FeedView({ onOpenProfile }: { onOpenProfile?: (handle: string) => void }) {
   const t = useT();
@@ -81,7 +85,7 @@ export function FeedView({ onOpenProfile }: { onOpenProfile?: (handle: string) =
               <div
                 key={i}
                 className="harbor-shimmer relative h-[88px] rounded-lg ring-1 ring-edge-soft"
-                style={{ ["--ai-delay" as string]: `${i * 90}ms` }}
+                style={shimmerDelay(i)}
               />
             ))}
           </div>

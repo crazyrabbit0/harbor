@@ -73,7 +73,7 @@ export function ListDetail({
     }
     mangaBusy.current.add(it.id);
     setMissingId((prev) => (prev === it.id ? null : prev));
-    try {
+    const work = async () => {
       const resolved = await resolveMangaOpen({ id: it.id, title: name, altTitle: it.altTitle });
       if (!resolved) {
         setMissingId(it.id);
@@ -87,9 +87,10 @@ export function ListDetail({
         });
       }
       openManga(resolved.id);
-    } finally {
+    };
+    await work().finally(() => {
       mangaBusy.current.delete(it.id);
-    }
+    });
   };
 
   const startItemDrag = (e: React.PointerEvent<HTMLDivElement>, itemId: string, index: number) => {

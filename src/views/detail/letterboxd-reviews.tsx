@@ -28,6 +28,13 @@ class ReviewsBoundary extends Component<{ children: ReactNode }, { failed: boole
 
 type Filter = "all" | "friends";
 
+function filmSlugOf(reviews: LetterboxdReview[]): string | null {
+  const url = reviews[0]?.url;
+  if (!url) return null;
+  const m = url.match(/letterboxd\.com\/film\/([^/]+)/);
+  return m ? m[1]! : null;
+}
+
 export function LetterboxdReviews({ meta, imdbId }: { meta: Meta; imdbId: string | null }) {
   return (
     <ReviewsBoundary>
@@ -63,16 +70,13 @@ function LetterboxdReviewsInner({ meta, imdbId }: { meta: Meta; imdbId: string |
     try {
       const result = await fetchLetterboxdReviewsDirect(effectiveImdbId);
       setReviews(result.reviews);
-      if (result.reviews[0]?.url) {
-        const m = result.reviews[0].url.match(/letterboxd\.com\/film\/([^/]+)/);
-        if (m) setFilmSlug(m[1]!);
-      }
+      const slug = filmSlugOf(result.reviews);
+      if (slug) setFilmSlug(slug);
     } catch (e) {
       console.error("[Letterboxd Reviews] fetch error:", e);
-    } finally {
-      setLoading(false);
-      setTried(true);
     }
+    setLoading(false);
+    setTried(true);
 
     // Also fetch friends reviews in parallel (if full mode connected)
     if (lb.isFullConnected && lb.username) {
@@ -83,9 +87,8 @@ function LetterboxdReviewsInner({ meta, imdbId }: { meta: Meta; imdbId: string |
         setFriendsReviews(friends);
       } catch (e) {
         console.error("[Letterboxd Reviews] friends fetch error:", e);
-      } finally {
-        setLoadingFriends(false);
       }
+      setLoadingFriends(false);
     }
   }, [effectiveImdbId, lb.isFullConnected, lb.username]);
 

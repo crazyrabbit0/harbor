@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AccountMenuFloating } from "@/chrome/account-menu/account-menu-floating";
 import { StatusPicker } from "@/chrome/sidebar/status-control";
@@ -191,10 +191,12 @@ export function ThemeChromeBridge() {
     : settings.harborAvatar;
   const avatarUrl = activeProfile?.avatar ?? harborAvatar ?? user?.avatar ?? null;
   const avatarRef = useRef(avatarUrl);
-  avatarRef.current = avatarUrl;
   const bpOffer = useBigPictureEntry().offer;
   const bpOfferRef = useRef(bpOffer);
-  bpOfferRef.current = bpOffer;
+  useLayoutEffect(() => {
+    avatarRef.current = avatarUrl;
+    bpOfferRef.current = bpOffer;
+  }, [avatarUrl, bpOffer]);
 
   useEffect(() => syncAvatarSlots(avatarUrl), [avatarUrl]);
 

@@ -73,18 +73,21 @@ export function AnilistTab() {
       const total = entry.media.episodes;
       const completing = next === "COMPLETED" && total != null;
       applyLocal(entry.id, { status: next, ...(completing ? { progress: total } : {}) });
-      try {
+      const work = async () => {
         const saved = await saveListEntry({
           mediaId: entry.media.id,
           status: next,
           ...(completing ? { progress: total } : {}),
         });
         applyLocal(entry.id, { status: saved.status, progress: saved.progress });
-      } catch {
-        applyLocal(entry.id, { status: entry.status, progress: entry.progress });
-      } finally {
-        setBusyFor(entry.id, false);
-      }
+      };
+      await work()
+        .catch(() => {
+          applyLocal(entry.id, { status: entry.status, progress: entry.progress });
+        })
+        .finally(() => {
+          setBusyFor(entry.id, false);
+        });
     },
     [applyLocal, setBusyFor],
   );
@@ -93,14 +96,17 @@ export function AnilistTab() {
     async (entry: AnilistMediaEntry, next: number) => {
       setBusyFor(entry.id, true);
       applyLocal(entry.id, { progress: next });
-      try {
+      const work = async () => {
         const saved = await saveListEntry({ mediaId: entry.media.id, progress: next });
         applyLocal(entry.id, { status: saved.status, progress: saved.progress });
-      } catch {
-        applyLocal(entry.id, { progress: entry.progress });
-      } finally {
-        setBusyFor(entry.id, false);
-      }
+      };
+      await work()
+        .catch(() => {
+          applyLocal(entry.id, { progress: entry.progress });
+        })
+        .finally(() => {
+          setBusyFor(entry.id, false);
+        });
     },
     [applyLocal, setBusyFor],
   );
@@ -109,13 +115,16 @@ export function AnilistTab() {
     async (entry: AnilistMediaEntry) => {
       setBusyFor(entry.id, true);
       setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-      try {
+      const work = async () => {
         await deleteListEntry(entry.id);
-      } catch {
-        setEntries((prev) => (prev.some((e) => e.id === entry.id) ? prev : [...prev, entry]));
-      } finally {
-        setBusyFor(entry.id, false);
-      }
+      };
+      await work()
+        .catch(() => {
+          setEntries((prev) => (prev.some((e) => e.id === entry.id) ? prev : [...prev, entry]));
+        })
+        .finally(() => {
+          setBusyFor(entry.id, false);
+        });
     },
     [setBusyFor],
   );

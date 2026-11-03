@@ -1,5 +1,5 @@
 import { Layers, Plus } from "lucide-react";
-import { useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { MAX_LISTS, sharedLists, type ListStore } from "@/lib/custom-lists";
 import { useT } from "@/lib/i18n";
 import { CreateListModal } from "@/components/lists/create-list-modal";
@@ -24,7 +24,9 @@ export function MyListsTab({
   const dragRef = useRef<{ id: string; x: number; y: number; active: boolean } | null>(null);
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
   const listsRef = useRef(lists);
-  listsRef.current = lists;
+  useLayoutEffect(() => {
+    listsRef.current = lists;
+  }, [lists]);
   const suppressClick = useRef(false);
 
   const onDown = (e: React.PointerEvent, id: string) => {

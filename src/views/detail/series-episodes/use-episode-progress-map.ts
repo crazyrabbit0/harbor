@@ -3,6 +3,7 @@ import { getEpisodeProgress } from "@/lib/episode-progress";
 import { spoilerMaskFor, type SpoilerMask } from "@/lib/spoilers";
 import type { Episode } from "@/lib/providers/tmdb";
 import { airedOnly } from "../helpers";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function useEpisodeProgressMap({
   episodes,
@@ -23,26 +24,30 @@ export function useEpisodeProgressMap({
   mwVersion: number;
   settings: Parameters<typeof spoilerMaskFor>[0];
 }) {
-  const progressByEp = useMemo(() => {
-    const m = new Map<number, ReturnType<typeof getEpisodeProgress>>();
-    for (const ep of episodes) {
-      m.set(
-        ep.episodeNumber,
-        getEpisodeProgress(
-          metaId,
-          ep.seasonNumber,
-          ep.episodeNumber,
-          ep.runtime,
-          traktKey,
-          traktWatched,
-          stremioWatched,
-          undefined,
-          simklWatched,
-        ),
-      );
-    }
-    return m;
-  }, [episodes, metaId, traktKey, traktWatched, stremioWatched, simklWatched, mwVersion]);
+  const progressByEp = useMemo(
+    () =>
+      readAtVersion(mwVersion, () => {
+        const m = new Map<number, ReturnType<typeof getEpisodeProgress>>();
+        for (const ep of episodes) {
+          m.set(
+            ep.episodeNumber,
+            getEpisodeProgress(
+              metaId,
+              ep.seasonNumber,
+              ep.episodeNumber,
+              ep.runtime,
+              traktKey,
+              traktWatched,
+              stremioWatched,
+              undefined,
+              simklWatched,
+            ),
+          );
+        }
+        return m;
+      }),
+    [episodes, metaId, traktKey, traktWatched, stremioWatched, simklWatched, mwVersion],
+  );
 
   const nextUpEp = useMemo(() => {
     for (const ep of episodes) {

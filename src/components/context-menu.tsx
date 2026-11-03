@@ -89,6 +89,38 @@ async function readClipboardText(): Promise<string> {
   return navigator.clipboard.readText();
 }
 
+const loadMangaApi = () => import("@/lib/manga/api");
+
+async function requestFirstChapterRead(mangaId: string): Promise<void> {
+  try {
+    const { mangaChapters } = await loadMangaApi();
+    const chs = await mangaChapters(mangaId);
+    const first = resolveReaderChapters(chs)[0] ?? chs[0];
+    if (first) requestMangaChapterRead(mangaId, first.id);
+  } catch {}
+}
+
+async function pasteClipboardInto(element: HTMLElement): Promise<void> {
+  try {
+    const text = await readClipboardText();
+    if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+      const start = element.selectionStart ?? element.value.length;
+      const end = element.selectionEnd ?? element.value.length;
+      const next = element.value.slice(0, start) + text + element.value.slice(end);
+      setNativeInputValue(element, next);
+      element.dispatchEvent(new Event("input", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true }));
+      element.focus();
+      const cursor = start + text.length;
+      element.setSelectionRange(cursor, cursor);
+    } else if (element.isContentEditable) {
+      element.focus();
+      document.execCommand("insertText", false, text);
+    }
+  } catch {}
+}
+const loadMangaDownloads = () => import("@/lib/manga-downloads");
+
 function isEditableTarget(el: EventTarget | null): el is HTMLElement {
   if (!(el instanceof HTMLElement)) return false;
   if (el instanceof HTMLInputElement) return !el.disabled && !el.readOnly;
@@ -674,12 +706,7 @@ export function ContextMenu() {
           onClick={() => {
             close();
             void (async () => {
-              try {
-                const { mangaChapters } = await import("@/lib/manga/api");
-                const chs = await mangaChapters(target.id);
-                const first = resolveReaderChapters(chs)[0] ?? chs[0];
-                if (first) requestMangaChapterRead(target.id, first.id);
-              } catch {}
+              await requestFirstChapterRead(target.id);
               openManga(target.id);
             })();
           }}
@@ -903,7 +930,7 @@ export function ContextMenu() {
         icon={<Download size={14} strokeWidth={2} />}
         label={t("Download chapter")}
         onClick={() => {
-          void import("@/lib/manga-downloads").then(({ downloadChapter }) =>
+          void loadMangaDownloads().then(({ downloadChapter }) =>
             downloadChapter(target.mangaId, chapter.id, {
               title: target.mangaTitle,
               cover: target.mangaCover,
@@ -948,23 +975,7 @@ export function ContextMenu() {
     };
     const handlePaste = async () => {
       if (!canPaste || !element) return;
-      try {
-        const text = await readClipboardText();
-        if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-          const start = element.selectionStart ?? element.value.length;
-          const end = element.selectionEnd ?? element.value.length;
-          const next = element.value.slice(0, start) + text + element.value.slice(end);
-          setNativeInputValue(element, next);
-          element.dispatchEvent(new Event("input", { bubbles: true }));
-          element.dispatchEvent(new Event("change", { bubbles: true }));
-          element.focus();
-          const cursor = start + text.length;
-          element.setSelectionRange(cursor, cursor);
-        } else if (element.isContentEditable) {
-          element.focus();
-          document.execCommand("insertText", false, text);
-        }
-      } catch {}
+      await pasteClipboardInto(element);
       close();
     };
     items.push(

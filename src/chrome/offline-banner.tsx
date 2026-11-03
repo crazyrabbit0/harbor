@@ -34,8 +34,7 @@ export function OfflineBanner() {
     if (routed.current) return;
     routed.current = true;
     if (!navigator.onLine && hasSaved) setView("downloads");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hasSaved, setView]);
 
   if (online) return null;
   return (

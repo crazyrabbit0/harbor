@@ -51,8 +51,9 @@ export function SaveLocationChip() {
   const folderName = current ? (current.split(/[\\/]/).filter(Boolean).pop() ?? current) : "";
 
   const pick = async () => {
+    const defaultPath = current || undefined;
     try {
-      const picked = await open({ directory: true, defaultPath: current || undefined });
+      const picked = await open({ directory: true, defaultPath });
       if (typeof picked === "string") update({ downloadDir: picked });
     } catch {
       return;

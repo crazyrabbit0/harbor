@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { isArtHostDown, noteArtFailure, noteArtSuccess } from "@/lib/art-host-health";
 
 const STALL_MS = 2500;
@@ -16,7 +16,9 @@ export function useArtFallback(sources: (string | undefined)[]): {
   const [index, setIndex] = useState(0);
   const [done, setDone] = useState(false);
   const indexRef = useRef(0);
-  indexRef.current = index;
+  useLayoutEffect(() => {
+    indexRef.current = index;
+  }, [index]);
 
   useEffect(() => {
     setIndex(0);

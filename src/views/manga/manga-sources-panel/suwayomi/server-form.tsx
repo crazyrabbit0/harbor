@@ -43,7 +43,7 @@ export function ServerForm({ edit, onDone }: { edit?: SuwayomiServer; onDone: ()
     }
     setError(null);
     setProbe({ state: "testing" });
-    try {
+    const work = async () => {
       const res = await testConnection({
         baseUrl: baseUrl.trim().replace(/\/+$/, ""),
         auth: authInput,
@@ -58,10 +58,11 @@ export function ServerForm({ edit, onDone }: { edit?: SuwayomiServer; onDone: ()
         setFailReason(res.reason ?? null);
         setProbe({ state: "fail" });
       }
-    } catch {
+    };
+    await work().catch(() => {
       setFailReason(null);
       setProbe({ state: "fail" });
-    }
+    });
   };
 
   const save = () => {

@@ -26,22 +26,24 @@ export function InstallPill({
     e.stopPropagation();
     if (busy) return;
     setBusy(true);
-    try {
+    const work = async () => {
       await withMinDuration(onInstall(), MIN_INSTALL_FEEDBACK_MS);
-    } finally {
+    };
+    await work().finally(() => {
       setBusy(false);
-    }
+    });
   };
 
   const runUninstall = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (busy) return;
     setBusy(true);
-    try {
+    const work = async () => {
       await withMinDuration(onUninstall(), 450);
-    } finally {
+    };
+    await work().finally(() => {
       setBusy(false);
-    }
+    });
   };
 
   if (busy) {

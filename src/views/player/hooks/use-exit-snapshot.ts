@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { captureFrame, captureMpvFrame, saveSnapshot } from "@/lib/snapshots";
 import { useSettingsSelector } from "@/lib/settings";
 import { trickplayGet } from "@/lib/trickplay";
@@ -67,16 +67,18 @@ export function useExitSnapshot(params: {
     fullQuality,
     snapshotsOff,
   });
-  latest.current = {
-    src,
-    engine,
-    durationSec,
-    resolvedImdbId,
-    resolvedImdbVerified,
-    seekPreviewEnabled,
-    fullQuality,
-    snapshotsOff,
-  };
+  useLayoutEffect(() => {
+    latest.current = {
+      src,
+      engine,
+      durationSec,
+      resolvedImdbId,
+      resolvedImdbVerified,
+      seekPreviewEnabled,
+      fullQuality,
+      snapshotsOff,
+    };
+  });
   const lastGoodRef = useRef<Cached | null>(null);
   const lastGrabAtRef = useRef(0);
   const capturedKeyRef = useRef<string | null>(null);

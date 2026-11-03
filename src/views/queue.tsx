@@ -131,19 +131,21 @@ export function QueueView() {
     const page = extensionPageRef.current;
     extensionPageRef.current = page + 1;
     let cancelled = false;
-    void (async () => {
-      try {
-        const more = await extendPool(settings.tmdbKey, page);
+    const tmdbKey = settings.tmdbKey;
+    const extend = async () => {
+      {
+        const more = await extendPool(tmdbKey, page);
         if (cancelled) return;
         const existingIds = new Set(pool.map((p) => p.meta.id));
         const fresh = more.filter((m) => !existingIds.has(m.meta.id));
         const filtered = filterQueuePool(fresh);
         if (filtered.length === 0) return;
         setPool((p) => [...p, ...shuffleQueuePool(filtered)]);
-      } finally {
-        extendingRef.current = false;
       }
-    })();
+    };
+    void extend().finally(() => {
+      extendingRef.current = false;
+    });
     return () => {
       cancelled = true;
     };

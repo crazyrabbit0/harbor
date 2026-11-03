@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3;
@@ -17,11 +17,17 @@ type Args = {
 
 export function usePinchZoom({ zoom, onZoom, onPan, rootRef }: Args) {
   const zoomRef = useRef(zoom);
-  zoomRef.current = zoom;
+  useLayoutEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
   const onZoomRef = useRef(onZoom);
-  onZoomRef.current = onZoom;
+  useLayoutEffect(() => {
+    onZoomRef.current = onZoom;
+  }, [onZoom]);
   const onPanRef = useRef(onPan);
-  onPanRef.current = onPan;
+  useLayoutEffect(() => {
+    onPanRef.current = onPan;
+  }, [onPan]);
   const pinch = useRef({
     pts: new Map<number, { x: number; y: number }>(),
     baseDist: 0,

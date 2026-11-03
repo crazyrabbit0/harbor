@@ -25,6 +25,18 @@ function bestMatch(tracks: MusicTrack[], song: Song): MusicTrack | null {
   return loose ?? tracks[0] ?? null;
 }
 
+async function likeBestMatch(song: Song): Promise<boolean> {
+  try {
+    const results = await searchTyped(`${song.artist} ${song.title}`.trim(), 12);
+    const track = bestMatch(results.tracks, song);
+    if (!track) throw new Error("no match");
+    toggleMusicLiked(track);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function SongIdSave({ song, compact }: { song: Song; compact: boolean }) {
   const t = useT();
   const [state, setState] = useState<State>("idle");
@@ -32,15 +44,7 @@ export function SongIdSave({ song, compact }: { song: Song; compact: boolean }) 
   const save = async () => {
     if (state === "saving" || state === "saved") return;
     setState("saving");
-    try {
-      const results = await searchTyped(`${song.artist} ${song.title}`.trim(), 12);
-      const track = bestMatch(results.tracks, song);
-      if (!track) throw new Error("no match");
-      toggleMusicLiked(track);
-      setState("saved");
-    } catch {
-      setState("error");
-    }
+    setState((await likeBestMatch(song)) ? "saved" : "error");
   };
 
   const label =

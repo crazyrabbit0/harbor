@@ -25,6 +25,7 @@ import {
 import { useMiddleDragPan } from "../hooks/use-middle-drag-pan";
 import { BackToTop } from "@/components/back-to-top";
 import { ProgramBlocksRow } from "../skeletons";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const PREVIEW_DWELL_MS = 2000;
 const COL_MIN = 140;
@@ -122,12 +123,15 @@ export function GuideView({
     }, PREVIEW_DWELL_MS);
   };
 
-  const programsByChannel = useMemo(() => {
-    const m = new Map<string, EpgProgram[]>();
-    for (const ch of channels) m.set(ch.id, epgProgramsForChannel(ch, epg, tvgIdCounts) ?? []);
-    return m;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channels, epg, tvgIdCounts, epgMapVersion]);
+  const programsByChannel = useMemo(
+    () =>
+      readAtVersion(epgMapVersion, () => {
+        const m = new Map<string, EpgProgram[]>();
+        for (const ch of channels) m.set(ch.id, epgProgramsForChannel(ch, epg, tvgIdCounts) ?? []);
+        return m;
+      }),
+    [channels, epg, tvgIdCounts, epgMapVersion],
+  );
 
   const [colPx, setColPx] = useState<number>(loadColPx);
   const dragRef = useRef<{ startX: number; startW: number } | null>(null);
@@ -155,11 +159,13 @@ export function GuideView({
     } catch {}
   };
 
+  // 30-minute slots are 15-minute aligned, so the quarter start gives the same window as nowMs.
+  const quarter = Math.floor(nowMs / (15 * 60_000));
   const { windowStart, windowEnd, windowMinutes } = useMemo(() => {
-    const start = startOfWindow(nowMs, HISTORY_HOURS * 60);
+    const start = startOfWindow(quarter * 15 * 60_000, HISTORY_HOURS * 60);
     const minutes = WINDOW_HOURS * 60;
     return { windowStart: start, windowEnd: start + minutes * 60_000, windowMinutes: minutes };
-  }, [Math.floor(nowMs / (15 * 60_000))]);
+  }, [quarter]);
 
   useEffect(() => {
     if (scrolledRef.current) return;

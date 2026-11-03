@@ -179,7 +179,7 @@ export function usePickHandler({
         ? undefined
         : beginPlaybackTrace(playbackSourceClass(stream, debrids.length, forceP2p));
     markPlaybackTrace(playbackTraceId, "resolve-start");
-    try {
+    const run = async () => {
       if (intent === "download" && seasonEpisodes && seasonEpisodes.length > 0) {
         if (!isDownloadableSeasonPack(stream)) {
           setFailedStreams((prev) => new Set(prev).add(stream));
@@ -446,7 +446,8 @@ export function usePickHandler({
           saveSeasonLock(meta.id, entry, animeId ? null : (episode.season ?? null), animeId);
         }
       }
-    } finally {
+    };
+    await run().finally(() => {
       if (proxySessionId && !proxyTransferred) {
         void unregisterStreamProxy(proxySessionId).catch(() => {});
       }
@@ -456,7 +457,7 @@ export function usePickHandler({
       if (!opened && !ac.signal.aborted) {
         setResolving(null);
       }
-    }
+    });
   };
 
   const startResolve = (stream: ScoredStream, committed: boolean, forceP2p = false) => {
@@ -532,19 +533,24 @@ export function usePickHandler({
     const ac = new AbortController();
     resolveAcRef.current?.abort();
     resolveAcRef.current = ac;
-    try {
-      const r = await target.queueCache(stream.infoHash, ac.signal);
-      if (ac.signal.aborted) return;
-      if (!r.ok) {
-        setResolveError(playError(r.code));
-        return;
+    const infoHash = stream.infoHash;
+    const queueCache = target.queueCache.bind(target);
+    const run = async () => {
+      try {
+        const r = await queueCache(infoHash, ac.signal);
+        if (ac.signal.aborted) return;
+        if (!r.ok) {
+          setResolveError(playError(r.code));
+          return;
+        }
+        setQueuedHash(infoHash);
+      } catch {
+        if (!ac.signal.aborted) setResolveError(playError("error"));
       }
-      setQueuedHash(stream.infoHash);
-    } catch {
-      if (!ac.signal.aborted) setResolveError(playError("error"));
-    } finally {
+    };
+    await run().finally(() => {
       if (!ac.signal.aborted) setResolving(null);
-    }
+    });
   };
 
   useEffect(

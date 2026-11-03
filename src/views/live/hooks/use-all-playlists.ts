@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getCachedPlaylist, loadPlaylist, subscribePlaylists } from "@/lib/iptv/store";
 import type { IptvPlaylist, IptvPlaylistSource } from "@/lib/iptv/types";
 
@@ -8,10 +8,14 @@ export function useAllPlaylists(
 ): Map<string, IptvPlaylist> {
   const sourceKey = sources.map((s) => s.id).join("|");
 
-  const initial = useMemo(() => snapshot(sources), [sourceKey]);
-  const [playlists, setPlaylists] = useState<Map<string, IptvPlaylist>>(initial);
+  const [playlists, setPlaylists] = useState<Map<string, IptvPlaylist>>(() => snapshot(sources));
+  const sourcesRef = useRef(sources);
+  useLayoutEffect(() => {
+    sourcesRef.current = sources;
+  }, [sources]);
 
   useEffect(() => {
+    const sources = sourcesRef.current;
     setPlaylists(snapshot(sources));
     if (!enabled) return;
     let cancelled = false;

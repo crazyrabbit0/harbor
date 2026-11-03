@@ -53,6 +53,7 @@ export function VideoPipApp() {
   const idleTimer = useRef<number | null>(null);
   const scrubbing = useRef(false);
   const media = useFloatingMedia();
+  const setMediaError = media.setError;
   const [menu, setMenu] = useState(false);
   const [fullscreen, setFullscreen] = useState(false);
   const volumeRoot = useRef<HTMLDivElement>(null);
@@ -152,17 +153,17 @@ export function VideoPipApp() {
   const toggle = useCallback(() => {
     const next = !paused;
     void invoke("mpv_set_property", { name: "pause", value: next }).catch(() =>
-      media.setError(true),
+      setMediaError(true),
     );
-  }, [paused, media.setError]);
+  }, [paused, setMediaError]);
 
   const seek = useCallback(
     (seconds: number) => {
       void invoke("mpv_command", {
         cmd: ["seek", floatingSeek(seconds, duration), "absolute"],
-      }).catch(() => media.setError(true));
+      }).catch(() => setMediaError(true));
     },
-    [duration, media.setError],
+    [duration, setMediaError],
   );
 
   const leaveFullscreen = useCallback(async () => {
@@ -175,8 +176,8 @@ export function VideoPipApp() {
   const restore = useCallback(() => {
     void leaveFullscreen()
       .then(() => invoke("pip_window_restore"))
-      .catch(() => media.setError(true));
-  }, [leaveFullscreen, media.setError]);
+      .catch(() => setMediaError(true));
+  }, [leaveFullscreen, setMediaError]);
 
   const toggleFullscreen = useCallback(async () => {
     try {
@@ -185,9 +186,9 @@ export function VideoPipApp() {
       await w.setFullscreen(next);
       setFullscreen(next);
     } catch {
-      media.setError(true);
+      setMediaError(true);
     }
-  }, [media.setError]);
+  }, [setMediaError]);
   useEffect(() => {
     const root = volumeRoot.current;
     const wheel = (event: WheelEvent) => {
@@ -210,8 +211,8 @@ export function VideoPipApp() {
         await invoke("pip_window_exit");
         await invoke("mpv_command", { cmd: ["stop"] });
       })
-      .catch(() => media.setError(true));
-  }, [leaveFullscreen, media.setError]);
+      .catch(() => setMediaError(true));
+  }, [leaveFullscreen, setMediaError]);
 
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {

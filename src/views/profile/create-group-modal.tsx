@@ -74,12 +74,13 @@ export function CreateGroupModal({
       setBusy(false);
       return;
     }
-    try {
+    const work = async () => {
       const final = pickedBlob ? await setGroupAvatar(created.id, pickedBlob) : created;
       onCreated(final);
-    } catch {
+    };
+    await work().catch(() => {
       onCreated(created);
-    }
+    });
     onClose();
   };
 

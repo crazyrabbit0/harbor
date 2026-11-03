@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, ExternalLink, Loader2, Play, Plug, RefreshCw, Search } from "lucide-react";
 import { gatherCatalogAddons, type Addon } from "@/lib/addons";
 import { isAddonEnabled } from "@/lib/addon-store";
@@ -76,7 +76,9 @@ function AddonSources({ game, onAvailable }: AddonSourcesProps) {
     if (picked) backButton.current?.focus({ preventScroll: true });
   }, [picked]);
   const gameRef = useRef(game);
-  gameRef.current = game;
+  useLayoutEffect(() => {
+    gameRef.current = game;
+  }, [game]);
   const identity = JSON.stringify([
     game.startMs,
     game.home.name,
@@ -153,18 +155,21 @@ function AddonSources({ game, onAvailable }: AddonSourcesProps) {
     setPending(true);
     setPlaying(null);
     setError("");
-    try {
+    const work = async () => {
       const choices = await loadSportsAddonStreams(
         row,
         controller.signal,
         providers.current.filter((a) => isAddonEnabled(a.transportUrl)),
       );
       if (!controller.signal.aborted) setStreams(choices);
-    } catch {
-      if (!controller.signal.aborted) setError("Could not load this addon’s streams.");
-    } finally {
-      if (!controller.signal.aborted) setPending(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!controller.signal.aborted) setError("Could not load this addon’s streams.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPending(false);
+      });
   };
   const play = async (stream: Stream, index: number) => {
     if (
@@ -199,7 +204,7 @@ function AddonSources({ game, onAvailable }: AddonSourcesProps) {
     setError("");
     let proxySessionId: string | undefined;
     let transferred = false;
-    try {
+    const work = async () => {
       const result = await resolveStream(
         parseStream(stream),
         [],
@@ -232,14 +237,17 @@ function AddonSources({ game, onAvailable }: AddonSourcesProps) {
         proxySessionId,
       });
       transferred = true;
-    } catch {
-      if (!controller.signal.aborted)
-        setError("Could not start this stream. Choose another source.");
-    } finally {
-      if (proxySessionId && !transferred)
-        void unregisterStreamProxy(proxySessionId).catch(() => {});
-      if (!controller.signal.aborted) setPlaying(null);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setError("Could not start this stream. Choose another source.");
+      })
+      .finally(() => {
+        if (proxySessionId && !transferred)
+          void unregisterStreamProxy(proxySessionId).catch(() => {});
+        if (!controller.signal.aborted) setPlaying(null);
+      });
   };
   if (!loading && !installed && !failed) return null;
   return (

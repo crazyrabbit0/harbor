@@ -1,5 +1,5 @@
 import { Library, Loader2, Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   addExtensionRepo,
   listExtensionRepos,
@@ -55,21 +55,29 @@ export function ExtensionRepos({
       .then(setRepos)
       .catch(() => setRepos([]));
   };
+  // The probe is keyed by server identity; a new config object for the same server is not a change.
+  const configRef = useRef(config);
+  useLayoutEffect(() => {
+    configRef.current = config;
+  }, [config]);
 
   useEffect(() => {
     let cancelled = false;
+    const config = configRef.current;
     setSupported(null);
     reposSupported(config)
       .then((ok) => {
         if (cancelled) return;
         setSupported(ok);
-        if (ok) refresh();
+        if (ok)
+          listExtensionRepos(config)
+            .then(setRepos)
+            .catch(() => setRepos([]));
       })
       .catch(() => !cancelled && setSupported(false));
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
 
   const add = async (value: string) => {
@@ -77,34 +85,38 @@ export function ExtensionRepos({
     if (!v || busy) return;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       await addExtensionRepo(config, v);
       setUrl("");
       refresh();
       onChanged();
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : "";
-      setError(
-        msg === "invalid_url"
-          ? t("That does not look like a repository URL")
-          : msg === "repos_unsupported"
-            ? t("This server is too old to add repos from Harbor")
-            : t("The server could not load that repository"),
-      );
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : "";
+        setError(
+          msg === "invalid_url"
+            ? t("That does not look like a repository URL")
+            : msg === "repos_unsupported"
+              ? t("This server is too old to add repos from Harbor")
+              : t("The server could not load that repository"),
+        );
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   const remove = async (indexUrl: string) => {
     setBusy(true);
-    try {
+    const work = async () => {
       await removeExtensionRepo(config, indexUrl);
       refresh();
       onChanged();
-    } finally {
+    };
+    await work().finally(() => {
       setBusy(false);
-    }
+    });
   };
 
   if (supported === false) return null;

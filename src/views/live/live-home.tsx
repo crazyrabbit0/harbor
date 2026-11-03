@@ -27,6 +27,14 @@ import {
   type ChannelRail,
 } from "./live-home/use-live-home";
 
+function storedSportsLeague(): string {
+  try {
+    return localStorage.getItem("harbor.sports.league") || "all";
+  } catch {
+    return "all";
+  }
+}
+
 export function LiveHome({
   channels,
   epg,
@@ -68,13 +76,7 @@ export function LiveHome({
     update({ sportsLeagues: keys });
   };
 
-  const [sportsLeague, setSportsLeague] = useState<string>(() => {
-    try {
-      return localStorage.getItem("harbor.sports.league") || "all";
-    } catch {
-      return "all";
-    }
-  });
+  const [sportsLeague, setSportsLeague] = useState<string>(storedSportsLeague);
   const pickLeague = (k: string) => {
     setSportsLeague(k);
     try {

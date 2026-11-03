@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { List, Star, type LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useMangaFavorites } from "@/lib/manga-favorites";
@@ -32,7 +32,7 @@ function useOpenTitle() {
       next.delete(id);
       return next;
     });
-    try {
+    const work = async () => {
       const resolved = await resolveMangaOpen({ id, title: name, altTitle });
       if (!resolved) {
         setMissing((prev) => new Set(prev).add(id));
@@ -47,9 +47,10 @@ function useOpenTitle() {
         favorites.repair(id, { id: resolved.id, title: resolved.title, cover: resolved.cover });
       }
       openManga(resolved.id);
-    } finally {
+    };
+    await work().finally(() => {
       busyRef.current.delete(id);
-    }
+    });
   };
   return { open, missing };
 }
@@ -124,7 +125,9 @@ export function MangaLibrary({ scrollRef }: { scrollRef: React.RefObject<HTMLEle
   const t = useT();
   const { open, missing } = useOpenTitle();
   const openRef = useRef(open);
-  openRef.current = open;
+  useLayoutEffect(() => {
+    openRef.current = open;
+  }, [open]);
   const openRailTitle = useCallback(
     (m: MangaSummary) => void openRef.current(m.id, m.title, m.altTitle),
     [],

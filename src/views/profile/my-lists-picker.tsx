@@ -252,16 +252,19 @@ export function MyListsPicker({ onClose }: { onClose?: () => void }) {
     if (!loaded) return;
     setSaving(true);
     setError(null);
-    try {
+    const work = async () => {
       const byId = new Map(entries.map((l) => [l.id, l] as const));
       const picked = selected.map((id) => byId.get(id)).filter((l): l is PickableList => !!l);
       await saveFeaturedLists(buildFeaturedPayload(picked, served), true);
       onClose?.();
-    } catch {
-      setError(t("Could not save. Try again."));
-    } finally {
-      setSaving(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setError(t("Could not save. Try again."));
+      })
+      .finally(() => {
+        setSaving(false);
+      });
   };
 
   return createPortal(

@@ -32,8 +32,9 @@ export function WrappedView({ active }: { active: boolean }) {
     if (!active || loadedRef.current) return;
     loadedRef.current = true;
     let cancelled = false;
-    void (async () => {
-      try {
+    const tmdbKey = settings.tmdbKey;
+    const load = async () => {
+      {
         const { events, source } = await collectWatchEvents({ traktConnected });
         const year = new Date().getFullYear();
         const yearStats = aggregateWrapped(events, source, year);
@@ -44,28 +45,29 @@ export function WrappedView({ active }: { active: boolean }) {
         if (cancelled) return;
         setStats(resolved);
         if (resolved.source !== "empty" && resolved.topTitles.length > 0) {
-          void enrichTopTitles(resolved.topTitles, settings.tmdbKey).then(
-            ({ genres, posters, actors }) => {
-              if (cancelled) return;
-              setStats((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      topGenres: genres.length > 0 ? genres : prev.topGenres,
-                      topActors: actors,
-                      posters,
-                    }
-                  : prev,
-              );
-            },
-          );
+          void enrichTopTitles(resolved.topTitles, tmdbKey).then(({ genres, posters, actors }) => {
+            if (cancelled) return;
+            setStats((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    topGenres: genres.length > 0 ? genres : prev.topGenres,
+                    topActors: actors,
+                    posters,
+                  }
+                : prev,
+            );
+          });
         }
-      } catch {
-        if (!cancelled) setStats(null);
-      } finally {
-        if (!cancelled) setLoading(false);
       }
-    })();
+    };
+    void load()
+      .catch(() => {
+        if (!cancelled) setStats(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     return () => {
       cancelled = true;
     };

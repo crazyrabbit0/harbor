@@ -47,9 +47,10 @@ export function useTeamGames(
 ): { games: SportsGame[]; loading: boolean } {
   const { games: schedule, loading } = useTeamSchedule(team);
   const ownBoard = !board;
+  const leagueKey = team?.leagueKey;
   const leagues = useMemo(
-    () => (team && ownBoard ? [team.leagueKey] : []),
-    [team?.leagueKey, ownBoard],
+    () => (leagueKey !== undefined && ownBoard ? [leagueKey] : []),
+    [leagueKey, ownBoard],
   );
   const polled = useSports({ enabled: !!team && ownBoard, leagues });
   const live = board ?? polled;
