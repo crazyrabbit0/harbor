@@ -101,7 +101,9 @@ export function LocalEngineSection() {
       setResult(
         r ?? {
           pass: false,
-          steps: [{ label: "self-test", ok: false, detail: "timed out, hit Restart engine" }],
+          steps: [
+            { label: "self-test", ok: false, warn: false, detail: "timed out, hit Restart engine" },
+          ],
         },
       );
     } finally {

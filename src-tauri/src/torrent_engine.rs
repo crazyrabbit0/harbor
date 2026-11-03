@@ -260,6 +260,8 @@ fn current_port() -> Option<u16> {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[cfg_attr(test, ts(rename = "EngineStatus"))]
 pub struct EngineStatusDto {
     ready: bool,
     port: Option<u16>,
@@ -270,13 +272,16 @@ pub struct EngineStatusDto {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct EngineFile {
     idx: usize,
     name: String,
+    #[cfg_attr(test, ts(type = "number"))]
     length: u64,
 }
 
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AddResult {
     info_hash: String,
     files: Vec<EngineFile>,
@@ -285,15 +290,20 @@ pub struct AddResult {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct TorrentEngineStats {
     peers: usize,
     unchoked: usize,
+    #[cfg_attr(test, ts(type = "number"))]
     downloaded: u64,
     #[serde(rename = "downloadSpeed")]
+    #[cfg_attr(test, ts(type = "number"))]
     download_speed: u64,
     #[serde(rename = "streamProgress")]
+    #[cfg_attr(test, ts(type = "number"))]
     stream_progress: u64,
     #[serde(rename = "streamLen")]
+    #[cfg_attr(test, ts(type = "number"))]
     stream_len: u64,
     #[serde(rename = "peerSearchRunning")]
     peer_search_running: bool,
@@ -1137,12 +1147,16 @@ pub async fn torrent_engine_selftest(app: AppHandle) -> selftest::SelfTestResult
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[serde(rename_all = "camelCase")]
 pub struct TorrentListItem {
     pub info_hash: String,
     pub name: String,
+    #[cfg_attr(test, ts(type = "number"))]
     pub downloaded: u64,
+    #[cfg_attr(test, ts(type = "number"))]
     pub total: u64,
+    #[cfg_attr(test, ts(type = "number"))]
     pub download_speed: u64,
     pub finished: bool,
     pub paused: bool,
@@ -1224,4 +1238,27 @@ pub async fn torrent_engine_resume(info_hash: String) -> Result<(), String> {
         Ok(())
     })
     .await
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        crate::ipc_bindings::check(
+            "torrent-ipc.ts",
+            "torrent_engine.rs",
+            &[
+                super::EngineStatusDto::decl(&cfg),
+                super::EngineFile::decl(&cfg),
+                super::AddResult::decl(&cfg),
+                super::TorrentEngineStats::decl(&cfg),
+                super::TorrentListItem::decl(&cfg),
+                super::selftest::SelfTestStep::decl(&cfg),
+                super::selftest::SelfTestResult::decl(&cfg),
+            ],
+        );
+    }
 }
