@@ -4,41 +4,83 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import ts from "typescript";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const fill = read("src/views/player/hooks/use-video-fill.ts");
 const hotkeys = read("src/views/player/hooks/use-player-hotkeys.ts");
 
-const bound = (name: string) => Number(new RegExp(`${name} = (-?[\\d.]+)`).exec(fill)?.[1]);
+type Fill = { step: (delta: number) => void; cycle: () => void };
+
+// Runs useVideoFill once with plain refs and no effects; the zoom state lives in its refs.
+function videoFill() {
+  const zooms: number[] = [];
+  const flashes: Array<{ icon: string; value: string }> = [];
+  const exports: { useVideoFill?: (...args: unknown[]) => Fill; ZOOM_STEP?: number } = {};
+  const compiled = ts.transpileModule(read("src/views/player/hooks/use-video-fill.ts"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const mocks: Record<string, unknown> = {
+    react: { useRef: (current: unknown) => ({ current }), useEffect() {} },
+    "@/lib/i18n": { t: (s: string) => s },
+    "@/lib/settings": {
+      useSettingsSelector: (select: (s: unknown) => unknown) => select({ cropMode: "fit" }),
+      useSettingsUpdate: () => () => {},
+    },
+  };
+  new Function("require", "exports", compiled)((name: string) => {
+    if (!(name in mocks)) throw new Error(`Unexpected dependency ${name}`);
+    return mocks[name];
+  }, exports);
+  const bridge = {
+    setPanscan() {},
+    setAspectOverride() {},
+    setStretch() {},
+    setVideoZoom: (log2: number) => zooms.push(log2),
+  };
+  const flash = (f: { icon: string; value: string }) => flashes.push(f);
+  const fill = exports.useVideoFill!({ current: bridge }, "src", false, flash);
+  return { fill, zooms, flashes, step: exports.ZOOM_STEP! };
+}
 
 test("zoom can go below 1x, not only above it", () => {
-  // A 21:9 screen needs the crop dialled in from both directions.
-  assert.ok(bound("ZOOM_MIN") < 0, `ZOOM_MIN is ${bound("ZOOM_MIN")}`);
-  assert.ok(bound("ZOOM_MAX") > 0);
+  const { fill, zooms, step } = videoFill();
+  for (let i = 0; i < 200; i += 1) fill.step(-step);
+  const min = zooms.at(-1)!;
+  assert.ok(min < 0, `zoom bottoms out at ${min}`);
+  for (let i = 0; i < 400; i += 1) fill.step(step);
+  assert.ok(zooms.at(-1)! > 0);
 });
 
-test("one step moves the picture by a couple of percent, not seven", () => {
-  // video-zoom is a power of two, so 0.1 was 7.2% a press and overshot the fit.
-  const step = bound("ZOOM_STEP");
+test("one step moves the picture by a couple of percent", () => {
+  const { step } = videoFill();
   const percent = (Math.pow(2, step) - 1) * 100;
   assert.ok(percent > 0.5 && percent < 3, `a step moves ${percent.toFixed(2)}%`);
 });
 
-test("the step survives rounding", () => {
-  // Rounding to two places turned a 0.025 step into 0.03 and drifted.
-  const step = bound("ZOOM_STEP");
-  const places = Number(/Math\.round\(\(zoom\.current \+ delta\) \* (\d+)\)/.exec(fill)?.[1]);
-  assert.ok(places >= 1 / step, `rounding to ${places} cannot hold a ${step} step`);
-  let acc = 0;
-  for (let i = 0; i < 20; i += 1) acc = Math.round((acc + step) * places) / places;
-  assert.equal(acc, Math.round(step * 20 * places) / places, "steps drifted while accumulating");
+test("steps accumulate without rounding drift", () => {
+  const { fill, zooms, step } = videoFill();
+  for (let i = 0; i < 20; i += 1) fill.step(step);
+  assert.equal(zooms.at(-1), Math.round(step * 20 * 1e6) / 1e6);
 });
 
 test("the fill for a 16:9 picture on a 21:9 screen is reachable", () => {
+  const { fill, zooms, step } = videoFill();
   const needed = Math.log2(3440 / 1440 / (16 / 9));
-  assert.ok(needed <= bound("ZOOM_MAX"), "cannot zoom far enough to clear the pillarbox");
-  const presses = Math.ceil(needed / bound("ZOOM_STEP"));
-  assert.ok(presses <= 30, `${presses} presses to fill the screen`);
+  let presses = 0;
+  while ((zooms.at(-1) ?? 0) < needed && presses < 30) {
+    fill.step(step);
+    presses += 1;
+  }
+  assert.ok(zooms.at(-1)! >= needed, `${presses} presses reach only ${zooms.at(-1)}`);
+});
+
+test("the readout appears when zoomed out, not only when zoomed in", () => {
+  const { fill, flashes, step } = videoFill();
+  fill.step(-step);
+  assert.equal(flashes.at(-1)?.icon, "zoom");
+  assert.equal(flashes.at(-1)?.value, `${Math.round(Math.pow(2, -step) * 100)}%`);
+  fill.step(step);
+  assert.equal(flashes.at(-1)?.icon, "aspect", "back at 1x shows the mode, not a 100% zoom");
 });
 
 test("the hotkeys use the shared step instead of their own number", () => {
@@ -49,8 +91,4 @@ test("the hotkeys use the shared step instead of their own number", () => {
     /videoFill\.step\(-?0\.\d+\)/,
     "a literal step drifted from the clamp",
   );
-});
-
-test("the readout appears when zoomed out, not only when zoomed in", () => {
-  assert.match(fill, /mode\.id === "zoom" && zoomLevel !== 0/);
 });
