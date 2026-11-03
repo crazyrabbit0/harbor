@@ -81,7 +81,7 @@ function BpPitchDot({ spot, home }: { spot: Marked; home: boolean }) {
       <span
         className={`${BP_SPORTS_POS} w-full truncate text-center text-ink [text-shadow:0_1px_4px_var(--bp-void)]`}
       >
-        {spot.player.name.split(" ").at(-1)}
+        {spot.player.name.split(" ").pop()}
       </span>
     </span>
   );
