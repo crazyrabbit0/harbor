@@ -24,6 +24,10 @@ const walk = (dir) =>
         return /\.tsx?$/.test(name) && !name.endsWith(".d.ts") ? [path] : [];
       });
 
+// A store hook called only to re-render leaves compiled memos keyed without it, so their cached store reads go stale.
+const STORE_HOOK =
+  /^(useSyncExternalStore|use\w*(Version|Tick|Revision|Ver)|useAwardPacks|useDownloads)$/;
+
 // The compiler keys a memo on what its callback reads, so a dependency the body never reads (a store version) is dropped.
 function unreadMemoDeps(file, source) {
   const found = [];
@@ -34,6 +38,14 @@ function unreadMemoDeps(file, source) {
     parserOpts: { plugins: ["jsx", "typescript"] },
   });
   babel.traverse(ast, {
+    ExpressionStatement(path) {
+      const call = path.node.expression;
+      if (call.type !== "CallExpression" || call.callee.type !== "Identifier") return;
+      if (!STORE_HOOK.test(call.callee.name)) return;
+      found.push(
+        `${call.callee.name}() at line ${call.loc.start.line} discards its store value; read the store through readAtVersion`,
+      );
+    },
     CallExpression(path) {
       const callee = path.node.callee;
       const name = callee.type === "Identifier" ? callee.name : callee.property?.name;
