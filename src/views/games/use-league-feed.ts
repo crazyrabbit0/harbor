@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CompanionObservation } from "@/lib/games/companion-request";
 
 /** Keep observations on same-key refresh; never show a previous champion's response. */
@@ -16,7 +16,9 @@ export function useLeagueFeed<T>(
     failed: boolean;
   }>({ key, data: null, at: 0, busy: false, failed: false });
   const loader = useRef(load);
-  loader.current = load;
+  useLayoutEffect(() => {
+    loader.current = load;
+  }, [load]);
   const previous = useRef({ key, attempt });
   useEffect(() => {
     if (!enabled) return;

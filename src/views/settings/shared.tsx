@@ -210,7 +210,9 @@ export function Section({
   const [multiGroup, setMultiGroup] = useState(false);
   const [echo, setEcho] = useState(false);
   const titleRef = useRef(title);
-  titleRef.current = title;
+  useLayoutEffect(() => {
+    titleRef.current = title;
+  }, [title]);
 
   const registry = useMemo<SectionRegistry>(() => {
     const sync = () => {
@@ -307,12 +309,14 @@ export function KeyField({
   const showSaved = saved && !dirty;
 
   const onSaveRef = useRef(onSave);
-  onSaveRef.current = () => {
-    onSave();
-    setInitialValue(value);
-  };
   const stateRef = useRef({ dirty, value });
-  stateRef.current = { dirty, value };
+  useLayoutEffect(() => {
+    onSaveRef.current = () => {
+      onSave();
+      setInitialValue(value);
+    };
+    stateRef.current = { dirty, value };
+  });
 
   useEffect(() => {
     if (!dirty) return;
@@ -685,7 +689,7 @@ export function Segmented<T extends string>({
   const control = (
     <div
       ref={wrapRef}
-      onKeyDown={stripArrowKeys(btnRefs, (i) => onChange(options[i].value))}
+      onKeyDown={(e) => stripArrowKeys(btnRefs, (i) => onChange(options[i].value))(e)}
       className="relative flex w-fit flex-wrap gap-0.5 rounded-[10px] bg-canvas p-1"
     >
       <span

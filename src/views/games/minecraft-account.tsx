@@ -9,6 +9,8 @@ import { MinecraftSkinViewer } from "./minecraft-skin-viewer";
 import "./minecraft-account.css";
 import "./minecraft-skin-studio.css";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function MinecraftAccountButton({
   account,
   open,
@@ -134,7 +136,7 @@ export function MinecraftAccountDialog({
   const openMicrosoft = async () => {
     setLinkError(false);
     try {
-      const { openUrl } = await import("@tauri-apps/plugin-opener");
+      const { openUrl } = await loadOpener();
       await openUrl("https://microsoft.com/devicelogin");
     } catch {
       setLinkError(true);

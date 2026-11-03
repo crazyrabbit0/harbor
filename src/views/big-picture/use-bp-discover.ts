@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { useHideAnimeRows } from "@/lib/anime-hide";
 import { AWARD_CATALOG, type AwardMeta } from "@/lib/awards-catalog";
 import {
@@ -14,9 +14,11 @@ import { fetchGenreSample, selectDailyRows } from "@/lib/feed";
 import { fetchRankList, type HarborRankExplanation } from "@/lib/harbor-rank";
 import { CATALOG_REQUEST_TIMEOUT_MS, withTimeout } from "@/lib/progressive-rows";
 import type { AwardType } from "@/lib/providers/wikidata";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useSettings } from "@/lib/settings";
 import { claimUniqueArt, releaseUniqueArt } from "@/lib/unique-art";
 import { bpAwardTint } from "./bp-award-mark";
+import { useBpKeyed } from "./use-bp-keyed";
 
 export type BpAwardSummary = {
   type: AwardType;
@@ -145,8 +147,12 @@ export function bpAwardsOverview(): BpAwardsOverview {
 }
 
 export function useBpAwardsOverview(): BpAwardsOverview {
-  useSyncExternalStore(subscribeBundledAwards, bundledAwardsVersion, bundledAwardsVersion);
-  return bpAwardsOverview();
+  const awardsVer = useSyncExternalStore(
+    subscribeBundledAwards,
+    bundledAwardsVersion,
+    bundledAwardsVersion,
+  );
+  return readAtVersion(awardsVer, () => bpAwardsOverview());
 }
 
 export const BP_GENRES: string[] = [
@@ -233,8 +239,7 @@ export function useBpDiscoverRails(count: number): BpDiscoverRail[] {
   const { settings } = useSettings();
   const [rails, setRails] = useState<BpDiscoverRail[]>([]);
 
-  const defs = useMemo(
-    () => selectDailyRows(settings.tmdbKey, getStore().affinity, settings, count),
+  const defs = useBpKeyed(
     [
       settings.tmdbKey,
       settings.region,
@@ -245,6 +250,7 @@ export function useBpDiscoverRails(count: number): BpDiscoverRail[] {
       settings.uiLanguage,
       count,
     ],
+    () => selectDailyRows(settings.tmdbKey, getStore().affinity, settings, count),
   );
 
   useEffect(() => {

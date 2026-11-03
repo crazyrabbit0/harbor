@@ -79,14 +79,10 @@ export function RecommendedAddonCard({
     if (!debrid) return;
     setBusy(true);
     setError(null);
-    try {
-      await installAddon(id, urlBuilder(debrid.service, debrid.key));
-      setInstalled(true);
-    } catch (e: any) {
-      setError(e?.message ?? t("Install failed"));
-    } finally {
-      setBusy(false);
-    }
+    await installAddon(id, urlBuilder(debrid.service, debrid.key))
+      .then(() => setInstalled(true))
+      .catch((e: any) => setError(e?.message ?? t("Install failed")))
+      .finally(() => setBusy(false));
   };
 
   const onUninstall = () => {
@@ -179,16 +175,17 @@ export function ManualAddonCard({
     if (!url) return;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       const manifestUrl = normalizeManifestUrl(url);
       const installed = await installAddon(localId, manifestUrl);
       setInstalledId(installed.manifest.id || localId);
       setDraft("");
-    } catch (e: any) {
-      setError(e?.message ?? t("Couldn't install. Double-check the URL and try again."));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((e: any) =>
+        setError(e?.message ?? t("Couldn't install. Double-check the URL and try again.")),
+      )
+      .finally(() => setBusy(false));
   };
 
   const onUninstall = () => {

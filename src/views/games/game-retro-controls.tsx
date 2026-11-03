@@ -46,7 +46,7 @@ export function RetroControls({
   const assign = (value: number | string) => {
     if (!capture) return;
     const next = structuredClone(bindings);
-    next[port] ??= {};
+    if (next[port] == null) next[port] = {};
     for (const binding of Object.values(next[port]))
       if (binding[capture.kind] === value) delete binding[capture.kind];
     next[port][capture.button] = { ...next[port][capture.button], [capture.kind]: value };

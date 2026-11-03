@@ -83,7 +83,9 @@ export function GameSeasonal({
     return () => request.abort();
   }, [active, seen, season, attempt, refresh]);
   const game = games.find((game) => game.id === selected) ?? games[0];
-  const currentDetail = detail?.steamId === game?.steamId ? detail : null;
+  const detailSteamId = detail?.steamId,
+    gameSteamId = game?.steamId;
+  const currentDetail = detailSteamId === gameSteamId ? detail : null;
   const inspecting = active && visible && pageVisible && (hovered || focused);
   useEffect(() => {
     setPreview(false);

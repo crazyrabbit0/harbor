@@ -54,6 +54,7 @@ import { enqueueDownload } from "@/lib/download/downloads-store";
 import { GenreMenu, SortMenu, type LocalSortKey, type SortDir } from "./local-tab/toolbar";
 import { MediaServerBrand } from "@/components/media-server-brand";
 import { readLibraryFilterPreferences, writeLibraryFilterPreferences } from "./filter-preferences";
+import { readAtVersion } from "@/lib/read-at-version";
 
 type Card = { title: MediaServerTitle; meta: Meta };
 const fallbackMeta = (title: MediaServerTitle): Meta => ({
@@ -96,7 +97,10 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
   );
   const [sort, setSort] = useState<LocalSortKey>(savedFilters.sort ?? "added");
   const [sortDir, setSortDir] = useState<SortDir>(savedFilters.sortDir ?? "desc");
-  const connections = useMemo(() => mediaServerConnections(), [revision]);
+  const connections = useMemo(
+    () => readAtVersion(revision, () => mediaServerConnections()),
+    [revision],
+  );
   useEffect(() => {
     writeLibraryFilterPreferences("media-servers", {
       type,
@@ -208,30 +212,34 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
       })),
     [cards],
   );
-  const visible = useMemo(() => {
-    const mul = sortDir === "asc" ? 1 : -1;
-    return cards
-      .filter(
-        (card) =>
-          (type === "all" || card.title.kind === type) &&
-          (server === "all" || card.title.connectionIds.includes(server)) &&
-          (library === "all" || card.title.libraryIds.includes(library)) &&
-          [...selectedGenres].every((name) => card.meta.genres?.includes(name)) &&
-          (!query.trim() || card.meta.name.toLowerCase().includes(query.trim().toLowerCase())),
-      )
-      .sort((a, b) => {
-        if (sort === "title") return mul * a.meta.name.localeCompare(b.meta.name);
-        const value = (entry: Card) =>
-          sort === "year"
-            ? Number(entry.meta.releaseInfo?.slice(0, 4) ?? 0)
-            : sort === "rating"
-              ? Number(entry.meta.imdbRating ?? 0)
-              : sort === "runtime"
-                ? Number(entry.meta.runtime?.match(/\d+/)?.[0] ?? 0)
-                : (entry.title.addedAt ?? 0);
-        return mul * (value(a) - value(b));
-      });
-  }, [cards, type, server, library, selectedGenres, query, sort, sortDir]);
+  const visible = useMemo(
+    () =>
+      readAtVersion(selectedGenres, () => {
+        const mul = sortDir === "asc" ? 1 : -1;
+        return cards
+          .filter(
+            (card) =>
+              (type === "all" || card.title.kind === type) &&
+              (server === "all" || card.title.connectionIds.includes(server)) &&
+              (library === "all" || card.title.libraryIds.includes(library)) &&
+              [...selectedGenres].every((name) => card.meta.genres?.includes(name)) &&
+              (!query.trim() || card.meta.name.toLowerCase().includes(query.trim().toLowerCase())),
+          )
+          .sort((a, b) => {
+            if (sort === "title") return mul * a.meta.name.localeCompare(b.meta.name);
+            const value = (entry: Card) =>
+              sort === "year"
+                ? Number(entry.meta.releaseInfo?.slice(0, 4) ?? 0)
+                : sort === "rating"
+                  ? Number(entry.meta.imdbRating ?? 0)
+                  : sort === "runtime"
+                    ? Number(entry.meta.runtime?.match(/\d+/)?.[0] ?? 0)
+                    : (entry.title.addedAt ?? 0);
+            return mul * (value(a) - value(b));
+          });
+      }),
+    [cards, type, server, library, selectedGenres, query, sort, sortDir],
+  );
   const unmatched = titles.filter(
     (title) => !title.identity.tmdbId && !title.identity.imdbId && !title.identity.tvdbId,
   );

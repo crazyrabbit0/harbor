@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useSearch } from "@/lib/search-context";
 import { getSearchDisplayState } from "@/lib/search-display-state";
 import { useSettings } from "@/lib/settings";
 import { useParental } from "@/lib/parental";
-import { useUiLanguage } from "@/lib/i18n";
+
 import { matchPersonForQuery } from "@/components/search/person-top-match";
 import { useCollectionHits } from "@/components/search/use-collection-hits";
 import type { TvdbCollectionHit } from "@/lib/providers/tvdb-collections";
@@ -14,6 +14,7 @@ import type { AddonQuery, AddonQueryState } from "@/lib/search-addons";
 import type { AddonHit } from "@/lib/search-addon-index";
 import type { MangaSummary } from "@/lib/manga/model";
 import { useBpT } from "./bp-i18n";
+import { useBpKeyed } from "./use-bp-keyed";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 
 type BpT = (key: string, vars?: Record<string, string | number>) => string;
@@ -334,11 +335,32 @@ function buildBpSearchSlots(input: SlotInput): BpSearchSection[] {
   return out;
 }
 
-type QueryLatch = { q: string; promote: boolean; decided: boolean; groups: Set<BpSearchFilter> };
+type QueryLatch = {
+  q: string;
+  promote: boolean;
+  decided: boolean;
+  groups: ReadonlySet<BpSearchFilter>;
+};
+
+function freshLatch(q: string): QueryLatch {
+  return { q, promote: false, decided: false, groups: new Set() };
+}
+
+function decideLatch(latch: QueryLatch, promote: boolean, decided: boolean): QueryLatch {
+  if (latch.promote === promote && latch.decided === decided) return latch;
+  return { ...latch, promote, decided };
+}
+
+// A group once shown stays a chip for the rest of the query.
+function withGroups(latch: QueryLatch, counts: ReadonlyMap<BpSearchFilter, number>): QueryLatch {
+  const added = [...counts].filter(([g, n]) => n > 0 && !latch.groups.has(g)).map(([g]) => g);
+  if (added.length === 0) return latch;
+  return { ...latch, groups: new Set([...latch.groups, ...added]) };
+}
 
 export function useBpSearch(filter: BpSearchFilter): BpSearchState {
   const t = useBpT();
-  const lang = useUiLanguage();
+
   const { query, setQuery, results, addonQueries, status, clear, setAiHold, retry } = useSearch();
   const { currentResults, hasResults, tmdbUnavailable } = getSearchDisplayState(
     results,
@@ -389,30 +411,21 @@ export function useBpSearch(filter: BpSearchFilter): BpSearchState {
   const settled = !idle && fixedSettled && !addonsPending;
   const busy = !idle && (!fixedSettled || addonsPending);
 
-  const latchRef = useRef<QueryLatch | null>(null);
-  if (!latchRef.current || latchRef.current.q !== trimmed) {
-    latchRef.current = { q: trimmed, promote: false, decided: false, groups: new Set() };
-  }
-  const latch = latchRef.current;
-  if (!latch.decided) {
-    latch.promote = !!matchPersonForQuery(r?.people, trimmed);
-    // Decided once per query. People only ever arrive on the TMDB response, so the
-    // answer is final as soon as that lands. Re-deciding later swaps the People row
-    // from slot 3 to slot 1 and renumbers the rail under whoever is navigating it.
-    if ((r?.people.length ?? 0) > 0 || fixedSettled) latch.decided = true;
-  }
-  const promote = latch.promote;
+  const [held, setHeld] = useState<QueryLatch>(() => freshLatch(trimmed));
+  const base = held.q === trimmed ? held : freshLatch(trimmed);
+  // Decided once per query. People only ever arrive on the TMDB response, so the
+  // answer is final as soon as that lands. Re-deciding later swaps the People row
+  // from slot 3 to slot 1 and renumbers the rail under whoever is navigating it.
+  const peopleLanded = (r?.people.length ?? 0) > 0;
+  const promote = base.decided ? base.promote : !!matchPersonForQuery(r?.people, trimmed);
 
-  const tRef = useRef(t);
-  tRef.current = t;
-  const tt = useCallback<BpT>((key, vars) => tRef.current(key, vars), []);
-
-  const all = useMemo<BpSearchSection[]>(
+  const all = useBpKeyed<BpSearchSection[]>(
+    [idle, t, r, addonQueries, collections, fixedSettled, promote, gates],
     () =>
       idle
         ? []
         : buildBpSearchSlots({
-            t: tt,
+            t,
             r,
             addonQueries,
             collections,
@@ -420,9 +433,6 @@ export function useBpSearch(filter: BpSearchFilter): BpSearchState {
             promotePerson: promote,
             gates,
           }),
-    // lang stands in for tt, which is stable by design so labels would otherwise
-    // never re-translate on a language change.
-    [idle, tt, lang, r, addonQueries, collections, fixedSettled, promote, gates],
   );
 
   const counts = new Map<BpSearchFilter, number>();
@@ -430,9 +440,9 @@ export function useBpSearch(filter: BpSearchFilter): BpSearchState {
     if (s.group === "top") continue;
     counts.set(s.group, (counts.get(s.group) ?? 0) + bpSectionCount(s));
   }
-  for (const [group, n] of counts) {
-    if (n > 0) latch.groups.add(group);
-  }
+  const decided = base.decided ? base : decideLatch(base, promote, peopleLanded || fixedSettled);
+  const latch = withGroups(decided, counts);
+  if (latch !== held) setHeld(latch);
 
   const chips: BpSearchChip[] = [];
   if (!idle && latch.groups.size > 0) {

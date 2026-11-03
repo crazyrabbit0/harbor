@@ -28,12 +28,13 @@ import {
 export function GameLaunchButton({
   game,
   library,
-  name = game.name,
+  name: nameProp,
 }: {
   game: SteamInstall;
   library: SteamLibraryState;
   name?: string;
 }) {
+  const name = nameProp === undefined ? game.name : nameProp;
   const t = useT();
   const busy = library.launching === game.appId;
   const launched = library.launched === game.appId;

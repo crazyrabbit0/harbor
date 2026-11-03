@@ -125,17 +125,22 @@ export function WebhooksPanel() {
       }),
       items: [],
     };
-    try {
-      const res = await fireWebhook(kind, url, testPayload);
-      setStatus({
-        state: res.ok ? "ok" : "error",
-        message: res.ok
-          ? t(kind === "desktop" ? "Sent. Check your notifications." : "Sent. Check your channel.")
-          : (res.error ?? t("Failed")),
+    await fireWebhook(kind, url, testPayload)
+      .then((res) =>
+        setStatus({
+          state: res.ok ? "ok" : "error",
+          message: res.ok
+            ? t(
+                kind === "desktop"
+                  ? "Sent. Check your notifications."
+                  : "Sent. Check your channel.",
+              )
+            : (res.error ?? t("Failed")),
+        }),
+      )
+      .finally(() => {
+        inFlightRef.current[kind] = false;
       });
-    } finally {
-      inFlightRef.current[kind] = false;
-    }
     setTimeout(() => setStatus(idleStatus), 4000);
   };
 

@@ -444,7 +444,10 @@ function GuideContinuation({
     attempted = useRef(-1),
     [manual, setManual] = useState(false);
   const load = useRef(result.loadMore);
-  load.current = result.loadMore;
+  const loadMore = result.loadMore;
+  useLayoutEffect(() => {
+    load.current = loadMore;
+  }, [loadMore]);
   useEffect(() => {
     const node = root.current,
       container = node?.closest(".games-view");

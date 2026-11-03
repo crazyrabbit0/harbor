@@ -106,12 +106,16 @@ export function GameSimsMtsBrowse({
     focusSearch = useRef(false);
 
   const started = useRef<string | null>(null);
+  const [hasStarted, setHasStarted] = useState(false);
 
   const cancel = useCallback(
     (navigation = false) => {
       const own = task.current;
       if (own) {
-        if (navigation) started.current = null;
+        if (navigation) {
+          started.current = null;
+          setHasStarted(false);
+        }
         own.canceled = true;
         void simsCancel(profile, own.id).catch(() => {});
       }
@@ -161,7 +165,7 @@ export function GameSimsMtsBrowse({
 
     let stop: (() => void) | undefined;
 
-    try {
+    const work = async () => {
       stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
         if (payload.profile !== profile || payload.operationId !== own.id) return;
 
@@ -181,23 +185,27 @@ export function GameSimsMtsBrowse({
         if (page && page.query.page !== value.query.page)
           root.current?.scrollIntoView({ block: "start" });
       }
-    } catch (reason) {
+    };
+    const fail = (reason: unknown) => {
       if (alive.current && !own.canceled)
         setError(
           String(reason).includes("unknown field `game`")
             ? "games.sims.catalogUpdateRequired"
             : simsError(reason),
         );
-    } finally {
-      stop?.();
-      if (task.current === own) task.current = null;
+    };
+    await work()
+      .catch(fail)
+      .finally(() => {
+        stop?.();
+        if (task.current === own) task.current = null;
 
-      if (alive.current) {
-        if (own.canceled && page) setDraft(page.query);
-        focusSearch.current = document.activeElement === cancelButton.current;
-        setBusy(false);
-      }
-    }
+        if (alive.current) {
+          if (own.canceled && page) setDraft(page.query);
+          focusSearch.current = document.activeElement === cancelButton.current;
+          setBusy(false);
+        }
+      });
   };
 
   useEffect(() => {
@@ -206,6 +214,7 @@ export function GameSimsMtsBrowse({
     const timer = setTimeout(
       () => {
         started.current = query;
+        setHasStarted(true);
         void load({ ...draft, query, page: 1 });
       },
       query ? 250 : 0,
@@ -348,7 +357,7 @@ export function GameSimsMtsBrowse({
       )}
 
       {error && <p role="alert">{t(error)}</p>}
-      {autoLoad && !page && !busy && started.current !== null && (
+      {autoLoad && !page && !busy && hasStarted && (
         <button
           ref={search}
           className="games-button"

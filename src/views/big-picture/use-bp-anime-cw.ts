@@ -25,6 +25,11 @@ import {
   type LibraryItem,
 } from "@/lib/stremio";
 
+// Local copy of lib/read-at-version: tests eval this file with a fixed import list.
+function readAtVersion<T>(_version: unknown, read: () => T): T {
+  return read();
+}
+
 const CW_CAP = 20;
 // Each root is a walk of up to eight sequential kitsu calls, and the pool this
 // runs over is the whole anime library, not the capped row.
@@ -124,10 +129,11 @@ export function useBpAnimeCwBase(): BpAnimeCwBase {
     return loadAnimeAddonRows(authKey, setAddonRows);
   }, [authKey]);
 
-  const localAnimeCw = useMemo<LibraryItem[]>(() => {
-    void localCwVer;
-    return localItems(hideSharedCw, cwSources);
-  }, [localCwVer, hideSharedCw, activeProfile?.id, cwSources]);
+  const activeProfileId = activeProfile?.id;
+  const localAnimeCw = useMemo<LibraryItem[]>(
+    () => readAtVersion([localCwVer, activeProfileId], () => localItems(hideSharedCw, cwSources)),
+    [localCwVer, hideSharedCw, activeProfileId, cwSources],
+  );
 
   const pool = useMemo(
     () => [
@@ -144,35 +150,36 @@ export function useBpAnimeCwBase(): BpAnimeCwBase {
     [localAnimeCw, libItems, trackerCw, hideSharedCw, cwSources],
   );
 
-  const raw = useMemo(() => {
-    void cwVersion;
-    void animeDetectVer;
-    void rootVersion;
-    const seen = new Set<string>();
-    const seenRoot = new Set<string>();
-    return pool
-      .filter((i) => {
-        if (!isCwMember(i)) return false;
-        if (!i.local && !isAnimeCwItem(i)) return false;
-        if (isCwDismissed(i)) return false;
-        if (seen.has(i._id)) return false;
-        seen.add(i._id);
-        return true;
-      })
-      .sort(
-        (a, b) =>
-          Date.parse(b.state?.lastWatched ?? b._mtime) -
-          Date.parse(a.state?.lastWatched ?? a._mtime),
-      )
-      .filter((i) => {
-        const root = franchiseRootSync(i._id);
-        if (!root) return true;
-        if (seenRoot.has(root)) return false;
-        seenRoot.add(root);
-        return true;
-      })
-      .slice(0, CW_CAP);
-  }, [pool, cwVersion, animeDetectVer, rootVersion, hideSharedCw]);
+  const raw = useMemo(
+    () =>
+      readAtVersion([cwVersion, animeDetectVer, rootVersion, hideSharedCw], () => {
+        const seen = new Set<string>();
+        const seenRoot = new Set<string>();
+        return pool
+          .filter((i) => {
+            if (!isCwMember(i)) return false;
+            if (!i.local && !isAnimeCwItem(i)) return false;
+            if (isCwDismissed(i)) return false;
+            if (seen.has(i._id)) return false;
+            seen.add(i._id);
+            return true;
+          })
+          .sort(
+            (a, b) =>
+              Date.parse(b.state?.lastWatched ?? b._mtime) -
+              Date.parse(a.state?.lastWatched ?? a._mtime),
+          )
+          .filter((i) => {
+            const root = franchiseRootSync(i._id);
+            if (!root) return true;
+            if (seenRoot.has(root)) return false;
+            seenRoot.add(root);
+            return true;
+          })
+          .slice(0, CW_CAP);
+      }),
+    [pool, cwVersion, animeDetectVer, rootVersion, hideSharedCw],
+  );
 
   // franchiseRootSync only answers once the walk is warm, so the collapse runs in
   // two phases or three seasons of one show sit in the row.
@@ -199,16 +206,19 @@ export function useBpAnimeCwBase(): BpAnimeCwBase {
     void detectAnimeForCw(libItems);
   }, [libItems]);
 
-  const resurfaceLibrary = useMemo(() => {
-    void manualWatchedVer;
-    const manual = manualWatchedLibraryItems().filter(isAnimeCwItem);
-    if (manual.length === 0) return libItems;
-    const memberIds = new Set(libItems.filter(isCwMember).map((i) => i._id));
-    const usable = manual.filter((i) => !memberIds.has(i._id));
-    if (usable.length === 0) return libItems;
-    const overrideIds = new Set(usable.map((i) => i._id));
-    return [...libItems.filter((i) => !overrideIds.has(i._id)), ...usable];
-  }, [libItems, manualWatchedVer]);
+  const resurfaceLibrary = useMemo(
+    () =>
+      readAtVersion(manualWatchedVer, () => {
+        const manual = manualWatchedLibraryItems().filter(isAnimeCwItem);
+        if (manual.length === 0) return libItems;
+        const memberIds = new Set(libItems.filter(isCwMember).map((i) => i._id));
+        const usable = manual.filter((i) => !memberIds.has(i._id));
+        if (usable.length === 0) return libItems;
+        const overrideIds = new Set(usable.map((i) => i._id));
+        return [...libItems.filter((i) => !overrideIds.has(i._id)), ...usable];
+      }),
+    [libItems, manualWatchedVer],
+  );
 
   const sig = raw
     .map((i) => `${i._id}:${i.state?.season ?? ""}:${i.state?.episode ?? ""}`)

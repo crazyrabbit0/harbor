@@ -2,6 +2,7 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -209,7 +210,9 @@ export function BigPictureShell() {
   const onboarding = useBpOnboardingGate(chrome.mounted && !introUp);
   const [onboardHint, setOnboardHint] = useState<BpAction | null>(null);
   const onboardingOpenRef = useRef(onboarding.open);
-  onboardingOpenRef.current = onboarding.open;
+  useLayoutEffect(() => {
+    onboardingOpenRef.current = onboarding.open;
+  }, [onboarding.open]);
   useBpSound(chrome.navigationEnabled);
   useBpFullscreen(chrome.mounted);
 
@@ -285,7 +288,9 @@ export function BigPictureShell() {
   // would move this to the end of the handler list, and runBpBack walks from the
   // end, so the shell would start swallowing Back before any open dialog saw it.
   const fallbackRef = useRef(fallback);
-  fallbackRef.current = fallback;
+  useLayoutEffect(() => {
+    fallbackRef.current = fallback;
+  }, [fallback]);
   useEffect(() => pushBpBack(() => fallbackRef.current()), []);
 
   const onBack = useCallback(() => {

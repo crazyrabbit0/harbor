@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { pushBigPicture } from "@/lib/big-picture";
 import { readSnapshot, useSnapshotVersion } from "@/lib/snapshots";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useProxiedImageSrc } from "@/lib/remote-image-proxy";
 import {
   episodeFromVideoId,
@@ -104,7 +105,10 @@ export function BpCwCard({
   const boxRef = useRef<HTMLButtonElement | null>(null);
   const snapshots = useSnapshotVersion();
   const pinned = useMemo(
-    () => (item.background ? undefined : (readSnapshot(item._id) ?? undefined)),
+    () =>
+      readAtVersion(snapshots, () =>
+        item.background ? undefined : (readSnapshot(item._id) ?? undefined),
+      ),
     [item._id, item.background, snapshots],
   );
   const art = useBpArt({
@@ -233,7 +237,6 @@ export function BpCwRow({
   lead?: BpRowLead;
   loading?: boolean;
 }) {
-  useSnapshotVersion();
   const t = useBpT();
   // Holding the row's height while the library resolves is what stops home
   // reflowing under the ring. Empty and settled still collapses, so the rail

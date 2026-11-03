@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowUpRight,
   ChevronDown,
@@ -44,7 +44,9 @@ export function GameStardewCompanion({
   const [artFailed, setArtFailed] = useState(false);
   const [artLoaded, setArtLoaded] = useState(false);
   const current = useRef(active);
-  current.current = active;
+  useLayoutEffect(() => {
+    current.current = active;
+  }, [active]);
   const alive = useRef(true);
   const cancelButton = useRef<HTMLButtonElement>(null);
   const scanButton = useRef<HTMLButtonElement>(null);
@@ -64,14 +66,17 @@ export function GameStardewCompanion({
   const choose = async () => {
     if (picking || state.busy) return;
     setPicking(true);
-    try {
+    const work = async () => {
       const path = await open({ directory: true, multiple: false, title: label("choose") });
       if (typeof path === "string" && alive.current && current.current) await state.run(path);
-    } catch {
-      if (alive.current) state.setError("games.stardew.readError");
-    } finally {
-      if (alive.current) setPicking(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (alive.current) state.setError("games.stardew.readError");
+      })
+      .finally(() => {
+        if (alive.current) setPicking(false);
+      });
   };
   const updates = new Map(
     (state.report?.updates ?? []).map((item) => [item.id.toLowerCase(), item]),

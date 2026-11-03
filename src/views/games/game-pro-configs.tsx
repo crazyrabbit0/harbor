@@ -104,7 +104,7 @@ export function GameProConfigs({
     moreRequest.current = request;
     setMoreBusy(true);
     setMoreFailed(false);
-    try {
+    const work = async () => {
       const unique = new Map(players?.map((p) => [p.id, p])),
         before = unique.size;
       let pageNumber: number | undefined = next;
@@ -125,11 +125,14 @@ export function GameProConfigs({
         setPlayers([...unique.values()]);
         setNext(pageNumber);
       }
-    } catch {
-      if (!request.signal.aborted) setMoreFailed(true);
-    } finally {
-      if (!request.signal.aborted) setMoreBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!request.signal.aborted) setMoreFailed(true);
+      })
+      .finally(() => {
+        if (!request.signal.aborted) setMoreBusy(false);
+      });
   };
   const openPlayer = (player: ProPlayer) => {
     origin.current = { id: player.id, top: root.current?.closest(".games-view")?.scrollTop ?? 0 };
@@ -316,11 +319,9 @@ function ConfigExport({ text, name }: { text: string; name: string }) {
         disabled={busy || !text}
         onClick={async () => {
           setBusy(true);
-          try {
-            await downloadText(`${safe}.txt`, text, ["txt"], "Harbor");
-          } finally {
+          await downloadText(`${safe}.txt`, text, ["txt"], "Harbor").finally(() => {
             setBusy(false);
-          }
+          });
         }}
       >
         <Download size={16} /> {t("games.guides.exportAll")}

@@ -5,6 +5,7 @@ import { activeDownloadFor, cancelDownload, useDownloads } from "@/lib/download/
 import { findLocalEpisodeByIds, findLocalMovie } from "@/lib/local-library";
 import { type PlayEpisode, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function EpisodeDownloadButton({
   meta,
@@ -19,7 +20,7 @@ export function EpisodeDownloadButton({
 }) {
   const t = useT();
   const { openPicker } = useViewActions();
-  useDownloads();
+  const downloads = useDownloads();
   const tmdbMatch = meta.id.match(/^tmdb:(?:movie|tv):(\d+)$/);
   const tmdbId = tmdbMatch ? parseInt(tmdbMatch[1], 10) : null;
   const imdbId = meta.id.startsWith("tt") ? meta.id : null;
@@ -27,7 +28,9 @@ export function EpisodeDownloadButton({
     episode != null
       ? findLocalEpisodeByIds(episode.season, episode.episode, tmdbId, imdbId) != null
       : findLocalMovie(tmdbId, imdbId) != null;
-  const dl = activeDownloadFor(meta.id, episode?.season ?? null, episode?.episode ?? null);
+  const dl = readAtVersion(downloads, () =>
+    activeDownloadFor(meta.id, episode?.season ?? null, episode?.episode ?? null),
+  );
   if (isLocal) return null;
   const status = dl?.status;
   const downloading = status === "downloading";

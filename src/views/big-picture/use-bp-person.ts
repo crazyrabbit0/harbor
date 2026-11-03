@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { mergeBundledPersonAwards } from "@/lib/awards-history";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
+import { readAtVersion } from "@/lib/read-at-version";
 import {
   creditToMeta,
   tmdbPerson,
@@ -140,8 +141,10 @@ export function useBpPerson(personId: number): BpPersonState {
   const awardsV = useBundledAwardsVersion();
   const awards = useMemo(
     () =>
-      awardSummary(mergeBundledPersonAwards(liveAwards, person?.name)).filter(
-        (a) => a.wins > 0 || a.nominations > 0,
+      readAtVersion(awardsV, () =>
+        awardSummary(mergeBundledPersonAwards(liveAwards, person?.name)).filter(
+          (a) => a.wins > 0 || a.nominations > 0,
+        ),
       ),
     [awardsV, liveAwards, person?.name],
   );

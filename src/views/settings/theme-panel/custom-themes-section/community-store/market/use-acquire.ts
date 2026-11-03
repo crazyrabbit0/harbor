@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export type AcquireState = "idle" | "loading" | "done" | "error";
 
@@ -8,9 +8,11 @@ export function useAcquireState(fn: () => Promise<void>): {
 } {
   const [state, setState] = useState<AcquireState>("idle");
   const stateRef = useRef<AcquireState>(state);
-  stateRef.current = state;
   const fnRef = useRef(fn);
-  fnRef.current = fn;
+  useLayoutEffect(() => {
+    stateRef.current = state;
+    fnRef.current = fn;
+  });
   const timer = useRef<number | null>(null);
 
   useEffect(

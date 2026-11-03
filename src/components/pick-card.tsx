@@ -219,8 +219,9 @@ const PosterCard = memo(function PosterCard({
     if (settings.showDubBadge && isAnimeCardId) ensureDubSet();
   }, [isAnimeCardId, settings.showDubBadge]);
   const hasDub = settings.showDubBadge && isAnimeCardId && dubReady && animeHasDub(meta.id);
-  useTop10Version();
-  const showTop10 = settings.top10Ribbon && isTop10(meta.id, meta.name);
+  const top10Ver = useTop10Version();
+  const showTop10 =
+    settings.top10Ribbon && readAtVersion(top10Ver, () => isTop10(meta.id, meta.name));
   const inCinema = isInCinema(meta);
   const rerun = (inCinema || flagRerun) && isRerun(meta);
   const showCinema = inCinema && !rerun;
@@ -1008,11 +1009,11 @@ function AnimeAwardBadge({
   ribbonShift?: boolean;
 }) {
   const t = useT();
-  useAwardPacks();
+  const awardPacks = useAwardPacks();
   const win = findTopAward(name, year) ?? (fallbackName ? findTopAward(fallbackName, year) : null);
   if (!win) return null;
   const src = awardSourceMeta(win.source);
-  const custom = resolveAwardIcon(win.source);
+  const custom = readAtVersion(awardPacks, () => resolveAwardIcon(win.source));
   const short = shortCategory(win);
   const above = (dubShift ? 1 : 0) + (stacked ? 1 : 0);
   const label = above > 0 ? `${win.year}` : `${win.year} ${t(short)}`;

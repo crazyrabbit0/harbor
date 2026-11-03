@@ -50,6 +50,8 @@ import { GameSimsSets } from "./game-sims-sets";
 import { GameSaveLauncher } from "./game-saves";
 import "./game-sims-companion.css";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 const SimsFileIcon = () => (
   <span
     className="games-sims-file-icon"
@@ -222,16 +224,24 @@ function SimsCompanionBody({
       });
     }
   }, [requested, active]);
-  const trigger = useRef<HTMLElement | null>(null);
+  const [focus, setFocus] = useState<{
+    trigger: HTMLElement | null;
+    fallback: HTMLElement | null | undefined;
+  }>({ trigger: null, fallback: null });
+  const captureFocus = () =>
+    setFocus({
+      trigger: document.activeElement as HTMLElement | null,
+      fallback: root.current?.querySelector<HTMLElement>(".games-sims-test h3"),
+    });
   const chooseInformation = (target: SimsMetadataTarget, title: string) => {
-    trigger.current = document.activeElement as HTMLElement | null;
+    captureFocus();
     setInformation({ target, title });
   };
   useEffect(() => {
     setInformation(null);
   }, [active, path, profile]);
   const chooseAction = (value: SimsSelection) => {
-    trigger.current = document.activeElement as HTMLElement | null;
+    captureFocus();
     setSelection(value);
   };
   useEffect(() => {
@@ -292,27 +302,31 @@ function SimsCompanionBody({
     if (picking) return;
     setPicking(true);
     const own = generation.current;
-    try {
-      const chosen = await open({ directory: true, multiple: false, title: label("choose") });
-      if (chosen && own === generation.current) {
-        setData(null);
-        setPath(chosen);
-        setAttempt((n) => n + 1);
-      }
-    } catch (reason) {
-      if (own === generation.current) setError(simsError(reason));
-    } finally {
-      setPicking(false);
-    }
+    await open({ directory: true, multiple: false, title: label("choose") })
+      .then(
+        (chosen) => {
+          if (chosen && own === generation.current) {
+            setData(null);
+            setPath(chosen);
+            setAttempt((n) => n + 1);
+          }
+        },
+        (reason) => {
+          if (own === generation.current) setError(simsError(reason));
+        },
+      )
+      .finally(() => {
+        setPicking(false);
+      });
   };
   const importFiles = async (id?: string, title = "", adopt = false, tray = false) => {
     if (picking || !data || loading) return;
     // The system file picker and disabled busy button can both move focus to
     // the document before the review opens. Keep the original trigger now.
-    trigger.current = document.activeElement as HTMLElement | null;
+    captureFocus();
     setPicking(true);
     const own = generation.current;
-    try {
+    const work = async () => {
       const selected = await open({
         multiple: true,
         title: label(tray ? "trayImport" : adopt ? "adopt" : id ? "update" : "install"),
@@ -356,11 +370,14 @@ function SimsCompanionBody({
               .replace(/\.(zip|package|ts4script)$/i, ""),
           sources,
         });
-    } catch (reason) {
-      if (own === generation.current) setError(simsError(reason));
-    } finally {
-      setPicking(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (own === generation.current) setError(simsError(reason));
+      })
+      .finally(() => {
+        setPicking(false);
+      });
   };
   const changed = (value: SimsWorkspace) => {
     setData(value);
@@ -694,7 +711,7 @@ function SimsCompanionBody({
                               const own = generation.current;
                               try {
                                 const folder = await simsKeptFolder(data.folder.path, item.id);
-                                const { openPath } = await import("@tauri-apps/plugin-opener");
+                                const { openPath } = await loadOpener();
                                 if (own === generation.current) await openPath(folder);
                               } catch (reason) {
                                 if (own === generation.current) setError(simsError(reason));
@@ -1014,7 +1031,7 @@ function SimsCompanionBody({
           path={data?.folder.path ?? path}
           target={information.target}
           title={information.title}
-          trigger={trigger.current}
+          trigger={focus.trigger}
           onClose={() => setInformation(null)}
         />
       )}
@@ -1024,8 +1041,8 @@ function SimsCompanionBody({
           profile={profile}
           path={data?.folder.path ?? path}
           selection={selection}
-          trigger={trigger.current}
-          fallback={root.current?.querySelector<HTMLElement>(".games-sims-test h3")}
+          trigger={focus.trigger}
+          fallback={focus.fallback}
           changed={changed}
           onClose={() => setSelection(null)}
         />

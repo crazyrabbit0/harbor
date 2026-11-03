@@ -79,7 +79,8 @@ function run(command: Parameters<typeof dispatchRemoteCommand>[0]): void {
  */
 export function useBpPlayback(src: PlayerSrc | null, tick: boolean): BpPlayback {
   const { settings } = useSettings();
-  const logoSlides = useMemo(() => (src?.meta ? [src.meta] : []), [src?.meta]);
+  const srcMeta = src?.meta;
+  const logoSlides = useMemo(() => (srcMeta ? [srcMeta] : []), [srcMeta]);
   const localizedLogos = useHeroLogos(logoSlides, settings);
   const session = useRemoteSession();
   const positionSec = usePlaybackPositionGated(tick);

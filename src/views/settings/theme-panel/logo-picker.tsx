@@ -47,12 +47,11 @@ function LogoSlot({
   const onFile = async (file: File | null) => {
     if (!file) return;
     setBusy(true);
-    try {
-      const processed = await processLogoImage(file, maxDim);
-      if (processed) onChange(processed);
-    } finally {
-      setBusy(false);
-    }
+    await processLogoImage(file, maxDim)
+      .then((processed) => {
+        if (processed) onChange(processed);
+      })
+      .finally(() => setBusy(false));
   };
   return (
     <SettingRow label={label} desc={hint}>
@@ -142,22 +141,20 @@ function AppIconPicker() {
   const pickPreset = async (id: string, src: string) => {
     if (busy) return;
     setBusy(true);
-    try {
-      const dataUrl = await srcToDataUrl(src);
-      if (dataUrl) update({ customAppIcon: dataUrl, customAppIconPreset: id });
-    } finally {
-      setBusy(false);
-    }
+    await srcToDataUrl(src)
+      .then((dataUrl) => {
+        if (dataUrl) update({ customAppIcon: dataUrl, customAppIconPreset: id });
+      })
+      .finally(() => setBusy(false));
   };
   const onFile = async (file: File | null) => {
     if (!file) return;
     setBusy(true);
-    try {
-      const processed = await processLogoImage(file, 256);
-      if (processed) update({ customAppIcon: processed, customAppIconPreset: "" });
-    } finally {
-      setBusy(false);
-    }
+    await processLogoImage(file, 256)
+      .then((processed) => {
+        if (processed) update({ customAppIcon: processed, customAppIconPreset: "" });
+      })
+      .finally(() => setBusy(false));
   };
   const applyNow = async () => {
     const res = await applyAppIcon(settings.customAppIcon);

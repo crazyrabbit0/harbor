@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { fmtTime } from "@/components/player/transport/transport-utils";
 import { seekSteps } from "@/lib/seek-step";
 import { useSettings } from "@/lib/settings";
@@ -51,7 +58,9 @@ export function BpPlayerScrub({
   const ref = useRef<HTMLDivElement | null>(null);
   const [pending, setPending] = useState<number | null>(null);
   const pendingRef = useRef<number | null>(null);
-  pendingRef.current = pending;
+  useLayoutEffect(() => {
+    pendingRef.current = pending;
+  }, [pending]);
 
   const duration = playback.durationSec;
   const position = pending ?? playback.positionSec;
@@ -59,7 +68,9 @@ export function BpPlayerScrub({
   const steppable = active && !playback.live;
 
   const stepRef = useRef({ position: 0, duration: 0, back: 10, forward: 10 });
-  stepRef.current = { position: playback.positionSec, duration, back, forward };
+  useLayoutEffect(() => {
+    stepRef.current = { position: playback.positionSec, duration, back, forward };
+  });
   const runRef = useRef(0);
 
   const seekTo = playback.seekTo;
@@ -76,9 +87,11 @@ export function BpPlayerScrub({
   // The chrome can walk out from under an accumulating seek, and unmounting
   // with the commit timer still armed throws the presses away silently.
   const flush = useRef<() => void>(() => {});
-  flush.current = () => {
-    if (pendingRef.current !== null) seekTo(pendingRef.current);
-  };
+  useLayoutEffect(() => {
+    flush.current = () => {
+      if (pendingRef.current !== null) seekTo(pendingRef.current);
+    };
+  });
   useEffect(() => () => flush.current(), []);
 
   const nudge = useCallback((ahead: boolean) => {

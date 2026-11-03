@@ -57,13 +57,9 @@ export function SvpSection() {
     if (busy) return;
     setBusy(true);
     setError(null);
-    try {
-      await svpLaunch();
-    } catch (e) {
-      setError(t("Couldn't start SVP Manager: {err}", { err: String(e) }));
-    } finally {
-      setBusy(false);
-    }
+    await svpLaunch()
+      .catch((e: unknown) => setError(t("Couldn't start SVP Manager: {err}", { err: String(e) })))
+      .finally(() => setBusy(false));
   };
 
   const onRetarget = async (next: "double" | "48" | "60" | "display") => {
@@ -71,13 +67,10 @@ export function SvpSection() {
     if (!settings.playerSvp || busy) return;
     setBusy(true);
     setError(null);
-    try {
-      update({ svpVpyPath: await svpApply({ svpTargetFps: next }) });
-    } catch (e) {
-      setError(t("Couldn't set up SVP: {err}", { err: String(e) }));
-    } finally {
-      setBusy(false);
-    }
+    await svpApply({ svpTargetFps: next })
+      .then((svpVpyPath) => update({ svpVpyPath }))
+      .catch((e: unknown) => setError(t("Couldn't set up SVP: {err}", { err: String(e) })))
+      .finally(() => setBusy(false));
   };
 
   const onToggle = async (on: boolean) => {
@@ -88,17 +81,15 @@ export function SvpSection() {
       return;
     }
     setBusy(true);
-    try {
-      const vpy = await svpApply(settings);
-      update({ playerSvp: true, svpVpyPath: vpy });
-      svpStatus()
-        .then(setStatus)
-        .catch(() => {});
-    } catch (e) {
-      setError(t("Couldn't set up SVP: {err}", { err: String(e) }));
-    } finally {
-      setBusy(false);
-    }
+    await svpApply(settings)
+      .then((vpy) => {
+        update({ playerSvp: true, svpVpyPath: vpy });
+        svpStatus()
+          .then(setStatus)
+          .catch(() => {});
+      })
+      .catch((e: unknown) => setError(t("Couldn't set up SVP: {err}", { err: String(e) })))
+      .finally(() => setBusy(false));
   };
 
   const engine: { pill: string; tone: Tone; desc: string } = statusFailed

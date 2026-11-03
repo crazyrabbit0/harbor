@@ -15,7 +15,7 @@ import "./game-hack-files.css";
 export function GameHackFiles({
   game,
   active = true,
-  downloads,
+  downloads: suppliedDownloads,
   compact = false,
   acquire,
   disabled = false,
@@ -28,7 +28,7 @@ export function GameHackFiles({
   disabled?: boolean;
 }) {
   const inheritedDownloads = useSourceTransfers();
-  downloads ??= inheritedDownloads;
+  const downloads = suppliedDownloads ?? inheritedDownloads;
   const t = useT(),
     knownRelease = hackRelease(game),
     [attempt, setAttempt] = useState(0);

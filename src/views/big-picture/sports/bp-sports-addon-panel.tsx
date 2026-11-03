@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { SportsAddonListing } from "@/lib/sports/addon-sources-model";
 import { pushBpBack } from "../bp-back";
 import { useBpT } from "../bp-i18n";
@@ -31,7 +31,9 @@ export function BpSportsAddonPanel({
   const seedRef = useRef<HTMLButtonElement | null>(null);
   const state = useRef({ picked: false, handoff: false });
   const { choose, back, handoff, picked, closeHandoff } = pick;
-  state.current = { picked: picked !== null, handoff: handoff !== null };
+  useLayoutEffect(() => {
+    state.current = { picked: picked !== null, handoff: handoff !== null };
+  });
 
   useEffect(() => {
     if (initial) choose(initial);

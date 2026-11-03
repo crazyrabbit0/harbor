@@ -51,6 +51,7 @@ export function playbackPersistenceHarness(kind: "local" | "cloud" = "local") {
   };
   const noop = () => {};
   const dependencies: Record<string, unknown> = {
+    readAtVersion: (_version: unknown, read: () => unknown) => read(),
     markAnimeWatching: noop,
     syncAnimeProgress: noop,
     markMalWatching: noop,

@@ -108,15 +108,17 @@ export function BpSkipPill({
   // Read through a ref so the window listener binds once per arm instead of
   // resubscribing on every playback-clock tick.
   const fireRef = useRef<() => void>(onSkip);
-  fireRef.current = () => {
-    SFX.click();
-    if (undoOnly) onUndo?.();
-    else if (isOutroNext) onNextEpisode();
-    else onSkip();
-    // A blind skip lands somewhere the viewer cannot see. The scrub readout is
-    // the cheapest way to show them where, without raising the full chrome.
-    shell?.peekChrome();
-  };
+  useLayoutEffect(() => {
+    fireRef.current = () => {
+      SFX.click();
+      if (undoOnly) onUndo?.();
+      else if (isOutroNext) onNextEpisode();
+      else onSkip();
+      // A blind skip lands somewhere the viewer cannot see. The scrub readout is
+      // the cheapest way to show them where, without raising the full chrome.
+      shell?.peekChrome();
+    };
+  });
   const armed = (Boolean(mounted) || undoOnly) && !asUpNext && visible && (show || undoOnly);
 
   useEffect(() => {

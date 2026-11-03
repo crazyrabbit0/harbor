@@ -14,6 +14,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { isSaved, toggleSaved } from "@/lib/feed";
 import { useT } from "@/lib/i18n";
 import { useMalRating } from "@/lib/mal-rating";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useSettings } from "@/lib/settings";
 import { useTitleLogo } from "@/lib/title-logo";
 import { useViewActions } from "@/lib/view";
@@ -40,7 +41,7 @@ export function AnimeHero({
   const { openMeta } = useViewActions();
   const { settings } = useSettings();
   const t = useT();
-  useAwardMasterVersion();
+  const awardMasterVer = useAwardMasterVersion();
   const [active, setActive] = useState(0);
   const [paused, setPaused] = useState(false);
   const [inView, setInView] = useState(true);
@@ -138,7 +139,9 @@ export function AnimeHero({
             year={parseAwardYear(current.releaseInfo)}
             id={current.id}
           />
-          {!findTopAward(current.name, parseAwardYear(current.releaseInfo), current.id) &&
+          {!readAtVersion(awardMasterVer, () =>
+            findTopAward(current.name, parseAwardYear(current.releaseInfo), current.id),
+          ) &&
             trendingByMetaId?.[current.id] && (
               <TrendingBadge source={trendingByMetaId[current.id]} />
             )}
@@ -307,7 +310,8 @@ function HeroLogo({ title, logo }: { title: string; logo?: string }) {
 
 function CrunchyrollBadge({ name, year, id }: { name: string; year?: number; id?: string }) {
   const [hover, setHover] = useState(false);
-  const win = findTopAward(name, year, id);
+  const awardMasterVer = useAwardMasterVersion();
+  const win = readAtVersion(awardMasterVer, () => findTopAward(name, year, id));
   const srcIcon = useAwardIcon(win?.source ?? "");
   if (!win) return null;
   const src = awardSourceMeta(win.source);

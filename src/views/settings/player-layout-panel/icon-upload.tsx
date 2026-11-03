@@ -137,7 +137,7 @@ function SingleUpload({
       return;
     }
     setBusy(true);
-    try {
+    const work = async () => {
       const dataUrl = await readAsDataURL(file);
       const sanitized = file.type === "image/svg+xml" ? sanitizeSvgDataUrl(dataUrl) : dataUrl;
       const dims = await probeImage(sanitized);
@@ -150,15 +150,16 @@ function SingleUpload({
         messages.push(t("huge ({width}×{height}px)", { width: dims.w, height: dims.h }));
       if (messages.length > 0) setWarning(messages.join(" · "));
       onUpload(sanitized);
-    } catch (err) {
-      window.alert(
-        err instanceof Error && err.message === "Unexpected file contents."
-          ? t("Unexpected file contents.")
-          : t("Could not read the file."),
-      );
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((err: unknown) =>
+        window.alert(
+          err instanceof Error && err.message === "Unexpected file contents."
+            ? t("Unexpected file contents.")
+            : t("Could not read the file."),
+        ),
+      )
+      .finally(() => setBusy(false));
   };
 
   return (
@@ -216,7 +217,7 @@ function MultiStateUpload({
   return (
     <div className="flex items-center gap-2">
       <div
-        onKeyDown={stripArrowKeys(btnRefs, (i) => setActiveState(states[i].id))}
+        onKeyDown={(e) => stripArrowKeys(btnRefs, (i) => setActiveState(states[i].id))(e)}
         className="flex items-center gap-0.5 rounded-md bg-white/8 p-0.5"
       >
         {states.map((s, i) => (

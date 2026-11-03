@@ -1,5 +1,5 @@
 import { fillStyle } from "@/components/slider";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ImagePlus, Move, ZoomIn } from "../../../icons";
 import { useT } from "@/lib/i18n";
 import { getDirection, isRtl } from "@/lib/keyboard-navigation/geometry";
@@ -23,11 +23,16 @@ export function CoverCropper({ onChange }: { onChange: (blob: Blob | null) => vo
   const [nat, setNat] = useState({ w: 0, h: 0 });
   const [zoom, setZoom] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
-
   const frameSize = () => {
     const r = frameRef.current?.getBoundingClientRect();
     return { w: r?.width || 0, h: r?.height || 0 };
   };
+  const [frame, setFrame] = useState({ w: 0, h: 0 });
+  // The frame is re-measured after every render so the display scale tracks its size.
+  useLayoutEffect(() => {
+    const next = frameSize();
+    setFrame((cur) => (cur.w === next.w && cur.h === next.h ? cur : next));
+  });
 
   const clamp = useCallback(
     (o: { x: number; y: number }, z: number, n: { w: number; h: number }) => {
@@ -131,9 +136,7 @@ export function CoverCropper({ onChange }: { onChange: (blob: Blob | null) => vo
     nudgeTimer.current = window.setTimeout(() => commit(next, zoom, nat), 220);
   };
 
-  const dispScale = nat.w
-    ? Math.max((frameSize().w || 1) / nat.w, (frameSize().h || 1) / nat.h) * zoom
-    : 1;
+  const dispScale = nat.w ? Math.max((frame.w || 1) / nat.w, (frame.h || 1) / nat.h) * zoom : 1;
 
   return (
     <div className="flex flex-col gap-3">

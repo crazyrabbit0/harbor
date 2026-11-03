@@ -93,44 +93,46 @@ export function LocalEngineSection() {
   const runTest = async () => {
     setRunning(true);
     setResult(null);
-    try {
-      const r = await Promise.race([
-        engineSelfTest(),
-        new Promise<SelfTestResult>((res) => window.setTimeout(() => res(null), 75000)),
-      ]);
-      setResult(
-        r ?? {
-          pass: false,
-          steps: [
-            { label: "self-test", ok: false, warn: false, detail: "timed out, hit Restart engine" },
-          ],
-        },
-      );
-    } finally {
-      setRunning(false);
-    }
+    await Promise.race([
+      engineSelfTest(),
+      new Promise<SelfTestResult>((res) => window.setTimeout(() => res(null), 75000)),
+    ])
+      .then((r) =>
+        setResult(
+          r ?? {
+            pass: false,
+            steps: [
+              {
+                label: "self-test",
+                ok: false,
+                warn: false,
+                detail: "timed out, hit Restart engine",
+              },
+            ],
+          },
+        ),
+      )
+      .finally(() => setRunning(false));
   };
 
   const restart = async () => {
     setRestarting(true);
     setResult(null);
-    try {
-      const s = await torrentEngineRestart();
-      if (s) setStatus(s);
-    } finally {
-      setRestarting(false);
-    }
+    await torrentEngineRestart()
+      .then((s) => {
+        if (s) setStatus(s);
+      })
+      .finally(() => setRestarting(false));
   };
 
   const clearAll = async () => {
     setClearing(true);
     setResult(null);
-    try {
-      const s = await torrentEngineHardReset();
-      if (s) setStatus(s);
-    } finally {
-      setClearing(false);
-    }
+    await torrentEngineHardReset()
+      .then((s) => {
+        if (s) setStatus(s);
+      })
+      .finally(() => setClearing(false));
   };
 
   const state = engineState(status);

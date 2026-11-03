@@ -4,6 +4,8 @@ import { useT } from "@/lib/i18n";
 import { saveTextFileWithPath } from "@/lib/download-text";
 import { guideAsText, guideFilename, type GuideExport } from "@/lib/games/guide-export-data";
 
+const loadGuidePdf = () => import("@/lib/games/guide-export-pdf");
+
 export function GuideExportActions({ value, active }: { value: GuideExport; active: boolean }) {
   const t = useT(),
     request = useRef<AbortController | null>(null);
@@ -20,7 +22,7 @@ export function GuideExportActions({ value, active }: { value: GuideExport; acti
     request.current = controller;
     setBusy(format);
     setError(false);
-    try {
+    const work = async () => {
       if (format === "txt")
         await saveTextFileWithPath(
           guideFilename(value.article.title, "txt"),
@@ -30,18 +32,21 @@ export function GuideExportActions({ value, active }: { value: GuideExport; acti
           { nativeFailure: "throw" },
         );
       else {
-        const { createGuidePdf, saveGuidePdf } = await import("@/lib/games/guide-export-pdf");
+        const { createGuidePdf, saveGuidePdf } = await loadGuidePdf();
         const bytes = await createGuidePdf(value, controller.signal);
         controller.signal.throwIfAborted();
         await saveGuidePdf(bytes, guideFilename(value.article.title, "pdf"));
       }
-    } catch {
-      if (!controller.signal.aborted) setError(true);
-    } finally {
-      if (!controller.signal.aborted) setBusy(null);
-      controller.abort();
-      if (request.current === controller) request.current = null;
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!controller.signal.aborted) setError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setBusy(null);
+        controller.abort();
+        if (request.current === controller) request.current = null;
+      });
   }
   return (
     <div className="games-guide-export">

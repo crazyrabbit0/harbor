@@ -1,5 +1,5 @@
 import { SlidersHorizontal } from "../icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Inspector } from "./theme-studio/inspector";
 import { StudioHeader } from "./theme-studio/studio-header";
@@ -48,7 +48,9 @@ export function ThemeStudio({ seed, onClose }: { seed?: ThemePreset; onClose: ()
   const drag = usePanelDrag();
   const restoreRef = useState(() => settings.theme.preset)[0];
   const liveThemeRef = useRef(settings.theme);
-  liveThemeRef.current = settings.theme;
+  useLayoutEffect(() => {
+    liveThemeRef.current = settings.theme;
+  }, [settings.theme]);
   const [popoutTab, setPopoutTab] = useState<CodeLang | null>(null);
   const { inspectorHidden, setInspectorHidden } = useStudioPreview(
     draft.layout,

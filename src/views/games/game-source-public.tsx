@@ -69,7 +69,7 @@ export function SourcePublicFiles({
     pending.current = true;
     setBusy(true);
     setError(null);
-    try {
+    const work = async () => {
       const next = await invoke<PublicFiles>("games_source_public_review", {
         args: { url: link.url },
       });
@@ -79,12 +79,15 @@ export function SourcePublicFiles({
       setFocused(initial?.id ?? "");
       setSelected(new Set(initial && canPreparePublicFile(initial) ? [initial.id] : []));
       setLimit(50);
-    } catch (reason) {
-      if (alive.current) setError({ key: publicFileError(reason) });
-    } finally {
-      pending.current = false;
-      if (alive.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current) setError({ key: publicFileError(reason) });
+      })
+      .finally(() => {
+        pending.current = false;
+        if (alive.current) setBusy(false);
+      });
   };
   const download = async () => {
     if (!alive.current || !chosen.length || pending.current || saving || !downloads.available)
@@ -94,7 +97,7 @@ export function SourcePublicFiles({
     setError(null);
     downloads.dismissError();
     let session: string | undefined;
-    try {
+    const work = async () => {
       let files: PublicDownload[];
       if (chosen.length === 1) {
         files = [
@@ -131,13 +134,16 @@ export function SourcePublicFiles({
           ? await downloads.start(requests[0], requests[0].filename)
           : await downloads.startBatch(requests);
       if (started && alive.current) onDone();
-    } catch (reason) {
-      if (alive.current) setError(publicBatchError(reason));
-    } finally {
-      if (operation.current?.session === session) operation.current = null;
-      pending.current = false;
-      if (alive.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current) setError(publicBatchError(reason));
+      })
+      .finally(() => {
+        if (operation.current?.session === session) operation.current = null;
+        pending.current = false;
+        if (alive.current) setBusy(false);
+      });
   };
   const visible = result?.files.slice(0, limit) ?? [];
   // Reveal the provider-selected member, including links pointing past the first page.

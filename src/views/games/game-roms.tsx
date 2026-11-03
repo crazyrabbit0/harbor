@@ -501,12 +501,17 @@ function RomDiscovery({ active, query, clearQuery, open: openDetail, hacks, emul
     );
   const systems = ROM_PLATFORMS;
   const nav = [
-    { kind: "discover", label: "games.roms.discover", action: () => showMode("discover") },
-    { kind: "consoles", label: "games.roms.consoles", action: () => showMode("consoles") },
-    { kind: "collections", label: "games.roms.collections", action: () => showMode("collections") },
-    { kind: "hacks", label: "games.hub.title", action: openHacks },
-    { kind: "library", label: "games.roms.yourLibrary", action: openLibrary },
+    { kind: "discover", label: "games.roms.discover" },
+    { kind: "consoles", label: "games.roms.consoles" },
+    { kind: "collections", label: "games.roms.collections" },
+    { kind: "hacks", label: "games.hub.title" },
+    { kind: "library", label: "games.roms.yourLibrary" },
   ] as const;
+  const navigate = (kind: (typeof nav)[number]["kind"]) => {
+    if (kind === "hacks") openHacks();
+    else if (kind === "library") openLibrary();
+    else showMode(kind);
+  };
   return (
     <article ref={root} className={`games-roms${!discovering ? " is-browsing" : ""}`}>
       <RomHero
@@ -530,7 +535,7 @@ function RomDiscovery({ active, query, clearQuery, open: openDetail, hacks, emul
             <button
               key={item.kind}
               aria-current={!browseMode && mode === item.kind ? "page" : undefined}
-              onClick={item.action}
+              onClick={() => navigate(item.kind)}
             >
               <RomMark kind={item.kind} />
               <span>{t(item.label)}</span>

@@ -27,6 +27,7 @@ import {
   subscribeMovieWatched,
 } from "@/lib/movie-watched";
 import { stremioMovieWatched } from "@/lib/stremio-watched";
+import { readAtVersion } from "@/lib/read-at-version";
 import { ensureNotifyPermission, removeReminder, setReminder, useReminder } from "@/lib/reminders";
 import { useRating } from "@/lib/ratings/store";
 import { pushWatched } from "@/lib/trakt/history";
@@ -71,10 +72,17 @@ export function useBpDetailActions(params: {
   const rating = useRating(meta.id);
   const isMovie = meta.type === "movie";
   const trakt = useTrakt();
-  useDownloads();
+  const downloads = useDownloads();
 
-  useSyncExternalStore(subscribeMovieWatched, movieWatchedVersion, movieWatchedVersion);
-  const watched = isMovie && (isMovieWatchedLocal(meta.id) || stremioMovieWatched(libraryItem));
+  const movieWatchedVer = useSyncExternalStore(
+    subscribeMovieWatched,
+    movieWatchedVersion,
+    movieWatchedVersion,
+  );
+  const watched =
+    isMovie &&
+    (readAtVersion(movieWatchedVer, () => isMovieWatchedLocal(meta.id)) ||
+      stremioMovieWatched(libraryItem));
 
   const seed = { id: meta.id, type: meta.type, name: title || meta.name, poster };
   const out: BpDetailAction[] = [];
@@ -204,7 +212,7 @@ export function useBpDetailActions(params: {
   }
 
   if (isMovie) {
-    const dl = activeDownloadFor(meta.id, null, null);
+    const dl = readAtVersion(downloads, () => activeDownloadFor(meta.id, null, null));
     const downloading = dl?.status === "downloading";
     const done = dl?.status === "done";
     const failed = dl?.status === "error";

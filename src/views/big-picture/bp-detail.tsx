@@ -9,6 +9,7 @@ import { useSettings } from "@/lib/settings";
 import { ratingTarget } from "@/lib/ratings/types";
 import type { AwardType } from "@/lib/providers/wikidata";
 import { useBpDetail } from "./use-bp-detail";
+import { useBpKeyed } from "./use-bp-keyed";
 import { bpEpisodeAt, useBpEpisodeIds } from "./bp-episode-ids";
 import { useBpAnimeDetail } from "./use-bp-anime-detail";
 import { useBpLibraryItem } from "./use-bp-library-item";
@@ -49,6 +50,8 @@ import { useBpGroundFade } from "./detail/use-bp-ground-fade";
 import { BpVideosRow } from "./detail/bp-videos-row";
 import { BpWatchOnRow } from "./detail/bp-watch-on-row";
 
+const NO_META: Meta = { id: "", type: "movie", name: "" };
+
 export function BpDetail({
   metaId,
   onSelect,
@@ -77,7 +80,7 @@ export function BpDetail({
   const detail = anime.detail ?? tmdbDetail;
   const cwEntry = useBpLibraryItem(meta?.id ?? "", detail?.imdbId ?? null);
   const { settings } = useSettings();
-  const slides = useMemo(() => (meta ? [meta] : []), [meta?.id]);
+  const slides = useBpKeyed([meta?.id], () => (meta ? [meta] : []));
   const logos = useHeroLogos(slides, settings);
   const [trailer, setTrailer] = useState<string | null>(null);
   const [dialog, setDialog] = useState<string | null>(null);
@@ -87,7 +90,7 @@ export function BpDetail({
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const groundRef = useBpGroundFade(scrollRef, meta?.id);
 
-  const shell: Meta = meta ?? { id: "", type: "movie", name: "" };
+  const shell: Meta = meta ?? NO_META;
   const imdbId = detail?.imdbId ?? (shell.id.startsWith("tt") ? shell.id.split(":")[0] : null);
   const isSeries = shell.type === "series" || shell.type === "anime";
   const title = detail?.title || shell.name;

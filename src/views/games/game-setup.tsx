@@ -59,6 +59,9 @@ import { DownloadSourceIdentity } from "./game-download-source";
 import { GameSetupIcon, LinkGameMark } from "./game-setup-icon";
 import "./game-setup.css";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function GameSetupStatus({ job }: { job?: SetupJob }) {
   const t = useT(),
     now = useInstallerClock(job);
@@ -286,23 +289,18 @@ export function GameSetupDialog({
     setBusy("scan");
     setError("");
     setPlan(null);
-    try {
-      if (
-        job &&
-        !running &&
-        (job.destination || setupPath(location) !== setupPath(source.source))
-      ) {
-        try {
-          const refreshed = await invoke<SetupJob>("games_recover_setup", {
-            profile,
-            id: job.id,
-            destination:
-              job.destination && setupPath(location) === setupPath(job.destination)
-                ? null
-                : location,
-          });
+    const recover = async (revision: number) => {
+      if (!job) return;
+      await invoke<SetupJob>("games_recover_setup", {
+        profile,
+        id: job.id,
+        destination:
+          job.destination && setupPath(location) === setupPath(job.destination) ? null : location,
+      })
+        .then((refreshed) => {
           if (current(revision)) acceptJob(refreshed, { ...source, source: job.source });
-        } catch (reason) {
+        })
+        .catch((reason) => {
           // A dev frontend can update before its native binary. Keep explicit recovery usable.
           if (current(revision)) {
             acceptJob(job, { ...source, source: job.source });
@@ -313,26 +311,32 @@ export function GameSetupDialog({
                   : setupError(reason),
               );
           }
-        }
-      }
+        });
+    };
+    const work = async () => {
+      if (job && !running && (job.destination || setupPath(location) !== setupPath(source.source)))
+        await recover(revision);
       if (!current(revision)) return;
       const result = await invoke<SetupPlan>("games_inspect_setup", { profile, source: location });
       if (current(revision)) setPlan(result);
-    } catch (reason) {
-      if (current(revision)) setError(setupError(reason));
-    } finally {
-      if (current(revision)) {
-        pending.current = false;
-        setBusy(null);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (current(revision)) setError(setupError(reason));
+      })
+      .finally(() => {
+        if (current(revision)) {
+          pending.current = false;
+          setBusy(null);
+        }
+      });
   };
   useEffect(() => {
     void scan();
   }, [location, profile]);
   const reveal = async (path = location) => {
     try {
-      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+      const { revealItemInDir } = await loadOpener();
       if (!dismissed.current) await revealItemInDir(path);
     } catch (reason) {
       if (live.current && !dismissed.current) setError(setupError(reason));
@@ -344,8 +348,8 @@ export function GameSetupDialog({
     pending.current = true;
     setBusy("choose");
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       if (!current(revision)) return;
       const value = await open({
         directory: false,
@@ -358,12 +362,15 @@ export function GameSetupDialog({
             : undefined,
       });
       if (current(revision) && typeof value === "string") setExecutable(value);
-    } catch (reason) {
-      if (current(revision)) setError(customLaunchError(reason));
-    } finally {
-      pending.current = false;
-      if (current(revision)) setBusy(null);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (current(revision)) setError(customLaunchError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (current(revision)) setBusy(null);
+      });
   };
   const chooseInstalledFolder = async () => {
     if (pending.current || running) return;
@@ -371,8 +378,8 @@ export function GameSetupDialog({
     pending.current = true;
     setBusy("choose");
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       if (!current(revision)) return;
       const value = await open({
         directory: true,
@@ -387,12 +394,15 @@ export function GameSetupDialog({
           await scan();
         } else setLocation(value);
       }
-    } catch (reason) {
-      if (current(revision)) setError(setupError(reason));
-    } finally {
-      pending.current = false;
-      if (current(revision)) setBusy(null);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (current(revision)) setError(setupError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (current(revision)) setBusy(null);
+      });
   };
   const chooseDestination = async () => {
     if (pending.current || running) return "";
@@ -400,8 +410,8 @@ export function GameSetupDialog({
     pending.current = true;
     setBusy("choose");
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       if (!current(revision)) return "";
       const parent = await open({
         directory: true,
@@ -415,13 +425,17 @@ export function GameSetupDialog({
         setDestination(path);
         return path;
       }
-    } catch (reason) {
-      if (current(revision)) setError(setupError(reason));
-    } finally {
-      pending.current = false;
-      if (current(revision)) setBusy(null);
-    }
-    return "";
+      return "";
+    };
+    return await work()
+      .catch((reason) => {
+        if (current(revision)) setError(setupError(reason));
+        return "";
+      })
+      .finally(() => {
+        pending.current = false;
+        if (current(revision)) setBusy(null);
+      });
   };
   const run = async (entry: SetupEntry, target?: string) => {
     if (!plan || pending.current || running) return;
@@ -429,20 +443,22 @@ export function GameSetupDialog({
     pending.current = true;
     setBusy("start");
     setError("");
-    try {
-      const next = await invoke<SetupJob>("games_start_setup", {
-        profile,
-        token: plan.token,
-        candidateId: entry.id,
-        destination: target ?? null,
+    await invoke<SetupJob>("games_start_setup", {
+      profile,
+      token: plan.token,
+      candidateId: entry.id,
+      destination: target ?? null,
+    })
+      .then((next) => {
+        acceptJob(next, { ...source, source: location });
+      })
+      .catch((reason) => {
+        if (current(revision)) setError(setupError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (current(revision)) setBusy(null);
       });
-      acceptJob(next, { ...source, source: location });
-    } catch (reason) {
-      if (current(revision)) setError(setupError(reason));
-    } finally {
-      pending.current = false;
-      if (current(revision)) setBusy(null);
-    }
   };
   const install = async () => {
     if (managed && destination && !dismissed.current) await run(managed, destination);
@@ -454,7 +470,7 @@ export function GameSetupDialog({
     setBusy("save");
     setError("");
     library.dismissError();
-    try {
+    const work = async () => {
       const config = await invoke<LaunchConfig>("games_validate_custom_launch", {
         config: { ...emptyLaunchConfig(), executable },
       });
@@ -492,12 +508,15 @@ export function GameSetupDialog({
           root.current?.querySelector<HTMLElement>(".games-setup-success")?.focus(),
         );
       }
-    } catch (reason) {
-      if (current(revision)) setError(customLaunchError(reason));
-    } finally {
-      pending.current = false;
-      if (current(revision)) setBusy(null);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (current(revision)) setError(customLaunchError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (current(revision)) setBusy(null);
+      });
   };
   const select = (entry: SetupEntry) => {
     if (entry.kind === "installer") void run(entry);
@@ -523,12 +542,10 @@ export function GameSetupDialog({
     setLaunching(true);
     setLaunchRequested(true);
     library.dismissError();
-    try {
-      await library.launch(linked);
-    } finally {
+    await library.launch(linked).finally(() => {
       launchPending.current = false;
       if (live.current && !dismissed.current) setLaunching(false);
-    }
+    });
   };
   return (
     <>
@@ -1022,11 +1039,10 @@ export function GameSetupDialog({
           archives={archives}
           onClose={() => {
             setArchive(null);
-            if (
-              sourceArchive(source.originSource ?? source.source, profile, archives?.jobs ?? [])
-                ?.status === "running"
-            )
-              dismiss();
+            const origin = source.originSource ?? source.source,
+              archiveJobs = archives?.jobs ?? [];
+            const extraction = sourceArchive(origin, profile, archiveJobs);
+            if (extraction?.status === "running") dismiss();
           }}
           openLibrary={openLibrary}
           onPrepared={(receipt) => {

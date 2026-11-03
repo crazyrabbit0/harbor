@@ -1,6 +1,6 @@
 import { transferStateKey, transferProgressBytes } from "@/lib/games/transfer-relink";
 import { torrentSharing } from "@/lib/games/torrents";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp, Info } from "lucide-react";
 import { HarborMark } from "@/components/icons/harbor-mark";
 import { LoaderCircle } from "@/components/icons/music-icons";
@@ -187,7 +187,9 @@ export function DownloadActivity({
     record = item.record,
     game = downloadGame(record),
     latest = useRef(item);
-  latest.current = item;
+  useLayoutEffect(() => {
+    latest.current = item;
+  }, [item]);
   const [samples, setSamples] = useState<DownloadSample[]>([]),
     [peak, setPeak] = useState(
       record.status === "downloading" ? Math.max(0, record.bytesPerSecond) : 0,

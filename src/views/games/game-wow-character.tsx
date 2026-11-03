@@ -28,6 +28,10 @@ function initialCharacter(key: string, region: WowRegion) {
     return null;
   }
 }
+function writeRemembered(key: string, target: WowCharacterTarget | null) {
+  if (target) localStorage.setItem(key, JSON.stringify(target));
+  else localStorage.removeItem(key);
+}
 export function GameWowCharacter({
   profile,
   region,
@@ -124,10 +128,10 @@ export function GameWowCharacter({
     `${Math.floor(value / 60_000)}:${String(Math.floor(value / 1000) % 60).padStart(2, "0")}`;
   const remember = () => {
     if (!data) return;
+    const next = saved ? null : data.target;
     try {
-      if (saved) localStorage.removeItem(storageKey);
-      else localStorage.setItem(storageKey, JSON.stringify(data.target));
-      setRemembered(saved ? null : data.target);
+      writeRemembered(storageKey, next);
+      setRemembered(next);
       setStorageError(false);
     } catch {
       setStorageError(true);

@@ -69,8 +69,6 @@ function BpConnectBody({ onBack }: { onBack?: () => void }) {
   // the end of the rail, so an optional row cannot leave a hole. Every one of
   // these has to stay a DIRECT child of the column below, because bpRailStep
   // resolves the rail as the row's parentElement.
-  let row = 0;
-  const next = () => String(row++);
 
   return (
     <div className="flex min-h-full flex-col gap-[clamp(14px,2.2vh,28px)]">
@@ -124,7 +122,7 @@ function BpConnectBody({ onBack }: { onBack?: () => void }) {
           what pushed this page past 641px and started the scroll above. */}
       {typing ? (
         <>
-          <div data-bp-rail-row={next()} className="max-w-[min(100%,760px)]">
+          <div data-bp-rail-row="0" className="max-w-[min(100%,760px)]">
             <BpOnboardField
               label={t("TMDB API key")}
               value={draft}
@@ -139,7 +137,7 @@ function BpConnectBody({ onBack }: { onBack?: () => void }) {
           </div>
           <div
             data-bp-row
-            data-bp-rail-row={next()}
+            data-bp-rail-row="1"
             className="flex items-center gap-[clamp(10px,1vw,18px)]"
           >
             <BpConnectAction
@@ -162,7 +160,7 @@ function BpConnectBody({ onBack }: { onBack?: () => void }) {
       ) : (
         <div
           data-bp-row
-          data-bp-rail-row={next()}
+          data-bp-rail-row="0"
           className="flex items-center gap-[clamp(10px,1vw,18px)]"
         >
           {onBack && <BpConnectAction label={t("Settings")} back onPress={onBack} />}

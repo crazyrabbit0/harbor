@@ -24,26 +24,26 @@ function LibraryEntry({ entry }: { entry: ShaderCatalogEntry }) {
     setBusy(true);
     setError(null);
     setJustUpdated(false);
-    try {
-      const dir = await downloadShader(entry.id, force);
-      const prev = settings.playerShaders?.[entry.id] ?? { enabled: false };
-      update({
-        playerShaders: {
-          ...settings.playerShaders,
-          [entry.id]: { ...prev, dir, enabled: force ? state?.enabled : true },
-        },
-      });
-      if (force) {
-        setJustUpdated(true);
-        window.setTimeout(() => setJustUpdated(false), 2200);
-      }
-    } catch (e) {
-      setError(
-        typeof e === "string" ? e : t("Download failed. Check your connection and try again."),
-      );
-    } finally {
-      setBusy(false);
-    }
+    await downloadShader(entry.id, force)
+      .then((dir) => {
+        const prev = settings.playerShaders?.[entry.id] ?? { enabled: false };
+        update({
+          playerShaders: {
+            ...settings.playerShaders,
+            [entry.id]: { ...prev, dir, enabled: force ? state?.enabled : true },
+          },
+        });
+        if (force) {
+          setJustUpdated(true);
+          window.setTimeout(() => setJustUpdated(false), 2200);
+        }
+      })
+      .catch((e: unknown) =>
+        setError(
+          typeof e === "string" ? e : t("Download failed. Check your connection and try again."),
+        ),
+      )
+      .finally(() => setBusy(false));
   };
 
   return (

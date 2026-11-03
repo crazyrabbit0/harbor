@@ -5,6 +5,7 @@ import { findTopAward, parseAwardYear, type AwardWin } from "@/lib/anime-awards"
 import { useAwardMasterVersion } from "@/lib/anime-awards-source";
 import type { Meta } from "@/lib/cinemeta";
 import { useMalScore } from "@/lib/mal-rating";
+import { readAtVersion } from "@/lib/read-at-version";
 import {
   animeHasDub,
   dubSetReady,
@@ -89,7 +90,7 @@ export function BpAnimeHeroMeta({
 }) {
   const t = useBpT();
   const mal = useMalScore(hero ?? undefined);
-  useAwardMasterVersion();
+  const awardMasterVer = useAwardMasterVersion();
 
   const score = mal.score ? (
     <span className="flex items-center gap-[6px] text-ink">
@@ -106,7 +107,7 @@ export function BpAnimeHeroMeta({
 
   const shown = slots.filter(Boolean);
   const format = bpFormat(hero, t);
-  const top = bpTopLine(hero, t);
+  const top = readAtVersion(awardMasterVer, () => bpTopLine(hero, t));
   const facts = shown.length > 0 || Boolean(format);
 
   if (!top && !facts) return null;

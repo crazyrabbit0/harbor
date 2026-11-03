@@ -117,23 +117,21 @@ function CommunityCard({ theme, onOpen }: { theme: StoreTheme; onOpen: () => voi
     e.stopPropagation();
     if (state === "loading" || state === "done") return;
     setState("loading");
-    try {
-      await downloadTheme(t.id, t.cover ?? t.screenshots[0] ?? null);
-      setState("done");
-    } catch {
-      setState("error");
-      window.setTimeout(() => setState("idle"), 2200);
-    }
+    const cover = t.cover ?? t.screenshots[0] ?? null;
+    await downloadTheme(t.id, cover)
+      .then(() => setState("done"))
+      .catch(() => {
+        setState("error");
+        window.setTimeout(() => setState("idle"), 2200);
+      });
   };
 
   const rate = async (e: React.MouseEvent, v: number) => {
     e.stopPropagation();
     setMyRating(v);
-    try {
-      setT(await rateTheme(t.id, v));
-    } catch {
-      /* ignore */
-    }
+    await rateTheme(t.id, v)
+      .then(setT)
+      .catch(() => {});
   };
 
   const shownRating = myRating || Math.round(t.ratingAvg);

@@ -3,6 +3,8 @@ import { isTauri } from "@tauri-apps/api/core";
 import { ExternalLink } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function MinecraftProjectLink({ url, children }: { url: string; children: ReactNode }) {
   const t = useT(),
     [failed, setFailed] = useState(false);
@@ -15,7 +17,7 @@ export function MinecraftProjectLink({ url, children }: { url: string; children:
         onClick={(event) => {
           if (!isTauri()) return;
           event.preventDefault();
-          void import("@tauri-apps/plugin-opener")
+          void loadOpener()
             .then(({ openUrl }) => openUrl(url))
             .catch(() => setFailed(true));
         }}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { goBigPictureTab } from "@/lib/big-picture";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import type { SportsGame } from "@/lib/sports/espn-types";
@@ -64,7 +64,9 @@ export function useBpSportsWatch(
   const [auto, setAuto] = useState<EsportsStream | null>(null);
 
   const addonsRef = useRef(addons);
-  addonsRef.current = addons;
+  useLayoutEffect(() => {
+    addonsRef.current = addons;
+  }, [addons]);
 
   const attachedIds = useMemo(
     () => attachments.channels[game.league] ?? [],
@@ -245,7 +247,9 @@ export function BpSportsWatchLoader({
   const index = useSportsChannelIndex();
   const watch = useBpWatchGame(index);
   const live = useRef(watch);
-  live.current = watch;
+  useLayoutEffect(() => {
+    live.current = watch;
+  }, [watch]);
   const stable = useMemo(() => (game: SportsGame) => live.current(game), []);
   useEffect(() => {
     onReady(stable);

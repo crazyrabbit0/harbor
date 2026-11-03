@@ -1,8 +1,32 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Volume2, VolumeX, Maximize2, Minimize2 } from "lucide-react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauri } from "@tauri-apps/api/core";
 import { useT } from "@/lib/i18n";
+
+function storedViewer(key: string) {
+  try {
+    const saved = JSON.parse(localStorage.getItem(key) ?? "null");
+    if (
+      saved &&
+      Number.isFinite(saved.volume) &&
+      saved.volume >= 0 &&
+      saved.volume <= 100 &&
+      typeof saved.sharp === "boolean"
+    )
+      return { volume: saved.volume as number, sharp: saved.sharp as boolean };
+  } catch {}
+  return { volume: 65, sharp: true };
+}
+async function restoreFullscreen(original: Promise<boolean>) {
+  try {
+    const initial = await original;
+    if (isTauri()) await getCurrentWindow().setFullscreen(initial);
+    else if (!initial && document.fullscreenElement) await document.exitFullscreen();
+  } catch {
+    /* A closing window can already be unavailable. */
+  }
+}
 
 export function useRetroPreferences(
   profile: string,
@@ -11,22 +35,11 @@ export function useRetroPreferences(
   ready: boolean,
 ) {
   const key = `harbor.retro.viewer.${encodeURIComponent(profile)}.${system}`;
-  const [value, setValue] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(key) ?? "null");
-      if (
-        saved &&
-        Number.isFinite(saved.volume) &&
-        saved.volume >= 0 &&
-        saved.volume <= 100 &&
-        typeof saved.sharp === "boolean"
-      )
-        return { volume: saved.volume as number, sharp: saved.sharp as boolean };
-    } catch {}
-    return { volume: 65, sharp: true };
-  });
+  const [value, setValue] = useState(() => storedViewer(key));
   const lastVolume = useRef(value.volume || 65);
-  if (value.volume) lastVolume.current = value.volume;
+  useLayoutEffect(() => {
+    if (value.volume) lastVolume.current = value.volume;
+  }, [value.volume]);
   useEffect(() => {
     if (ready) send("viewer", value);
   }, [ready, value]);
@@ -88,15 +101,7 @@ export function useRetroFullscreen() {
   const t = useT(),
     [fullscreen, setFullscreen] = useState(false),
     original = useRef<Promise<boolean>>(Promise.resolve(false));
-  const restore = async () => {
-    try {
-      const initial = await original.current;
-      if (isTauri()) await getCurrentWindow().setFullscreen(initial);
-      else if (!initial && document.fullscreenElement) await document.exitFullscreen();
-    } catch {
-      /* A closing window can already be unavailable. */
-    }
-  };
+  const restore = () => restoreFullscreen(original.current);
   useEffect(() => {
     if (!isTauri()) {
       original.current = Promise.resolve(!!document.fullscreenElement);

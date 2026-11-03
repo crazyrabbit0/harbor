@@ -119,7 +119,7 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
           if (partial.length > 0) setSearching(false);
         },
       };
-      try {
+      const search = async () => {
         const found = await searchSubtitles(
           {
             imdbId: tgt.imdbId || undefined,
@@ -136,9 +136,10 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
         if (mine !== seq.current) return;
         setResults(found);
         setPending(0);
-      } finally {
+      };
+      await search().finally(() => {
         if (mine === seq.current) setSearching(false);
-      }
+      });
     },
     [addons, home, settings, props.candidateIds, props.stremioId],
   );

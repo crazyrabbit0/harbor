@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { GameAvailabilityBadge, useGameAvailabilityIndex } from "./game-availability";
 import { gameAvailability, releaseAvailability } from "@/lib/games/availability";
@@ -46,7 +46,9 @@ export function RecentSourceCard({
     availability = useGameAvailabilityIndex(),
     name = sourceDownloadTitle(item.release.title);
   const callbacks = useRef({ publish, open, error });
-  callbacks.current = { publish, open, error };
+  useLayoutEffect(() => {
+    callbacks.current = { publish, open, error };
+  }, [publish, open, error]);
   useEffect(() => {
     const node = root.current;
     if (!node) return;

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ArrowDownToLine, ArrowUpRight, ChevronDown, LoaderCircle, RefreshCw } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -40,9 +40,11 @@ export function GameStardewCatalog({
   } | null>(null);
   const alive = useRef(true),
     current = useRef(active),
-    trigger = useRef<HTMLButtonElement>(null),
     task = useRef<{ id: string; canceled: boolean } | null>(null);
-  current.current = active;
+  const [trigger, setTrigger] = useState<HTMLButtonElement | null>(null);
+  useLayoutEffect(() => {
+    current.current = active;
+  }, [active]);
   const cancel = () => {
     const own = task.current;
     if (own) {
@@ -57,7 +59,7 @@ export function GameStardewCatalog({
     setBusy(true);
     setError("");
     let stop: (() => void) | undefined;
-    try {
+    const work = async () => {
       stop = await listen<StardewProgress>("games:stardew-progress", ({ payload }) => {
         if (
           payload.profile === profile &&
@@ -69,13 +71,16 @@ export function GameStardewCatalog({
       if (own.canceled || !alive.current || !current.current) return;
       const value = await stardewCatalog(profile, own.id, refresh);
       if (!own.canceled && alive.current && current.current) setCatalog(value);
-    } catch (e) {
-      if (!own.canceled && alive.current && current.current) setError(stardewError(e));
-    } finally {
-      stop?.();
-      if (task.current === own) task.current = null;
-      if (alive.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((e) => {
+        if (!own.canceled && alive.current && current.current) setError(stardewError(e));
+      })
+      .finally(() => {
+        stop?.();
+        if (task.current === own) task.current = null;
+        if (alive.current) setBusy(false);
+      });
   };
   useEffect(() => {
     alive.current = true;
@@ -112,7 +117,7 @@ export function GameStardewCatalog({
   return (
     <div className="games-stardew-discovery">
       <button
-        ref={trigger}
+        ref={setTrigger}
         className="games-button"
         aria-expanded={expanded}
         aria-controls={id}
@@ -233,7 +238,7 @@ export function GameStardewCatalog({
           path={path}
           action={{ kind: "creator", project: selection.project }}
           trigger={selection.trigger}
-          fallback={trigger.current}
+          fallback={trigger}
           onClose={() => setSelection(null)}
           changed={changed}
         />

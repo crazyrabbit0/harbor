@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { seedBpMeta } from "./bp-focus-meta";
 
@@ -17,7 +17,9 @@ function reduced(): boolean {
 
 export function useBpHeroCycle(pool: Meta[], enabled: boolean): void {
   const poolRef = useRef(pool);
-  poolRef.current = pool;
+  useLayoutEffect(() => {
+    poolRef.current = pool;
+  }, [pool]);
   const atRef = useRef(0);
 
   useEffect(() => {

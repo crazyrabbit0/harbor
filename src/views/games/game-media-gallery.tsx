@@ -1,5 +1,5 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 import { NavChevron } from "@/components/nav-arrow";
 import { useT } from "@/lib/i18n";
@@ -37,8 +37,10 @@ export function GameMediaGallery({
   }, [active, suspended]);
   const selectedRef = useRef(selected),
     columnsRef = useRef(columns);
-  selectedRef.current = selected;
-  columnsRef.current = columns;
+  useLayoutEffect(() => {
+    selectedRef.current = selected;
+    columnsRef.current = columns;
+  }, [selected, columns]);
   const media = [
     ...trailers.filter((item) => item.url).map((item) => ({ ...item, type: "trailer" as const })),
     ...screenshots.map((url, index) => ({

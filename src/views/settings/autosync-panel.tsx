@@ -4,6 +4,15 @@ import { useT } from "@/lib/i18n";
 import { ROW_DESC, Section, ToggleRow } from "./shared";
 import { ModalButton, ROW_ACTION, SettingGroup, SettingRow, SettingsModal, Nested } from "./kit";
 
+function isHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol) && !!url.hostname;
+  } catch {
+    return false;
+  }
+}
+
 export function AutoSyncPanel() {
   const t = useT();
   const { settings, update } = useSettings();
@@ -35,15 +44,9 @@ export function AutoSyncPanel() {
   };
   const saveServer = () => {
     const next = urlDraft.trim();
-    if (next) {
-      try {
-        const url = new URL(next);
-        if (!["http:", "https:"].includes(url.protocol) || !url.hostname)
-          throw new Error("Invalid URL");
-      } catch {
-        setUrlError(true);
-        return;
-      }
+    if (next && !isHttpUrl(next)) {
+      setUrlError(true);
+      return;
     }
     if (next !== storedUrl) {
       update({ communitySyncUrl: next });

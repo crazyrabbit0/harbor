@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -21,6 +21,7 @@ import { GameSourceFailures } from "./game-source-failures";
 import { GameSourceIcon } from "./game-source-icon";
 import { RecentSourceDialog } from "./game-recent-dialog";
 import { RecentSourceCard } from "./game-recent-card";
+import { readAtVersion } from "@/lib/read-at-version";
 import "./game-recent-sources.css";
 import "./game-rails.css";
 
@@ -35,7 +36,9 @@ function RecentRailTail({
 }) {
   const ref = useRef<HTMLDivElement>(null),
     next = useRef(more);
-  next.current = more;
+  useLayoutEffect(() => {
+    next.current = more;
+  }, [more]);
   useEffect(() => {
     const node = ref.current;
     if (!node || !active || loading) return;
@@ -87,7 +90,7 @@ export function GameRecentSources({
       art: SourceGameArtwork | null | undefined;
     }>(),
     [detailError, setDetailError] = useState(false);
-  const now = useMemo(() => Date.now(), [sources.sources]);
+  const now = useMemo(() => readAtVersion(sources.sources, () => Date.now()), [sources.sources]);
   const enabled = useMemo(
     () => sources.sources.filter((source) => source.enabled),
     [sources.sources],

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { goBigPictureTab } from "@/lib/big-picture";
 import { SFX } from "@/lib/sfx";
@@ -43,9 +43,10 @@ export function BpShows({ onSelect }: { onSelect: (m: Meta) => void }) {
   // to the CW row on the next commit: two autofocus nodes across two renders,
   // with the shell's settle pass dragging the ring after the marker. bp-home's
   // seedRowRef carries the full record of why the answer must be frozen.
-  const cwLedRef = useRef<boolean | null>(null);
-  if (cwReady && !loading && cwLedRef.current === null) cwLedRef.current = cw.length > 0;
-  const cwLeads = cwLedRef.current === true && cw.length > 0;
+  const [cwLed, setCwLed] = useState<boolean | null>(null);
+  const settledLed = cwReady && !loading ? cw.length > 0 : null;
+  if (cwLed === null && settledLed !== null) setCwLed(settledLed);
+  const cwLeads = (cwLed ?? settledLed) === true && cw.length > 0;
   const seed = cw[0] ? cwMeta(cw[0]) : (hero[0] ?? rows[0]?.metas[0]);
 
   const visible = rows.slice(0, VISIBLE_ROWS);

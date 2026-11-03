@@ -43,6 +43,7 @@ import {
   type ThemePreset,
 } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 
 export function CustomThemesSection({
   startOpenTab,
@@ -148,7 +149,7 @@ export function CustomThemesSection({
 
   const importFile = async (file: File) => {
     setError(null);
-    try {
+    const work = async () => {
       const name = file.name.toLowerCase();
       if (name.endsWith(".zip") || file.type === "application/zip") {
         setError(t("Zipped themes aren't supported yet. Drop the theme file directly."));
@@ -182,9 +183,8 @@ export function CustomThemesSection({
       saveCustomTheme({ ...result.theme, origin: "imported" });
       setImportedNotice(result.theme.name);
       activateTheme(result.theme.id, result.theme.navCustomization);
-    } catch {
-      setError(t("Could not read file"));
-    }
+    };
+    await work().catch(() => setError(t("Could not read file")));
   };
 
   const pickImportFile = () => {
@@ -306,9 +306,9 @@ function useThemeJsConsentTick(): number {
 // Imported and community themes keep their script off until the user allows it here.
 function ThemeScriptConsent({ theme }: { theme: CustomTheme }) {
   const t = useT();
-  useThemeJsConsentTick();
-  const pending = needsThemeJsConsent(theme);
-  const allowed = hasThemeJsConsent(theme);
+  const consentTick = useThemeJsConsentTick();
+  const pending = readAtVersion(consentTick, () => needsThemeJsConsent(theme));
+  const allowed = readAtVersion(consentTick, () => hasThemeJsConsent(theme));
   if (!pending && !allowed) return null;
   return (
     <div className="flex flex-wrap items-start gap-2.5 rounded-[10px] bg-elevated px-4 py-3 text-[15.5px] leading-[22px]">

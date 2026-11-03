@@ -17,11 +17,12 @@ export function DiscoveryFooter({
   unavailable: string;
 }) {
   const t = useT();
+  const { items, busy, error, next, sentinel, retry, more } = feed;
   return (
     <>
-      {feed.busy && (
+      {busy && (
         <div className="mc-discovery-skeletons" aria-label={t("common.loading")} role="status">
-          {Array.from({ length: feed.items.length ? 2 : 5 }, (_, i) => (
+          {Array.from({ length: items.length ? 2 : 5 }, (_, i) => (
             <div key={i}>
               <i />
               <span>
@@ -33,20 +34,20 @@ export function DiscoveryFooter({
           ))}
         </div>
       )}
-      {!!feed.error && (
+      {!!error && (
         <div className="mc-catalog-error" role="alert">
           <span>{unavailable}</span>
-          <button className="games-button" onClick={feed.retry}>
+          <button className="games-button" onClick={retry}>
             {t("common.retry")}
           </button>
         </div>
       )}
-      {!feed.busy && !feed.error && !feed.items.length && (
+      {!busy && !error && !items.length && (
         <p className="mc-catalog-empty">{t("games.minecraft.catalog.empty")}</p>
       )}
-      <div ref={feed.sentinel} className="mc-discovery-more">
-        {!!feed.next && !feed.error && (
-          <button className="games-button" disabled={feed.busy} onClick={feed.more}>
+      <div ref={sentinel} className="mc-discovery-more">
+        {!!next && !error && (
+          <button className="games-button" disabled={busy} onClick={more}>
             {t("games.minecraft.discovery.loadMore")}
           </button>
         )}

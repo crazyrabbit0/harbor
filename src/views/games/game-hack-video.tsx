@@ -15,6 +15,7 @@ import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
 import type { HackVideo } from "@/lib/games/hack-editorial";
 
+const loadMusicPlayer = () => import("@/lib/music/player");
 const Watch = createContext<(video: HackVideo) => void>((video) => {
   void openUrl(`https://www.youtube.com/watch?v=${video.id}`);
 });
@@ -30,7 +31,7 @@ export function HackVideoProvider({ active, children }: { active: boolean; child
       ".games-view audio,.games-view video",
     ))
       if (!other.paused) other.pause();
-    void import("@/lib/music/player")
+    void loadMusicPlayer()
       .then(({ getMusicState, toggleMusicPlayback }) => {
         if (getMusicState().phase === "playing") toggleMusicPlayback();
       })

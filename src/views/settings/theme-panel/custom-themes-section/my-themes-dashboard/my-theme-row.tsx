@@ -55,27 +55,22 @@ export function MyThemeRow({
     const next = t.visibility === "public" ? "unlisted" : "public";
     setBusy("vis");
     setError(null);
-    try {
-      await setVisibility(t.id, authToken() ?? "", next);
-      setT({ ...t, visibility: next });
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(null);
-    }
+    await setVisibility(t.id, authToken() ?? "", next)
+      .then(() => setT({ ...t, visibility: next }))
+      .catch((e: unknown) => setError((e as Error).message))
+      .finally(() => setBusy(null));
   };
 
   const del = async () => {
     setBusy("del");
     setError(null);
-    try {
-      await deleteUpload(t.id, authToken() ?? "");
-      onChanged();
-    } catch (e) {
-      setError((e as Error).message);
-      setBusy(null);
-      setConfirmDel(false);
-    }
+    await deleteUpload(t.id, authToken() ?? "")
+      .then(() => onChanged())
+      .catch((e: unknown) => {
+        setError((e as Error).message);
+        setBusy(null);
+        setConfirmDel(false);
+      });
   };
 
   const openVersions = async () => {
@@ -83,13 +78,10 @@ export function MyThemeRow({
     setVersionsOpen(next);
     if (next && versions === null) {
       setVersionsBusy(true);
-      try {
-        setVersions(await themeVersions(t.id));
-      } catch {
-        setVersions([]);
-      } finally {
-        setVersionsBusy(false);
-      }
+      await themeVersions(t.id)
+        .then(setVersions)
+        .catch(() => setVersions([]))
+        .finally(() => setVersionsBusy(false));
     }
   };
 

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Check, Search, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useT } from "@/lib/i18n";
@@ -40,13 +40,15 @@ export function GameLibraryMetadata({
     title = useId(),
     { settings } = useSettings(),
     { closing, close } = useModalExit(onClose);
-  const initial = useRef({
+  const [initial] = useState(() => ({
     items,
     selectedIds: new Set(selectedIds),
     preferences: access.libraryPreferences.data,
-  });
+  }));
   const current = useRef({ access, items });
-  current.current = { access, items };
+  useLayoutEffect(() => {
+    current.current = { access, items };
+  }, [access, items]);
   const root = useRef<HTMLDivElement>(null),
     controller = useRef<AbortController | null>(null),
     mounted = useRef(true);
@@ -65,18 +67,18 @@ export function GameLibraryMetadata({
         : osClass() === "linux"
           ? 3
           : undefined;
-  const targets = initial.current.items
-    .filter((item) => scope === "all" || initial.current.selectedIds.has(item.id))
-    .map((item) => libraryMetadataTarget(item, initial.current.preferences, desktop));
+  const targets = initial.items
+    .filter((item) => scope === "all" || initial.selectedIds.has(item.id))
+    .map((item) => libraryMetadataTarget(item, initial.preferences, desktop));
   const displayed = rows.length ? rows : metadataImportRows(targets);
-  const policy = useRef(artworkImportPolicy(settings));
+  const [policy, setPolicy] = useState(() => artworkImportPolicy(settings));
   const progress = (row: MetadataImportResult) => {
     held.current = held.current.map((previous) => (previous.id === row.id ? row : previous));
     if (mounted.current) setRows(held.current);
   };
   const save = async (id: string, game: GameSummary, signal: AbortSignal) => {
     const { access: live, items: available } = current.current,
-      original = initial.current.items.find((item) => item.id === id),
+      original = initial.items.find((item) => item.id === id),
       item = available.find((item) => item.id === id);
     if (
       signal.aborted ||
@@ -98,22 +100,22 @@ export function GameLibraryMetadata({
     const abort = new AbortController();
     controller.current = abort;
     setRunning(true);
+    let runPolicy = policy;
     if (!held.current.length) {
       held.current = metadataImportRows(targets);
       setRows(held.current);
-      policy.current = artworkImportPolicy(settings);
+      runPolicy = artworkImportPolicy(settings);
+      setPolicy(runPolicy);
     }
-    try {
-      await runMetadataImport(targets, held.current, policy.current, abort.signal, {
-        query: queryIgdb,
-        detail: loadAtlasGame,
-        save,
-        progress,
-      });
-    } finally {
+    await runMetadataImport(targets, held.current, runPolicy, abort.signal, {
+      query: queryIgdb,
+      detail: loadAtlasGame,
+      save,
+      progress,
+    }).finally(() => {
       controller.current = null;
       if (mounted.current) setRunning(false);
-    }
+    });
   };
   const dismiss = () => {
     controller.current?.abort();
@@ -157,10 +159,10 @@ export function GameLibraryMetadata({
       if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
-  const reviewEntry = useRef<MetadataImportResult | null>(null);
-  const row = review ? reviewEntry.current : null,
+  const [reviewEntry, setReviewEntry] = useState<MetadataImportResult | null>(null);
+  const row = review ? reviewEntry : null,
     target = targets.find((target) => target.id === review),
-    item = initial.current.items.find((item) => item.id === review);
+    item = initial.items.find((item) => item.id === review);
   const closeReview = () => {
     const id = review;
     setReview(null);
@@ -175,14 +177,15 @@ export function GameLibraryMetadata({
     if (!game || !review) return false;
     const abort = new AbortController();
     controller.current = abort;
-    try {
+    const work = async () => {
       const ok = await save(review, game, abort.signal);
       if (ok) progress({ id: review, state: "saved", game });
       else setReviewError(true);
       return ok;
-    } finally {
+    };
+    return await work().finally(() => {
       controller.current = null;
-    }
+    });
   };
   const canRun = displayed.some((row) => row.state === "pending" || row.state === "failed");
   const processed = displayed.filter((row) => !["pending", "searching"].includes(row.state)).length;
@@ -225,7 +228,7 @@ export function GameLibraryMetadata({
                 aria-pressed={scope === "all"}
                 onClick={() => setScope("all")}
               >
-                {t("games.sidebar.allGames")} · {initial.current.items.length}
+                {t("games.sidebar.allGames")} · {initial.items.length}
               </button>
               {!!selectedIds.length && (
                 <button
@@ -250,7 +253,7 @@ export function GameLibraryMetadata({
             />
             <div className="games-metadata-import-rows">
               {displayed.slice(0, limit).map((result) => {
-                const game = initial.current.items.find((item) => item.id === result.id)!;
+                const game = initial.items.find((item) => item.id === result.id)!;
                 return (
                   <div
                     key={result.id}
@@ -277,7 +280,7 @@ export function GameLibraryMetadata({
                         disabled={running}
                         data-metadata-review={result.id}
                         onClick={() => {
-                          reviewEntry.current = result;
+                          setReviewEntry(result);
                           setReview(result.id);
                           setReviewError(false);
                         }}
@@ -328,7 +331,7 @@ export function GameLibraryMetadata({
           <GameArtworkPicker
             game={row.game}
             binding={`igdb:${row.game.igdbId}`}
-            screenshots={policy.current.screenshots}
+            screenshots={policy.screenshots}
             allowReset={false}
             localCover={
               !!access.libraryPreferences.get(item.id).cover ||

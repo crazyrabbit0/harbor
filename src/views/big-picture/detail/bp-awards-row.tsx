@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { AWARD_CATALOG } from "@/lib/awards-catalog";
 import { mergeBundledAwards } from "@/lib/awards-history";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
+import { readAtVersion } from "@/lib/read-at-version";
 import { parseAwardYear } from "@/lib/anime-awards";
 import type { Meta } from "@/lib/cinemeta";
 import { awardSummary, useAwards, type AwardEntry, type AwardType } from "@/lib/providers/wikidata";
@@ -24,26 +25,30 @@ export function useBpTitleAwards(meta: Meta, imdbId: string | null): BpAwardGrou
   const live = useAwards(isAnime ? undefined : (imdbId ?? undefined), meta.type === "series");
 
   const awardsV = useBundledAwardsVersion();
-  return useMemo(() => {
-    if (isAnime) return NO_GROUPS;
-    const merged = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));
-    if (merged.length === 0) return NO_GROUPS;
-    const byType = new Map<AwardType, AwardEntry[]>();
-    for (const e of merged) {
-      if (e.type === "other") continue;
-      const list = byType.get(e.type) ?? [];
-      list.push(e);
-      byType.set(e.type, list);
-    }
-    return awardSummary(merged)
-      .filter((s) => s.wins > 0 || s.nominations > 0)
-      .map((s) => ({
-        type: s.type,
-        entries: byType.get(s.type) ?? [],
-        wins: s.wins,
-        nominations: s.nominations,
-      }));
-  }, [awardsV, isAnime, live, meta.name, meta.releaseInfo]);
+  return useMemo(
+    () =>
+      readAtVersion(awardsV, () => {
+        if (isAnime) return NO_GROUPS;
+        const merged = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));
+        if (merged.length === 0) return NO_GROUPS;
+        const byType = new Map<AwardType, AwardEntry[]>();
+        for (const e of merged) {
+          if (e.type === "other") continue;
+          const list = byType.get(e.type) ?? [];
+          list.push(e);
+          byType.set(e.type, list);
+        }
+        return awardSummary(merged)
+          .filter((s) => s.wins > 0 || s.nominations > 0)
+          .map((s) => ({
+            type: s.type,
+            entries: byType.get(s.type) ?? [],
+            wins: s.wins,
+            nominations: s.nominations,
+          }));
+      }),
+    [awardsV, isAnime, live, meta.name, meta.releaseInfo],
+  );
 }
 
 // Real award photography at real size, never a trophy glyph beside a number.

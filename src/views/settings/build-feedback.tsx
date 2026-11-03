@@ -121,7 +121,7 @@ export function BuildFeedback() {
           role="radiogroup"
           aria-label={t("Rate this build")}
           className="grid grid-cols-5 gap-1.5"
-          onKeyDown={stripArrowKeys(tiles, setValue)}
+          onKeyDown={(e) => stripArrowKeys(tiles, setValue)(e)}
         >
           {STOPS.map((s, i) => {
             const on = i === value;

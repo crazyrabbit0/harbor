@@ -60,7 +60,7 @@ export function WatchlistSync() {
   const startExport = async () => {
     if (!authKey) return;
     setPhase({ kind: "loading", dir: "export" });
-    try {
+    const work = async () => {
       const lib = await library(authKey);
       const sources = [
         ...lib.map((i) => ({ id: i._id, type: i.type, removed: i.removed, temp: i.temp })),
@@ -81,14 +81,15 @@ export function WatchlistSync() {
         return;
       }
       setPhase({ kind: "confirm-export", plan });
-    } catch (err) {
+    };
+    await work().catch((err: unknown) => {
       console.error("[trakt] read watchlist failed", err);
       setPhase({
         kind: "result",
         tone: "warn",
         message: t("Couldn't read your watchlist. Try again."),
       });
-    }
+    });
   };
 
   const confirmExport = async (plan: ExportPlan) => {

@@ -36,6 +36,8 @@ import { ProfilePicker } from "./profile-picker";
 import { usePreviewBackdrop } from "./use-preview-backdrop";
 import { stripArrowKeys } from "../shared";
 
+const loadTauriWindow = () => import("@tauri-apps/api/window");
+
 const OVERLAY_LABEL = "text-[13px] font-extrabold uppercase leading-[17px] tracking-[0.72px]";
 
 type Props = {
@@ -131,10 +133,11 @@ export function EditorOverlay({
     if (el) tvFocus(el);
   };
 
+  const [mockClock] = useState(!overVideo);
   useEffect(() => {
     document.body.style.overflow = "hidden";
     // Over a playing video the real clock drives the preview, so the mock position is skipped.
-    if (!overVideo) setPlaybackClock(1342, 1500);
+    if (mockClock) setPlaybackClock(1342, 1500);
     const restore = captureFocusReturn();
     const land =
       rootRef.current?.querySelector<HTMLElement>(
@@ -143,11 +146,10 @@ export function EditorOverlay({
     if (land) tvFocus(land);
     return () => {
       document.body.style.overflow = "";
-      if (!overVideo) setPlaybackClock(0, 0);
+      if (mockClock) setPlaybackClock(0, 0);
       restore();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mockClock]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -173,7 +175,7 @@ export function EditorOverlay({
     let cancelled = false;
     const check = async () => {
       try {
-        const { getCurrentWindow } = await import("@tauri-apps/api/window");
+        const { getCurrentWindow } = await loadTauriWindow();
         const fs = await getCurrentWindow().isFullscreen();
         if (!cancelled) setIsFs(fs);
       } catch {
@@ -249,7 +251,7 @@ export function EditorOverlay({
 
   const toggleFullscreen = async () => {
     try {
-      const { getCurrentWindow } = await import("@tauri-apps/api/window");
+      const { getCurrentWindow } = await loadTauriWindow();
       const win = getCurrentWindow();
       const current = await win.isFullscreen();
       await win.setFullscreen(!current);
@@ -540,7 +542,7 @@ function ModeSwitch({ mode, onChange }: { mode: PlayerMode; onChange: (m: Player
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
   return (
     <div
-      onKeyDown={stripArrowKeys(btnRefs, (i) => onChange(MODE_ORDER[i]))}
+      onKeyDown={(e) => stripArrowKeys(btnRefs, (i) => onChange(MODE_ORDER[i]))(e)}
       className="flex h-11 items-center gap-0.5 rounded-md bg-white/8"
     >
       <ModePill

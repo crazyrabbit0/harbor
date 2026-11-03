@@ -1,6 +1,6 @@
 import { useSubTabs } from "./sub-tabs";
 import { Info } from "./icons";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSettings } from "@/lib/settings";
 import { useT } from "@/lib/i18n";
 import { SHADER_CATALOG } from "@/lib/player/shader-catalog";
@@ -21,10 +21,16 @@ export function ShadersPanel() {
   const { settings, update } = useSettings();
   const t = useT();
 
+  // The scan runs once with the shaders known at mount.
+  const [mountShaders] = useState(() => settings.playerShaders);
+  const updateRef = useRef(update);
+  useLayoutEffect(() => {
+    updateRef.current = update;
+  }, [update]);
   useEffect(() => {
     if (!isTauri) return;
     let cancelled = false;
-    const missing = SHADER_CATALOG.filter((e) => !settings.playerShaders?.[e.id]?.dir);
+    const missing = SHADER_CATALOG.filter((e) => !mountShaders?.[e.id]?.dir);
     if (missing.length === 0) return;
     (async () => {
       const found: Record<string, string> = {};
@@ -33,17 +39,16 @@ export function ShadersPanel() {
         if (dir) found[e.id] = dir;
       }
       if (cancelled || Object.keys(found).length === 0) return;
-      const next = { ...settings.playerShaders };
+      const next = { ...mountShaders };
       for (const [id, dir] of Object.entries(found)) {
         next[id] = { ...(next[id] ?? { enabled: false }), dir };
       }
-      update({ playerShaders: next });
+      updateRef.current({ playerShaders: next });
     })();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mountShaders]);
 
   useSubTabs(
     isTauri

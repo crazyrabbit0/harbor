@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link2, Loader2, Package } from "../icons";
 import { useT } from "@/lib/i18n";
 import { addRepoAnyKind, pluginKinds, usePluginKindsVersion, type RepoView } from "@/lib/plugins";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useSettings } from "@/lib/settings";
 import { loadStreamPlugins, splitRepoLinks } from "@/lib/streams/plugins";
 import { ROW_ACTION_PRIMARY, SettingRow } from "../kit";
@@ -12,7 +13,7 @@ import { RepoGroup } from "./repo-group";
 export function RepositoriesTab() {
   const t = useT();
   const { settings, update } = useSettings();
-  usePluginKindsVersion();
+  const pluginKindsVer = usePluginKindsVersion();
   const [link, setLink] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,8 +45,8 @@ export function RepositoriesTab() {
     if (lastError) setError(lastError);
   };
 
-  const repos = pluginKinds().flatMap((adapter) =>
-    adapter.repos().map((repo) => ({ repo, adapter })),
+  const repos = readAtVersion(pluginKindsVer, () =>
+    pluginKinds().flatMap((adapter) => adapter.repos().map((repo) => ({ repo, adapter }))),
   );
 
   // The list is read from memory, and the read that fills it runs once per session. An edit that

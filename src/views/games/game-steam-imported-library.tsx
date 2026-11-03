@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowUpRight, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { loadGameArtwork } from "@/lib/games/catalog";
@@ -44,7 +44,9 @@ export function GameSteamImportedLibrary({
     [art, setArt] = useState<Record<number, GameArtwork>>({});
   const live = useRef(true),
     owner = useRef(library.profile);
-  owner.current = library.profile;
+  useLayoutEffect(() => {
+    owner.current = library.profile;
+  }, [library.profile]);
   useEffect(() => {
     live.current = true;
     return () => {
@@ -120,15 +122,18 @@ export function GameSteamImportedLibrary({
     const profile = library.profile;
     setBusy(id);
     setError("");
-    try {
+    const work = async () => {
       await library.update([], [id]);
       if (live.current && owner.current === profile)
         requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
-    } catch {
-      if (live.current && owner.current === profile) setError("games.steamImport.writeError");
-    } finally {
-      if (live.current && owner.current === profile) setBusy(null);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (live.current && owner.current === profile) setError("games.steamImport.writeError");
+      })
+      .finally(() => {
+        if (live.current && owner.current === profile) setBusy(null);
+      });
   };
   return (
     <section className="games-steam-imported">

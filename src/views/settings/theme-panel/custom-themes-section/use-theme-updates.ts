@@ -21,12 +21,8 @@ export function useThemeUpdates() {
       setUpdates([]);
       return;
     }
-    let current;
-    try {
-      current = await browseThemes("new", "");
-    } catch {
-      return;
-    }
+    const current = await browseThemes("new", "").catch(() => null);
+    if (!current) return;
     const byStore = new Map<string, number>(
       current.map((t) => [t.id, t.versionsCount ?? 0] as [string, number]),
     );
@@ -54,15 +50,13 @@ export function useThemeUpdates() {
 
   const updateOne = useCallback(async (u: ThemeUpdate) => {
     setBusy(u.storeId);
-    try {
-      await downloadTheme(u.storeId, null, u.to);
-      markStoreThemeUpdated(u.storeId, u.to);
-      setUpdates((prev) => prev.filter((x) => x.storeId !== u.storeId));
-    } catch {
-      /* ignore */
-    } finally {
-      setBusy(null);
-    }
+    await downloadTheme(u.storeId, null, u.to)
+      .then(() => {
+        markStoreThemeUpdated(u.storeId, u.to);
+        setUpdates((prev) => prev.filter((x) => x.storeId !== u.storeId));
+      })
+      .catch(() => {})
+      .finally(() => setBusy(null));
   }, []);
 
   return { updates, busy, updateOne };

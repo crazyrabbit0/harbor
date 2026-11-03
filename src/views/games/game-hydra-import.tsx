@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { FileUp, FolderOpen, Search, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
@@ -16,6 +16,7 @@ import { GameSourceIcon } from "./game-source-icon";
 import { HydraOriginalSettings } from "./game-hydra-settings";
 import "./game-hydra-import.css";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
 const validate = (config: LaunchConfig) =>
   invoke<LaunchConfig>("games_validate_custom_launch", { config });
 async function read(profile: string, directory: string, signal: AbortSignal) {
@@ -80,7 +81,10 @@ export function GameHydraImport({
   const [failures, setFailures] = useState<Record<string, string>>({}),
     [completed, setCompleted] = useState(new Set<string>()),
     [done, setDone] = useState({ games: 0, sources: 0, existing: 0 });
-  owner.current = library.profile;
+  const libraryProfile = library.profile;
+  useLayoutEffect(() => {
+    owner.current = libraryProfile;
+  }, [libraryProfile]);
   const profile = library.profile,
     busy = phase !== "idle";
   const current = () => live.current && owner.current === profile && sources.profile === profile;
@@ -191,8 +195,8 @@ export function GameHydraImport({
     const abort = new AbortController();
     controller.current = abort;
     setPhase("reading");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const path = await open({ directory: true, multiple: false, title: t("games.hydra.choose") });
       if (typeof path !== "string" || !current() || abort.signal.aborted) return;
       setDirectory(path);
@@ -212,12 +216,15 @@ export function GameHydraImport({
       setQuery("");
       // Selection is explicit; concealed games and source subscriptions are not enabled implicitly.
       setSelected(new Set());
-    } catch (reason) {
-      if (current() && !abort.signal.aborted) setError(errorKey(reason));
-    } finally {
-      inFlight.current = false;
-      if (current()) setPhase("idle");
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (current() && !abort.signal.aborted) setError(errorKey(reason));
+      })
+      .finally(() => {
+        inFlight.current = false;
+        if (current()) setPhase("idle");
+      });
   };
   const apply = async () => {
     if (
@@ -236,7 +243,18 @@ export function GameHydraImport({
     setFailures({});
     const abort = new AbortController();
     controller.current = abort;
-    try {
+    const addSource = async (row: (typeof selection)[number]) => {
+      const result = await sources.inspect(row.source!.url, abort.signal);
+      if (result.kind !== "catalog") throw Error("source_format");
+      abort.signal.throwIfAborted();
+      if (!current()) return false;
+      if (!(await sources.add(result.url, result.manifest))) throw Error("source_storage");
+      if (!current()) return false;
+      setDone((value) => ({ ...value, sources: value.sources + 1 }));
+      setCompleted((value) => new Set([...value, row.key]));
+      return true;
+    };
+    const work = async () => {
       const latest = await read(profile, review.directory, abort.signal);
       if (latest.fingerprint !== review.fingerprint) throw Error("hydra_changed");
       if (!current()) return;
@@ -278,16 +296,7 @@ export function GameHydraImport({
       for (const row of sourceRows) {
         abort.signal.throwIfAborted();
         if (!current()) return;
-        try {
-          const result = await sources.inspect(row.source!.url, abort.signal);
-          if (result.kind !== "catalog") throw Error("source_format");
-          abort.signal.throwIfAborted();
-          if (!current()) return;
-          if (!(await sources.add(result.url, result.manifest))) throw Error("source_storage");
-          if (!current()) return;
-          setDone((value) => ({ ...value, sources: value.sources + 1 }));
-          setCompleted((value) => new Set([...value, row.key]));
-        } catch (reason) {
+        const proceed = await addSource(row).catch((reason) => {
           if (abort.signal.aborted) throw reason;
           const code = reason instanceof Error ? reason.message : String(reason);
           if (code === "source_duplicate") {
@@ -295,15 +304,20 @@ export function GameHydraImport({
             setCompleted((value) => new Set([...value, row.key]));
           } else if (current())
             setFailures((value) => ({ ...value, [row.key]: sourceError(reason) }));
-        }
+          return true;
+        });
+        if (!proceed) return;
       }
-    } catch (reason) {
-      if (current())
-        abort.signal.aborted ? setNotice("games.hydra.stopped") : setError(errorKey(reason));
-    } finally {
-      inFlight.current = false;
-      if (current()) setPhase("idle");
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (current())
+          abort.signal.aborted ? setNotice("games.hydra.stopped") : setError(errorKey(reason));
+      })
+      .finally(() => {
+        inFlight.current = false;
+        if (current()) setPhase("idle");
+      });
   };
   const toggle = (key: string) =>
     setSelected((value) => {

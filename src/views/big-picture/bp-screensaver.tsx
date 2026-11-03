@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLiveGamepad } from "@/lib/gamepad/live";
 import { useSettings } from "@/lib/settings";
@@ -17,7 +17,9 @@ function BpGamepadWake({ onWake }: { onWake: () => void }) {
   const live = useLiveGamepad();
   const { settings } = useSettings();
   const wakeRef = useRef(onWake);
-  wakeRef.current = onWake;
+  useLayoutEffect(() => {
+    wakeRef.current = onWake;
+  }, [onWake]);
   const dz = Math.max(0.05, settings.controllerDeadzone);
 
   useEffect(() => {

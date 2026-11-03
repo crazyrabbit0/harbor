@@ -77,12 +77,12 @@ function useHostTier() {
 
 function AnimeCorner({ name, year }: { name: string; year?: number }) {
   const { ref, tier } = useHostTier();
-  useAwardPacks();
+  const awardPacks = useAwardPacks();
   const wins = findAnyAwardWins(name, year);
   const top = wins[0];
   const show = !!top && tier !== "hidden";
   const src = top ? awardSourceMeta(top.source) : null;
-  const custom = top ? resolveAwardIcon(top.source) : null;
+  const custom = top ? readAtVersion(awardPacks, () => resolveAwardIcon(top.source)) : null;
   const compact = tier === "compact";
   const subline = !top
     ? ""

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ArrowLeft, Dices, LayoutGrid, Rows3, Search, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT } from "@/lib/i18n";
@@ -44,6 +44,13 @@ const CATALOG_REQUESTS: CatalogRequests = {
   load: loadUnifiedGameSearch,
   snapshot: readUnifiedGameSearchSnapshot,
 };
+function storedResultView(profile: string): "grid" | "rows" {
+  try {
+    return localStorage.getItem(`harbor.games.search-view:${profile}`) === "rows" ? "rows" : "grid";
+  } catch {
+    return "grid";
+  }
+}
 export function GameCatalog({
   query,
   filters,
@@ -74,15 +81,7 @@ export function GameCatalog({
   requests?: CatalogRequests;
 }) {
   const t = useT();
-  const [resultView, setResultView] = useState<"grid" | "rows">(() => {
-    try {
-      return localStorage.getItem(`harbor.games.search-view:${profile}`) === "rows"
-        ? "rows"
-        : "grid";
-    } catch {
-      return "grid";
-    }
-  });
+  const [resultView, setResultView] = useState<"grid" | "rows">(() => storedResultView(profile));
   const changeView = (value: "grid" | "rows") => {
     setResultView(value);
     try {
@@ -109,12 +108,14 @@ export function GameCatalog({
     validated: null,
   });
   const savedState = useRef(state);
-  savedState.current = state;
   const pages = useRef(new Map<string, CatalogState>());
-  if (state.validated && !state.loading && !state.error && !state.unavailable?.length) {
-    pages.current.set(state.key, state);
-    if (pages.current.size > 24) pages.current.delete(pages.current.keys().next().value!);
-  }
+  useLayoutEffect(() => {
+    savedState.current = state;
+    if (state.validated && !state.loading && !state.error && !state.unavailable?.length) {
+      pages.current.set(state.key, state);
+      if (pages.current.size > 24) pages.current.delete(pages.current.keys().next().value!);
+    }
+  }, [state]);
   const controller = useRef<AbortController | null>(null);
   const continuation = useRef<AbortController | null>(null),
     sentinel = useRef<HTMLDivElement>(null);
@@ -127,9 +128,11 @@ export function GameCatalog({
     return () => randomRequest.current?.abort();
   }, [active, key, aiMode]);
   const filterRef = useRef(filters);
-  filterRef.current = filters;
   const queryRef = useRef(query);
-  queryRef.current = query;
+  useLayoutEffect(() => {
+    filterRef.current = filters;
+    queryRef.current = query;
+  }, [filters, query]);
   useEffect(() => {
     if (!active || aiMode) {
       controller.current?.abort();
@@ -228,7 +231,7 @@ export function GameCatalog({
     controller.current = request;
     continuation.current = request;
     setState((value) => ({ ...value, loading: true, error: false }));
-    try {
+    const work = async () => {
       const page = await requests.load(query, filters, cursor, request.signal);
       if (!request.signal.aborted)
         setState((previous) =>
@@ -249,12 +252,15 @@ export function GameCatalog({
               }
             : previous,
         );
-    } catch {
-      if (!request.signal.aborted)
-        setState((previous) => ({ ...previous, loading: false, error: { kind, cursor } }));
-    } finally {
-      if (continuation.current === request) continuation.current = null;
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!request.signal.aborted)
+          setState((previous) => ({ ...previous, loading: false, error: { kind, cursor } }));
+      })
+      .finally(() => {
+        if (continuation.current === request) continuation.current = null;
+      });
   };
   const loadMore = () =>
     state.nextOffset === null
@@ -264,7 +270,9 @@ export function GameCatalog({
           "append",
         );
   const nextPage = useRef(loadMore);
-  nextPage.current = loadMore;
+  useLayoutEffect(() => {
+    nextPage.current = loadMore;
+  });
   useEffect(() => {
     if (
       !active ||
@@ -321,7 +329,7 @@ export function GameCatalog({
     randomRequest.current = request;
     setRandomBusy(true);
     setRandomError(false);
-    try {
+    const work = async () => {
       const pool = aiMode ? aiGames : games;
       if (!pool.length) return;
       // Choose across matching catalog results, without loading the whole catalog.
@@ -332,11 +340,14 @@ export function GameCatalog({
           : (await loadGameCatalog(query, filters, offset, request.signal)).games;
       if (!request.signal.aborted && candidates[0])
         open(candidates[0], randomOrigin.current ?? undefined);
-    } catch {
-      if (!request.signal.aborted) setRandomError(true);
-    } finally {
-      if (!request.signal.aborted) setRandomBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!request.signal.aborted) setRandomError(true);
+      })
+      .finally(() => {
+        if (!request.signal.aborted) setRandomBusy(false);
+      });
   };
 
   return (

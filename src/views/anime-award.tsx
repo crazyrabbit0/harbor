@@ -10,6 +10,7 @@ import {
 } from "@/lib/anime-awards";
 import { safeFetch } from "@/lib/safe-fetch";
 import { resolveAwardIcon, useAwardPacks } from "@/lib/award-icons";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
@@ -117,9 +118,12 @@ function Banner({
   totalWins: number;
 }) {
   const t = useT();
-  useAwardPacks();
-  const bannerLogo =
-    resolveAwardIcon(`${data.meta.id}_logo`) ?? resolveAwardIcon(data.meta.id) ?? data.meta.icon;
+  const awardPacks = useAwardPacks();
+  const bannerLogo = readAtVersion(
+    awardPacks,
+    () =>
+      resolveAwardIcon(`${data.meta.id}_logo`) ?? resolveAwardIcon(data.meta.id) ?? data.meta.icon,
+  );
   const yearSpan =
     data.years.length === 0
       ? ""

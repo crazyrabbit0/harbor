@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { GameSummary } from "@/lib/games/types";
 import type { SavedReleaseResult } from "@/lib/games/saved-releases";
 import { loadSavedReleases, type SavedReleaseRequest } from "@/lib/games/saved-releases-load";
@@ -20,7 +20,9 @@ export function useSavedGameReleases(
   const refresh = useLiveRefresh(active, 31 * 60_000);
   const lastRefresh = useRef(`${attempt}:${refresh}`),
     resultsRef = useRef(results);
-  resultsRef.current = results;
+  useLayoutEffect(() => {
+    resultsRef.current = results;
+  }, [results]);
   const membership = games.map((game) => game.id).join("|");
 
   useEffect(() => {

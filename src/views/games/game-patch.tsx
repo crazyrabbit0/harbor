@@ -22,6 +22,7 @@ import { localGames } from "@/lib/games/emulation";
 import { GameArt } from "./game-art";
 import type { GameSummary } from "@/lib/games/types";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
 type PatchGame = GameSummary & { projectUrl?: string; parent?: GameSummary };
 type DownloadReview = {
   files: { name: string; path: string; bytes: number; sha256: string }[];
@@ -127,18 +128,20 @@ function GamePatchModal({ onClose, game }: { onClose: () => void; game?: PatchGa
       )
       .map((item) => item.path);
     if (!paths.length) return;
-    try {
-      const matches = await invoke<string[]>("games_match_patch_sources", {
-        patchPath: path,
-        paths: paths.slice(0, 32),
-      });
-      if (live.current && request === matchRequest.current) {
-        setSourceMatches(matches);
-        if (matches.length === 1) setSource(matches[0]);
-      }
-    } catch {
-      /* Manual selection and verification remain available if matching fails. */
-    }
+    await invoke<string[]>("games_match_patch_sources", {
+      patchPath: path,
+      paths: paths.slice(0, 32),
+    }).then(
+      (matches) => {
+        if (live.current && request === matchRequest.current) {
+          setSourceMatches(matches);
+          if (matches.length === 1) setSource(matches[0]);
+        }
+      },
+      () => {
+        /* Manual selection and verification remain available if matching fails. */
+      },
+    );
   };
   const cancelDownload = () => {
     if (downloadId.current) {
@@ -210,7 +213,7 @@ function GamePatchModal({ onClose, game }: { onClose: () => void; game?: PatchGa
     if (downloadBusy || busy) return;
     setDownloadBusy(true);
     setDownloadError("");
-    try {
+    const work = async () => {
       const id = crypto.randomUUID();
       downloadId.current = id;
       const result = await invoke<DownloadReview>("games_download_patch", { url, id });
@@ -218,24 +221,27 @@ function GamePatchModal({ onClose, game }: { onClose: () => void; game?: PatchGa
       setDownloadReview(result);
       if (result.files.length === 1) await selectPatch(result.files[0].path);
       if (!result.files.length && !result.links.length) setDownloadError("games.hub.noDownload");
-    } catch (error) {
-      if (live.current)
-        setDownloadError(
-          String(error) === "patch_download_empty"
-            ? "games.hub.noDownload"
-            : "games.hub.downloadFailed",
-        );
-    } finally {
-      downloadId.current = "";
-      if (live.current) setDownloadBusy(false);
-    }
+    };
+    await work()
+      .catch((error) => {
+        if (live.current)
+          setDownloadError(
+            String(error) === "patch_download_empty"
+              ? "games.hub.noDownload"
+              : "games.hub.downloadFailed",
+          );
+      })
+      .finally(() => {
+        downloadId.current = "";
+        if (live.current) setDownloadBusy(false);
+      });
   };
   const choose = async (kind: "source" | "patch") => {
     if (busy) return;
     setBusy("choose");
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const path = await open({
         multiple: false,
         directory: false,
@@ -258,18 +264,21 @@ function GamePatchModal({ onClose, game }: { onClose: () => void; game?: PatchGa
           setSource(path);
         }
       }
-    } catch (error) {
-      if (live.current) setError(patchErrorKey(error));
-    } finally {
-      if (live.current) setBusy(null);
-    }
+    };
+    await work()
+      .catch((error) => {
+        if (live.current) setError(patchErrorKey(error));
+      })
+      .finally(() => {
+        if (live.current) setBusy(null);
+      });
   };
   const verify = async () => {
     if (busy || !source || !patch) return;
     ++matchRequest.current;
     setBusy("verify");
     setError("");
-    try {
+    const work = async () => {
       const result = await invoke<PatchPlan>("games_prepare_patch", {
         sourcePath: source,
         patchPath: patch,
@@ -280,18 +289,21 @@ function GamePatchModal({ onClose, game }: { onClose: () => void; game?: PatchGa
       }
       token.current = result.token;
       setPlan(result);
-    } catch (error) {
-      if (live.current) setError(patchErrorKey(error));
-    } finally {
-      if (live.current) setBusy(null);
-    }
+    };
+    await work()
+      .catch((error) => {
+        if (live.current) setError(patchErrorKey(error));
+      })
+      .finally(() => {
+        if (live.current) setBusy(null);
+      });
   };
   const save = async () => {
     if (!plan || busy) return;
     setBusy("save");
     setError("");
-    try {
-      const { save } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { save } = await loadDialog();
       const outputPath = await save({
         title: t("games.patch.saveCopy"),
         defaultPath: game
@@ -308,17 +320,20 @@ function GamePatchModal({ onClose, game }: { onClose: () => void; game?: PatchGa
         token.current = "";
         setReceipt(result);
       }
-    } catch (error) {
-      if (live.current) {
-        setError(patchErrorKey(error));
-        if (["patch_expired", "patch_inputs_changed"].includes(String(error))) {
-          discard();
-          setPlan(null);
+    };
+    await work()
+      .catch((error) => {
+        if (live.current) {
+          setError(patchErrorKey(error));
+          if (["patch_expired", "patch_inputs_changed"].includes(String(error))) {
+            discard();
+            setPlan(null);
+          }
         }
-      }
-    } finally {
-      if (live.current) setBusy(null);
-    }
+      })
+      .finally(() => {
+        if (live.current) setBusy(null);
+      });
   };
   const size = (bytes: number) =>
     `${(bytes / 1024 / 1024).toLocaleString(undefined, { maximumFractionDigits: 2 })} MB`;

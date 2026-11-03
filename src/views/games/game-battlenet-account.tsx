@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { RefreshCw, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useT } from "@/lib/i18n";
@@ -53,7 +53,10 @@ function AccountDialog({ account, onClose }: { account: BattleNetAccount; onClos
   const [removing, setRemoving] = useState(false),
     [signing, setSigning] = useState(false);
   const cancelRef = useRef(account.cancel);
-  cancelRef.current = account.cancel;
+  const accountCancel = account.cancel;
+  useLayoutEffect(() => {
+    cancelRef.current = accountCancel;
+  }, [accountCancel]);
   useEffect(() => () => cancelRef.current(), []);
   const dismiss = () => {
     account.cancel();

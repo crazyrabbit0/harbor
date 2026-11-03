@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { observe } from "@/lib/visibility";
 import { BpGrid } from "./bp-grid";
@@ -40,9 +40,13 @@ export function BpLibrarySections({
   const autoRef = useRef(0);
   const timerRef = useRef(0);
   const moreRef = useRef(onMore);
-  moreRef.current = onMore;
+  useLayoutEffect(() => {
+    moreRef.current = onMore;
+  }, [onMore]);
   const hasMoreRef = useRef(hasMore);
-  hasMoreRef.current = hasMore;
+  useLayoutEffect(() => {
+    hasMoreRef.current = hasMore;
+  }, [hasMore]);
 
   // Observed once, never re-observed on growth. lib/visibility shares one
   // observer, so re-running this unobserved and re-observed the same node, and
@@ -77,11 +81,11 @@ export function BpLibrarySections({
     return () => window.clearTimeout(timerRef.current);
   }, [shown, hasMore]);
 
-  let cell = 0;
+  const firstSection = sections.findIndex((section) => section.items.length > 0);
 
   return (
     <div className="flex flex-col">
-      {sections.map((section) => (
+      {sections.map((section, si) => (
         <section key={section.label || "all"} className="flex flex-col">
           {section.label && (
             <h3 className="pt-[clamp(8px,1vh,16px)] text-[clamp(11px,1.5vh,17px)] font-bold uppercase tracking-[0.18em] text-ink-subtle">
@@ -93,8 +97,8 @@ export function BpLibrarySections({
             columns={episodes ? WIDE_COLUMNS : LIB_POSTER_COLUMNS}
             gap={episodes ? "clamp(11px,1vw,20px)" : undefined}
           >
-            {section.items.map((entry) => {
-              const first = cell++ === 0;
+            {section.items.map((entry, i) => {
+              const first = si === firstSection && i === 0;
               return entry.item && episodes ? (
                 <BpCwCard
                   key={entry.key}

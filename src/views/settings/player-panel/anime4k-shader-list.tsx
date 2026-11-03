@@ -1,5 +1,5 @@
 import { AlertTriangle, Check, Download, Loader2, RefreshCw } from "../icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { tvFocus } from "@/lib/keyboard-navigation";
 import { navOwnsFocus } from "@/lib/keyboard-navigation/geometry";
@@ -29,20 +29,28 @@ export function Anime4kShaderList() {
   const tierRef = useRef<HTMLDivElement>(null);
   const handOff = useRef(false);
 
+  // The folder lookup runs once with the choices known at mount.
+  const [mount] = useState(() => ({ folder, mode, tier }));
+  const updateRef = useRef(update);
+  useLayoutEffect(() => {
+    updateRef.current = update;
+  }, [update]);
   useEffect(() => {
-    if (folder) return;
+    if (mount.folder) return;
     let cancelled = false;
     anime4kDir()
       .then((dir) => {
         if (cancelled || !dir) return;
-        update({ playerAnime4kFolder: dir, playerAnime4kShaders: anime4kChain(dir, mode, tier) });
+        updateRef.current({
+          playerAnime4kFolder: dir,
+          playerAnime4kShaders: anime4kChain(dir, mount.mode, mount.tier),
+        });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [mount]);
 
   useEffect(() => {
     if (!folder || !handOff.current) return;
@@ -56,26 +64,26 @@ export function Anime4kShaderList() {
     setBusy(true);
     setError(null);
     setJustUpdated(false);
-    try {
-      const dir = await downloadAnime4k(force);
-      const active = document.activeElement;
-      handOff.current =
-        !folder &&
-        active instanceof HTMLElement &&
-        active === setupRef.current &&
-        navOwnsFocus(active);
-      update({ playerAnime4kFolder: dir, playerAnime4kShaders: anime4kChain(dir, mode, tier) });
-      if (force) {
-        setJustUpdated(true);
-        window.setTimeout(() => setJustUpdated(false), 2200);
-      }
-    } catch (e) {
-      setError(
-        typeof e === "string" ? e : t("Download failed. Check your connection and try again."),
-      );
-    } finally {
-      setBusy(false);
-    }
+    await downloadAnime4k(force)
+      .then((dir) => {
+        const active = document.activeElement;
+        handOff.current =
+          !folder &&
+          active instanceof HTMLElement &&
+          active === setupRef.current &&
+          navOwnsFocus(active);
+        update({ playerAnime4kFolder: dir, playerAnime4kShaders: anime4kChain(dir, mode, tier) });
+        if (force) {
+          setJustUpdated(true);
+          window.setTimeout(() => setJustUpdated(false), 2200);
+        }
+      })
+      .catch((e: unknown) =>
+        setError(
+          typeof e === "string" ? e : t("Download failed. Check your connection and try again."),
+        ),
+      )
+      .finally(() => setBusy(false));
   };
 
   const pickMode = (m: Anime4kMode) =>

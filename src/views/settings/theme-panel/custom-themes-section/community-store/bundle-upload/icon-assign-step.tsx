@@ -235,7 +235,7 @@ export function IconAssignStep({
       <div className="flex flex-col gap-2.5">
         <span className="harbor-settings-label">{t("What are you sharing?")}</span>
         <div
-          onKeyDown={stripArrowKeys(kindRefs, (i) => onKind(i === 0 ? "badge" : "award"))}
+          onKeyDown={(e) => stripArrowKeys(kindRefs, (i) => onKind(i === 0 ? "badge" : "award"))(e)}
           className="inline-flex w-fit rounded-full bg-elevated p-1"
         >
           <KindTab

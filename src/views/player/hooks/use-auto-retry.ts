@@ -230,8 +230,6 @@ export function useAutoRetry(params: {
       inRoom,
       isP2pEngine,
       src.url,
-      src.subtitles,
-      src.notWebReady,
       bridgeRef,
     ],
   );

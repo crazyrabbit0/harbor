@@ -82,7 +82,7 @@ export function GameSimsInformation({
     setFile("");
     void (async () => {
       let stop: (() => void) | undefined;
-      try {
+      const work = async () => {
         stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
           if (payload.profile !== profile || payload.operationId !== token) return;
           // Closing can precede native registration; cancel again on its first event.
@@ -93,13 +93,16 @@ export function GameSimsInformation({
         if (!current || !alive.current) return;
         const value = await simsMetadata(profile, path, target, token);
         if (current && alive.current) setReport(value);
-      } catch (reason) {
-        if (current && alive.current) setError(simsError(reason));
-      } finally {
-        stop?.();
-        if (operation.current === token) operation.current = "";
-        if (current && alive.current) setBusy(false);
-      }
+      };
+      await work()
+        .catch((reason) => {
+          if (current && alive.current) setError(simsError(reason));
+        })
+        .finally(() => {
+          stop?.();
+          if (operation.current === token) operation.current = "";
+          if (current && alive.current) setBusy(false);
+        });
     })();
     return () => {
       current = false;

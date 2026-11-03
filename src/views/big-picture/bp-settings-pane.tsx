@@ -20,11 +20,13 @@ const STILL = "https://image.tmdb.org/t/p/w780/eGX66zonvc4bXg3rM08RUxdYSDx.jpg";
 // ratio between the four sizes exact while staying legible at ten feet.
 const SUB_PREVIEW_SCALE = 0.55;
 
+const loadAppApi = () => import("@tauri-apps/api/app");
+
 function useAppVersion(): string {
   const [version, setVersion] = useState("");
   useEffect(() => {
     let alive = true;
-    import("@tauri-apps/api/app")
+    loadAppApi()
       .then((m) => m.getVersion())
       .then((v) => {
         if (alive) setVersion(v);

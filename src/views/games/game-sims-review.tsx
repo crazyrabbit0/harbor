@@ -72,6 +72,7 @@ export function GameSimsReview({
   const [modProgress, setModProgress] = useState<SimsProgress | null>(null),
     [cancelRequested, setCancelRequested] = useState(false);
   const operation = useRef("");
+  const [isApplying, setIsApplying] = useState(false);
   const [isTray, setIsTray] = useState(selection.action.kind.startsWith("tray"));
   const naming =
     !selection.creator &&
@@ -96,15 +97,17 @@ export function GameSimsReview({
   const cancel = async () => {
     if (!modProgress?.canCancel || cancelRequested || !operation.current) return;
     setCancelRequested(true);
-    try {
-      if (!(await simsCancel(profile, operation.current)) && alive.current)
-        setCancelRequested(false);
-    } catch (reason) {
-      if (alive.current) {
-        setError(simsError(reason));
-        setCancelRequested(false);
-      }
-    }
+    await simsCancel(profile, operation.current).then(
+      (accepted) => {
+        if (!accepted && alive.current) setCancelRequested(false);
+      },
+      (reason) => {
+        if (alive.current) {
+          setError(simsError(reason));
+          setCancelRequested(false);
+        }
+      },
+    );
   };
   useSectionBack(close, true);
   useEffect(() => {
@@ -172,7 +175,8 @@ export function GameSimsReview({
     setCancelRequested(false);
     const commit = !!review || selection.action.kind === "recover";
     applying.current = commit;
-    try {
+    setIsApplying(commit);
+    const work = async () => {
       if (commit) {
         const held = token.current;
         token.current = "";
@@ -180,7 +184,7 @@ export function GameSimsReview({
         root.current?.focus();
         operation.current = crypto.randomUUID();
         const stops: (() => void)[] = [];
-        try {
+        const apply = async () => {
           if (selection.action.kind !== "recover")
             stops.push(
               await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
@@ -214,11 +218,12 @@ export function GameSimsReview({
             setBackupDone(!!value.saveBackup);
             setDone(true);
           }
-        } finally {
+        };
+        await apply().finally(() => {
           stops.forEach((stop) => stop());
           operation.current = "";
           void simsDiscard(profile, held);
-        }
+        });
       } else if (selection.action.kind !== "recover") {
         const action =
           selection.action.kind === "trayImport" ||
@@ -237,7 +242,7 @@ export function GameSimsReview({
         const reviewOperation = crypto.randomUUID();
         operation.current = reviewOperation;
         let stop: (() => void) | undefined;
-        try {
+        const prepare = async () => {
           stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
             if (payload.profile !== profile || payload.operationId !== reviewOperation) return;
             // Close can arrive before the native job registers. Retry on its first event.
@@ -265,22 +270,27 @@ export function GameSimsReview({
             setPreview(value.preview);
             setIsTray(value.action.kind.startsWith("tray"));
           } else void simsDiscard(profile, value.token);
-        } finally {
+        };
+        await prepare().finally(() => {
           stop?.();
           if (operation.current === reviewOperation) operation.current = "";
-        }
+        });
       }
-    } catch (reason) {
-      if (alive.current)
-        setError(
-          isTray && simsError(reason) === "games.sims.formatError"
-            ? "games.sims.trayFormat"
-            : simsError(reason),
-        );
-    } finally {
-      applying.current = false;
-      if (alive.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current)
+          setError(
+            isTray && simsError(reason) === "games.sims.formatError"
+              ? "games.sims.trayFormat"
+              : simsError(reason),
+          );
+      })
+      .finally(() => {
+        applying.current = false;
+        setIsApplying(false);
+        if (alive.current) setBusy(false);
+      });
   };
   return (
     <ModalShell
@@ -300,7 +310,7 @@ export function GameSimsReview({
           </div>
           <button
             className="games-icon-button"
-            disabled={busy && applying.current}
+            disabled={busy && isApplying}
             aria-label={t("common.close")}
             onClick={close}
           >
@@ -318,7 +328,7 @@ export function GameSimsReview({
             </>
           ) : (
             <>
-              {naming && !review && !applying.current ? (
+              {naming && !review && !isApplying ? (
                 <label className="games-sims-name" data-tv-focus-container>
                   {t(isTray ? "games.sims.trayName" : "games.sims.name")}
                   <input
@@ -524,7 +534,7 @@ export function GameSimsReview({
                   {t(
                     cancelRequested
                       ? "games.download.state.canceling"
-                      : !applying.current
+                      : !isApplying
                         ? modProgress?.phase === "waiting"
                           ? "games.sims.mtsWaiting"
                           : modProgress?.phase === "downloading"
@@ -532,7 +542,7 @@ export function GameSimsReview({
                             : "games.sims.checking"
                         : modProgress
                           ? `games.sims.apply${modProgress.phase === "copying" ? "Copying" : modProgress.phase === "checking" ? "Checking" : "Publishing"}`
-                          : applying.current
+                          : isApplying
                             ? "games.sims.applying"
                             : "games.sims.checking",
                   )}
@@ -584,15 +594,15 @@ export function GameSimsReview({
             <>
               <button
                 className="games-button"
-                disabled={busy && applying.current && (!modProgress?.canCancel || cancelRequested)}
+                disabled={busy && isApplying && (!modProgress?.canCancel || cancelRequested)}
                 onClick={() => {
-                  if (busy && applying.current) void cancel();
+                  if (busy && isApplying) void cancel();
                   else close();
                 }}
               >
                 {t(cancelRequested && busy ? "games.download.state.canceling" : "common.cancel")}
               </button>
-              {!(busy && applying.current) && (
+              {!(busy && isApplying) && (
                 <button
                   className="games-button games-button-primary"
                   disabled={busy || (naming && !title.trim()) || (startTest && !chosen.length)}

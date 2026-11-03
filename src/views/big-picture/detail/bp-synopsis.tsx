@@ -48,14 +48,15 @@ export function useBpSynopsis(text: string): BpSynopsisState {
 }
 
 export function BpSynopsis({ text, state }: { text: string; state: BpSynopsisState }) {
+  const { ref, expanded } = state;
   if (!text) return null;
 
   return (
     <p
-      ref={state.ref}
+      ref={ref}
       data-bp-detail-synopsis
       className={`mt-[clamp(20px,2.4vh,38px)] max-w-[min(46vw,820px)] text-[clamp(13px,1.85vh,22px)] leading-[1.62] text-ink-subtle ${
-        state.expanded ? "" : "line-clamp-3"
+        expanded ? "" : "line-clamp-3"
       }`}
     >
       {text}

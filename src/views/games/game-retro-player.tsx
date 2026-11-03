@@ -1,5 +1,5 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import {
@@ -36,6 +36,14 @@ import { RetroControls } from "./game-retro-controls";
 import { useRetroNavigation } from "./use-retro-navigation";
 import "./game-retro-player.css";
 
+function storedControls(key: string): unknown {
+  try {
+    return JSON.parse(localStorage.getItem(key) ?? "null");
+  } catch {
+    return null;
+  }
+}
+
 export function GameRetroPlayer({
   game,
   close,
@@ -62,7 +70,10 @@ export function GameRetroPlayer({
     starting = useRef(false),
     loaded = useRef(false),
     phaseRef = useRef(phase);
-  phaseRef.current = phase;
+  const [started, setStarted] = useState(false);
+  useLayoutEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
   const moving = useRef(false),
     exiting = useRef(false),
     exitRef = useRef(() => {});
@@ -89,7 +100,7 @@ export function GameRetroPlayer({
         new URL(session.url).origin,
       );
   };
-  const preferences = useRetroPreferences(game.profile, game.system, send, loaded.current);
+  const preferences = useRetroPreferences(game.profile, game.system, send, started);
   const play = () => {
     if (!loaded.current) return;
     setControlsOpen(false);
@@ -114,7 +125,9 @@ export function GameRetroPlayer({
     setPhase("exiting");
     send("exit");
   };
-  exitRef.current = exit;
+  useLayoutEffect(() => {
+    exitRef.current = exit;
+  });
   const move = () => {
     if (phase === "exiting" || !loaded.current) return;
     moving.current = true;
@@ -132,27 +145,29 @@ export function GameRetroPlayer({
     }
     setSession(null);
     loaded.current = false;
-    try {
-      await (detached ? dockRetroGame(game) : openRetroPopout(game));
-      close();
-    } catch {
-      moving.current = false;
-      exiting.current = false;
-      setNote("games.retro.moveFailed");
-      setPhase("error");
-    }
+    setStarted(false);
+    const relocate = detached ? dockRetroGame : openRetroPopout;
+    await relocate(game)
+      .then(() => close())
+      .catch(() => {
+        moving.current = false;
+        exiting.current = false;
+        setNote("games.retro.moveFailed");
+        setPhase("error");
+      });
   };
   const start = async () => {
     if (starting.current) return;
     starting.current = true;
     setPhase("starting");
     setNote("");
-    try {
+    const work = async () => {
       await invoke("games_retro_close", { id: game.sessionId });
       if (!alive.current) return;
       sessionStorage.setItem(sessionKey, game.sessionId);
       setSession(null);
       loaded.current = false;
+      setStarted(false);
       exiting.current = false;
       controlsRestored.current = false;
       const value = await invoke<EmbeddedSession>("games_retro_start", {
@@ -164,14 +179,17 @@ export function GameRetroPlayer({
       });
       if (alive.current) setSession(value);
       else void invoke("games_retro_close", { id: game.sessionId });
-    } catch {
-      if (alive.current) {
-        setPhase("error");
-        setNote("games.retro.failed");
-      }
-    } finally {
-      starting.current = false;
-    }
+    };
+    await work()
+      .catch(() => {
+        if (alive.current) {
+          setPhase("error");
+          setNote("games.retro.failed");
+        }
+      })
+      .finally(() => {
+        starting.current = false;
+      });
   };
   useEffect(() => {
     alive.current = true;
@@ -242,6 +260,7 @@ export function GameRetroPlayer({
       switch (event.data.type) {
         case "started":
           loaded.current = true;
+          setStarted(true);
           onStarted();
           setPhase("playing");
           frame.current?.focus();
@@ -294,13 +313,11 @@ export function GameRetroPlayer({
             );
           if (!controlsRestored.current) {
             controlsRestored.current = true;
-            try {
-              const stored: unknown = JSON.parse(localStorage.getItem(controlsKey) ?? "null");
-              if (validRetroBindings(stored)) {
-                send("controls-set", { bindings: stored });
-                break;
-              }
-            } catch {}
+            const stored = storedControls(controlsKey);
+            if (validRetroBindings(stored)) {
+              send("controls-set", { bindings: stored });
+              break;
+            }
           }
           setBindings(event.data.bindings);
           try {
@@ -445,8 +462,8 @@ export function GameRetroPlayer({
         <button
           onClick={exit}
           disabled={phase === "exiting"}
-          aria-label={t(loaded.current ? "games.retro.saveExit" : "common.back")}
-          title={t(loaded.current ? "games.retro.saveExit" : "common.back")}
+          aria-label={t(started ? "games.retro.saveExit" : "common.back")}
+          title={t(started ? "games.retro.saveExit" : "common.back")}
         >
           <ArrowLeft size={19} />
         </button>
@@ -454,7 +471,7 @@ export function GameRetroPlayer({
           <strong>{game.linked?.name ?? game.name}</strong>
           <small>{system?.name}</small>
         </div>
-        {loaded.current && (
+        {started && (
           <div className="games-retro-player-actions">
             {phase === "playing" && (
               <button onClick={() => send("pause")}>

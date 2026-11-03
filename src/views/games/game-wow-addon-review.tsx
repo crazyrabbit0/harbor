@@ -122,7 +122,7 @@ export function GameWowAddonReview({
     setBusy(true);
     setError("");
     setPhase(plan ? "apply" : request.action === "recover" ? "recover" : "checking");
-    try {
+    const work = async () => {
       if (plan || request.action === "recover") {
         const held = token.current;
         token.current = "";
@@ -145,16 +145,19 @@ export function GameWowAddonReview({
           setPlan(value);
         } else void discardWowAddon(profile, value.token);
       }
-    } catch (reason) {
-      if (alive.current && own === generation.current) setError(wowAddonError(reason));
-    } finally {
-      pending.current = false;
-      operation.current = "";
-      if (alive.current) {
-        setBusy(false);
-        setPhase("");
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current && own === generation.current) setError(wowAddonError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        operation.current = "";
+        if (alive.current) {
+          setBusy(false);
+          setPhase("");
+        }
+      });
   };
   const phaseKey = ["download", "inspect", "stage", "compare", "checking", "ready"].includes(phase)
     ? "games.wow.manager.preparing"

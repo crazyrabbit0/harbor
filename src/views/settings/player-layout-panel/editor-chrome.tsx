@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SeekBarVisual } from "@/components/player/transport/seek-bar-visual";
 import { Tooltip } from "@/components/player/transport/tooltip";
 import {
@@ -375,7 +375,9 @@ export function DragProvider({
   const pending = useRef<{ id: PlayerControlId; x: number; y: number } | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const droppedAt = useRef(0);
-  dragRef.current = drag;
+  useLayoutEffect(() => {
+    dragRef.current = drag;
+  }, [drag]);
 
   useEffect(() => {
     const move = (e: PointerEvent) => {

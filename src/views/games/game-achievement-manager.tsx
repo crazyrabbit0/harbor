@@ -126,7 +126,7 @@ export function GameAchievementManager({
     setExpired(false);
     setDiscarding(false);
     setPicking(false);
-    try {
+    const work = async () => {
       const value = await readLocalAchievements(profile, appId);
       if (current !== generation.current) {
         void discardLocalAchievements(profile, value.token).catch(() => {});
@@ -141,14 +141,17 @@ export function GameAchievementManager({
         setQuery(item.name || item.id);
         if (item.editable && !item.unlocked) setDraft({ [item.id]: true });
       }
-    } catch (reason) {
-      if (current === generation.current) setError(localAchievementError(reason));
-    } finally {
-      if (current === generation.current) {
-        operation.current = null;
-        setBusy(null);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (current === generation.current) setError(localAchievementError(reason));
+      })
+      .finally(() => {
+        if (current === generation.current) {
+          operation.current = null;
+          setBusy(null);
+        }
+      });
   }, [profile, appId, release]);
   useEffect(() => {
     if (!accepted || !available) return;
@@ -271,7 +274,7 @@ export function GameAchievementManager({
     setError(null);
     const held = token.current;
     token.current = null;
-    try {
+    const work = async () => {
       const value = await applyLocalAchievements(
         profile,
         held.token,
@@ -280,15 +283,18 @@ export function GameAchievementManager({
       if (current !== generation.current) return;
       setResult(value);
       if (value.error) setError(localAchievementError(value.error));
-    } catch (reason) {
-      if (current === generation.current) setError(localAchievementError(reason));
-    } finally {
-      if (current === generation.current) {
-        operation.current = null;
-        setBusy(null);
-        setStep("result");
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (current === generation.current) setError(localAchievementError(reason));
+      })
+      .finally(() => {
+        if (current === generation.current) {
+          operation.current = null;
+          setBusy(null);
+          setStep("result");
+        }
+      });
   };
   const verified = result?.results.filter((item) => item.verified).length ?? 0;
   const installs = library.scan?.games,

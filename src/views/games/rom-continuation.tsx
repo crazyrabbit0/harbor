@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { GameSkeleton } from "./game-loading";
 
 /** Observe the app's actual scroll pane; viewport margins cannot cross its clip. */
@@ -17,7 +17,9 @@ export function RomContinuation({
 }) {
   const root = useRef<HTMLDivElement>(null),
     load = useRef(more);
-  load.current = more;
+  useLayoutEffect(() => {
+    load.current = more;
+  }, [more]);
   useEffect(() => {
     if (!active || busy || failed || cursor == null || !root.current) return;
     const observer = new IntersectionObserver(

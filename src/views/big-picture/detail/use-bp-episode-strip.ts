@@ -3,9 +3,11 @@ import type { Meta } from "@/lib/cinemeta";
 import { absoluteNumberFor, seasonOffsets } from "@/lib/episode-absolute";
 import { isManuallyWatched, remoteWatchedKeys, subscribeManualWatched } from "@/lib/manual-watched";
 import { episodeFromVideoId, type LibraryItem } from "@/lib/stremio";
+import { readAtVersion } from "@/lib/read-at-version";
 import type { PlayEpisode } from "@/lib/view";
 import { bpPlayEpisode, type BpEpisodeIds } from "../bp-episode-ids";
 import { useBpEpisodeWindow } from "../bp-episode-window";
+import { useBpKeyed } from "../use-bp-keyed";
 import { useBpEpisodeArt } from "../use-bp-episode-art";
 import { useBpEpisodeFacts, type BpEpisodeFact } from "./use-bp-episode-facts";
 
@@ -89,13 +91,13 @@ export function useBpEpisodeStrip({
   enabled: boolean;
 }): BpEpisodeStripState {
   const live = enabled ? meta : IDLE_META;
-  const { bySeason, seasonCounts } = useMemo(() => {
+  const { bySeason, seasonCounts } = useBpKeyed([live.id, live.videos?.length, ids], () => {
     const grouped = collect(live, ids);
     const counts: ReadonlyMap<number, number> = new Map(
       [...grouped].map(([k, v]) => [k, v.length] as const),
     );
     return { bySeason: grouped, seasonCounts: counts };
-  }, [live.id, live.videos?.length, ids]);
+  });
   const seasons = useMemo(() => [...bySeason.keys()].sort((a, b) => a - b), [bySeason]);
   const offsets = useMemo(() => seasonOffsets(seasonCounts), [seasonCounts]);
   const [season, setSeason] = useState<number | null>(null);
@@ -103,10 +105,10 @@ export function useBpEpisodeStrip({
 
   useEffect(() => subscribeManualWatched(() => setWatchedTick((n) => n + 1)), []);
 
-  const remote = useMemo(() => {
-    void watchedTick;
-    return remoteWatchedKeys(live.id);
-  }, [live.id, watchedTick]);
+  const remote = useMemo(
+    () => readAtVersion(watchedTick, () => remoteWatchedKeys(live.id)),
+    [live.id, watchedTick],
+  );
 
   const resumeAt = useMemo(() => {
     const dur = cwEntry?.state?.duration ?? 0;

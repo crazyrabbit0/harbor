@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { extendPool, getPool, type FeedItem } from "@/lib/feed";
 import { getDownvotedIds, getUpvotedIds } from "@/lib/feed/preferences";
@@ -127,9 +127,13 @@ export function useBpQueue(): BpQueueState {
   const next = entries[index + 1] ?? null;
 
   const entriesRef = useRef(entries);
-  entriesRef.current = entries;
+  useLayoutEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
   const indexRef = useRef(index);
-  indexRef.current = index;
+  useLayoutEffect(() => {
+    indexRef.current = index;
+  }, [index]);
 
   // Stable across renders: the surface hands this to setBpQueueKeyHandler once,
   // and a fresh identity every render would re-register the arrow claim on every
@@ -172,18 +176,17 @@ export function useBpQueue(): BpQueueState {
     if (page === null) return;
     extending.current = true;
     let cancelled = false;
-    void (async () => {
-      try {
-        const more = await extendPool(key, page);
-        if (cancelled) return;
-        const have = new Set(entriesRef.current.map((it) => it.meta.id));
-        const fresh = buildOrder(more.filter((it) => !have.has(it.meta.id)));
-        const grown = fresh.length > 0 ? appendToOrder(key, fresh) : null;
-        if (grown) setEntries(grown);
-      } finally {
-        extending.current = false;
-      }
-    })();
+    const grow = async () => {
+      const more = await extendPool(key, page);
+      if (cancelled) return;
+      const have = new Set(entriesRef.current.map((it) => it.meta.id));
+      const fresh = buildOrder(more.filter((it) => !have.has(it.meta.id)));
+      const grown = fresh.length > 0 ? appendToOrder(key, fresh) : null;
+      if (grown) setEntries(grown);
+    };
+    void grow().finally(() => {
+      extending.current = false;
+    });
     return () => {
       cancelled = true;
     };

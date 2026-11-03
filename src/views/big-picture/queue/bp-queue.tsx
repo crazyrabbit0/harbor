@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { ArrowLeft, Settings, type LucideIcon } from "lucide-react";
 import { goBigPictureTab } from "@/lib/big-picture";
 import type { Meta } from "@/lib/cinemeta";
@@ -112,8 +112,12 @@ export function BpQueue({ onSelect }: { onSelect: (m: Meta) => void }) {
   const clickedAt = useRef(0);
   const stepRef = useRef(queue.step);
   const zoneRef = useRef(zone);
-  stepRef.current = queue.step;
-  zoneRef.current = zone;
+  useLayoutEffect(() => {
+    stepRef.current = queue.step;
+  }, [queue.step]);
+  useLayoutEffect(() => {
+    zoneRef.current = zone;
+  }, [zone]);
 
   // Registered with the shell rather than a listener of its own. stopPropagation
   // does not stop a sibling listener on the same object, so a second window

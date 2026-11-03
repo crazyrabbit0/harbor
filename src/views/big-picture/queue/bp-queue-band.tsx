@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { SFX } from "@/lib/sfx";
 import { bpCardArt, bpHeroArt } from "../bp-art";
 import { useArtGlow } from "../bp-art-color";
@@ -67,7 +67,9 @@ export function BpQueueBand({
   const glow = useArtGlow(bed);
 
   const tintRef = useRef(onTint);
-  tintRef.current = onTint;
+  useLayoutEffect(() => {
+    tintRef.current = onTint;
+  }, [onTint]);
   useEffect(() => {
     if (glow) tintRef.current(glow);
   }, [glow]);

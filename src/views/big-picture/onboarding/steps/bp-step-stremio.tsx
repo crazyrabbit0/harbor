@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import type { BpOnboardStepProps } from "../../bp-onboarding-frame";
 import { useBpT } from "../../bp-i18n";
@@ -41,22 +41,25 @@ export function BpStepStremio({ setSatisfied, setPrimaryGuard }: BpOnboardStepPr
     if (!email.trim() || !password || busy) return false;
     setBusy(true);
     setError(null);
-    try {
+    const attempt = async (): Promise<boolean> => {
       await signIn(email.trim(), password);
       setPassword("");
       return true;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("Sign-in failed"));
-      return false;
-    } finally {
-      setBusy(false);
-    }
+    };
+    return await attempt()
+      .catch((err: unknown) => {
+        setError(err instanceof Error ? err.message : t("Sign-in failed"));
+        return false;
+      })
+      .finally(() => setBusy(false));
   };
 
   // Continue signs in with what is typed. Otherwise the obvious button throws
   // away an email and a password entered on a grid keyboard.
   const filled = useRef({ email, password });
-  filled.current = { email, password };
+  useLayoutEffect(() => {
+    filled.current = { email, password };
+  });
   useEffect(() => {
     if (signedIn) {
       setPrimaryGuard(null);

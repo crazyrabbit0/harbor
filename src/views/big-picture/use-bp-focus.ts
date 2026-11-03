@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { SFX } from "@/lib/sfx";
 import {
   readBpPosition,
@@ -133,6 +133,199 @@ function moveVertically(
 // waiting, slow enough that each step is a step the eye can follow.
 const REPEAT_MIN_MS = 90;
 
+// Runs one directional press inside an already-scoped focus root; module scope keeps the try/finally out of the hook.
+function moveBpFocus(
+  root: NonNullable<ReturnType<typeof bpFocusScope>>,
+  dir: BpDir,
+  remember: (el: HTMLElement) => void,
+): void {
+  const across = dir === "left" || dir === "right";
+  let opening: BpRevert = NO_REVERT;
+  let deep: BpRevert = NO_REVERT;
+  let landed: HTMLElement | null = null;
+  // Set only where bpRailStep answered null, never where it answered a pick
+  // that focus() then refused: a refused pick means the index exists and the
+  // reveal in moveVertically still has somewhere to look.
+  let railMissed = false;
+
+  const isRtl = getComputedStyle(root).direction === "rtl";
+  const navDir = isRtl ? "right" : "left";
+
+  // Apple's tvOS rule is that focus returns to the tab bar from anywhere
+  // rather than by walking every row upward. Left already runs out at the
+  // start of a row (Right in RTL), so that dead end becomes the direct path
+  // to the nav: one press from any depth instead of one per row.
+  //
+  // The row names the tab it belongs to, so Left out of a movies row lands
+  // on Movies rather than on whichever tab is active. That is what replaced
+  // the lead tile: the tile was Left, Left, Enter to reach Movies, and this
+  // is Left, Enter, with the whole nav still reachable from the same
+  // landing. A row with no data-bp-row-tab keeps the plain active-tab
+  // behaviour. Read off the row rather than the cell so every card in the
+  // row escapes to the same place.
+  const toNav = (from: HTMLElement): HTMLElement | null => {
+    if (dir !== navDir || bpInChrome(from)) return null;
+    const tab = from.closest<HTMLElement>("[data-bp-row]")?.dataset.bpRowTab;
+    return focusBpTopBar(root, tab) ? currentBpFocus(root) : null;
+  };
+
+  // Both ends of a row lead somewhere now. In LTR, Left at the start reaches
+  // the nav, Right at the end reaches the row's own see-all, and Left off that
+  // see-all comes back to the cell it was pressed from. In RTL, these
+  // horizontal endpoints are mirrored.
+  //
+  // Shared by the fast path and the slow path because they answer
+  // identically once the origin is known, and the two drifting apart is how
+  // a surface ends up with Right behaving differently depending on whether
+  // the ring was measurable that frame. The pool arrives as a thunk: neither
+  // see-all branch reads it, and on the fast path building it is a
+  // measureFocusables over the whole track.
+  const stepAcross = (from: HTMLElement, pool: () => Measured[]): HTMLElement | null => {
+    if (isBpRowSeeAll(from)) return bpSeeAllExit(from, dir, isRtl);
+    return (
+      focusFirstOf(candidatesFor(from, pool(), dir), { dir }) ??
+      bpSeeAllEnter(from, dir, isRtl) ??
+      toNav(from)
+    );
+  };
+
+  try {
+    const ring = currentBpFocus(root);
+    const live = ring !== null && isBpMeasurable(ring);
+
+    // Fast paths, before the page is measured at all. Measuring all 271
+    // focusables costs 16ms on a settled TV stick and 1577ms over a subtree
+    // the browser has not laid out yet, and no one move needs more than one
+    // container. Each of these narrows to the container candidatesFor would
+    // have filtered the page pool down to anyway, so the candidate list is
+    // identical rather than an approximation.
+    if (ring && live) {
+      const grid = ring.closest<HTMLElement>("[data-bp-grid]");
+      if (grid) {
+        landed = focusFirstOf(candidatesFor(ring, measureFocusables(grid), dir), { dir });
+        if (landed) return;
+        // gridEscapes refuses horizontal, so a horizontal dead end inside a
+        // grid is the whole answer and no page-wide pool can change it.
+        // Vertical does escape, and that escape needs the rest of the page.
+        if (across) {
+          landed = toNav(ring);
+          if (!landed) nudge(ring, dir);
+          return;
+        }
+      }
+
+      const track = bpTrackScope(ring, dir);
+      if (track) {
+        // Terminal on purpose. The slow path would narrow the page pool back
+        // down to this same track and reach the identical dead end, so all
+        // that is left after it is the two row escapes and the shake.
+        landed = stepAcross(ring, () => measureFocusables(track));
+        if (!landed) nudge(ring, dir);
+        return;
+      }
+
+      // The home rail animates its transform, so cross-row geometry is in
+      // flight for 420ms. Stepping by row index keeps vertical deterministic.
+      if (!across) {
+        const quick = bpRailStep(ring, dir);
+        if (quick) {
+          const ok = applyBpFocus(quick.el, { dir });
+          quick.revert();
+          if (ok) {
+            landed = quick.el;
+            return;
+          }
+        } else {
+          railMissed = true;
+        }
+      }
+    }
+
+    // The mark and the browser's own focus can come apart: anything that
+    // focuses a cell without going through applyBpFocus leaves the page
+    // with a real activeElement and nothing marked. currentBpFocus then
+    // answers null, every arrow press falls into the seed branch below, and
+    // vertical navigation is dead while Left and Right still appear to work
+    // because those are the browser moving between siblings. Adopting the
+    // live activeElement as the origin is what keeps Down alive.
+    const active = document.activeElement;
+    const adopted =
+      active instanceof HTMLElement && root.contains(active) && isBpFocusable(active)
+        ? active
+        : null;
+    const marked = ring ?? adopted;
+    // A ring parked on a skipped row measures as nothing. Treating that as
+    // nothing focused seeds from the top of the page and throws the user
+    // somewhere random, so prove the source is gone before giving up on it.
+    // isBpMeasurable is the one-element form of the pool test, so asking it
+    // here rather than checking the pool afterwards is what stops a lost
+    // ring costing two full page measures instead of one.
+    const lost = marked !== null && isBpFocusable(marked) && !isBpMeasurable(marked);
+    if (lost) opening = revealBpRows(root);
+
+    let pool = measureFocusables(root);
+    if (pool.length === 0 && !lost) {
+      opening = revealBpRows(root);
+      pool = measureFocusables(root);
+    }
+    if (pool.length === 0) return;
+
+    // An arrow press with nothing focused has to put the ring somewhere
+    // rather than swallow the key and leave the screen stuck.
+    const from = marked && pool.some((m) => m.el === marked) ? marked : null;
+    if (!from) {
+      const seed = root.querySelector<HTMLElement>("[data-bp-autofocus='true']");
+      // Seeding answers "nothing is focused", not "go this way", so the nav
+      // must stay out of it. The whole pool was offered here and the first
+      // cell that accepted was the top bar, so a Down out of a detail hero
+      // teleported into the nav the moment the ring left the pool.
+      const { page } = splitBpChrome(pool);
+      const all = (page.length > 0 ? page : pool).map((m) => m.el);
+      const order = seed ? [seed, ...all.filter((el) => el !== seed)] : all;
+      landed = focusFirstOf(order, { dir });
+      return;
+    }
+
+    if (!across) {
+      // Skipped when the fast path above already ran it: same origin, same
+      // tree, and bpRailStep measures a whole row per candidate index.
+      if (!(live && from === ring)) {
+        const stepped = bpRailStep(from, dir);
+        if (stepped) {
+          const ok = applyBpFocus(stepped.el, { dir });
+          stepped.revert();
+          if (ok) {
+            landed = stepped.el;
+            return;
+          }
+        } else {
+          railMissed = true;
+        }
+      }
+      const picked = moveVertically(from, root, pool, dir, railMissed && bpInSelfRail(from));
+      deep = picked.revert;
+      landed = picked.el;
+    } else {
+      landed = stepAcross(from, () => pool);
+    }
+
+    if (!landed) nudge(from, dir);
+  } finally {
+    deep();
+    opening();
+    if (landed) {
+      if (across) setBpAnchorFrom(landed);
+      remember(landed);
+    } else if (!currentBpFocus(root)) {
+      // A press that lands nothing still has to leave a ring. The two paths
+      // that give up without a nudge, an empty pool and a seed pass where
+      // every candidate refused, otherwise swallow every later press and
+      // the surface is stuck for good.
+      recoverBpFocus(root);
+    }
+  }
+}
+
 export function useBpFocusRoot(params: {
   rootRef: React.RefObject<HTMLElement | null>;
   onBack: () => void;
@@ -153,7 +346,9 @@ export function useBpFocusRoot(params: {
   const interactedRef = useRef(false);
   const repeatAtRef = useRef(0);
   const routeKeyRef = useRef(routeKey);
-  routeKeyRef.current = routeKey;
+  useLayoutEffect(() => {
+    routeKeyRef.current = routeKey;
+  }, [routeKey]);
 
   const remember = useCallback((el: HTMLElement) => {
     // A see-all is the way OUT of a row, never a position in it. Remembered, it
@@ -177,191 +372,7 @@ export function useBpFocusRoot(params: {
       interactedRef.current = true;
       markBpInteracted();
 
-      const across = dir === "left" || dir === "right";
-      let opening: BpRevert = NO_REVERT;
-      let deep: BpRevert = NO_REVERT;
-      let landed: HTMLElement | null = null;
-      // Set only where bpRailStep answered null, never where it answered a pick
-      // that focus() then refused: a refused pick means the index exists and the
-      // reveal in moveVertically still has somewhere to look.
-      let railMissed = false;
-
-      const isRtl = getComputedStyle(root).direction === "rtl";
-      const navDir = isRtl ? "right" : "left";
-
-      // Apple's tvOS rule is that focus returns to the tab bar from anywhere
-      // rather than by walking every row upward. Left already runs out at the
-      // start of a row (Right in RTL), so that dead end becomes the direct path
-      // to the nav: one press from any depth instead of one per row.
-      //
-      // The row names the tab it belongs to, so Left out of a movies row lands
-      // on Movies rather than on whichever tab is active. That is what replaced
-      // the lead tile: the tile was Left, Left, Enter to reach Movies, and this
-      // is Left, Enter, with the whole nav still reachable from the same
-      // landing. A row with no data-bp-row-tab keeps the plain active-tab
-      // behaviour. Read off the row rather than the cell so every card in the
-      // row escapes to the same place.
-      const toNav = (from: HTMLElement): HTMLElement | null => {
-        if (dir !== navDir || bpInChrome(from)) return null;
-        const tab = from.closest<HTMLElement>("[data-bp-row]")?.dataset.bpRowTab;
-        return focusBpTopBar(root, tab) ? currentBpFocus(root) : null;
-      };
-
-      // Both ends of a row lead somewhere now. In LTR, Left at the start reaches
-      // the nav, Right at the end reaches the row's own see-all, and Left off that
-      // see-all comes back to the cell it was pressed from. In RTL, these
-      // horizontal endpoints are mirrored.
-      //
-      // Shared by the fast path and the slow path because they answer
-      // identically once the origin is known, and the two drifting apart is how
-      // a surface ends up with Right behaving differently depending on whether
-      // the ring was measurable that frame. The pool arrives as a thunk: neither
-      // see-all branch reads it, and on the fast path building it is a
-      // measureFocusables over the whole track.
-      const stepAcross = (from: HTMLElement, pool: () => Measured[]): HTMLElement | null => {
-        if (isBpRowSeeAll(from)) return bpSeeAllExit(from, dir, isRtl);
-        return (
-          focusFirstOf(candidatesFor(from, pool(), dir), { dir }) ??
-          bpSeeAllEnter(from, dir, isRtl) ??
-          toNav(from)
-        );
-      };
-
-      try {
-        const ring = currentBpFocus(root);
-        const live = ring !== null && isBpMeasurable(ring);
-
-        // Fast paths, before the page is measured at all. Measuring all 271
-        // focusables costs 16ms on a settled TV stick and 1577ms over a subtree
-        // the browser has not laid out yet, and no one move needs more than one
-        // container. Each of these narrows to the container candidatesFor would
-        // have filtered the page pool down to anyway, so the candidate list is
-        // identical rather than an approximation.
-        if (ring && live) {
-          const grid = ring.closest<HTMLElement>("[data-bp-grid]");
-          if (grid) {
-            landed = focusFirstOf(candidatesFor(ring, measureFocusables(grid), dir), { dir });
-            if (landed) return;
-            // gridEscapes refuses horizontal, so a horizontal dead end inside a
-            // grid is the whole answer and no page-wide pool can change it.
-            // Vertical does escape, and that escape needs the rest of the page.
-            if (across) {
-              landed = toNav(ring);
-              if (!landed) nudge(ring, dir);
-              return;
-            }
-          }
-
-          const track = bpTrackScope(ring, dir);
-          if (track) {
-            // Terminal on purpose. The slow path would narrow the page pool back
-            // down to this same track and reach the identical dead end, so all
-            // that is left after it is the two row escapes and the shake.
-            landed = stepAcross(ring, () => measureFocusables(track));
-            if (!landed) nudge(ring, dir);
-            return;
-          }
-
-          // The home rail animates its transform, so cross-row geometry is in
-          // flight for 420ms. Stepping by row index keeps vertical deterministic.
-          if (!across) {
-            const quick = bpRailStep(ring, dir);
-            if (quick) {
-              const ok = applyBpFocus(quick.el, { dir });
-              quick.revert();
-              if (ok) {
-                landed = quick.el;
-                return;
-              }
-            } else {
-              railMissed = true;
-            }
-          }
-        }
-
-        // The mark and the browser's own focus can come apart: anything that
-        // focuses a cell without going through applyBpFocus leaves the page
-        // with a real activeElement and nothing marked. currentBpFocus then
-        // answers null, every arrow press falls into the seed branch below, and
-        // vertical navigation is dead while Left and Right still appear to work
-        // because those are the browser moving between siblings. Adopting the
-        // live activeElement as the origin is what keeps Down alive.
-        const active = document.activeElement;
-        const adopted =
-          active instanceof HTMLElement && root.contains(active) && isBpFocusable(active)
-            ? active
-            : null;
-        const marked = ring ?? adopted;
-        // A ring parked on a skipped row measures as nothing. Treating that as
-        // nothing focused seeds from the top of the page and throws the user
-        // somewhere random, so prove the source is gone before giving up on it.
-        // isBpMeasurable is the one-element form of the pool test, so asking it
-        // here rather than checking the pool afterwards is what stops a lost
-        // ring costing two full page measures instead of one.
-        const lost = marked !== null && isBpFocusable(marked) && !isBpMeasurable(marked);
-        if (lost) opening = revealBpRows(root);
-
-        let pool = measureFocusables(root);
-        if (pool.length === 0 && !lost) {
-          opening = revealBpRows(root);
-          pool = measureFocusables(root);
-        }
-        if (pool.length === 0) return;
-
-        // An arrow press with nothing focused has to put the ring somewhere
-        // rather than swallow the key and leave the screen stuck.
-        const from = marked && pool.some((m) => m.el === marked) ? marked : null;
-        if (!from) {
-          const seed = root.querySelector<HTMLElement>("[data-bp-autofocus='true']");
-          // Seeding answers "nothing is focused", not "go this way", so the nav
-          // must stay out of it. The whole pool was offered here and the first
-          // cell that accepted was the top bar, so a Down out of a detail hero
-          // teleported into the nav the moment the ring left the pool.
-          const { page } = splitBpChrome(pool);
-          const all = (page.length > 0 ? page : pool).map((m) => m.el);
-          const order = seed ? [seed, ...all.filter((el) => el !== seed)] : all;
-          landed = focusFirstOf(order, { dir });
-          return;
-        }
-
-        if (!across) {
-          // Skipped when the fast path above already ran it: same origin, same
-          // tree, and bpRailStep measures a whole row per candidate index.
-          if (!(live && from === ring)) {
-            const stepped = bpRailStep(from, dir);
-            if (stepped) {
-              const ok = applyBpFocus(stepped.el, { dir });
-              stepped.revert();
-              if (ok) {
-                landed = stepped.el;
-                return;
-              }
-            } else {
-              railMissed = true;
-            }
-          }
-          const picked = moveVertically(from, root, pool, dir, railMissed && bpInSelfRail(from));
-          deep = picked.revert;
-          landed = picked.el;
-        } else {
-          landed = stepAcross(from, () => pool);
-        }
-
-        if (!landed) nudge(from, dir);
-      } finally {
-        deep();
-        opening();
-        if (landed) {
-          if (across) setBpAnchorFrom(landed);
-          remember(landed);
-        } else if (!currentBpFocus(root)) {
-          // A press that lands nothing still has to leave a ring. The two paths
-          // that give up without a nudge, an empty pool and a seed pass where
-          // every candidate refused, otherwise swallow every later press and
-          // the surface is stuck for good.
-          recoverBpFocus(root);
-        }
-      }
+      moveBpFocus(root, dir, remember);
     },
     [rootRef, remember],
   );

@@ -39,18 +39,16 @@ export function DownloadsSection() {
       kind === "ebook"
         ? settings.ebookDownloadDir || settings.downloadDir || systemDefault
         : settings.downloadDir || systemDefault;
-    try {
-      const picked = await open({
-        directory: true,
-        defaultPath: current || undefined,
-      });
-      if (typeof picked === "string") {
+    await open({
+      directory: true,
+      defaultPath: current || undefined,
+    })
+      .then((picked) => {
+        if (typeof picked !== "string") return;
         if (kind === "ebook") update({ ebookDownloadDir: picked });
         else update({ downloadDir: picked });
-      }
-    } catch {
-      setError(t("Could not open the folder picker. Try again."));
-    }
+      })
+      .catch(() => setError(t("Could not open the folder picker. Try again.")));
   };
 
   const revealCurrent = async (current: string) => {
@@ -133,15 +131,12 @@ function CaptureFolders({ onError }: { onError: (e: string | null) => void }) {
   ];
   const pick = async (key: CaptureKey) => {
     onError(null);
-    try {
-      const picked = await open({
-        directory: true,
-        defaultPath: settings[key] || fallback || undefined,
-      });
-      if (typeof picked === "string") update({ [key]: picked });
-    } catch {
-      onError(t("Could not open the folder picker. Try again."));
-    }
+    const defaultPath = settings[key] || fallback || undefined;
+    await open({ directory: true, defaultPath })
+      .then((picked) => {
+        if (typeof picked === "string") update({ [key]: picked });
+      })
+      .catch(() => onError(t("Could not open the folder picker. Try again.")));
   };
   const reveal = async (dir: string) => {
     onError(null);

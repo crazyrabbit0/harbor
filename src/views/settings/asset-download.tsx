@@ -33,7 +33,7 @@ export function useAssetDownload() {
       busy.current = true;
       let prepared = false;
       setStatus({ id, phase: "loading", message: t("Preparing {name}…", { name: filename }) });
-      try {
+      const work = async () => {
         const text = await prepare();
         if (!mounted.current) return;
         prepared = true;
@@ -53,8 +53,10 @@ export function useAssetDownload() {
             ? t("Saved {name}.", { name: filename })
             : t("Download started for {name}.", { name: filename }),
         });
-      } catch {
-        if (mounted.current) {
+      };
+      await work()
+        .catch(() => {
+          if (!mounted.current) return;
           setStatus({
             id,
             phase: "error",
@@ -64,10 +66,10 @@ export function useAssetDownload() {
                 })
               : t("Could not load {name}. Try again.", { name: filename }),
           });
-        }
-      } finally {
-        busy.current = false;
-      }
+        })
+        .finally(() => {
+          busy.current = false;
+        });
     },
     [t],
   );

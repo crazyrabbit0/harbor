@@ -84,6 +84,7 @@ export type PlayerOverlayLayersProps = {
   setLoaderShowing: (v: boolean) => void;
   onLoaderRetry: () => void;
   bridgeRef: RefObject<PlayerBridge | null>;
+  bridge: PlayerBridge | null;
   strokes: Stroke[];
   hideOthersDrawings: boolean;
   clientId: string;
@@ -354,6 +355,7 @@ export const PlayerOverlayLayers = memo(function PlayerOverlayLayers(p: PlayerOv
           isLive={isLivePlaybackSrc(p.src)}
           snapRef={p.snapRef}
           bridgeRef={p.bridgeRef}
+          bridge={p.bridge}
           engine={p.engine}
           visible={p.showChrome}
           fullscreen={p.fullscreen}

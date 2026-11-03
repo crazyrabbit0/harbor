@@ -35,7 +35,7 @@ export function useBpGenreGrid(genre: string): BpGenreFeed {
         return;
       }
       busyRef.current = true;
-      try {
+      const fetchPage = async () => {
         const batch = await tmdbDiscover(settings.tmdbKey, "movie", {
           with_genres: String(id),
           "vote_count.gte": "180",
@@ -63,13 +63,16 @@ export function useBpGenreGrid(genre: string): BpGenreFeed {
           }
           return fresh.length > 0 ? [...base, ...fresh] : base;
         });
-      } catch {
-        doneRef.current = true;
-        setFailed(true);
-      } finally {
-        busyRef.current = false;
-        setLoading(false);
-      }
+      };
+      await fetchPage()
+        .catch(() => {
+          doneRef.current = true;
+          setFailed(true);
+        })
+        .finally(() => {
+          busyRef.current = false;
+          setLoading(false);
+        });
     };
   }, [settings.tmdbKey, id]);
 

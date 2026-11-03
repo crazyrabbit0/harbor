@@ -9,6 +9,8 @@ import { openUrl } from "@/lib/window";
 import { speedrunTime, type SpeedrunRecord } from "@/lib/games/speedrun-data";
 import { speedrunVideoEmbed } from "@/lib/games/speedrun-videos";
 
+const loadMusicPlayer = () => import("@/lib/music/player");
+
 export function GameSpeedrunVideo({
   game,
   category,
@@ -38,7 +40,7 @@ export function GameSpeedrunVideo({
     ))
       if (!media.paused) media.pause();
     let current = true;
-    void import("@/lib/music/player")
+    void loadMusicPlayer()
       .then(({ getMusicState, toggleMusicPlayback }) => {
         if (current && getMusicState().phase === "playing") toggleMusicPlayback();
       })

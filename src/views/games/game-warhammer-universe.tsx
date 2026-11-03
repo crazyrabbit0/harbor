@@ -585,7 +585,7 @@ export function WarhammerCreatorVideos({ active }: { active: boolean }) {
     controller.current = request;
     setBusy(true);
     setFailed(false);
-    try {
+    const work = async () => {
       const next = await loadWarhammerVideos(search, request.signal, page.cursor);
       if (!request.signal.aborted)
         setPage((previous) => ({
@@ -596,11 +596,14 @@ export function WarhammerCreatorVideos({ active }: { active: boolean }) {
             ).values(),
           ],
         }));
-    } catch {
-      if (!request.signal.aborted) setFailed(true);
-    } finally {
-      if (!request.signal.aborted) setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!request.signal.aborted) setFailed(true);
+      })
+      .finally(() => {
+        if (!request.signal.aborted) setBusy(false);
+      });
   };
   return (
     <section

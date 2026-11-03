@@ -5,38 +5,40 @@ import { openUrl } from "@/lib/window";
 import { checkSteamServices, steamMaintenanceDay } from "@/lib/games/steam-service-status";
 import { SteamMark } from "./game-detail-marks";
 import "./game-service-notices.css";
+function readDismissed() {
+  try {
+    return sessionStorage.getItem("harbor.games.steam-notice") ?? "";
+  } catch {
+    return "";
+  }
+}
 export function GameSteamStatus({ active }: { active: boolean }) {
   const t = useT(),
     [incident, setIncident] = useState(""),
     [day, setDay] = useState(() => steamMaintenanceDay(Date.now()));
-  const [dismissed, setDismissed] = useState(() => {
-    try {
-      return sessionStorage.getItem("harbor.games.steam-notice") ?? "";
-    } catch {
-      return "";
-    }
-  });
+  const [dismissed, setDismissed] = useState(readDismissed);
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
-    let failures = 0,
-      busy = false;
+    const run = { failures: 0, busy: false };
     const check = async () => {
-      if (busy || document.hidden) return;
+      if (run.busy || document.hidden) return;
       setDay(steamMaintenanceDay(Date.now()));
-      busy = true;
-      try {
+      run.busy = true;
+      const work = async () => {
         const state = await checkSteamServices(controller.signal);
         if (state === "unreachable") {
-          if (++failures >= 2) setIncident((old) => old || `connection:${Date.now()}`);
+          if (++run.failures >= 2) setIncident((old) => old || `connection:${Date.now()}`);
         } else {
-          failures = 0;
+          run.failures = 0;
           setIncident("");
         }
-      } catch {
-      } finally {
-        busy = false;
-      }
+      };
+      await work()
+        .catch(() => {})
+        .finally(() => {
+          run.busy = false;
+        });
     };
     void check();
     const timer = setInterval(() => void check(), 60_000);

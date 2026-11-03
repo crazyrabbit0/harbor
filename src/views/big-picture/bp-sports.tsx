@@ -49,6 +49,7 @@ function BpSportsPage() {
   const active = pageVisible && !stackKinds.includes("player");
   const sports = useBpSports(active);
   const { mode, group, rows, status, heroes, open, empty, setMode } = sports;
+  const { personalized, setDay, today } = sports;
   const [focused, setFocused] = useState<SportsGame | null>(null);
   const [browsed, setBrowsed] = useState("");
   const [tuning, setTuning] = useState(false);
@@ -115,8 +116,8 @@ function BpSportsPage() {
         <BpSportsEmpty
           busy={status.busy}
           mode={mode}
-          onToday={() => sports.setDay(sports.today)}
-          personalized={sports.personalized}
+          onToday={() => setDay(today)}
+          personalized={personalized}
           autofocus={seedRow < 0 && mode !== "schedule"}
           onExplore={() => setMode("explore")}
           onPersonalize={() => setTuning(true)}
@@ -134,9 +135,9 @@ function BpSportsPage() {
     active,
     status.busy,
     mode,
-    sports.personalized,
-    sports.setDay,
-    sports.today,
+    personalized,
+    setDay,
+    today,
   ]);
 
   const brokenList = [...new Set(status.failedKeys.map((key) => key.split("@")[0]))].map((key) =>

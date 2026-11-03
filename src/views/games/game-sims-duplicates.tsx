@@ -82,7 +82,7 @@ export function GameSimsDuplicates({
     setLimit(12);
     setCopyLimits({});
     let stop: (() => void) | undefined;
-    try {
+    const work = async () => {
       stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
         if (payload.profile !== profile || payload.operationId !== own.id) return;
         // Closing can beat native registration. Retry once its first event arrives.
@@ -93,17 +93,20 @@ export function GameSimsDuplicates({
       if (own.canceled || !alive.current) return;
       const value = await simsDuplicates(profile, data.folder.path, own.id);
       if (alive.current && !own.canceled) setReport(value);
-    } catch (reason) {
-      if (alive.current && !own.canceled) setError(simsError(reason));
-    } finally {
-      stop?.();
-      if (task.current === own) task.current = null;
-      if (alive.current) {
-        returnFocus.current = document.activeElement === cancelButton.current;
-        setBusy(false);
-        setFile("");
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current && !own.canceled) setError(simsError(reason));
+      })
+      .finally(() => {
+        stop?.();
+        if (task.current === own) task.current = null;
+        if (alive.current) {
+          returnFocus.current = document.activeElement === cancelButton.current;
+          setBusy(false);
+          setFile("");
+        }
+      });
   };
   const showFile = async (path: string) => {
     try {

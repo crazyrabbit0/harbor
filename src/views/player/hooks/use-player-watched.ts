@@ -5,6 +5,7 @@ import { manualWatchedVersion, subscribeManualWatched } from "@/lib/manual-watch
 import { loadSimklWatchedMap, simklWatchedForId } from "@/lib/simkl/list-status";
 import { useSimkl } from "@/lib/simkl/provider";
 import { resolveMeta } from "@/lib/meta-resource";
+import { readAtVersion } from "@/lib/read-at-version";
 import { libraryGetOne } from "@/lib/stremio";
 import { decodeWatchedEpisodes } from "@/lib/stremio-watched";
 import { fetchWatchedKeySet } from "@/lib/trakt/history";
@@ -20,7 +21,7 @@ export function usePlayerWatched(params: {
   const { meta, authKey, imdbId, enabled } = params;
   const { isConnected: traktConnected } = useTrakt();
   const { isConnected: simklConnected } = useSimkl();
-  useSyncExternalStore(subscribeManualWatched, manualWatchedVersion);
+  const manualWatchedVer = useSyncExternalStore(subscribeManualWatched, manualWatchedVersion);
   const [traktWatched, setTraktWatched] = useState<Set<string>>(() => new Set());
   const [simklWatched, setSimklWatched] = useState<Set<string>>(() => new Set());
   const [stremioWatched, setStremioWatched] = useState<Set<string>>(() => new Set());
@@ -68,18 +69,22 @@ export function usePlayerWatched(params: {
   }, [enabled, authKey, meta.id]);
 
   const imdbKey = meta.id.startsWith("tt") ? meta.id : imdbId;
-  const watchedFor = (ep: PlayEpisode): boolean =>
-    getEpisodeProgress(
-      meta.id,
-      ep.season,
-      ep.episode,
-      null,
-      imdbKey,
-      traktWatched,
-      stremioWatched,
-      undefined,
-      simklWatched,
-    ).watched;
+  const watchedFor = readAtVersion(
+    manualWatchedVer,
+    () =>
+      (ep: PlayEpisode): boolean =>
+        getEpisodeProgress(
+          meta.id,
+          ep.season,
+          ep.episode,
+          null,
+          imdbKey,
+          traktWatched,
+          stremioWatched,
+          undefined,
+          simklWatched,
+        ).watched,
+  );
 
   return { watchedFor };
 }

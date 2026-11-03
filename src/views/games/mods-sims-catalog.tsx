@@ -1,5 +1,5 @@
 import { ModProviderLogo } from "./mod-identity";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Dropdown } from "@/components/dropdown";
 import { GameSimsCurseForge } from "./game-sims-curseforge";
 import type { SimsMtsProject } from "@/lib/games/sims";
@@ -7,6 +7,16 @@ import { useT } from "@/lib/i18n";
 import { GameSimsMts } from "./game-sims-mts";
 import { ModsIcon, ModsTabs } from "./mod-workspace-parts";
 import "./game-sims-companion.css";
+
+const creatorRequest = (game: 2 | 3, project?: SimsMtsProject) =>
+  project
+    ? {
+        id: `${game}:${project.id}`,
+        page: project.page,
+        project,
+        trigger: document.activeElement as HTMLElement,
+      }
+    : null;
 
 export function ModsSimsCatalog({
   game,
@@ -27,18 +37,16 @@ export function ModsSimsCatalog({
   useEffect(() => {
     if (project) setSource("mts");
   }, [project]);
-  const request = useMemo(
-    () =>
-      project
-        ? {
-            id: `${game}:${project.id}`,
-            page: project.page,
-            project,
-            trigger: document.activeElement as HTMLElement,
-          }
-        : null,
-    [game, project?.id],
-  );
+  const requestKey = project ? `${game}:${project.id}` : null;
+  const [held, setHeld] = useState(() => ({
+    key: requestKey,
+    request: creatorRequest(game, project),
+  }));
+  let request = held.request;
+  if (held.key !== requestKey) {
+    request = creatorRequest(game, project);
+    setHeld({ key: requestKey, request });
+  }
   return (
     <section className="games-sims games-inset">
       <ModsTabs label={t("games.modHub.title")}>

@@ -34,6 +34,7 @@ import { isDetectedAnime } from "@/lib/anime-detect";
 import { absoluteEntryNumber } from "@/lib/anime-entry-target";
 import { isNaturalEnd } from "@/lib/player/playback-end";
 import { playerLoadIdentity } from "@/lib/player/load-identity";
+import { readAtVersion } from "@/lib/read-at-version";
 
 const TICK_MS = 4000;
 const MIN_POSITION_SEC = 5;
@@ -100,7 +101,14 @@ export function useResumeAutosave(params: ResumeAutosaveParams) {
   // A new episode can render before the bridge publishes its loading reset.
   const sourceIdentity = playerLoadIdentity(src, src.url, season, episode);
   const session = useMemo<ResumeSession>(
-    () => ({ latest: null, ready: false, position: 0, lastSaved: 0, ownerId }),
+    () =>
+      readAtVersion(sourceIdentity, () => ({
+        latest: null,
+        ready: false,
+        position: 0,
+        lastSaved: 0,
+        ownerId,
+      })),
     [sourceIdentity, ownerId],
   );
   const activeSessionRef = useRef(session);

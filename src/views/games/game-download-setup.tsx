@@ -94,13 +94,13 @@ export function DownloadSetupProgress({
     if (!job) return;
     setRevealing(true);
     setRevealError(false);
-    try {
-      await invoke("games_reveal_setup", { profile: job.profile, id: job.id });
-    } catch {
-      setRevealError(true);
-    } finally {
-      setRevealing(false);
-    }
+    await invoke("games_reveal_setup", { profile: job.profile, id: job.id })
+      .catch(() => {
+        setRevealError(true);
+      })
+      .finally(() => {
+        setRevealing(false);
+      });
   };
   const percent = progress?.percent ?? undefined,
     checking = setup.phase === "checking",

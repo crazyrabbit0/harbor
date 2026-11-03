@@ -8,6 +8,7 @@ import {
   type WatchlistStatus,
 } from "@/lib/simkl/list-status";
 import { useSimkl } from "@/lib/simkl/provider";
+import { useBpKeyed } from "./use-bp-keyed";
 
 const ANIME_ID = /^(kitsu|mal|anilist):/;
 
@@ -52,11 +53,11 @@ export function useBpAnimeWatched(ids: string[]): BpAnimeWatched {
   // The caller grows this list as hero, picks and trending land, and most of
   // those passes add no anime id at all. Keying on the joined anime subset keeps
   // `wanted` identical across them, so the map is not rewalked for nothing.
-  const wantedKey = useMemo(() => {
+  const wantedKey = useBpKeyed([ids.join("|")], () => {
     const out = new Set<string>();
     for (const id of ids) if (ANIME_ID.test(id)) out.add(id);
     return [...out].sort().join("|");
-  }, [ids.join("|")]);
+  });
 
   const wanted = useMemo(() => (wantedKey === "" ? NO_IDS : wantedKey.split("|")), [wantedKey]);
 

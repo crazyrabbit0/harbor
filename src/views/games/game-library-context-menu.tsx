@@ -195,15 +195,18 @@ export function GameLibraryContextMenu({
     lock.current = true;
     setWorking(true);
     setFailed(false);
-    try {
+    const work = async () => {
       await run(action);
       if (alive.current) close();
-    } catch {
-      if (alive.current) setFailed(true);
-    } finally {
-      lock.current = false;
-      if (alive.current) setWorking(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (alive.current) setFailed(true);
+      })
+      .finally(() => {
+        lock.current = false;
+        if (alive.current) setWorking(false);
+      });
   };
   const item = (action: LibraryAction) => (
     <button
@@ -390,18 +393,21 @@ function GameUninstallConfirmation({
     lock.current = true;
     setBusy(true);
     setFailed(false);
-    try {
+    const work = async () => {
       await run();
       if (alive.current) setDone(true);
-    } catch {
-      if (alive.current) setFailed(true);
-    } finally {
-      lock.current = false;
-      if (alive.current) {
-        setBusy(false);
-        requestAnimationFrame(() => cancel.current?.focus());
-      }
-    }
+    };
+    await work()
+      .catch(() => {
+        if (alive.current) setFailed(true);
+      })
+      .finally(() => {
+        lock.current = false;
+        if (alive.current) {
+          setBusy(false);
+          requestAnimationFrame(() => cancel.current?.focus());
+        }
+      });
   };
   const remove = action === "remove",
     direct = route === "steam";

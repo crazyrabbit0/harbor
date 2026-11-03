@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useSettings } from "@/lib/settings";
 import type { BpOnboardStepProps } from "../../bp-onboarding-frame";
 import { useBpT } from "../../bp-i18n";
@@ -67,7 +67,9 @@ export function BpStepTmdb({ setSatisfied, setPrimaryGuard }: BpOnboardStepProps
   // Continue commits what is in the box. Forty presses on a grid keyboard
   // discarded by the obvious button is the worst thing this screen could do.
   const draftRef = useRef(draft);
-  draftRef.current = draft;
+  useLayoutEffect(() => {
+    draftRef.current = draft;
+  }, [draft]);
   useEffect(() => {
     if (!entering) {
       setPrimaryGuard(null);

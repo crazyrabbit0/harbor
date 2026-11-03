@@ -224,7 +224,9 @@ export function useBpGuideNav(params: BpGuideNavParams): {
   onWheel: (e: React.WheelEvent) => void;
 } {
   const ref = useRef(params);
-  ref.current = params;
+  useLayoutEffect(() => {
+    ref.current = params;
+  }, [params]);
   const anchorRef = useRef(0);
   const pendingRef = useRef<Pending | null>(null);
   const runRef = useRef<Run>(IDLE_RUN);

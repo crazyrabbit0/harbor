@@ -23,6 +23,8 @@ import {
 import "./game-source-links.css";
 import "./game-archive-cleanup.css";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function GameArchiveCleanup({
   profile,
   jobs,
@@ -158,19 +160,22 @@ export function GameArchiveCleanup({
     setBusyLabel(label);
     setError("");
     setProgress(null);
-    try {
+    const work = async () => {
       await listener.current;
       if (live.current) await action();
-    } catch (reason) {
-      if (live.current) setError(cleanupError(reason));
-    } finally {
-      pending.current = false;
-      operation.current = "";
-      if (live.current) {
-        setBusy(false);
-        setProgress(null);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (live.current) setError(cleanupError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        operation.current = "";
+        if (live.current) {
+          setBusy(false);
+          setProgress(null);
+        }
+      });
   };
   const inspect = (job: ArchiveJob) => {
     discard();
@@ -208,7 +213,7 @@ export function GameArchiveCleanup({
         setLoaded(false);
         setReview(null);
         token.current = "";
-        try {
+        const work = async () => {
           const result = await invoke<CleanupRecord>(
             action ? "games_archive_cleanup_action" : "games_recycle_archive_sources",
             action
@@ -220,20 +225,21 @@ export function GameArchiveCleanup({
               ...previous.filter((value) => value.id !== result.id),
               result,
             ]);
-        } finally {
+        };
+        await work().finally(async () => {
           if (heldToken)
             void invoke("games_discard_archive_cleanup", { profile, token: heldToken }).catch(
               () => {},
             );
           if (live.current) await refresh();
-        }
+        });
       },
       action === "restore" || record?.restoring ? "games.cleanup.restore" : "games.cleanup.recycle",
     );
   };
   const reveal = () =>
     void task("", async () => {
-      const { openPath } = await import("@tauri-apps/plugin-opener");
+      const { openPath } = await loadOpener();
       await openPath(parent);
     });
   const forget = () => {

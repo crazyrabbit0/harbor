@@ -193,9 +193,10 @@ function IconTile({
 
 function IconSet({ glob, download }: { glob: Glob; download: AssetDownload }) {
   const items = useMemo(() => entries(glob), [glob]);
+  const saveAsset = download.save;
   const save = useCallback(
     (key: string, name: string) => {
-      void download.save(
+      void saveAsset(
         key,
         `${name}.svg`,
         async () => {
@@ -210,7 +211,7 @@ function IconSet({ glob, download }: { glob: Glob; download: AssetDownload }) {
         "SVG",
       );
     },
-    [download.save],
+    [saveAsset],
   );
   return (
     <>
@@ -332,17 +333,12 @@ function AnimationTile({
 
 function AnimationSet({ glob, download }: { glob: LazyGlob; download: AssetDownload }) {
   const keys = useMemo(() => Object.keys(glob).sort(), [glob]);
+  const saveAsset = download.save;
   const save = useCallback(
     (path: string, name: string, data: object) => {
-      void download.save(
-        path,
-        `${name}.json`,
-        async () => JSON.stringify(data),
-        ["json"],
-        "Lottie",
-      );
+      void saveAsset(path, `${name}.json`, async () => JSON.stringify(data), ["json"], "Lottie");
     },
-    [download.save],
+    [saveAsset],
   );
   return (
     <>

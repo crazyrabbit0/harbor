@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useChannelStatsVersion } from "@/lib/iptv/channel-stats";
 import { useFavorites } from "@/lib/iptv/favorites";
 import { useSettings } from "@/lib/settings";
+import { readAtVersion } from "@/lib/read-at-version";
 import { BP_LIVE_TRACK, BpGuideCell, BpGuideCellSkeleton } from "./bp-live-cell";
 import { BpLiveHero } from "./bp-live-hero";
 import { BP_LIVE_MIN_CELLS, rankBpLive } from "./bp-live-rank";
@@ -54,15 +55,17 @@ export function BpLiveRow({ lead, autofocusFirst }: { lead: BpRowLead; autofocus
   // the only thing standing between the user and a row of sixteen filler feeds.
   const cells = useMemo(
     () =>
-      rankBpLive({
-        channels: live.channels,
-        guide: live.guide,
-        epg: live.epg,
-        tvgCounts: live.tvgCounts,
-        nowMs: live.nowMs,
-        region: settings.region,
-        favoriteIds,
-      }),
+      readAtVersion(statsVersion, () =>
+        rankBpLive({
+          channels: live.channels,
+          guide: live.guide,
+          epg: live.epg,
+          tvgCounts: live.tvgCounts,
+          nowMs: live.nowMs,
+          region: settings.region,
+          favoriteIds,
+        }),
+      ),
     [
       live.channels,
       live.guide,

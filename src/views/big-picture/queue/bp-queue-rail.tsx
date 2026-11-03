@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { Ban, Bookmark, BookmarkCheck, Clock, Info, ListPlus, type LucideIcon } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
@@ -174,7 +174,9 @@ export function BpQueueRail({
   const meta = entry.meta;
 
   const dialogRef = useRef(onDialog);
-  dialogRef.current = onDialog;
+  useLayoutEffect(() => {
+    dialogRef.current = onDialog;
+  }, [onDialog]);
 
   // Never in place as the last resort. A sheet left inside this row sits under a
   // [data-bp-rail-row], and bpRailStep (bp-focus-core.ts:353) reads the real DOM

@@ -299,17 +299,15 @@ export function TogetherRelayPanel({
     if (!isManaged) return;
     setStopError(null);
     setStopping(true);
-    try {
-      await deleteRelay(settings.togetherCfToken, settings.togetherCfAccountId);
-      update({
-        togetherRelayUrl: "",
-        togetherCfDeployed: false,
-      });
-    } catch (e) {
-      setStopError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setStopping(false);
-    }
+    await deleteRelay(settings.togetherCfToken, settings.togetherCfAccountId)
+      .then(() =>
+        update({
+          togetherRelayUrl: "",
+          togetherCfDeployed: false,
+        }),
+      )
+      .catch((e: unknown) => setStopError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setStopping(false));
   };
 
   const redeploy = () => (isManaged ? onOpenDeploy() : onOpenDocs());

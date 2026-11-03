@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useAnilistWatched } from "@/lib/anilist/use-anilist-watched";
 import type { EpisodeProgress } from "@/lib/episode-progress";
@@ -111,9 +119,13 @@ export function useBpAnimeDetail(meta: Meta | null, opts?: BpAnimeDetailOptions)
   const { settings, update } = useSettings();
   const hintSeason = opts?.episodeHint?.season ?? 0;
   const settingsRef = useRef(settings);
-  settingsRef.current = settings;
+  useLayoutEffect(() => {
+    settingsRef.current = settings;
+  }, [settings]);
   const metaRef = useRef(meta);
-  metaRef.current = meta;
+  useLayoutEffect(() => {
+    metaRef.current = meta;
+  }, [meta]);
   const metaId = meta?.id ?? "";
   const isAnime = metaId !== "" && isAnimeId(metaId);
   const [loaded, setLoaded] = useState<Loaded | null>(null);

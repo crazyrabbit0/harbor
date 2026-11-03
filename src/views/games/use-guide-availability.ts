@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import type { GuideAvailability } from "@/lib/games/guide-availability";
 
+const loadAvailability = () => import("@/lib/games/guide-availability");
+const loadGuidesFetch = () => import("@/lib/games/guides-fetch");
+const loadProConfigs = () => import("@/lib/games/pro-configs");
+const loadPokemonGames = () => import("@/lib/games/pokemon-games");
+
 const cache = new Map<string, { at: number; value: GuideAvailability }>();
 /** Check only settled detail visits; reuse public results when returning from the catalog. */
 export function useGuideAvailability(
@@ -24,10 +29,10 @@ export function useGuideAvailability(
           { proConfigGame },
           { pokemonEdition },
         ] = await Promise.all([
-          import("@/lib/games/guide-availability"),
-          import("@/lib/games/guides-fetch"),
-          import("@/lib/games/pro-configs"),
-          import("@/lib/games/pokemon-games"),
+          loadAvailability(),
+          loadGuidesFetch(),
+          loadProConfigs(),
+          loadPokemonGames(),
         ]);
         request.signal.throwIfAborted();
         const value =

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useUiLanguage } from "@/lib/i18n";
 import { SFX } from "@/lib/sfx";
 import { matchCardContext } from "@/lib/sports/card-context";
@@ -166,7 +166,9 @@ export function BpSportsHero({
   const combat = group === "combat" || group === "boxing";
 
   const publish = useRef(onFocusGame);
-  publish.current = onFocusGame;
+  useLayoutEffect(() => {
+    publish.current = onFocusGame;
+  }, [onFocusGame]);
   const gameId = game?.id ?? "";
 
   useEffect(() => {

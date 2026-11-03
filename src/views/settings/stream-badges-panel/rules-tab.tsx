@@ -71,35 +71,34 @@ export function RulesTab() {
     run();
   };
 
-  const actions: PageAction[] = [];
-  if (rules.length > 0) {
-    actions.push({
-      id: "rules-clear",
-      tone: "danger",
-      label: armed === "rules-clear" ? "Tap again to clear" : "Delete every rule",
-      onSelect: () =>
-        arm("rules-clear", () =>
-          handoffFocus(() => {
-            setBadgeRules([]);
-            emitListToast(t("All custom rules removed"));
-          }, searchRef.current),
-        ),
-    });
-  }
-  if (remaps.length > 0) {
-    actions.push({
-      id: `remaps-reset-${remaps.length}`,
-      tone: "danger",
-      label: armed === "remaps-reset" ? "Tap again to reset" : "Reset every remap",
-      onSelect: () =>
-        arm("remaps-reset", () =>
-          handoffFocus(() => {
-            for (const k of remaps) setBadgeOverride(k, null);
-            emitListToast(t("Badge art back to default"));
-          }, nameRef.current),
-        ),
-    });
-  }
+  const clearRules: PageAction = {
+    id: "rules-clear",
+    tone: "danger",
+    label: armed === "rules-clear" ? "Tap again to clear" : "Delete every rule",
+    onSelect: () =>
+      arm("rules-clear", () =>
+        handoffFocus(() => {
+          setBadgeRules([]);
+          emitListToast(t("All custom rules removed"));
+        }, searchRef.current),
+      ),
+  };
+  const resetRemaps: PageAction = {
+    id: `remaps-reset-${remaps.length}`,
+    tone: "danger",
+    label: armed === "remaps-reset" ? "Tap again to reset" : "Reset every remap",
+    onSelect: () =>
+      arm("remaps-reset", () =>
+        handoffFocus(() => {
+          for (const k of remaps) setBadgeOverride(k, null);
+          emitListToast(t("Badge art back to default"));
+        }, nameRef.current),
+      ),
+  };
+  const actions: PageAction[] = [
+    ...(rules.length > 0 ? [clearRules] : []),
+    ...(remaps.length > 0 ? [resetRemaps] : []),
+  ];
   usePageActions(actions, armed ? "There is no undo for this." : undefined);
 
   const setAll = (enabled: boolean) => {

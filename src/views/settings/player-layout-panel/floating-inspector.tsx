@@ -145,9 +145,9 @@ export function FloatingInspector({
             <Divider />
             <Group label={t("Preview state")}>
               <div
-                onKeyDown={stripArrowKeys(stateRefs, (i) =>
-                  onSetPreviewState(selectedId, states[i]),
-                )}
+                onKeyDown={(e) =>
+                  stripArrowKeys(stateRefs, (i) => onSetPreviewState(selectedId, states[i]))(e)
+                }
                 className="flex items-center gap-0.5 rounded-md bg-white/8 p-0.5"
               >
                 {states.map((s, i) => {
@@ -377,7 +377,7 @@ function PanelInspector({
             {t(meta.placementMode === "side" ? "Side" : "Corner")}
           </span>
           <div
-            onKeyDown={stripArrowKeys(placeRefs, placeCommit)}
+            onKeyDown={(e) => stripArrowKeys(placeRefs, placeCommit)(e)}
             className="flex items-center gap-1"
           >
             {meta.placementMode === "side"
@@ -473,7 +473,7 @@ function VariantPicker({
   const btnRefs = useRef<(HTMLButtonElement | null)[]>([]);
   return (
     <div
-      onKeyDown={stripArrowKeys(btnRefs, (i) => onChange(VARIANT_OPTIONS[i].value))}
+      onKeyDown={(e) => stripArrowKeys(btnRefs, (i) => onChange(VARIANT_OPTIONS[i].value))(e)}
       className="flex items-center gap-0.5 rounded-md bg-white/8 p-0.5"
     >
       {VARIANT_OPTIONS.map((opt, i) => {

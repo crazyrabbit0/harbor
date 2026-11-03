@@ -162,7 +162,7 @@ export function usePipMode(params: {
       await invoke(nativeDetached.current ? "pip_window_exit" : "window_pip_exit");
     };
     await exit().catch(() => {});
-  }, [pipMode, setChromeHidden, detached]);
+  }, [pipMode, setChromeHidden]);
 
   return { pipMode, togglePipMode, exitPip };
 }

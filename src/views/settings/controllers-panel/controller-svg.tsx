@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useRef } from "react";
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { GpButton } from "@/lib/gamepad/protocol";
 import { liveAxes, subscribeLive, useLiveButtons } from "@/lib/gamepad/live";
 import { useT } from "@/lib/i18n";
@@ -143,11 +143,16 @@ export function ControllerSvg({ layout, compact }: { layout: Layout; compact?: b
   const capR = useRef<SVGGElement>(null);
   const applyRef = useRef<() => void>(() => {});
   const sunk = useRef({ l: false, r: false });
-  sunk.current = { l: down("lstick"), r: down("rstick") };
-  const everPressed = useRef(new Set<string>());
-  for (const [part, btn] of Object.entries(BUTTON)) {
-    if (buttons[btn]) everPressed.current.add(part);
-  }
+  const sunkL = down("lstick");
+  const sunkR = down("rstick");
+  useLayoutEffect(() => {
+    sunk.current = { l: sunkL, r: sunkR };
+  }, [sunkL, sunkR]);
+  const [everPressed, setEverPressed] = useState<ReadonlySet<string>>(() => new Set());
+  const fresh = Object.entries(BUTTON)
+    .filter(([part, btn]) => buttons[btn] && !everPressed.has(part))
+    .map(([part]) => part);
+  if (fresh.length > 0) setEverPressed(new Set([...everPressed, ...fresh]));
 
   const travelL = useMemo(() => travelOf(art, "stickL"), [art]);
   const travelR = useMemo(() => travelOf(art, "stickR"), [art]);
@@ -273,7 +278,7 @@ export function ControllerSvg({ layout, compact }: { layout: Layout; compact?: b
         const tint = on && tintable;
         const pushes = !!k && PUSHES.has(k) && !!centre;
         const sinks = !!k && SINKS.has(k) && tintable;
-        const primed = !!k && everPressed.current.has(k);
+        const primed = !!k && (everPressed.has(k) || fresh.includes(k));
         const cls = pushes
           ? on
             ? "pad-press"

@@ -43,6 +43,9 @@ import { MinecraftLifecycle } from "./minecraft-lifecycle";
 import type { MinecraftLifecycleAction } from "@/lib/games/minecraft-lifecycle";
 import "./minecraft-instances.css";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 const k = (key: string) => `games.minecraft.instances.${key}`;
 const loaderName = (value: string) =>
   value === "neoforge" ? "NeoForge" : value[0].toUpperCase() + value.slice(1);
@@ -144,8 +147,8 @@ export function MinecraftInstances({
     if (!available || choosing) return;
     setChoosing(true);
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const selected =
         suggested ||
         (await open({
@@ -164,19 +167,22 @@ export function MinecraftInstances({
       saveMinecraftInstanceFolder(profile, selected);
       setLibrary(value);
       setPath(selected);
-    } catch (reason) {
-      if (mounted.current) setError(minecraftInstanceError(reason));
-    } finally {
-      if (mounted.current) setChoosing(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current) setError(minecraftInstanceError(reason));
+      })
+      .finally(() => {
+        if (mounted.current) setChoosing(false);
+      });
   };
   const importPack = async () => {
     if (!available || choosing) return;
     opener.current = document.activeElement as HTMLElement;
     setChoosing(true);
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const selected = await open({
         multiple: false,
         filters: [{ name: "Modrinth modpack", extensions: ["mrpack"] }],
@@ -190,11 +196,14 @@ export function MinecraftInstances({
           name: selected.split(/[\\/]/).at(-1) ?? "",
           icon: "",
         });
-    } catch (reason) {
-      if (mounted.current) setError(minecraftInstanceError(reason));
-    } finally {
-      if (mounted.current) setChoosing(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current) setError(minecraftInstanceError(reason));
+      })
+      .finally(() => {
+        if (mounted.current) setChoosing(false);
+      });
   };
   const openFolder = async (instance: MinecraftInstance) => {
     setError("");
@@ -204,7 +213,7 @@ export function MinecraftInstances({
         path,
         id: instance.id,
       });
-      const { openPath } = await import("@tauri-apps/plugin-opener");
+      const { openPath } = await loadOpener();
       await openPath(folder);
     } catch (reason) {
       if (mounted.current) setError(minecraftInstanceError(reason));
@@ -610,7 +619,7 @@ function InstanceDialog({
     setCancelling(false);
     const ticket = generation.current;
     operation.current = crypto.randomUUID();
-    try {
+    const work = async () => {
       let result: MinecraftInstance;
       if (action.kind === "pack") {
         if (!plan || !token.current) return;
@@ -648,22 +657,27 @@ function InstanceDialog({
           setDone(true);
         }
       }
-    } catch (reason) {
-      if (mounted.current && ticket === generation.current) {
-        setError(
-          action.kind === "create" ? minecraftRuntimeError(reason) : minecraftInstanceError(reason),
-        );
-        if (action.kind === "pack") setPlan(null);
-      }
-    } finally {
-      if (mounted.current && ticket === generation.current) {
-        pending.current = false;
-        operation.current = "";
-        setBusy("");
-        setProgress(null);
-        setCancelling(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current && ticket === generation.current) {
+          setError(
+            action.kind === "create"
+              ? minecraftRuntimeError(reason)
+              : minecraftInstanceError(reason),
+          );
+          if (action.kind === "pack") setPlan(null);
+        }
+      })
+      .finally(() => {
+        if (mounted.current && ticket === generation.current) {
+          pending.current = false;
+          operation.current = "";
+          setBusy("");
+          setProgress(null);
+          setCancelling(false);
+        }
+      });
   };
   const title =
     action.kind === "rename" ? "rename" : action.kind === "create" ? "create" : "review";

@@ -45,17 +45,20 @@ export function SourceAllDebrid({
     [password, setPassword] = useState(""),
     [unsaved, setUnsaved] = useState<PendingSave | null>(null);
   const alive = useRef(true),
-    owner = useRef(identity),
     revision = useRef(0),
     pending = useRef(false),
     lastCheck = useRef(0),
     body = useRef<HTMLDivElement>(null),
     focusReturn = useRef<HTMLElement | null>(null);
-  if (owner.current !== identity) {
-    owner.current = identity;
-    revision.current++;
+  const [owner, setOwner] = useState(identity),
+    [stamp, setStamp] = useState(0);
+  if (owner !== identity) {
+    setOwner(identity);
+    setStamp(stamp + 1);
   }
-  const stamp = revision.current;
+  useLayoutEffect(() => {
+    revision.current = stamp;
+  }, [stamp]);
   const valid = () => alive.current && revision.current === stamp;
   const fail = (reason: unknown) => setError(adError(reason) ?? sourceLinkError(reason));
   const copy = (key: string) => t(`games.sources.ad.${key}`);
@@ -144,7 +147,7 @@ export function SourceAllDebrid({
     setError("");
     downloads.dismissError();
     let claimed: WebIntent | null = null;
-    try {
+    const work = async () => {
       if (again && intent && !(await replaceWebIntent(storageKey, intent, null))) {
         await adopt();
         return;
@@ -178,44 +181,51 @@ export function SourceAllDebrid({
         result,
       };
       // Commit even after dismissal, but never overwrite a newer explicit request.
-      try {
-        await commit(save);
-      } catch (reason) {
+      await commit(save).catch((reason: unknown) => {
         if (valid()) setUnsaved(save);
         throw reason;
-      }
-    } catch (reason) {
+      });
+    };
+    const recover = async (reason: unknown) => {
       if (claimed && adRejected(reason)) {
-        try {
-          if ((await replaceWebIntent(storageKey, claimed, null)) && valid()) setIntent(null);
-        } catch {
-          if (valid()) setError("games.sources.web.storage");
-          return;
-        }
+        const stored = await replaceWebIntent(storageKey, claimed, null).then(
+          (replaced) => {
+            if (replaced && valid()) setIntent(null);
+            return true;
+          },
+          () => {
+            if (valid()) setError("games.sources.web.storage");
+            return false;
+          },
+        );
+        if (!stored) return;
       }
       if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch(recover)
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const retrySave = async () => {
     if (!unsaved || pending.current) return;
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
-      await commit(unsaved);
-    } catch (reason) {
-      if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    await commit(unsaved)
+      .catch((reason) => {
+        if (valid()) fail(reason);
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const refresh = async () => {
     if (!intent?.remoteId || !intent.file || pending.current || unsaved) return;
@@ -223,28 +233,31 @@ export function SourceAllDebrid({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const remoteId = intent.remoteId,
+      known = intent.file;
+    const work = async () => {
       const wait = Math.max(0, 8000 - (Date.now() - lastCheck.current));
       if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
       if (!valid()) return;
       lastCheck.current = Date.now();
       const result = await invoke<AdStatus>("games_cloud_ad_status", {
-        args: { key: apiKey, id: intent.remoteId },
+        args: { key: apiKey, id: remoteId },
       });
       if (valid()) {
         setStatus(result);
-        setFile(
-          result.status === "ready" && result.url ? { ...intent.file, url: result.url } : null,
-        );
+        setFile(result.status === "ready" && result.url ? { ...known, url: result.url } : null);
       }
-    } catch (reason) {
-      if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (valid()) fail(reason);
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   useEffect(() => {
     if (intent?.remoteId && intent.file && !unsaved && document.visibilityState === "visible")
@@ -252,10 +265,10 @@ export function SourceAllDebrid({
   }, [intent?.remoteId, identity]);
   useEffect(() => {
     if (!intent?.remoteId || status?.status !== "preparing" || unsaved || error) return;
-    let polls = 0;
+    const polls = { count: 0 };
     const timer = setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      if (polls++ >= 30) {
+      if (polls.count++ >= 30) {
         clearInterval(timer);
         return;
       }
@@ -269,7 +282,7 @@ export function SourceAllDebrid({
     pending.current = true;
     setBusy(true);
     downloads.dismissError();
-    try {
+    const work = async () => {
       const started = await downloads.start(
         {
           url: file.url,
@@ -281,14 +294,17 @@ export function SourceAllDebrid({
         file.name,
       );
       if (started && valid()) onDone();
-    } catch (reason) {
-      if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (valid()) fail(reason);
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const canUse = downloads.available && !!apiKey && loaded;
   return (

@@ -83,7 +83,9 @@ export function NewReleases({
   const navigation = useRowNavigation(row, 5),
     recent = navigation.visible;
   const first = recent[0],
-    lead = detail?.id === recent[0]?.id ? detail : null;
+    detailId = detail?.id,
+    firstId = first?.id,
+    lead = detailId === firstId ? detail : null;
   const ids = recent.flatMap((game) => (game.steamId ? [game.steamId] : [])).join(",");
   useEffect(() => {
     if (!active || !ids) return;

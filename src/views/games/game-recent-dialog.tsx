@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef } from "react";
 import { ArrowUpRight, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { NavGlyph } from "@/components/icons/nav-glyph";
@@ -37,7 +37,9 @@ export function RecentSourceDialog({
     root = useRef<HTMLDivElement>(null);
   const destination = useRef<GameSummary | undefined>(undefined),
     actions = useRef({ onClose, open });
-  actions.current = { onClose, open };
+  useLayoutEffect(() => {
+    actions.current = { onClose, open };
+  }, [onClose, open]);
   const finish = useCallback(() => {
     actions.current.onClose();
     if (destination.current) actions.current.open(destination.current);

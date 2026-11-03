@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Check, Heart, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
@@ -128,13 +128,24 @@ function PickerModal({
     heading = useRef<HTMLHeadingElement>(null);
   const continuation = useRef<HTMLDivElement>(null),
     paging = useRef(false);
+  const [summary, setSummary] = useState<DiscoveryOptions | null>(null);
   const snapshot = useRef<DiscoveryOptions | null>(null),
     sessionScroll = useRef(0),
     lastOpened = useRef("");
   const { closing, close } = useModalExit(dismiss);
+  const {
+    steam: contextSteam,
+    custom: contextCustom,
+    launchers: contextLaunchers,
+  } = libraryContext;
   const library = useMemo(
-    () => buildRecommendationLibrary(installed, emulation, libraryContext),
-    [installed, emulation, libraryContext.steam, libraryContext.custom, libraryContext.launchers],
+    () =>
+      buildRecommendationLibrary(installed, emulation, {
+        steam: contextSteam,
+        custom: contextCustom,
+        launchers: contextLaunchers,
+      }),
+    [installed, emulation, contextSteam, contextCustom, contextLaunchers],
   );
   const { options, favorites } = preferences;
   const signals = discoverySignals(
@@ -299,6 +310,7 @@ function PickerModal({
         ? { ...snapshot.current, excluded: options.excluded }
         : { ...options, tags: [...options.tags], modes: [...options.modes] };
     snapshot.current = selected;
+    setSummary(selected);
     setBusy(true);
     setFailed(false);
     setLastHidden(null);
@@ -308,7 +320,7 @@ function PickerModal({
       setVisible(13);
       go(2);
     }
-    try {
+    const work = async () => {
       const next = await loadDiscoveryFeed(
         selected,
         signals,
@@ -334,21 +346,26 @@ function PickerModal({
           : ranked,
       );
       if (more) setVisible((value) => value + 12);
-    } catch {
-      if (!controller.signal.aborted) setFailed(true);
-    } finally {
-      paging.current = false;
-      if (!controller.signal.aborted) setBusy(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!controller.signal.aborted) setFailed(true);
+      })
+      .finally(() => {
+        paging.current = false;
+        if (!controller.signal.aborted) setBusy(false);
+      });
   };
   const hidden = new Set(options.excluded),
     shown = picks.filter((pick) => !hidden.has(pick.game.steamId!));
   const hasMore = feed?.hasMore ?? false;
   const loadMore = useRef<() => void>(() => {});
-  loadMore.current = () => {
-    if (shown.length > visible) setVisible((value) => value + 12);
-    else if (hasMore) void find(true);
-  };
+  useLayoutEffect(() => {
+    loadMore.current = () => {
+      if (shown.length > visible) setVisible((value) => value + 12);
+      else if (hasMore) void find(true);
+    };
+  });
   useEffect(() => {
     if (
       !active ||
@@ -822,13 +839,13 @@ function PickerModal({
             )}
             {step === 2 && (
               <>
-                {!!snapshot.current && (
+                {!!summary && (
                   <div className="game-picker-summary">
                     <span>
                       <SteamMark />
                       {t("games.pick.steamCatalog")}
                     </span>
-                    {[...snapshot.current.tags, ...snapshot.current.modes].map((tag) => (
+                    {[...summary.tags, ...summary.modes].map((tag) => (
                       <span key={tag}>
                         {tagName(
                           tag,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   loadRomDiscoveryPage,
   readRomDiscoverySnapshot,
@@ -22,7 +22,9 @@ const spotlightPage = (page: RomSpotlight): RomPage => ({
 export function useRomPage(filters: RomDiscoveryFilters, active: boolean, spotlight = false) {
   const key = JSON.stringify({ filters, spotlight }),
     parameters = useRef(filters);
-  parameters.current = filters;
+  useLayoutEffect(() => {
+    parameters.current = filters;
+  }, [filters]);
   const [state, setState] = useState<RomState>({ key: "", busy: false, failed: false });
   const [attempt, setAttempt] = useState(0),
     lastAttempt = useRef(-1);
@@ -105,8 +107,9 @@ export function useRomPage(filters: RomDiscoveryFilters, active: boolean, spotli
     controller.current = request;
     pending.current = request;
     setState((value) => ({ ...value, busy: true, failed: false }));
-    try {
-      const next = await loadRomDiscoveryPage(filters, previous.nextOffset, request.signal);
+    const nextOffset = previous.nextOffset;
+    const work = async () => {
+      const next = await loadRomDiscoveryPage(filters, nextOffset, request.signal);
       if (request.signal.aborted) return false;
       const page = {
         ...next,
@@ -128,15 +131,18 @@ export function useRomPage(filters: RomDiscoveryFilters, active: boolean, spotli
       failedMore.current = false;
       setState({ key, page, busy: false, failed: false });
       return true;
-    } catch {
-      if (!request.signal.aborted) {
-        failedMore.current = true;
-        setState((value) => ({ ...value, busy: false, failed: true }));
-      }
-      return false;
-    } finally {
-      if (pending.current === request) pending.current = null;
-    }
+    };
+    return await work()
+      .catch(() => {
+        if (!request.signal.aborted) {
+          failedMore.current = true;
+          setState((value) => ({ ...value, busy: false, failed: true }));
+        }
+        return false;
+      })
+      .finally(() => {
+        if (pending.current === request) pending.current = null;
+      });
   };
   return {
     page: state.key === key ? state.page : undefined,

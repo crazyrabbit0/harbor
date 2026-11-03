@@ -4,6 +4,7 @@ import { findTopAward, parseAwardYear, type AwardWin } from "@/lib/anime-awards"
 import { useAwardMasterVersion } from "@/lib/anime-awards-source";
 import { mergeBundledAwards } from "@/lib/awards-history";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
+import { readAtVersion } from "@/lib/read-at-version";
 import type { Meta } from "@/lib/cinemeta";
 import {
   animeHasDub,
@@ -64,11 +65,15 @@ function useClassicMark(meta: Meta, enabled: boolean): { type: AwardType; wins: 
   // useSyncExternalStore cannot be called conditionally, so the gate is in the
   // subscribe: a disabled tile registers nothing and is never woken.
   const awardsV = useBundledAwardsVersion(enabled);
-  return useMemo(() => {
-    if (!enabled) return null;
-    const won = awardSummary(mergeBundledAwards(null, meta.name, year)).find((s) => s.wins > 0);
-    return won ? { type: won.type, wins: won.wins } : null;
-  }, [awardsV, enabled, meta.name, year]);
+  return useMemo(
+    () =>
+      readAtVersion(awardsV, () => {
+        if (!enabled) return null;
+        const won = awardSummary(mergeBundledAwards(null, meta.name, year)).find((s) => s.wins > 0);
+        return won ? { type: won.type, wins: won.wins } : null;
+      }),
+    [awardsV, enabled, meta.name, year],
+  );
 }
 
 /**
@@ -84,7 +89,7 @@ function useClassicMark(meta: Meta, enabled: boolean): { type: AwardType; wins: 
 export function BpCardMarks({ meta }: { meta: Meta }) {
   const { settings } = useSettings();
   const t = useBpT();
-  useAwardMasterVersion();
+  const awardMasterVer = useAwardMasterVersion();
   const isAnime = BP_ANIME_ID.test(meta.id);
   const hasDub = useDub(meta.id, isAnime);
   // Same alternate-id match the other four positions get from useBpCardState. A
@@ -102,7 +107,8 @@ export function BpCardMarks({ meta }: { meta: Meta }) {
   const isNew =
     marks && !cinema && !!meta.releaseInfo && meta.releaseInfo === String(new Date().getFullYear());
 
-  const animeWin = marks && isAnime ? bpAnimeAward(meta) : null;
+  const animeWin =
+    marks && isAnime ? readAtVersion(awardMasterVer, () => bpAnimeAward(meta)) : null;
   const classic = useClassicMark(meta, marks && !isAnime);
 
   const badge = animeWin

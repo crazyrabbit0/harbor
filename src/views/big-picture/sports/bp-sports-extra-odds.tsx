@@ -32,6 +32,30 @@ function keyFor(game: SportsGame): string {
   return `${game.league}:${game.id}:${game.startMs}`;
 }
 
+async function fetchOdds(
+  key: string,
+  game: SportsGame,
+  signal: AbortSignal,
+): Promise<{ at: number; markets: MarketOdds[] }> {
+  const cached = CACHE.get(key);
+  if (cached && Date.now() - cached.at <= FRESH_MS) return cached;
+  const query = new URLSearchParams({
+    q: `${game.home.name} ${game.away.name}`,
+    limit_per_type: "5",
+    events_status: "active",
+    search_tags: "false",
+    search_profiles: "false",
+  });
+  const response = await safeFetch(`${SEARCH}?${query}`, {
+    signal: AbortSignal.any([signal, AbortSignal.timeout(7000)]),
+  });
+  if (!response.ok) throw new Error("Market feed unavailable");
+  const entry = { at: Date.now(), markets: parseMarketOdds(await response.json(), game) };
+  CACHE.set(key, entry);
+  while (CACHE.size > 40) CACHE.delete(CACHE.keys().next().value!);
+  return entry;
+}
+
 function useOdds(game: SportsGame | null, on: boolean): Odds | null {
   const key = game ? keyFor(game) : "";
   const [state, setState] = useState<{ key: string; value: Odds } | null>(null);
@@ -43,30 +67,16 @@ function useOdds(game: SportsGame | null, on: boolean): Odds | null {
     const run = async () => {
       if (busy) return;
       busy = true;
-      try {
-        let entry = CACHE.get(key);
-        if (!entry || Date.now() - entry.at > FRESH_MS) {
-          const query = new URLSearchParams({
-            q: `${game.home.name} ${game.away.name}`,
-            limit_per_type: "5",
-            events_status: "active",
-            search_tags: "false",
-            search_profiles: "false",
-          });
-          const response = await safeFetch(`${SEARCH}?${query}`, {
-            signal: AbortSignal.any([controller.signal, AbortSignal.timeout(7000)]),
-          });
-          if (!response.ok) throw new Error("Market feed unavailable");
-          entry = { at: Date.now(), markets: parseMarketOdds(await response.json(), game) };
-          CACHE.set(key, entry);
-          while (CACHE.size > 40) CACHE.delete(CACHE.keys().next().value!);
-        }
-        if (!controller.signal.aborted) setState({ key, value: { ...entry } });
-      } catch {
-        if (!controller.signal.aborted) setState({ key, value: { markets: [], at: 0 } });
-      } finally {
-        busy = false;
-      }
+      await fetchOdds(key, game, controller.signal)
+        .then((entry) => {
+          if (!controller.signal.aborted) setState({ key, value: { ...entry } });
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setState({ key, value: { markets: [], at: 0 } });
+        })
+        .finally(() => {
+          busy = false;
+        });
     };
     void run();
     const timer = setInterval(() => void run(), FRESH_MS);

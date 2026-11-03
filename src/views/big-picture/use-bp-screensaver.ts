@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useSettings } from "@/lib/settings";
 import { useView } from "@/lib/view";
@@ -7,6 +7,7 @@ import { useBpT } from "./bp-i18n";
 
 const TICK_MS = 4000;
 const MAX_ITEMS = 16;
+const loadHeroPool = () => import("@/lib/feed/hero-pool");
 const ACTIVITY = ["pointerdown", "pointermove", "wheel", "touchstart", "keydown"] as const;
 
 type RankedMeta = Meta & { rank?: number; rankLabel?: string };
@@ -30,7 +31,9 @@ export function useBpScreensaver(blocked: boolean): {
 } {
   const t = useBpT();
   const tRef = useRef(t);
-  tRef.current = t;
+  useLayoutEffect(() => {
+    tRef.current = t;
+  }, [t]);
   const { settings } = useSettings();
   const { player, picker, topKind } = useView();
   const enabled = settings.screensaver;
@@ -40,7 +43,9 @@ export function useBpScreensaver(blocked: boolean): {
   const [active, setActive] = useState(false);
   const [items, setItems] = useState<AmbientItem[]>([]);
   const activeRef = useRef(false);
-  activeRef.current = active;
+  useLayoutEffect(() => {
+    activeRef.current = active;
+  }, [active]);
   const lastRef = useRef(0);
   const fetchedRef = useRef("");
 
@@ -89,7 +94,7 @@ export function useBpScreensaver(blocked: boolean): {
     const release = () => {
       if (fetchedRef.current === source) fetchedRef.current = "";
     };
-    void import("@/lib/feed/hero-pool")
+    void loadHeroPool()
       .then((m) => m.fetchHeroFeed(source))
       .then((metas) => {
         const next = toItems(metas, (m) =>

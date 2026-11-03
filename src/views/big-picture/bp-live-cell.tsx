@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Tv } from "lucide-react";
 import { detectCountry, flagUrl } from "@/lib/iptv/country-detect";
 import { useProxiedImageSrc } from "@/lib/remote-image-proxy";
@@ -73,7 +73,9 @@ function BpLiveProgress({ startMs, endMs }: { startMs: number; endMs: number }) 
 function BpTimeLeft({ endMs, t }: { endMs: number; t: BpT }) {
   const ref = useRef<HTMLSpanElement | null>(null);
   const fmt = useRef(t);
-  fmt.current = t;
+  useLayoutEffect(() => {
+    fmt.current = t;
+  }, [t]);
 
   const apply = useCallback(() => {
     const el = ref.current;

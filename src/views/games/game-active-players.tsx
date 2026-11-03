@@ -2,7 +2,7 @@ import { GameAvailabilityBadge, useGameAvailabilityIndex } from "./game-availabi
 import { gameAvailability } from "@/lib/games/availability";
 import { GameActiveSkeleton } from "./game-loading";
 import { observeWithin } from "@/lib/visibility";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { NavChevron } from "@/components/nav-arrow";
 import { RefreshCw } from "lucide-react";
 import { HoverTooltip } from "@/components/hover-tooltip";
@@ -149,7 +149,10 @@ export function GameActivePlayers({
     currentPage = Math.min(page, Math.max(0, pages - 1)),
     games = audiencePage(all, currentPage),
     selected = all.find((game) => game.id === chosen) ?? games[0];
-  selectedId.current = selected?.id;
+  const selectedKey = selected?.id;
+  useLayoutEffect(() => {
+    selectedId.current = selectedKey;
+  }, [selectedKey]);
   const ids = games.map((game) => game.steamId).filter((id): id is number => !!id),
     identity = ids.join(",");
   useEffect(() => {

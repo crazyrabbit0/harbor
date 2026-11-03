@@ -585,7 +585,7 @@ function FontPicker() {
       setError({ kind: "unsupported", extension: ext });
       return;
     }
-    try {
+    const work = async () => {
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const r = new FileReader();
         r.onload = () =>
@@ -611,10 +611,11 @@ function FontPicker() {
         },
       ];
       update({ customFonts: next, subFontFamily: `custom:${id}` });
-    } catch (e) {
+    };
+    await work().catch((e: unknown) => {
       console.warn("[fonts] read failed", e);
       setError({ kind: "save-failed" });
-    }
+    });
   };
 
   const remove = (id: string) => {

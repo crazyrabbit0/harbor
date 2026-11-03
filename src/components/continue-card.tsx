@@ -11,6 +11,7 @@ import { tmdbIdFromImdb } from "@/lib/providers/tmdb";
 import { useContextMenu } from "@/lib/context-menu";
 import { useT } from "@/lib/i18n";
 import { readSnapshot, useSnapshotVersion } from "@/lib/snapshots";
+import { readAtVersion } from "@/lib/read-at-version";
 import {
   episodeFromVideoId,
   isAnimeCwItem,
@@ -114,9 +115,9 @@ export const ContinueCard = memo(function ContinueCard({
     itemNameRef.current = item.name;
   }, [settings, item.name]);
   const { open: openContextMenu } = useContextMenu();
-  useSnapshotVersion();
+  const snapshotVer = useSnapshotVersion();
   const newEpisode = useHasNewEpisode(item);
-  const snapshot = readSnapshot(item._id);
+  const snapshot = readAtVersion(snapshotVer, () => readSnapshot(item._id));
   const isExternal = !!item.external;
   const externalLogo = item.external === "trakt" ? traktLogo : simklLogo;
   const externalLabel = item.external === "trakt" ? t("Paused on Trakt") : t("Paused on Simkl");

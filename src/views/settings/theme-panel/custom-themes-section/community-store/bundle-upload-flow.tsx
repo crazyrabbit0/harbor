@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   ArrowLeft,
@@ -57,7 +57,9 @@ export function BundleUploadFlow({
     else onClose();
   };
   const stepBackRef = useRef(stepBack);
-  stepBackRef.current = stepBack;
+  useLayoutEffect(() => {
+    stepBackRef.current = stepBack;
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -98,7 +100,7 @@ export function BundleUploadFlow({
       return;
     setSubmitting(true);
     setError(null);
-    try {
+    const work = async () => {
       const manifest = JSON.stringify({
         name: name.trim(),
         kind,
@@ -119,11 +121,10 @@ export function BundleUploadFlow({
       });
       if (author.trim()) localStorage.setItem(AUTHOR_KEY, author.trim());
       setResult({ share: res.share });
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
+    };
+    await work()
+      .catch((e: unknown) => setError((e as Error).message))
+      .finally(() => setSubmitting(false));
   };
 
   return createPortal(

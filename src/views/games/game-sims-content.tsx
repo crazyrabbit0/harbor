@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { ChevronDown, File, LoaderCircle, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
@@ -42,7 +42,10 @@ export function GameSimsContent({
   const packs = useSimsPackSelection(),
     selectionKey = JSON.stringify(packs.selection);
   const selection = useRef(packs.selection);
-  selection.current = packs.selection;
+  const packSelection = packs.selection;
+  useLayoutEffect(() => {
+    selection.current = packSelection;
+  }, [packSelection]);
   const [report, setReport] = useState<SimsContentReport | null>(null),
     [error, setError] = useState("");
   const [busy, setBusy] = useState(true),
@@ -142,31 +145,32 @@ export function GameSimsContent({
     if (packs.busy) return;
     const token = crypto.randomUUID();
     operation.current = token;
-    void (async () => {
-      let stop: (() => void) | undefined;
-      try {
-        stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
-          if (payload.profile !== profile || payload.operationId !== token) return;
-          if (!current || !alive.current) {
-            if (payload.canCancel) void simsCancel(profile, token).catch(() => {});
-          } else setFile(payload.file ?? "");
-        });
-        if (!current || !alive.current) return;
-        const value = await simsTrayContent(profile, path, item.id, token, selection.current);
-        if (current && alive.current) setReport(value);
-      } catch (reason) {
+    let stop: (() => void) | undefined;
+    const work = async () => {
+      stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
+        if (payload.profile !== profile || payload.operationId !== token) return;
+        if (!current || !alive.current) {
+          if (payload.canCancel) void simsCancel(profile, token).catch(() => {});
+        } else setFile(payload.file ?? "");
+      });
+      if (!current || !alive.current) return;
+      const value = await simsTrayContent(profile, path, item.id, token, selection.current);
+      if (current && alive.current) setReport(value);
+    };
+    void work()
+      .catch((reason) => {
         if (current && alive.current)
           setError(
             ["sims_cc_unsupported", "sims_tray_format"].includes(String(reason))
               ? "games.sims.ccUnsupported"
               : simsError(reason),
           );
-      } finally {
+      })
+      .finally(() => {
         stop?.();
         if (operation.current === token) operation.current = "";
         if (current && alive.current) setBusy(false);
-      }
-    })();
+      });
     return () => {
       current = false;
       void simsCancel(profile, token).catch(() => {});

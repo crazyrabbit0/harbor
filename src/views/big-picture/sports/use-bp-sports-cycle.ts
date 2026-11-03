@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const HOLD_MS = 7000;
 
@@ -22,7 +22,9 @@ export function useBpSportsCycle(
   const [index, setIndex] = useState(0);
   const [restart, setRestart] = useState(0);
   const countRef = useRef(count);
-  countRef.current = count;
+  useLayoutEffect(() => {
+    countRef.current = count;
+  }, [count]);
 
   useEffect(() => {
     if (count === 0 || index < count) return;

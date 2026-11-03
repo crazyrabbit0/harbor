@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Check, FolderOpen, History, RefreshCw, X } from "lucide-react";
 import { open as chooseDirectory } from "@tauri-apps/plugin-dialog";
 import { Play } from "@/components/icons/play-filled";
@@ -19,13 +19,14 @@ function ShortcutPlay({
   game,
   library,
   explicit = false,
-  name = game.name,
+  name: title,
 }: {
   game: SteamShortcut;
   library: SteamShortcutsLibrary;
   explicit?: boolean;
   name?: string;
 }) {
+  const name = title === undefined ? game.name : title;
   const t = useT(),
     busy = library.launching === game.id && library.directLaunching !== game.id,
     launched = library.launched === game.id,
@@ -79,7 +80,9 @@ export function GameSteamShortcuts({
   const [activityProfile, setActivityProfile] = useState<string | null>(null);
   useEffect(() => setActivityProfile(null), [library.profile]);
   const profile = useRef(library.profile);
-  profile.current = library.profile;
+  useLayoutEffect(() => {
+    profile.current = library.profile;
+  }, [library.profile]);
   const title = (game: SteamShortcut) => preferences.title(game.id, game.name);
   const games = library.games.filter(
     (game) =>
@@ -90,7 +93,7 @@ export function GameSteamShortcuts({
     const owner = library.profile;
     setPicking(true);
     setPickerError(false);
-    try {
+    const work = async () => {
       const path = await chooseDirectory({
         directory: true,
         multiple: false,
@@ -98,11 +101,14 @@ export function GameSteamShortcuts({
       });
       if (profile.current === owner && typeof path === "string")
         library.configure({ root: path, accountId: null });
-    } catch {
-      if (profile.current === owner) setPickerError(true);
-    } finally {
-      if (profile.current === owner) setPicking(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        if (profile.current === owner) setPickerError(true);
+      })
+      .finally(() => {
+        if (profile.current === owner) setPicking(false);
+      });
   };
   const accounts = [
     ...new Set([

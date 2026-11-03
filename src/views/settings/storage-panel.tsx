@@ -3,6 +3,7 @@ import { StreamCacheSection } from "./player-panel/p2p-advanced-section";
 import { Check, Database, HardDrive, Trash2 } from "./icons";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 import { clearPickerCache, pickerCacheCount } from "@/lib/picker-cache";
 import { clearThumbCache, getThumbCacheSize, type ThumbCacheSize } from "@/lib/remote-image-proxy";
 import { clearMangaCache } from "@/lib/manga/api";
@@ -190,6 +191,25 @@ function ClearRow({
   );
 }
 
+function bytesOfKey(key: string): number {
+  try {
+    return (localStorage.getItem(key)?.length ?? 0) * 2 + key.length * 2;
+  } catch {
+    return 0;
+  }
+}
+
+function bytesOfPrefix(prefix: string): number {
+  let total = 0;
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith(prefix)) total += bytesOfKey(key);
+    }
+  } catch {}
+  return total;
+}
+
 type Tab = "overview" | "video" | "caches";
 
 export function StoragePanel() {
@@ -215,33 +235,18 @@ export function StoragePanel() {
     };
   }, [tick]);
 
-  const ls = useMemo(() => localStorageBreakdown(), [tick]);
+  const ls = useMemo(() => readAtVersion(tick, () => localStorageBreakdown()), [tick]);
   const THUMB_CACHE_CAP_BYTES = 256 * 1024 * 1024;
 
-  const cacheUsage = useMemo(() => {
-    const bytesOfKey = (key: string) => {
-      try {
-        return (localStorage.getItem(key)?.length ?? 0) * 2 + key.length * 2;
-      } catch {
-        return 0;
-      }
-    };
-    const bytesOfPrefix = (prefix: string) => {
-      let total = 0;
-      try {
-        for (let i = 0; i < localStorage.length; i++) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith(prefix)) total += bytesOfKey(key);
-        }
-      } catch {}
-      return total;
-    };
-    return {
-      picker: pickerCacheCount(),
-      manga: bytesOfPrefix("harbor.manga.cache.v2."),
-      dead: bytesOfKey("harbor.dead-streams.v1"),
-    };
-  }, [tick]);
+  const cacheUsage = useMemo(
+    () =>
+      readAtVersion(tick, () => ({
+        picker: pickerCacheCount(),
+        manga: bytesOfPrefix("harbor.manga.cache.v2."),
+        dead: bytesOfKey("harbor.dead-streams.v1"),
+      })),
+    [tick],
+  );
 
   const [thumbSize, setThumbSize] = useState<ThumbCacheSize | null>(null);
   useEffect(() => {

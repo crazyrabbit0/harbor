@@ -158,7 +158,7 @@ export function WatchlistTab({
       };
       revalidate();
     },
-    [authKey, settings.libraryBookmarkedOnly, mode, stremio, trakt, traktConnected],
+    [authKey, stremio, trakt, traktConnected],
   );
 
   const handleRemoveLocal = useCallback(

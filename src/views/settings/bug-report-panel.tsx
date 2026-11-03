@@ -113,7 +113,7 @@ export function BugReportPanel() {
     if (!canSubmit || !diag) return;
     setSubmitting(true);
     setError(null);
-    try {
+    const work = async () => {
       const url = openBugReportIssue(
         {
           summary: summary.trim(),
@@ -130,11 +130,10 @@ export function BugReportPanel() {
         diag,
       );
       setSubmittedId(url);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-    } finally {
-      setSubmitting(false);
-    }
+    };
+    await work()
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setSubmitting(false));
   };
 
   const reset = () => {

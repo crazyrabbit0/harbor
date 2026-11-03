@@ -96,7 +96,11 @@ export function GameArtworkPicker({
       (next) => {
         if (!request.signal.aborted) {
           setResult(next);
-          setDraft((previous) => (previous?.igdbId === next?.igdbId ? previous : undefined));
+          const nextId = next?.igdbId;
+          setDraft((previous) => {
+            const previousId = previous?.igdbId;
+            return previousId === nextId ? previous : undefined;
+          });
           setLoading(false);
         }
       },
@@ -127,15 +131,18 @@ export function GameArtworkPicker({
     pending.current = true;
     setSaving(true);
     setSaveFailed(false);
-    try {
+    const work = async () => {
       if (await onSave(reset || (!draft?.cover && !draft?.background) ? null : draft!)) close();
       else setSaveFailed(true);
-    } catch {
-      setSaveFailed(true);
-    } finally {
-      pending.current = false;
-      setSaving(false);
-    }
+    };
+    await work()
+      .catch(() => {
+        setSaveFailed(true);
+      })
+      .finally(() => {
+        pending.current = false;
+        setSaving(false);
+      });
   };
   const dimensions = (image: IgdbArtwork) =>
     image.width && image.height

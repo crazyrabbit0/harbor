@@ -22,6 +22,8 @@ import type { CatalogFilters } from "@/lib/games/catalog-filters";
 import type { GameSummary } from "@/lib/games/types";
 import { GameSearchResults } from "./game-search-results";
 
+const loadJinaSearch = () => import("@/lib/jina-search");
+
 function AiSettings({ onClose }: { onClose: () => void }) {
   const t = useT(),
     { closing, close } = useModalExit(onClose),
@@ -149,11 +151,11 @@ export function GameAiSearch({
     setStatus("loading");
     setResults([]);
     setError(null);
-    try {
+    const work = async () => {
       let context: string | undefined;
       if (settings.aiWebSearch) {
         try {
-          const { enrichWithContent } = await import("@/lib/jina-search");
+          const { enrichWithContent } = await loadJinaSearch();
           context = (await enrichWithContent(`${query.trim()} video games Steam`, settings.jinaKey))
             .context;
         } catch {
@@ -175,21 +177,24 @@ export function GameAiSearch({
         setResults(matches);
         setStatus("done");
       }
-    } catch (cause) {
-      if (
-        request.current === controller &&
-        (!controller.signal.aborted || controller.signal.reason?.message === "timeout")
-      ) {
-        setError(
-          cause instanceof AiSearchError
-            ? { messageKey: cause.messageKey, values: cause.values }
-            : { messageKey: "AI search failed." },
-        );
-        setStatus("error");
-      }
-    } finally {
-      clearTimeout(timeout);
-    }
+    };
+    await work()
+      .catch((cause) => {
+        if (
+          request.current === controller &&
+          (!controller.signal.aborted || controller.signal.reason?.message === "timeout")
+        ) {
+          setError(
+            cause instanceof AiSearchError
+              ? { messageKey: cause.messageKey, values: cause.values }
+              : { messageKey: "AI search failed." },
+          );
+          setStatus("error");
+        }
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+      });
   };
   useEffect(() => {
     if (runSignal !== lastSignal.current) {

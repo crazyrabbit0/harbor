@@ -1,6 +1,6 @@
 import { GameFileIcon } from "./game-file-icon";
 import { SourceFilesLoading } from "./game-source-loading";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { ArrowDown, ArrowRight, Check, Folder, RefreshCw } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -63,19 +63,22 @@ export function SourceCloudTransfer({
     [scanNext, setScanNext] = useState<number | null>(null),
     [checked, setChecked] = useState(false),
     [browse, setBrowse] = useState(false);
-  const owner = useRef(identity),
-    alive = useRef(true),
+  const alive = useRef(true),
     pending = useRef(false),
     revision = useRef(0),
     body = useRef<HTMLDivElement>(null),
     focusReturn = useRef<HTMLElement | null>(null);
   const [recent, setRecent] = useState<CloudWebJob[]>([]),
     [browseFolder, setBrowseFolder] = useState<CloudEntry | null>(null);
-  if (owner.current !== identity) {
-    owner.current = identity;
-    revision.current++;
+  const [owner, setOwner] = useState(identity),
+    [currentRevision, setCurrentRevision] = useState(0);
+  if (owner !== identity) {
+    setOwner(identity);
+    setCurrentRevision(currentRevision + 1);
   }
-  const currentRevision = revision.current;
+  useLayoutEffect(() => {
+    revision.current = currentRevision;
+  }, [currentRevision]);
   const valid = () => alive.current && revision.current === currentRevision;
   const args = { provider, key, parent: intent?.remoteId ?? "", page: 0, file: "" };
   const fail = (reason: unknown) =>
@@ -146,7 +149,7 @@ export function SourceCloudTransfer({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       const next = await invoke<CloudWebJob>(command("status"), { args });
       if (valid()) {
         setJob(next);
@@ -156,19 +159,22 @@ export function SourceCloudTransfer({
             : (next.files.find((v) => v.kind === "file")?.id ?? ""),
         );
       }
-    } catch (reason) {
-      if (valid()) {
-        if ((reason instanceof Error ? reason.message : String(reason)) === "cloud_missing") {
-          setJob(null);
-          setError("games.sources.web.missing");
-        } else fail(reason);
-      }
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (valid()) {
+          if ((reason instanceof Error ? reason.message : String(reason)) === "cloud_missing") {
+            setJob(null);
+            setError("games.sources.web.missing");
+          } else fail(reason);
+        }
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   useEffect(() => {
     if (!intent?.remoteId || !key) return;
@@ -176,10 +182,10 @@ export function SourceCloudTransfer({
   }, [intent?.remoteId, identity]);
   useEffect(() => {
     if (!intent?.remoteId || job?.status !== "preparing") return;
-    let polls = 0;
+    const polls = { count: 0 };
     const timer = setInterval(() => {
       if (document.visibilityState !== "visible") return;
-      if (polls++ >= 30) {
+      if (polls.count++ >= 30) {
         clearInterval(timer);
         return;
       }
@@ -193,7 +199,7 @@ export function SourceCloudTransfer({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       if (again) await writeWebIntent(storeKey, null);
       const claimed = await claimWebIntent(storeKey, {
         version: 1,
@@ -220,14 +226,17 @@ export function SourceCloudTransfer({
         setIntent(updated);
         setChecked(false);
       }
-    } catch (reason) {
-      if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (valid()) fail(reason);
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const check = async (page = 0) => {
     if (pending.current) return;
@@ -235,7 +244,7 @@ export function SourceCloudTransfer({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       const result =
         provider === "pm"
           ? await invoke<CloudWebPage>(command("list"), { args: { ...args, page } })
@@ -266,14 +275,17 @@ export function SourceCloudTransfer({
         setScanPage(page);
         setScanNext(result.next);
       }
-    } catch (reason) {
-      if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (valid()) fail(reason);
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const selectJob = async (next: CloudWebJob) => {
     if (!intent || pending.current) return;
@@ -281,7 +293,7 @@ export function SourceCloudTransfer({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       const updated = { ...intent, remoteId: next.id };
       await writeWebIntent(storeKey, updated);
       if (valid()) {
@@ -291,14 +303,17 @@ export function SourceCloudTransfer({
         setChecked(false);
         setScanNext(null);
       }
-    } catch (reason) {
-      if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (valid()) fail(reason);
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const retryJob = async () => {
     if (!job || pending.current) return;
@@ -306,20 +321,23 @@ export function SourceCloudTransfer({
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       await invoke(command("retry"), { args: { ...args, parent: job.id } });
       if (valid()) {
         pending.current = false;
         await refresh();
       }
-    } catch (reason) {
-      if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (valid()) fail(reason);
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const download = async () => {
     if (!job || pending.current || downloads.busy.includes("new")) return;
@@ -327,7 +345,7 @@ export function SourceCloudTransfer({
     setBusy(true);
     setError("");
     downloads.dismissError();
-    try {
+    const work = async () => {
       const value = await invoke<CloudDownload>(command("download"), {
         args: { ...args, parent: job.id, file },
       });
@@ -343,14 +361,17 @@ export function SourceCloudTransfer({
         value.name,
       );
       if (started && valid()) onDone();
-    } catch (reason) {
-      if (valid()) fail(reason);
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (valid()) fail(reason);
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current = false;
+          setBusy(false);
+        }
+      });
   };
   const saving = downloads.busy.includes("new");
   return (

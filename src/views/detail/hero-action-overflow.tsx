@@ -5,6 +5,7 @@ import type { Meta } from "@/lib/cinemeta";
 import { activeDownloadFor, cancelDownload, useDownloads } from "@/lib/download/downloads-store";
 import { useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 import { AddToListMenu } from "@/components/lists/add-to-list-menu";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import type { ListItemInput } from "@/lib/custom-lists";
@@ -92,12 +93,14 @@ export function HeroActionOverflow({
 }) {
   const t = useT();
   const { openPicker } = useViewActions();
-  useDownloads();
+  const downloads = useDownloads();
   const btnRef = useRef<HTMLButtonElement | null>(null);
   const [menu, setMenu] = useState<{ x: number; y: number } | null>(null);
   const [listMenu, setListMenu] = useState(false);
 
-  const dl = canDownload ? activeDownloadFor(meta.id, null, null) : null;
+  const dl = canDownload
+    ? readAtVersion(downloads, () => activeDownloadFor(meta.id, null, null))
+    : null;
   const downloading = dl?.status === "downloading";
   const done = dl?.status === "done";
   const failed = dl?.status === "error";

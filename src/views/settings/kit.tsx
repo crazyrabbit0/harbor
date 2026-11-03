@@ -113,7 +113,7 @@ export function OptionScale<T extends string | number>({
     <span className="flex min-w-0 flex-wrap items-center gap-2.5">
       {caption && <span className="harbor-settings-label shrink-0">{caption}</span>}
       <span
-        onKeyDown={stripArrowKeys(btnRefs, (i) => onChange(options[i]))}
+        onKeyDown={(e) => stripArrowKeys(btnRefs, (i) => onChange(options[i]))(e)}
         className="flex min-w-0 items-center gap-0.5 rounded-[10px] bg-canvas p-1"
       >
         {options.map((o, i) => (

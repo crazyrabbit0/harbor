@@ -15,6 +15,8 @@ import { DownloadSourceIdentity } from "./game-download-source";
 import { GameHeroLogo } from "./game-hero-logo";
 import "./game-download-setup.css";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function ArchiveJobStatus({ job }: { job: ArchiveJob }) {
   const t = useT();
   return (
@@ -109,16 +111,19 @@ export function ArchiveJobActions({
     if (busy) return;
     setBusy(true);
     setError("");
-    try {
+    const work = async () => {
       await action();
-    } catch (reason) {
-      setError(archiveError(reason));
-    } finally {
-      setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        setError(archiveError(reason));
+      })
+      .finally(() => {
+        setBusy(false);
+      });
   };
   const reveal = async () => {
-    const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
+    const { revealItemInDir } = await loadOpener();
     await revealItemInDir(job.receipt?.destination ?? job.stage ?? job.destination);
   };
   return (

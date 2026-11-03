@@ -26,18 +26,16 @@ export function ClaimPanel({
   const claim = async (key: string, id: string, token: string) => {
     setBusyId(key);
     setError(null);
-    try {
-      await claimTheme(id, token);
-      forgetUpload(id);
-      setThemeId("");
-      setOwnerToken("");
-      setManualOpen(false);
-      onClaimed();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusyId(null);
-    }
+    await claimTheme(id, token)
+      .then(() => {
+        forgetUpload(id);
+        setThemeId("");
+        setOwnerToken("");
+        setManualOpen(false);
+        onClaimed();
+      })
+      .catch((e: unknown) => setError((e as Error).message))
+      .finally(() => setBusyId(null));
   };
 
   const claimManual = (e: React.FormEvent) => {

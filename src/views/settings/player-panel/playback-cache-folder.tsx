@@ -29,12 +29,12 @@ export function PlaybackCacheFolder() {
 
   const choose = async () => {
     setError("");
-    try {
-      const picked = await open({ directory: true, defaultPath: custom || undefined });
-      if (typeof picked === "string") update({ playbackCacheDir: picked });
-    } catch (e) {
-      setError(String(e));
-    }
+    const defaultPath = custom || undefined;
+    await open({ directory: true, defaultPath })
+      .then((picked) => {
+        if (typeof picked === "string") update({ playbackCacheDir: picked });
+      })
+      .catch((e: unknown) => setError(String(e)));
   };
 
   return (

@@ -29,6 +29,9 @@ type ParentProject = {
   item: number;
   scroll: { node: HTMLElement; top: number }[];
 };
+const restoreScroll = (scroll: ParentProject["scroll"]) => {
+  for (const { node, top } of scroll) if (node.isConnected) node.scrollTop = top;
+};
 export type SimsCreatorRequest = {
   id: string;
   page: string;
@@ -145,8 +148,7 @@ export function GameSimsMts({
   }, [detailView, busy]);
   useLayoutEffect(() => {
     if (!busy && restoreParent.current) {
-      for (const { node, top } of restoreParent.current.scroll)
-        if (node.isConnected) node.scrollTop = top;
+      restoreScroll(restoreParent.current.scroll);
       restoreParent.current = null;
     }
   }, [detail, busy]);
@@ -183,7 +185,7 @@ export function GameSimsMts({
     setVersion("");
     setTarget(group);
     let stop: (() => void) | undefined;
-    try {
+    const work = async () => {
       stop = await listen<SimsProgress>("games:sims-progress", ({ payload }) => {
         if (payload.profile !== profile || payload.operationId !== own.id) return;
         if (payload.canCancel && (own.canceled || !alive.current))
@@ -198,16 +200,19 @@ export function GameSimsMts({
           value.files.find((file) => file.supported)?.version ?? value.files[0]?.version ?? "",
         );
       }
-    } catch (reason) {
-      if (alive.current && !own.canceled) setError(simsError(reason));
-    } finally {
-      stop?.();
-      if (task.current === own) task.current = null;
-      if (alive.current) {
-        returnFocus.current = document.activeElement === cancelButton.current;
-        setBusy(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current && !own.canceled) setError(simsError(reason));
+      })
+      .finally(() => {
+        stop?.();
+        if (task.current === own) task.current = null;
+        if (alive.current) {
+          returnFocus.current = document.activeElement === cancelButton.current;
+          setBusy(false);
+        }
+      });
   };
   useEffect(() => {
     if (!request || !active || busy || lastRequest.current === request.id) return;

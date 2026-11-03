@@ -30,12 +30,12 @@ export function GameLibraryTitles({
     language = useUiLanguage(),
     titleId = useId(),
     root = useRef<HTMLFormElement>(null);
-  const initial = useRef(preferences.data),
-    pending = useRef(false),
+  const [initial] = useState(() => preferences.data);
+  const pending = useRef(false),
     mounted = useRef(true);
   const [draft, setDraft] = useState<LibraryTitleRules>(() => ({
     ...defaultLibraryTitleRules(),
-    ...initial.current.titleRules,
+    ...initial.titleRules,
     locale: language,
   }));
   const [scope, setScope] = useState(selectedIds.length ? "selected" : "all"),
@@ -97,25 +97,23 @@ export function GameLibraryTitles({
     if (pending.current || preferences.busy || !preferences.ready) return;
     pending.current = true;
     const rules = restore
-      ? (initial.current.titleRules ?? defaultLibraryTitleRules())
+      ? (initial.titleRules ?? defaultLibraryTitleRules())
       : {
           ...draft,
           existingIds: draft.automatic ? items.map((item) => item.id) : [],
         };
     // Restore also removes a same-spelling local override. A null title explicitly
     // opts that game out of automatic formatting without discarding other preferences.
-    const updates = libraryTitleChanges(items, rows, initial.current.entries, rules, restore);
-    try {
-      if (
-        (await preferences.updateTitles(updates, rules, initial.current.titleRules)) &&
-        mounted.current
-      ) {
+    const updates = libraryTitleChanges(items, rows, initial.entries, rules, restore);
+    const work = async () => {
+      if ((await preferences.updateTitles(updates, rules, initial.titleRules)) && mounted.current) {
         onApplied(changed.length);
         close();
       }
-    } finally {
+    };
+    await work().finally(() => {
       pending.current = false;
-    }
+    });
   };
   return (
     <ModalShell

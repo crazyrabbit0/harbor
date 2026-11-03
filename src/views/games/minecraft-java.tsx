@@ -12,6 +12,8 @@ import {
 import { transferBytes } from "@/lib/games/transfers";
 import "./minecraft-java.css";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 const k = (key: string) => `games.minecraft.java.${key}`;
 export function MinecraftJavaSetup({
   profile,
@@ -41,7 +43,8 @@ export function MinecraftJavaSetup({
     [memory, setMemory] = useState(4096),
     [retry, setRetry] = useState(0),
     [canceling, setCanceling] = useState(false);
-  const [managing, setManaging] = useState(false);
+  const [managing, setManaging] = useState(false),
+    [cancellable, setCancellable] = useState(false);
   const mounted = useRef(false),
     pending = useRef(false),
     operation = useRef(""),
@@ -128,7 +131,8 @@ export function MinecraftJavaSetup({
     setProgress(null);
     setCanceling(false);
     operation.current = crypto.randomUUID();
-    try {
+    setCancellable(true);
+    const work = async () => {
       if (kind === "review") {
         discard();
         setPlan(null);
@@ -149,7 +153,7 @@ export function MinecraftJavaSetup({
       } else {
         let value: MinecraftJavaState;
         if (kind === "choose") {
-          const { open } = await import("@tauri-apps/plugin-dialog");
+          const { open } = await loadDialog();
           const selected = await open({ multiple: false, title: t(k("choose")) });
           if (typeof selected !== "string" || !mounted.current || ticket !== generation.current)
             return;
@@ -187,17 +191,21 @@ export function MinecraftJavaSetup({
           setPlan(null);
         }
       }
-    } catch (reason) {
-      if (mounted.current && ticket === generation.current) setError(minecraftJavaError(reason));
-    } finally {
-      if (mounted.current && ticket === generation.current) {
-        pending.current = false;
-        operation.current = "";
-        setBusy("");
-        setProgress(null);
-        setCanceling(false);
-      }
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (mounted.current && ticket === generation.current) setError(minecraftJavaError(reason));
+      })
+      .finally(() => {
+        if (mounted.current && ticket === generation.current) {
+          pending.current = false;
+          operation.current = "";
+          setCancellable(false);
+          setBusy("");
+          setProgress(null);
+          setCanceling(false);
+        }
+      });
   };
   const java = state?.configured?.java;
   const showControls = !state?.compatible || managing;
@@ -336,7 +344,7 @@ export function MinecraftJavaSetup({
               <progress />
             )}
           </div>
-          {operation.current && busy !== "checking" && (
+          {cancellable && busy !== "checking" && (
             <button className="games-button" disabled={canceling} onClick={cancel}>
               {t(canceling ? "games.minecraft.instances.cancelling" : "common.cancel")}
             </button>

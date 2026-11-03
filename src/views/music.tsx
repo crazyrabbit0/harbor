@@ -10,7 +10,17 @@ import { MusicExploreBands } from "./music/music-explore-bands";
 import { MusicBillboardCharts } from "@/components/music/music-discovery-charts";
 import { MusicAudioSettings } from "@/components/music/music-audio-settings";
 import { MusicSpeakers } from "@/components/music/music-speakers";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { ChevronLeft, LoaderCircle, Music2, X } from "@/components/icons/music-icons";
 import { BackToTop } from "@/components/back-to-top";
 import { MusicGlyph } from "@/components/icons/music-glyph";
@@ -124,6 +134,72 @@ type SearchState = {
 
 type Notice = { kind: "busy" | "info" | "error"; text: string };
 
+type DetailTrailEntry = {
+  detail: MusicDetailState | null;
+  label: string | null;
+  text: string | null;
+};
+
+// Mutable navigation state for MusicViewContent's handlers; generation and trail depth notify render subscribers.
+class MusicNavState {
+  similarRun = 0;
+  searchGeneration = 0;
+  resolveGeneration = 0;
+  watchFromVideos = false;
+  detail: MusicDetailState | null = null;
+  searchOrigin: MusicDetailState | null = null;
+  discoveryOrigin: { text: string | null } | null = null;
+  scrollEl: HTMLElement | null = null;
+  private trail: DetailTrailEntry[] = [];
+  private listeners = new Set<() => void>();
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  };
+  getGeneration = () => this.resolveGeneration;
+  getTrailDepth = () => this.trail.length;
+  private emit() {
+    this.listeners.forEach((listener) => listener());
+  }
+  nextSimilarRun = () => ++this.similarRun;
+  nextSearchGeneration = () => ++this.searchGeneration;
+  nextResolveGeneration = () => {
+    this.resolveGeneration += 1;
+    this.emit();
+    return this.resolveGeneration;
+  };
+  setWatchFromVideos = (value: boolean) => {
+    this.watchFromVideos = value;
+  };
+  setDetail = (value: MusicDetailState | null) => {
+    this.detail = value;
+  };
+  setSearchOrigin = (value: MusicDetailState | null) => {
+    this.searchOrigin = value;
+  };
+  setDiscoveryOrigin = (value: { text: string | null } | null) => {
+    this.discoveryOrigin = value;
+  };
+  setScrollEl = (value: HTMLElement | null) => {
+    this.scrollEl = value;
+  };
+  pushTrail = (entry: DetailTrailEntry) => {
+    this.trail.push(entry);
+    this.emit();
+  };
+  popTrail = () => {
+    const entry = this.trail.pop();
+    this.emit();
+    return entry;
+  };
+  clearTrail = () => {
+    this.trail = [];
+    this.emit();
+  };
+}
+
 const MusicQuickListen = lazy(() =>
   import("@/components/music/music-quick-listen").then((module) => ({
     default: module.MusicQuickListen,
@@ -171,10 +247,18 @@ function MusicViewContent({ active }: { active: boolean }) {
 
   const scrollRef = useRef<HTMLElement>(null);
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
-  const scrollCb = useCallback((el: HTMLElement | null) => {
-    (scrollRef as { current: HTMLElement | null }).current = el;
-    setScrollEl(el);
-  }, []);
+  // Navigation counters and origins shared by handlers; render reads the generation and trail depth through the store.
+  const [nav] = useState(() => new MusicNavState());
+  const shownGeneration = useSyncExternalStore(nav.subscribe, nav.getGeneration, nav.getGeneration);
+  const trailDepth = useSyncExternalStore(nav.subscribe, nav.getTrailDepth, nav.getTrailDepth);
+  const scrollCb = useCallback(
+    (el: HTMLElement | null) => {
+      (scrollRef as { current: HTMLElement | null }).current = el;
+      nav.setScrollEl(el);
+      setScrollEl(el);
+    },
+    [nav],
+  );
   useScrollMemory("music", scrollRef, active);
 
   const [genre, setGenre] = useState<MusicGenreEntry | null>(null);
@@ -183,11 +267,10 @@ function MusicViewContent({ active }: { active: boolean }) {
   >(null);
   const [billboardChart, setBillboardChart] = useState("hot-100");
   const [videoQuery, setVideoQuery] = useState("music videos");
-  const discoveryOrigin = useRef<{ text: string | null } | null>(null);
   const openDiscovery = (
     page: "tastes" | "playlists" | "videos" | "billboard" | "rollingStone",
   ) => {
-    discoveryOrigin.current = { text: document.activeElement?.textContent ?? null };
+    nav.setDiscoveryOrigin({ text: document.activeElement?.textContent ?? null });
     setDiscoveryPage(page);
   };
   const openBillboard = (chartId = "hot-100") => {
@@ -196,20 +279,21 @@ function MusicViewContent({ active }: { active: boolean }) {
   };
   const closeDiscovery = useCallback(() => {
     setDiscoveryPage(null);
-    const origin = discoveryOrigin.current;
+    const origin = nav.discoveryOrigin;
     requestAnimationFrame(() => {
       [...(scrollRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? [])]
         .find((button) => button.textContent === origin?.text)
         ?.focus({ preventScroll: true });
     });
-  }, []);
+  }, [nav]);
   const connectionOrigin = useRef<{ label: string | null; text: string | null } | null>(null);
   useEffect(() => {
     if (connectionsPage) {
-      connectionOrigin.current ??= {
-        label: connectionsPage.originLabel ?? null,
-        text: connectionsPage.originText ?? null,
-      };
+      if (!connectionOrigin.current)
+        connectionOrigin.current = {
+          label: connectionsPage.originLabel ?? null,
+          text: connectionsPage.originText ?? null,
+        };
     } else if (connectionOrigin.current) {
       const origin = connectionOrigin.current;
       connectionOrigin.current = null;
@@ -248,17 +332,15 @@ function MusicViewContent({ active }: { active: boolean }) {
     label?: string;
     contextId?: string;
   } | null>(null);
-  const similarRun = useRef(0);
-  const watchFromVideos = useRef(false);
   const openVideo = (track: MusicTrack, queue: MusicTrack[]) => {
-    watchFromVideos.current = discoveryPage === "videos";
-    if (watchFromVideos.current) setDiscoveryPage(null);
+    nav.setWatchFromVideos(discoveryPage === "videos");
+    if (nav.watchFromVideos) setDiscoveryPage(null);
     setWatch({ track, queue });
   };
   const closeSimilar = useCallback(() => {
-    similarRun.current += 1;
+    nav.nextSimilarRun();
     setSimilar(null);
-  }, []);
+  }, [nav]);
   const [collectionPage, setCollectionPage] = useState<{
     kind: "playlist" | "liked" | "recent";
     id: string;
@@ -270,57 +352,56 @@ function MusicViewContent({ active }: { active: boolean }) {
   }, []);
   const closeWatch = () => {
     setWatch(null);
-    if (watchFromVideos.current) {
-      watchFromVideos.current = false;
+    if (nav.watchFromVideos) {
+      nav.setWatchFromVideos(false);
       setDiscoveryPage("videos");
     }
   };
   const [detail, setDetail] = useState<MusicDetailState | null>(null);
-  const detailRef = useRef(detail);
-  detailRef.current = detail;
-  const resolveGeneration = useRef(0);
+  useLayoutEffect(() => {
+    nav.setDetail(detail);
+  }, [nav, detail]);
   const [openingDetail, setOpeningDetail] = useState<number | null>(null);
-  const loadPendingDetail = useCallback((snapshot: MusicDetailState, generation: number) => {
-    if (snapshot.loading)
-      void loadDetailTracks(snapshot.item)
-        .then((result) => {
-          if (generation === resolveGeneration.current)
-            setDetail((current) =>
-              current ? { ...current, ...result, loading: false, error: "" } : current,
-            );
-        })
-        .catch((cause) => {
-          if (generation === resolveGeneration.current)
-            setDetail((current) =>
-              current ? { ...current, loading: false, error: errorText(cause) } : current,
-            );
-        });
-    if (snapshot.rowsLoading)
-      void loadDetailRows(snapshot.item)
-        .then((result) => {
-          if (generation === resolveGeneration.current)
-            setDetail((current) =>
-              current ? { ...current, ...result, rowsLoading: false } : current,
-            );
-        })
-        .catch((cause) => {
-          if (generation === resolveGeneration.current)
-            setDetail((current) =>
-              current ? { ...current, rowsLoading: false, rowsError: errorText(cause) } : current,
-            );
-        });
-  }, []);
-  const searchOrigin = useRef<MusicDetailState | null>(null);
-  const detailTrail = useRef<
-    Array<{ detail: MusicDetailState | null; label: string | null; text: string | null }>
-  >([]);
+  const loadPendingDetail = useCallback(
+    (snapshot: MusicDetailState, generation: number) => {
+      if (snapshot.loading)
+        void loadDetailTracks(snapshot.item)
+          .then((result) => {
+            if (generation === nav.resolveGeneration)
+              setDetail((current) =>
+                current ? { ...current, ...result, loading: false, error: "" } : current,
+              );
+          })
+          .catch((cause) => {
+            if (generation === nav.resolveGeneration)
+              setDetail((current) =>
+                current ? { ...current, loading: false, error: errorText(cause) } : current,
+              );
+          });
+      if (snapshot.rowsLoading)
+        void loadDetailRows(snapshot.item)
+          .then((result) => {
+            if (generation === nav.resolveGeneration)
+              setDetail((current) =>
+                current ? { ...current, ...result, rowsLoading: false } : current,
+              );
+          })
+          .catch((cause) => {
+            if (generation === nav.resolveGeneration)
+              setDetail((current) =>
+                current ? { ...current, rowsLoading: false, rowsError: errorText(cause) } : current,
+              );
+          });
+    },
+    [nav],
+  );
   const closeDetail = useCallback(() => {
-    resolveGeneration.current += 1;
+    nav.nextResolveGeneration();
     setNotice(null);
-    const previous = detailTrail.current.pop();
+    const previous = nav.popTrail();
     const restored = previous?.detail;
     setDetail(restored ? { ...restored, loadingMore: false, releasesLoadingMore: false } : null);
-    if (restored) loadPendingDetail(restored, resolveGeneration.current);
+    if (restored) loadPendingDetail(restored, nav.resolveGeneration);
     requestAnimationFrame(() => {
       const buttons = [...(scrollRef.current?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
       const trigger = buttons.find((button) =>
@@ -330,116 +411,131 @@ function MusicViewContent({ active }: { active: boolean }) {
       );
       trigger?.focus({ preventScroll: true });
     });
-  }, [loadPendingDetail]);
+  }, [nav, loadPendingDetail]);
   const [ytm, setYtm] = useState(false);
   const closeYtm = useCallback(() => setYtm(false), []);
-  const searchGeneration = useRef(0);
 
   useEffect(() => {
     if (active) document.title = `${t("music.title")} | Harbor`;
   }, [active, t]);
 
-  const runSearch = useCallback((query: string, connector: string | null) => {
-    const generation = ++searchGeneration.current;
-    if (detailRef.current) searchOrigin.current = detailRef.current;
-    setDetail(null);
-    setSimilar(null);
-    if (!searchOrigin.current) detailTrail.current = [];
-    resolveGeneration.current += 1;
-    setNotice(null);
-    setSearch({ query, connector, results: null, error: "" });
-    setSearching(true);
-    searchTyped(query, 36, connector ?? undefined)
-      .then((results) => {
-        if (searchGeneration.current !== generation) return;
-        setSearch({ query, connector, results, error: "" });
-      })
-      .catch((cause) => {
-        if (searchGeneration.current !== generation) return;
-        setSearch({ query, connector, results: null, error: errorText(cause) });
-      })
-      .finally(() => {
-        if (searchGeneration.current === generation) setSearching(false);
-      });
-  }, []);
-
-  const openLabel = useCallback((id: string, name: string) => {
-    const generation = ++searchGeneration.current;
-    if (detailRef.current) searchOrigin.current = detailRef.current;
-    setDetail(null);
-    if (!searchOrigin.current) detailTrail.current = [];
-    resolveGeneration.current += 1;
-    setSimilar(null);
-    setSearch({
-      labelId: id,
-      query: name,
-      connector: null,
-      results: null,
-      error: "",
-      mode: "label",
-    });
-    setSearching(true);
-    loadMusicLabel(id)
-      .then((results) => {
-        if (searchGeneration.current !== generation) return;
-        setSearch({ labelId: id, query: name, connector: null, results, error: "", mode: "label" });
-      })
-      .catch((cause) => {
-        if (searchGeneration.current !== generation) return;
-        setSearch({
-          query: name,
-          connector: null,
-          results: null,
-          error: errorText(cause),
-          mode: "label",
+  const runSearch = useCallback(
+    (query: string, connector: string | null) => {
+      const generation = nav.nextSearchGeneration();
+      if (nav.detail) nav.setSearchOrigin(nav.detail);
+      setDetail(null);
+      setSimilar(null);
+      if (!nav.searchOrigin) nav.clearTrail();
+      nav.nextResolveGeneration();
+      setNotice(null);
+      setSearch({ query, connector, results: null, error: "" });
+      setSearching(true);
+      searchTyped(query, 36, connector ?? undefined)
+        .then((results) => {
+          if (nav.searchGeneration !== generation) return;
+          setSearch({ query, connector, results, error: "" });
+        })
+        .catch((cause) => {
+          if (nav.searchGeneration !== generation) return;
+          setSearch({ query, connector, results: null, error: errorText(cause) });
+        })
+        .finally(() => {
+          if (nav.searchGeneration === generation) setSearching(false);
         });
-      })
-      .finally(() => {
-        if (searchGeneration.current === generation) setSearching(false);
-      });
-  }, []);
+    },
+    [nav],
+  );
 
-  const openGenre = useCallback((name: string) => {
-    const generation = ++searchGeneration.current;
-    if (detailRef.current) searchOrigin.current = detailRef.current;
-    setDetail(null);
-    if (!searchOrigin.current) detailTrail.current = [];
-    resolveGeneration.current += 1;
-    setSimilar(null);
-    setSearch({ query: name, connector: null, results: null, error: "", mode: "genre" });
-    setSearching(true);
-    loadMusicGenre(name)
-      .then((results) => {
-        if (searchGeneration.current !== generation) return;
-        setSearch({ query: name, connector: null, results, error: "", mode: "genre" });
-      })
-      .catch((cause) => {
-        if (searchGeneration.current !== generation) return;
-        setSearch({
-          query: name,
-          connector: null,
-          results: null,
-          error: errorText(cause),
-          mode: "genre",
-        });
-      })
-      .finally(() => {
-        if (searchGeneration.current === generation) setSearching(false);
+  const openLabel = useCallback(
+    (id: string, name: string) => {
+      const generation = nav.nextSearchGeneration();
+      if (nav.detail) nav.setSearchOrigin(nav.detail);
+      setDetail(null);
+      if (!nav.searchOrigin) nav.clearTrail();
+      nav.nextResolveGeneration();
+      setSimilar(null);
+      setSearch({
+        labelId: id,
+        query: name,
+        connector: null,
+        results: null,
+        error: "",
+        mode: "label",
       });
-  }, []);
+      setSearching(true);
+      loadMusicLabel(id)
+        .then((results) => {
+          if (nav.searchGeneration !== generation) return;
+          setSearch({
+            labelId: id,
+            query: name,
+            connector: null,
+            results,
+            error: "",
+            mode: "label",
+          });
+        })
+        .catch((cause) => {
+          if (nav.searchGeneration !== generation) return;
+          setSearch({
+            query: name,
+            connector: null,
+            results: null,
+            error: errorText(cause),
+            mode: "label",
+          });
+        })
+        .finally(() => {
+          if (nav.searchGeneration === generation) setSearching(false);
+        });
+    },
+    [nav],
+  );
+
+  const openGenre = useCallback(
+    (name: string) => {
+      const generation = nav.nextSearchGeneration();
+      if (nav.detail) nav.setSearchOrigin(nav.detail);
+      setDetail(null);
+      if (!nav.searchOrigin) nav.clearTrail();
+      nav.nextResolveGeneration();
+      setSimilar(null);
+      setSearch({ query: name, connector: null, results: null, error: "", mode: "genre" });
+      setSearching(true);
+      loadMusicGenre(name)
+        .then((results) => {
+          if (nav.searchGeneration !== generation) return;
+          setSearch({ query: name, connector: null, results, error: "", mode: "genre" });
+        })
+        .catch((cause) => {
+          if (nav.searchGeneration !== generation) return;
+          setSearch({
+            query: name,
+            connector: null,
+            results: null,
+            error: errorText(cause),
+            mode: "genre",
+          });
+        })
+        .finally(() => {
+          if (nav.searchGeneration === generation) setSearching(false);
+        });
+    },
+    [nav],
+  );
 
   const clearSearch = useCallback(() => {
-    searchGeneration.current += 1;
+    nav.nextSearchGeneration();
     setNotice(null);
     setSearch(null);
     setSearching(false);
-    if (searchOrigin.current) {
-      const restored = searchOrigin.current;
+    if (nav.searchOrigin) {
+      const restored = nav.searchOrigin;
       setDetail({ ...restored, loadingMore: false, releasesLoadingMore: false });
-      loadPendingDetail(restored, ++resolveGeneration.current);
-      searchOrigin.current = null;
+      loadPendingDetail(restored, nav.nextResolveGeneration());
+      nav.setSearchOrigin(null);
     }
-  }, [loadPendingDetail]);
+  }, [nav, loadPendingDetail]);
 
   useEffect(() => {
     const closed = () => {
@@ -515,7 +611,7 @@ function MusicViewContent({ active }: { active: boolean }) {
           : similar
             ? `similar:${similar.seed.id}`
             : detail
-              ? `detail:${detailTrail.current.length}|${detail.item.connectorId ?? ""}:${detail.item.kind}:${detail.item.id}`
+              ? `detail:${trailDepth}|${detail.item.connectorId ?? ""}:${detail.item.kind}:${detail.item.id}`
               : search
                 ? `search:${search.mode ?? "search"}:${search.query}`
                 : discoveryPage
@@ -537,9 +633,9 @@ function MusicViewContent({ active }: { active: boolean }) {
 
   const openItem = useCallback(
     (item: MusicCatalogItem, _siblings: MusicCatalogItem[], remember = true) => {
-      similarRun.current += 1;
-      searchGeneration.current += 1;
-      const generation = ++resolveGeneration.current;
+      nav.nextSimilarRun();
+      nav.nextSearchGeneration();
+      const generation = nav.nextResolveGeneration();
       const leaveSource = () => {
         setSimilar(null);
         setSearch(null);
@@ -551,7 +647,7 @@ function MusicViewContent({ active }: { active: boolean }) {
       };
       if (item.kind === "track" && item.mediaKind === "video") {
         leaveSource();
-        watchFromVideos.current = false;
+        nav.setWatchFromVideos(false);
         const queue = _siblings.filter(
           (entry): entry is Extract<MusicCatalogItem, { kind: "track" }> =>
             entry.kind === "track" && entry.mediaKind === "video",
@@ -562,8 +658,7 @@ function MusicViewContent({ active }: { active: boolean }) {
       const trigger = document.activeElement;
       const label = trigger?.getAttribute("aria-label") ?? null;
       const text = trigger?.textContent ?? null;
-      const view =
-        !remember && detailRef.current?.item.id === item.id ? detailRef.current.view : undefined;
+      const view = !remember && nav.detail?.item.id === item.id ? nav.detail.view : undefined;
       const snapshot: MusicDetailState = {
         item,
         tracks: item.kind === "track" ? [item] : [],
@@ -575,8 +670,8 @@ function MusicViewContent({ active }: { active: boolean }) {
         view,
       };
       const commit = (resolved: MusicDetailState) => {
-        if (generation !== resolveGeneration.current) return;
-        if (remember) detailTrail.current.push({ detail: detailRef.current, label, text });
+        if (generation !== nav.resolveGeneration) return;
+        if (remember) nav.pushTrail({ detail: nav.detail, label, text });
         leaveSource();
         setDetail(resolved);
         loadPendingDetail(resolved, generation);
@@ -592,11 +687,11 @@ function MusicViewContent({ active }: { active: boolean }) {
           .catch(() => commit(snapshot));
       } else commit(snapshot);
     },
-    [loadPendingDetail],
+    [nav, loadPendingDetail],
   );
 
   const loadMoreArtistTracks = useCallback(async () => {
-    const current = detailRef.current;
+    const current = nav.detail;
     if (
       !current ||
       current.item.kind !== "artist" ||
@@ -604,14 +699,15 @@ function MusicViewContent({ active }: { active: boolean }) {
       current.loadingMore
     )
       return;
-    const generation = resolveGeneration.current;
+    const generation = nav.resolveGeneration;
+    const artist = current.item;
     setDetail((value) => (value ? { ...value, loadingMore: true, moreError: "" } : value));
-    try {
+    const work = async () => {
       const local = current.item.connectorId === "local";
       const page = local
         ? await localCollection("tracks", "", current.nextOffset ?? 0, current.item.id)
-        : await artistCatalog(current.item, "tracks", current.trackCursor);
-      if (generation !== resolveGeneration.current) return;
+        : await artistCatalog(artist, "tracks", current.trackCursor);
+      if (generation !== nav.resolveGeneration) return;
       const tracks = page.items.filter(
         (entry): entry is Extract<MusicCatalogItem, { kind: "track" }> => entry.kind === "track",
       );
@@ -634,16 +730,17 @@ function MusicViewContent({ active }: { active: boolean }) {
             }
           : value,
       );
-    } catch (cause) {
-      if (generation === resolveGeneration.current)
+    };
+    await work().catch((cause) => {
+      if (generation === nav.resolveGeneration)
         setDetail((value) =>
           value ? { ...value, loadingMore: false, moreError: errorText(cause) } : value,
         );
-    }
-  }, []);
+    });
+  }, [nav]);
 
   const loadMoreArtistReleases = useCallback(async () => {
-    const current = detailRef.current;
+    const current = nav.detail;
     if (
       !current ||
       current.item.kind !== "artist" ||
@@ -651,13 +748,14 @@ function MusicViewContent({ active }: { active: boolean }) {
       current.releasesLoadingMore
     )
       return;
-    const generation = resolveGeneration.current;
+    const generation = nav.resolveGeneration;
     setDetail((value) =>
       value ? { ...value, releasesLoadingMore: true, releasesMoreError: "" } : value,
     );
-    try {
-      const page = await artistCatalog(current.item, "albums", current.releaseCursor);
-      if (generation !== resolveGeneration.current) return;
+    const artist = current.item;
+    const work = async () => {
+      const page = await artistCatalog(artist, "albums", current.releaseCursor);
+      if (generation !== nav.resolveGeneration) return;
       setDetail((value) =>
         value
           ? {
@@ -680,15 +778,16 @@ function MusicViewContent({ active }: { active: boolean }) {
             }
           : value,
       );
-    } catch (cause) {
-      if (generation === resolveGeneration.current)
+    };
+    await work().catch((cause) => {
+      if (generation === nav.resolveGeneration)
         setDetail((value) =>
           value
             ? { ...value, releasesLoadingMore: false, releasesMoreError: errorText(cause) }
             : value,
         );
-    }
-  }, []);
+    });
+  }, [nav]);
 
   const [libraryTarget, setLibraryTarget] = useState<{
     view?: string;
@@ -699,7 +798,7 @@ function MusicViewContent({ active }: { active: boolean }) {
   // happened to open on last time.
   const openLibrary = useCallback(
     (target?: { view?: string; playlistId?: string; spotifyKind?: "playlists" | "liked" }) => {
-      similarRun.current += 1;
+      nav.nextSimilarRun();
       setLibraryTarget(target ?? null);
       setCollectionPage(
         target?.playlistId
@@ -717,80 +816,87 @@ function MusicViewContent({ active }: { active: boolean }) {
       setWatch(null);
       setYtm(false);
       setDiscoveryPage(null);
-      searchOrigin.current = null;
-      scrollRef.current?.scrollTo({ top: 0 });
+      nav.setSearchOrigin(null);
+      nav.scrollEl?.scrollTo({ top: 0 });
     },
-    [],
+    [nav],
   );
 
   const showSearch = useCallback(
     (query: string, results: MusicSearchResults | null, error = "", retry?: () => void) => {
-      searchGeneration.current += 1;
-      if (detailRef.current) searchOrigin.current = detailRef.current;
+      nav.nextSearchGeneration();
+      if (nav.detail) nav.setSearchOrigin(nav.detail);
       setDetail(null);
       setSimilar(null);
       setSearching(false);
       setSearch({ query, connector: null, results, error, retry });
     },
-    [],
+    [nav],
   );
 
   // A song that is audibly playing must never dead-end on a compilation album name no source
   // carries, so navigation climbs from the exact phrase down to the artist alone, and says so.
   const ladderSearch = useCallback(
-    async function climb(
-      intent: MusicQueryIntent,
-      typed: string,
-      claim?: (results: MusicSearchResults, rung: QueryRung) => boolean,
-    ): Promise<void> {
-      const rungs = queryLadder(intent);
-      if (!rungs.length) {
-        runSearch(typed, null);
-        return;
-      }
-      const generation = ++resolveGeneration.current;
-      setNotice({ kind: "busy", text: t("music.loading") });
-      const outcome = await runQueryLadder(
-        rungs.map((rung) => rung.query),
-        (query) => searchTyped(query, 48),
-        { cancelled: () => generation !== resolveGeneration.current },
-      );
-      if (generation !== resolveGeneration.current) return;
-      setNotice(null);
-      if (!outcome.results || !outcome.query) {
-        const alternatives = outcome.tried.filter((query) => query !== typed).join(" · ");
-        showSearch(
-          typed,
-          null,
-          outcome.errors.length
-            ? t("Harbor could not reach your music sources while searching for {query}.", {
-                query: typed,
-              })
-            : alternatives
-              ? t(
-                  "No connected music source has {query}. Harbor also searched {alternatives} and found nothing.",
-                  { query: typed, alternatives },
-                )
-              : t("No connected music source has {query}.", { query: typed }),
-          () => {
-            void climb(intent, typed, claim);
-          },
+    (
+      startIntent: MusicQueryIntent,
+      startTyped: string,
+      startClaim?: (results: MusicSearchResults, rung: QueryRung) => boolean,
+    ): Promise<void> => {
+      const climb = async (
+        intent: MusicQueryIntent,
+        typed: string,
+        claim?: (results: MusicSearchResults, rung: QueryRung) => boolean,
+      ): Promise<void> => {
+        const rungs = queryLadder(intent);
+        if (!rungs.length) {
+          runSearch(typed, null);
+          return;
+        }
+        const generation = nav.nextResolveGeneration();
+        setNotice({ kind: "busy", text: t("music.loading") });
+        const outcome = await runQueryLadder(
+          rungs.map((rung) => rung.query),
+          (query) => searchTyped(query, 48),
+          { cancelled: () => generation !== nav.resolveGeneration },
         );
-        return;
-      }
-      if (claim?.(outcome.results, rungs[outcome.index])) return;
-      // Only the rungs below the first are a fallback; rung zero is what the caller asked for.
-      if (outcome.index > 0 && outcome.query !== typed)
-        setNotice({
-          kind: "info",
-          text: t("No source has {query}. Showing results for {fallback}.", {
-            query: typed,
-            fallback: outcome.query,
-          }),
-        });
-      showSearch(outcome.query, outcome.results);
+        if (generation !== nav.resolveGeneration) return;
+        setNotice(null);
+        if (!outcome.results || !outcome.query) {
+          const alternatives = outcome.tried.filter((query) => query !== typed).join(" · ");
+          showSearch(
+            typed,
+            null,
+            outcome.errors.length
+              ? t("Harbor could not reach your music sources while searching for {query}.", {
+                  query: typed,
+                })
+              : alternatives
+                ? t(
+                    "No connected music source has {query}. Harbor also searched {alternatives} and found nothing.",
+                    { query: typed, alternatives },
+                  )
+                : t("No connected music source has {query}.", { query: typed }),
+            () => {
+              void climb(intent, typed, claim);
+            },
+          );
+          return;
+        }
+        if (claim?.(outcome.results, rungs[outcome.index])) return;
+        // Only the rungs below the first are a fallback; rung zero is what the caller asked for.
+        if (outcome.index > 0 && outcome.query !== typed)
+          setNotice({
+            kind: "info",
+            text: t("No source has {query}. Showing results for {fallback}.", {
+              query: typed,
+              fallback: outcome.query,
+            }),
+          });
+        showSearch(outcome.query, outcome.results);
+      };
+      return climb(startIntent, startTyped, startClaim);
     },
-    [runSearch, showSearch, t],
+    [nav, runSearch, showSearch, t],
   );
 
   // The menu entries navigate by searching, which is the view that already exists for
@@ -798,11 +904,11 @@ function MusicViewContent({ active }: { active: boolean }) {
   const navigate = useMemo(
     () => ({
       goToArtist: (name: string, track?: MusicTrack) => {
-        const generation = ++resolveGeneration.current;
+        const generation = nav.nextResolveGeneration();
         setNotice({ kind: "busy", text: t("music.loading") });
         void resolveArtist(name, { track })
           .then((ranking) => {
-            if (generation !== resolveGeneration.current) return;
+            if (generation !== nav.resolveGeneration) return;
             setWatch(null);
             setYtm(false);
             setSimilar(null);
@@ -821,7 +927,7 @@ function MusicViewContent({ active }: { active: boolean }) {
             else void ladderSearch({ artist: name }, name);
           })
           .catch(() => {
-            if (generation !== resolveGeneration.current) return;
+            if (generation !== nav.resolveGeneration) return;
             setNotice(null);
             setWatch(null);
             setSimilar(null);
@@ -854,7 +960,7 @@ function MusicViewContent({ active }: { active: boolean }) {
         });
       },
     }),
-    [ladderSearch, openItem, showSearch, t],
+    [nav, ladderSearch, openItem, showSearch, t],
   );
   useEffect(() => {
     const receive = () => {
@@ -891,12 +997,12 @@ function MusicViewContent({ active }: { active: boolean }) {
       if (request.kind === "home") {
         setNotice(null);
         connectionOrigin.current = null;
-        discoveryOrigin.current = null;
-        detailTrail.current = [];
-        searchOrigin.current = null;
-        searchGeneration.current += 1;
-        resolveGeneration.current += 1;
-        watchFromVideos.current = false;
+        nav.setDiscoveryOrigin(null);
+        nav.clearTrail();
+        nav.setSearchOrigin(null);
+        nav.nextSearchGeneration();
+        nav.nextResolveGeneration();
+        nav.setWatchFromVideos(false);
         closeConnections();
         setDiscoveryPage(null);
         setDetail(null);
@@ -919,7 +1025,7 @@ function MusicViewContent({ active }: { active: boolean }) {
         setWatch(null);
         setYtm(false);
         setDiscoveryPage(null);
-        const run = ++similarRun.current;
+        const run = nav.nextSimilarRun();
         if (request.queue?.length) {
           setSimilar({
             seed: request.track,
@@ -933,7 +1039,7 @@ function MusicViewContent({ active }: { active: boolean }) {
         setSimilar({ seed: request.track, tracks: [], state: "loading" });
         void musicSimilarTracks(request.track)
           .then((mix) => {
-            if (run !== similarRun.current) return;
+            if (run !== nav.similarRun) return;
             setSimilar({
               seed: request.track,
               tracks: mix.length ? mix : [request.track],
@@ -941,13 +1047,13 @@ function MusicViewContent({ active }: { active: boolean }) {
             });
           })
           .catch(() => {
-            if (run !== similarRun.current) return;
+            if (run !== nav.similarRun) return;
             setSimilar({ seed: request.track, tracks: [], state: "error" });
           });
         return;
       }
       if (request.kind === "watch") {
-        watchFromVideos.current = false;
+        nav.setWatchFromVideos(false);
         setDiscoveryPage(null);
         setWatch({
           track: request.track,
@@ -975,7 +1081,7 @@ function MusicViewContent({ active }: { active: boolean }) {
           );
       } else {
         setVideoQuery(`${request.track.artist} ${request.track.title}`);
-        discoveryOrigin.current = { text: null };
+        nav.setDiscoveryOrigin({ text: null });
         setDiscoveryPage("videos");
       }
     };
@@ -1052,7 +1158,7 @@ function MusicViewContent({ active }: { active: boolean }) {
     openLibrary,
     openMix: async (recent, load) => {
       if (!recent.seed) return;
-      const run = ++similarRun.current;
+      const run = nav.nextSimilarRun();
       setDetail(null);
       setSearch(null);
       setCollectionPage(null);
@@ -1066,13 +1172,14 @@ function MusicViewContent({ active }: { active: boolean }) {
         label: recent.name,
         contextId: recent.id,
       });
-      try {
+      const seed = recent.seed;
+      const work = async () => {
         if (load) {
           const tracks = await load();
           if (!tracks.length) throw new Error("Music mix unavailable");
-          if (similarRun.current === run)
+          if (nav.similarRun === run)
             setSimilar({
-              seed: recent.seed,
+              seed,
               tracks,
               state: "ready",
               label: recent.name,
@@ -1081,7 +1188,7 @@ function MusicViewContent({ active }: { active: boolean }) {
           return;
         }
         await reopenMusicMix(recent, (request) => {
-          if (similarRun.current !== run) return;
+          if (nav.similarRun !== run) return;
           setSimilar({
             seed: request.track,
             tracks: request.queue ?? [],
@@ -1090,16 +1197,17 @@ function MusicViewContent({ active }: { active: boolean }) {
             contextId: request.contextId,
           });
         });
-      } catch {
-        if (similarRun.current === run)
+      };
+      await work().catch(() => {
+        if (nav.similarRun === run)
           setSimilar({
-            seed: recent.seed,
+            seed,
             tracks: [],
             state: "error",
             label: recent.name,
             contextId: recent.id,
           });
-      }
+      });
     },
     searchArtist: (name) => navigate.goToArtist(name),
     openConnections,
@@ -1210,8 +1318,8 @@ function MusicViewContent({ active }: { active: boolean }) {
       <main
         ref={scrollCb}
         data-music-view
-        data-music-opening={openingDetail === resolveGeneration.current || undefined}
-        aria-busy={openingDetail === resolveGeneration.current || undefined}
+        data-music-opening={openingDetail === shownGeneration || undefined}
+        aria-busy={openingDetail === shownGeneration || undefined}
         // A WS_CHILD webview is not clipped by a scrolling ancestor, so while YouTube Music is
         // mounted the page must not scroll: otherwise the child slides out over the sidebar
         // and title bar.

@@ -8,6 +8,7 @@ import {
   type PluginKind,
   type PluginView,
 } from "@/lib/plugins";
+import { readAtVersion } from "@/lib/read-at-version";
 import { useSettings } from "@/lib/settings";
 import { SettingGroup, SettingRow } from "../kit";
 import { Section, ToggleRow } from "../shared";
@@ -45,8 +46,8 @@ function groupByRepo(): Group[] {
 export function InstalledTab({ onAddRepository }: { onAddRepository: () => void }) {
   const t = useT();
   const { settings, update } = useSettings();
-  usePluginKindsVersion();
-  const groups = groupByRepo();
+  const pluginKindsVer = usePluginKindsVersion();
+  const groups = readAtVersion(pluginKindsVer, () => groupByRepo());
   const waitSeconds = Math.max(8, Math.min(120, settings.addonTimeoutSec ?? 30));
   const [refreshing, setRefreshing] = useState(false);
   // Only a plugin Harbor stood down has anything to gain from a run: one that answers comes back,
@@ -60,16 +61,15 @@ export function InstalledTab({ onAddRepository }: { onAddRepository: () => void 
 
   const refreshAll = async () => {
     setRefreshing(true);
-    try {
+    const work = async () => {
       const waitMs = waitSeconds * 1000;
       // The same run a row's Try again makes, one per plugin. They go together: the gate holds the
       // whole of it to its own limit, so this costs the runtime what a search would.
       await Promise.allSettled(
         stoodDown.map(({ plugin, adapter }) => adapter.check?.(plugin.id, waitMs)),
       );
-    } finally {
-      setRefreshing(false);
-    }
+    };
+    await work().finally(() => setRefreshing(false));
   };
 
   return (

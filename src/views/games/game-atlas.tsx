@@ -3,7 +3,7 @@ import { GameHackBaseFilter } from "./game-hack-base-filter";
 import { HackVideoProvider } from "./game-hack-video";
 import { GameHackHeading, GameHackCard } from "./game-hack-hub";
 import { GameSkeleton } from "./game-loading";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowLeft, ArrowRight, ArrowUpRight, ChevronDown, Search, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT } from "@/lib/i18n";
@@ -194,14 +194,18 @@ function AtlasPage({
   const revision = useLiveRefresh(active, 31 * 60_000);
   const lastRequest = useRef("");
   const held = useRef(state);
-  held.current = state;
   const pages = useRef(new Map<string, PageState>());
-  if (state.loaded && !state.loading && !state.error) {
-    pages.current.set(state.key, state);
-    if (pages.current.size > 24) pages.current.delete(pages.current.keys().next().value!);
-  }
+  useLayoutEffect(() => {
+    held.current = state;
+    if (state.loaded && !state.loading && !state.error) {
+      pages.current.set(state.key, state);
+      if (pages.current.size > 24) pages.current.delete(pages.current.keys().next().value!);
+    }
+  }, [state]);
   const parameters = useRef({ route, filters });
-  parameters.current = { route, filters };
+  useLayoutEffect(() => {
+    parameters.current = { route, filters };
+  }, [route, filters]);
   const controller = useRef<AbortController | null>(null);
   const continuation = useRef<HTMLDivElement>(null),
     pagePending = useRef<AbortController | null>(null);
@@ -278,8 +282,9 @@ function AtlasPage({
     controller.current?.abort();
     controller.current = request;
     setState((s) => ({ ...s, loading: true, error: false }));
-    try {
-      const page = await loadAtlasPage(route, filters, state.nextOffset, request.signal);
+    const offset = state.nextOffset;
+    const work = async () => {
+      const page = await loadAtlasPage(route, filters, offset, request.signal);
       if (!request.signal.aborted)
         setState((s) => ({
           ...page,
@@ -290,12 +295,15 @@ function AtlasPage({
           loaded: true,
           error: false,
         }));
-    } catch {
-      if (!request.signal.aborted)
-        setState((s) => ({ ...s, loading: false, error: true, failedOffset: state.nextOffset! }));
-    } finally {
-      if (pagePending.current === request) pagePending.current = null;
-    }
+    };
+    await work()
+      .catch(() => {
+        if (!request.signal.aborted)
+          setState((s) => ({ ...s, loading: false, error: true, failedOffset: offset }));
+      })
+      .finally(() => {
+        if (pagePending.current === request) pagePending.current = null;
+      });
   };
   const current = key === state.key,
     games = current
@@ -306,12 +314,13 @@ function AtlasPage({
         )
       : [],
     loading = !current || state.loading;
-  const highlights = useRef<AtlasGame[]>([]);
-  if (isAtlas && !highlights.current.length && games.length)
-    highlights.current = games.slice(0, 24);
+  const [highlights, setHighlights] = useState<AtlasGame[]>([]);
+  if (isAtlas && !highlights.length && games.length) setHighlights(games.slice(0, 24));
   const [hiddenRows, setHiddenRows] = useState<string[]>([]);
   const loadNext = useRef(more);
-  loadNext.current = more;
+  useLayoutEffect(() => {
+    loadNext.current = more;
+  });
   useEffect(() => {
     if (
       (isHackHub && hiddenRows.includes("catalog")) ||
@@ -582,12 +591,7 @@ function AtlasPage({
         )}
         {isAtlas ? (
           <>
-            <GameAtlasHero
-              games={highlights.current}
-              active={active}
-              loading={loading}
-              open={open}
-            />
+            <GameAtlasHero games={highlights} active={active} loading={loading} open={open} />
             <GameAtlasPlatforms browse={browse} />
           </>
         ) : isWarhammer ? (

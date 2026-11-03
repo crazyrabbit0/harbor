@@ -86,32 +86,32 @@ export function useRelayHealth(relayUrl: string): {
     if (!relayUrl) return;
     setTesting(true);
     setTestResult(null);
-    try {
-      const { healthMs, version } = await fetchRelayVersion(relayUrl);
-      const needsUpdate = relayOutdated(version);
-      const updateNote = needsUpdate
-        ? ` Your relay is running an older version (v${version ?? "?"}). Redeploy to pick up the latest worker.`
-        : "";
-      setTestResult({
-        ok: true,
-        healthMs,
-        workerVersion: version,
-        needsUpdate,
-        message: `Worker reachable in ${healthMs}ms.${updateNote}`,
-      });
-      setPassive({ version, needsUpdate, healthMs, reachable: true });
-    } catch (e) {
-      setTestResult({
-        ok: false,
-        healthMs: null,
-        workerVersion: null,
-        needsUpdate: false,
-        message: e instanceof Error ? e.message : String(e),
-      });
-      setPassive({ version: null, needsUpdate: false, healthMs: null, reachable: false });
-    } finally {
-      setTesting(false);
-    }
+    await fetchRelayVersion(relayUrl)
+      .then(({ healthMs, version }) => {
+        const needsUpdate = relayOutdated(version);
+        const updateNote = needsUpdate
+          ? ` Your relay is running an older version (v${version ?? "?"}). Redeploy to pick up the latest worker.`
+          : "";
+        setTestResult({
+          ok: true,
+          healthMs,
+          workerVersion: version,
+          needsUpdate,
+          message: `Worker reachable in ${healthMs}ms.${updateNote}`,
+        });
+        setPassive({ version, needsUpdate, healthMs, reachable: true });
+      })
+      .catch((e: unknown) => {
+        setTestResult({
+          ok: false,
+          healthMs: null,
+          workerVersion: null,
+          needsUpdate: false,
+          message: e instanceof Error ? e.message : String(e),
+        });
+        setPassive({ version: null, needsUpdate: false, healthMs: null, reachable: false });
+      })
+      .finally(() => setTesting(false));
   }, [relayUrl]);
 
   return { testing, testResult, runTest, passive };

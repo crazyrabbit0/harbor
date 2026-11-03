@@ -13,6 +13,8 @@ import { setupPath } from "@/lib/games/setup";
 import type { SetupLocations } from "@/lib/games/setup-locations";
 import "./game-preparation.css";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 export function GamePreparationOptions({
   value,
   change,
@@ -70,19 +72,23 @@ export function GamePreparationOptions({
     const inspect = async () => {
       if (pending) return;
       pending = true;
-      try {
-        const result = await invoke<SetupLocations>("games_download_locations", {
-          parent: current.parent || null,
+      await invoke<SetupLocations>("games_download_locations", {
+        parent: current.parent || null,
+      })
+        .then(
+          (result) => {
+            if (active) {
+              setLocations(result);
+              setError(false);
+            }
+          },
+          () => {
+            if (active) setError(true);
+          },
+        )
+        .finally(() => {
+          pending = false;
         });
-        if (active) {
-          setLocations(result);
-          setError(false);
-        }
-      } catch {
-        if (active) setError(true);
-      } finally {
-        pending = false;
-      }
     };
     void inspect();
     const interval = window.setInterval(() => void inspect(), 15000);
@@ -95,22 +101,25 @@ export function GamePreparationOptions({
     if (browsing || disabled) return;
     setBrowsing(true);
     onBrowsing?.(true);
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+    const work = async () => {
+      const { open } = await loadDialog();
       const path = await open({
         directory: true,
         multiple: false,
         defaultPath: current.parent || undefined,
       });
       if (live.current && typeof path === "string") change({ ...value, parent: path });
-    } catch {
-      if (live.current) setError(true);
-    } finally {
-      if (live.current) {
-        setBrowsing(false);
-        onBrowsing?.(false);
-      }
-    }
+    };
+    await work()
+      .catch(() => {
+        if (live.current) setError(true);
+      })
+      .finally(() => {
+        if (live.current) {
+          setBrowsing(false);
+          onBrowsing?.(false);
+        }
+      });
   };
   const seen = new Set<string>(),
     folders = [

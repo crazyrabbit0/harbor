@@ -181,7 +181,7 @@ export function useCwAdvance(
   episodeHiding = false,
   animeCwEnd: "hide" | "timer" = "hide",
 ): LibraryItem[] {
-  useCwDismissVersion();
+  const dismissVersion = useCwDismissVersion();
   const settings = useSettingsSelector((s) => ({
     cwHideCaughtUp: s.cwHideCaughtUp,
     cwPerProfile: s.cwPerProfile,
@@ -576,31 +576,44 @@ export function useCwAdvance(
     simkl,
   ]);
 
-  const prevResult = useRef<LibraryItem[]>([]);
-  let result: LibraryItem[];
-  if (
-    !enabled ||
-    resolvedOwner.privacyOwner !== privacyOwner ||
-    resolvedOwner.profileId !== profileId ||
-    resolvedOwner.simklSession !== simklSession ||
-    resolvedOwner.simklEnabled !== simklEnabled
-  ) {
-    result = items.filter((i) => !isCwDismissed(i));
-  } else {
-    // Dismissal targets the displayed up-next episode, which may differ from the
-    // library entry. Filter stored display results immediately, without refetching.
-    const base = items
-      .map((i) => advanced.get(i._id) ?? i)
-      .filter((i) => !removed.has(i._id) && !isCwDismissed(i));
-    const keyOf = (i: LibraryItem) => `${i.type}|${franchiseDedupKey(i.name ?? "")}`;
-    const baseKeys = new Set(base.map(keyOf));
-    const dedupExtra =
-      extra.length === 0 ? [] : extra.filter((i) => !baseKeys.has(keyOf(i)) && !isCwDismissed(i));
-    result = dedupExtra.length === 0 ? base : base.concat(dedupExtra);
-  }
-  // The list is rebuilt every render; returning the previous array when nothing changed keeps Home's rows from redrawing.
-  const prev = prevResult.current;
-  if (prev.length === result.length && prev.every((v, i) => v === result[i])) return prev;
-  prevResult.current = result;
+  const ownerCurrent =
+    enabled &&
+    resolvedOwner.privacyOwner === privacyOwner &&
+    resolvedOwner.profileId === profileId &&
+    resolvedOwner.simklSession === simklSession &&
+    resolvedOwner.simklEnabled === simklEnabled;
+  const result = atDismissVersion(dismissVersion, () =>
+    visibleItems(items, ownerCurrent, advanced, removed, extra),
+  );
+  // Returning the previous array when the rebuilt list holds the same elements keeps Home's rows from redrawing.
+  const [shown, setShown] = useState<LibraryItem[] | null>(null);
+  const same =
+    shown != null && shown.length === result.length && shown.every((v, i) => v === result[i]);
+  if (same) return shown;
+  setShown(result);
   return result;
+}
+
+// Keys the result on the dismissal store version, since isCwDismissed reads that store.
+function atDismissVersion<T>(_version: number, read: () => T): T {
+  return read();
+}
+
+function visibleItems(
+  items: LibraryItem[],
+  ownerCurrent: boolean,
+  advanced: Map<string, LibraryItem>,
+  removed: Set<string>,
+  extra: LibraryItem[],
+): LibraryItem[] {
+  if (!ownerCurrent) return items.filter((i) => !isCwDismissed(i));
+  // Dismissal targets the displayed up-next episode; stored display results are filtered at once, without refetching.
+  const base = items
+    .map((i) => advanced.get(i._id) ?? i)
+    .filter((i) => !removed.has(i._id) && !isCwDismissed(i));
+  const keyOf = (i: LibraryItem) => `${i.type}|${franchiseDedupKey(i.name ?? "")}`;
+  const baseKeys = new Set(base.map(keyOf));
+  const dedupExtra =
+    extra.length === 0 ? [] : extra.filter((i) => !baseKeys.has(keyOf(i)) && !isCwDismissed(i));
+  return dedupExtra.length === 0 ? base : base.concat(dedupExtra);
 }

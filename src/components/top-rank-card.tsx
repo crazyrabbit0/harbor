@@ -15,14 +15,15 @@ import { useTmdbImdbId } from "@/lib/providers/tmdb";
 import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import { useInWatchlist } from "@/lib/watchlist";
+import { readAtVersion } from "@/lib/read-at-version";
 import { Poster, usePosterChain } from "./poster";
 
 function AwardDot({ name, year }: { name: string; year?: number }) {
-  useAwardPacks();
+  const awardPacks = useAwardPacks();
   const win = findTopAward(name, year);
   if (!win) return null;
   const src = awardSourceMeta(win.source);
-  const custom = resolveAwardIcon(win.source);
+  const custom = readAtVersion(awardPacks, () => resolveAwardIcon(win.source));
   return (
     <span
       className="pointer-events-none absolute start-1.5 top-1.5 flex h-6 items-center gap-1 rounded-md bg-canvas/90 px-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-ink ring-1 ring-edge-soft/60 backdrop-blur-sm"

@@ -2,12 +2,12 @@ import type { Meta } from "@/lib/cinemeta";
 import { ImdbIcon } from "@/components/icons/imdb-icon";
 import { useHeroLogos } from "@/components/anime-hero/use-hero-logos";
 import { useSettings } from "@/lib/settings";
-import { useMemo } from "react";
+import { useBpKeyed } from "../use-bp-keyed";
 import { BpOnboardAside } from "./bp-onboard-aside";
 
 export function BpTasteDetail({ meta }: { meta: Meta | null }) {
   const { settings } = useSettings();
-  const slides = useMemo(() => (meta ? [meta] : []), [meta?.id]);
+  const slides = useBpKeyed([meta?.id], () => (meta ? [meta] : []));
   const logos = useHeroLogos(slides, settings);
   if (!meta) return null;
 

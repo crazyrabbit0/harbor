@@ -87,7 +87,8 @@ function fixture(options: { paused?: boolean; muted?: boolean; load?: () => Prom
     },
   } as unknown as PlayerBridge;
   const ref = { current: bridge as PlayerBridge | null };
-  const route = new VideoAudioCast(
+  const route = new VideoAudioCast();
+  route.connect(
     {
       load: async (value) => {
         calls.push({ name: "receiver.load", value });
@@ -115,7 +116,12 @@ function fixture(options: { paused?: boolean; muted?: boolean; load?: () => Prom
         return status;
       },
     },
-    ref,
+    {
+      get: () => ref.current,
+      set: (value) => {
+        ref.current = value;
+      },
+    },
     () => snap,
   );
   const start = () =>

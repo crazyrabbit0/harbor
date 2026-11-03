@@ -261,7 +261,7 @@ function SetEditor({
     setBusy(true);
     setError("");
     root.current?.focus();
-    try {
+    const work = async () => {
       const result =
         remove && previous
           ? await simsSetRemove(profile, data.folder.path, previous)
@@ -273,12 +273,15 @@ function SetEditor({
             });
       if (alive.current)
         onSaved(result, remove ? (result[0]?.id ?? "") : (result.at(-1)?.id ?? ""));
-    } catch (reason) {
-      if (alive.current) setError(simsError(reason));
-    } finally {
-      saving.current = false;
-      if (alive.current) setBusy(false);
-    }
+    };
+    await work()
+      .catch((reason) => {
+        if (alive.current) setError(simsError(reason));
+      })
+      .finally(() => {
+        saving.current = false;
+        if (alive.current) setBusy(false);
+      });
   };
   const removed = previous?.members.some(
     (member) => !data.state.groups.some((g) => g.id === member.id),

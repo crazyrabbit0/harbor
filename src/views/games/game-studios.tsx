@@ -1,6 +1,6 @@
 import { NavChevron } from "@/components/nav-arrow";
 import { observeWithin } from "@/lib/visibility";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Search, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import {
@@ -79,7 +79,9 @@ export function GameStudios({
   const revision = useLiveRefresh(active && seen, 31 * 60_000);
   const [studioSlots, setStudioSlots] = useState(6),
     selectedStudio = useRef(selected);
-  selectedStudio.current = selected;
+  useLayoutEffect(() => {
+    selectedStudio.current = selected;
+  }, [selected]);
   const visibleStudios = FEATURED_STUDIOS.slice(
       studioPage * studioSlots,
       studioPage * studioSlots + studioSlots,

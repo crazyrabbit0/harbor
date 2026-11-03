@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   useSyncExternalStore,
@@ -152,9 +153,7 @@ export function useCastSession(
   const castStartTargetRef = useRef<number>(0);
   const castSeekConfirmedRef = useRef<boolean>(false);
   const castDeviceRef = useRef<CastDeviceInfo | null>(null);
-  castDeviceRef.current = castDevice;
   const castActiveRef = useRef<boolean>(false);
-  castActiveRef.current = castDevice != null;
   const castPlayingRef = useRef<boolean>(true);
   const leaseRef = useRef<CastLease | null>(null);
   const stopRef = useRef<() => Promise<void>>(async () => {});
@@ -164,28 +163,36 @@ export function useCastSession(
     if (!lease) return Promise.reject(new Error("Cast session was replaced."));
     return withCastSession(lease, work);
   }, []);
-  const [audio] = useState(
-    () =>
-      new VideoAudioCast(
-        {
-          load: (options) => owned(() => castLoad(options)),
-          play: () => owned(castPlay),
-          pause: () => owned(castPause),
-          seek: (sec) => owned(() => castSeek(sec)),
-          stop: async () => {
-            const lease = leaseRef.current;
-            await owned(castStop);
-            releaseCastSession(lease);
-          },
-          status: () => owned(castStatus),
+  const [audio] = useState(() => new VideoAudioCast());
+  useLayoutEffect(() => {
+    audio.connect(
+      {
+        load: (options) => owned(() => castLoad(options)),
+        play: () => owned(castPlay),
+        pause: () => owned(castPause),
+        seek: (sec) => owned(() => castSeek(sec)),
+        stop: async () => {
+          const lease = leaseRef.current;
+          await owned(castStop);
+          releaseCastSession(lease);
         },
-        bridgeRef,
-        () => snapRef.current,
-      ),
-  );
+        status: () => owned(castStatus),
+      },
+      {
+        get: () => bridgeRef.current,
+        set: (bridge) => {
+          bridgeRef.current = bridge;
+        },
+      },
+      () => snapRef.current,
+    );
+  }, [audio, owned, bridgeRef, snapRef]);
   const audioState = useSyncExternalStore(audio.subscribe, audio.getSnapshot);
   const audioRouting = audioState.device != null;
-  castActiveRef.current = castDevice != null || audioRouting;
+  useLayoutEffect(() => {
+    castDeviceRef.current = castDevice;
+    castActiveRef.current = castDevice != null || audioRouting;
+  }, [castDevice, audioRouting]);
 
   useEffect(() => {
     return () => {
@@ -414,7 +421,9 @@ export function useCastSession(
       bridge.seek(finalPos);
     }
   }, [audio, bridgeRef, owned]);
-  stopRef.current = stopCast;
+  useLayoutEffect(() => {
+    stopRef.current = stopCast;
+  }, [stopCast]);
 
   const returnAudioToComputer = useCallback(async () => {
     const lease = leaseRef.current;

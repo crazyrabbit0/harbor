@@ -142,7 +142,7 @@ export type BpAmbientView = {
   tintOn: boolean;
 };
 
-function BpAmbientLayersBody(v: BpAmbientView) {
+function BpAmbientLayersBody({ videoRef, ...v }: BpAmbientView) {
   // The split and the single still are two contents of one wrapper, never two
   // wrappers. Same opacity and same timing in both modes, so switching between
   // them cannot step the brightness of the whole envelope.
@@ -297,7 +297,7 @@ function BpAmbientLayersBody(v: BpAmbientView) {
             })}
             {v.trailerSrc && (
               <video
-                ref={v.videoRef}
+                ref={videoRef}
                 data-bp-xfade
                 src={v.trailerSrc}
                 muted
