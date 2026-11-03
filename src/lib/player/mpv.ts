@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { startGeometryTracking, type GeometryTracker } from "./mpv-geometry";
 import { createMpvAudio } from "./mpv-audio";
+import { createMpvControls } from "./mpv-controls";
 import {
   defaultVodBufferProperties,
   hasCustomBufferPolicy,
@@ -31,7 +32,6 @@ import { finishPlaybackTrace, markPlaybackTrace } from "@/lib/perf/playback-trac
 import {
   initialPlayerSnapshot,
   type PlayerBridge,
-  type PlayerCapabilities,
   type PlayerSeekPrecision,
   type PlayerSnapshot,
   type PlayerSource,
@@ -385,12 +385,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
         emit();
       }
     },
-    async play() {
-      await invoke("mpv_set_property", { name: "pause", value: false }).catch(() => {});
-    },
-    pause() {
-      invoke("mpv_set_property", { name: "pause", value: true }).catch(() => {});
-    },
+    ...createMpvControls(),
     seek(sec, precision: PlayerSeekPrecision = "exact") {
       snap.subText = "";
       snap.subStartSec = 0;
@@ -398,9 +393,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       emit();
       const flags = precision === "keyframes" ? "absolute+keyframes" : "absolute+exact";
       invoke("mpv_command", { cmd: ["seek", sec, flags] }).catch(() => {});
-    },
-    frameStep(dir) {
-      invoke("mpv_command", { cmd: [dir > 0 ? "frame-step" : "frame-back-step"] }).catch(() => {});
     },
     setVolume(v) {
       snap.volume = v;
@@ -418,52 +410,7 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
       emit();
       invoke("mpv_set_property", { name: "speed", value: r }).catch(() => {});
     },
-    setAudioTrack(id) {
-      invoke("mpv_set_property", { name: "aid", value: Number(id) || id }).catch(() => {});
-    },
     ...subtitles.bridgeMethods,
-    setSubVisible(on) {
-      invoke("mpv_set_property", { name: "sub-visibility", value: on }).catch(() => {});
-    },
-    setSubDelay(sec) {
-      invoke("mpv_set_property", { name: "sub-delay", value: sec }).catch(() => {});
-    },
-    setAudioDelay(sec) {
-      invoke("mpv_set_property", { name: "audio-delay", value: sec }).catch(() => {});
-    },
-    setPanscan(value) {
-      const v = Math.max(0, Math.min(1, value));
-      invoke("mpv_set_property", { name: "panscan", value: v }).catch(() => {});
-    },
-    setVideoZoom(log2) {
-      invoke("mpv_set_property", { name: "video-zoom", value: log2 }).catch(() => {});
-    },
-    setAspectOverride(ratio) {
-      invoke("mpv_set_property", { name: "video-aspect-override", value: ratio }).catch(() => {});
-    },
-    setStretch(on) {
-      invoke("mpv_set_property", { name: "keepaspect", value: !on }).catch(() => {});
-    },
-    setVideoEq(name, value) {
-      invoke("mpv_set_property", { name, value }).catch(() => {});
-    },
-    setAnime4kShaders(shaders) {
-      const sep = isWindowsDesktop() ? ";" : ":";
-      const value = shaders
-        .filter(Boolean)
-        .map((s) => s.replace(/\\/g, "/"))
-        .join(sep);
-      invoke("mpv_set_property", { name: "glsl-shaders", value }).catch((e) =>
-        console.warn("[shaders] glsl-shaders apply failed", e),
-      );
-    },
-    setShaderProps(props) {
-      for (const [name, value] of Object.entries(props)) {
-        invoke("mpv_set_property", { name, value }).catch((e) =>
-          console.warn("[shaders] companion prop failed", name, e),
-        );
-      }
-    },
     setAudioNormalize(on) {
       snap.audioNormalize = on;
       audio.applyAudioFilters();
@@ -481,43 +428,6 @@ export function createMpvBridge(mpvOptions?: MpvOptions): PlayerBridge {
     },
     setAudioDevice(name) {
       audio.setAudioDevice(name);
-    },
-    setMediaInfo(info) {
-      invoke("mpv_set_property", { name: "force-media-title", value: info.title }).catch(() => {});
-    },
-    async screenshot(path) {
-      try {
-        const out = await invoke<string>("mpv_save_screenshot", { path });
-        return { ok: true, path: out };
-      } catch (e) {
-        return { ok: false, error: e instanceof Error ? e.message : String(e) };
-      }
-    },
-    setAbLoop(a, b) {
-      invoke("mpv_set_property", { name: "ab-loop-a", value: a == null ? "no" : a }).catch(
-        () => {},
-      );
-      invoke("mpv_set_property", { name: "ab-loop-b", value: b == null ? "no" : b }).catch(
-        () => {},
-      );
-    },
-    async requestPiP() {},
-    async exitPiP() {},
-    async requestFullscreen() {
-      await invoke("mpv_set_property", { name: "fullscreen", value: true }).catch(() => {});
-    },
-    async exitFullscreen() {
-      await invoke("mpv_set_property", { name: "fullscreen", value: false }).catch(() => {});
-    },
-    capabilities(): PlayerCapabilities {
-      return {
-        engine: "mpv",
-        pictureInPicture: true,
-        airplay: false,
-        chromecast: true,
-        hdrPassthrough: false,
-        hardwareDecode: true,
-      };
     },
     subscribe(l) {
       listeners.add(l);
