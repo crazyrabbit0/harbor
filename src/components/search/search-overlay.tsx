@@ -46,6 +46,8 @@ import { useWindowFullscreen } from "@/lib/use-window-fullscreen";
 import { isMagnetInput, isDirectVideoUrl } from "@/lib/torrent/magnet";
 import { useProfiles } from "@/lib/profiles";
 import { steamStoreQuery } from "@/lib/games/steam-store-search";
+const loadTauriWindow = () => import("@tauri-apps/api/window");
+
 const SteamStoreSearch = lazy(() =>
   import("./steam-store-search").then((module) => ({ default: module.SteamStoreSearch })),
 );
@@ -224,7 +226,7 @@ export function SearchOverlay() {
       moved = true;
       if (!canDrag) return;
       dragStarted = true;
-      import("@tauri-apps/api/window")
+      loadTauriWindow()
         .then(async ({ getCurrentWindow }) => {
           if (!active) return;
           const win = getCurrentWindow();

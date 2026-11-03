@@ -27,9 +27,16 @@ let failed = false;
 for (const dir of dirs) {
   let compiled = 0;
   const skipped = [];
+  const optedOut = [];
   for (const file of walk(join(root, dir))) {
+    const source = readFileSync(file, "utf8");
+    // A component that declares "use no memo" opts out on purpose (e.g. an incompatible library); list it, don't fail.
+    if (/^\s*["']use no memo["'];?\s*$/m.test(source)) {
+      optedOut.push(relative(root, file));
+      continue;
+    }
     const events = [];
-    babel.transformSync(readFileSync(file, "utf8"), {
+    babel.transformSync(source, {
       filename: file,
       babelrc: false,
       configFile: false,
@@ -46,8 +53,10 @@ for (const dir of dirs) {
       }
     }
   }
-  console.log(`${dir}: ${compiled} compiled, ${skipped.length} skipped`);
+  const opted = optedOut.length ? `, ${optedOut.length} opted out` : "";
+  console.log(`${dir}: ${compiled} compiled, ${skipped.length} skipped${opted}`);
   for (const line of skipped) console.log(`  ${line}`);
+  for (const file of optedOut) console.log(`  opted out ("use no memo"): ${file}`);
   if (skipped.length) failed = true;
 }
 process.exitCode = failed ? 1 : 0;

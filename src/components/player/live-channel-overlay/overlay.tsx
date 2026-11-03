@@ -24,6 +24,14 @@ import { useT } from "@/lib/i18n";
 import { CurrentChannelInfo } from "./current-channel-info";
 import { InlineSourceSwitcher } from "./inline-source-switcher";
 
+function readGuideStyle(): "timeline" | "list" {
+  try {
+    return localStorage.getItem("harbor.guide.style") === "list" ? "list" : "timeline";
+  } catch {
+    return "timeline";
+  }
+}
+
 export function LiveChannelOverlay({
   source,
   sources,
@@ -58,16 +66,18 @@ export function LiveChannelOverlay({
   const playlist = state.kind === "ready" ? state.playlist : getCachedPlaylist(source.id);
 
   const region = settings.region || "US";
-  const preferredLanguages =
-    settings.preferredLanguages.length > 0 ? settings.preferredLanguages : ["English"];
+  const preferredLanguages = useMemo(
+    () => (settings.preferredLanguages.length > 0 ? settings.preferredLanguages : ["English"]),
+    [settings.preferredLanguages],
+  );
 
   const sortedChannels = useMemo(
     () => sortChannelsByGroupRelevance(playlist?.channels ?? [], region, preferredLanguages),
-    [playlist?.channels, region, preferredLanguages.join(",")],
+    [playlist?.channels, region, preferredLanguages],
   );
   const sortedGroups = useMemo(
     () => sortGroupsByRelevance(playlist?.groups ?? [], region, preferredLanguages),
-    [playlist?.groups, region, preferredLanguages.join(",")],
+    [playlist?.groups, region, preferredLanguages],
   );
   const topRows = useMemo(() => rowsForRegion(region), [region]);
   const regionChannels = useMemo(
@@ -170,13 +180,7 @@ export function LiveChannelOverlay({
     else if (favorites.count > 0) setGroup(FAVORITES_GROUP_KEY);
   }, [playlist, currentChannel, favorites.count, setGroup]);
 
-  const [guideStyle, setGuideStyle] = useState<"timeline" | "list">(() => {
-    try {
-      return localStorage.getItem("harbor.guide.style") === "list" ? "list" : "timeline";
-    } catch {
-      return "timeline";
-    }
-  });
+  const [guideStyle, setGuideStyle] = useState<"timeline" | "list">(readGuideStyle);
   useEffect(() => {
     try {
       localStorage.setItem("harbor.guide.style", guideStyle);

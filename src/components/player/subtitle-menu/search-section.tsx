@@ -112,10 +112,9 @@ export function SearchSection(
   }, [metaImdbId, metaTitle, season, episode, playbackContext]);
 
   const playingKey = playingKeyOf(metaImdbId, metaTitle, season, episode);
-  const restorableRef = useRef(
+  const [restorable] = useState(() =>
     savedState && savedState.playingKey === playingKey ? savedState : null,
   );
-  const restorable = restorableRef.current;
 
   const [target, setTarget] = useState<TitleTarget>(restorable?.target ?? playingTarget);
   const [isOverride, setIsOverride] = useState(restorable?.isOverride ?? false);
@@ -188,16 +187,18 @@ export function SearchSection(
     sortBySource,
     filtersOpen,
   });
-  latestStateRef.current = {
-    playingKey,
-    target,
-    isOverride,
-    query,
-    hideHI,
-    forcedOnly,
-    sortBySource,
-    filtersOpen,
-  };
+  useLayoutEffect(() => {
+    latestStateRef.current = {
+      playingKey,
+      target,
+      isOverride,
+      query,
+      hideHI,
+      forcedOnly,
+      sortBySource,
+      filtersOpen,
+    };
+  }, [playingKey, target, isOverride, query, hideHI, forcedOnly, sortBySource, filtersOpen]);
 
   useEffect(() => {
     return () => {
@@ -226,10 +227,10 @@ export function SearchSection(
     };
   }, [authKey]);
 
-  const run = async (tgt: TitleTarget) => {
+  const run = (tgt: TitleTarget) => {
     setLoading(true);
     setResults(null);
-    try {
+    const search = async () => {
       const enabled = settings.subProvidersEnabled ?? {};
       const titleOnly = !tgt.imdbId && !!tgt.title;
       const playing = isPlayingTarget(tgt, playingTarget) ? playbackContext : null;
@@ -279,9 +280,10 @@ export function SearchSection(
         });
       }
       setPendingSources(0);
-    } finally {
+    };
+    return search().finally(() => {
       setLoading(false);
-    }
+    });
   };
 
   useEffect(() => {

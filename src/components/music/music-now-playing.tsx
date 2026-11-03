@@ -77,6 +77,12 @@ import "./music-now-playing.css";
 
 const NOW_LIKE_SPOKES = [0, 45, 90, 135, 180, 225, 270, 315];
 
+const createPictureHost = () => {
+  const host = document.createElement("div");
+  host.style.borderRadius = "inherit";
+  return host;
+};
+
 export function MusicNowPlaying({
   inset,
   dockRef,
@@ -170,15 +176,12 @@ export function MusicNowPlaying({
     return () => clearTimeout(timer);
   }, [immersive]);
   const artwork = useRef<HTMLDivElement>(null);
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  hostRef.current ??= document.createElement("div");
-  const host = hostRef.current;
+  const [host] = useState(createPictureHost);
   // One permanent host for the picture. Fullscreen moves this node between the artwork box and
   // the overlay stage instead of re-rendering the surface somewhere else, so the surface instance
   // survives the move and the media elements never reload.
   useLayoutEffect(() => {
     if (!video) return;
-    host.style.borderRadius = "inherit";
     const place = () => {
       const parent = getMusicVideoFullscreen().stage ?? artwork.current;
       if (parent && host.parentElement !== parent) parent.appendChild(host);

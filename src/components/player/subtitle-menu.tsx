@@ -1,5 +1,5 @@
 import { Subtitles as SubsIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import {
   modalOverlayClose,
@@ -42,7 +42,9 @@ export function SubtitleMenu(props: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const useOverlay = props.useOverlayPopup === true;
   const propsRef = useRef(props);
-  propsRef.current = props;
+  useLayoutEffect(() => {
+    propsRef.current = props;
+  }, [props]);
   const subtitleContext = useSubtitleContext();
   const preferredLanguages =
     settings.preferredSubLangs.length > 0

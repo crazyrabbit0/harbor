@@ -265,20 +265,19 @@ export function EmptyState({
     return true;
   });
 
-  const onSurprise = async () => {
-    if (surpriseBusy) return;
+  const onSurprise = () => {
+    if (surpriseBusy) return Promise.resolve();
     setSurpriseBusy(true);
-    try {
-      const exclude: number[] = [];
-      if (hiddenTabs.anime) exclude.push(MOVIE_GENRES.Animation);
-      const pick = await surpriseMe(settings.tmdbKey, { excludeGenres: exclude });
-      if (pick) {
-        onClose();
-        openMeta(pick);
-      }
-    } finally {
-      setSurpriseBusy(false);
-    }
+    const exclude: number[] = [];
+    if (hiddenTabs.anime) exclude.push(MOVIE_GENRES.Animation);
+    return surpriseMe(settings.tmdbKey, { excludeGenres: exclude })
+      .then((pick) => {
+        if (pick) {
+          onClose();
+          openMeta(pick);
+        }
+      })
+      .finally(() => setSurpriseBusy(false));
   };
 
   if (genreBrowse) {

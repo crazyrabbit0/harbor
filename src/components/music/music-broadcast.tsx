@@ -78,19 +78,19 @@ export function MusicBroadcast() {
     });
   }, []);
 
-  const toggle = useCallback(async () => {
+  const toggle = useCallback(() => {
     setBusy(true);
     setFailed(null);
-    try {
-      const next = status.active
-        ? await broadcastStop()
-        : await broadcastStart(device === AUTO ? null : device);
-      if (alive.current) setStatus(next);
-    } catch (error) {
-      if (alive.current) setFailed(String(error));
-    } finally {
-      if (alive.current) setBusy(false);
-    }
+    return (status.active ? broadcastStop() : broadcastStart(device === AUTO ? null : device))
+      .then((next) => {
+        if (alive.current) setStatus(next);
+      })
+      .catch((error: unknown) => {
+        if (alive.current) setFailed(String(error));
+      })
+      .finally(() => {
+        if (alive.current) setBusy(false);
+      });
   }, [device, status.active]);
 
   const devices = useMemo(() => targets?.devices ?? [], [targets]);

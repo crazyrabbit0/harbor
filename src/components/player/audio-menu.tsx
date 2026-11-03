@@ -1,5 +1,5 @@
 import { Check, Languages, RotateCcw, Search, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { Flag } from "@/components/flag";
 import type { TrackInfo } from "@/lib/player/bridge";
@@ -40,7 +40,9 @@ export function AudioMenu(props: Props) {
   const { measure } = useMenuSide(wrap, 360);
   const useOverlay = props.useOverlayPopup === true;
   const propsRef = useRef(props);
-  propsRef.current = props;
+  useLayoutEffect(() => {
+    propsRef.current = props;
+  }, [props]);
   const onOpenChange = props.onOpenChange;
   useEffect(() => {
     onOpenChange?.(open && (forceInline || !useOverlay));

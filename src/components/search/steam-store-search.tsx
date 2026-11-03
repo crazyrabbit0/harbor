@@ -60,7 +60,9 @@ export function SteamStoreSearch({
   const term = query.trim().slice(0, 180),
     key = JSON.stringify([profile, term, prefs.country]);
   const stateKey = useRef(key);
-  stateKey.current = key;
+  useLayoutEffect(() => {
+    stateKey.current = key;
+  }, [key]);
   const page = state.key === key ? state.page : null,
     busy = state.key === key && state.busy,
     error = state.key === key && state.error;
@@ -153,15 +155,15 @@ export function SteamStoreSearch({
       abort.abort();
     };
   }, [key, active, ready, retry]);
-  const more = async () => {
-    if (busy || page?.nextOffset == null) return;
+  const more = () => {
+    if (busy || page?.nextOffset == null) return Promise.resolve();
     const abort = new AbortController();
     controller.current?.abort();
     controller.current = abort;
     setState({ key, page, busy: true, error: false });
     const previousCount = page.games.length;
-    try {
-      const next = await loadSteamStoreSearch(term, prefs.country, page.nextOffset, abort.signal);
+    const offset = page.nextOffset;
+    const merge = (next: SteamStorePage) => {
       if (abort.signal.aborted || !live.current) return;
       const games = [
         ...page.games,
@@ -187,25 +189,32 @@ export function SteamStoreSearch({
         busy: false,
         error: false,
       });
-    } catch {
-      if (!abort.signal.aborted && live.current) setState({ key, page, busy: false, error: true });
-    }
+    };
+    return Promise.resolve()
+      .then(() => loadSteamStoreSearch(term, prefs.country, offset, abort.signal))
+      .then(merge)
+      .catch(() => {
+        if (!abort.signal.aborted && live.current)
+          setState({ key, page, busy: false, error: true });
+      });
   };
-  const open = async (id: number, client = false) => {
-    if (opening !== null) return;
+  const open = (id: number, client = false) => {
+    if (opening !== null) return Promise.resolve();
     const requested = key;
     setOpening(id);
     setOpenError(false);
-    try {
-      const url = steamStoreUrl(id, prefs.country, client);
-      if (client) await openNativeUrl(url);
-      else await openExternalUrlStrict(url);
-      onAction();
-    } catch {
-      if (live.current && stateKey.current === requested) setOpenError(true);
-    } finally {
-      if (live.current && stateKey.current === requested) setOpening(null);
-    }
+    return Promise.resolve()
+      .then(() => {
+        const url = steamStoreUrl(id, prefs.country, client);
+        return client ? openNativeUrl(url) : openExternalUrlStrict(url);
+      })
+      .then(() => onAction())
+      .catch(() => {
+        if (live.current && stateKey.current === requested) setOpenError(true);
+      })
+      .finally(() => {
+        if (live.current && stateKey.current === requested) setOpening(null);
+      });
   };
   const known = new Set([
     ...imports.data.games.map((item) => item.game.steamId),

@@ -47,7 +47,9 @@ export function MagnetCard({ raw, onClose }: { raw: string; onClose: () => void 
   const [match, setMatch] = useState<MagnetMatch | null>(null);
   const matchRef = useRef<MagnetMatch | null>(null);
   const pendingEngineRef = useRef<string | null>(null);
-  matchRef.current = match;
+  useEffect(() => {
+    matchRef.current = match;
+  }, [match]);
 
   useEffect(
     () => () => {

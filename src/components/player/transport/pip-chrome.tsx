@@ -9,6 +9,8 @@ import { useSettings } from "@/lib/settings";
 import { seekSteps } from "@/lib/seek-step";
 import { useCaptionsPopout } from "@/views/player/hooks/use-captions-popout";
 
+const loadWindowApi = () => import("@tauri-apps/api/window");
+
 export function PipChrome({
   snap,
   visible,
@@ -55,7 +57,7 @@ export function PipChrome({
         onPointerDown={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          void import("@tauri-apps/api/window")
+          void loadWindowApi()
             .then(({ getCurrentWindow }) => getCurrentWindow().startResizeDragging("SouthEast"))
             .catch(() => {});
         }}

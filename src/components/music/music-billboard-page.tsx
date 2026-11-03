@@ -84,22 +84,27 @@ export function MusicBillboardPage({
     positions.delete(next);
     root.current?.closest<HTMLElement>("[data-music-view]")?.scrollTo({ top: 0 });
   };
-  const open = async (item: MusicCatalogItem) => {
+  const open = (item: MusicCatalogItem) => {
     const run = ++generation.current;
     setBusy(item.id);
     setUnmatched(null);
-    try {
-      const resolved = await resolveBillboardItem(item);
-      if (run !== generation.current) return;
-      if (resolved) {
-        positions.set(id, root.current?.closest<HTMLElement>("[data-music-view]")?.scrollTop ?? 0);
-        onOpen(resolved, result?.entries.map((e) => e.item) ?? []);
-      } else setUnmatched(item.id);
-    } catch {
-      if (run === generation.current) setUnmatched(item.id);
-    } finally {
-      if (run === generation.current) setBusy(null);
-    }
+    return resolveBillboardItem(item)
+      .then((resolved) => {
+        if (run !== generation.current) return;
+        if (resolved) {
+          positions.set(
+            id,
+            root.current?.closest<HTMLElement>("[data-music-view]")?.scrollTop ?? 0,
+          );
+          onOpen(resolved, result?.entries.map((e) => e.item) ?? []);
+        } else setUnmatched(item.id);
+      })
+      .catch(() => {
+        if (run === generation.current) setUnmatched(item.id);
+      })
+      .finally(() => {
+        if (run === generation.current) setBusy(null);
+      });
   };
   const itemMenu = useMusicItemMenu({ onOpen: (item) => void open(item) });
   const entries =

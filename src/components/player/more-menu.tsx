@@ -163,21 +163,21 @@ function MoreRow({ spec }: { spec: MoreRowSpec }) {
   const Icon = spec.icon;
   const doneLabel = spec.feedback === "saved" ? t("Saved to disk") : t("Copied");
 
-  const onClick = async () => {
+  const onClick = () => {
     if (busy) return;
     setBusy(true);
-    try {
-      const ok = await Promise.resolve(spec.run());
-      if (ok !== false && spec.feedback !== "none") {
-        setDone(true);
-        if (timer.current !== null) window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => setDone(false), 1500);
-      }
-    } catch {
-      /* noop */
-    } finally {
-      setBusy(false);
-    }
+    return new Promise<boolean>((resolve) => resolve(spec.run()))
+      .then((ok) => {
+        if (ok !== false && spec.feedback !== "none") {
+          setDone(true);
+          if (timer.current !== null) window.clearTimeout(timer.current);
+          timer.current = window.setTimeout(() => setDone(false), 1500);
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        setBusy(false);
+      });
   };
 
   return (

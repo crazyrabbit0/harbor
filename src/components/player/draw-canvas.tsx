@@ -159,10 +159,13 @@ export function DrawCanvas({
 
   const onDown = (e: React.PointerEvent) => {
     e.preventDefault();
-    try {
-      surfaceRef.current?.setPointerCapture(e.pointerId);
-    } catch {
-      /* unsupported */
+    const surface = surfaceRef.current;
+    if (surface) {
+      try {
+        surface.setPointerCapture(e.pointerId);
+      } catch {
+        /* unsupported */
+      }
     }
     const { x, y } = norm(e);
     const id = `${selfId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
@@ -197,10 +200,13 @@ export function DrawCanvas({
       onStrokeEnd(cur.id);
       drawing.current = null;
     }
-    try {
-      surfaceRef.current?.releasePointerCapture(e.pointerId);
-    } catch {
-      /* unsupported */
+    const surface = surfaceRef.current;
+    if (surface) {
+      try {
+        surface.releasePointerCapture(e.pointerId);
+      } catch {
+        /* unsupported */
+      }
     }
   };
   const onLeave = () => setPointer((p) => ({ ...p, visible: false }));

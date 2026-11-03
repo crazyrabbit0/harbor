@@ -75,6 +75,14 @@ export function MusicMast({
 
   useEffect(() => setActiveIndex(-1), [query, scope]);
 
+  const scopeOptions = useMemo(
+    () =>
+      connections.filter(
+        (row) => row.status === "connected" && row.capabilities.includes("search"),
+      ),
+    [connections],
+  );
+
   const choose = (item: MusicCatalogItem) => {
     rememberMusicSearchItem(item);
     setDismissed(true);
@@ -123,14 +131,6 @@ export function MusicMast({
       else if (suggestFlat[activeIndex]) choose(suggestFlat[activeIndex]);
     }
   };
-
-  const scopeOptions = useMemo(
-    () =>
-      connections.filter(
-        (row) => row.status === "connected" && row.capabilities.includes("search"),
-      ),
-    [connections],
-  );
 
   useEffect(() => {
     if (scope && !scopeOptions.some((row) => row.id === scope)) setScope(null);

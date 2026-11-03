@@ -30,26 +30,20 @@ export function useAiSuggest(query: string, runSignal = 0) {
 
   const activeKey = aiKey(settings);
 
-  useEffect(() => {
-    if (!runSignal || !query.trim() || !activeKey.trim()) return;
-    void run();
-  }, [runSignal]);
-
   const run = async () => {
     const id = ++reqRef.current;
     setStatus("loading");
     setError(null);
     setRanQuery(query);
+    const webContextFor = (): Promise<string | undefined> =>
+      settings.aiWebSearch
+        ? enrichWithContent(query, settings.jinaKey).then(
+            ({ context }) => context || undefined,
+            () => undefined,
+          )
+        : Promise.resolve(undefined);
     try {
-      let webContext: string | undefined;
-      if (settings.aiWebSearch) {
-        try {
-          const { context } = await enrichWithContent(query, settings.jinaKey);
-          webContext = context || undefined;
-        } catch {
-          webContext = undefined;
-        }
-      }
+      const webContext = await webContextFor();
       const suggestions = await aiSuggest(
         activeKey,
         settings.aiSearchModel,
@@ -85,6 +79,21 @@ export function useAiSuggest(query: string, runSignal = 0) {
       setStatus("error");
     }
   };
+
+  // Only a new run signal starts a request; query and key changes alone never do.
+  const runRef = useRef(run);
+  useEffect(() => {
+    runRef.current = run;
+  });
+  const startRef = useRef({ query, activeKey });
+  useEffect(() => {
+    startRef.current = { query, activeKey };
+  });
+  useEffect(() => {
+    const { query: q, activeKey: key } = startRef.current;
+    if (!runSignal || !q.trim() || !key.trim()) return;
+    void runRef.current();
+  }, [runSignal]);
 
   return { status, results, error, ranQuery, run };
 }

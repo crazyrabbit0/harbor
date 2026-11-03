@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Loader2 } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import { isWindowsDesktop } from "@/lib/platform";
@@ -33,7 +33,9 @@ export function MusicYouTube({ active, onFellBack }: { active: boolean; onFellBa
   // re-renders on every playback tick, and a changing dep there would tear the window down
   // and rebuild it several times a second.
   const fellBack = useRef(onFellBack);
-  fellBack.current = onFellBack;
+  useLayoutEffect(() => {
+    fellBack.current = onFellBack;
+  }, [onFellBack]);
 
   const rect = useCallback(() => {
     const element = host.current;

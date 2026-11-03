@@ -73,36 +73,34 @@ export function MusicSpotifyLibrary({
 
   const more = useRef<HTMLButtonElement | null>(null);
   const read = useCallback(
-    async (offset = 0, append = false) => {
+    (offset = 0, append = false) => {
       const run = ++generation.current;
       setLoading(true);
       setFailure("");
-      try {
-        const next = await loadSpotifyLibraryPage(
-          selectedId ? "playlist" : kind,
-          offset,
-          selectedId,
-        );
-        if (run !== generation.current) return;
-        const key = selectedId ?? kind;
-        const previous = pages.current.get(key);
-        const result =
-          append && previous
-            ? {
-                ...next,
-                tracks: [...previous.tracks, ...next.tracks],
-                trackAddedAt: { ...previous.trackAddedAt, ...next.trackAddedAt },
-                playlists: [...previous.playlists, ...next.playlists],
-                skipped: previous.skipped + next.skipped,
-              }
-            : next;
-        pages.current.set(key, result);
-        setPage(result);
-      } catch (error) {
-        if (run === generation.current) setFailure(spotifyLibraryErrorKey(error));
-      } finally {
-        if (run === generation.current) setLoading(false);
-      }
+      return loadSpotifyLibraryPage(selectedId ? "playlist" : kind, offset, selectedId)
+        .then((next) => {
+          if (run !== generation.current) return;
+          const key = selectedId ?? kind;
+          const previous = pages.current.get(key);
+          const result =
+            append && previous
+              ? {
+                  ...next,
+                  tracks: [...previous.tracks, ...next.tracks],
+                  trackAddedAt: { ...previous.trackAddedAt, ...next.trackAddedAt },
+                  playlists: [...previous.playlists, ...next.playlists],
+                  skipped: previous.skipped + next.skipped,
+                }
+              : next;
+          pages.current.set(key, result);
+          setPage(result);
+        })
+        .catch((error: unknown) => {
+          if (run === generation.current) setFailure(spotifyLibraryErrorKey(error));
+        })
+        .finally(() => {
+          if (run === generation.current) setLoading(false);
+        });
     },
     [kind, selectedId],
   );
@@ -206,14 +204,13 @@ export function MusicSpotifyLibrary({
   const reconnect = async () => {
     setWorking("connect");
     setFailure("");
-    try {
-      connections.apply(await connectSource("spotify"));
-      setRefresh((value) => value + 1);
-    } catch (error) {
-      setFailure(spotifyLibraryErrorKey(error));
-    } finally {
-      setWorking(null);
-    }
+    return connectSource("spotify")
+      .then((next) => {
+        connections.apply(next);
+        setRefresh((value) => value + 1);
+      })
+      .catch((error: unknown) => setFailure(spotifyLibraryErrorKey(error)))
+      .finally(() => setWorking(null));
   };
 
   const importCollection = async () => {
@@ -223,30 +220,32 @@ export function MusicSpotifyLibrary({
     setFailure("");
     setNotice("");
     setProgress(0);
-    try {
-      const result = await importSpotifyCollection({
-        kind: selected ? "playlist" : "liked",
-        playlistId: selected?.id,
-        name: selected?.name ?? t("music.spotifyLibrary.liked"),
-        signal: controller.signal,
-        onProgress: setProgress,
+    return importSpotifyCollection({
+      kind: selected ? "playlist" : "liked",
+      playlistId: selected?.id,
+      name: selected?.name ?? t("music.spotifyLibrary.liked"),
+      signal: controller.signal,
+      onProgress: setProgress,
+    })
+      .then((result) => {
+        onImported(result.playlist);
+        setNotice(
+          t("music.spotifyLibrary.imported", {
+            count: result.playlist.tracks.length,
+            name: result.playlist.name,
+          }) +
+            (result.skipped
+              ? ` ${t("music.spotifyLibrary.skipped", { count: result.skipped })}`
+              : ""),
+        );
+      })
+      .catch((error: unknown) => {
+        if (!controller.signal.aborted) setFailure(spotifyLibraryErrorKey(error));
+      })
+      .finally(() => {
+        importAbort.current = null;
+        setWorking(null);
       });
-      onImported(result.playlist);
-      setNotice(
-        t("music.spotifyLibrary.imported", {
-          count: result.playlist.tracks.length,
-          name: result.playlist.name,
-        }) +
-          (result.skipped
-            ? ` ${t("music.spotifyLibrary.skipped", { count: result.skipped })}`
-            : ""),
-      );
-    } catch (error) {
-      if (!controller.signal.aborted) setFailure(spotifyLibraryErrorKey(error));
-    } finally {
-      importAbort.current = null;
-      setWorking(null);
-    }
   };
 
   const create = async () => {
@@ -254,16 +253,15 @@ export function MusicSpotifyLibrary({
     setWorking("create");
     setFailure("");
     setNotice("");
-    try {
-      const playlist = await createSpotifyPlaylist(name);
-      setName("");
-      await read();
-      setNotice(t("music.spotifyLibrary.created", { name: playlist.name }));
-    } catch (error) {
-      setFailure(spotifyLibraryErrorKey(error));
-    } finally {
-      setWorking(null);
-    }
+    return createSpotifyPlaylist(name)
+      .then((playlist) => {
+        setName("");
+        return read().then(() =>
+          setNotice(t("music.spotifyLibrary.created", { name: playlist.name })),
+        );
+      })
+      .catch((error: unknown) => setFailure(spotifyLibraryErrorKey(error)))
+      .finally(() => setWorking(null));
   };
 
   const title = selected?.name ?? t("music.spotifyLibrary.title");

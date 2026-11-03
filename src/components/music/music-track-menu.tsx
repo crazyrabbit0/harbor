@@ -35,6 +35,14 @@ import { useArtistCredits } from "./use-artist-credits";
 import { useMusicNavigate } from "./music-navigate";
 import type { MusicTrack } from "@/lib/music/types";
 
+const loadClipboardManager = () => import("@tauri-apps/plugin-clipboard-manager");
+
+const copyWithBrowser = (text: string) =>
+  new Promise<void>((resolve) => {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
+    resolve(navigator.clipboard.writeText(text));
+  });
+
 export type MusicTrackMenuItem = {
   id: string;
   label: string;
@@ -125,13 +133,9 @@ export function useMusicTrackMenuItems(
     icon: <Copy size={14} />,
     run: async () => {
       const text = `${track.title} - ${track.artist}`;
-      try {
-        if (!navigator.clipboard?.writeText) throw new Error("Clipboard unavailable");
-        await navigator.clipboard.writeText(text);
-      } catch {
-        const { writeText } = await import("@tauri-apps/plugin-clipboard-manager");
-        await writeText(text);
-      }
+      return copyWithBrowser(text).catch(() =>
+        loadClipboardManager().then(({ writeText }) => writeText(text)),
+      );
     },
   });
   const origin = getMusicPlaybackOrigin();

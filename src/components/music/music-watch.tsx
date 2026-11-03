@@ -44,6 +44,12 @@ import "./music-watch.css";
  */
 const PREPARE_MS = 20_000;
 
+const createWatchHost = () => {
+  const host = document.createElement("div");
+  host.style.cssText = "position:absolute;inset:0;border-radius:inherit";
+  return host;
+};
+
 export function MusicWatch({
   track,
   queue,
@@ -75,9 +81,7 @@ export function MusicWatch({
   const [videoShowing, setVideoShowing] = useState(false);
   const replay = useRef(false);
   const stageRef = useRef<HTMLDivElement>(null);
-  const hostRef = useRef<HTMLDivElement | null>(null);
-  hostRef.current ??= document.createElement("div");
-  const host = hostRef.current;
+  const [host] = useState(createWatchHost);
   const selection = `${track.connectorId ?? ""}:${track.id}`;
   const showVideo = useCallback(
     (next: boolean) => {
@@ -89,7 +93,6 @@ export function MusicWatch({
   // The surface keeps one home in the page. Fullscreen moves that home into the overlay rather
   // than rendering the surface somewhere else, so the instance, its controls and its lyrics survive.
   useLayoutEffect(() => {
-    host.style.cssText = "position:absolute;inset:0;border-radius:inherit";
     const place = () => {
       const parent = getMusicVideoFullscreen().stage ?? stageRef.current;
       if (parent && host.parentElement !== parent) parent.appendChild(host);
@@ -197,25 +200,27 @@ export function MusicWatch({
     moreLoading.current = true;
     setMoreBusy(true);
     setMoreError(false);
-    try {
-      const page = await searchMusicVideoPage(`${playing.artist} music videos`, false, cursor);
-      if (similarGeneration.current !== generation) return;
-      seenPages.current.add(cursor);
-      setSimilar((previous) =>
-        appendMusicVideos(
-          previous,
-          page.tracks.filter((item) => item.id !== playingId),
-        ),
-      );
-      setSimilarNext(page.next && !seenPages.current.has(page.next) ? page.next : null);
-    } catch {
-      if (similarGeneration.current === generation) setMoreError(true);
-    } finally {
-      if (similarGeneration.current === generation) {
-        moreLoading.current = false;
-        setMoreBusy(false);
-      }
-    }
+    return searchMusicVideoPage(`${playing.artist} music videos`, false, cursor)
+      .then((page) => {
+        if (similarGeneration.current !== generation) return;
+        seenPages.current.add(cursor);
+        setSimilar((previous) =>
+          appendMusicVideos(
+            previous,
+            page.tracks.filter((item) => item.id !== playingId),
+          ),
+        );
+        setSimilarNext(page.next && !seenPages.current.has(page.next) ? page.next : null);
+      })
+      .catch(() => {
+        if (similarGeneration.current === generation) setMoreError(true);
+      })
+      .finally(() => {
+        if (similarGeneration.current === generation) {
+          moreLoading.current = false;
+          setMoreBusy(false);
+        }
+      });
   }, [active, similarNext, playing.artist, playingId]);
   useEffect(() => {
     const button = moreButton.current;

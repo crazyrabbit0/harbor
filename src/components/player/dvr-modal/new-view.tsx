@@ -88,24 +88,28 @@ export function NewRecordingView({
     }
   };
 
-  const handleStart = async () => {
+  const handleStart = () => {
     setBusy(true);
     setError(null);
-    try {
+    return new Promise<void>((resolve) => {
       writeLastDir(dir);
-      await onStart({
-        url,
-        outputDir: dir,
-        filename: filename.trim() || suggestFilename(channelName, currentProgram),
-        durationSec,
-        channelName,
-        programTitle: chosen.programTitle,
+      resolve(
+        onStart({
+          url,
+          outputDir: dir,
+          filename: filename.trim() || suggestFilename(channelName, currentProgram),
+          durationSec,
+          channelName,
+          programTitle: chosen.programTitle,
+        }),
+      );
+    })
+      .catch((e) => {
+        setError(prettifyError(String(e), t));
+      })
+      .finally(() => {
+        setBusy(false);
       });
-    } catch (e) {
-      setError(prettifyError(String(e), t));
-    } finally {
-      setBusy(false);
-    }
   };
 
   return (

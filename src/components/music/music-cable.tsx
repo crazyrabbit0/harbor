@@ -104,18 +104,19 @@ export function MusicCable({ onStatus }: { onStatus?: (status: CableStatus) => v
   }, [status, onStatus]);
 
   const act = useCallback(
-    async (rate?: number) => {
+    (rate?: number) => {
       setBusy(true);
       setFailed(null);
-      try {
-        const next =
-          status.active && rate === undefined ? await cableDestroy() : await cableCreate(rate);
-        if (alive.current) setStatus(next);
-      } catch (error) {
-        if (alive.current) setFailed(cableErrorKey(error));
-      } finally {
-        if (alive.current) setBusy(false);
-      }
+      return (status.active && rate === undefined ? cableDestroy() : cableCreate(rate))
+        .then((next) => {
+          if (alive.current) setStatus(next);
+        })
+        .catch((error: unknown) => {
+          if (alive.current) setFailed(cableErrorKey(error));
+        })
+        .finally(() => {
+          if (alive.current) setBusy(false);
+        });
     },
     [status.active],
   );

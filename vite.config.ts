@@ -11,6 +11,10 @@ declare const process: { env: Record<string, string | undefined> };
 
 // Folders the React Compiler memoizes; add one at a time (see docs/ARCHITECTURE-FOLLOWUPS.md).
 const REACT_COMPILER_DIRS = [
+  "/src/components/anime-genre-picker/",
+  "/src/components/icons/",
+  "/src/components/music/",
+  "/src/components/search/",
   "/src/components/notification-center/",
   "/src/components/update/",
   "/src/components/together-modal/",
@@ -40,6 +44,7 @@ const REACT_COMPILER_DIRS = [
   "/src/components/screensaver/",
   "/src/components/avatar-picker/",
   "/src/components/profile-picker/",
+  "/src/components/player/",
 ];
 // Babel runs only on these folders; every other file skips it and goes straight to esbuild.
 const compilesReact = (id: string) =>

@@ -59,67 +59,77 @@ export function MusicQueueContinuation({
     setLoading(true);
     setNotice("");
     let timer: ReturnType<typeof setTimeout> | undefined;
-    try {
-      const result = await Promise.race([
-        loadMusicContinuation({
-          mode,
-          origin: getMusicPlaybackOrigin(),
-          current: snapshot.current,
-          queue: snapshot.queue,
-          history: [...snapshot.recents, ...snapshot.likedTracks],
-        }),
-        new Promise<never>((_, reject) => {
-          timer = setTimeout(() => reject(new Error("Timeout")), 30_000);
-        }),
-      ]);
-      if (run !== request.current || started !== getMusicQueueRevision()) return;
-      const latest = getMusicState();
-      if (!latest.current) return;
-      const excluded = [
-        latest.current,
-        ...latest.queue,
-        ...(mode === "discover" ? [...latest.recents, ...latest.likedTracks] : []),
-      ];
-      const allowVideo = latest.current.mediaKind === "video";
-      let tracks = filterBlockedTracks(
-        freshContinuationTracks(result.tracks, excluded, allowVideo),
-        "play",
-      );
-      if (mode === "context") setMusicPlaybackOrigin(result.origin);
-      if (!tracks.length && mode === "context") {
-        const wider = await loadMusicContinuation({
-          mode: "discover",
-          origin: getMusicPlaybackOrigin(),
-          current: latest.current,
-          queue: latest.queue,
-          history: [...latest.recents, ...latest.likedTracks],
-        });
-        if (run !== request.current || started !== getMusicQueueRevision()) return;
-        tracks = filterBlockedTracks(
-          freshContinuationTracks(wider.tracks, excluded, allowVideo),
+    const stale = () => run !== request.current || started !== getMusicQueueRevision();
+    return Promise.race([
+      loadMusicContinuation({
+        mode,
+        origin: getMusicPlaybackOrigin(),
+        current: snapshot.current,
+        queue: snapshot.queue,
+        history: [...snapshot.recents, ...snapshot.likedTracks],
+      }),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Timeout")), 30_000);
+      }),
+    ])
+      .then((result) => {
+        if (stale()) return;
+        const latest = getMusicState();
+        const playing = latest.current;
+        if (!playing) return;
+        const excluded = [
+          playing,
+          ...latest.queue,
+          ...(mode === "discover" ? [...latest.recents, ...latest.likedTracks] : []),
+        ];
+        const allowVideo = playing.mediaKind === "video";
+        const first = filterBlockedTracks(
+          freshContinuationTracks(result.tracks, excluded, allowVideo),
           "play",
         );
-      }
-      if (tracks.length) setMusicQueue([...latest.queue, ...tracks]);
-      setNotice(
-        tracks.length
-          ? t("music.now.moreAdded", { count: tracks.length })
-          : t(
-              mode === "context" && result.exhausted
-                ? "music.now.contextEnd"
-                : "music.now.noNewSongs",
-            ),
-      );
-    } catch {
-      if (run === request.current && started === getMusicQueueRevision())
-        setNotice(t("music.now.moreError"));
-    } finally {
-      clearTimeout(timer);
-      if (run === request.current) {
-        busy.current = false;
-        setLoading(false);
-      }
-    }
+        if (mode === "context") setMusicPlaybackOrigin(result.origin);
+        const settled =
+          !first.length && mode === "context"
+            ? loadMusicContinuation({
+                mode: "discover",
+                origin: getMusicPlaybackOrigin(),
+                current: playing,
+                queue: latest.queue,
+                history: [...latest.recents, ...latest.likedTracks],
+              }).then((wider) =>
+                stale()
+                  ? null
+                  : filterBlockedTracks(
+                      freshContinuationTracks(wider.tracks, excluded, allowVideo),
+                      "play",
+                    ),
+              )
+            : Promise.resolve(first);
+        return settled.then((tracks) => {
+          if (tracks === null) return;
+          if (tracks.length) setMusicQueue([...latest.queue, ...tracks]);
+          setNotice(
+            tracks.length
+              ? t("music.now.moreAdded", { count: tracks.length })
+              : t(
+                  mode === "context" && result.exhausted
+                    ? "music.now.contextEnd"
+                    : "music.now.noNewSongs",
+                ),
+          );
+        });
+      })
+      .catch(() => {
+        if (run === request.current && started === getMusicQueueRevision())
+          setNotice(t("music.now.moreError"));
+      })
+      .finally(() => {
+        clearTimeout(timer);
+        if (run === request.current) {
+          busy.current = false;
+          setLoading(false);
+        }
+      });
   };
   const current = getMusicState().current;
   const context =

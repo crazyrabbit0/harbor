@@ -26,6 +26,10 @@ import type { SubtitleMenuProps } from "./types";
 import { subtitleTrackLanguageLabel } from "@/lib/subtitles/track-label";
 import { groupByLang, isVeryNewRelease, variantTitle } from "./utils";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
+const fileNameOr = (path: string, fallback: string) => path.split(/[\\/]/).pop() || fallback;
+
 type SourceFilter = "all" | "embedded" | "external";
 const ALL_LANGS = "__all__";
 
@@ -132,13 +136,13 @@ export function MenuBody(props: SubtitleMenuProps & { onClose: () => void }) {
   const loadLocal = async () => {
     setLocalError(null);
     try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const path = await open({
         multiple: false,
         filters: [{ name: "Subtitles", extensions: ["srt", "ass", "ssa", "vtt", "sub"] }],
       });
       if (typeof path !== "string") return;
-      const name = path.split(/[\\/]/).pop() || tr("Local subtitle");
+      const name = fileNameOr(path, tr("Local subtitle"));
       const ok = await props.onAddSubtitle(path, undefined, name);
       if (ok === false) {
         setLocalError(tr("Couldn't load that subtitle file. Try another."));

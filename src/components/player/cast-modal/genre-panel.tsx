@@ -78,31 +78,30 @@ export function GenrePanel({
     setLoading(true);
     const minRating = Number(filters.minRating);
     const imdbFilter = !!filters.minRating && Number.isFinite(minRating);
-    (async () => {
-      try {
-        const r = await tmdbDiscover(tmdbKey, mediaType, { ...params, page: String(page) });
+    const load = async () => {
+      const r = await tmdbDiscover(tmdbKey, mediaType, { ...params, page: String(page) });
+      if (cancelled) return;
+      let passing = r.filter((m) => m.poster);
+      if (imdbFilter) {
+        const scored = await Promise.all(
+          passing.map((m) => resolveImdbScore(m.id, tmdbKey).then((s) => [m, s] as const)),
+        );
         if (cancelled) return;
-        let passing = r.filter((m) => m.poster);
-        if (imdbFilter) {
-          const scored = await Promise.all(
-            passing.map((m) => resolveImdbScore(m.id, tmdbKey).then((s) => [m, s] as const)),
-          );
-          if (cancelled) return;
-          passing = scored.filter(([, s]) => s != null && s >= minRating).map(([m]) => m);
-        }
-        setItems((prev) => {
-          const seen = new Set(prev.map((m) => m.id));
-          return [...prev, ...passing.filter((m) => !seen.has(m.id))];
-        });
-        if (r.length < 20 || page >= 500) setDone(true);
-        setLoading(false);
-      } catch {
-        if (!cancelled) {
-          setLoading(false);
-          setDone(true);
-        }
+        passing = scored.filter(([, s]) => s != null && s >= minRating).map(([m]) => m);
       }
-    })();
+      setItems((prev) => {
+        const seen = new Set(prev.map((m) => m.id));
+        return [...prev, ...passing.filter((m) => !seen.has(m.id))];
+      });
+      if (r.length < 20 || page >= 500) setDone(true);
+      setLoading(false);
+    };
+    load().catch(() => {
+      if (!cancelled) {
+        setLoading(false);
+        setDone(true);
+      }
+    });
     return () => {
       cancelled = true;
     };

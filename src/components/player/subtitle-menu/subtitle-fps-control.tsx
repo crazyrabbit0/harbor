@@ -35,20 +35,20 @@ export function SubtitleFpsControl({
   const [supported, setSupported] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const supportControllerRef = useRef<ReturnType<
-    typeof createSubtitleFpsAvailabilityController
-  > | null>(null);
-  if (!supportControllerRef.current) {
-    supportControllerRef.current = createSubtitleFpsAvailabilityController({
+  const [supportController] = useState(() =>
+    createSubtitleFpsAvailabilityController({
       read: async () => (await readMpvSubtitleFps()).supported,
       commit: setSupported,
-    });
-  }
+    }),
+  );
 
-  const refreshSupport = useCallback((hideWhileChecking = false) => {
-    if (hideWhileChecking) setSupported(false);
-    void supportControllerRef.current?.refresh();
-  }, []);
+  const refreshSupport = useCallback(
+    (hideWhileChecking = false) => {
+      if (hideWhileChecking) setSupported(false);
+      void supportController.refresh();
+    },
+    [supportController],
+  );
 
   const closeAndRestoreFocus = () => {
     setOpen(false);
@@ -57,7 +57,7 @@ export function SubtitleFpsControl({
 
   useEffect(() => {
     if (engine !== "mpv" || !isMainTauriWindow()) {
-      supportControllerRef.current?.invalidate();
+      supportController.invalidate();
       setSupported(false);
       setOpen(false);
       return;
@@ -65,9 +65,9 @@ export function SubtitleFpsControl({
 
     refreshSupport();
     return () => {
-      supportControllerRef.current?.invalidate();
+      supportController.invalidate();
     };
-  }, [engine, refreshSupport, track?.id]);
+  }, [engine, refreshSupport, supportController, track?.id]);
 
   useEffect(() => {
     if (engine !== "mpv" || !isMainTauriWindow()) return;
@@ -93,10 +93,10 @@ export function SubtitleFpsControl({
       );
     return () => {
       disposed = true;
-      supportControllerRef.current?.invalidate();
+      supportController.invalidate();
       unlisten?.();
     };
-  }, [engine, refreshSupport]);
+  }, [engine, refreshSupport, supportController]);
 
   useEffect(() => {
     if (!open) return;

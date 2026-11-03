@@ -1,6 +1,6 @@
 import { Check, Clock, GripVertical, Moon, Plus, Trash2, X } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { useSettingsSelector } from "@/lib/settings";
@@ -130,7 +130,9 @@ export function QueuePanel({
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
   const dragRef = useRef<string | null>(null);
   const queueRef = useRef(queue);
-  queueRef.current = queue;
+  useLayoutEffect(() => {
+    queueRef.current = queue;
+  }, [queue]);
 
   const startDrag = (e: React.PointerEvent, id: string) => {
     e.preventDefault();

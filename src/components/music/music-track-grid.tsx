@@ -229,18 +229,23 @@ export function MusicTrackGrid({
     (async (track: MusicTrack) => {
       const request = ++radioRequest.current;
       setRadioStatus({ op: "radio", state: "loading" });
-      try {
-        const recording = await loadRecordingProfile(track).catch(() => null);
-        if (request !== radioRequest.current) return;
-        if (recording?.album) requestMusicExplore({ kind: "album", track, album: recording.album });
-        else {
-          const credits = await resolveDisplayCredits(track.artist);
-          if (request === radioRequest.current)
-            goToAlbum(track.album ?? "", credits[0]?.name ?? track.artist);
-        }
-      } finally {
-        if (request === radioRequest.current) setRadioStatus(null);
-      }
+      return Promise.resolve()
+        .then(() => loadRecordingProfile(track))
+        .catch(() => null)
+        .then((recording) => {
+          if (request !== radioRequest.current) return;
+          if (recording?.album) {
+            requestMusicExplore({ kind: "album", track, album: recording.album });
+            return;
+          }
+          return resolveDisplayCredits(track.artist).then((credits) => {
+            if (request === radioRequest.current)
+              goToAlbum(track.album ?? "", credits[0]?.name ?? track.artist);
+          });
+        })
+        .finally(() => {
+          if (request === radioRequest.current) setRadioStatus(null);
+        });
     });
 
   let body: ReactNode;

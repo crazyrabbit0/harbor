@@ -26,44 +26,44 @@ export function MusicGifSettings() {
     if (!file) return;
     setBusy(true);
     setError("");
-    try {
-      if (file.size > MAX_GIF_BYTES) throw new Error("large");
-      const animation = await decodeGifFile(file),
-        id = crypto.randomUUID();
-      await saveMusicGif({ id, name: file.name, blob: file });
-      rememberMusicGif(id, animation);
-      const previous = appearance.gifId;
-      setMusicAppearance({
-        gifId: id,
-        gifName: file.name,
-        gifVisualizer: true,
-        mikuVisualizer: false,
+    const previous = appearance.gifId;
+    return (file.size > MAX_GIF_BYTES ? Promise.reject(new Error("large")) : decodeGifFile(file))
+      .then((animation) => {
+        const id = crypto.randomUUID();
+        return saveMusicGif({ id, name: file.name, blob: file }).then(() => {
+          rememberMusicGif(id, animation);
+          setMusicAppearance({
+            gifId: id,
+            gifName: file.name,
+            gifVisualizer: true,
+            mikuVisualizer: false,
+          });
+          if (previous) void deleteMusicGif(previous).catch(() => {});
+        });
+      })
+      .catch((failure: unknown) => {
+        setError(
+          failure instanceof Error && ["large", "storage"].includes(failure.message)
+            ? failure.message
+            : "invalid",
+        );
+      })
+      .finally(() => {
+        setBusy(false);
+        if (input.current) input.current.value = "";
       });
-      if (previous) void deleteMusicGif(previous).catch(() => {});
-    } catch (failure) {
-      setError(
-        failure instanceof Error && ["large", "storage"].includes(failure.message)
-          ? failure.message
-          : "invalid",
-      );
-    } finally {
-      setBusy(false);
-      if (input.current) input.current.value = "";
-    }
   };
   const remove = async () => {
     if (!appearance.gifId) return;
     setBusy(true);
     setError("");
-    try {
-      await deleteMusicGif(appearance.gifId);
-      setMusicAppearance({ gifId: null, gifName: "", gifVisualizer: false });
-      requestAnimationFrame(() => uploadButton.current?.focus());
-    } catch {
-      setError("storage");
-    } finally {
-      setBusy(false);
-    }
+    return deleteMusicGif(appearance.gifId)
+      .then(() => {
+        setMusicAppearance({ gifId: null, gifName: "", gifVisualizer: false });
+        requestAnimationFrame(() => uploadButton.current?.focus());
+      })
+      .catch(() => setError("storage"))
+      .finally(() => setBusy(false));
   };
   return (
     <section className="music-audio-section music-miku-settings" aria-labelledby="music-gif-title">

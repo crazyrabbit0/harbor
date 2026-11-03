@@ -1,5 +1,5 @@
 import { Clock, Gauge, Pin, Plus, Settings2, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   SLEEP_PRESETS,
   type SleepMode,
@@ -56,7 +56,9 @@ export function SpeedMenu({
   const btnRef = useRef<HTMLButtonElement>(null);
   const { measure } = useMenuSide(wrap, 400);
   const wheelRef = useRef({ rate, onRate });
-  wheelRef.current = { rate, onRate };
+  useLayoutEffect(() => {
+    wheelRef.current = { rate, onRate };
+  }, [rate, onRate]);
   const wheelEnabled = settings.playerSpeedWheel;
   useEffect(() => {
     const el = btnRef.current;

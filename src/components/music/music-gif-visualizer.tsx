@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { acquireMusicMeter } from "@/lib/music/audio-meter";
 import { createMikuGroove } from "@/lib/music/miku-motion";
 import { createGifClock, type GifTiming } from "@/lib/music/gif-clock";
@@ -21,7 +21,9 @@ export function MusicGifCanvas({
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const playback = useRef({ playing, track, timing });
-  playback.current = { playing, track, timing };
+  useLayoutEffect(() => {
+    playback.current = { playing, track, timing };
+  });
   const refresh = useRef<(() => void) | null>(null);
   useEffect(() => {
     refresh.current?.();

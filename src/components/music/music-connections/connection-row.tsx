@@ -66,6 +66,8 @@ const STATUS_LABEL: Record<MusicConnectionStatus, string> = {
 
 type Busy = "connect" | "disconnect" | "scan" | null;
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 export function MusicConnectionRow({
   connection,
   defaultOpen = false,
@@ -152,7 +154,7 @@ export function MusicConnectionRow({
   const pickFolder = (key: string) => {
     setFailure(null);
     void (async () => {
-      const { open: openDialog } = await import("@tauri-apps/plugin-dialog");
+      const { open: openDialog } = await loadDialog();
       const picked = await openDialog({ directory: true, multiple: false });
       if (typeof picked === "string") setValues((current) => ({ ...current, [key]: picked }));
     })().catch((reason) => setFailure(errorText(reason)));

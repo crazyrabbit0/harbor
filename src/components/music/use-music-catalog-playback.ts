@@ -6,6 +6,17 @@ import type { MusicCatalogItem, MusicTrack } from "@/lib/music/types";
 import { registerMusicCatalogOrigin, registerMusicQueueOrigin } from "@/lib/music/playback-origin";
 
 let latestRequest = 0;
+const nextRequest = () => (latestRequest += 1);
+const isLatest = (current: number) => latestRequest === current;
+
+const remoteTracks = (item: Exclude<MusicCatalogItem, { kind: "track" }>): Promise<MusicTrack[]> =>
+  item.kind === "album"
+    ? albumTracks(item)
+    : item.kind === "playlist"
+      ? catalogPlaylistTracks(item)
+      : item.kind === "artist"
+        ? artistTop(item)
+        : stationTracks(item);
 
 export function useMusicCatalogPlayback() {
   const { openSourcePicker } = useMusicSourcePicker();
@@ -25,25 +36,12 @@ export function useMusicCatalogPlayback() {
     siblings: readonly MusicCatalogItem[] = [],
     rowId?: string,
   ) => {
-    const current = ++latestRequest;
+    const current = nextRequest();
     request.current = current;
     setError("");
     setPending(item);
-    try {
-      const tracks: MusicTrack[] =
-        item.kind === "track"
-          ? siblings.filter(
-              (entry): entry is Extract<MusicCatalogItem, { kind: "track" }> =>
-                entry.kind === "track",
-            )
-          : item.kind === "album"
-            ? await albumTracks(item)
-            : item.kind === "playlist"
-              ? await catalogPlaylistTracks(item)
-              : item.kind === "artist"
-                ? await artistTop(item)
-                : await stationTracks(item);
-      if (request.current !== current || latestRequest !== current) return;
+    const finish = (tracks: MusicTrack[]) => {
+      if (request.current !== current || !isLatest(current)) return;
       const track = item.kind === "track" ? item : tracks[0];
       if (!track) {
         setError(t("music.row.emptyRow"));
@@ -60,11 +58,28 @@ export function useMusicCatalogPlayback() {
         });
       } else registerMusicCatalogOrigin(item, queue);
       openSourcePicker(track, queue);
-    } catch {
-      if (request.current === current && latestRequest === current) setError(t("music.error.load"));
-    } finally {
+    };
+    // A track plays from the row it sits in, so it opens the picker in the same click without waiting a tick.
+    if (item.kind === "track") {
+      const tracks = siblings.filter(
+        (entry): entry is Extract<MusicCatalogItem, { kind: "track" }> => entry.kind === "track",
+      );
+      try {
+        finish(tracks);
+      } catch {
+        if (request.current === current && isLatest(current)) setError(t("music.error.load"));
+      }
       if (request.current === current) setPending(null);
+      return;
     }
+    return remoteTracks(item)
+      .then(finish)
+      .catch(() => {
+        if (request.current === current && isLatest(current)) setError(t("music.error.load"));
+      })
+      .finally(() => {
+        if (request.current === current) setPending(null);
+      });
   };
 
   return { play, pending, error };

@@ -1,6 +1,6 @@
 import { Check, ChevronDown, ListPlus } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { queueToggle, useQueue } from "@/lib/queue";
 import { useT } from "@/lib/i18n";
@@ -107,12 +107,17 @@ export function EpisodePicker({
   const [loading, setLoading] = useState(true);
   const [season, setSeason] = useState<number | null>(null);
   const [orderSeason, setOrderSeason] = useState<number>(-1);
+  const metaRef = useRef(meta);
+  useLayoutEffect(() => {
+    metaRef.current = meta;
+  }, [meta]);
+  const metaId = meta.id;
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setEps([]);
-    fetchEpisodeList(meta, { tmdbKey: settings.tmdbKey })
+    fetchEpisodeList(metaRef.current, { tmdbKey: settings.tmdbKey })
       .then((list) => {
         if (!cancelled) {
           setEps(list);
@@ -125,8 +130,7 @@ export function EpisodePicker({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [meta.id, settings.tmdbKey]);
+  }, [metaId, settings.tmdbKey]);
 
   const combinedWatched = useMemo(() => {
     const s = new Set<string>();
@@ -210,25 +214,23 @@ export function EpisodePicker({
       const lang = tmdbLanguageIso();
       const enName = "nameEn" in e ? e.nameEn : undefined;
       const enOverview = "overviewEn" in e ? e.overviewEn : undefined;
+      const localName = pickLocalizedText(
+        [{ text: e.name }, { text: enName ?? "" }, { text: match?.name ?? "" }],
+        { forName: true, lang },
+      );
+      const name = localName ?? e.name;
+      const localOverview = pickLocalizedText(
+        [{ text: e.overview }, { text: enOverview ?? "" }, { text: match?.overview ?? "" }],
+        { lang },
+      );
+      const overview = localOverview ?? e.overview;
       return {
         ...match,
         season: e.seasonNumber,
         episode: e.episodeNumber,
-        name:
-          (pickLocalizedText(
-            [{ text: e.name }, { text: enName ?? "" }, { text: match?.name ?? "" }],
-            { forName: true, lang },
-          ) ??
-            e.name) ||
-          undefined,
+        name: name || undefined,
         still: match?.still ?? still,
-        overview:
-          (pickLocalizedText(
-            [{ text: e.overview }, { text: enOverview ?? "" }, { text: match?.overview ?? "" }],
-            { lang },
-          ) ??
-            e.overview) ||
-          undefined,
+        overview: overview || undefined,
         rating: e.voteAverage && e.voteAverage > 0 ? e.voteAverage : match?.rating,
         airDate: e.airDate || match?.airDate || undefined,
         runtime: e.runtime && e.runtime > 0 ? e.runtime : match?.runtime,
