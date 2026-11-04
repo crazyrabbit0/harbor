@@ -6,18 +6,51 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { LIST_SEEDS } from "../src/lib/curated/catalog";
 import { rankInItems, type CuratedListItem, type CuratedSnapshot } from "../src/lib/curated/types";
+import en from "../src/lib/i18n/locales/en";
+import { curatedListsHarness, readJson } from "./helpers/curated-lists-harness";
+import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness";
+
+const { REGISTRY_LATEST_LIST_ID } = loadModule("src/lib/film-registry/inductions.ts", {
+  "@/data/film-registry/inductions.json": { default: { inductions: {} } },
+});
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
-const index = JSON.parse(read("src/data/curated/index.json")) as {
+const index = readJson("src/data/curated/index.json") as {
   builtAt: string;
   lists: Array<{ id: string; count: number; snapshotDate: string; head: CuratedListItem[] }>;
 };
 
-const snapshotOf = (id: string) =>
-  JSON.parse(read(`src/data/curated/${id}.json`)) as CuratedSnapshot;
+const snapshotOf = (id: string) => readJson(`src/data/curated/${id}.json`) as CuratedSnapshot;
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
+const element = (type: unknown, props: N["props"]) => ({ type, props });
+const jsx = { jsx: element, jsxs: element, Fragment: "Fragment" };
+const all = (n: unknown): N[] =>
+  Array.isArray(n)
+    ? n.flatMap(all)
+    : n && typeof n === "object"
+      ? [n as N, ...all((n as N).props?.children)]
+      : [];
+const text = (n: unknown): string =>
+  typeof n === "string" || typeof n === "number"
+    ? String(n)
+    : Array.isArray(n)
+      ? n.map(text).join("")
+      : n && typeof n === "object"
+        ? text((n as N).props?.children)
+        : "";
+
+const noLoads = () => {
+  const loads: string[] = [];
+  const load = async (id: string) => {
+    loads.push(id);
+    return [];
+  };
+  return { loads, load };
+};
 
 test("every descriptor has a snapshot and the index agrees with it", () => {
   assert.ok(DATE.test(index.builtAt), "index carries a build date");
@@ -115,28 +148,78 @@ test("the ported NYT list keeps its published ranks", () => {
   assert.equal(rankInItems(items, null), null);
 });
 
-test("the detail page can look a NYT rank up without loading a chunk", () => {
-  const seed = LIST_SEEDS.find((s) => s.id === "nyt-tv-100");
-  assert.ok(seed);
-  const snap = snapshotOf("nyt-tv-100");
-  assert.ok(
-    seed.rowCount >= snap.count,
-    "awards-block reads the eager head synchronously, so the head must be the whole list",
+test("the detail page can look a NYT rank up without loading a chunk", async () => {
+  const { loads, load } = noLoads();
+  const { canon, useCanon } = curatedListsHarness(load);
+  const nyt = (entries: readonly any[]) => entries.find((e) => e.listId === "nyt-tv-100");
+  const immediate = nyt(canon.canonFor("tt0903747", "series"));
+  assert.equal(immediate?.place, 1, "Breaking Bad answers from the bundled head");
+  assert.equal(immediate?.companion?.forRank, 1, "the rank-one companion rides along");
+  assert.equal(nyt(canon.canonFor("tt1837576", "series"))?.place, 100, "the head is the list");
+  assert.equal(nyt(canon.canonFor("tt0903747", "movie")), undefined, "a film never matches");
+
+  const first = useCanon.render({ imdbId: "tt0306414", kind: "series" });
+  assert.equal(nyt(first)?.place, 2, "the first render already shows the rank");
+  await flushPromises();
+  assert.ok(!loads.includes("nyt-tv-100"), "the NYT snapshot chunk is never requested");
+  assert.equal(nyt(useCanon.render({ imdbId: "tt0306414", kind: "series" }))?.place, 2);
+
+  const calls: unknown[][] = [];
+  const entry = { listId: "nyt-tv-100", ordering: "ranked", place: 1, curator: "NYT" };
+  const block = hookHarness(
+    "src/components/awards-block.tsx",
+    "AwardsBlock",
+    {
+      "lucide-react": new Proxy({}, { get: (_t, name) => String(name) }),
+      "@/assets/awards/nyt-logo.svg": { default: "nyt.svg" },
+      "./curated-list-logos": { curatedListLogos: {} },
+      "@/lib/providers/tmdb": {},
+      "@/lib/curated/use-canon": {
+        useCanon: (...args: unknown[]) => (calls.push(args), [entry]),
+      },
+      "@/lib/settings": {},
+      "@/lib/view": {},
+      "@/lib/providers/wikidata": {},
+      "@/lib/i18n": { useT: () => (s: string) => s },
+      "./icons/award-logo": {},
+      "./icons/laurel": {},
+      "react/jsx-runtime": jsx,
+    },
+    {},
+    ["CuratedAccolade"],
   );
-  const canon = read("src/lib/curated/canon.ts");
-  assert.match(canon, /if \(!eligible\(list, kind\) \|\| !complete\(list\)\) continue;/);
-  assert.match(canon, /canonInItems\(list, list\.head, imdbId\)/);
-  assert.match(read("src/components/awards-block.tsx"), /useCanon\(imdbId, kind\)/);
+  const tree = block.render({ awards: [], imdbId: "tt0903747", kind: "series" });
+  assert.deepEqual(calls, [["tt0903747", "series"]], "the block asks useCanon for this title");
+  const accolades = all(tree).filter((n) => n.type === block.exports.CuratedAccolade);
+  assert.deepEqual(
+    accolades.map((n) => n.props.entry),
+    [entry],
+  );
 });
 
-test("Criterion membership never pulls its snapshot", () => {
-  const canon = read("src/lib/curated/canon.ts");
-  assert.match(
-    canon,
-    /list\.id !== CRITERION_LIST_ID/,
-    "the spine file answers Criterion, so the 125KB snapshot stays unloaded",
+test("Criterion membership never pulls its snapshot", async () => {
+  const { loads, load } = noLoads();
+  const { canon, registry, useCanon } = curatedListsHarness(load);
+  const criterion = registry.curatedList("criterion-collection");
+  assert.ok(criterion.head.length < criterion.count, "Criterion's head is partial");
+  assert.equal(canon.eligible(criterion, "movie"), false);
+  assert.ok(
+    !canon.canonPending("movie").some((l: { id: string }) => l.id === "criterion-collection"),
+    "the 125KB snapshot is never queued",
   );
-  const spine = JSON.parse(read("src/data/criterion-spine.json")) as {
+  const found = canon
+    .canonFor("tt0033467", "movie")
+    .find((e: { listId: string }) => e.listId === "criterion-collection");
+  assert.equal(found?.place, 1104, "the spine file answers Criterion");
+  assert.equal(found?.ordering, "spine");
+
+  const first = useCanon.render({ imdbId: "tt0033467", kind: "movie" });
+  assert.ok(first.some((e: { listId: string }) => e.listId === "criterion-collection"));
+  await flushPromises();
+  assert.ok(loads.length > 0, "the partial poll lists are still loaded");
+  assert.ok(!loads.includes("criterion-collection"), "Criterion is never loaded");
+
+  const spine = readJson("src/data/criterion-spine.json") as {
     count: number;
     spines: Record<string, number>;
   };
@@ -167,34 +250,64 @@ test("the Criterion snapshot is in spine order with sparse slots", () => {
 });
 
 test("the row and the page only badge a number the data carries", () => {
-  const registry = read("src/lib/curated/registry.ts");
-  assert.match(
-    registry,
-    /export function cardBadge[\s\S]*?ordering === "ranked"[\s\S]*?item\.rank/,
+  const { registry } = curatedListsHarness(async () => []);
+  const list = (ordering: string) => ({ ...registry.curatedList("nyt-tv-100"), ordering });
+  const item = { rank: 7, imdb: "tt0053198", title: "x", year: 1959, awardYear: 2003 };
+  assert.equal(registry.cardBadge(list("ranked"), item), "7");
+  assert.equal(registry.cardBadge(list("ranked"), { ...item, rank: null }), null);
+  assert.equal(registry.cardBadge(list("spine"), item), "5", "a spine badge reads the sidecar");
+  assert.equal(registry.cardBadge(list("spine"), { ...item, imdb: "tt0000000" }), null);
+  assert.equal(registry.cardBadge(list("awarded"), item), "2003");
+  assert.equal(registry.cardBadge(list("awarded"), { ...item, awardYear: undefined }), null);
+  assert.equal(registry.cardBadge(list("unordered"), item), null);
+
+  const badge = hookHarness("src/components/curated-card-badge.tsx", "CuratedCardBadge", {
+    "@/lib/curated/registry": registry,
+    "react/jsx-runtime": jsx,
+  });
+  assert.equal(text(badge.render({ list: list("spine"), item })), "5");
+  assert.equal(badge.render({ list: list("unordered"), item }), null, "no number, no badge");
+
+  const Badge = "CuratedCardBadge";
+  const nyt = registry.curatedList("nyt-tv-100");
+  const row = hookHarness("src/components/curated-list-row.tsx", "CuratedListRow", {
+    "@/assets/awards/nyt-logo.svg": { default: "nyt.svg" },
+    "@/components/curated-card-badge": { CuratedCardBadge: Badge },
+    "@/components/pick-card": { PickCard: "PickCard" },
+    "@/lib/i18n": { useT: () => (s: string) => s },
+    "@/lib/curated/registry": registry,
+    "@/lib/view": { useViewActions: () => ({ openCuratedList: () => {} }) },
+    "./row": { Row: "Row" },
+    "react/jsx-runtime": jsx,
+  });
+  const rowBadges = all(row.render({ listId: "nyt-tv-100" })).filter((n) => n.type === Badge);
+  assert.equal(rowBadges.length, nyt.head.length, "every row card carries the shared badge");
+  rowBadges.forEach((n, i) => {
+    assert.equal(n.props.list, nyt);
+    assert.equal(n.props.item, nyt.head[i], "the row hands the badge its own item");
+  });
+
+  const grid = hookHarness("src/views/curated-list/list-grid.tsx", "ListGrid", {
+    "@/components/curated-card-badge": { CuratedCardBadge: Badge },
+    "@/components/pick-card": { PickCard: "PickCard" },
+    "@/lib/i18n": { useT: () => (s: string) => s },
+    "@/lib/curated/registry": registry,
+    "react/jsx-runtime": jsx,
+  });
+  const items = [nyt.head[3], nyt.head[0], nyt.head[9]];
+  const gridBadges = all(grid.render({ list: nyt, items, scrollRoot: { current: null } })).filter(
+    (n) => n.type === Badge,
   );
-  assert.match(registry, /ordering === "spine"[\s\S]*?spineFor\(item\.imdb\)/);
-  assert.match(registry, /ordering === "awarded"[\s\S]*?item\.awardYear/);
-  const shared = "src/components/curated-card-badge.tsx";
-  assert.match(read(shared), /cardBadge\(list, item\)/, "one component asks the registry");
-  for (const path of [
-    shared,
-    "src/components/curated-list-row.tsx",
-    "src/views/curated-list/list-grid.tsx",
-  ]) {
-    const source = read(path);
-    assert.ok(!/\bindexOf\b|\bi \+ 1\b/.test(source), `${path} never counts positions itself`);
-  }
-  for (const path of [
-    "src/components/curated-list-row.tsx",
-    "src/views/curated-list/list-grid.tsx",
-  ]) {
-    const source = read(path);
-    assert.match(source, /<CuratedCardBadge list=\{list\} item=\{item\} \/>/, `${path} reuses it`);
-  }
+  assert.deepEqual(
+    gridBadges.map((n) => n.props.item),
+    items,
+    "the grid badges each item it shows, never a position",
+  );
+  assert.ok(gridBadges.every((n) => n.props.list === nyt));
 });
 
 test("the Criterion spine sidecar is joined to the shipped list", () => {
-  const spine = JSON.parse(read("src/data/criterion-spine.json")) as {
+  const spine = readJson("src/data/criterion-spine.json") as {
     builtAt: string;
     count: number;
     lowest: number;
@@ -224,7 +337,7 @@ test("a festival badge names its prize without leaning on the curator line", () 
     const snap = snapshotOf(seed.id);
     assert.ok(seed.rowCount >= snap.count, `${seed.id} head covers all ${snap.count} items`);
   }
-  const shipped = JSON.parse(read("src/data/awards.json")) as Record<string, unknown>;
+  const shipped = readJson("src/data/awards.json") as Record<string, unknown>;
   for (const already of ["cannes", "venice", "berlin"]) {
     assert.ok(shipped[already], `${already} stays with the bundled award table`);
   }
@@ -259,34 +372,33 @@ test("no list descriptor duplicates an id or a pinned source", () => {
 
 test("only the rails Discover actually renders claim one", () => {
   const own = LIST_SEEDS.filter((s) => s.discoverRow === true).map((s) => s.id);
+  assert.deepEqual([...own].sort(), ["national-film-registry-latest", "nyt-tv-100"]);
+  assert.equal(REGISTRY_LATEST_LIST_ID, "national-film-registry-latest");
+  const { registry } = curatedListsHarness(async () => []);
+  const shelf = registry.shelfLists().map((l: { id: string }) => l.id);
+  const lists = registry.curatedLists().map((l: { id: string }) => l.id);
   assert.deepEqual(
-    [...own].sort(),
-    ["national-film-registry-latest", "nyt-tv-100"],
+    shelf,
+    lists.filter((id: string) => !own.includes(id)),
     "the rest reach the reader through the canon shelf",
   );
+  // discover.tsx is too large and entangled to render, so its three switch arms stay as text.
   const discover = read("src/views/discover.tsx");
-  assert.match(discover, /listId="nyt-tv-100"/);
-  assert.match(discover, /listId=\{REGISTRY_LATEST_LIST_ID\}/);
-  assert.match(discover, /case "special:canon":/);
-  assert.ok(!discover.includes("NytTvRow"), "the bespoke NYT row is gone");
+  assert.match(discover, /case "special:nyt-tv":\s*return <CuratedListRow listId="nyt-tv-100" /);
+  assert.match(
+    discover,
+    /case "special:film-registry":\s*return <CuratedListRow listId=\{REGISTRY_LATEST_LIST_ID\} /,
+  );
+  assert.match(discover, /case "special:canon":\s*return <CuratedListTiles /);
 });
 
 test("English strings for every descriptor are registered", () => {
-  const catalog = read("src/lib/i18n/locales/en/curated-lists.ts");
-  const registered = read("src/lib/i18n/locales/en.ts");
-  assert.match(registered, /import curatedLists from ".\/en\/curated-lists"/);
-  assert.match(registered, /\.\.\.curatedLists,/);
-  assert.match(registered, /import filmRegistry from ".\/en\/film-registry"/);
-  assert.match(registered, /\.\.\.filmRegistry,/);
-  const shipped = [
-    catalog,
-    read("src/lib/i18n/locales/en/nyt-tv.ts"),
-    read("src/lib/i18n/locales/en/film-registry.ts"),
-  ];
+  const catalog = en as Record<string, string>;
   for (const seed of LIST_SEEDS) {
     for (const value of [seed.title, seed.curator, seed.blurb]) {
-      assert.ok(
-        shipped.some((f) => f.includes(value)),
+      assert.equal(
+        catalog[value],
+        value,
         `"${value.slice(0, 40)}" is in the English catalogue`,
       );
     }
