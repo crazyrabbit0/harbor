@@ -52,6 +52,7 @@ export function hookHarness(
     useLayoutEffect(run: () => any, deps: any[]) {
       react.useEffect(run, deps);
     },
+    useId: () => ":harbor-id:",
     useSyncExternalStore(_subscribe: any, snapshot: () => any) {
       return snapshot();
     },
