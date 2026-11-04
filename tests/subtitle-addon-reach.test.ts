@@ -281,6 +281,21 @@ test("release suffixes are not mistaken for subtitle language tags", () => {
   assert.equal(subtitleLanguage(video, "/movies/The.Imitation.Game.2014-Pahe.in.srt"), undefined);
   assert.equal(subtitleLanguage(video, "/movies/The.Imitation.Game.2014-Pahe.in.en.srt"), "en");
   assert.equal(subtitleLanguage(video, "/movies/The.Imitation.Game.2014-Pahe.in.in.srt"), "id");
+  assert.equal(
+    subtitleLanguage(video, "/movies/The.Imitation.Game.2014-Pahe.xx.en.srt"),
+    undefined,
+    "a subtitle for another title is not this video's track",
+  );
+  assert.equal(
+    subtitleLanguage(video, "/movies/The.Imitation.Game.2014-Pahe.in.zz.srt"),
+    undefined,
+    "a language-shaped tag that names no language is ignored",
+  );
+  assert.equal(
+    subtitleLanguage(video, "/movies/The.Imitation.Game.2014-Pahe.in.en.forced.srt"),
+    "en",
+    "the tag is the first segment after the video name",
+  );
 });
 
 const subtitleButton = (tree: unknown) =>
