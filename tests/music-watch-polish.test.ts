@@ -7,12 +7,12 @@ const compactCss = (value: string) =>
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
+import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const watchCss = compactCss(read("../src/components/music/music-watch.css"));
 const watchTsx = read("../src/components/music/music-watch.tsx");
 const discoveryCss = compactCss(read("../src/components/music/music-video-discovery.css"));
-const discoveryTsx = read("../src/components/music/music-video-discovery.tsx");
 
 const rule = (css: string, selector: string) => {
   const start = css.indexOf(selector + "{");
@@ -79,27 +79,131 @@ test("skeleton and retry motion stand down under reduced motion", () => {
   );
 });
 
-test("the discovery rail arrows are dead controls no longer: they disable at each edge", () => {
-  assert.match(
-    discoveryTsx,
-    /const \[edges, setEdges\] = useState\(\{ start: true, end: true \}\)/,
+type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
+const element = (type: unknown, props: N["props"]) => ({ type, props });
+const all = (n: unknown): N[] =>
+  Array.isArray(n)
+    ? n.flatMap(all)
+    : n && typeof n === "object"
+      ? [n as N, ...all((n as N).props?.children)]
+      : [];
+
+function discovery() {
+  const rail = {
+    scrollLeft: 0,
+    scrollWidth: 1000,
+    clientWidth: 400,
+    listeners: new Map<string, () => void>(),
+    addEventListener(type: string, fn: () => void) {
+      rail.listeners.set(type, fn);
+    },
+    removeEventListener(type: string) {
+      rail.listeners.delete(type);
+    },
+  };
+  let intersect: (entries: { isIntersecting: boolean }[]) => void = () => {};
+  // The section's ref is attached during render, as React does before effects run.
+  const mount = (type: unknown, props: N["props"]) => {
+    if (type === "section" && props.ref && !props.ref.current) props.ref.current = {};
+    return element(type, props);
+  };
+  const track = { id: "v1", sourceId: "v1", title: "Video", artist: "Artist" };
+  const h = hookHarness(
+    "src/components/music/music-video-discovery.tsx",
+    "MusicVideoDiscovery",
+    {
+      "@/components/icons/music-icons": new Proxy({}, { get: (_t, name) => String(name) }),
+      "@/components/poster": { Poster: "Poster" },
+      "./music-artist-link": { MusicArtistLink: "MusicArtistLink" },
+      "./music-item-menu": { useMusicItemMenu: () => ({ openFor: () => () => {}, menu: null }) },
+      "@/lib/i18n": { useT: () => (s: string) => s },
+      "@/lib/use-drag-scroll": { useDragScroll: () => ({ ref: { current: rail }, handlers: {} }) },
+      "@/lib/music/video-discovery": {
+        MUSIC_VIDEO_KIND_LABELS: {},
+        musicVideoQuery: () => "q",
+        musicVideoUsesYoutube: () => false,
+      },
+      "@/lib/music/video-pages": {
+        appendMusicVideos: (a: unknown[], b: unknown[]) => [...a, ...b],
+        searchMusicVideoPage: async () => ({ tracks: [track], next: null }),
+      },
+      "@/assets/service-logos/youtube.ico": { default: "yt.ico" },
+      "./music-video-discovery.css": {},
+      "react/jsx-runtime": { jsx: mount, jsxs: mount, Fragment: "Fragment" },
+    },
+    {
+      IntersectionObserver: class {
+        constructor(cb: typeof intersect) {
+          intersect = cb;
+        }
+        observe() {}
+        disconnect() {}
+      },
+      ResizeObserver: class {
+        observe() {}
+        disconnect() {}
+      },
+    },
   );
-  assert.match(discoveryTsx, /disabled=\{edges\.start\}/);
-  assert.match(discoveryTsx, /disabled=\{edges\.end\}/);
-  assert.match(discoveryTsx, /new ResizeObserver\(measure\)/);
-  assert.match(discoveryTsx, /addEventListener\("scroll", measure/);
+  const props = { onWatch() {} };
+  return {
+    rail,
+    render: () => h.render(props) as N,
+    start: async () => {
+      h.render(props);
+      intersect([{ isIntersecting: true }]);
+      h.render(props);
+      await flushPromises();
+      return h.render(props) as N;
+    },
+  };
+}
+
+const arrows = (tree: N) =>
+  all(tree)
+    .filter((n) => n.props["aria-label"] === "common.previous" || n.props["aria-label"] === "common.next")
+    .map((n) => n.props.disabled);
+
+test("the discovery rail arrows disable at each edge and follow scrolling", async () => {
+  const d = discovery();
+  await d.start();
+  assert.deepEqual(arrows(d.render()), [true, false], "at the start only Next works");
+  d.rail.scrollLeft = 600;
+  d.rail.listeners.get("scroll")!();
+  assert.deepEqual(arrows(d.render()), [false, true], "at the end only Previous works");
+  d.rail.scrollLeft = 300;
+  d.rail.listeners.get("scroll")!();
+  assert.deepEqual(arrows(d.render()), [false, false]);
   assert.match(discoveryCss, /\.music-video-rail-controls button:disabled\{/);
 });
 
-test("the discovery placeholder mirrors the tile it becomes instead of spinning", () => {
-  assert.match(discoveryTsx, /music-video-skeleton-art/);
-  assert.match(discoveryTsx, /music-video-skeleton-line/);
-  assert.doesNotMatch(discoveryTsx, /Loader2/);
-  assert.doesNotMatch(discoveryCss, /music-video-spin/);
+test("the discovery placeholder mirrors the tile it becomes instead of spinning", async () => {
+  const d = discovery();
+  const first = d.render();
+  const skeleton = all(first).find((n) => n.props.className === "music-video-skeleton")!;
+  assert.equal(skeleton.props.role, "status");
+  const parts = all(skeleton).map((n) => n.props.className);
+  assert.ok(parts.includes("music-video-skeleton-art"));
+  assert.ok(parts.includes("music-video-skeleton-line"));
+  assert.equal(all(first).some((n) => n.type === "LoaderCircle"), false);
   assert.match(rule(discoveryCss, ".music-video-skeleton-art"), /aspect-ratio:16\/9/);
+  assert.equal(
+    all(await d.start()).some((n) => n.props.className === "music-video-skeleton"),
+    false,
+    "loaded tiles replace it",
+  );
 });
 
-test("every discovery control declares its button type so a rail cannot submit the search form", () => {
-  const buttons = discoveryTsx.match(/<button(?![^>]*type=)[^>]*>/g) ?? [];
-  assert.deepEqual(buttons, []);
+test("every discovery control declares its button type so a rail cannot submit the search form", async () => {
+  const buttons = all(await discovery().start()).filter((n) => n.type === "button");
+  assert.ok(buttons.length >= 4);
+  assert.deepEqual(
+    buttons.filter((b) => b.props.type !== "button" && b.props.type !== "submit"),
+    [],
+  );
+  assert.deepEqual(
+    buttons.filter((b) => b.props.type === "submit").map((b) => b.props["aria-label"]),
+    ["common.search"],
+    "only the search arrow submits",
+  );
 });

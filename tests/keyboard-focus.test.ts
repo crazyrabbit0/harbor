@@ -5,36 +5,12 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { shouldHandleGlobalKeyboardEvent } from "../src/lib/hotkeys.ts";
-import * as poster from "../src/lib/poster-backdrop-expansion.ts";
 import { nextTabStop } from "../src/lib/tab-cycle.ts";
 import { hookHarness, loadModule } from "./helpers/hook-harness.ts";
 import { tvDom } from "./helpers/tv-dom.ts";
+import { tvNavigationHarness as nav } from "./helpers/tv-navigation-harness.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-
-function nav(html: string, options: { rtl?: boolean; onBack?: () => boolean } = {}) {
-  const dom = tvDom(html, options);
-  const hotkeys = loadModule(
-    "src/lib/hotkeys.ts",
-    { "./stored-settings": { storedSettings: () => ({}) } },
-    { document: dom.document },
-  );
-  const backs: string[] = [];
-  const h = hookHarness(
-    "src/lib/keyboard-navigation.ts",
-    "useKeyboardNavigation",
-    {
-      "@/lib/hotkeys": hotkeys,
-      "@/lib/sfx": { SFX: { close() {}, open() {}, navigate() {} } },
-      "@/lib/modal-overlay": { isModalOverlayOpen: () => false, modalOverlayClose: async () => {} },
-      "@/lib/poster-backdrop-expansion": poster,
-      "./keyboard-navigation/geometry": { navOwnsFocus: () => false },
-    },
-    dom.globals,
-  );
-  const onBack = options.onBack ?? (() => (backs.push("back"), true));
-  return { ...dom, h, api: h.exports, backs, mount: () => h.render({ onBack }) };
-}
 
 const active = (dom: { document: any }) => dom.document.activeElement.getAttribute("id");
 

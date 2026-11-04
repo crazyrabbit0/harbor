@@ -4,7 +4,13 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
-import {
+import "./_localstorage-stub.ts";
+import * as expansion from "../src/lib/poster-backdrop-expansion.ts";
+import { DEFAULT } from "../src/lib/settings/defaults.ts";
+import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness.ts";
+import { tvNavigationHarness } from "./helpers/tv-navigation-harness.ts";
+
+const {
   expandedCardWidth,
   isSuitableWideArtworkSize,
   normalizePosterCardSettings,
@@ -12,7 +18,9 @@ import {
   rewriteWideArtworkRung,
   scrollDeltaToRevealCard,
   stableCardNavigationRect,
-} from "../src/lib/poster-backdrop-expansion.ts";
+} = expansion;
+
+const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 test("expanding cards keep the poster height and reject unsuitable artwork", () => {
   assert.equal(expandedCardWidth(180), 320);
@@ -47,6 +55,22 @@ test("expanded cards keep their original spatial-navigation center", () => {
   });
 });
 
+test("the TV focus engine navigates an expanded card from its base width", () => {
+  const n = tvNavigationHarness(
+    '<button id="a" data-rect="0,0,100,100"></button>' +
+      '<div data-tv-nav-base-width="100" data-rect="120,0,300,100"><button id="b" data-rect="120,0,300,100"></button></div>' +
+      '<button id="c" data-rect="120,200,100,100"></button>' +
+      '<button id="d" data-rect="220,200,100,100"></button>',
+  );
+  n.mount();
+  n.get("#b").focus();
+  n.api.moveFocus("down");
+  assert.equal(n.activeId(), "c", "Down picks the card under the base width, not the wide frame");
+  n.get("#c").focus();
+  n.api.moveFocus("up");
+  assert.equal(n.activeId(), "b");
+});
+
 test("expanded cards remain fully visible at either row edge", () => {
   const viewport = { left: 100, right: 900 };
   assert.equal(scrollDeltaToRevealCard({ left: 120, right: 880 }, viewport, 20), 0);
@@ -74,177 +98,222 @@ test("wide artwork prefers a different TMDB image and upgrades its resolution", 
   assert.equal(pickAlternativeWideArtwork([cinemetaBackdrop], cinemetaPoster), cinemetaBackdrop);
 });
 
-test("Expanding Cards reflows the row and preserves card overlays", () => {
-  const rowSource = readFileSync(new URL("../src/components/row.tsx", import.meta.url), "utf8");
-  const cardSource = readFileSync(
-    new URL("../src/components/pick-card.tsx", import.meta.url),
-    "utf8",
-  );
-  const cssSource = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
-  const navigationSource = readFileSync(
-    new URL("../src/lib/keyboard-navigation.ts", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(rowSource, /harbor-expanding-row flex flex-nowrap/);
-  assert.match(
-    rowSource,
-    /flexBasis: `\$\{expansion\.expandedWidth \?\? expansion\.baseWidth\}px`/,
-  );
-  assert.match(rowSource, /--row-poster-height/);
-  assert.match(cardSource, /<ExpandingCardArtwork[\s\S]*src=\{expandingCard\.artwork\}/);
+test("Expanding Cards reflows the row and keeps artwork under the card badges", () => {
+  const row = read("src/components/row.tsx");
+  const card = read("src/components/pick-card.tsx");
+  assert.match(row, /\? "harbor-expanding-card-scope harbor-expanding-row flex flex-nowrap"/);
+  assert.match(row, /flexBasis: `\$\{expansion\.expandedWidth \?\? expansion\.baseWidth\}px`,/);
+  assert.match(row, /data-tv-nav-base-width=\{expansion\?\.baseWidth\}/);
+  assert.match(row, /if \(!expandedCard\) track\.style\.scrollSnapType = "";/);
   assert.ok(
-    cardSource.indexOf("<ExpandingCardArtwork") < cardSource.indexOf("<ScoreStack"),
+    card.indexOf("<ExpandingCardArtwork") < card.indexOf("<ScoreStack"),
     "wide artwork must remain underneath IMDb and other card badges",
   );
-  assert.doesNotMatch(cssSource, /poster-backdrop-morph/);
-  assert.match(cssSource, /data-row-card-expanded="true"/);
-  assert.match(rowSource, /data-tv-nav-base-width=\{expansion\?\.baseWidth\}/);
-  assert.match(rowSource, /if \(!expandedCard\) track\.style\.scrollSnapType = ""/);
-  assert.match(navigationSource, /stableCardNavigationRect\(r, baseWidth, rtl\)/);
-  assert.match(cardSource, /kids \|\| !settings\.hoverPreviewEnabled \? "none"/);
-  assert.doesNotMatch(cardSource, /hoverPreviewEnabled \|\| expandingCard\.enabled/);
-  assert.match(cardSource, /if \(!expandingCard\.enabled\) hoverPreviewFocus/);
-  assert.match(cardSource, /hoverPreviewEnter\(meta, e\.currentTarget, e\.buttons\)/);
+  assert.match(read("src/index.css"), /\[data-expanding-card\]\[data-row-card-expanded="true"\]/);
 });
 
-test("Focused Card, Expanding Cards, and Poster Dock remain independent", () => {
-  const settingsSource = readFileSync(
-    new URL("../src/views/settings/theme-panel/display/poster-card-section.tsx", import.meta.url),
-    "utf8",
+test("Focused Card, Expanding Cards, and Poster Dock remain independent settings", async () => {
+  assert.equal(DEFAULT.posterFocusedCard, false);
+  assert.equal(DEFAULT.posterBackdropExpansion, false);
+  assert.equal(DEFAULT.posterDockMagnification, false);
+  assert.deepEqual(
+    normalizePosterCardSettings({ posterBackdropExpansion: true, posterDockMagnification: true }),
+    { posterBackdropExpansion: true, posterFocusedCard: false, posterDockMagnification: true },
   );
-  const rowSource = readFileSync(new URL("../src/components/row.tsx", import.meta.url), "utf8");
-  const defaultsSource = readFileSync(
-    new URL("../src/lib/settings/defaults.ts", import.meta.url),
-    "utf8",
+  assert.deepEqual(
+    normalizePosterCardSettings({
+      posterBackdropExpansion: false,
+      posterFocusedCard: true,
+      posterDockMagnification: true,
+    }),
+    { posterBackdropExpansion: false, posterFocusedCard: true, posterDockMagnification: true },
   );
-  const loadSource = readFileSync(new URL("../src/lib/settings/load.ts", import.meta.url), "utf8");
-
-  assert.match(settingsSource, /update\(\{ posterBackdropExpansion \}\)/);
-  assert.doesNotMatch(settingsSource, /posterDockMagnification: false/);
-  assert.doesNotMatch(settingsSource, /!settings\.posterBackdropExpansion/);
+  assert.deepEqual(
+    normalizePosterCardSettings({ posterBackdropExpansion: "yes", posterFocusedCard: 1 }),
+    { posterBackdropExpansion: false, posterFocusedCard: false, posterDockMagnification: false },
+  );
+  const { loadStoredSettings } = await import("../src/lib/settings/load.ts");
+  localStorage.setItem(
+    "test.poster-cards",
+    JSON.stringify({ posterBackdropExpansion: true, posterFocusedCard: "true", posterDockMagnification: true }),
+  );
+  const loaded = loadStoredSettings("test.poster-cards");
+  assert.deepEqual(
+    [loaded.posterBackdropExpansion, loaded.posterFocusedCard, loaded.posterDockMagnification],
+    [true, false, true],
+    "stored settings go through the same normalizer",
+  );
+  const panel = read("src/views/settings/theme-panel/display/poster-card-section.tsx");
+  assert.match(panel, /onChange=\{\(posterFocusedCard\) => update\(\{ posterFocusedCard \}\)\}/);
   assert.match(
-    settingsSource,
-    /label=\{t\("Focused Card"\)\}[\s\S]*value=\{settings\.posterFocusedCard\}/,
+    panel,
+    /onChange=\{\(posterBackdropExpansion\) => update\(\{ posterBackdropExpansion \}\)\}/,
   );
-  assert.ok(
-    settingsSource.indexOf('label={t("Focused Card")}') <
-      settingsSource.indexOf('label={t("Expanding Cards")}'),
-    "Focused Card must be a separate top-level setting",
-  );
-  assert.match(rowSource, /effShape === "portrait" && settings\.posterDockMagnification/);
-  assert.doesNotMatch(rowSource, /posterDockMagnification && !expandingCards/);
-  assert.match(defaultsSource, /posterFocusedCard: false/);
-  assert.match(loadSource, /normalizePosterCardSettings\(parsed\)/);
-  assert.deepEqual(
-    normalizePosterCardSettings({
-      posterBackdropExpansion: true,
-      posterDockMagnification: true,
-    }),
-    {
-      posterBackdropExpansion: true,
-      posterFocusedCard: false,
-      posterDockMagnification: true,
-    },
-  );
-  assert.deepEqual(
-    normalizePosterCardSettings({
-      posterBackdropExpansion: true,
-      posterFocusedCard: false,
-      posterDockMagnification: true,
-    }),
-    {
-      posterBackdropExpansion: true,
-      posterFocusedCard: false,
-      posterDockMagnification: true,
-    },
-  );
-  assert.deepEqual(
-    normalizePosterCardSettings({
-      posterBackdropExpansion: false,
-      posterFocusedCard: true,
-      posterDockMagnification: true,
-    }),
-    {
-      posterBackdropExpansion: false,
-      posterFocusedCard: true,
-      posterDockMagnification: true,
-    },
+  assert.match(
+    read("src/components/row.tsx"),
+    /const dockEnabled = effShape === "portrait" && settings\.posterDockMagnification;/,
   );
 });
+
+type Row = { enabled: boolean; expanded: boolean; expand: (w: number) => void; collapse: () => void };
+
+function expandingCard(options: { enabled?: boolean; focusEnabled?: boolean; modality?: string } = {}) {
+  const prepared: string[] = [];
+  const resolvers: Array<(url: string | undefined) => void> = [];
+  const visibility: Array<(visible: boolean) => void> = [];
+  const widths: number[] = [];
+  let collapses = 0;
+  const row: Row = {
+    enabled: options.enabled ?? true,
+    expanded: false,
+    expand: (w) => widths.push(w),
+    collapse: () => collapses++,
+  };
+  const h = hookHarness(
+    "src/components/pick-card/use-expanding-card.tsx",
+    "useExpandingCard",
+    {
+      "@/lib/expanding-card-artwork": {
+        expandingCardArtworkKey: (meta: { id: string }) => meta.id,
+        invalidateExpandingCardArtwork() {},
+        prepareExpandingCardArtwork: (_meta: unknown, _key: string, priority: string) => {
+          prepared.push(priority);
+          return new Promise<string | undefined>((resolve) => resolvers.push(resolve));
+        },
+      },
+      "@/lib/poster-backdrop-expansion": expansion,
+      "@/lib/visibility": {
+        observe: (_el: unknown, cb: (visible: boolean) => void) => (visibility.push(cb), () => {}),
+      },
+      "../row-card-expansion": { useRowCardExpansion: () => row },
+      "react/jsx-runtime": { jsx: (type: unknown, props: object) => ({ type, props }) },
+    },
+    {
+      document: {
+        documentElement: { getAttribute: () => options.modality ?? "keys" },
+      },
+    },
+  );
+  const anchor = { getBoundingClientRect: () => ({ height: 270 }) };
+  const props = {
+    cardRef: { current: { querySelector: () => anchor } },
+    meta: { id: "tt1", type: "movie", name: "One" },
+    tmdbKey: "key",
+    focusEnabled: options.focusEnabled ?? false,
+  };
+  return {
+    render: () => h.render(props),
+    prepared,
+    resolve: (url: string | undefined) => resolvers.shift()?.(url),
+    visible: () => visibility.forEach((cb) => cb(true)),
+    widths,
+    collapses: () => collapses,
+  };
+}
 
 test("Focused Card is global and independent from card expansion", () => {
-  const hookSource = readFileSync(
-    new URL("../src/components/pick-card/use-expanding-card.tsx", import.meta.url),
-    "utf8",
-  );
-  const cardSource = readFileSync(
-    new URL("../src/components/pick-card.tsx", import.meta.url),
-    "utf8",
-  );
-  const rowSource = readFileSync(new URL("../src/components/row.tsx", import.meta.url), "utf8");
-  const cssSource = readFileSync(new URL("../src/index.css", import.meta.url), "utf8");
-
-  assert.match(hookSource, /const focusedCardEffectEnabled = focusEnabled/);
-  assert.doesNotMatch(hookSource, /enabled && focusEnabled/);
-  assert.match(cardSource, /focusEnabled: settings\.posterFocusedCard/);
+  const off = expandingCard({ enabled: false, focusEnabled: true });
+  const card = off.render();
+  assert.equal(card.focusEnabled, true, "Focused Card works on rows without expansion");
+  assert.equal(card.enabled, false);
+  card.onFocus();
+  assert.deepEqual(off.prepared, [], "and never loads wide artwork there");
+  assert.equal(expandingCard({ focusEnabled: false }).render().focusEnabled, false);
   assert.match(
-    cardSource,
-    /expandingCard\.focusEnabled\s*\?\s*"group-focus:\[-webkit-transform:translate3d\(0,-0\.5rem,0\)\]/,
+    read("src/components/pick-card.tsx"),
+    /expandingCard\.focusEnabled\s*\? "group-focus:\[-webkit-transform:translate3d\(0,-0\.5rem,0\)\]/,
   );
-  assert.match(hookSource, /focusIntentRef\.current = true/);
-  assert.doesNotMatch(hookSource, /row\?\.setFocused|setRowCardFocused/);
-  assert.doesNotMatch(rowSource, /focusedCardIndex|deemphasized/);
-  assert.match(cssSource, /#root\[data-card-focus-active\]/);
-  assert.match(cssSource, /\[data-media-card\]/);
-  assert.match(cssSource, /brightness\(0\.68\) saturate\(0\.78\) blur\(0\.7px\)/);
-  assert.match(cssSource, /\[data-focused-card\]:is\(:focus-visible, \[data-tv-focused="true"\]\)/);
-  assert.doesNotMatch(cssSource, /\[data-expanding-card\]\[data-tv-focused="true"\]/);
+  assert.match(read("src/index.css"), /#root\[data-card-focus-active\]/);
 });
 
-test("pointer hover never expands cards and keeps normal hover styles and preview", () => {
-  const hookSource = readFileSync(
-    new URL("../src/components/pick-card/use-expanding-card.tsx", import.meta.url),
-    "utf8",
-  );
-  const cardSource = readFileSync(
-    new URL("../src/components/pick-card.tsx", import.meta.url),
-    "utf8",
-  );
-
-  assert.doesNotMatch(
-    hookSource,
-    /HOVER_EXPAND|pointerIntentRef|pointerArmedRef|hoverTimerRef|hoverEnabled|onPointerEnter|onPointerLeave/,
-  );
-  assert.doesNotMatch(cardSource, /expandingCard\.onPointer|posterBackdropExpansionHover/);
-  assert.doesNotMatch(cardSource, /hoverPreviewEnabled \|\| expandingCard\.enabled/);
-  assert.match(cardSource, /hoverPreviewEnter\(meta, e\.currentTarget, e\.buttons\)/);
+test("pointer focus never expands cards and keeps the hover preview", async () => {
+  const c = expandingCard({ modality: "pointer" });
+  c.render().onFocus();
+  assert.deepEqual(c.prepared, [], "a mouse focus asks for no artwork");
+  c.render().onArtworkReady("ignored");
+  assert.deepEqual(c.widths, []);
+  const card = read("src/components/pick-card.tsx");
+  assert.match(card, /if \(!expandingCard\.enabled\) hoverPreviewFocus\(meta, e\.currentTarget\);/);
+  assert.match(card, /hoverPreviewEnter\(meta, e\.currentTarget, e\.buttons\);/);
+  assert.match(card, /kids \|\| !settings\.hoverPreviewEnabled \? "none"/);
 });
 
-test("wide artwork is prepared before the row is allowed to expand", () => {
-  const hookSource = readFileSync(
-    new URL("../src/components/pick-card/use-expanding-card.tsx", import.meta.url),
-    "utf8",
-  );
-  const artworkSource = readFileSync(
-    new URL("../src/lib/expanding-card-artwork.ts", import.meta.url),
-    "utf8",
-  );
+test("wide artwork is prepared before the row is allowed to expand", async () => {
+  const c = expandingCard();
+  c.render();
+  c.visible();
+  assert.deepEqual(c.prepared, ["auto"], "a visible card preloads at normal priority");
+  c.render().onFocus();
+  assert.deepEqual(c.prepared, ["auto", "high"], "focus raises the pending load to high");
+  assert.deepEqual(c.widths, [], "no expansion before the artwork exists");
+  c.resolve("wide.jpg");
+  await flushPromises();
+  const loaded = c.render();
+  assert.equal(loaded.artwork, "wide.jpg");
+  assert.deepEqual(c.widths, [], "a downloaded image still waits for its decode");
+  loaded.onArtworkReady("wide.jpg");
+  assert.deepEqual(c.widths, [480], "then the row expands to 16:9 of the poster height");
+  c.render().onBlur();
+  assert.equal(c.collapses() > 0, true);
+});
 
-  assert.match(hookSource, /if \(!url \|\| !row \|\| !enabled\) return/);
-  assert.match(hookSource, /prepareExpandingCardArtwork\(meta, tmdbKey, priority\)/);
-  assert.match(hookSource, /loadArtwork\("auto"\)/);
-  assert.match(hookSource, /loadArtwork\("high"\)/);
-  assert.match(hookSource, /artworkKeyRef\.current !== artworkKey/);
-  assert.match(hookSource, /onArtworkReady/);
-  assert.match(artworkSource, /image\.decode\(\)\.then/);
-  assert.match(artworkSource, /isSuitableWideArtworkSize/);
-  assert.match(artworkSource, /tvdbArtwork\?\.backgrounds/);
-  assert.match(artworkSource, /meta\.background \? \[meta\.background\]/);
-  assert.ok(
-    artworkSource.indexOf("const immediate") < artworkSource.indexOf("await artworkCandidates"),
-    "the existing backdrop must be decoded before remote artwork fallbacks are requested",
+test("wide artwork decodes the card's own backdrop before asking remote sources", async () => {
+  const sizes = new Map<string, [number, number]>([
+    ["https://img/background.jpg", [1280, 720]],
+    ["https://image.tmdb.org/t/p/w1280/tmdb.jpg", [1920, 1080]],
+    ["https://img/narrow.jpg", [600, 338]],
+  ]);
+  const remote: string[] = [];
+  class FakeImage {
+    naturalWidth = 0;
+    naturalHeight = 0;
+    decoding = "";
+    fetchPriority = "";
+    onload: () => void = () => {};
+    onerror: () => void = () => {};
+    decode = () => Promise.resolve();
+    set src(url: string) {
+      const size = sizes.get(url);
+      queueMicrotask(() => {
+        if (!size) return this.onerror();
+        [this.naturalWidth, this.naturalHeight] = size;
+        this.onload();
+      });
+    }
+  }
+  const artwork = loadModule(
+    "src/lib/expanding-card-artwork.ts",
+    {
+      "@/lib/anime-backdrop": { resolveHeroBackdrop: async () => undefined },
+      "@/lib/cinemeta": { narrowMediaType: (t: string) => t },
+      "@/lib/providers/anime-mapping": { externalToKitsu: async () => null },
+      "@/lib/providers/kitsu": { parseKitsuId: () => null },
+      "@/lib/providers/tmdb": {
+        tmdbAnimeMatch: async () => null,
+        tmdbIdFromImdb: async (_k: string, id: string) => (remote.push(`tmdb:${id}`), "tmdb:movie:1"),
+        tmdbMovieImages: async () => ["https://image.tmdb.org/t/p/w780/tmdb.jpg"],
+      },
+      "@/lib/providers/tvdb-proxy": {
+        fetchTvdbArtwork: async () => (remote.push("tvdb"), { backgrounds: [] }),
+      },
+      "@/lib/simkl/activities": { getLocalCache: () => null },
+      "@/lib/simkl/client": { simklRequest: async () => null },
+      "@/lib/poster-backdrop-expansion": expansion,
+    },
+    { Image: FakeImage },
   );
-  assert.match(artworkSource, /\|simkl\)/);
-  assert.doesNotMatch(hookSource, /meta\.background/);
+  const withBackground = { id: "tt1", type: "movie", name: "One", poster: "https://img/p.jpg", background: "https://img/background.jpg" };
+  assert.equal(
+    await artwork.prepareExpandingCardArtwork(withBackground, "key"),
+    "https://img/background.jpg",
+  );
+  assert.deepEqual(remote, [], "a suitable backdrop on the card needs no remote lookup");
+
+  const narrow = { ...withBackground, id: "tt2", background: "https://img/narrow.jpg" };
+  assert.equal(
+    await artwork.prepareExpandingCardArtwork(narrow, "key"),
+    "https://image.tmdb.org/t/p/w1280/tmdb.jpg",
+    "a too-small backdrop falls back to TMDB at the w1280 rung",
+  );
+  assert.deepEqual(remote.sort(), ["tmdb:tt2", "tvdb"]);
 });
