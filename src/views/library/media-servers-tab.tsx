@@ -27,6 +27,7 @@ import {
   setManualMapping,
 } from "@/lib/media-server/index-store";
 import { dedupePhysicalEpisodeItems, groupMediaServerTitles } from "@/lib/media-server/selectors";
+import { mediaServerSubtitles } from "@/lib/media-server/playback";
 import {
   currentMediaServerSyncProgress,
   mediaServerAdapter,
@@ -546,12 +547,7 @@ const ServerCard = memo(function ServerCard({
               : undefined,
           url: source.url,
           headers: source.headers,
-          subtitles: source.subtitles?.map((track) => ({
-            id: track.id,
-            url: track.url,
-            lang: track.language,
-            trustedSource: true,
-          })),
+          subtitles: mediaServerSubtitles(source),
           title: card.meta.name,
           subtitle: `${connection.name} · ${source.direct ? "Direct play" : "Transcode"}`,
           notWebReady: true,

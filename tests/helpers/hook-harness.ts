@@ -6,6 +6,8 @@ export function hookHarness(
   exportName: string,
   mocks: Record<string, any>,
   globals: Record<string, any> = {},
+  /** Module-local functions to make renderable as exports (e.g. a private child component). */
+  expose: string[] = [],
 ) {
   const refs: any[] = [],
     states: any[] = [],
@@ -19,6 +21,7 @@ export function hookHarness(
   const same = (a: any[], b: any[]) =>
     !!a && !!b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
   const react = {
+    Component: class {},
     useRef(value: any) {
       const i = ri++;
       return (refs[i] ??= { current: value });
@@ -52,13 +55,14 @@ export function hookHarness(
       return snapshot();
     },
   };
-  const output = ts.transpileModule(readFileSync(file, "utf8"), {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-      jsx: ts.JsxEmit.ReactJSX,
-    },
-  }).outputText;
+  const output =
+    ts.transpileModule(readFileSync(file, "utf8"), {
+      compilerOptions: {
+        module: ts.ModuleKind.CommonJS,
+        target: ts.ScriptTarget.ES2022,
+        jsx: ts.JsxEmit.ReactJSX,
+      },
+    }).outputText + expose.map((name) => `\nexports.${name} = ${name};`).join("");
   const api: any = {};
   new Function("require", "exports", ...Object.keys(globals), output)(
     (name: string) => {

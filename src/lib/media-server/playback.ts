@@ -7,6 +7,18 @@ import type { MediaServerQuality } from "./types";
 import type { MediaServerConnection, MediaServerItem, MediaServerPlayback } from "./types";
 export { decidePlaybackSource } from "./playback-policy";
 
+/** A home server's own subtitles skip the provider URL gate, which would reject its LAN URLs. */
+export function mediaServerSubtitles(
+  playback: Pick<MediaServerPlayback, "subtitles">,
+): PlayerSrc["subtitles"] {
+  return playback.subtitles?.map((track) => ({
+    id: track.id,
+    url: track.url,
+    lang: track.language,
+    trustedSource: true,
+  }));
+}
+
 function providerName(provider: MediaServerConnection["provider"]): string {
   if (provider === "plex") return "Plex";
   if (provider === "jellyfin") return "Jellyfin";
@@ -42,12 +54,7 @@ export function mediaServerPlayerSrc(args: {
         : undefined,
     url: playback.url,
     headers: playback.headers,
-    subtitles: playback.subtitles?.map((track) => ({
-      id: track.id,
-      url: track.url,
-      lang: track.language,
-      trustedSource: true,
-    })),
+    subtitles: mediaServerSubtitles(playback),
     title: meta.name,
     subtitle: `${providerName(connection.provider)} · ${connection.name} · ${playback.direct ? "Direct play" : "Transcode"}`,
     notWebReady: true,
@@ -103,12 +110,7 @@ export async function switchMediaServerQuality(args: {
     ...args.src,
     url: next.url,
     headers: next.headers,
-    subtitles: next.subtitles?.map((track) => ({
-      id: track.id,
-      url: track.url,
-      lang: track.language,
-      trustedSource: true,
-    })),
+    subtitles: mediaServerSubtitles(next),
     startPositionMs: args.positionMs,
     startPaused: !args.playing,
     homeServer: {
