@@ -17,13 +17,10 @@ import {
   pickDesiredSubtitleTrack,
   subtitleAutoSelectionSignature,
 } from "../src/lib/subtitles/track-selection.ts";
+import { html5BridgeHarness } from "./helpers/html5-bridge-harness.ts";
 
 const mpvSource = readFileSync(
   new URL("../src/lib/player/mpv-subtitles.ts", import.meta.url),
-  "utf8",
-);
-const html5Source = readFileSync(
-  new URL("../src/lib/player/html5/bridge.ts", import.meta.url),
   "utf8",
 );
 const autoloadSource = readFileSync(
@@ -202,8 +199,78 @@ test("prepared player-source seeds publish eligibility only after each bridge se
   );
   assert.match(mpvSource, /metadata\.prepared = true/);
   assert.match(mpvSource, /seedBatch\.commit\(/);
-  assert.match(html5Source, /const seedBatch = new PreparedSubtitleSeedBatch\(seedTracks\)/);
-  assert.match(html5Source, /Promise\.all\([\s\S]*seedBatch\.commit\(/);
+});
+
+const cue = (text: string) => [{ start: 0, end: 5, text }];
+
+test("html5 seeds become auto-selectable together, only after every seed settles", async () => {
+  const slow = Promise.withResolvers<void>();
+  const h = html5BridgeHarness(
+    { "https://subs.test/en.srt": cue("en"), "https://subs.test/fr.srt": cue("fr") },
+    { gate: new Map([["https://subs.test/fr.srt", slow.promise]]) },
+  );
+  await h.bridge.load({
+    url: "https://media.test/a.mp4",
+    subtitles: [
+      { url: "https://subs.test/en.srt", lang: "en" },
+      { url: "https://subs.test/fr.srt", lang: "fr" },
+    ],
+  });
+  const eligible = () =>
+    h.snapshot().subtitleTracks.map((t) => [t.lang, t.autoSelectionEligible ?? false]);
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(
+    eligible(),
+    [
+      ["en", false],
+      ["fr", false],
+    ],
+    "a ready seed waits for its slower siblings",
+  );
+  slow.resolve();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(eligible(), [
+    ["en", true],
+    ["fr", true],
+  ]);
+});
+
+test("a new html5 load drops the previous source's seeds, even ones still loading", async () => {
+  const slow = Promise.withResolvers<void>();
+  const h = html5BridgeHarness(
+    { "https://subs.test/old.srt": cue("old") },
+    { gate: new Map([["https://subs.test/old.srt", slow.promise]]) },
+  );
+  await h.bridge.load({
+    url: "https://media.test/a.mp4",
+    subtitles: [{ url: "https://subs.test/old.srt", lang: "en" }],
+  });
+  await h.bridge.load({ url: "https://media.test/b.mp4" });
+  slow.resolve();
+  await new Promise((r) => setTimeout(r, 0));
+  assert.deepEqual(h.snapshot().subtitleTracks, []);
+});
+
+test("html5 drops unsafe provider seeds but keeps trusted local and home-server ones", async () => {
+  const h = html5BridgeHarness(
+    {},
+    { safeProviderUrl: (url) => url.startsWith("https://subs.test/") },
+  );
+  await h.bridge.load({
+    url: "https://media.test/a.mp4",
+    subtitles: [
+      { url: "https://subs.test/en.srt", lang: "en" },
+      { url: "http://10.0.0.5/evil.srt", lang: "de" },
+      { url: "C:/subs/a.fr.srt", lang: "fr", trustedSource: true },
+    ],
+  });
+  assert.deepEqual(
+    h.snapshot().subtitleTracks.map((t) => [t.lang, t.providerDerived]),
+    [
+      ["en", true],
+      ["fr", false],
+    ],
+  );
 });
 
 test("trusted local and home-server subtitle seeds bypass only the provider URL gate", () => {
@@ -211,8 +278,6 @@ test("trusted local and home-server subtitle seeds bypass only the provider URL 
     mpvSource,
     /subtitle\.trustedSource !== true && !isSafeProviderSubtitleUrl\(originalUrl\)/,
   );
-  assert.match(html5Source, /s\.trustedSource !== true && !isSafeProviderSubtitleUrl\(s\.url\)/);
-  assert.match(html5Source, /providerDerived: s\.trustedSource !== true/);
   assert.equal(
     [...mediaServerPlaybackSource.matchAll(/trustedSource: true/g)].length,
     2,
