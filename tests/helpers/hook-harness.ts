@@ -22,6 +22,7 @@ export function hookHarness(
     !!a && !!b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
   const react = {
     Component: class {},
+    memo: (component: any) => component,
     useRef(value: any) {
       const i = ri++;
       return (refs[i] ??= { current: value });
@@ -74,6 +75,7 @@ export function hookHarness(
     ...Object.values(globals),
   );
   return {
+    exports: api,
     render(args?: any) {
       ri = si = mi = ei = 0;
       pending = [];
@@ -86,6 +88,27 @@ export function hookHarness(
       for (const effect of effects) effect?.cleanup?.();
     },
   };
+}
+
+/** Compiles a module with mocked imports (dynamic `import()` included) and returns its exports. */
+export function loadModule(
+  file: string,
+  mocks: Record<string, any>,
+  globals: Record<string, any> = {},
+): Record<string, any> {
+  const output = ts.transpileModule(readFileSync(file, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const api: any = {};
+  new Function("require", "exports", ...Object.keys(globals), output)(
+    (name: string) => {
+      if (!(name in mocks)) throw new Error(`Unexpected dependency ${name}`);
+      return mocks[name];
+    },
+    api,
+    ...Object.values(globals),
+  );
+  return api;
 }
 
 export const flushPromises = async () => {
