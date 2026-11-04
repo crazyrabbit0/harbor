@@ -18,6 +18,7 @@ const RETRYABLE_ENGINE_FAILURES = new Set([
 import { engineP2pEligible } from "@/lib/torrent/stremio-stream";
 import { hasUncachedMarker } from "@/lib/streams/cached";
 import { preflightCheck } from "@/lib/streams/preflight";
+import { skipsPreflight } from "@/lib/streams/link-readiness";
 import { resolveStream, shouldPreferP2pDownload } from "@/lib/streams/resolve";
 import { resolvePlaybackRedirect } from "@/lib/streams/playback-redirect";
 import {
@@ -298,13 +299,7 @@ export function usePickHandler({
           return;
         }
       }
-      const needsPreflight = !(
-        intent === "download" ||
-        r.via === "p2p" ||
-        r.via === "direct" ||
-        r.via === "local-download" ||
-        r.readiness?.exactUrlValidated === true
-      );
+      const needsPreflight = intent !== "download" && !skipsPreflight(r);
       if (needsPreflight) markPlaybackTrace(playbackTraceId, "preflight-start");
       const preflight = needsPreflight
         ? await preflightCheck(playUrl, ac.signal)

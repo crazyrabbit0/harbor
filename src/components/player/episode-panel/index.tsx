@@ -10,6 +10,7 @@ import { spoilerMaskFor } from "@/lib/spoilers";
 import { registerStreamProxy } from "@/lib/stream-proxy";
 import { unregisterStreamProxy } from "@/lib/stream-proxy";
 import { preflightCheck } from "@/lib/streams/preflight";
+import { skipsPreflight } from "@/lib/streams/link-readiness";
 import { resolveStream } from "@/lib/streams/resolve";
 import {
   beginPlaybackTrace,
@@ -182,11 +183,7 @@ export function EpisodePanel({
         playUrl = proxied.url;
         proxySessionId = proxied.sessionId;
       }
-      const skipPreflight =
-        r.via === "p2p" ||
-        r.via === "direct" ||
-        r.via === "local-download" ||
-        r.readiness?.exactUrlValidated === true;
+      const skipPreflight = skipsPreflight(r);
       if (!skipPreflight) markPlaybackTrace(playbackTraceId, "preflight-start");
       const preflight = skipPreflight
         ? ({ ok: true } as const)

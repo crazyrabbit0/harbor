@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { hookHarness, flushPromises } from "./helpers/hook-harness.ts";
 import { isPlaybackRedirectCandidate } from "../src/lib/streams/playback-redirect.ts";
+import { pickHandlerHarness } from "./helpers/pick-handler-harness.ts";
 
 const original = "https://addon.debridio.com/fixture/play";
 const finalUrl = "https://cdn.example.org/fixture.mkv";
@@ -88,95 +89,11 @@ test("cancelling during resolution discards the returned URL", async () => {
 });
 
 function pickerHarness(intent = "play") {
-  const opened: any[] = [],
-    history: any[] = [],
-    downloads: any[] = [];
-  let lookups = 0;
-  let redirect = async () => finalUrl;
-  const h = hookHarness("src/views/play-picker/use-pick-handler.ts", "usePickHandler", {
-    "@/lib/debrid/playback-preparation": { invalidatePreparedDebridLink() {} },
-    "@/lib/playback-history": { savePlayback: (_id: string, entry: any) => history.push(entry) },
-    "@/lib/season-lock": { saveSeasonLock() {} },
-    "@/lib/dead-streams": { markStreamDead() {}, recordStubEvent() {} },
-    "@/lib/torrent/stremio-stream": { engineP2pEligible: () => false },
-    "@/lib/streams/cached": { hasUncachedMarker: () => false },
-    "@/lib/streams/preflight": {
-      preflightCheck: () => {
-        throw new Error("unexpected preflight");
-      },
-    },
-    "@/lib/streams/resolve": {
-      resolveStream: async () => ({ ok: true, via: "direct", data: { url: original } }),
-      shouldPreferP2pDownload: () => false,
-    },
-    "@/lib/streams/playback-redirect": {
-      resolvePlaybackRedirect: () => {
-        lookups++;
-        return redirect();
-      },
-    },
-    "@/lib/perf/playback-trace": {
-      beginPlaybackTrace: () => "fixture",
-      finishPlaybackTrace() {},
-      markPlaybackTrace() {},
-    },
-    "@/lib/stream-proxy": {
-      registerStreamProxy: () => {
-        throw new Error("unexpected proxy");
-      },
-      unregisterStreamProxy() {},
-    },
-    "@/lib/together/build-invite": { buildPlayInvite() {} },
-    "@/lib/providers/kitsu": { parseKitsuId: () => null },
-    "@/lib/streams/anime-identity-core": { splitFranchiseDisplaySeason: () => null },
-    "@/lib/window": { openInAppBrowser() {}, openUrl() {} },
-    "@/lib/download/downloads-store": {
-      enqueueDownload: async (item: any) => downloads.push(item),
-    },
-    "@/lib/download/season-download": { downloadSeasonFromPack() {} },
-    "@/lib/download/season-pack": { isDownloadableSeasonPack: () => false },
-    "./picker-utils": {
-      formatStreamQuality: () => "1080p",
-      isDebridFailure: () => false,
-      playError: (code: string) => ({ code }),
-      streamIdentity: () => "fixture",
-    },
-  });
-  const noop = () => {};
-  const api = h.render({
-    meta: { id: "tt100", name: "Fixture" },
-    debrids: [],
-    isCached: () => true,
-    streamMode: "both",
-    p2pAutoConsent: true,
-    seasonLock: false,
-    inSession: false,
-    inviteSentRef: { current: null },
-    openPlayer: (src: any) => opened.push(src),
+  return pickHandlerHarness({
     intent,
-    autoActive: false,
-    autoAttemptIdx: 0,
-    autoCandidatesLength: 1,
-    autoFiredRef: { current: false },
-    setAutoAttemptIdx: noop,
-    setAutoExhausted: noop,
-    setFailedStreams: noop,
-    setResolveError: noop,
-    setResolving: noop,
+    resolve: async () => ({ ok: true, via: "direct", data: { url: original } }),
+    redirect: async () => finalUrl,
   });
-  return {
-    ...h,
-    api,
-    opened,
-    history,
-    downloads,
-    get lookups() {
-      return lookups;
-    },
-    redirect(fn: typeof redirect) {
-      redirect = fn;
-    },
-  };
 }
 
 test("manual selection loads the final URL and preserves the original source in history", async () => {
