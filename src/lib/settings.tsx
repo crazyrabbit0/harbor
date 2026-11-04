@@ -28,6 +28,11 @@ import { STORAGE_KEY } from "./settings/defaults";
 import { readSettingsFile, writeSettingsFile } from "./settings/file-store";
 import { torrentEngineSetEnabled } from "./torrent/local-engine";
 import { loadFontData, saveFontData } from "./font-storage";
+import {
+  fontFamilyAfterRemoval,
+  migrateInlineFonts,
+  stripMovedFonts,
+} from "./settings/custom-fonts";
 import { isRemovedBuiltinAvatar } from "./avatars/catalog";
 import {
   forkToProfile,
@@ -445,11 +450,8 @@ export function SettingsProvider({
   }, [settings.customFonts]);
 
   useEffect(() => {
-    const fam = settings.subFontFamily;
-    if (!fam?.startsWith("custom:")) return;
-    const id = fam.slice("custom:".length);
-    if ((settings.customFonts ?? []).some((f) => f.id === id)) return;
-    setSettings((s) => ({ ...s, subFontFamily: "inter" }));
+    const fallback = fontFamilyAfterRemoval(settings.subFontFamily, settings.customFonts ?? []);
+    if (fallback) setSettings((s) => ({ ...s, subFontFamily: fallback }));
   }, [settings.subFontFamily, settings.customFonts]);
 
   const fontMigratedRef = useRef(false);
@@ -459,23 +461,11 @@ export function SettingsProvider({
     if (legacy.length === 0) return;
     fontMigratedRef.current = true;
     void (async () => {
-      const moved = new Set<string>();
-      for (const f of legacy) {
-        if (!f.dataUrl) continue;
-        try {
-          await saveFontData(f.id, f.dataUrl);
-          moved.add(f.id);
-        } catch (e) {
-          console.warn("[fonts] keeping inline copy, IDB write failed for", f.id, e);
-        }
-      }
+      const moved = await migrateInlineFonts(legacy, saveFontData, (id, e) =>
+        console.warn("[fonts] keeping inline copy, IDB write failed for", id, e),
+      );
       if (moved.size === 0) return;
-      setSettings((s) => ({
-        ...s,
-        customFonts: (s.customFonts ?? []).map((f) =>
-          moved.has(f.id) ? { id: f.id, name: f.name, format: f.format } : f,
-        ),
-      }));
+      setSettings((s) => ({ ...s, customFonts: stripMovedFonts(s.customFonts ?? [], moved) }));
     })();
   }, [settings.customFonts]);
 

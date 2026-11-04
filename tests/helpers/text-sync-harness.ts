@@ -6,12 +6,12 @@ import * as serialize from "../../src/lib/subtitles/serialize.ts";
 import type { useTextSync } from "../../src/views/player/hooks/use-text-sync.ts";
 import { emptySnapshot, type PlayerBridge } from "../../src/lib/player/bridge.ts";
 
-export function textSyncHarness(
-  source = readFileSync(
+/** Runs use-text-sync on a fake bridge; `addResult: false` makes the saved track fail to load. */
+export function textSyncHarness(options: { addResult?: boolean; subId?: string | null } = {}) {
+  const source = readFileSync(
     new URL("../../src/views/player/hooks/use-text-sync.ts", import.meta.url),
     "utf8",
-  ),
-) {
+  );
   const compiled = ts.transpileModule(source, {
     compilerOptions: {
       module: ts.ModuleKind.CommonJS,
@@ -28,7 +28,10 @@ export function textSyncHarness(
   let position = 0;
   let delay = 2;
   let selected = "original";
-  const adds: Array<{ path: string; lang?: string }> = [];
+  const adds: Array<{ path: string; lang?: string; title?: string; metadata?: unknown }> = [];
+  const delays: number[] = [];
+  const saved: unknown[] = [];
+  const prefs: unknown[] = [];
   const files = new Map<string, string>();
   let readCues = async () => ({
     ok: true as const,
@@ -46,19 +49,33 @@ export function textSyncHarness(
         ...emptySnapshot,
         subDelaySec: delay,
         subtitleTracks: [
-          { id: selected, selected: true, lang: "ar", title: "Arabic", subId: "fixture" },
+          {
+            id: selected,
+            selected: true,
+            lang: "ar",
+            title: "Arabic",
+            subId: options.subId === undefined ? "fixture" : (options.subId ?? undefined),
+          },
         ],
       });
       return () => {};
     },
     setSubDelay(value: number) {
       delay = value;
+      delays.push(value);
     },
     setSubtitleTrack(value: string) {
       selected = value;
     },
-    async addSubtitle(path: string, lang?: string) {
-      adds.push({ path, lang });
+    async addSubtitle(
+      path: string,
+      lang?: string,
+      title?: string,
+      _select?: boolean,
+      metadata?: unknown,
+    ) {
+      adds.push({ path, lang, title, metadata });
+      if (options.addResult === false) return false;
       selected = path;
       return true;
     },
@@ -107,7 +124,7 @@ export function textSyncHarness(
     "@/lib/subtitles/extract": { getCuesAnySource: () => readCues() },
     "@/lib/subtitles/serialize": serialize,
     "@/lib/subtitles/text-sync": timing,
-    "@/lib/player-prefs": { writePlayerPrefs() {} },
+    "@/lib/player-prefs": { writePlayerPrefs: (...args: unknown[]) => prefs.push(args) },
   };
   const module = { exports: {} as { useTextSync: typeof useTextSync } };
   new Function("require", "module", "exports", "window", compiled)(
@@ -134,7 +151,7 @@ export function textSyncHarness(
       dirty = false;
       index = 0;
       pending = [];
-      api = module.exports.useTextSync(bridge, "fixture");
+      api = module.exports.useTextSync(bridge, "fixture", (choice) => saved.push(choice));
       for (const fn of pending) fn();
     }
     return api;
@@ -144,6 +161,9 @@ export function textSyncHarness(
     render,
     files,
     adds,
+    delays,
+    saved,
+    prefs,
     selected: () => selected,
     delay: () => delay,
     at(value: number) {

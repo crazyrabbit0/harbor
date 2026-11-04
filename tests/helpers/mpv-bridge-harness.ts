@@ -147,7 +147,12 @@ export function mpvBridgeHarness(
       initialPlayerSnapshot: () => ({ ...snapshots.emptySnapshot, ...prefs }),
     },
   };
-  const module = { exports: {} as { createMpvBridge: (options?: MpvOptions) => PlayerBridge } };
+  const module = {
+    exports: {} as {
+      createMpvBridge: (options?: MpvOptions) => PlayerBridge;
+      probeMpv: () => Promise<unknown>;
+    },
+  };
   const windowEvents = new EventTarget();
   const frames = new Map<number, FrameRequestCallback>();
   let frameId = 0;
@@ -220,6 +225,8 @@ export function mpvBridgeHarness(
   });
   return {
     bridge,
+    /** The compiled `mpv.ts` exports (`probeMpv`, `listMpvAudioDevices`, ...). */
+    module: module.exports,
     createBridge: (next?: MpvOptions) => module.exports.createMpvBridge(next),
     commands,
     errors,
