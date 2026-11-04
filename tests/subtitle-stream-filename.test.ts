@@ -7,6 +7,8 @@ import test from "node:test";
 import { downloadPlayerSrc } from "../src/lib/download/player-src.ts";
 import { localPlayerSrc } from "../src/lib/local-library/player-src.ts";
 import { subtitleStreamDescriptor } from "../src/lib/subtitles/provider-label.ts";
+import { emptySnapshot } from "../src/lib/player/bridge.ts";
+import { hookHarness } from "./helpers/hook-harness.ts";
 
 test("local and downloaded playback carry the exact filename into subtitle search", () => {
   const local = localPlayerSrc({
@@ -53,13 +55,53 @@ test("debrid playback retains the resolver-selected episode filename", () => {
     new URL("../src/components/player/episode-panel/index.tsx", import.meta.url),
     "utf8",
   );
-  const streamSwitcher = readFileSync(
-    new URL("../src/views/player/hooks/use-stream-switcher.ts", import.meta.url),
-    "utf8",
-  );
 
   assert.match(picker, /resolvedFilename:\s*[\s\S]{0,100}r\.data\.filename/);
   assert.match(episodePanel, /resolvedFilename:\s*[\s\S]{0,100}r\.data\.filename/);
-  assert.match(streamSwitcher, /resolvedFilename:\s*[\s\S]{0,100}r\.data\.filename/);
-  assert.match(streamSwitcher, /fileIdx:\s*r\.data\.fileIdx\s*\?\?\s*stream\.fileIdx/);
+});
+
+test("an in-player stream swap keeps the resolver's episode filename and file index", async () => {
+  const noop = () => {};
+  const h = hookHarness(
+    "src/views/player/hooks/use-stream-switcher.ts",
+    "useStreamSwitcher",
+    {
+      "@/lib/player/playback-clock": {
+        getPlaybackPosition: () => 0,
+        usePlaybackFlag: () => false,
+      },
+      "@/lib/picker-cache": { pinPickerCache: noop, unpinPickerCache: noop },
+      "@/lib/resume": { readResumeMs: () => 0 },
+      "@/lib/dead-streams": { SHORT_PLAYBACK_SEC: 180 },
+      "@/lib/playback-history": { savePlayback: noop },
+      "@/lib/streams/resolve": {
+        resolveStream: async () => ({
+          ok: true,
+          via: "debrid",
+          data: { url: "https://debrid.test/f", filename: "Show.S01E03.mkv", fileIdx: 3 },
+        }),
+      },
+      "@/lib/stream-proxy": { registerStreamProxy: noop, unregisterStreamProxy: noop },
+      "@/lib/player/startup-profile": { playbackStartupProfile: () => undefined },
+      "@/lib/streams/playback-redirect": { resolvePlaybackRedirect: noop },
+    },
+    { window: { setTimeout: () => 1, clearTimeout: noop } },
+  );
+  const bridge = { load: async () => {}, play: async () => {} };
+  const args = {
+    bridgeRef: { current: bridge },
+    src: { url: "https://a.test/1", meta: { id: "tt1", name: "Show" }, episode: undefined },
+    snap: emptySnapshot,
+    debrids: [],
+  };
+  const stream = {
+    infoHash: "abc",
+    fileIdx: 0,
+    behaviorHints: { filename: "Season.Pack.mkv" },
+    addonId: "addon",
+  };
+  await h.render(args).onSwitchStream(stream);
+  const live = h.render(args).liveStreamRef;
+  assert.equal(subtitleStreamDescriptor(live), "Show.S01E03.mkv");
+  assert.equal(live.fileIdx, 3);
 });
