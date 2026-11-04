@@ -29,22 +29,31 @@ export function restoreHarness(remembered: memory.RememberedSub, tracks: TrackIn
   );
   const ast = ts.createSourceFile("autoload.ts", source, ts.ScriptTarget.Latest, true);
   let callback: ts.Node | undefined;
+  let deps: ts.Node | undefined;
   function visit(node: ts.Node) {
     if (ts.isCallExpression(node) && node.expression.getText(ast) === "useEffect") {
       const candidate = node.arguments[0];
-      if (candidate?.getText(ast).includes("const restoreKey =")) callback = candidate;
+      if (candidate?.getText(ast).includes("const restoreKey =")) {
+        callback = candidate;
+        deps = node.arguments[1];
+      }
     }
     ts.forEachChild(node, visit);
   }
   visit(ast);
-  if (!callback) throw new Error("Subtitle restore effect not found");
-  const compiled = ts.transpileModule(`const effect = ${callback.getText(ast)};`, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022 },
-  }).outputText;
+  if (!callback || !deps) throw new Error("Subtitle restore effect not found");
+  const compiled = ts.transpileModule(
+    `const effect = ${callback.getText(ast)};\nconst deps = () => ${deps.getText(ast)};`,
+    { compilerOptions: { target: ts.ScriptTarget.ES2022 } },
+  ).outputText;
   const picks: string[] = [];
   const adds: string[] = [];
+  const addMetadata: unknown[] = [];
+  const authBinds: Array<[unknown, unknown]> = [];
   const timers: number[] = [];
+  const clock = { now: 1_000_000 };
   const scope = {
+    Date: { now: () => clock.now },
     ...memory,
     normalizeLang,
     src: {
@@ -57,21 +66,32 @@ export function restoreHarness(remembered: memory.RememberedSub, tracks: TrackIn
       current: {
         canAutoSelectSubtitle: () => true,
         setSubtitleTrack: (id: string) => picks.push(id),
-        addSubtitle: async (source: string) => {
+        addSubtitle: async (
+          source: string,
+          _lang?: string,
+          _title?: string,
+          _select?: boolean,
+          metadata?: unknown,
+        ) => {
           adds.push(source);
+          addMetadata.push(metadata);
           return true;
         },
       },
     },
     readRememberedSub: () => remembered,
-    settings: {},
+    settings: {} as Record<string, unknown>,
+    subRestoreTick: 0,
     autoSubIdRef: { current: null },
     subRestoreWaitRef: { current: null },
     subRestoreLogRef: { current: null },
     subRestoreSelectRef: { current: null },
     subRestoreAddRef: { current: null },
     subRestoreTimerRef: { current: null },
-    bindSubtitleDownloadAuth: async () => undefined,
+    bindSubtitleDownloadAuth: async (kind: unknown, key: unknown) => {
+      authBinds.push([kind, key]);
+      return kind ? { kind, credentialId: `bound:${String(key)}` } : undefined;
+    },
     markImportedSub() {},
     markAddedSub() {},
     setSubRestoreTick() {},
@@ -84,9 +104,11 @@ export function restoreHarness(remembered: memory.RememberedSub, tracks: TrackIn
     },
     console: { info() {} },
   };
-  const run = () =>
-    new Function(...Object.keys(scope), `${compiled}\nreturn effect();`)(...Object.values(scope));
-  return { run, picks, adds, timers, scope };
+  const evaluate = (expr: string) =>
+    new Function(...Object.keys(scope), `${compiled}\nreturn ${expr};`)(...Object.values(scope));
+  const run = () => evaluate("effect()");
+  const dependencies = () => evaluate("deps()") as unknown[];
+  return { run, dependencies, picks, adds, addMetadata, authBinds, timers, scope, clock };
 }
 
 export function memoryControlsHarness() {

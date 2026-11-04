@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
-import { stripSdhText } from "../src/lib/subtitles/sdh-filter.ts";
+import ts from "typescript";
+import { sdhFilterAllowed, stripSdhText } from "../src/lib/subtitles/sdh-filter.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -122,20 +123,42 @@ test("the html5 engine strips at read time and never mutates the parsed cue mode
   assert.doesNotMatch(textSync, /stripSdhText/);
 });
 
-test("mpv gets the safe filter level only, and never a rewritten enclosure list", () => {
-  const style = read("src/lib/player/sub-style.ts");
-  assert.match(style, /\["sub-filter-sdh", /);
-  assert.match(style, /\["sub-filter-sdh-harder", false\]/);
-  assert.doesNotMatch(style, /sub-filter-sdh-enclosures/);
-  assert.doesNotMatch(style, /sub-filter-regex/);
+async function mpvSdhProps(settings: Record<string, unknown>, sdhAllowed?: boolean) {
+  const sent = new Map<string, unknown>();
+  const code = ts.transpileModule(read("src/lib/player/sub-style.ts"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText;
+  const mod: { applySubStyle?: (s: unknown, c?: unknown) => Promise<void> } = {};
+  new Function("require", "exports", code)((name: string) => {
+    assert.equal(name, "@tauri-apps/api/core", `Unexpected import ${name}`);
+    return {
+      invoke: async (_cmd: string, { name: prop, value }: { name: string; value: unknown }) => {
+        sent.set(prop, value);
+      },
+    };
+  }, mod);
+  await mod.applySubStyle!(
+    { subFontFamily: "inter", subFontColor: "#ffffff", subBorderColor: "#000000", ...settings },
+    { assNativeActive: false, imageNativeActive: false, sdhFilterAllowed: sdhAllowed },
+  );
+  return sent;
+}
+
+test("mpv gets the safe filter level only, and never a rewritten enclosure list", async () => {
+  const on = await mpvSdhProps({ subHideSdh: true });
+  assert.equal(on.get("sub-filter-sdh"), true);
+  assert.equal(on.get("sub-filter-sdh-harder"), false);
+  assert.equal(on.has("sub-filter-sdh-enclosures"), false);
+  assert.equal(on.has("sub-filter-regex"), false);
+  assert.equal((await mpvSdhProps({ subHideSdh: false })).get("sub-filter-sdh"), false);
+  assert.equal((await mpvSdhProps({ subHideSdh: true }, false)).get("sub-filter-sdh"), false);
 });
 
 test("the setting is off by default and gated off for forced and foreign-only tracks", () => {
-  const defaults = read("src/lib/settings/defaults.ts");
-  assert.match(defaults, /subHideSdh: false,/);
-  const media = read("src/views/player/hooks/use-player-media.ts");
-  assert.match(media, /sdhFilterAllowed/);
-  assert.match(media, /!selectedSubTrack\?\.forced/);
-  assert.match(media, /!selectedSubTrack\?\.foreignOnly/);
-  assert.match(media, /sdhSafeForLanguage\(selectedSubTrack\?\.lang\)/);
+  assert.match(read("src/lib/settings/defaults.ts"), /subHideSdh: false,/);
+  assert.equal(sdhFilterAllowed(null), true);
+  assert.equal(sdhFilterAllowed({ lang: "en" }), true);
+  assert.equal(sdhFilterAllowed({ lang: "en", forced: true }), false);
+  assert.equal(sdhFilterAllowed({ lang: "en", foreignOnly: true }), false);
+  assert.equal(sdhFilterAllowed({ lang: "ar" }), false);
 });
