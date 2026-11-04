@@ -6,6 +6,9 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 import { sdhFilterAllowed, stripSdhText } from "../src/lib/subtitles/sdh-filter.ts";
+import { parseSubtitle } from "../src/lib/subtitles/parser.ts";
+import { prepareSubtitleBytes } from "../src/lib/subtitles/prepare.ts";
+import { html5BridgeHarness } from "./helpers/html5-bridge-harness.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -109,18 +112,33 @@ test("the filter never invents ass override tags or eats existing ones", () => {
   assert.equal(stripSdhText("{\\k50}La {\\k50}la ♪"), "{\\k50}La {\\k50}la ♪");
 });
 
-test("the html5 engine strips at read time and never mutates the parsed cue model", () => {
-  const bridge = read("src/lib/player/html5/bridge.ts");
-  assert.match(bridge, /import \{ stripSdhText \} from "@\/lib\/subtitles\/sdh-filter"/);
-  assert.match(bridge, /hideSdh \? stripSdhText\(/);
-  assert.doesNotMatch(bridge, /\.cues = .*stripSdhText/);
+const SDH_SRT = "1\n00:00:01,000 --> 00:00:03,000\n[door creaks]\nJOHN: Hi.\n\n";
+const SDH_CUES = [{ start: 1, end: 3, text: "[door creaks]\nJOHN: Hi." }];
 
-  const parser = read("src/lib/subtitles/parser.ts");
-  assert.doesNotMatch(parser, /stripSdhText/);
-  const prepare = read("src/lib/subtitles/prepare.ts");
-  assert.doesNotMatch(prepare, /stripSdhText/);
-  const textSync = read("src/views/player/text-sync-list.tsx");
-  assert.doesNotMatch(textSync, /stripSdhText/);
+test("parsing and preparing keep SDH text in the stored cues", async () => {
+  assert.deepEqual(
+    parseSubtitle(SDH_SRT, "srt").map(({ start, end, text }) => ({ start, end, text })),
+    SDH_CUES,
+  );
+  const prepared = await prepareSubtitleBytes(
+    "https://subs.test/a.srt",
+    new TextEncoder().encode(SDH_SRT),
+    { format: "srt", filename: "a.srt" },
+    { createPlayable: async () => ({ url: "blob:a", cleanup() {} }), limits: { minimumCues: 1 } },
+  );
+  assert.equal(prepared.cues[0].text, "[door creaks]\nJOHN: Hi.");
+});
+
+test("the html5 engine strips at read time and never mutates the parsed cue model", async () => {
+  const h = html5BridgeHarness({ "C:/subs/a.srt": SDH_CUES });
+  assert.equal(await h.bridge.addSubtitle("C:/subs/a.srt", "en", "A", true), true);
+  h.at(2);
+  assert.equal(h.snapshot().subText, "[door creaks]\nJOHN: Hi.");
+  h.bridge.setSubHideSdh?.(true);
+  assert.equal(h.snapshot().subText, "Hi.", "turning the filter on rereads the current cue");
+  assert.equal(h.bridge.getSelectedTrackCues()?.[0].text, "[door creaks]\nJOHN: Hi.");
+  h.bridge.setSubHideSdh?.(false);
+  assert.equal(h.snapshot().subText, "[door creaks]\nJOHN: Hi.", "turning it off restores it");
 });
 
 async function mpvSdhProps(settings: Record<string, unknown>, sdhAllowed?: boolean) {
@@ -154,8 +172,9 @@ test("mpv gets the safe filter level only, and never a rewritten enclosure list"
   assert.equal((await mpvSdhProps({ subHideSdh: true }, false)).get("sub-filter-sdh"), false);
 });
 
-test("the setting is off by default and gated off for forced and foreign-only tracks", () => {
-  assert.match(read("src/lib/settings/defaults.ts"), /subHideSdh: false,/);
+test("the setting is off by default and gated off for forced and foreign-only tracks", async () => {
+  const { DEFAULT } = await import("../src/lib/settings/defaults.ts");
+  assert.equal(DEFAULT.subHideSdh, false);
   assert.equal(sdhFilterAllowed(null), true);
   assert.equal(sdhFilterAllowed({ lang: "en" }), true);
   assert.equal(sdhFilterAllowed({ lang: "en", forced: true }), false);

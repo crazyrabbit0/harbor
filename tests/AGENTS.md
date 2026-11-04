@@ -6,7 +6,7 @@ Loader, single-file command and the source-regex trap are in the root `AGENTS.md
 
 - Flat `tests/<topic>.test.ts` (~790) and `.test.mjs` (~30, plain JS). Families share a prefix: `games-*`, `music-*`, `sports-*`, `manga-*`, `player-*`, `plugin-*`, `stream-plugins-*`, `cw-*`, `p2p-*`, `addon-*`, `tracker-*`, `skip-*`, `anime-*`, `bp-*`, `tv-panel-*`, `settings-*`. Name a new file after the family it joins.
 - `tests/_*.ts` are shared stubs (`_localstorage-stub.ts`, `_indexeddb-stub.ts`, `_tv-panel-kotlin.ts`, `_tv-panel-kt-lex.ts`); the leading `_` keeps them out of the glob. `tests/music/` (2 files) and `tests/fixtures/` are subfolders the glob skips, so a `.test.ts` placed there never runs under `pnpm test`.
-- `tests/helpers/` holds harness factories named `<topic>-harness.ts` exporting `<topic>Harness()`: `hook-harness.ts` (`hookHarness`, `flushPromises`), `mpv-bridge-harness.ts`, `playback-persistence-harness.ts`, `subtitle-memory-harness.ts`, `text-sync-harness.ts`, plus `cast-ownership.ts`, `elegantfin-dom.ts`, `music-player-dependencies.ts`. Reuse one before hand-rolling mocks.
+- `tests/helpers/` holds harness factories named `<topic>-harness.ts` exporting `<topic>Harness()`: `hook-harness.ts` (`hookHarness`, `flushPromises`), `mpv-bridge-harness.ts`, `html5-bridge-harness.ts` (the real html5 bridge on a fake video; a new import in `lib/player/html5/bridge.ts` needs a mock there), `playback-persistence-harness.ts`, `subtitle-memory-harness.ts`, `text-sync-harness.ts`, plus `cast-ownership.ts`, `elegantfin-dom.ts`, `music-player-dependencies.ts`. Reuse one before hand-rolling mocks.
 
 ## Three kinds of test, three ways to break
 
