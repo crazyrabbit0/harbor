@@ -1,186 +1,600 @@
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import ts from "typescript";
+import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness.ts";
+import {
+  playbackParams,
+  playbackPersistenceHarness,
+} from "./helpers/playback-persistence-harness.ts";
+import { cwAdvanceHarness, simklProgress } from "./helpers/cw-advance-harness.ts";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+const DAY = 864e5;
+const iso = (offset = 0) => new Date(Date.now() + offset).toISOString();
 
-const stremio = read("src/lib/stremio.ts");
-const sync = read("src/views/player/hooks/use-stremio-sync.ts");
-const autosave = read("src/views/player/hooks/use-resume-autosave.ts");
-const home = read("src/views/home.tsx");
-const cwHook = read("src/lib/continue-watching.ts");
-const mobileRow = read("src/views/mobile/mobile-cw-row.tsx");
-const shows = read("src/views/shows.tsx");
-const anime = read("src/views/anime.tsx");
-const advance = read("src/views/home/hooks/use-cw-advance.ts");
-const resurface = read("src/lib/cw-resurface.ts");
-const anilistSync = read("src/lib/anilist/sync.ts");
-const malSync = read("src/lib/mal/sync.ts");
+function stremioModule() {
+  const puts: any[] = [];
+  const safeFetch = async (url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body);
+    if (url.endsWith("/datastorePut")) puts.push(body);
+    return { ok: true, status: 200, text: async () => JSON.stringify({ result: [] }) };
+  };
+  const mod = loadModule("src/lib/stremio.ts", {
+    "@/lib/safe-fetch": { safeFetch },
+    "@/lib/resume": { readResumeEntry: () => null, readResumeSource: () => undefined },
+    "./anime-detect": { isDetectedAnime: () => false },
+  });
+  return { mod, puts };
+}
+
+const stremio = stremioModule().mod;
 
 test("cloudWriteId never yields a cloud id for anime-scheme metas", () => {
-  const fn = stremio.match(/export function cloudWriteId\([\s\S]*?\n\}/)?.[0];
-  assert.ok(fn, "cloudWriteId must exist in stremio.ts");
-  const animeReturn = fn.indexOf("if (ANIME_CLOUD_ID.test(metaId)) return null;");
-  const resolvedReturn = fn.indexOf(
-    'if (verified && resolved && resolved.startsWith("tt")) return resolved;',
-  );
-  assert.ok(animeReturn >= 0, "anime-scheme ids must return null");
-  assert.ok(resolvedReturn > animeReturn, "anime null must win over resolved-tt fallback");
-  assert.match(stremio, /export const ANIME_CLOUD_ID = \/\^\(kitsu\|mal\|anilist\|anidb\):\//);
+  for (const id of ["kitsu:1", "mal:2", "anilist:3", "anidb:4"]) {
+    assert.equal(stremio.cloudWriteId(id, "tt999", true), null, id);
+  }
+  for (const id of ["kitsu:1", "mal:2", "anilist:3", "anidb:4"]) {
+    assert.ok(stremio.ANIME_CLOUD_ID.test(id), id);
+  }
+  for (const id of ["tt1", "tmdb:tv:1", "kitsu1", "xkitsu:1"]) {
+    assert.equal(stremio.ANIME_CLOUD_ID.test(id), false, id);
+  }
 });
 
 test("cloudWriteId keeps non-anime behavior intact", () => {
-  const fn = stremio.match(/export function cloudWriteId\([\s\S]*?\n\}/)?.[0];
-  assert.ok(fn, "cloudWriteId must exist in stremio.ts");
-  const ttReturn = fn.indexOf('if (metaId.startsWith("tt")) return metaId;');
-  const animeReturn = fn.indexOf("if (ANIME_CLOUD_ID.test(metaId)) return null;");
-  assert.ok(ttReturn >= 0 && ttReturn < animeReturn, "tt passthrough stays first");
-  assert.match(fn, /return CLOUD_OK\.test\(metaId\) \? metaId : null;/);
+  assert.equal(stremio.cloudWriteId("tt100", "tt999", true), "tt100");
+  assert.equal(stremio.cloudWriteId("tmdb:tv:5", null, false), "tmdb:tv:5");
+  assert.equal(stremio.cloudWriteId("addon:x", "tt200", true), "tt200");
+  assert.equal(stremio.cloudWriteId("addon:x", "tt200", false), null);
 });
 
-test("libraryPut refuses anime-scheme writes unless they are removals", () => {
-  const fn = stremio.match(/export async function libraryPut\([\s\S]*?\n\}/)?.[0];
-  assert.ok(fn, "libraryPut must exist");
-  const gateIdx = fn.indexOf("ANIME_CLOUD_ID.test(item._id)");
-  const putIdx = fn.indexOf("datastorePut");
-  assert.ok(gateIdx >= 0, "libraryPut must gate anime ids");
-  assert.ok(putIdx > gateIdx, "anime gate must run before datastorePut");
-  assert.match(fn, /item\.removed !== true\) return;/);
+test("libraryPut refuses anime-scheme writes unless they are removals", async () => {
+  const { mod, puts } = stremioModule();
+  const item = (id: string, removed: boolean) => ({ _id: id, removed, temp: false });
+  await mod.libraryPut("key", item("kitsu:1", false));
+  assert.equal(puts.length, 0);
+  await mod.libraryPut("key", item("kitsu:1", true));
+  await mod.libraryPut("key", item("tt100", false));
+  assert.deepEqual(
+    puts.map((p) => p.changes[0]._id),
+    ["kitsu:1", "tt100"],
+  );
 });
 
-test("player sync clears a stale finished flag on a real resume", () => {
-  assert.match(sync, /const meaningfulResume =/);
-  assert.match(sync, /videoChanged \|\| meaningfulResume \? 0 : prevFlagged/);
-  assert.match(sync, /offsetMs >= 45000/);
+function syncModule() {
+  const writes: any[] = [];
+  const timers: Array<{ fn: () => void; ms: number }> = [];
+  let strictGet: () => Promise<any> = async () => null;
+  const source = read("src/views/player/hooks/use-stremio-sync.ts").replaceAll(
+    "import.meta.env.DEV",
+    "false",
+  );
+  const output =
+    ts.transpileModule(source, {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    }).outputText + "\nexports.writeLibraryItem = writeLibraryItem;";
+  const mocks: Record<string, unknown> = {
+    react: {},
+    "@/lib/stremio": {
+      cloudWriteId: () => null,
+      libraryGetOne: async () => null,
+      libraryGetOneStrict: () => strictGet(),
+    },
+    "@/lib/stremio-write-queue": {
+      cloudLibraryPut: async (_key: string, item: any) => {
+        writes.push(item);
+        return true;
+      },
+      flushWriteQueue: async () => {},
+      queuedWatched: () => null,
+    },
+    "@/lib/stremio-item-lock": { withItemLock: (_id: string, fn: () => any) => fn() },
+    "@/lib/stremio-watched-sync": { freshestWatched: () => null },
+    "@/lib/player/playback-clock": {},
+    "@/lib/profiles": {},
+    "@/lib/watched-by": {},
+    "@/lib/anime-cw-ids": {},
+    "@/lib/player/resume-start": {},
+    "@/lib/player/load-identity": {},
+    "@/lib/read-at-version": {},
+  };
+  const mod: any = {};
+  new Function("require", "exports", "setTimeout", output)(
+    (name: string) => {
+      if (!(name in mocks)) throw new Error(`Unexpected dependency ${name}`);
+      return mocks[name];
+    },
+    mod,
+    (fn: () => void, ms: number) => timers.push({ fn, ms }),
+  );
+  return {
+    mod,
+    writes,
+    fireTimersUpTo(ms: number) {
+      for (const t of timers.splice(0)) if (t.ms <= ms) t.fn();
+    },
+    setStrictGet(fn: () => Promise<any>) {
+      strictGet = fn;
+    },
+  };
+}
+
+const ttSrc = (episode: any = { season: 1, episode: 2, imdbSeason: 1, imdbEpisode: 2 }) => ({
+  meta: { id: "tt100", type: "series", name: "Show" },
+  url: "https://media.test/e.mkv",
+  episode,
+});
+const finishedBase = () => ({
+  _id: "tt100",
+  name: "Show",
+  type: "series",
+  removed: false,
+  temp: false,
+  state: { video_id: "tt100:1:2", flaggedWatched: 1, timesWatched: 1, duration: 1800000 },
+});
+const paused = { status: "paused", durationSec: 1800, positionSec: 0 };
+
+test("player sync clears a stale finished flag on a real resume", async () => {
+  const resumed = syncModule();
+  await resumed.mod.writeLibraryItem("key", ttSrc(), paused, finishedBase(), "tt100", 600, false);
+  assert.equal(resumed.writes[0].state.flaggedWatched, 0);
+  const brief = syncModule();
+  await brief.mod.writeLibraryItem("key", ttSrc(), paused, finishedBase(), "tt100", 30, false);
+  assert.equal(brief.writes[0].state.flaggedWatched, 1);
 });
 
 test("videoIdFor still refuses cross-scheme threaded video ids", () => {
-  assert.match(sync, /threaded\.split\(":"\)\[0\] === cid\.split\(":"\)\[0\]/);
+  const { videoIdFor } = syncModule().mod;
+  const kitsuSrc = {
+    meta: { id: "kitsu:1", type: "series" },
+    episode: { season: 1, episode: 5, kitsuStreamId: "kitsu:1:5" },
+  };
+  assert.equal(videoIdFor(kitsuSrc, "kitsu:1"), "kitsu:1:5");
+  const ttThreaded = ttSrc({ season: 1, episode: 5, videoId: "tt100:2:5" });
+  assert.equal(videoIdFor(ttThreaded, "tt100"), "tt100:2:5");
+  const crossScheme = ttSrc({ season: 1, episode: 5, videoId: "tmdb:tv:9:3:7" });
+  assert.equal(videoIdFor(crossScheme, "tt100"), "tt100:1:5");
 });
 
-test("tt-detected anime without imdb mapping never stamps kitsu numbering on tt items", () => {
-  assert.match(
-    sync,
-    /cid\.startsWith\("tt"\) && threaded && ANIME_SCHEME\.test\(threaded\)\) return null;/,
+test("tt-detected anime without imdb mapping never stamps kitsu numbering on tt items", async () => {
+  const h = syncModule();
+  const { videoIdFor, writeLibraryItem } = h.mod;
+  const mapped = ttSrc({ season: 1, episode: 30, kitsuStreamId: "kitsu:1:30", imdbSeason: 2 });
+  mapped.episode.imdbEpisode = 4;
+  assert.equal(videoIdFor(mapped, "tt100"), "tt100:2:4");
+  const unmapped = ttSrc({ season: 1, episode: 30, kitsuStreamId: "kitsu:1:30" });
+  assert.equal(videoIdFor(unmapped, "tt100"), null);
+  assert.equal(
+    await writeLibraryItem("key", unmapped, paused, finishedBase(), "tt100", 600, false),
+    null,
   );
-  const imdbBranch = sync.indexOf("s.episode.imdbSeason != null && s.episode.imdbEpisode != null");
-  const animeRefusal = sync.indexOf(
-    'cid.startsWith("tt") && threaded && ANIME_SCHEME.test(threaded)) return null;',
-  );
-  assert.ok(
-    imdbBranch >= 0 && imdbBranch < animeRefusal,
-    "imdb-numbered branch must win when mapping exists",
-  );
-  assert.match(sync, /if \(isSeries && src\.episode && !derivedVid\) return null;/);
-  assert.match(autosave, /const ttAnimeUnmapped =/);
-  assert.match(autosave, /\|\| animeLocal \|\| ttAnimeUnmapped/);
+  assert.equal(h.writes.length, 0);
 });
 
-test("terminal flush still races a strict GET before merging the bitfield", () => {
-  assert.match(sync, /isTerminal\s*\? await Promise\.race\(\[\s*strictGet,/);
+test("terminal flush still races a strict GET before merging the bitfield", async () => {
+  const terminal = syncModule();
+  terminal.setStrictGet(() => new Promise(() => {}));
+  void terminal.mod.writeLibraryItem("key", ttSrc(), paused, finishedBase(), "tt100", 600, true);
+  await flushPromises();
+  terminal.fireTimersUpTo(400);
+  await flushPromises();
+  assert.equal(terminal.writes.length, 1, "a slow strict GET must not block the terminal write");
+  const live = syncModule();
+  live.setStrictGet(() => new Promise(() => {}));
+  void live.mod.writeLibraryItem("key", ttSrc(), paused, finishedBase(), "tt100", 600, false);
+  await flushPromises();
+  live.fireTimersUpTo(Infinity);
+  await flushPromises();
+  assert.equal(live.writes.length, 0, "a non-terminal write waits for the strict GET");
 });
+
+function localCwFor(patch: any) {
+  const h = playbackPersistenceHarness("local");
+  h.dependencies.CLOUD_OK = stremio.CLOUD_OK;
+  const base = playbackParams(1, 3);
+  const p = { ...base, ...patch, src: { ...base.src, ...patch.src } };
+  h.render(p);
+  h.render({ ...p, snap: { ...p.snap, status: "playing", positionSec: 60, durationSec: 1800 } });
+  h.clock(60);
+  h.tick();
+  return { entry: h.localCw.at(-1), shared: h.localShared.at(-1) };
+}
 
 test("anime playback lands in local CW", () => {
-  assert.match(autosave, /const animeLocal = ANIME_CLOUD_ID\.test\(id\);/);
-  assert.match(autosave, /\|\| isLocalUrl\(s\.url\) \|\| animeLocal/);
-  assert.match(autosave, /type: s\.meta\.type === "movie" \? "movie" : "series"/);
+  const anime = localCwFor({
+    src: {
+      meta: { id: "kitsu:1", type: "anime", name: "Anime" },
+      episode: { season: 1, episode: 3 },
+    },
+  });
+  assert.equal(anime.entry?.id, "kitsu:1");
+  assert.equal(anime.entry?.type, "series");
+  assert.equal(anime.shared, true, "anime-scheme ids live only in the shared local CW");
+  const ttUnmapped = localCwFor({
+    src: { episode: { season: 1, episode: 3, kitsuStreamId: "kitsu:1:3" } },
+  });
+  assert.equal(ttUnmapped.shared, true, "tt anime without an imdb pair stays local");
+  const plain = localCwFor({});
+  assert.equal(plain.entry?.id, "tt100");
+  assert.equal(plain.shared, false);
+  const movie = localCwFor({
+    src: { meta: { id: "tt200", type: "movie", name: "Movie" }, episode: undefined },
+    season: undefined,
+    episode: undefined,
+  });
+  assert.equal(movie.entry?.type, "movie");
 });
 
-test("every CW rail excludes cloud anime items", () => {
-  assert.match(home, /items\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\)/);
-  assert.match(cwHook, /items\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\)/);
-  assert.match(mobileRow, /items\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\)/);
-  assert.match(shows, /!ANIME_CLOUD_ID\.test\(i\._id\) &&\s+isCwMember/);
-  assert.match(anime, /libItems\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\)/);
+test("every CW rail excludes cloud anime items", async () => {
+  const lib = stremioModule().mod;
+  const libItems = ["kitsu:1", "tt100"].map((id) => ({
+    _id: id,
+    type: "series",
+    name: id,
+    removed: false,
+    temp: false,
+    _mtime: iso(),
+    state: { timeOffset: 60000, duration: 1800000, season: 1, episode: 1, lastWatched: iso() },
+  }));
+  const settings = {
+    cwPerProfile: false,
+    cwSources: { library: true, local: true, trakt: false, simkl: false },
+  };
+  const noop = () => {};
+  const h = hookHarness(
+    "src/lib/continue-watching.ts",
+    "useContinueWatching",
+    {
+      "@/lib/auth": { useAuth: () => ({ authKey: "key" }) },
+      "@/lib/profiles": {
+        useProfiles: () => ({ activeProfile: { id: "a" }, profiles: [] }),
+        anyProfileSharesStremioWith: () => false,
+      },
+      "@/lib/settings": { useSettingsSelector: (select: any) => select(settings) },
+      "@/lib/local-cw": { listLocalCw: () => [], subscribeLocalCw: () => noop },
+      "@/lib/feed/external-cw": { setExternalCwSources: noop, useExternalCw: () => [] },
+      "@/lib/stremio": { ...lib, library: async () => libItems },
+    },
+    {
+      window: { setTimeout, clearTimeout: noop, addEventListener: noop, removeEventListener: noop },
+      document: { visibilityState: "visible", addEventListener: noop, removeEventListener: noop },
+    },
+  );
+  h.render();
+  await flushPromises();
+  assert.deepEqual(
+    h.render().map((c: any) => c.id),
+    ["tt100"],
+  );
+  h.unmount();
+  const home = read("src/views/home.tsx");
+  assert.match(
+    home,
+    /: \[\.\.\.items\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\), \.\.\.externalCw\];/,
+  );
+  const mobile = read("src/views/mobile/mobile-cw-row.tsx");
+  assert.match(
+    mobile,
+    /: \[\.\.\.items\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\), \.\.\.externalCw\];/,
+  );
+  const shows = read("src/views/shows.tsx");
+  assert.match(
+    shows,
+    /i\.type === "series" &&\s+!ANIME_CLOUD_ID\.test\(i\._id\) &&\s+isCwMember\(i\)/,
+  );
+  const anime = read("src/views/anime.tsx");
+  assert.match(
+    anime,
+    /\.\.\.\(hideSharedCw \? \[\] : libItems\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\)\),/,
+  );
 });
 
 test("anime room sources local CW entries", () => {
-  assert.match(anime, /const localAnimeCw = useMemo<LibraryItem\[\]>/);
+  const anime = read("src/views/anime.tsx");
   assert.match(
     anime,
     /listLocalCw\(hideSharedCw\)\s*\.filter\(\(e\) => ANIME_CLOUD_ID\.test\(e\.id\) \|\| e\.isAnime\)/,
   );
-  assert.match(anime, /\[\s*\.\.\.localAnimeCw,\s*\.\.\.\(hideSharedCw \? \[\] : libItems\.filter/);
+  assert.match(anime, /return \[\s*\.\.\.localAnimeCw,/);
+});
+
+function absorbHarness(local: Record<string, { t: number }> = {}, dismissed = new Set<string>()) {
+  const saved: any[] = [];
+  const { absorbCloudAnimeCw } = loadModule("src/lib/anime-cw-absorb.ts", {
+    "@/lib/cw-dismiss": { isCwDismissed: (i: any) => dismissed.has(i._id) },
+    "@/lib/local-cw": {
+      localCwEntry: (id: string) => local[id] ?? null,
+      saveLocalCw: (e: any) => saved.push(e),
+    },
+    "@/lib/stremio": stremio,
+  });
+  return { absorb: absorbCloudAnimeCw, saved };
+}
+
+const cloudAnime = (id: string, patch: any = {}) => ({
+  _id: id,
+  type: "series",
+  name: id,
+  removed: false,
+  temp: false,
+  _mtime: iso(-DAY),
+  state: { timeOffset: 60000, duration: 1440000, video_id: `${id}:7` },
+  ...patch,
 });
 
 test("home and anime room absorb legacy cloud anime items into local CW", () => {
+  const h = absorbHarness({ "kitsu:3": { t: Date.now() } });
+  h.absorb([
+    cloudAnime("kitsu:12"),
+    cloudAnime("tt100"),
+    cloudAnime("kitsu:2", { removed: true }),
+    cloudAnime("kitsu:3"),
+    cloudAnime("kitsu:4", { removed: true, temp: true }),
+  ]);
+  assert.deepEqual(
+    h.saved.map((e) => e.id),
+    ["kitsu:12", "kitsu:4"],
+  );
+  assert.equal(h.saved[0].season, 1);
+  assert.equal(h.saved[0].episode, 7, "kitsu video ids carry the episode as their third part");
+  assert.equal(h.saved[0].positionMs, 60000);
+  const home = read("src/views/home.tsx");
   assert.match(home, /if \(!hideSharedCw\) absorbCloudAnimeCw\(view\);/);
+  const anime = read("src/views/anime.tsx");
   assert.match(anime, /if \(!hideSharedCw\) absorbCloudAnimeCw\(li\);/);
-  for (const source of [home, anime]) {
-    assert.match(
-      source,
-      /settings\.cwPerProfile &&\s*anyProfileSharesStremioWith\(activeProfile, profiles\)/,
-    );
-  }
-  const absorb = read("src/lib/anime-cw-absorb.ts");
-  assert.match(absorb, /if \(existing && existing\.t >= t\) continue;/);
-  assert.match(absorb, /if \(i\.removed && !i\.temp\) continue;/);
 });
 
 test("absorb cannot resurrect dismissed or ancient entries", () => {
-  const absorb = read("src/lib/anime-cw-absorb.ts");
-  assert.match(absorb, /if \(isCwDismissed\(i\)\) continue;/);
-  assert.match(absorb, /Date\.now\(\) - t > ABSORB_RECENT_MS\) continue;/);
+  const h = absorbHarness({}, new Set(["kitsu:1"]));
+  h.absorb([
+    cloudAnime("kitsu:1"),
+    cloudAnime("kitsu:2", { _mtime: iso(-46 * DAY) }),
+    cloudAnime("kitsu:3", { _mtime: iso(-44 * DAY) }),
+  ]);
+  assert.deepEqual(
+    h.saved.map((e) => e.id),
+    ["kitsu:3"],
+  );
 });
 
 test("dismissing a local anime entry persists past re-absorb", () => {
-  const homeDismiss = home.match(
-    /const onDismissCw = useCallback\([\s\S]*?\[authKey\],\s*\);/,
-  )?.[0];
-  assert.ok(homeDismiss, "home onDismissCw must exist");
-  assert.match(homeDismiss, /clearLocalCw\(item\._id\);\s*dismissCw\(item, authKey\);/);
-  const animeDismiss = anime.match(/onDismiss=\{\(it\) => \{[\s\S]*?\}\}/)?.[0];
-  assert.ok(animeDismiss, "anime room onDismiss must exist");
+  const home = read("src/views/home.tsx");
   assert.match(
-    animeDismiss,
-    /if \(it\.local\) clearLocalCw\(it\._id\);\s*dismissCw\(it, authKey\);/,
+    home,
+    /if \(item\.local\) \{\s*clearLocalCw\(item\._id\);\s*dismissCw\(item, authKey\);/,
+  );
+  const anime = read("src/views/anime.tsx");
+  assert.match(anime, /if \(it\.local\) clearLocalCw\(it\._id\);\s*dismissCw\(it, authKey\);/);
+});
+
+test("library repair cannot rewrite live anime-scheme items", async () => {
+  const raw = [
+    { _id: "kitsu:1", name: "Live anime", removed: false },
+    { _id: "kitsu:2", name: "Removed anime", removed: true },
+    { _id: "tt100", name: "Show", removed: false },
+  ];
+  const puts: any[] = [];
+  const safeFetch = async (url: string, init: { body: string }) => {
+    const body = JSON.parse(init.body);
+    const path = url.split("/").at(-1);
+    if (path === "datastorePut") puts.push(...body.changes);
+    const result =
+      path === "datastoreMeta" ? raw.map((r) => [r._id, "1"]) : path === "datastoreGet" ? raw : {};
+    return { ok: true, status: 200, json: async () => ({ result }) };
+  };
+  const { repairStremioLibrary } = loadModule("src/lib/stremio-library-repair.ts", {
+    "@/lib/stremio": { ANIME_CLOUD_ID: stremio.ANIME_CLOUD_ID },
+    "@/lib/safe-fetch": { safeFetch },
+  });
+  await repairStremioLibrary("key");
+  assert.deepEqual(
+    puts.map((p) => p._id),
+    ["kitsu:2", "tt100"],
   );
 });
 
-test("library repair cannot rewrite live anime-scheme items", () => {
-  const repair = read("src/lib/stremio-library-repair.ts");
-  assert.match(
-    repair,
-    /ANIME_CLOUD_ID\.test\(nid\) && \(normalized as \{ removed\?: unknown \}\)\.removed !== true\)\s*continue;/,
+test("anime episode lists carry absolute numbering for the phantom remap", async () => {
+  const { fetchEpisodeList } = loadModule("src/lib/series-episodes.ts", {
+    "@/lib/cache": {
+      lruSet: (map: Map<unknown, unknown>, key: unknown, value: unknown) => map.set(key, value),
+    },
+    "@/lib/memory-profiler": { registerCache() {} },
+    "./cinemeta": {},
+    "./meta-resource": {},
+    "./providers/tmdb": {},
+    "./providers/tmdb/tmdb-client": {},
+    "./providers/tmdb/tmdb-image-rungs": {},
+    "./localized-text": {},
+    "./providers/anime-kitsu-addon": {
+      animeKitsuMeta: async () => ({
+        videos: [1, 2].map((episode) => ({ id: `kitsu:9:${episode}`, season: 1, episode })),
+      }),
+    },
+    "./providers/anime-mapping": { kitsuToAnilist: async () => null },
+    "./providers/kitsu": { parseKitsuId: (id: string) => Number(id.split(":")[1]) || null },
+    "./providers/anizip": {
+      aniZipByKitsu: async () => ({
+        mappings: { thetvdb_id: 1 },
+        episodes: {
+          "1": { seasonNumber: 2, episodeNumber: 1, absoluteEpisodeNumber: 26 },
+          "2": { seasonNumber: 2, episodeNumber: 2 },
+        },
+      }),
+      pickEpisodeTitle: () => null,
+    },
+    "./providers/tvdb-proxy": { fetchTvdbProxyImages: async () => ({}) },
+    "./providers/anime-franchise-root": { franchiseRoot: async (id: string) => id },
+    "./streams/anime-identity": {},
+  });
+  const list = await fetchEpisodeList({ id: "kitsu:9", type: "series" }, { tmdbKey: "" });
+  assert.deepEqual(
+    list.map((e: any) => e.absoluteNumber),
+    [26, undefined],
   );
 });
 
-test("anime episode lists carry absolute numbering for the phantom remap", () => {
-  const se = read("src/lib/series-episodes.ts");
-  assert.match(
-    se,
-    /ep\.absoluteNumber == null && m\.absoluteEpisodeNumber\)\s*ep\.absoluteNumber = m\.absoluteEpisodeNumber;/,
+const finishedAt = (episode: number) => ({
+  _id: "tt100",
+  type: "series",
+  name: "Show",
+  removed: false,
+  temp: false,
+  _ctime: iso(),
+  _mtime: iso(),
+  state: {
+    season: 1,
+    episode,
+    video_id: `tt100:1:${episode}`,
+    timeOffset: 0,
+    duration: 0,
+    flaggedWatched: 1,
+    lastWatched: iso(),
+  },
+});
+
+test("phantom guard remaps absolute numbering instead of removing", async () => {
+  const absoluteList = [1, 2, 3, 4, 5].map((episode) => ({
+    season: 1,
+    episode,
+    absoluteNumber: 25 + episode,
+    airDate: "2020-01-01",
+  }));
+  const remapped = cwAdvanceHarness();
+  remapped.setRemote(simklProgress([]));
+  remapped.setEpisodes(absoluteList);
+  remapped.render([finishedAt(29)], "", true, []);
+  const [next] = await remapped.flush();
+  assert.equal(next?.state.episode, 5, "absolute 29 is S1E4, so Continue Watching offers E5");
+  assert.equal(next?.upNext, true);
+  const phantom = cwAdvanceHarness();
+  phantom.setRemote(simklProgress([]));
+  phantom.setEpisodes(absoluteList);
+  phantom.render([finishedAt(40)], "", true, []);
+  assert.deepEqual(await phantom.flush(), []);
+});
+
+test("resurface walks past watched adjacent episodes", async () => {
+  const source = read("src/lib/series-episodes.ts");
+  const parsed = ts.createSourceFile("series.ts", source, ts.ScriptTarget.Latest, true);
+  const nextFn = parsed.statements.find(
+    (n) => ts.isFunctionDeclaration(n) && n.name?.text === "nextUnwatchedAfter",
+  )!;
+  const nextUnwatchedAfter = new Function(
+    `${ts.transpileModule(nextFn.getText(parsed).replace(/^export /, ""), { compilerOptions: { target: ts.ScriptTarget.ES2022 } }).outputText}\nreturn nextUnwatchedAfter;`,
+  )();
+  const episodes = [1, 2, 3, 4].map((episode) => ({ season: 1, episode, airDate: "2020-01-01" }));
+  const { resurfaceCandidates } = loadModule("src/lib/cw-resurface.ts", {
+    "@/lib/series-episodes": {
+      fetchAdjacentEpisodes: async () => ({ next: episodes[1] }),
+      fetchEpisodeList: async () => episodes,
+      nextUnwatchedAfter,
+    },
+    "@/lib/providers/anime-mapping": { relatedLibraryIds: async () => [] },
+    "@/lib/stremio": stremio,
+    "@/lib/cw-dismiss": { isCwDismissed: () => false },
+    "@/lib/cw-profile": { privateCwProfileId: () => null },
+  });
+  const out = await resurfaceCandidates(
+    [finishedAt(1)],
+    new Set(),
+    { tmdbKey: "", animeMode: "all" },
+    () => (_s: number, e: number) => e <= 3,
   );
+  assert.deepEqual(out.get("tt100"), { season: 1, episode: 4 });
 });
 
-test("phantom guard remaps absolute numbering instead of removing", () => {
-  assert.match(advance, /list\.find\(\(e\) => e\.absoluteNumber === effCur\.episode\)/);
-  assert.match(advance, /effCur = \{ season: abs\.season, episode: abs\.episode \};/);
-});
-
-test("resurface walks past watched adjacent episodes", () => {
-  assert.match(resurface, /nextUnwatchedAfter\(list, cur, watchedFor\(i, cur\)\)/);
-  assert.match(resurface, /fetchEpisodeList\(meta, \{ tmdbKey: opts\.tmdbKey \}\)/);
-});
-
-test("tracker sync cannot corrupt the wrong cour", () => {
-  for (const src of [anilistSync, malSync]) {
-    assert.match(src, /if \(total > 0 && target > total\) return;/);
-  }
-  assert.match(anilistSync, /entry && total > 0 && entry\.progress >= total\) return;/);
-  assert.match(
-    malSync,
-    /cur\?\.my_list_status && total > 0 && cur\.my_list_status\.num_episodes_watched >= total\)\s*return;/,
+function trackerModules(entry: { total: number; progress: number; status: string }) {
+  const writes: string[] = [];
+  const storage = new Map<string, string>();
+  const localStorage = {
+    getItem: (k: string) => storage.get(k) ?? null,
+    setItem: (k: string, v: string) => storage.set(k, v),
+  };
+  const session = {};
+  const shared = { "@/lib/active-profile-id": { activeProfileId: () => "p" } };
+  const auth = { isAuthenticated: () => true, getSession: () => session };
+  const anilist = loadModule(
+    "src/lib/anilist/sync.ts",
+    {
+      ...shared,
+      "@/lib/providers/anime-mapping": { kitsuToAnilist: async () => 7 },
+      "./session": auth,
+      "./client": {
+        AnilistApiError: class extends Error {},
+        anilistRequest: async (query: string, vars: any) => {
+          if (query.startsWith("mutation")) {
+            writes.push(`anilist:${vars.progress ?? vars.status}`);
+            return { SaveMediaListEntry: { id: 1, progress: vars.progress, status: vars.status } };
+          }
+          return {
+            Media: {
+              id: 7,
+              episodes: entry.total,
+              mediaListEntry: { id: 1, progress: entry.progress, status: entry.status },
+            },
+          };
+        },
+      },
+    },
+    { localStorage },
   );
+  const mal = loadModule(
+    "src/lib/mal/sync.ts",
+    {
+      ...shared,
+      "./mutations": { resolveMalMediaId: async () => 5 },
+      "./session": auth,
+      "./client": {
+        MalApiError: class extends Error {},
+        malRequest: async (_path: string, init?: { method: string; body: URLSearchParams }) => {
+          if (init?.method === "PATCH") {
+            const body = init.body;
+            writes.push(`mal:${body.get("num_watched_episodes") ?? body.get("status")}`);
+            return { num_episodes_watched: Number(body.get("num_watched_episodes")) };
+          }
+          return {
+            num_episodes: entry.total,
+            my_list_status: {
+              num_episodes_watched: entry.progress,
+              status: entry.status === "PLANNING" ? "plan_to_watch" : "watching",
+              is_rewatching: false,
+            },
+          };
+        },
+      },
+    },
+    { localStorage },
+  );
+  return { anilist, mal, writes };
+}
+
+test("tracker sync cannot corrupt the wrong cour", async () => {
+  const progress = trackerModules({ total: 12, progress: 5, status: "CURRENT" });
+  await progress.anilist.syncAnimeProgress("kitsu:1", 13, "Show");
+  await progress.mal.syncMalProgress("kitsu:1", 13, "Show");
+  assert.deepEqual(progress.writes, [], "an episode past the entry's total is another cour");
+  await progress.anilist.syncAnimeProgress("kitsu:1", 6, "Show");
+  await progress.mal.syncMalProgress("kitsu:1", 6, "Show");
+  assert.deepEqual(progress.writes, ["anilist:6", "mal:6"]);
+  const done = trackerModules({ total: 12, progress: 12, status: "PLANNING" });
+  await done.anilist.markAnimeWatching("kitsu:1", "Show");
+  await done.mal.markMalWatching("kitsu:1", "Show");
+  assert.deepEqual(done.writes, [], "a fully watched entry is not marked watching");
+  const planned = trackerModules({ total: 12, progress: 3, status: "PLANNING" });
+  await planned.anilist.markAnimeWatching("kitsu:1", "Show");
+  await planned.mal.markMalWatching("kitsu:1", "Show");
+  assert.deepEqual(planned.writes, ["anilist:CURRENT", "mal:watching"]);
 });
 
 test("home dedup prefers the twin that actually played most recently", () => {
-  assert.match(home, /lastWatchedOf\(i\) > lastWatchedOf\(held\)/);
-  assert.match(home, /byId\.delete\(held\._id\);/);
-  const fn = home.match(/const lastWatchedOf = \(i: LibraryItem\) => \{[\s\S]*?\};/)?.[0];
-  assert.ok(fn, "lastWatchedOf must exist");
-  assert.match(fn, /i\._mtime/);
+  const home = read("src/views/home.tsx");
+  assert.match(
+    home,
+    /if \(lastWatchedOf\(i\) > lastWatchedOf\(held\)\) \{\s*byId\.delete\(held\._id\);\s*byName\.set\(key, i\);\s*byId\.set\(i\._id, i\);/,
+  );
+  assert.match(
+    home,
+    /const lastWatchedOf = \(i: LibraryItem\) => \{[\s\S]{0,120}i\.state\?\.lastWatched[\s\S]{0,120}i\._mtime/,
+  );
 });

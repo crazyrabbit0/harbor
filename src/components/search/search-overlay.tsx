@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { TvModalClose } from "@/components/tv-modal-close";
 import { appFeatures } from "@/lib/app-features";
 import { tvFocus } from "@/lib/keyboard-navigation";
+import { nextTabStop } from "@/lib/tab-cycle";
 import { useT } from "@/lib/i18n";
 import type { Meta } from "@/lib/cinemeta";
 import { useSearch } from "@/lib/search-context";
@@ -174,15 +175,7 @@ export function SearchOverlay() {
       const els = tabbables();
       if (els.length === 0) return;
       e.preventDefault();
-      const idx = els.indexOf(document.activeElement as HTMLElement);
-      const next = e.shiftKey
-        ? idx <= 0
-          ? els[els.length - 1]
-          : els[idx - 1]
-        : idx === -1 || idx === els.length - 1
-          ? els[0]
-          : els[idx + 1];
-      next.focus();
+      nextTabStop(els, document.activeElement as HTMLElement, e.shiftKey).focus();
     };
     root.addEventListener("keydown", onKeyDown);
     return () => root.removeEventListener("keydown", onKeyDown);

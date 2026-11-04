@@ -7,6 +7,7 @@ import { StreamCheckPill } from "@/components/player/stream-check-pill";
 import { XrayOverlay } from "@/components/player/xray/xray-overlay";
 import { BufferingIndicator } from "@/components/player/buffering-indicator";
 import { P2pStatusChip } from "@/components/player/p2p-status-chip";
+import { contentAdvisoryCorner } from "@/components/player/content-advisory-toast";
 import type { VolumeHudPosition, VolumeIndicatorState } from "@/components/player/volume-indicator";
 import type { SpeedIndicatorState } from "@/components/player/speed-indicator";
 import type { ParentalCategory } from "@/lib/providers/harbor-imdb";
@@ -215,11 +216,7 @@ export const PlayerOverlayLayers = memo(function PlayerOverlayLayers(p: PlayerOv
   const roomChatTopRight = p.inRoom && !p.chatHidden && p.chatCorner === "top-right";
   const topLeftOccupied = p.showStats || roomAvatarTopLeft || roomChatTopLeft;
   const topRightOccupied = roomAvatarTopRight || roomChatTopRight;
-  const contentAdvisoryPosition = topLeftOccupied
-    ? topRightOccupied
-      ? "top-center"
-      : "top-end"
-    : "top-start";
+  const contentAdvisoryPosition = contentAdvisoryCorner(topLeftOccupied, topRightOccupied);
 
   return (
     <>
