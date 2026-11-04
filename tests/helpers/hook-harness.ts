@@ -38,9 +38,15 @@ export function hookHarness(
       if (!memos[i] || !same(memos[i].deps, deps)) memos[i] = { deps, value: create() };
       return memos[i].value;
     },
+    useCallback(fn: any, deps: any[]) {
+      return react.useMemo(() => fn, deps);
+    },
     useEffect(run: () => any, deps: any[]) {
       const i = ei++;
       if (!effects[i] || !same(effects[i].deps, deps)) pending.push({ i, run, deps });
+    },
+    useLayoutEffect(run: () => any, deps: any[]) {
+      react.useEffect(run, deps);
     },
     useSyncExternalStore(_subscribe: any, snapshot: () => any) {
       return snapshot();

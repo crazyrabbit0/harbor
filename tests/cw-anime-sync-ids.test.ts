@@ -18,6 +18,10 @@ import {
   selectSiblingWindows,
 } from "../src/lib/streams/anime-identity-core.ts";
 import { stremioIdToTraktTarget } from "../src/lib/trakt/ids.ts";
+import {
+  playbackParams,
+  playbackPersistenceHarness,
+} from "./helpers/playback-persistence-harness.ts";
 
 const MUSHOKU = {
   mappings: { kitsu_id: 49002, thetvdb_id: 371310, imdb_id: "tt13293588" },
@@ -214,38 +218,68 @@ test("the sibling entry that actually aired the season supplies the tracker epis
   );
 });
 
-test("an imdb keyed Continue Watching play no longer drops the AniList and MAL sync", () => {
-  const src = readFileSync(
-    new URL("../src/views/player/hooks/use-resume-autosave.ts", import.meta.url),
-    "utf8",
+async function autosaveAnime(
+  metaId: string,
+  episode: Record<string, unknown>,
+  identity: { kitsuId: number; number: number } | null,
+  patch: { isAnime?: boolean; absolute?: number | null } = {},
+) {
+  const h = playbackPersistenceHarness();
+  h.enableAnimeSync();
+  h.setIdentityResolver(async () => identity);
+  h.dependencies.absoluteEntryNumber = async () => patch.absolute ?? null;
+  const base = playbackParams(episode.season as number, episode.episode as number);
+  const p = { ...base, src: { ...base.src, meta: { ...base.src.meta, id: metaId }, episode } };
+  if (patch.isAnime) Object.assign(p.src, { isAnime: true });
+  h.render(p);
+  h.render({ ...p, snap: { ...p.snap, status: "playing", positionSec: 1000, durationSec: 1200 } });
+  h.clock(1000);
+  h.tick();
+  await new Promise((r) => setTimeout(r, 0));
+  return { requests: h.identityRequests, progress: h.trackerProgress };
+}
+
+test("an imdb keyed Continue Watching play no longer drops the AniList and MAL sync", async () => {
+  const { requests, progress } = await autosaveAnime(
+    "tt0000777",
+    { season: 9, episode: 9 },
+    { kitsuId: 99, number: 9 },
+    { isAnime: true, absolute: 186 },
   );
-  assert.match(src, /animeIdentityEligibleForSync\(id, syncEpisode\)/);
-  assert.match(src, /resolveAnimeIdentity\(id, rid, \{/);
-  assert.match(
-    src,
-    /fireTrackers\(`kitsu:\$\{identity\.kitsuId\}`, absolute \?\? identity\.number\)/,
-  );
-  assert.doesNotMatch(
-    src,
-    /anilistAutoSyncRef\.current && trackId/,
-    "a null anime track id must resolve through the identity chain, not silently skip",
+  assert.deepEqual(requests[0].slice(0, 3), [
+    "tt0000777",
+    "tt100",
+    { season: 9, episode: 9, imdbSeason: 9, imdbEpisode: 9 },
+  ]);
+  assert.deepEqual(
+    progress.map((call) => call.slice(0, 3)),
+    [
+      ["anilist", "kitsu:99", 186],
+      ["mal", "kitsu:99", 186],
+    ],
+    "the entry number, not the TVDB number, reaches the trackers",
   );
 });
 
-test("multi-season sync prefers the season-scoped identity over the base track id", () => {
-  const src = readFileSync(
-    new URL("../src/views/player/hooks/use-resume-autosave.ts", import.meta.url),
-    "utf8",
+test("multi-season sync prefers the season-scoped identity over the base track id", async () => {
+  const episode = { season: 2, episode: 4, imdbSeason: 2, imdbEpisode: 4 };
+  const scoped = await autosaveAnime("kitsu:43806", episode, { kitsuId: 49711, number: 4 });
+  assert.equal(scoped.requests.length, 1, "a base track id alone must not block resolution");
+  assert.deepEqual(
+    scoped.progress.map((call) => call.slice(0, 3)),
+    [
+      ["anilist", "kitsu:49711", 4],
+      ["mal", "kitsu:49711", 4],
+    ],
   );
-  assert.match(
-    src,
-    /const useIdentity =\s*\n\s*\(anilistAutoSyncRef\.current \|\| malAutoSyncRef\.current\)/,
-  );
-  assert.match(src, /if \(track && !useIdentity\)/);
-  assert.match(
-    src,
-    /else if \(useIdentity\)/,
-    "a base track id alone must not block per-season identity resolution",
+  const unresolved = await autosaveAnime("kitsu:43806", episode, null);
+  assert.deepEqual(
+    unresolved.progress.map((call) => call.slice(0, 2)),
+    [
+      ["anilist", "kitsu:43806"],
+      ["mal", "kitsu:43806"],
+    ],
+    "the base entry is still synced when no season identity exists",
   );
 });
 
