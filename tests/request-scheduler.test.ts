@@ -50,7 +50,8 @@ test("releases capacity after a rejected request", async () => {
   assert.equal(secondStarted, true);
 });
 
-test("pauseFor delays queued work", async () => {
+test("pauseFor delays queued work until the pause ends", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
   const scheduler = createRequestScheduler({ concurrency: 1 });
   let started = false;
 
@@ -60,8 +61,11 @@ test("pauseFor delays queued work", async () => {
     return "ready";
   });
 
-  await new Promise((resolve) => setTimeout(resolve, 5));
+  t.mock.timers.tick(19);
   assert.equal(started, false);
+  assert.deepEqual(scheduler.snapshot(), { active: 0, queued: 1, inFlight: 1 });
+  t.mock.timers.tick(1);
+  assert.equal(started, true);
   assert.equal(await result, "ready");
 });
 

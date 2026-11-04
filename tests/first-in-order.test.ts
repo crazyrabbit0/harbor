@@ -18,17 +18,13 @@ test("a later base wins only after every earlier base failed or was empty", asyn
   assert.equal(result, "third");
 });
 
-test("all bases are started together rather than one after another", async () => {
-  const started: number[] = [];
-  const t0 = Date.now();
-  const task = (ms: number, value: string | null) => {
-    started.push(Date.now() - t0);
-    return later(ms, value);
-  };
-  const result = await firstInOrder([task(40, null), task(40, null), task(40, "c")]);
-  assert.equal(result, "c");
-  assert.ok(Date.now() - t0 < 110, "three 40 ms bases finish in about 40 ms, not 120 ms");
-  assert.ok(started.every((ms) => ms < 10));
+test("all bases run together, so the answer arrives when the slowest one settles", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  let result: string | null | undefined;
+  void firstInOrder([later(40, null), later(40, null), later(40, "c")]).then((r) => (result = r));
+  t.mock.timers.tick(40);
+  for (let i = 0; i < 10; i++) await Promise.resolve();
+  assert.equal(result, "c", "three 40 ms bases finish at 40 ms, not 120 ms");
 });
 
 test("returns null when no base has a usable result", async () => {
