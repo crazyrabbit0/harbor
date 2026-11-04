@@ -17,12 +17,10 @@ import {
   pickDesiredSubtitleTrack,
   subtitleAutoSelectionSignature,
 } from "../src/lib/subtitles/track-selection.ts";
+import ts from "typescript";
 import { html5BridgeHarness } from "./helpers/html5-bridge-harness.ts";
+import { deferred, flushBridge, mpvBridgeHarness } from "./helpers/mpv-bridge-harness.ts";
 
-const mpvSource = readFileSync(
-  new URL("../src/lib/player/mpv-subtitles.ts", import.meta.url),
-  "utf8",
-);
 const autoloadSource = readFileSync(
   new URL("../src/views/player/hooks/use-track-autoload.ts", import.meta.url),
   "utf8",
@@ -33,10 +31,6 @@ const playerMediaSource = readFileSync(
 );
 const autoSyncSource = readFileSync(
   new URL("../src/views/player/hooks/use-auto-sync.ts", import.meta.url),
-  "utf8",
-);
-const mediaServerPlaybackSource = readFileSync(
-  new URL("../src/lib/media-server/playback.ts", import.meta.url),
   "utf8",
 );
 const mediaServerLibrarySource = readFileSync(
@@ -184,21 +178,79 @@ test("delayed hash enrichment may upgrade only the current automatic selection",
   );
 });
 
-test("mpv serializes same-media subtitle selection commits through generation guards", () => {
-  assert.match(mpvSource, /mainSubtitleSelection\.begin\(/);
-  assert.match(mpvSource, /enqueueSubtitleTransition\(async \(\) =>/);
-  assert.match(mpvSource, /if \(requestMediaRevision !== mediaRevision\(\)\) return;/);
+function mpvSeedTrackList(urls: string[]) {
+  return urls.map((url, i) => ({
+    type: "sub",
+    id: i + 1,
+    lang: url.includes("fr") ? "fr" : "en",
+    external: true,
+    "external-filename": url,
+  }));
+}
+
+test("mpv seeds become auto-selectable together, only after every seed settles", async () => {
+  const h = mpvBridgeHarness();
+  const slow = deferred();
+  const cleaned: string[] = [];
+  h.prepareWith(async ({ url }) => {
+    if (url.includes("fr")) await slow.promise;
+    return {
+      playableUrl: `C:\\tmp\\${url.slice(-6)}`,
+      format: "srt",
+      cues: cue(url),
+      cleanup: () => cleaned.push(url),
+    };
+  });
+  await h.bridge.load({
+    url: "fixture.mkv",
+    subtitles: [
+      { url: "https://subs.test/en.srt", lang: "en" },
+      { url: "https://subs.test/fr.srt", lang: "fr" },
+    ],
+  });
+  await flushBridge();
+  h.emit("track-list", mpvSeedTrackList(["C:\\tmp\\en.srt"]));
+  const eligible = () =>
+    h.snapshot().subtitleTracks.map((t) => [t.lang, t.prepared, t.autoSelectionEligible]);
+  assert.deepEqual(eligible(), [["en", true, false]], "a ready seed waits for its slower siblings");
+  slow.resolve();
+  await flushBridge();
+  h.emit("track-list", mpvSeedTrackList(["C:\\tmp\\en.srt", "C:\\tmp\\fr.srt"]));
+  assert.deepEqual(eligible(), [
+    ["en", true, true],
+    ["fr", true, true],
+  ]);
+  assert.deepEqual(cleaned, [], "prepared files stay alive while their media plays");
+  await h.bridge.load({ url: "next.mkv" });
+  await flushBridge();
+  assert.deepEqual(cleaned.sort(), ["https://subs.test/en.srt", "https://subs.test/fr.srt"]);
 });
 
-test("prepared player-source seeds publish eligibility only after each bridge settles its batch", () => {
-  assert.match(mpvSource, /const seedBatch = new PreparedSubtitleSeedBatch\(orderedSeeds\)/);
-  assert.match(mpvSource, /autoSelectionEligible: false/);
-  assert.match(
-    mpvSource,
-    /if \(cleanup\) \{[\s\S]*preparedSubtitleCleanups\.register[\s\S]*\}\s*seedBatch\.markReady\(subtitle\)/,
+test("mpv drops a seed batch whose media was replaced before it settled", async () => {
+  const h = mpvBridgeHarness();
+  const slow = deferred();
+  let cleaned = 0;
+  h.prepareWith(async () => {
+    await slow.promise;
+    return {
+      playableUrl: "C:/tmp/old.srt",
+      format: "srt",
+      cues: cue("old"),
+      cleanup: () => cleaned++,
+    };
+  });
+  await h.bridge.load({
+    url: "fixture.mkv",
+    subtitles: [{ url: "https://subs.test/old.srt", lang: "en" }],
+  });
+  await h.bridge.load({ url: "next.mkv" });
+  slow.resolve();
+  await flushBridge();
+  assert.equal(cleaned, 1);
+  assert.equal(
+    h.commands.some(({ command }) => command === "mpv_sub_add"),
+    false,
   );
-  assert.match(mpvSource, /metadata\.prepared = true/);
-  assert.match(mpvSource, /seedBatch\.commit\(/);
 });
 
 const cue = (text: string) => [{ start: 0, end: 5, text }];
@@ -273,16 +325,73 @@ test("html5 drops unsafe provider seeds but keeps trusted local and home-server 
   );
 });
 
-test("trusted local and home-server subtitle seeds bypass only the provider URL gate", () => {
-  assert.match(
-    mpvSource,
-    /subtitle\.trustedSource !== true && !isSafeProviderSubtitleUrl\(originalUrl\)/,
+test("mpv drops unsafe provider seeds but keeps trusted local and home-server ones", async () => {
+  const h = mpvBridgeHarness(undefined, undefined, {
+    safeProviderUrl: (url) => url.startsWith("https://subs.test/"),
+  });
+  await h.bridge.load({
+    url: "fixture.mkv",
+    subtitles: [
+      { url: "https://subs.test/en.srt", lang: "en" },
+      { url: "http://10.0.0.5/evil.srt", lang: "de" },
+      { url: "http://10.0.0.5/jellyfin.srt", lang: "fr", trustedSource: true },
+    ],
+  });
+  await flushBridge();
+  assert.deepEqual(
+    h.commands.filter(({ command }) => command === "mpv_sub_add").map(({ args }) => args.lang),
+    ["en", "fr"],
   );
-  assert.equal(
-    [...mediaServerPlaybackSource.matchAll(/trustedSource: true/g)].length,
-    2,
-    "initial and quality-switched home-server subtitles must stay trusted",
-  );
+});
+
+test("home-server playback marks its subtitles trusted, including after a quality switch", async () => {
+  const connection = { id: "c1", provider: "jellyfin", name: "Home", preferredQuality: "original" };
+  const item = { id: "i1", identity: {}, versions: [] };
+  const playback = (url: string) => ({
+    url,
+    direct: true,
+    versionId: "v1",
+    effectiveQuality: "original",
+    subtitles: [{ id: "s1", url: `${url}.srt`, language: "en" }],
+  });
+  const mocks: Record<string, unknown> = {
+    "./sync": {
+      mediaServerAdapter: () => ({ playback: async () => playback("http://10.0.0.5/b") }),
+    },
+    "./connections": {
+      mediaServerConnections: () => [connection],
+      updateMediaServerConnection() {},
+    },
+    "./index-store": { mediaServerItems: async () => [item] },
+    "./playback-policy": { decidePlaybackSource() {} },
+  };
+  const code = ts.transpileModule(
+    readFileSync(new URL("../src/lib/media-server/playback.ts", import.meta.url), "utf8"),
+    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
+  ).outputText;
+  const mod: Record<string, any> = {};
+  new Function("require", "exports", code)((id: string) => {
+    assert.ok(id in mocks, `Unexpected import ${id}`);
+    return mocks[id];
+  }, mod);
+  const src = mod.mediaServerPlayerSrc({
+    meta: { id: "tt1", name: "Movie" },
+    connection,
+    item,
+    playback: playback("http://10.0.0.5/a"),
+  });
+  assert.equal(src.subtitles[0].trustedSource, true);
+  const switched = await mod.switchMediaServerQuality({
+    src,
+    quality: "720p",
+    positionMs: 0,
+    playing: true,
+  });
+  assert.equal(switched.subtitles[0].url, "http://10.0.0.5/b.srt");
+  assert.equal(switched.subtitles[0].trustedSource, true);
+});
+
+test("the media-server library keeps its subtitles trusted", () => {
   assert.match(
     mediaServerLibrarySource,
     /subtitles: source\.subtitles\?\.map[\s\S]*trustedSource: true/,
@@ -399,12 +508,55 @@ test("delayed candidate preflight blocks structural autosync and an aligned resu
   assert.match(autoSyncSource, /automaticAutoSyncMayStart\(\{/);
 });
 
-test("mpv autosync reuses retained prepared cues and paths", () => {
-  assert.match(mpvSource, /const transferredPrepared = takePreparedSubtitle\(url\)/);
-  assert.match(mpvSource, /cues: preparedCues/);
-  assert.match(mpvSource, /urlByExternalFilename\.get\([\s\S]*\)\?\.cues \?\? null/);
-  assert.match(
-    mpvSource,
-    /if \(sel\.prepared && sel\.externalFilename\) return sel\.externalFilename/,
+test("mpv autosync reuses retained prepared cues and paths", async () => {
+  const h = mpvBridgeHarness();
+  await h.bridge.load({ url: "fixture.mkv" });
+  let downloads = 0;
+  h.prepareWith(async () => {
+    downloads++;
+    return { playableUrl: "C:/tmp/x.srt", format: "srt", cues: [], cleanup() {} };
+  });
+  const handoff = cue("from the picker");
+  h.transferPrepared("C:\\tmp\\a.srt", {
+    playableUrl: "C:\\tmp\\a.srt",
+    cues: handoff,
+    cleanup() {},
+  });
+  assert.equal(
+    await h.bridge.addSubtitle("C:\\tmp\\a.srt", "en", "A", true, {
+      originalUrl: "https://subs.test/a.srt",
+      provider: "Fixture",
+    }),
+    true,
+  );
+  assert.equal(downloads, 0, "a subtitle another window prepared is not downloaded again");
+  h.emit("track-list", [
+    {
+      type: "sub",
+      id: 4,
+      lang: "en",
+      external: true,
+      selected: true,
+      "external-filename": "C:\\tmp\\a.srt",
+    },
+  ]);
+  assert.equal(h.bridge.getSelectedTrackCues(), handoff);
+
+  assert.equal(await h.bridge.addSubtitle("https://subs.test/b.srt", "en", "B", true), true);
+  assert.equal(downloads, 1);
+  h.emit("track-list", [
+    {
+      type: "sub",
+      id: 5,
+      lang: "en",
+      external: true,
+      selected: true,
+      "external-filename": "C:/tmp/x.srt",
+    },
+  ]);
+  assert.equal(
+    h.bridge.getSelectedTrackUrl(),
+    "C:/tmp/x.srt",
+    "a prepared track hands autosync its local copy, not the provider URL",
   );
 });
