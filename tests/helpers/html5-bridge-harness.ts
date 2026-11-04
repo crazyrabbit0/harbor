@@ -45,8 +45,26 @@ export class FakeVideo {
   load() {}
 }
 
-/** Compiles the real html5 bridge; subtitle loading resolves through `prepared` (URL to cues). */
-export function html5BridgeHarness(prepared: Record<string, SubCue[]> = {}) {
+type HarnessOptions = {
+  locked?: () => boolean;
+  safeProviderUrl?: (url: string) => boolean;
+  /** Holds each subtitle load until the test resolves it; keyed by URL. */
+  gate?: Map<string, Promise<void>>;
+};
+
+/** Compiles the real html5 bridge; `prepared` maps a subtitle URL to its cues or an Error. */
+export function html5BridgeHarness(
+  prepared: Record<string, SubCue[] | Error> = {},
+  options: HarnessOptions = {},
+) {
+  const warnings: unknown[][] = [];
+  const sessionHandlers = new Map<string, (details?: unknown) => void>();
+  const load = async (url: string) => {
+    await options.gate?.get(url);
+    const result = prepared[url] ?? [];
+    if (result instanceof Error) throw result;
+    return result;
+  };
   const source = readFileSync(
     new URL("../../src/lib/player/html5/bridge.ts", import.meta.url),
     "utf8",
@@ -60,12 +78,12 @@ export function html5BridgeHarness(prepared: Record<string, SubCue[]> = {}) {
     "../bridge": bridgeTypes,
     "@/lib/subtitles/parser": {
       ...parser,
-      fetchAndParse: async (url: string) => prepared[url] ?? [],
+      fetchAndParse: load,
     },
     "@/lib/subtitles/prepare": {
       SubtitlePreparationError: class extends Error {},
       prepareSubtitle: async ({ url }: { url: string }) => ({
-        cues: prepared[url] ?? [],
+        cues: await load(url),
         playableUrl: `prepared:${url}`,
         format: "srt",
         encoding: "utf-8",
@@ -82,10 +100,14 @@ export function html5BridgeHarness(prepared: Record<string, SubCue[]> = {}) {
     "@/lib/subtitles/subtitle-memory": { noteSubtitleOrigin: noop },
     "./pip": { mountCustomPip: noop },
     "@/lib/perf/playback-trace": { finishPlaybackTrace: noop, markPlaybackTrace: noop },
-    "@/lib/player/interaction-lock": { isPlayerInteractionLocked: () => false },
+    "@/lib/player/interaction-lock": {
+      isPlayerInteractionLocked: options.locked ?? (() => false),
+    },
     "@/lib/player/subtitle-selection": selection,
     "@/lib/subtitles/seed-batch": seedBatch,
-    "@/lib/subtitles/provider-url": { isSafeProviderSubtitleUrl: () => true },
+    "@/lib/subtitles/provider-url": {
+      isSafeProviderSubtitleUrl: options.safeProviderUrl ?? (() => true),
+    },
   };
   const video = new FakeVideo();
   const globals = {
@@ -94,8 +116,15 @@ export function html5BridgeHarness(prepared: Record<string, SubCue[]> = {}) {
       requestAnimationFrame: () => 1,
       cancelAnimationFrame: noop,
     },
-    navigator: {},
+    navigator: {
+      mediaSession: {
+        setActionHandler: (name: string, fn: (details?: unknown) => void) =>
+          sessionHandlers.set(name, fn),
+      },
+    },
     HTMLMediaElement: { HAVE_CURRENT_DATA: 2, HAVE_FUTURE_DATA: 3 },
+    console: { ...console, warn: (...args: unknown[]) => warnings.push(args) },
+    MediaMetadata: class {},
   };
   const exports: { createHtml5Bridge?: () => bridgeTypes.PlayerBridge } = {};
   new Function("require", "exports", ...Object.keys(globals), compiled)(
@@ -115,6 +144,8 @@ export function html5BridgeHarness(prepared: Record<string, SubCue[]> = {}) {
   return {
     bridge,
     video,
+    warnings,
+    sessionHandlers,
     snapshot: () => snap,
     /** Moves playback to `sec` and makes the bridge read the cue there (setSubDelay ticks cues). */
     at(sec: number) {
