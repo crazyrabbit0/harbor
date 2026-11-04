@@ -95,10 +95,13 @@ export function loadModule(
   file: string,
   mocks: Record<string, any>,
   globals: Record<string, any> = {},
+  /** Module-local functions to expose alongside the exports. */
+  expose: string[] = [],
 ): Record<string, any> {
-  const output = ts.transpileModule(readFileSync(file, "utf8"), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
+  const output =
+    ts.transpileModule(readFileSync(file, "utf8"), {
+      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+    }).outputText + expose.map((name) => `\nexports.${name} = ${name};`).join("");
   const api: any = {};
   new Function("require", "exports", ...Object.keys(globals), output)(
     (name: string) => {

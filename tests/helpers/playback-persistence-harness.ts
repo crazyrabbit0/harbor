@@ -25,7 +25,8 @@ export function playbackPersistenceHarness(kind: "local" | "cloud" = "local") {
   const localCw: any[] = [],
     cleared: any[][] = [],
     watchEvents: any[] = [];
-  const localOwners: any[] = [];
+  const localOwners: any[] = [],
+    localShared: boolean[] = [];
   let profileId = "fixture";
   let stremioPushOk = () => true;
   let trackerSession = {};
@@ -70,9 +71,10 @@ export function playbackPersistenceHarness(kind: "local" | "cloud" = "local") {
     isExternalPlaylistId: () => false,
     clearLocalCw: noop,
     localCwEntry: () => null,
-    saveLocalCw: (v: any, owner: any) => {
+    saveLocalCw: (v: any, owner: any, shared: boolean) => {
       localCw.push(v);
       localOwners.push(owner);
+      localShared.push(shared);
     },
     recordWatchEvent: (v: any) => watchEvents.push(v),
     isLocalUrl: () => false,
@@ -168,6 +170,8 @@ export function playbackPersistenceHarness(kind: "local" | "cloud" = "local") {
     watchEvents,
     cloudWrites,
     localOwners,
+    /** The `shared` saveLocalCw argument per write: true also lists the entry in the shared local CW. */
+    localShared,
     setProfile: (id: string) => {
       profileId = id;
     },
