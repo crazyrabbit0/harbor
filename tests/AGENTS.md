@@ -17,7 +17,6 @@ Loader, single-file command and the source-regex trap are in the root `AGENTS.md
 ## Traps
 
 - Never assert on real elapsed time or a real `setTimeout` wait: the full suite runs files in parallel, and `first-in-order` and `request-scheduler` failed under that load. Use `t.mock.timers.enable({ apis: ["setTimeout", "Date"] })` and `tick()`, or pass a fake `setTimeout` as a global.
-
 - Assertion messages are often prose ("must not refetch metadata"); they describe that test, not a project-wide rule.
 - `games-rom-locales.test.ts` reads every `game-rom*`/`game-hack*`/`game-patch*` view and requires each `games.*` key in all 16 locales with matching placeholders.
 - `startup-bundle.test.ts` walks the static import graph from `main.tsx`; a new static import of a lazy module fails it.
