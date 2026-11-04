@@ -7,6 +7,13 @@ export function sdhSafeForLanguage(lang: string | null | undefined): boolean {
   return !NON_LATIN_LANGS.has(code);
 }
 
+/** Forced and foreign-only tracks are all signs and labels, so the SDH filter never touches them. */
+export function sdhFilterAllowed(
+  track: { forced?: boolean; foreignOnly?: boolean; lang?: string | null } | null | undefined,
+): boolean {
+  return !track?.forced && !track?.foreignOnly && sdhSafeForLanguage(track?.lang);
+}
+
 const NON_LATIN_LANGS = new Set([
   "ar",
   "arb",

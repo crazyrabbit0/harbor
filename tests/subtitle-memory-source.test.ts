@@ -1,9 +1,9 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
+import { restoreHarness, subtitleTrack } from "./helpers/subtitle-memory-harness.ts";
 import { bindSubtitleDownloadAuth } from "../src/lib/subtitles/provider-auth.ts";
 import {
   rememberedChoiceFromLoad,
@@ -105,58 +105,162 @@ test("saved Live Sync subtitles restore as trusted local files, including legacy
   assert.equal(rememberedSubtitleLoadMetadata(legacyRemembered).originalUrl, source);
 });
 
-test("the main player rebinds modal auth handles instead of trusting another WebView registry", () => {
-  const menu = readFileSync(
-    new URL("../src/components/player/subtitle-menu.tsx", import.meta.url),
-    "utf8",
-  );
-
-  assert.match(
-    menu,
-    /authKind === "subsource-api-key"[\s\S]*settings\.subsourceApiKey[\s\S]*authKind === "subdl-api-key"[\s\S]*settings\.subdlApiKey/,
-  );
-  assert.match(menu, /bindSubtitleDownloadAuth\([\s\S]*authKind,[\s\S]*apiKey/);
-  assert.match(menu, /onAddSubtitle\(url, lang, title, mainWindowMetadata\)/);
+test("the main player rebinds modal auth handles instead of trusting another WebView registry", async () => {
+  const listeners = new Map<string, (e: { payload: unknown }) => void>();
+  const binds: Array<[unknown, unknown]> = [];
+  const added: unknown[][] = [];
+  const results: unknown[] = [];
+  const keys = { subsourceApiKey: "ss-key", subdlApiKey: "dl-key" };
+  const element = () => ({});
+  const menu = hookHarness("src/components/player/subtitle-menu.tsx", "SubtitleMenu", {
+    "lucide-react": { Subtitles: "Subtitles" },
+    "@tauri-apps/api/event": {
+      listen: async (name: string, fn: (e: { payload: unknown }) => void) => {
+        listeners.set(name, fn);
+        return () => {};
+      },
+    },
+    "@/lib/modal-overlay": {
+      modalOverlayClose: async () => {},
+      modalOverlayEmitResult: async (_name: string, value: unknown) => results.push(value),
+      modalOverlayEmitState: async () => {},
+      modalOverlayOpen: async () => {},
+    },
+    "@/lib/player/sub-presets": { openStyleBar() {} },
+    "@/lib/player/secondary-sub": { setSecondarySub() {} },
+    "@/lib/i18n": { useT: () => (s: string) => s },
+    "@/lib/settings": {
+      useSettingsSelector: (select: (s: unknown) => unknown) =>
+        select({
+          preferredLanguages: [],
+          preferredSubLangs: [],
+          showSubtitleIndicator: false,
+          ...keys,
+        }),
+    },
+    "@/lib/subtitles/limit-signal": { wasLimitReached: () => false },
+    "@/lib/subtitles/pending-subs": { wasPendingSub: () => false },
+    "@/lib/subtitles/provider-auth": {
+      bindSubtitleDownloadAuth: async (kind: unknown, key: unknown) => {
+        binds.push([kind, key]);
+        return { kind, credentialId: "main-window" };
+      },
+    },
+    "./subtitle-menu/menu-body": { MenuBody: "MenuBody" },
+    "./subtitle-menu/resizable-panel": { ResizableSubtitlePanel: "Panel" },
+    "./subtitle-menu/subtitle-context-store": { useSubtitleContext: () => null },
+    "./subtitle-menu/utils": { buildOverlayState: () => ({}) },
+    "./transport/tooltip": { Tooltip: "Tooltip" },
+    "./transport/hotkey-label": { withHotkey: (s: string) => s },
+    "@/lib/player/overlay-dismiss": { watchOutsideMouseDown: () => () => {} },
+    "react/jsx-runtime": { jsx: element, jsxs: element },
+  });
+  menu.render({
+    useOverlayPopup: true,
+    onSelect() {},
+    onDelay() {},
+    onAddSubtitle: async (...args: unknown[]) => (added.push(args), true),
+  });
+  await flushPromises();
+  for (const [kind, key] of [
+    ["subsource-api-key", "ss-key"],
+    ["subdl-api-key", "dl-key"],
+  ]) {
+    listeners.get("modal://subtitle/add")!({
+      payload: {
+        url: "https://subs.test/a.srt",
+        lang: "en",
+        title: "A",
+        requestId: kind,
+        provider: "Fixture",
+        downloadAuth: { kind, credentialId: "modal-window" },
+      },
+    });
+    await flushPromises();
+    assert.deepEqual(binds.at(-1), [kind, key]);
+    assert.deepEqual(added.at(-1), [
+      "https://subs.test/a.srt",
+      "en",
+      "A",
+      { provider: "Fixture", downloadAuth: { kind, credentialId: "main-window" } },
+    ]);
+  }
+  assert.deepEqual(results, [
+    { requestId: "subsource-api-key", result: "ok" },
+    { requestId: "subdl-api-key", result: "ok" },
+  ]);
 });
 
-test("remembered external subtitles remain authoritative until selection is observed", () => {
-  const autoload = readFileSync(
-    new URL("../src/views/player/hooks/use-track-autoload.ts", import.meta.url),
-    "utf8",
-  );
+const restoreTrack = subtitleTrack("6");
+const restoreMemory = {
+  ...rememberedFromChoice(restoreTrack),
+  streamKey: "torrent:fixture:0",
+  updatedAt: 1,
+};
 
-  assert.match(
-    autoload,
-    /if \(existing\.selected\) \{[\s\S]*subRestoreSelectRef\.current = null/,
-    "restoration must complete only after the remembered track is visibly selected",
+test("remembered external subtitles remain authoritative until selection is observed", () => {
+  const h = restoreHarness(restoreMemory, [{ ...restoreTrack, selected: false }]);
+  h.run();
+  h.run();
+  assert.deepEqual(h.picks, ["6"], "a rerender inside 750 ms does not select again");
+  h.clock.now += 750;
+  for (let i = 0; i < 5; i++) {
+    h.run();
+    h.clock.now += 750;
+  }
+  assert.deepEqual(
+    h.picks,
+    ["6", "6", "6", "6"],
+    "a track-list race retries the remembered selection at most four times",
   );
-  assert.match(
-    autoload,
-    /attempts < 4 && elapsed >= 750[\s\S]*bridge\.setSubtitleTrack\(existing\.id, "restore"\)/,
-    "a track-list race must retry the remembered selection with a bound",
-  );
-  assert.match(
-    autoload,
-    /scheduleRestoreCheck\(12_000 - waited \+ 1\)/,
-    "the direct-source fallback must run even when no later track event rerenders the player",
-  );
-  assert.match(
-    autoload,
-    /remembered\.downloadAuthKind === "subsource-api-key"[\s\S]*settings\.subsourceApiKey[\s\S]*remembered\.downloadAuthKind === "subdl-api-key"[\s\S]*settings\.subdlApiKey/,
-    "restoration must rebind the persisted auth kind to the active profile credential",
-  );
-  assert.match(
-    autoload,
-    /bindSubtitleDownloadAuth\([\s\S]*remembered\.downloadAuthKind,[\s\S]*rememberedApiKey/,
-  );
-  assert.match(
-    autoload,
-    /rememberedSubtitleLoadMetadata\(remembered, downloadAuth\)/,
-    "restoration must recover the trust classification of saved local subtitles",
-  );
-  assert.match(
-    autoload,
-    /subRestoreTick,[\s\S]*settings\.subsourceApiKey,[\s\S]*settings\.subdlApiKey,[\s\S]*\]\);/,
-    "credential changes must rerun remembered subtitle restoration with a fresh handle",
-  );
+  assert.notEqual(h.scope.subRestoreSelectRef.current, null, "still waiting while unselected");
+  h.scope.snap.subtitleTracks[0].selected = true;
+  h.run();
+  assert.equal(h.scope.subRestoreSelectRef.current, null, "done once visibly selected");
+  assert.equal(h.scope.autoSubIdRef.current, "6");
+});
+
+test("a remembered source not yet listed is added again after the provider wait", async () => {
+  const h = restoreHarness(restoreMemory, []);
+  h.run();
+  assert.deepEqual(h.adds, []);
+  assert.deepEqual(h.timers, [12_001], "the fallback is scheduled without a later rerender");
+  h.clock.now += 12_001;
+  h.run();
+  await flushPromises();
+  assert.deepEqual(h.adds, [restoreMemory.source]);
+});
+
+test("restoration rebinds the saved auth kind to the active profile credential", async () => {
+  const cases = [
+    ["subsource-api-key", "ss-key"],
+    ["subdl-api-key", "dl-key"],
+  ] as const;
+  for (const [kind, key] of cases) {
+    const local = { ...restoreMemory, source: "C:/subs/six.srt", imported: true };
+    const h = restoreHarness({ ...local, downloadAuthKind: kind, providerDerived: undefined }, []);
+    h.scope.settings = { subsourceApiKey: "ss-key", subdlApiKey: "dl-key" };
+    h.run();
+    await flushPromises();
+    assert.deepEqual(h.authBinds, [[kind, key]]);
+    const metadata = h.addMetadata[0] as { downloadAuth: unknown; providerDerived: boolean };
+    assert.deepEqual(metadata.downloadAuth, { kind, credentialId: `bound:${key}` });
+    assert.equal(metadata.providerDerived, false, "a saved local file restores as trusted");
+  }
+});
+
+test("credential changes rerun remembered subtitle restoration", () => {
+  const h = restoreHarness(restoreMemory, []);
+  h.scope.settings = { subsourceApiKey: "old", subdlApiKey: "old" };
+  const before = h.dependencies();
+  h.scope.settings = { subsourceApiKey: "new", subdlApiKey: "old" };
+  const sourceKey = h.dependencies();
+  h.scope.settings = { subsourceApiKey: "new", subdlApiKey: "new" };
+  const dlKey = h.dependencies();
+  h.scope.subRestoreTick = 1;
+  const tick = h.dependencies();
+  const changed = (a: unknown[], b: unknown[]) => a.some((v, i) => !Object.is(v, b[i]));
+  assert.ok(changed(before, sourceKey));
+  assert.ok(changed(sourceKey, dlKey));
+  assert.ok(changed(dlKey, tick));
 });

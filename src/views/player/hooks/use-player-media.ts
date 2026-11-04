@@ -41,7 +41,7 @@ import { publishAutoSync } from "@/components/player/autosync/autosync-store";
 import { useVideoDownload } from "./use-video-download";
 import { useWebviewMemory } from "./use-webview-memory";
 import { useCaptionsPopoutOpen } from "@/lib/player/captions-popout-state";
-import { sdhSafeForLanguage } from "@/lib/subtitles/sdh-filter";
+import { sdhFilterAllowed } from "@/lib/subtitles/sdh-filter";
 
 const HDR_NATIVE_GAMMAS = new Set(["pq", "hlg"]);
 
@@ -244,11 +244,8 @@ export function usePlayerMedia(params: {
       snap.subtitleTracks.length > 0);
   const suppressHtmlSubs =
     subAssNative || mpvNativeWindow || (subEmbed && selectedImageSub) || hdrNativeSurface;
-  const sdhFilterAllowed =
-    !selectedSubTrack?.forced &&
-    !selectedSubTrack?.foreignOnly &&
-    sdhSafeForLanguage(selectedSubTrack?.lang);
-  const hideSdh = settings.subHideSdh && sdhFilterAllowed;
+  const sdhAllowed = sdhFilterAllowed(selectedSubTrack);
+  const hideSdh = settings.subHideSdh && sdhAllowed;
   useSubStyleApply({
     engine,
     settings,
@@ -261,7 +258,7 @@ export function usePlayerMedia(params: {
     svpActive,
     assScale: assNormalizeScale,
     subTrackId: selectedSubTrack?.id,
-    sdhFilterAllowed,
+    sdhFilterAllowed: sdhAllowed,
   });
   const captionsPopout = useCaptionsPopoutOpen();
   useEffect(() => {
