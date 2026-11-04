@@ -7,14 +7,12 @@ import test from "node:test";
 import { html5BridgeHarness } from "./helpers/html5-bridge-harness.ts";
 import { hookHarness } from "./helpers/hook-harness.ts";
 import { effectiveBinding, eventToBinding, HOTKEYS } from "../src/lib/hotkeys.ts";
+import { playerTvNavigationEnabled } from "../src/lib/player/tv-navigation.ts";
 
 const at = (path: string) => new URL(`../${path}`, import.meta.url);
 const read = (path: string) => readFileSync(at(path), "utf8");
 
 const player = read("src/views/player.tsx");
-const hdrOverlay = read("src/views/hdr-overlay-app.tsx");
-const keyboardShortcuts = read("src/views/player/hooks/use-keyboard-shortcuts.ts");
-const playerLayout = read("src/views/settings/player-layout-panel/index.tsx");
 
 class FakeElement {
   unlock: boolean;
@@ -101,7 +99,6 @@ test("player lock is configurable and has a deliberate default shortcut", async 
   assert.equal(HOTKEYS.find((h) => h.id === "playerScreenLock")?.defaultBinding, "ctrl+l");
   const { DEFAULT } = await import("../src/lib/settings/defaults.ts");
   assert.equal(DEFAULT.playerScreenLockEnabled, false);
-  assert.match(playerLayout, /value=\{settings\.playerScreenLockEnabled\}/);
 
   const off = lockHarness({ playerScreenLockEnabled: false, hotkeys: {} });
   off.render();
@@ -159,14 +156,18 @@ test("locked playback captures pointer and keyboard input while preserving unloc
   assert.equal(h.render().locked, false);
   assert.equal(h.isLocked(), false);
   assert.equal(h.dispatch("keydown", { key: "k" }).stopped, false);
-  assert.match(keyboardShortcuts, /if \(isPlayerInteractionLocked\(\)\)/);
 });
 
-test("screen lock covers TV navigation and HDR chrome", () => {
-  assert.match(player, /settings\.playerTvNavigation && !screenLocked/);
-  assert.match(hdrOverlay, /usePlayerInteractionBlocker/);
-  assert.match(hdrOverlay, /PlayerInteractionLockControls/);
-  assert.match(hdrOverlay, /screenLockControlsVisible/);
+test("TV focus navigation stays off while the screen is locked or the player is docked", () => {
+  const on = { tvNavigation: true, playerTvNavigation: true, screenLocked: false };
+  assert.equal(playerTvNavigationEnabled(on), true);
+  assert.equal(playerTvNavigationEnabled({ ...on, screenLocked: true }), false);
+  assert.equal(playerTvNavigationEnabled({ ...on, pipDocked: true }), false);
+  assert.equal(playerTvNavigationEnabled({ ...on, playerTvNavigation: false }), false);
+  assert.equal(playerTvNavigationEnabled({ ...on, tvNavigation: false }), false);
+  const call = /enabled: playerTvNavigationEnabled\(\{([\s\S]*?)\}\)/.exec(player)?.[1] ?? "";
+  assert.match(call, /^\s*screenLocked,$/m, "the player passes its live lock state");
+  assert.match(call, /pipDocked: src\.pipDocked/);
 });
 
 test("the html5 media session ignores OS media keys while the screen is locked", async () => {

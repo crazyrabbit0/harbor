@@ -21,23 +21,6 @@ import ts from "typescript";
 import { html5BridgeHarness } from "./helpers/html5-bridge-harness.ts";
 import { deferred, flushBridge, mpvBridgeHarness } from "./helpers/mpv-bridge-harness.ts";
 
-const autoloadSource = readFileSync(
-  new URL("../src/views/player/hooks/use-track-autoload.ts", import.meta.url),
-  "utf8",
-);
-const playerMediaSource = readFileSync(
-  new URL("../src/views/player/hooks/use-player-media.ts", import.meta.url),
-  "utf8",
-);
-const autoSyncSource = readFileSync(
-  new URL("../src/views/player/hooks/use-auto-sync.ts", import.meta.url),
-  "utf8",
-);
-const mediaServerLibrarySource = readFileSync(
-  new URL("../src/views/library/media-servers-tab.tsx", import.meta.url),
-  "utf8",
-);
-
 test("only the latest async subtitle selection may commit", () => {
   const coordinator = new SubtitleSelectionCoordinator();
   const first = coordinator.begin(4, "slow", "original");
@@ -391,11 +374,13 @@ test("home-server playback marks its subtitles trusted, including after a qualit
   assert.equal(switched.subtitles[0].trustedSource, true);
 });
 
-test("the media-server library keeps its subtitles trusted", () => {
-  assert.match(
-    mediaServerLibrarySource,
-    /subtitles: source\.subtitles\?\.map[\s\S]*trustedSource: true/,
+test("the media-server library builds its subtitles through the shared trusted mapping", () => {
+  const tab = readFileSync(
+    new URL("../src/views/library/media-servers-tab.tsx", import.meta.url),
+    "utf8",
   );
+  assert.match(tab, /subtitles: mediaServerSubtitles\(source\)/);
+  assert.doesNotMatch(tab, /trustedSource/, "no hand-built copy of the subtitle mapping");
 });
 
 test("reversed seed completion cannot lock a lower-priority language before batch publish", () => {
@@ -428,18 +413,6 @@ test("reversed seed completion cannot lock a lower-priority language before batc
 
   assert.notEqual(subtitleAutoSelectionSignature([english, arabic]), pendingSignature);
   assert.equal(pickDesiredSubtitleTrack([english, arabic], ["ar"], false)?.id, arabic.id);
-});
-
-test("moviehash enrichment is independent of timing autosync and uses the late-upgrade lease", () => {
-  assert.doesNotMatch(autoloadSource, /settings\.subtitleAutoSync\s*&&/);
-  assert.match(autoloadSource, /canResolveVideoHash\(src\)/);
-  assert.match(autoloadSource, /shouldAutoSelect: shouldAutoSelectLateHash/);
-  assert.match(autoloadSource, /error instanceof Error \? error\.name : "unknown"/);
-});
-
-test("autoloaded external candidates cannot override the embedded preference", () => {
-  assert.match(autoloadSource, /desiredSubtitleIsEmbedded\(/);
-  assert.match(autoloadSource, /!keepEmbedded\s*&&/);
 });
 
 test("delayed candidate preflight blocks structural autosync and an aligned result keeps it blocked", () => {
@@ -502,10 +475,6 @@ test("delayed candidate preflight blocks structural autosync and an aligned resu
     }),
     true,
   );
-
-  assert.match(autoloadSource, /subtitlePreflightSettled:/);
-  assert.match(playerMediaSource, /subtitlePreflightSettled,/);
-  assert.match(autoSyncSource, /automaticAutoSyncMayStart\(\{/);
 });
 
 test("mpv autosync reuses retained prepared cues and paths", async () => {

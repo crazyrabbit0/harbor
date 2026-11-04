@@ -30,6 +30,7 @@ import { isLivePlaybackSrc } from "@/lib/player/live-src";
 import { hasPlaybackStartedForStallCheck, stallWaitMs } from "@/lib/player/stall-wait";
 import { useAuth } from "@/lib/auth";
 import { embedFlags } from "./player/player-utils";
+import { playerTvNavigationEnabled } from "@/lib/player/tv-navigation";
 import { useFullscreen } from "./player/hooks/use-fullscreen";
 import { useSvpGuard } from "./player/hooks/use-svp-guard";
 import { usePlayerCast } from "./player/hooks/use-player-cast";
@@ -653,10 +654,12 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   }, [backFromPlayer]);
 
   useKeyboardNavigation({
-    // TV focus navigation intentionally owns arrows and Space while enabled.
-    // Keep it opt-in so standard player hotkeys remain the default.
-    enabled:
-      settings.tvNavigation && settings.playerTvNavigation && !screenLocked && !src.pipDocked,
+    enabled: playerTvNavigationEnabled({
+      tvNavigation: settings.tvNavigation,
+      playerTvNavigation: settings.playerTvNavigation,
+      screenLocked,
+      pipDocked: src.pipDocked,
+    }),
     wrap: true,
     arrows: chromeVisible && !pipMode,
     onBack: () => {
