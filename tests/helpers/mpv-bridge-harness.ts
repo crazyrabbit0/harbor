@@ -45,7 +45,11 @@ export function playerSnapshotChanged() {
   ) => boolean;
 }
 
-export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options?: MpvOptions) {
+export function mpvBridgeHarness(
+  prefs = { volume: 0.35, muted: false },
+  options?: MpvOptions,
+  harness: { safeProviderUrl?: (url: string) => boolean } = {},
+) {
   const source = readFileSync(new URL("../../src/lib/player/mpv.ts", import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
@@ -72,6 +76,7 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
     cues: [{ start: 0, end: 1, text: "fixture" }],
     cleanup() {},
   });
+  const transferred = new Map<string, unknown>();
   const dependencies: Record<string, unknown> = {
     "@tauri-apps/api/core": {
       invoke: async (command: string, args: Record<string, unknown> = {}) => {
@@ -102,7 +107,13 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
       },
     },
     "@/lib/subtitles/provider-auth": { subtitleTrackDownloadHeaders: () => undefined },
-    "@/lib/subtitles/prepared-registry": { takePreparedSubtitle: () => null },
+    "@/lib/subtitles/prepared-registry": {
+      takePreparedSubtitle: (url: string) => {
+        const entry = transferred.get(url) ?? null;
+        transferred.delete(url);
+        return entry;
+      },
+    },
     "@/lib/subtitles/limit-signal": { markLimitReached() {} },
     "@/lib/subtitles/pending-subs": {
       markPendingSub() {},
@@ -128,7 +139,9 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
     "./prepared-subtitle-cleanups": cleanups,
     "./subtitle-selection": selection,
     "@/lib/subtitles/seed-batch": seeds,
-    "@/lib/subtitles/provider-url": { isSafeProviderSubtitleUrl: () => true },
+    "@/lib/subtitles/provider-url": {
+      isSafeProviderSubtitleUrl: harness.safeProviderUrl ?? (() => true),
+    },
     "./bridge": {
       ...snapshots,
       initialPlayerSnapshot: () => ({ ...snapshots.emptySnapshot, ...prefs }),
@@ -234,6 +247,10 @@ export function mpvBridgeHarness(prefs = { volume: 0.35, muted: false }, options
     },
     prepareWith(fn: typeof prepare) {
       prepare = fn;
+    },
+    /** Hands a subtitle another window already prepared to the next addSubtitle of `url`. */
+    transferPrepared(url: string, prepared: unknown) {
+      transferred.set(url, prepared);
     },
     invokeWith(fn: NonNullable<typeof nativeInvoke>) {
       nativeInvoke = fn;
