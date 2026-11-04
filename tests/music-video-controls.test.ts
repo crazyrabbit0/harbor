@@ -13,6 +13,14 @@ const css = readFileSync(cssUrl, "utf8");
 const stageSource = readFileSync(stageUrl, "utf8");
 
 type Controls = typeof import("../src/components/music/music-video-controls.tsx");
+type N = { type: unknown; key?: unknown; props: Record<string, any> & { children?: unknown } };
+const element = (type: unknown, props: N["props"], key?: unknown) => ({ type, props, key });
+const all = (n: unknown): N[] =>
+  Array.isArray(n)
+    ? n.flatMap(all)
+    : n && typeof n === "object"
+      ? [n as N, ...all((n as N).props?.children)]
+      : [];
 
 function load(): Controls {
   const { outputText } = ts.transpileModule(controlsSource, {
@@ -23,16 +31,16 @@ function load(): Controls {
     },
   });
   const module = { exports: {} };
-  const icon = () => null;
   new Function("require", "module", "exports", outputText)(
     (name: string) => {
       if (name === "@/lib/music/lyrics") return lyrics;
       if (name === "@/lib/i18n") return { useT: () => (key: string) => key };
       if (name === "@/lib/music/appearance")
         return { setMusicAppearance: () => {}, useMusicAppearance: () => ({ immersive: false }) };
-      if (name === "@/components/icons/music-icons") return new Proxy({}, { get: () => icon });
+      if (name === "@/components/icons/music-icons")
+        return new Proxy({}, { get: (_t, icon) => String(icon) });
       if (name === "react/jsx-runtime" || name === "react")
-        return { jsx: () => null, jsxs: () => null, Fragment: null };
+        return { jsx: element, jsxs: element, Fragment: "Fragment" };
       if (name.endsWith(".css")) return {};
       throw new Error(`unexpected import ${name}`);
     },
@@ -40,6 +48,22 @@ function load(): Controls {
     module.exports,
   );
   return module.exports as Controls;
+}
+
+function controls(props: Record<string, unknown>) {
+  const calls: string[] = [];
+  const tree = load().MusicVideoControls({
+    lyrics: lines,
+    lyricsState: "on",
+    onToggleLyrics: () => calls.push("lyrics"),
+    currentTime: 12,
+    fullscreen: false,
+    onToggleFullscreen: () => calls.push("fullscreen"),
+    ...props,
+  } as never);
+  const nodes = all(tree);
+  const buttons = nodes.filter((n) => n.type === "button");
+  return { nodes, buttons, calls, lyricsButton: buttons[0], fullscreenButton: buttons.at(-1)! };
 }
 
 function rule(selector: string): string {
@@ -84,12 +108,16 @@ test("a blank line shows nothing rather than an empty scrim, and no lyrics means
 });
 
 test("the overlay is keyed per line so the opacity transition restarts, and is hidden unless lyrics are on", () => {
-  assert.match(
-    controlsSource,
-    /lyricsState === "on" \? musicVideoLyricLine\(lyrics, currentTime\) : null/,
-  );
-  assert.match(controlsSource, /\{line &&\s*\(?\s*<div className="music-video-subtitle"/);
-  assert.match(controlsSource, /<span key=\{line\.index\}>/);
+  const subtitle = (props: Record<string, unknown>) =>
+    controls(props).nodes.find((n) => n.props.className === "music-video-subtitle");
+  const shown = subtitle({ currentTime: 12 })!;
+  const span = all(shown).find((n) => n.type === "span")!;
+  assert.equal(span.key, 1);
+  assert.equal(span.props.children, "You want back then? (Let's get it)");
+  assert.equal(all(subtitle({ currentTime: 11 })).find((n) => n.type === "span")!.key, 0);
+  for (const lyricsState of ["off", "loading", "unavailable"])
+    assert.equal(subtitle({ lyricsState }), undefined, `hidden while ${lyricsState}`);
+  assert.equal(subtitle({ currentTime: 16 }), undefined, "a blank line renders no scrim");
 });
 
 test("the subtitle never eats a click meant for the picture and never shifts layout", () => {
@@ -117,17 +145,38 @@ test("both controls are a 44px pointer target and reveal on hover or keyboard fo
     rule(".music-video-chrome-button:focus-visible"),
     /outline: 2px solid var\(--color-accent\)/,
   );
-  assert.match(controlsSource, /className="music-video-chrome-button"/);
-  assert.match(
-    controlsSource,
-    /className="music-video-chrome-button music-video-fullscreen-toggle"/,
+  const c = controls({});
+  assert.equal(c.lyricsButton.props.className, "music-video-chrome-button");
+  assert.equal(
+    c.fullscreenButton.props.className,
+    "music-video-chrome-button music-video-fullscreen-toggle",
   );
+  c.fullscreenButton.props.onClick();
+  assert.deepEqual(c.calls, ["fullscreen"]);
 });
 
 test("the lyrics button reports its state and an unavailable track is inert rather than silent", () => {
-  assert.match(controlsSource, /data-state=\{lyricsState\}/);
-  assert.match(controlsSource, /aria-disabled=\{unavailable \|\| undefined\}/);
-  assert.match(controlsSource, /onClick=\{unavailable \? undefined : onToggleLyrics\}/);
+  const on = controls({});
+  assert.equal(on.lyricsButton.props["data-state"], "on");
+  assert.equal(on.lyricsButton.props["aria-pressed"], true);
+  assert.equal(on.lyricsButton.props["aria-disabled"], undefined);
+  on.lyricsButton.props.onClick();
+  assert.deepEqual(on.calls, ["lyrics"]);
+  assert.equal(controls({ lyricsState: "off" }).lyricsButton.props["aria-pressed"], false);
+  const loading = controls({ lyricsState: "loading" });
+  assert.equal(all(loading.lyricsButton).some((n) => n.type === "Loader2"), true);
+  const unavailable = controls({ lyricsState: "unavailable" });
+  assert.equal(unavailable.lyricsButton.props["data-state"], "unavailable");
+  assert.equal(unavailable.lyricsButton.props["aria-disabled"], true);
+  assert.equal(unavailable.lyricsButton.props["aria-pressed"], undefined);
+  assert.equal(unavailable.lyricsButton.props.onClick, undefined);
+  assert.equal(all(unavailable.lyricsButton).some((n) => n.type === "CaptionsOff"), true);
+  assert.equal(
+    controls({ expanded: true }).buttons.length,
+    3,
+    "the immersive toggle joins only when expanded",
+  );
+  assert.equal(controls({ expanded: true, fullscreen: true }).buttons.length, 2);
   assert.match(
     css,
     /\.music-video-chrome-button\[aria-disabled="true"\] \{[^}]*cursor: not-allowed/,
