@@ -8,6 +8,15 @@ import { useSettings } from "@/lib/settings";
 export type Advisory = { category: string; severity: string };
 export type ContentAdvisoryPosition = "top-start" | "top-end" | "top-center";
 
+// The advisory takes the top-start corner unless stats or a room panel already sits there.
+export function contentAdvisoryCorner(
+  topLeftOccupied: boolean,
+  topRightOccupied: boolean,
+): ContentAdvisoryPosition {
+  if (!topLeftOccupied) return "top-start";
+  return topRightOccupied ? "top-center" : "top-end";
+}
+
 const SEV_RANK: Record<string, number> = { None: 0, Mild: 1, Moderate: 2, Severe: 3 };
 
 type SeverityStyle = { text: string };
