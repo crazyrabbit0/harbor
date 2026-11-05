@@ -283,14 +283,24 @@ pub async fn prepare(
         }
         _ => return None,
     };
+    Some(prepare_from(base, style, seek_start).await)
+}
+
+/// Burn-in subtitle for a transcode starting at `seek_start`, from the unshifted file `prepare` produced.
+pub async fn prepare_from(base: PathBuf, style: &CastSubStyle, seek_start: f64) -> PreparedSub {
     let path = if seek_start > 1.0 {
-        let shifted = shift_subtitle(&base, seek_start, &dir).await;
-        shifted.unwrap_or(base)
+        shift_subtitle(&base, seek_start, &castsubs_dir())
+            .await
+            .unwrap_or_else(|| base.clone())
     } else {
-        base
+        base.clone()
     };
     let force_style = build_force_style(style, !is_ass_file(&path));
-    Some(PreparedSub { path, force_style })
+    PreparedSub {
+        path,
+        base,
+        force_style,
+    }
 }
 
 async fn shift_subtitle(input: &Path, seek_start: f64, dir: &Path) -> Option<PathBuf> {
@@ -342,10 +352,19 @@ mod tests {
         };
         let srt = build_force_style(&style, true);
         assert!(srt.starts_with("Fontsize=16,"), "{srt}");
-        assert!(srt.contains(",Outline=2,") && srt.ends_with(",MarginV=20"), "{srt}");
+        assert!(
+            srt.contains(",Outline=2,") && srt.ends_with(",MarginV=20"),
+            "{srt}"
+        );
         let ass = build_force_style(&style, false);
-        assert!(ass.starts_with("Fontsize=40,") && ass.ends_with(",MarginV=50"), "{ass}");
-        let tiny = CastSubStyle { font_size: 10, ..CastSubStyle::default() };
+        assert!(
+            ass.starts_with("Fontsize=40,") && ass.ends_with(",MarginV=50"),
+            "{ass}"
+        );
+        let tiny = CastSubStyle {
+            font_size: 10,
+            ..CastSubStyle::default()
+        };
         assert!(build_force_style(&tiny, true).starts_with("Fontsize=8,"));
     }
 

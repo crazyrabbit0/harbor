@@ -27,6 +27,9 @@ pub(crate) fn build(proxy: ProxyState) -> CastHooks {
                 async move { crate::cast_subs::prepare(&sub, &style, &url, &headers, seek).await },
             )
         }),
+        reprepare_sub: Arc::new(|base, style, seek| {
+            Box::pin(async move { crate::cast_subs::prepare_from(base, &style, seek).await })
+        }),
         cleanup_subs: Arc::new(crate::cast_subs::cleanup),
         ffmpeg_present: Arc::new(crate::transcode::ffmpeg_present),
         locate_ffmpeg: Arc::new(crate::transcode::locate_ffmpeg),

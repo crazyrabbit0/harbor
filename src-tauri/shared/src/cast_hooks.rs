@@ -29,6 +29,9 @@ pub struct CastHooks {
     pub audio_cast_input: Arc<dyn Fn(String) -> CastFuture<Option<AudioCastInput>> + Send + Sync>,
     pub stop_hls_session: Arc<dyn Fn(String) -> CastFuture<bool> + Send + Sync>,
     pub prepare_sub: Arc<PrepareSubFn>,
+    /// Re-prepares an already prepared subtitle (its unshifted `base`) for a transcode starting elsewhere.
+    pub reprepare_sub:
+        Arc<dyn Fn(PathBuf, CastSubStyle, f64) -> CastFuture<PreparedSub> + Send + Sync>,
     pub cleanup_subs: Arc<dyn Fn() + Send + Sync>,
     pub ffmpeg_present: Arc<dyn Fn() -> bool + Send + Sync>,
     pub locate_ffmpeg: Arc<dyn Fn() -> Option<PathBuf> + Send + Sync>,
