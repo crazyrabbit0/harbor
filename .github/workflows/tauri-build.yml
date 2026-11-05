@@ -89,7 +89,7 @@ jobs:
             target: x86_64-apple-darwin
             bundle: dmg
           - name: Linux-x86_64
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             bundle: deb,appimage
           - name: Linux-aarch64
