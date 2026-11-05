@@ -11,8 +11,8 @@ Loader, single-file command and the source-regex trap are in the root `AGENTS.md
 ## Write tests that run the code
 
 - A new test runs the code it checks: a real import through the loader, or `hookHarness`/`loadModule` for hooks, components and modules with awkward imports. Render a component with a mocked `react/jsx-runtime` and assert on the tree and its handlers.
-- Never add a `readFileSync` + regex check on a module's source. It passes while the behaviour breaks and fails on a harmless rename. About 280 older files still do this; when you touch one, convert the checks you need.
-- Text checks are acceptable only where nothing can run: CSS, Rust sources, locale and data files, and one exact line of wiring in a view too large to load (over about 1,000 lines or with an unmanageable import graph). `startup-bundle` and `games-rom-locales` scan source on purpose.
+- Never add a `readFileSync` + regex check on a module's source. It passes while the behaviour breaks and fails on a harmless rename. About 270 older files still do this; when you touch one, convert the checks you need.
+- Text checks are acceptable only where nothing can run: CSS, Rust sources, locale and data files, and one exact line of wiring in a view too large to load (over about 1,000 lines or with an unmanageable import graph). `startup-bundle`, `games-rom-locales` and `harbor-events` scan source on purpose.
 - Never pin UI wording in a test; assert translation keys, roles, props and calls instead.
 - Prove a new test can fail: break the code it covers (a wrong condition, a removed call) and confirm the test goes red, then restore the code.
 

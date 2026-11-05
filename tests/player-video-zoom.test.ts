@@ -1,13 +1,8 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
-import ts from "typescript";
-
-const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const hotkeys = read("src/views/player/hooks/use-player-hotkeys.ts");
+import { hookHarness, loadModule } from "./helpers/hook-harness.ts";
 
 type Fill = { step: (delta: number) => void; cycle: () => void };
 
@@ -15,22 +10,14 @@ type Fill = { step: (delta: number) => void; cycle: () => void };
 function videoFill() {
   const zooms: number[] = [];
   const flashes: Array<{ icon: string; value: string }> = [];
-  const exports: { useVideoFill?: (...args: unknown[]) => Fill; ZOOM_STEP?: number } = {};
-  const compiled = ts.transpileModule(read("src/views/player/hooks/use-video-fill.ts"), {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  const mocks: Record<string, unknown> = {
+  const exports = loadModule("src/views/player/hooks/use-video-fill.ts", {
     react: { useRef: (current: unknown) => ({ current }), useEffect() {} },
     "@/lib/i18n": { t: (s: string) => s },
     "@/lib/settings": {
       useSettingsSelector: (select: (s: unknown) => unknown) => select({ cropMode: "fit" }),
       useSettingsUpdate: () => () => {},
     },
-  };
-  new Function("require", "exports", compiled)((name: string) => {
-    if (!(name in mocks)) throw new Error(`Unexpected dependency ${name}`);
-    return mocks[name];
-  }, exports);
+  }) as { useVideoFill?: (...args: unknown[]) => Fill; ZOOM_STEP?: number };
   const bridge = {
     setPanscan() {},
     setAspectOverride() {},
@@ -84,11 +71,26 @@ test("the readout appears when zoomed out, not only when zoomed in", () => {
 });
 
 test("the hotkeys use the shared step instead of their own number", () => {
-  assert.match(hotkeys, /videoFill\.step\(ZOOM_STEP\)/);
-  assert.match(hotkeys, /videoFill\.step\(-ZOOM_STEP\)/);
-  assert.doesNotMatch(
-    hotkeys,
-    /videoFill\.step\(-?0\.\d+\)/,
-    "a literal step drifted from the clamp",
-  );
+  // A step value no literal in the hook could match.
+  const shared = 0.0123;
+  let shortcuts: Record<string, any> = {};
+  const h = hookHarness("src/views/player/hooks/use-player-hotkeys.ts", "usePlayerHotkeys", {
+    "@/lib/i18n": { useT: () => (s: string) => s },
+    "./use-keyboard-shortcuts": {
+      useKeyboardShortcuts: (options: Record<string, any>) => {
+        shortcuts = options;
+        return { holdSpeedActive: false, subtitleOffsetSec: 0 };
+      },
+    },
+    "./use-video-fill": { ZOOM_STEP: shared },
+  });
+  const steps: number[] = [];
+  h.render({
+    liveOverlay: { isLive: false },
+    sleep: { mode: { kind: "off" } },
+    videoFill: { step: (delta: number) => steps.push(delta), cycle() {} },
+  });
+  shortcuts.onPanscanUp();
+  shortcuts.onPanscanDown();
+  assert.deepEqual(steps, [shared, -shared]);
 });
