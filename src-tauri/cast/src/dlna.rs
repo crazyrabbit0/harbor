@@ -402,7 +402,9 @@ fn extract_avtransport_control(xml: &str) -> Option<String> {
 fn extract_renderer_connection_manager(xml: &str) -> Option<String> {
     // Some speakers expose both MediaServer and MediaRenderer. Their managers
     // advertise different capabilities; use the service list containing AVTransport.
-    xml.split("<serviceList>").skip(1).filter_map(|tail| tail.split("</serviceList>").next())
+    xml.split("<serviceList>")
+        .skip(1)
+        .filter_map(|tail| tail.split("</serviceList>").next())
         .find(|list| extract_avtransport_control(list).is_some())
         .and_then(|list| extract_service_control(list, "ConnectionManager"))
 }
@@ -544,8 +546,7 @@ pub async fn status(control_url: String) -> Result<DlnaStatus, String> {
         .unwrap_or_default();
     let pos = parse_hms(&extract_xml_tag(&pos_resp, "RelTime").unwrap_or_else(|| "0:00:00".into()));
     let state_body = soap_envelope("GetTransportInfo", "<InstanceID>0</InstanceID>".into());
-    let state_resp = soap_post(&control_url, "GetTransportInfo", &state_body)
-        .await?;
+    let state_resp = soap_post(&control_url, "GetTransportInfo", &state_body).await?;
     let state =
         extract_xml_tag(&state_resp, "CurrentTransportState").unwrap_or_else(|| "UNKNOWN".into());
     Ok(DlnaStatus {
@@ -557,49 +558,110 @@ pub async fn status(control_url: String) -> Result<DlnaStatus, String> {
 pub(crate) async fn current_uri(control_url: &str) -> Result<String, String> {
     let body = soap_envelope("GetMediaInfo", "<InstanceID>0</InstanceID>".into());
     let response = soap_post(control_url, "GetMediaInfo", &body).await?;
-    Ok(extract_xml_tag(&response, "CurrentURI").unwrap_or_default()
-        .replace("&amp;", "&").replace("&lt;", "<").replace("&gt;", ">").replace("&quot;", "\"").replace("&apos;", "'"))
+    Ok(extract_xml_tag(&response, "CurrentURI")
+        .unwrap_or_default()
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&apos;", "'"))
 }
 
 pub(crate) fn uri_has_audio_session(uri: &str, id: &str) -> bool {
-    reqwest::Url::parse(uri).ok().is_some_and(|url| url.path() == format!("/cast/audio/{id}"))
+    reqwest::Url::parse(uri)
+        .ok()
+        .is_some_and(|url| url.path() == format!("/cast/audio/{id}"))
 }
 
 pub(crate) async fn supports_direct_audio(control_url: &str, mime: Option<&str>) -> bool {
-    let Some(mime) = mime else { return false; };
-    let manager = connection_managers().lock().ok().and_then(|cache| cache.get(control_url).cloned());
-    let Some(manager) = manager else { return false; };
-    let body = soap_envelope("GetProtocolInfo", String::new()).replace("service:AVTransport:1", "service:ConnectionManager:1");
+    let Some(mime) = mime else {
+        return false;
+    };
+    let manager = connection_managers()
+        .lock()
+        .ok()
+        .and_then(|cache| cache.get(control_url).cloned());
+    let Some(manager) = manager else {
+        return false;
+    };
+    let body = soap_envelope("GetProtocolInfo", String::new())
+        .replace("service:AVTransport:1", "service:ConnectionManager:1");
     let response = soap_post_service(&manager, "ConnectionManager", "GetProtocolInfo", &body).await;
-    let sink = response.ok().and_then(|xml| extract_xml_tag(&xml, "Sink")).unwrap_or_default();
+    let sink = response
+        .ok()
+        .and_then(|xml| extract_xml_tag(&xml, "Sink"))
+        .unwrap_or_default();
     direct_audio_supported(&sink, mime)
 }
 
 fn direct_audio_supported(sink: &str, mime: &str) -> bool {
-    let mime = mime.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    let mime = mime
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     // Ogg alone does not distinguish Vorbis from Opus, and Sonos rejects WebM.
     // Keep compatible native/lossless sources intact instead of silently re-encoding them.
-    matches!(mime.as_str(), "audio/flac" | "audio/wav" | "audio/x-wav" | "audio/aiff" | "audio/x-aiff" | "audio/mpeg" | "audio/mp3" | "audio/mp4" | "audio/aac" | "audio/x-m4a")
-        && sink.split(',').any(|entry| entry.split(':').nth(2).is_some_and(|value| value.eq_ignore_ascii_case(&mime) || value == "*"))
+    matches!(
+        mime.as_str(),
+        "audio/flac"
+            | "audio/wav"
+            | "audio/x-wav"
+            | "audio/aiff"
+            | "audio/x-aiff"
+            | "audio/mpeg"
+            | "audio/mp3"
+            | "audio/mp4"
+            | "audio/aac"
+            | "audio/x-m4a"
+    ) && sink.split(',').any(|entry| {
+        entry
+            .split(':')
+            .nth(2)
+            .is_some_and(|value| value.eq_ignore_ascii_case(&mime) || value == "*")
+    })
 }
 
-pub(crate) async fn wait_audio_state(control_url: &str, session_id: &str, paused: bool, require_progress: bool) -> Result<DlnaStatus, String> {
+pub(crate) async fn wait_audio_state(
+    control_url: &str,
+    session_id: &str,
+    paused: bool,
+    require_progress: bool,
+) -> Result<DlnaStatus, String> {
     tokio::time::timeout(Duration::from_secs(18), async {
         let mut first_position = None;
         loop {
-            if !uri_has_audio_session(&current_uri(control_url).await?, session_id) { return Err("The speaker source changed during handoff".into()); }
+            if !uri_has_audio_session(&current_uri(control_url).await?, session_id) {
+                return Err("The speaker source changed during handoff".into());
+            }
             let state = status(control_url.to_string()).await?;
-            let matches = if paused { state.player_state == "PAUSED_PLAYBACK" || state.player_state == "PAUSED" } else { state.player_state == "PLAYING" };
+            let matches = if paused {
+                state.player_state == "PAUSED_PLAYBACK" || state.player_state == "PAUSED"
+            } else {
+                state.player_state == "PLAYING"
+            };
             if matches {
                 let initial = *first_position.get_or_insert(state.position_sec);
-                if !require_progress || state.position_sec >= initial + 1.0 { return Ok(state); }
+                if !require_progress || state.position_sec >= initial + 1.0 {
+                    return Ok(state);
+                }
             }
             tokio::time::sleep(Duration::from_millis(250)).await;
         }
-    }).await.map_err(|_| "The speaker did not start decoding this audio".to_string())?
+    })
+    .await
+    .map_err(|_| "The speaker did not start decoding this audio".to_string())?
 }
 
-pub(crate) async fn load_audio_route(control_url: &str, url: String, session_id: &str, title: Option<String>, mime: String, paused: bool) -> Result<(), String> {
+pub(crate) async fn load_audio_route(
+    control_url: &str,
+    url: String,
+    session_id: &str,
+    title: Option<String>,
+    mime: String,
+    paused: bool,
+) -> Result<(), String> {
     load(control_url.to_string(), url, title, None, Some(mime), true).await?;
     wait_audio_state(control_url, session_id, false, true).await?;
     if paused {
@@ -611,17 +673,37 @@ pub(crate) async fn load_audio_route(control_url: &str, url: String, session_id:
 
 /// Never stop a source the user selected independently while Harbor was waiting.
 pub(crate) async fn stop_audio_if_owned(control_url: &str, session_id: &str) -> Result<(), String> {
-    let uncertain = || "CAST_AUDIO_STOP_UNCONFIRMED: Could not confirm the speaker stopped; keep local audio paused".to_string();
-    if !uri_has_audio_session(&current_uri(control_url).await.map_err(|_| uncertain())?, session_id) { return Ok(()); }
-    stop(control_url.to_string()).await.map_err(|_| uncertain())?;
+    let uncertain = || {
+        "CAST_AUDIO_STOP_UNCONFIRMED: Could not confirm the speaker stopped; keep local audio paused".to_string()
+    };
+    if !uri_has_audio_session(
+        &current_uri(control_url).await.map_err(|_| uncertain())?,
+        session_id,
+    ) {
+        return Ok(());
+    }
+    stop(control_url.to_string())
+        .await
+        .map_err(|_| uncertain())?;
     tokio::time::timeout(Duration::from_secs(6), async {
         loop {
-            if !uri_has_audio_session(&current_uri(control_url).await.map_err(|_| uncertain())?, session_id) { return Ok(()); }
-            let state = status(control_url.to_string()).await.map_err(|_| uncertain())?;
-            if matches!(state.player_state.as_str(), "STOPPED" | "NO_MEDIA_PRESENT") { return Ok(()); }
+            if !uri_has_audio_session(
+                &current_uri(control_url).await.map_err(|_| uncertain())?,
+                session_id,
+            ) {
+                return Ok(());
+            }
+            let state = status(control_url.to_string())
+                .await
+                .map_err(|_| uncertain())?;
+            if matches!(state.player_state.as_str(), "STOPPED" | "NO_MEDIA_PRESENT") {
+                return Ok(());
+            }
             tokio::time::sleep(Duration::from_millis(200)).await;
         }
-    }).await.map_err(|_| uncertain())?
+    })
+    .await
+    .map_err(|_| uncertain())?
 }
 
 fn soap_envelope(action: &str, body: String) -> String {
@@ -641,7 +723,12 @@ async fn soap_post(control_url: &str, action: &str, body: &str) -> Result<String
     soap_post_service(control_url, "AVTransport", action, body).await
 }
 
-async fn soap_post_service(control_url: &str, service: &str, action: &str, body: &str) -> Result<String, String> {
+async fn soap_post_service(
+    control_url: &str,
+    service: &str,
+    action: &str,
+    body: &str,
+) -> Result<String, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(6))
         .build()
@@ -659,7 +746,9 @@ async fn soap_post_service(control_url: &str, service: &str, action: &str, body:
     let text = resp.text().await.unwrap_or_default();
     if !status.is_success() {
         let code = extract_xml_tag(&text, "errorCode").unwrap_or_default();
-        return Err(format!("Speaker {action} failed (HTTP {status}, UPnP {code})"));
+        return Err(format!(
+            "Speaker {action} failed (HTTP {status}, UPnP {code})"
+        ));
     }
     Ok(text)
 }
@@ -674,12 +763,21 @@ fn xml_escape(s: &str) -> String {
 
 fn pick_vendor_mime(_vendor: DlnaVendor, is_live: bool) -> String {
     // MPEG-TS is video/mpeg in DLNA; a 2014 Samsung refuses video/mp2t as an illegal MIME type.
-    if is_live { "video/mpeg".into() } else { "video/mp4".into() }
+    if is_live {
+        "video/mpeg".into()
+    } else {
+        "video/mp4".into()
+    }
 }
 
 /// The DIDL protocolInfo type for a stream; MPEG-TS always goes out as video/mpeg.
 pub(crate) fn dlna_mime(mime: &str) -> String {
-    let base = mime.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    let base = mime
+        .split(';')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_lowercase();
     match base.as_str() {
         "video/mp2t" | "video/mp2ts" | "video/vnd.dlna.mpeg-tts" => "video/mpeg".into(),
         _ => mime.to_string(),
@@ -753,21 +851,45 @@ fn parse_hms(s: &str) -> f64 {
 #[cfg(test)]
 mod audio_bridge_tests {
     use super::*;
-    use std::sync::{Arc, atomic::{AtomicUsize, Ordering}};
+    use std::sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    };
 
     #[test]
     fn audio_ownership_matches_exact_route_and_service_selection_is_specific() {
-        assert!(uri_has_audio_session("http://192.0.2.10:9000/cast/audio/audio-owned", "audio-owned"));
-        assert!(!uri_has_audio_session("http://192.0.2.10:9000/cast/audio/audio-owned-new", "audio-owned"));
-        assert!(!uri_has_audio_session("x-sonos-vli:RINCON_example:2", "audio-owned"));
+        assert!(uri_has_audio_session(
+            "http://192.0.2.10:9000/cast/audio/audio-owned",
+            "audio-owned"
+        ));
+        assert!(!uri_has_audio_session(
+            "http://192.0.2.10:9000/cast/audio/audio-owned-new",
+            "audio-owned"
+        ));
+        assert!(!uri_has_audio_session(
+            "x-sonos-vli:RINCON_example:2",
+            "audio-owned"
+        ));
         let xml = "<service><serviceType>urn:schemas-upnp-org:service:AVTransport:1</serviceType><controlURL>/transport</controlURL></service><service><serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType><controlURL>/manager</controlURL></service>";
-        assert_eq!(extract_service_control(xml, "ConnectionManager").as_deref(), Some("/manager"));
-        assert_eq!(extract_avtransport_control(xml).as_deref(), Some("/transport"));
+        assert_eq!(
+            extract_service_control(xml, "ConnectionManager").as_deref(),
+            Some("/manager")
+        );
+        assert_eq!(
+            extract_avtransport_control(xml).as_deref(),
+            Some("/transport")
+        );
         let separate_devices = format!("<serviceList><service><serviceType>urn:schemas-upnp-org:service:ConnectionManager:1</serviceType><controlURL>/server-manager</controlURL></service></serviceList><serviceList>{xml}</serviceList>");
-        assert_eq!(extract_renderer_connection_manager(&separate_devices).as_deref(), Some("/manager"));
+        assert_eq!(
+            extract_renderer_connection_manager(&separate_devices).as_deref(),
+            Some("/manager")
+        );
         let formats = "http-get:*:audio/flac:*,http-get:*:audio/mpeg:*,http-get:*:audio/ogg:*";
         assert!(direct_audio_supported(formats, "audio/flac"));
-        assert!(direct_audio_supported(formats, "audio/mpeg; charset=binary"));
+        assert!(direct_audio_supported(
+            formats,
+            "audio/mpeg; charset=binary"
+        ));
         assert!(!direct_audio_supported(formats, "audio/ogg"));
         assert!(!direct_audio_supported(formats, "audio/webm"));
         assert!(!direct_audio_supported("", "audio/flac"));
@@ -778,25 +900,39 @@ mod audio_bridge_tests {
         let samples = Arc::new(AtomicUsize::new(0));
         let stops = Arc::new(AtomicUsize::new(0));
         let changed = Arc::new(AtomicUsize::new(0));
-        let (a,b,c) = (samples.clone(), stops.clone(), changed.clone());
-        let router = axum::Router::new().route("/control", axum::routing::post(move |body: String| {
-            let (samples,stops,changed) = (a.clone(),b.clone(),c.clone());
-            async move {
-                if body.contains("u:GetMediaInfo") {
-                    let uri = if changed.load(Ordering::Relaxed) == 0 { "http://127.0.0.1:9/cast/audio/audio-test" } else { "x-sonos-vli:external" };
-                    format!("<CurrentURI>{uri}</CurrentURI>")
-                } else if body.contains("u:GetPositionInfo") {
-                    let value = samples.fetch_add(1, Ordering::Relaxed);
-                    format!("<RelTime>0:00:{value:02}</RelTime>")
-                } else if body.contains("u:Stop") {
-                    stops.fetch_add(1, Ordering::Relaxed); String::new()
-                } else { "<CurrentTransportState>PLAYING</CurrentTransportState>".into() }
-            }
-        }));
+        let (a, b, c) = (samples.clone(), stops.clone(), changed.clone());
+        let router = axum::Router::new().route(
+            "/control",
+            axum::routing::post(move |body: String| {
+                let (samples, stops, changed) = (a.clone(), b.clone(), c.clone());
+                async move {
+                    if body.contains("u:GetMediaInfo") {
+                        let uri = if changed.load(Ordering::Relaxed) == 0 {
+                            "http://127.0.0.1:9/cast/audio/audio-test"
+                        } else {
+                            "x-sonos-vli:external"
+                        };
+                        format!("<CurrentURI>{uri}</CurrentURI>")
+                    } else if body.contains("u:GetPositionInfo") {
+                        let value = samples.fetch_add(1, Ordering::Relaxed);
+                        format!("<RelTime>0:00:{value:02}</RelTime>")
+                    } else if body.contains("u:Stop") {
+                        stops.fetch_add(1, Ordering::Relaxed);
+                        String::new()
+                    } else {
+                        "<CurrentTransportState>PLAYING</CurrentTransportState>".into()
+                    }
+                }
+            }),
+        );
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let url = format!("http://{}/control", listener.local_addr().unwrap());
-        let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap(); });
-        let ready = wait_audio_state(&url, "audio-test", false, true).await.unwrap();
+        let server = tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        let ready = wait_audio_state(&url, "audio-test", false, true)
+            .await
+            .unwrap();
         assert!(ready.position_sec >= 1.0);
         assert!(samples.load(Ordering::Relaxed) >= 2);
         changed.store(1, Ordering::Relaxed);
@@ -812,13 +948,25 @@ mod music_metadata_tests {
 
     #[test]
     fn audio_didl_preserves_mime_and_avoids_video_profiles() {
-        let xml = build_didl("http://192.0.2.1/song?x=1&y=2", "Song & artist", "audio/flac", false, DlnaVendor::SonyBravia);
+        let xml = build_didl(
+            "http://192.0.2.1/song?x=1&y=2",
+            "Song & artist",
+            "audio/flac",
+            false,
+            DlnaVendor::SonyBravia,
+        );
         assert!(xml.contains("object.item.audioItem.musicTrack"));
         assert!(xml.contains("http-get:*:audio/flac:"));
         assert!(!xml.contains("DLNA.ORG_PN=AVC"));
         assert!(xml.contains("Song &amp; artist"));
         assert!(xml.contains("x=1&amp;y=2"));
-        let video = build_didl("http://192.0.2.1/movie.mp4", "Movie", "video/mp4", false, DlnaVendor::SonyBravia);
+        let video = build_didl(
+            "http://192.0.2.1/movie.mp4",
+            "Movie",
+            "video/mp4",
+            false,
+            DlnaVendor::SonyBravia,
+        );
         assert!(video.contains("object.item.videoItem"));
         assert!(video.contains("DLNA.ORG_PN=AVC_MP4_MP_HD_AC3;"));
     }
@@ -830,11 +978,21 @@ mod music_metadata_tests {
         assert_eq!(dlna_mime("video/MP2T; charset=binary"), "video/mpeg");
         assert_eq!(dlna_mime("video/mp4"), "video/mp4");
         assert_eq!(dlna_mime("audio/mpeg"), "audio/mpeg");
-        for vendor in [DlnaVendor::Samsung, DlnaVendor::Other, DlnaVendor::SonyBravia] {
+        for vendor in [
+            DlnaVendor::Samsung,
+            DlnaVendor::Other,
+            DlnaVendor::SonyBravia,
+        ] {
             assert_eq!(pick_vendor_mime(vendor, true), "video/mpeg");
             assert_eq!(pick_vendor_mime(vendor, false), "video/mp4");
         }
-        let samsung = build_didl("http://192.0.2.1/s/id.ts", "Movie", &dlna_mime("video/mp2t"), true, DlnaVendor::Samsung);
+        let samsung = build_didl(
+            "http://192.0.2.1/s/id.ts",
+            "Movie",
+            &dlna_mime("video/mp2t"),
+            true,
+            DlnaVendor::Samsung,
+        );
         assert!(samsung.contains("http-get:*:video/mpeg:"));
         assert!(!samsung.contains("video/mp2t"));
     }
