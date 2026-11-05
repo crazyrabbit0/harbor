@@ -26,6 +26,7 @@ build-options:
     CARGO_NET_OFFLINE: "true"
     npm_config_cache: /run/build/harbor/npm-cache
     CI: "true"
+    NODE_OPTIONS: --max-old-space-size=6144
 
 modules:
   - shared-modules/libayatana-appindicator/libayatana-appindicator-gtk3.json
