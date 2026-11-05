@@ -35,6 +35,10 @@ struct Session {
     profile: TranscodeProfile,
     burn_sub: Option<(String, String)>,
     prebuffer: Option<watch::Receiver<PrebufferState>>,
+    /// Where a transcode starts, so a renderer that cannot seek a live stream still resumes.
+    start_sec: f64,
+    /// Serve MPEG-TS as video/mpeg, the type DLNA renderers accept.
+    dlna: bool,
     created_at: Instant,
 }
 
@@ -203,6 +207,8 @@ impl ProxyState {
                     profile: args.profile.unwrap_or_default(),
                     burn_sub: None,
                     prebuffer: None,
+                    start_sec: 0.0,
+                    dlna: false,
                     created_at: Instant::now(),
                 };
                 self.sessions.write().await.insert(id.clone(), session);
@@ -236,6 +242,8 @@ impl ProxyState {
             profile: args.profile.unwrap_or_default(),
             burn_sub: None,
             prebuffer,
+            start_sec: 0.0,
+            dlna: false,
             created_at: Instant::now(),
         };
         self.sessions.write().await.insert(id.clone(), session);
@@ -259,8 +267,8 @@ impl ProxyState {
             .burn_sub_path
             .clone()
             .map(|path| (path, args.burn_sub_style.clone().unwrap_or_default()));
-        if args.transcode {
-            let seek = args.start_time_sec.unwrap_or(0.0).max(0.0);
+        let seek = args.start_time_sec.unwrap_or(0.0).max(0.0);
+        if casts_through_hls(&args) {
             match self
                 .hls
                 .register_with_seek(
@@ -301,6 +309,8 @@ impl ProxyState {
                 profile: args.profile.unwrap_or_default(),
                 burn_sub: None,
                 prebuffer: None,
+                start_sec: 0.0,
+                dlna: args.dlna,
                 created_at: Instant::now(),
             };
             self.sessions.write().await.insert(id.clone(), session);
@@ -319,6 +329,8 @@ impl ProxyState {
             profile: args.profile.unwrap_or_default(),
             burn_sub,
             prebuffer: None,
+            start_sec: if args.transcode { seek } else { 0.0 },
+            dlna: args.dlna,
             created_at: Instant::now(),
         };
         self.sessions.write().await.insert(id.clone(), session);
@@ -673,6 +685,29 @@ fn guess_ct_from_url(url: &str) -> &'static str {
     "video/mp4"
 }
 
+/// DLNA renderers take one progressive stream; HLS is for Chromecast, Roku and AirPlay.
+fn casts_through_hls(args: &RegisterArgs) -> bool {
+    args.transcode && !args.dlna
+}
+
+/// MPEG-TS is video/mpeg to DLNA renderers; a 2014 Samsung answers video/mp2t with "Illegal MIME-type".
+fn relabel_ts_for_dlna(headers: &mut HeaderMap) {
+    let is_ts = headers
+        .get("content-type")
+        .and_then(|v| v.to_str().ok())
+        .map(|ct| {
+            let ct = ct.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+            ct == "video/mp2t" || ct == "video/mp2ts" || ct == "video/vnd.dlna.mpeg-tts"
+        })
+        .unwrap_or(false);
+    if is_ts {
+        headers.insert(
+            HeaderName::from_static("content-type"),
+            HeaderValue::from_static(crate::transcode::DLNA_TS_CONTENT_TYPE),
+        );
+    }
+}
+
 const PREBUFFER_MIN_BYTES: usize = 256 * 1024;
 const PREBUFFER_MAX_BYTES: usize = 2 * 1024 * 1024;
 const PREBUFFER_TIMEOUT: Duration = Duration::from_millis(2500);
@@ -866,15 +901,18 @@ async fn handle_stream(
     };
 
     if session.transcode {
+        let ts_type = crate::transcode::ts_content_type(session.dlna);
         // DLNA renderers send HEAD before GET; answering it must not spawn a second transcode.
         if method == axum::http::Method::HEAD {
-            return crate::transcode::transcode_response(Body::empty());
+            return crate::transcode::transcode_response(Body::empty(), ts_type);
         }
         return handle_transcode(
             &session.url,
             &session.headers,
             &session.profile,
             session.burn_sub.as_ref(),
+            session.start_sec,
+            ts_type,
         )
         .await;
     }
@@ -1021,6 +1059,9 @@ async fn forward_upstream(
             response_headers.insert(HeaderName::from_static("content-type"), value);
             eprintln!("[harbor::proxy] forced content-type={ct} (upstream was {upstream_ct})");
         }
+    }
+    if session.dlna {
+        relabel_ts_for_dlna(&mut response_headers);
     }
     if response_headers.get("accept-ranges").is_none() {
         response_headers.insert(
@@ -1173,6 +1214,46 @@ mod tests {
         assert_eq!(requested_prefix_len(&headers, 1024, 4096), None);
         headers.insert("range", HeaderValue::from_static("bytes=20-40"));
         assert_eq!(requested_prefix_len(&headers, 1024, 4096), None);
+    }
+
+    #[test]
+    fn dlna_sessions_relabel_only_mpeg_ts() {
+        let relabel = |ct: &str| {
+            let mut headers = HeaderMap::new();
+            headers.insert("content-type", HeaderValue::from_str(ct).unwrap());
+            relabel_ts_for_dlna(&mut headers);
+            headers["content-type"].to_str().unwrap().to_string()
+        };
+        assert_eq!(relabel("video/mp2t"), "video/mpeg");
+        assert_eq!(relabel("video/MP2T; charset=binary"), "video/mpeg");
+        assert_eq!(relabel("video/mp4"), "video/mp4");
+        assert_eq!(relabel("application/vnd.apple.mpegurl"), "application/vnd.apple.mpegurl");
+    }
+
+    #[tokio::test]
+    async fn dlna_transcodes_skip_hls_and_resume_in_one_stream() {
+        let state = ProxyState::placeholder();
+        let args = |dlna: bool| RegisterArgs {
+            url: "https://example.test/movie.mkv".into(),
+            headers: HashMap::new(),
+            transcode: true,
+            prebuffer_bytes: None,
+            profile: None,
+            target_host: Some("127.0.0.1".into()),
+            start_time_sec: Some(754.0),
+            burn_sub_path: Some("C:/subs.ass".into()),
+            burn_sub_style: None,
+            dlna,
+        };
+        assert!(casts_through_hls(&args(false)), "other receivers keep the HLS emitter");
+        assert!(!casts_through_hls(&args(true)), "DLNA never gets an HLS playlist");
+        let result = state.register_cast(args(true)).await;
+        assert!(result.url.contains("/s/") && result.url.ends_with(".ts"), "{}", result.url);
+        assert!(!result.url.contains("/cast/hls/"));
+        let session = state.sessions.read().await[&result.session_id].clone();
+        assert!(session.transcode && session.dlna);
+        assert_eq!(session.start_sec, 754.0);
+        assert!(session.burn_sub.is_some(), "burn-in survives the switch away from HLS");
     }
 
     #[test]

@@ -460,7 +460,7 @@ pub async fn load(
 ) -> Result<(), String> {
     let display_title = title.unwrap_or_else(|| "Harbor".into());
     let vendor = recall_vendor(&control_url);
-    let mime = content_type.unwrap_or_else(|| pick_vendor_mime(vendor, is_live));
+    let mime = dlna_mime(&content_type.unwrap_or_else(|| pick_vendor_mime(vendor, is_live)));
     let metadata = build_didl(&url, &display_title, &mime, is_live, vendor);
     if matches!(vendor, DlnaVendor::SonyBravia) {
         let pre_stop = soap_envelope("Stop", "<InstanceID>0</InstanceID>".into());
@@ -672,14 +672,17 @@ fn xml_escape(s: &str) -> String {
         .replace('\'', "&apos;")
 }
 
-fn pick_vendor_mime(vendor: DlnaVendor, is_live: bool) -> String {
-    match (vendor, is_live) {
-        (DlnaVendor::SonyBravia, true)
-        | (DlnaVendor::Panasonic, true)
-        | (DlnaVendor::LgWebos, true)
-        | (DlnaVendor::HisenseVidaa, true) => "video/mpeg".into(),
-        (_, true) => "video/mp2t".into(),
-        (_, false) => "video/mp4".into(),
+fn pick_vendor_mime(_vendor: DlnaVendor, is_live: bool) -> String {
+    // MPEG-TS is video/mpeg in DLNA; a 2014 Samsung refuses video/mp2t as an illegal MIME type.
+    if is_live { "video/mpeg".into() } else { "video/mp4".into() }
+}
+
+/// The DIDL protocolInfo type for a stream; MPEG-TS always goes out as video/mpeg.
+pub(crate) fn dlna_mime(mime: &str) -> String {
+    let base = mime.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+    match base.as_str() {
+        "video/mp2t" | "video/mp2ts" | "video/vnd.dlna.mpeg-tts" => "video/mpeg".into(),
+        _ => mime.to_string(),
     }
 }
 
@@ -818,5 +821,21 @@ mod music_metadata_tests {
         let video = build_didl("http://192.0.2.1/movie.mp4", "Movie", "video/mp4", false, DlnaVendor::SonyBravia);
         assert!(video.contains("object.item.videoItem"));
         assert!(video.contains("DLNA.ORG_PN=AVC_MP4_MP_HD_AC3;"));
+    }
+
+    #[test]
+    fn mpeg_ts_is_offered_as_video_mpeg_to_every_renderer() {
+        use super::{dlna_mime, pick_vendor_mime};
+        assert_eq!(dlna_mime("video/mp2t"), "video/mpeg");
+        assert_eq!(dlna_mime("video/MP2T; charset=binary"), "video/mpeg");
+        assert_eq!(dlna_mime("video/mp4"), "video/mp4");
+        assert_eq!(dlna_mime("audio/mpeg"), "audio/mpeg");
+        for vendor in [DlnaVendor::Samsung, DlnaVendor::Other, DlnaVendor::SonyBravia] {
+            assert_eq!(pick_vendor_mime(vendor, true), "video/mpeg");
+            assert_eq!(pick_vendor_mime(vendor, false), "video/mp4");
+        }
+        let samsung = build_didl("http://192.0.2.1/s/id.ts", "Movie", &dlna_mime("video/mp2t"), true, DlnaVendor::Samsung);
+        assert!(samsung.contains("http-get:*:video/mpeg:"));
+        assert!(!samsung.contains("video/mp2t"));
     }
 }
