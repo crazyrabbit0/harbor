@@ -162,6 +162,8 @@ enum ActiveSession {
     Dlna {
         control_url: String,
         hls_session_id: Option<String>,
+        /// A transcode starts here, so the renderer's clock counts from this point.
+        stream_start_sec: f64,
     },
     Roku {
         ecp_base: String,
@@ -630,6 +632,7 @@ pub async fn cast_load(
         start_time_sec,
         burn_sub_path,
         burn_sub_style,
+        dlna: kind_str == "dlna",
     })
     .await;
     eprintln!("[harbor::cast] proxied stream ready");
@@ -641,15 +644,17 @@ pub async fn cast_load(
     if kind_str == "dlna" {
         let cu = control_url.ok_or_else(|| "DLNA device missing control_url".to_string())?;
         let ct = if do_transcode {
-            Some("video/mp2t".to_string())
+            Some("video/mpeg".to_string())
         } else {
             content_type.clone()
         };
+        // A transcode already starts at the resume point; a SOAP seek on top would skip ahead twice.
+        let stream_start_sec = if do_transcode { start_time_sec.unwrap_or(0.0).max(0.0) } else { 0.0 };
         if let Err(error) = dlna::load(
             cu.clone(),
             cast_url,
             title,
-            start_time_sec,
+            if do_transcode { None } else { start_time_sec },
             ct,
             do_transcode,
         )
@@ -664,6 +669,7 @@ pub async fn cast_load(
             ActiveSession::Dlna {
                 control_url: cu,
                 hls_session_id,
+                stream_start_sec,
             },
             |id| async move {
                 (hooks.stop_hls_session)(id).await;
@@ -760,19 +766,19 @@ async fn load_dlna_audio(hooks: &CastHooks, control_url: String, input: AudioCas
         let cleanup = dlna::stop_audio_if_owned(&control_url, &route.session_id).await;
         if let Err(uncertain) = cleanup {
             // Retain an addressable session so a subsequent Stop can be acknowledged.
-            replace_active_session(ActiveSession::Dlna { control_url, hls_session_id: Some(route.session_id) }, |id| async move { (hooks.stop_hls_session)(id).await; }).await?;
+            replace_active_session(ActiveSession::Dlna { control_url, hls_session_id: Some(route.session_id), stream_start_sec: 0.0 }, |id| async move { (hooks.stop_hls_session)(id).await; }).await?;
             return Err(uncertain);
         }
         (hooks.stop_hls_session)(route.session_id.clone()).await;
         return Err(error);
     }
-    replace_active_session(ActiveSession::Dlna { control_url, hls_session_id: Some(route.session_id) }, |id| async move { (hooks.stop_hls_session)(id).await; }).await
+    replace_active_session(ActiveSession::Dlna { control_url, hls_session_id: Some(route.session_id), stream_start_sec: 0.0 }, |id| async move { (hooks.stop_hls_session)(id).await; }).await
 }
 
 fn snapshot_dlna_audio() -> Option<(String, String)> {
     let active = ACTIVE.lock().ok()?;
     match active.as_ref()? {
-        ActiveSession::Dlna { control_url, hls_session_id: Some(id) } if id.starts_with("audio-") => Some((control_url.clone(), id.clone())),
+        ActiveSession::Dlna { control_url, hls_session_id: Some(id), .. } if id.starts_with("audio-") => Some((control_url.clone(), id.clone())),
         _ => None,
     }
 }
@@ -960,9 +966,14 @@ fn snapshot_chromecast() -> Result<(String, u16, String, Option<i32>, f64), Stri
 }
 
 fn snapshot_dlna() -> Option<String> {
+    snapshot_dlna_stream().map(|(control_url, _)| control_url)
+}
+
+/// The renderer and where its stream starts in the title.
+fn snapshot_dlna_stream() -> Option<(String, f64)> {
     let active = ACTIVE.lock().ok()?;
-    if let Some(ActiveSession::Dlna { control_url, .. }) = active.as_ref() {
-        Some(control_url.clone())
+    if let Some(ActiveSession::Dlna { control_url, stream_start_sec, .. }) = active.as_ref() {
+        Some((control_url.clone(), *stream_start_sec))
     } else {
         None
     }
@@ -1066,8 +1077,9 @@ pub async fn cast_seek(hooks: tauri::State<'_, CastHooks>, sec: f64) -> Result<(
         input.start_seconds = sec;
         return load_dlna_audio(&hooks, cu, input, paused, Some(&id)).await;
     }
-    if let Some(cu) = snapshot_dlna() {
-        return dlna::seek(cu, sec).await;
+    if let Some((cu, stream_start_sec)) = snapshot_dlna_stream() {
+        // The renderer's clock starts where the transcode does.
+        return dlna::seek(cu, (sec - stream_start_sec).max(0.0)).await;
     }
     if let Some(ecp) = snapshot_roku() {
         return roku::seek(ecp, sec).await;
@@ -1109,7 +1121,7 @@ pub async fn cast_stop(hooks: tauri::State<'_, CastHooks>) -> Result<(), String>
         None => None,
     };
     let result = match session.as_ref() {
-        Some(ActiveSession::Dlna { control_url, hls_session_id: Some(id) }) if id.starts_with("audio-") => dlna::stop_audio_if_owned(control_url, id).await,
+        Some(ActiveSession::Dlna { control_url, hls_session_id: Some(id), .. }) if id.starts_with("audio-") => dlna::stop_audio_if_owned(control_url, id).await,
         Some(ActiveSession::Dlna { control_url, .. }) => dlna::stop(control_url.clone()).await,
         Some(ActiveSession::Roku { ecp_base, .. }) => roku::stop(ecp_base.clone()).await,
         Some(ActiveSession::AirPlay { host, port, .. }) => airplay::stop(host.clone(), *port).await,
@@ -1150,10 +1162,10 @@ pub async fn cast_status(hooks: tauri::State<'_, CastHooks>) -> Result<Option<Ca
         let state = dlna::status(cu).await?;
         return Ok(Some(CastStatus { position_sec: input.start_seconds + state.position_sec, player_state: normalize_player_state(&state.player_state), connected: true, transport_codec: Some("mp3".into()) }));
     }
-    if let Some(cu) = snapshot_dlna() {
+    if let Some((cu, stream_start_sec)) = snapshot_dlna_stream() {
         let s = dlna::status(cu).await.ok();
         return Ok(s.map(|x| CastStatus {
-            position_sec: x.position_sec,
+            position_sec: stream_start_sec + x.position_sec,
             player_state: normalize_player_state(&x.player_state),
             connected: true,
             transport_codec: None,
@@ -1343,14 +1355,14 @@ mod cast_validation_tests {
 
     #[test]
     fn failed_stop_restores_only_same_session_epoch() {
-        let old = || Some(ActiveSession::Dlna { control_url: "old".into(), hls_session_id: None });
+        let old = || Some(ActiveSession::Dlna { control_url: "old".into(), hls_session_id: None, stream_start_sec: 0.0 });
         let mut active = None;
         super::restore_failed_stop_if_current(&mut active, old(), 7, 7);
         assert!(matches!(&active, Some(ActiveSession::Dlna { control_url, .. }) if control_url == "old"));
         active = None;
         super::restore_failed_stop_if_current(&mut active, old(), 7, 8);
         assert!(active.is_none(), "do not revive a session after a newer LOAD/STOP");
-        active = Some(ActiveSession::Dlna { control_url: "new".into(), hls_session_id: None });
+        active = Some(ActiveSession::Dlna { control_url: "new".into(), hls_session_id: None, stream_start_sec: 0.0 });
         super::restore_failed_stop_if_current(&mut active, old(), 7, 8);
         assert!(matches!(&active, Some(ActiveSession::Dlna { control_url, .. }) if control_url == "new"));
     }
@@ -1392,6 +1404,7 @@ mod cast_validation_tests {
             ActiveSession::Dlna {
                 control_url: "first".to_string(),
                 hls_session_id: Some("first-hls".to_string()),
+                stream_start_sec: 0.0,
             },
             |_| async {},
         )
@@ -1403,6 +1416,7 @@ mod cast_validation_tests {
             ActiveSession::Dlna {
                 control_url: "second".to_string(),
                 hls_session_id: Some("second-hls".to_string()),
+                stream_start_sec: 0.0,
             },
             move |id| async move {
                 assert!(

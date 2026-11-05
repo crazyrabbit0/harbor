@@ -329,11 +329,33 @@ fn scale_filter(max_height: u32) -> String {
     )
 }
 
+/// MPEG-TS as DLNA renderers name it; older Samsung TVs reject video/mp2t.
+pub const DLNA_TS_CONTENT_TYPE: &str = "video/mpeg";
+
+pub fn ts_content_type(dlna: bool) -> &'static str {
+    if dlna {
+        DLNA_TS_CONTENT_TYPE
+    } else {
+        "video/mp2t"
+    }
+}
+
+/// ffmpeg arguments that start the input at `start_sec`; empty for the beginning.
+fn input_seek_args(start_sec: f64) -> Vec<String> {
+    if start_sec > 0.5 {
+        vec!["-ss".to_string(), format!("{start_sec:.3}")]
+    } else {
+        Vec::new()
+    }
+}
+
 pub async fn handle_transcode(
     url: &str,
     headers: &HashMap<String, String>,
     profile: &TranscodeProfile,
     burn_sub: Option<&(String, String)>,
+    start_sec: f64,
+    content_type: &'static str,
 ) -> Response {
     let ffmpeg = match locate_ffmpeg() {
         Some(p) => p,
@@ -406,6 +428,7 @@ pub async fn handle_transcode(
         .arg("8M")
         .arg("-probesize")
         .arg("8M")
+        .args(input_seek_args(start_sec))
         .arg("-i")
         .arg(url)
         .arg("-map")
@@ -528,13 +551,13 @@ pub async fn handle_transcode(
     });
 
     let reader = tokio_util::io::ReaderStream::with_capacity(stdout, 64 * 1024);
-    transcode_response(Body::from_stream(reader))
+    transcode_response(Body::from_stream(reader), content_type)
 }
 
 /// Headers a transcoded MPEG-TS stream is served with; a HEAD probe gets them without starting ffmpeg.
-pub fn transcode_response(body: Body) -> Response {
+pub fn transcode_response(body: Body, content_type: &'static str) -> Response {
     let mut hmap = HeaderMap::new();
-    hmap.insert("Content-Type", HeaderValue::from_static("video/mp2t"));
+    hmap.insert("Content-Type", HeaderValue::from_static(content_type));
     hmap.insert("Cache-Control", HeaderValue::from_static("no-cache"));
     hmap.insert("Connection", HeaderValue::from_static("close"));
     hmap.insert(
@@ -562,4 +585,28 @@ pub async fn cast_ffmpeg_present() -> bool {
     tauri::async_runtime::spawn_blocking(ffmpeg_present)
         .await
         .unwrap_or(false)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dlna_streams_are_labelled_video_mpeg() {
+        assert_eq!(ts_content_type(true), "video/mpeg");
+        assert_eq!(ts_content_type(false), "video/mp2t");
+        let response = transcode_response(Body::empty(), ts_content_type(true));
+        assert_eq!(response.headers()["content-type"], "video/mpeg");
+        assert_eq!(response.headers()["transferMode.dlna.org"], "Streaming");
+    }
+
+    #[test]
+    fn a_transcode_starts_at_the_resume_point() {
+        assert_eq!(input_seek_args(754.25), vec!["-ss", "754.250"]);
+        assert!(input_seek_args(0.0).is_empty());
+        assert!(
+            input_seek_args(0.3).is_empty(),
+            "a near-zero resume plays from the start"
+        );
+    }
 }
