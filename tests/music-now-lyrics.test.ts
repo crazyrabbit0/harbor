@@ -8,7 +8,24 @@ import * as karaokeScroll from "../src/lib/music/karaoke-scroll.ts";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 
 const CSS = readFileSync("src/components/music/music-now-playing.css", "utf8");
-const LOCALES = ["ar", "de", "en", "es", "fr", "hi", "id", "it", "ja", "ko", "pl", "pt", "ru", "tr", "vi", "zh"];
+const LOCALES = [
+  "ar",
+  "de",
+  "en",
+  "es",
+  "fr",
+  "hi",
+  "id",
+  "it",
+  "ja",
+  "ko",
+  "pl",
+  "pt",
+  "ru",
+  "tr",
+  "vi",
+  "zh",
+];
 
 type N = { type: unknown; key?: unknown; props: Record<string, any> & { children?: unknown } };
 const all = (n: unknown): N[] =>
@@ -31,7 +48,13 @@ const LINES = [
   { at: 20, text: "" },
   { at: 30, text: "third" },
 ];
-const TRACK = { id: "t1", connectorId: "local", title: "Song", artist: "Artist", mediaKind: "audio" };
+const TRACK = {
+  id: "t1",
+  connectorId: "local",
+  title: "Song",
+  artist: "Artist",
+  mediaKind: "audio",
+};
 
 class FakeElement {
   offsetTop: number;
@@ -42,19 +65,34 @@ class FakeElement {
 }
 
 function nowPlaying(options: { lyrics?: typeof LINES | null; never?: boolean } = {}) {
-  const log = { seeks: [] as number[], appearance: [] as object[], scrolls: [] as object[], lyricLoads: 0 };
+  const log = {
+    seeks: [] as number[],
+    appearance: [] as object[],
+    scrolls: [] as object[],
+    lyricLoads: 0,
+  };
   const timers = new Map<number, { fn: () => void; ms: number }>();
   let timerId = 0;
-  const player = { current: TRACK, currentTime: 0, phase: "playing", queue: [], queueIndex: 0, likedIds: [] };
+  const player = {
+    current: TRACK,
+    currentTime: 0,
+    phase: "playing",
+    queue: [],
+    queueIndex: 0,
+    likedIds: [],
+  };
   const list = {
     clientHeight: 100,
     scrollHeight: 400,
-    children: { item: (i: number) => (i >= 0 && i < LINES.length ? new FakeElement(i * 40) : null) },
+    children: {
+      item: (i: number) => (i >= 0 && i < LINES.length ? new FakeElement(i * 40) : null),
+    },
     scrollTo: (o: object) => log.scrolls.push(o),
   };
   // Refs are attached during render, as React does before effects run.
   const element = (type: unknown, props: N["props"], key?: unknown) => {
-    if (type === "ol" && props.className === "music-now-lyrics" && props.ref) props.ref.current = list;
+    if (type === "ol" && props.className === "music-now-lyrics" && props.ref)
+      props.ref.current = list;
     return { type, props, key };
   };
   const stub = (name: string) => name;
@@ -74,7 +112,9 @@ function nowPlaying(options: { lyrics?: typeof LINES | null; never?: boolean } =
       "@/components/icons/music-icons": new Proxy({}, { get: (_t, n) => String(n) }),
       "@/components/icons/music-glyph": { MusicGlyph: stub("MusicGlyph") },
       "@/components/poster": { Poster: stub("Poster") },
-      "./music-track-menu": { useMusicTrackContextMenu: () => ({ menu: null, onContextMenu() {} }) },
+      "./music-track-menu": {
+        useMusicTrackContextMenu: () => ({ menu: null, onContextMenu() {} }),
+      },
       "./music-queue-continuation": { MusicQueueContinuation: stub("MusicQueueContinuation") },
       "./music-now-title": { MusicNowTitle: stub("MusicNowTitle") },
       "./music-up-next-row": { MusicUpNextRow: stub("MusicUpNextRow") },
@@ -100,7 +140,9 @@ function nowPlaying(options: { lyrics?: typeof LINES | null; never?: boolean } =
       "@/lib/music/lyrics": {
         loadTrackLyrics: () => {
           log.lyricLoads++;
-          return options.never ? new Promise(() => {}) : Promise.resolve(options.lyrics === undefined ? LINES : options.lyrics);
+          return options.never
+            ? new Promise(() => {})
+            : Promise.resolve(options.lyrics === undefined ? LINES : options.lyrics);
         },
         lyricIndexAt: (lines: typeof LINES, seconds: number) => {
           let found = -1;
@@ -163,7 +205,16 @@ function nowPlaying(options: { lyrics?: typeof LINES | null; never?: boolean } =
       getComputedStyle: () => ({ direction: "ltr" }),
     },
   );
-  const props = { inset: 0, dockRef: { current: null }, onClose() {}, onExplore() {}, onAudio() {}, onSpeakers() {}, onSource() {}, onQueue() {} };
+  const props = {
+    inset: 0,
+    dockRef: { current: null },
+    onClose() {},
+    onExplore() {},
+    onAudio() {},
+    onSpeakers() {},
+    onSource() {},
+    onQueue() {},
+  };
   const render = () => h.render(props) as unknown;
   const settle = async () => {
     render();
@@ -245,7 +296,11 @@ test("the lyrics panel reads the live engine and highlights the line being sung"
     items.map((li) => li.props["data-active"]),
     [undefined, undefined, "1"],
   );
-  assert.equal(all(items[1]).some((node) => node.type === "button"), false, "a rest line is not a button");
+  assert.equal(
+    all(items[1]).some((node) => node.type === "button"),
+    false,
+    "a rest line is not a button",
+  );
 });
 
 test("the panel covers loading, empty and ready, and a hung lookup gives up", async () => {
@@ -288,13 +343,23 @@ test("the active line scrolls its own list, and the list returns to the top befo
   assert.equal(last.behavior, "smooth");
   assert.equal(
     last.top,
-    karaokeScroll.karaokeScrollTop({ lineTop: 80, lineHeight: 20, viewHeight: 100, maxScroll: 300, anchor: 0.5 }),
+    karaokeScroll.karaokeScrollTop({
+      lineTop: 80,
+      lineHeight: 20,
+      viewHeight: 100,
+      maxScroll: 300,
+      anchor: 0.5,
+    }),
   );
   n.player.currentTime = 0;
   n.render();
   assert.deepEqual(n.log.scrolls.at(-1), { top: 0, behavior: "auto" });
   assert.match(CSS, /\n\.music-now-lyrics \{[^}]*overflow-y\s*:\s*auto/);
-  assert.match(CSS, /\n\.music-now-lyrics \{[^}]*position\s*:\s*relative/, "offsetTop is measured inside the list");
+  assert.match(
+    CSS,
+    /\n\.music-now-lyrics \{[^}]*position\s*:\s*relative/,
+    "offsetTop is measured inside the list",
+  );
 });
 
 test("lyric lines clear the 44px target floor and stand still under reduced motion", () => {
@@ -313,7 +378,10 @@ test("Karaoke and the lyric strings exist in every locale, written in each scrip
     const found = /"?Karaoke"?:\s*"([^"]+)"/.exec(source);
     assert.ok(found, `${lang} is missing the Karaoke label`);
     if (nonLatin.includes(lang))
-      assert.ok([...found[1]].some((char) => (char.codePointAt(0) ?? 0) > 127), `${lang} left Karaoke in Latin`);
+      assert.ok(
+        [...found[1]].some((char) => (char.codePointAt(0) ?? 0) > 127),
+        `${lang} left Karaoke in Latin`,
+      );
     for (const key of ["Lyrics", "Finding lyrics", "No lyrics for this track"])
       assert.ok(new RegExp(`"?${key}"?:`).test(source), `${lang} is missing ${key}`);
   }

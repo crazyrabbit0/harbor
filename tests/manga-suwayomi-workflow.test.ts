@@ -333,9 +333,7 @@ test("available extensions are collapsed until opened or searched", async () => 
   view.toggle.props.onClick();
   view = available();
   assert.equal(view.list.props.hidden, true);
-  view.tree
-    .find((n) => n.type === "input")!
-    .props.onChange({ target: { value: "av" } });
+  view.tree.find((n) => n.type === "input")!.props.onChange({ target: { value: "av" } });
   view = available();
   assert.equal(view.list.props.hidden, false);
   assert.equal(view.rows.length, 1);
@@ -343,7 +341,11 @@ test("available extensions are collapsed until opened or searched", async () => 
 
 test("universe matching searches installed sources instead of only the library", async () => {
   // searchAll fans out over installed sources, four at a time, with unthrottled clients.
-  const sources = Array.from({ length: 6 }, (_, i) => ({ id: String(i + 1), name: "S", lang: "en" }));
+  const sources = Array.from({ length: 6 }, (_, i) => ({
+    id: String(i + 1),
+    name: "S",
+    lang: "en",
+  }));
   const pending: { source: string; resolve: (v: unknown) => void }[] = [];
   const { client } = fakeClient({
     gql: (q) => {
@@ -459,7 +461,8 @@ test("Harbor favorites mirror the Suwayomi library state", async () => {
 
   // GraphQL patches inLibrary from the variable it sends.
   const gql = fakeClient({
-    gql: (q) => (q.includes("updateManga") ? { data: { updateManga: { manga: { id: 1 } } } } : null),
+    gql: (q) =>
+      q.includes("updateManga") ? { data: { updateManga: { manga: { id: 1 } } } } : null,
   });
   await suwayomiStack(gql.client).provider.setLibrary("7~1", false);
   const update = gql.log.post.find((b) => b.query.includes("updateManga"));
@@ -505,7 +508,10 @@ test("chapter batches expose pause and resume controls", async () => {
 
   // chapter-list.tsx is too large to render here; pin the button's wiring lines.
   const lines = new Set(
-    readFileSync(new URL("../src/views/manga/manga-detail/chapter-list.tsx", import.meta.url), "utf8")
+    readFileSync(
+      new URL("../src/views/manga/manga-detail/chapter-list.tsx", import.meta.url),
+      "utf8",
+    )
       .split(/\r?\n/)
       .map((line: string) => line.trim()),
   );

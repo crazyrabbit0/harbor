@@ -50,7 +50,11 @@ export function loadSubtitleSearch(fetch: FakeFetch) {
     "./providers/wyzie": { searchWyzie: async () => [] },
     "./providers/addons": loadAddonProvider(fetch),
     "./providers/opensubtitles-v3": { searchOpenSubtitlesV3: async () => [] },
-    "./autosync/sub-sources": { pickSources: () => [], searchExtraSubSources: noop, toSubResult: noop },
+    "./autosync/sub-sources": {
+      pickSources: () => [],
+      searchExtraSubSources: noop,
+      toSubResult: noop,
+    },
     "./language": language,
     "./candidate-ranking": candidateRanking,
     "./stream-hints": streamHints,
@@ -61,7 +65,10 @@ export function loadSubtitleSearch(fetch: FakeFetch) {
 }
 
 /** Loads addon-source.ts with a fixed local install list and no cloud account. */
-export function loadAddonSource(installed: unknown[], fetchManifestAt: (url: string) => Promise<unknown>) {
+export function loadAddonSource(
+  installed: unknown[],
+  fetchManifestAt: (url: string) => Promise<unknown>,
+) {
   return loadModule("src/lib/subtitles/addon-source.ts", {
     "@/lib/addons": { userAddons: async () => [] },
     "@/lib/addon-store": { fetchManifestAt, loadInstalled: () => installed },

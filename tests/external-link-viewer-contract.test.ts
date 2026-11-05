@@ -7,7 +7,8 @@ import * as preference from "../src/lib/social/external-link-preference.ts";
 import * as policy from "../src/lib/social/external-link-policy.ts";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 
-const { EXTERNAL_LINK_FRAME_PERMISSIONS, EXTERNAL_LINK_FRAME_SANDBOX, SOFT_LOAD_TIMEOUT_MS } = modal;
+const { EXTERNAL_LINK_FRAME_PERMISSIONS, EXTERNAL_LINK_FRAME_SANDBOX, SOFT_LOAD_TIMEOUT_MS } =
+  modal;
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 type N = { type: unknown; key?: unknown; props: Record<string, any> & { children?: unknown } };
@@ -55,7 +56,12 @@ function fakeWindow() {
   };
 }
 
-const LINK = { href: "https://example.com/a", hostname: "example.com", protocol: "https:", canOpenInHarbor: true };
+const LINK = {
+  href: "https://example.com/a",
+  hostname: "example.com",
+  protocol: "https:",
+  canOpenInHarbor: true,
+};
 
 function viewer(exportName: "ExternalLinkViewer" | "ExternalLinkViewerFrame") {
   const w = fakeWindow();
@@ -97,13 +103,22 @@ test("viewer frame keeps the fixed remote-content boundary and settles on load",
   assert.equal(frame.props.tabIndex, -1);
   const loader = all(tree).find((n) => n.type === "HarborLoader")!;
   assert.equal(loader.props.caption, "Loading example.com");
-  assert.deepEqual([...v.timers.values()].map((t) => t.ms), [SOFT_LOAD_TIMEOUT_MS]);
+  assert.deepEqual(
+    [...v.timers.values()].map((t) => t.ms),
+    [SOFT_LOAD_TIMEOUT_MS],
+  );
 
   frame.props.onLoad();
   const loaded = v.h.render(props);
-  assert.equal(all(loaded).some((n) => n.type === "HarborLoader"), false);
+  assert.equal(
+    all(loaded).some((n) => n.type === "HarborLoader"),
+    false,
+  );
   assert.equal(v.timers.size, 0, "a loaded page cancels the slow timer");
-  assert.equal(all(loaded).some((n) => n.props.role === "status"), false);
+  assert.equal(
+    all(loaded).some((n) => n.props.role === "status"),
+    false,
+  );
   assert.deepEqual(calls, []);
 });
 
@@ -123,8 +138,15 @@ test("viewer politely announces only the slow-loading status copy", () => {
   const tree = v.h.render(props);
   const status = all(tree).find((n) => n.props.role === "status")!;
   assert.equal(status.props["aria-live"], "polite");
-  assert.equal(all(status).some((n) => n.type === "button"), false, "the buttons sit outside it");
-  assert.equal(all(tree).some((n) => n.type === "HarborLoader"), false);
+  assert.equal(
+    all(status).some((n) => n.type === "button"),
+    false,
+    "the buttons sit outside it",
+  );
+  assert.equal(
+    all(tree).some((n) => n.type === "HarborLoader"),
+    false,
+  );
   const buttons = all(tree).filter((n) => n.type === "button");
   buttons.find((b) => text(b) === "Retry")!.props.onClick();
   buttons.find((b) => text(b) === "Open in browser")!.props.onClick();
@@ -143,11 +165,15 @@ test("the viewer is plain page content with a reload that remounts the frame", (
     onReload: () => calls.push("reload"),
   };
   const tree = v.h.render(props);
-  assert.equal(all(tree).some((n) => n.props.role === "dialog" || n.props["aria-modal"]), false);
-  const frameKey = () =>
-    all(v.h.render(props)).find((n) => typeof n.type === "function")!.key;
+  assert.equal(
+    all(tree).some((n) => n.props.role === "dialog" || n.props["aria-modal"]),
+    false,
+  );
+  const frameKey = () => all(v.h.render(props)).find((n) => typeof n.type === "function")!.key;
   assert.equal(frameKey(), `${LINK.href}::0`);
-  all(tree).find((n) => n.props["aria-label"] === "Reload original link")!.props.onClick();
+  all(tree)
+    .find((n) => n.props["aria-label"] === "Reload original link")!
+    .props.onClick();
   assert.equal(frameKey(), `${LINK.href}::1`);
   const close = all(tree).find((n) => n.props["aria-label"] === "Close")!;
   assert.equal(close.props.autoFocus, true);
@@ -193,10 +219,17 @@ test("warning uses a direct main action and an alternate-only menu", async () =>
   assert.equal(text(buttons[0]), "Continue in browser");
   const arrow = buttons.find((b) => b.props["aria-haspopup"] === "menu")!;
   assert.equal(arrow.props["aria-expanded"], false);
-  assert.equal(all(closed).some((n) => n.props.role === "menu"), false);
+  assert.equal(
+    all(closed).some((n) => n.props.role === "menu"),
+    false,
+  );
   arrow.props.onClick();
   let prevented = false;
-  arrow.props.onKeyDown({ key: "ArrowDown", preventDefault: () => (prevented = true), stopPropagation() {} });
+  arrow.props.onKeyDown({
+    key: "ArrowDown",
+    preventDefault: () => (prevented = true),
+    stopPropagation() {},
+  });
   assert.deepEqual(opens, [true, true]);
   assert.equal(prevented, true);
   buttons[0].props.onClick();
@@ -204,7 +237,10 @@ test("warning uses a direct main action and an alternate-only menu", async () =>
   const open = splitButton({ ...base, menuOpen: true });
   const tree = open.render();
   const focused: string[] = [];
-  assert.equal(all(tree).find((n) => n.props["aria-haspopup"] === "menu")!.props["aria-expanded"], true);
+  assert.equal(
+    all(tree).find((n) => n.props["aria-haspopup"] === "menu")!.props["aria-expanded"],
+    true,
+  );
   const item = all(tree).find((n) => n.props.role === "menuitem")!;
   item.props.ref.current = { focus: () => focused.push("item") };
   all(tree)[0].props.ref.current = { contains: (node: unknown) => node === "inside" };
@@ -220,12 +256,20 @@ test("warning uses a direct main action and an alternate-only menu", async () =>
   assert.deepEqual(picks, ["browser:main", "harbor:alternate"]);
 
   const httpOnly = all(splitButton({ ...base, alternate: null }).render());
-  assert.equal(httpOnly.some((n) => n.props["aria-haspopup"] === "menu"), false);
+  assert.equal(
+    httpOnly.some((n) => n.props["aria-haspopup"] === "menu"),
+    false,
+  );
 });
 
 function interstitial(url: string, options: { open?: (href: string) => Promise<unknown> } = {}) {
   const w = fakeWindow();
-  const log = { closes: 0, opened: [] as string[], remembered: [] as string[], portals: [] as unknown[] };
+  const log = {
+    closes: 0,
+    opened: [] as string[],
+    remembered: [] as string[],
+    portals: [] as unknown[],
+  };
   const body = { tag: "body" };
   const journey = { url, generation: 3 };
   const mocks = {
@@ -257,7 +301,12 @@ function interstitial(url: string, options: { open?: (href: string) => Promise<u
     "react/jsx-runtime": jsx,
   };
   const globals = { window: w.window, document: { body } };
-  const outer = hookHarness("src/components/link-out-interstitial.tsx", "LinkOutInterstitial", mocks, globals).render() as N;
+  const outer = hookHarness(
+    "src/components/link-out-interstitial.tsx",
+    "LinkOutInterstitial",
+    mocks,
+    globals,
+  ).render() as N;
   const inner = hookHarness(
     "src/components/link-out-interstitial.tsx",
     "LinkOutJourneyInterstitial",
@@ -266,7 +315,11 @@ function interstitial(url: string, options: { open?: (href: string) => Promise<u
     ["LinkOutJourneyInterstitial"],
   );
   const render = (pref = "browser") =>
-    inner.render({ journey, preference: pref, onPreferenceChange: (p: string) => log.remembered.push(p) }) as N;
+    inner.render({
+      journey,
+      preference: pref,
+      onPreferenceChange: (p: string) => log.remembered.push(p),
+    }) as N;
   return { w, log, body, outer, render };
 }
 
@@ -281,7 +334,11 @@ test("the warning is the first stage of a single portal keyed by journey", () =>
   const tree = render();
   assert.equal(tree.props.role, "dialog");
   assert.equal(all(tree).filter((n) => n.props.role === "dialog").length, 1);
-  assert.equal(all(tree).some((n) => n.type === "Viewer"), false, "the viewer never opens first");
+  assert.equal(
+    all(tree).some((n) => n.type === "Viewer"),
+    false,
+    "the viewer never opens first",
+  );
   assert.deepEqual([split(tree)!.props.main, split(tree)!.props.alternate], ["browser", "harbor"]);
   assert.equal((read("src/App.tsx").match(/<LinkOutInterstitial \/>/g) ?? []).length, 1);
 });
@@ -299,9 +356,16 @@ test("choosing a destination opens the viewer or the strict browser opener", asy
   assert.equal(i.log.closes, 1, "a successful browser open closes the journey");
 
   const http = interstitial("http://example.com/a");
-  assert.deepEqual([split(http.render())!.props.main, split(http.render())!.props.alternate], ["browser", null]);
+  assert.deepEqual(
+    [split(http.render())!.props.main, split(http.render())!.props.alternate],
+    ["browser", null],
+  );
   split(http.render())!.props.onSelect("harbor", "main");
-  assert.equal(all(http.render()).some((n) => n.type === "Viewer"), false, "HTTP never opens in Harbor");
+  assert.equal(
+    all(http.render()).some((n) => n.type === "Viewer"),
+    false,
+    "HTTP never opens in Harbor",
+  );
 });
 
 test("a failed browser open keeps the warning with an error", async () => {
@@ -343,7 +407,11 @@ test("Back closes an open menu before it closes the journey", () => {
   i.render();
   const escape = () => {
     let prevented = false;
-    i.w.fire("keydown", { key: "Escape", preventDefault: () => (prevented = true), stopImmediatePropagation() {} });
+    i.w.fire("keydown", {
+      key: "Escape",
+      preventDefault: () => (prevented = true),
+      stopImmediatePropagation() {},
+    });
     return prevented;
   };
   assert.equal(escape(), true);

@@ -74,7 +74,8 @@ test("subtitle surface follows the real embed state, including True HDR separate
     mpvRenders: true,
   });
   assert.equal(
-    playerMediaHarness({ engine: "html5", settings: { playerMpvEmbed: false } }).result.subAssNative,
+    playerMediaHarness({ engine: "html5", settings: { playerMpvEmbed: false } }).result
+      .subAssNative,
     false,
   );
 });
@@ -90,24 +91,28 @@ const all = (n: unknown): N[] =>
 
 function enginePanel(settings: Record<string, unknown>) {
   const updates: Record<string, unknown>[] = [];
-  const tree = hookHarness("src/views/settings/player-panel/engine-section.tsx", "PlayerEnginePanel", {
-    "../icons": { AlertTriangle: "AlertTriangle" },
-    "@/lib/platform": { isMacDesktop: () => false, isWindowsDesktop: () => true },
-    "@/lib/player/mpv": { probeMpv: async () => ({ available: true }) },
-    "@/lib/settings": {
-      useSettings: () => ({ settings, update: (p: Record<string, unknown>) => updates.push(p) }),
+  const tree = hookHarness(
+    "src/views/settings/player-panel/engine-section.tsx",
+    "PlayerEnginePanel",
+    {
+      "../icons": { AlertTriangle: "AlertTriangle" },
+      "@/lib/platform": { isMacDesktop: () => false, isWindowsDesktop: () => true },
+      "@/lib/player/mpv": { probeMpv: async () => ({ available: true }) },
+      "@/lib/settings": {
+        useSettings: () => ({ settings, update: (p: Record<string, unknown>) => updates.push(p) }),
+      },
+      "@/lib/i18n": { useT: () => (s: string) => s },
+      "../kit": { ROW_DESC: "", SettingGroup: "SettingGroup", SettingRow: "SettingRow" },
+      "../shared": { ToggleRow: "ToggleRow" },
+      "./bandwidth-section": { BandwidthInput: "BandwidthInput" },
+      "./choice": { ChoiceBlock: "ChoiceBlock", Tag: "Tag" },
+      "./internals": { DesktopOnlyBlock: "DesktopOnlyBlock", isTauri: false },
+      "./hdr-mode": { HdrModePicker: "HdrModePicker" },
+      "./display-panel-selector": { DisplayPanelSelector: "DisplayPanelSelector" },
+      "./display-picker": { DisplayPickerRow: "DisplayPickerRow" },
+      "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: "Fragment" },
     },
-    "@/lib/i18n": { useT: () => (s: string) => s },
-    "../kit": { ROW_DESC: "", SettingGroup: "SettingGroup", SettingRow: "SettingRow" },
-    "../shared": { ToggleRow: "ToggleRow" },
-    "./bandwidth-section": { BandwidthInput: "BandwidthInput" },
-    "./choice": { ChoiceBlock: "ChoiceBlock", Tag: "Tag" },
-    "./internals": { DesktopOnlyBlock: "DesktopOnlyBlock", isTauri: false },
-    "./hdr-mode": { HdrModePicker: "HdrModePicker" },
-    "./display-panel-selector": { DisplayPanelSelector: "DisplayPanelSelector" },
-    "./display-picker": { DisplayPickerRow: "DisplayPickerRow" },
-    "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: "Fragment" },
-  }).render();
+  ).render();
   const row = (label: string) => all(tree).find((n) => n.props.label === label);
   return { row, updates };
 }

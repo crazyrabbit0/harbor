@@ -396,11 +396,7 @@ test("English strings for every descriptor are registered", () => {
   const catalog = en as Record<string, string>;
   for (const seed of LIST_SEEDS) {
     for (const value of [seed.title, seed.curator, seed.blurb]) {
-      assert.equal(
-        catalog[value],
-        value,
-        `"${value.slice(0, 40)}" is in the English catalogue`,
-      );
+      assert.equal(catalog[value], value, `"${value.slice(0, 40)}" is in the English catalogue`);
     }
   }
 });

@@ -85,11 +85,7 @@ test("manga library drops the spotlight hero, its rail, and the section ring", (
   );
   const first = nodes(sections[0].props.children);
   assert.equal(named(first, "VirtualGrid").length, 1);
-  assert.equal(
-    first.filter((n) => n.type === "img").length,
-    0,
-    "no hero artwork above the grid",
-  );
+  assert.equal(first.filter((n) => n.type === "img").length, 0, "no hero artwork above the grid");
 });
 
 test("manga library anchors favorites and lists sections", () => {
@@ -304,7 +300,10 @@ test("thumbnail disk cache persists resizes with age and size caps", async () =>
   panel.render();
   await flushPromises();
   const row = nodes(panel.render()).find(
-    (n) => typeof n.type === "function" && n.type.name === "ClearRow" && n.props.title === "Poster thumbnails",
+    (n) =>
+      typeof n.type === "function" &&
+      n.type.name === "ClearRow" &&
+      n.props.title === "Poster thumbnails",
   );
   assert.ok(row, "Caches tab has the poster thumbnail row");
   assert.match(text(row!.props.usage), /^2 KB across 3 files/);
