@@ -161,6 +161,9 @@ pub struct RegisterArgs {
     pub burn_sub_path: Option<String>,
     #[serde(default)]
     pub burn_sub_style: Option<String>,
+    /// The player's embedded audio stream (`0:a:N`); every stream when absent.
+    #[serde(default)]
+    pub audio_ordinal: Option<u32>,
     /// DLNA renderers get one MPEG-TS stream as video/mpeg; many (2014 Samsung) reject HLS and video/mp2t.
     #[serde(default)]
     pub dlna: bool,

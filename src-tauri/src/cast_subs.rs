@@ -37,19 +37,42 @@ fn ass_alignment(align_x: &str) -> u32 {
     }
 }
 
-pub fn build_force_style(style: &CastSubStyle) -> String {
+/// libass lays out an SRT on a 288-line script, while the player's sizes are on mpv's 720-line scale.
+const SRT_PLAY_RES_Y: u32 = 288;
+const MPV_SUB_RES_Y: u32 = 720;
+
+/// `on_srt_canvas` scales sizes to libass's SRT canvas; an ASS file keeps its own script resolution.
+pub fn build_force_style(style: &CastSubStyle, on_srt_canvas: bool) -> String {
+    let scale = |v: u32| {
+        if on_srt_canvas {
+            v * SRT_PLAY_RES_Y / MPV_SUB_RES_Y
+        } else {
+            v
+        }
+    };
     let primary = hex_to_ass_bgr(&style.font_color);
     let outline_color = hex_to_ass_bgr(&style.border_color);
     let outline = if style.border_size == 0 {
         2
     } else {
-        style.border_size
+        scale(style.border_size).max(1)
     };
     let alignment = ass_alignment(&style.align_x);
     format!(
         "Fontsize={},PrimaryColour={},OutlineColour={},BorderStyle=1,Outline={},Shadow=0,Alignment={},MarginV={}",
-        style.font_size, primary, outline_color, outline, alignment, style.margin_y,
+        scale(style.font_size).max(8),
+        primary,
+        outline_color,
+        outline,
+        alignment,
+        scale(style.margin_y),
     )
+}
+
+fn is_ass_file(path: &Path) -> bool {
+    path.extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("ass") || e.eq_ignore_ascii_case("ssa"))
 }
 
 pub fn burn_filter(path: &str, force_style: &str) -> String {
@@ -266,10 +289,8 @@ pub async fn prepare(
     } else {
         base
     };
-    Some(PreparedSub {
-        path,
-        force_style: build_force_style(style),
-    })
+    let force_style = build_force_style(style, !is_ass_file(&path));
+    Some(PreparedSub { path, force_style })
 }
 
 async fn shift_subtitle(input: &Path, seek_start: f64, dir: &Path) -> Option<PathBuf> {
@@ -305,4 +326,33 @@ async fn shift_subtitle(input: &Path, seek_start: f64, dir: &Path) -> Option<Pat
 
 pub fn cleanup() {
     let _ = std::fs::remove_dir_all(castsubs_dir());
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn srt_burn_in_matches_the_player_size() {
+        let style = CastSubStyle {
+            font_size: 40,
+            margin_y: 50,
+            border_size: 5,
+            ..CastSubStyle::default()
+        };
+        let srt = build_force_style(&style, true);
+        assert!(srt.starts_with("Fontsize=16,"), "{srt}");
+        assert!(srt.contains(",Outline=2,") && srt.ends_with(",MarginV=20"), "{srt}");
+        let ass = build_force_style(&style, false);
+        assert!(ass.starts_with("Fontsize=40,") && ass.ends_with(",MarginV=50"), "{ass}");
+        let tiny = CastSubStyle { font_size: 10, ..CastSubStyle::default() };
+        assert!(build_force_style(&tiny, true).starts_with("Fontsize=8,"));
+    }
+
+    #[test]
+    fn only_ass_files_keep_their_own_canvas() {
+        assert!(is_ass_file(Path::new("a/b.ASS")));
+        assert!(is_ass_file(Path::new("x.ssa")));
+        assert!(!is_ass_file(Path::new("x.srt")));
+    }
 }

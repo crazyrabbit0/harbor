@@ -648,6 +648,7 @@ pub async fn cast_load(
         start_time_sec,
         burn_sub_path,
         burn_sub_style,
+        audio_ordinal: audio_track_ordinal,
         dlna: kind_str == "dlna",
     })
     .await;

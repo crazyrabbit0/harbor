@@ -73,6 +73,7 @@ impl HlsState {
         headers: HashMap<String, String>,
         seek_start_sec: f64,
         burn_sub: Option<(String, String)>,
+        audio_ordinal: Option<u32>,
     ) -> Result<String, String> {
         let probe = probe_source(&media_url, &headers).await?;
         let id = Uuid::new_v4().to_string();
@@ -85,6 +86,7 @@ impl HlsState {
             probe.duration_sec,
             &temp_dir,
             burn_sub,
+            audio_ordinal,
         )
         .await
         {
@@ -471,6 +473,7 @@ async fn spawn_continuous_ffmpeg(
     _total_duration: f64,
     temp_dir: &std::path::Path,
     burn_sub: Option<(String, String)>,
+    audio_ordinal: Option<u32>,
 ) -> Result<Child, String> {
     let ffmpeg = crate::transcode::locate_ffmpeg().ok_or_else(|| "ffmpeg not found".to_string())?;
     let segment_pattern = temp_dir.join("seg%05d.ts");
@@ -497,7 +500,7 @@ async fn spawn_continuous_ffmpeg(
         .arg("-map")
         .arg("0:v:0")
         .arg("-map")
-        .arg("0:a:0?")
+        .arg(format!("0:a:{}?", audio_ordinal.unwrap_or(0)))
         .arg("-map_metadata")
         .arg("-1")
         .arg("-map_chapters")
