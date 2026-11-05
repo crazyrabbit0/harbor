@@ -171,6 +171,10 @@ jobs:
         if: contains(matrix.platform.runner, 'windows')
         run: pnpm run setup:libmpv
 
+      - name: Stage the VC++ runtime (Windows)
+        if: contains(matrix.platform.runner, 'windows')
+        run: pnpm run setup:vcruntime
+
       - name: Fetch mpv (Windows x64)
         if: matrix.platform.target == 'x86_64-pc-windows-msvc'
         run: pnpm run setup:mpv
