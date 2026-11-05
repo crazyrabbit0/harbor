@@ -109,6 +109,8 @@ impl Default for CastSubStyle {
 
 pub struct PreparedSub {
     pub path: PathBuf,
+    /// The file before any shift, so a seek can re-prepare it for a new start.
+    pub base: PathBuf,
     pub force_style: String,
 }
 
@@ -141,7 +143,7 @@ pub struct RegisterResult {
     pub url: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RegisterArgs {
     pub url: String,

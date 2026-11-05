@@ -164,6 +164,8 @@ enum ActiveSession {
         hls_session_id: Option<String>,
         /// A transcode starts here, so the renderer's clock counts from this point.
         stream_start_sec: f64,
+        /// Set for a transcode: the renderer refuses Seek on it (UPnP 701), so a seek reloads from here.
+        reload: Option<DlnaReload>,
     },
     Roku {
         ecp_base: String,
@@ -174,6 +176,15 @@ enum ActiveSession {
         port: u16,
         hls_session_id: Option<String>,
     },
+}
+
+/// What a DLNA transcode was started with, so a seek can start the same transcode at another time.
+#[derive(Clone)]
+struct DlnaReload {
+    args: RegisterArgs,
+    title: Option<String>,
+    sub_base: Option<std::path::PathBuf>,
+    sub_style: Option<CastSubStyle>,
 }
 
 static ACTIVE: Mutex<Option<ActiveSession>> = Mutex::new(None);
@@ -571,6 +582,7 @@ pub async fn cast_load(
     if audio_only.unwrap_or(false) && !is_audio_content_type(content_type.as_deref()) {
         return Err("Audio-only routing is currently supported by DLNA speakers".into());
     }
+    let sub_style_for_reload = sub_style.clone().unwrap_or_default();
     let burn_sub = match subtitle {
         Some(ref s) if !s.off => {
             let style = sub_style.unwrap_or_default();
@@ -638,7 +650,7 @@ pub async fn cast_load(
         .as_ref()
         .map(|p| p.path.to_string_lossy().to_string());
     let burn_sub_style = burn_sub.as_ref().map(|p| p.force_style.clone());
-    let proxied = (hooks.register_cast)(RegisterArgs {
+    let register_args = RegisterArgs {
         url: url.clone(),
         headers: req_headers,
         transcode: do_transcode,
@@ -650,8 +662,8 @@ pub async fn cast_load(
         burn_sub_style,
         audio_ordinal: audio_track_ordinal,
         dlna: kind_str == "dlna",
-    })
-    .await;
+    };
+    let proxied = (hooks.register_cast)(register_args.clone()).await;
     eprintln!("[harbor::cast] proxied stream ready");
     let hls_session_id = proxied
         .url
@@ -671,6 +683,12 @@ pub async fn cast_load(
         } else {
             0.0
         };
+        let reload = (do_transcode && hls_session_id.is_none()).then(|| DlnaReload {
+            args: register_args,
+            title: title.clone(),
+            sub_base: burn_sub.as_ref().map(|p| p.base.clone()),
+            sub_style: burn_sub.as_ref().map(|_| sub_style_for_reload.clone()),
+        });
         if let Err(error) = dlna::load(
             cu.clone(),
             cast_url,
@@ -691,6 +709,7 @@ pub async fn cast_load(
                 control_url: cu,
                 hls_session_id,
                 stream_start_sec,
+                reload,
             },
             |id| async move {
                 (hooks.stop_hls_session)(id).await;
@@ -808,6 +827,7 @@ async fn load_dlna_audio(
                     control_url,
                     hls_session_id: Some(route.session_id),
                     stream_start_sec: 0.0,
+                    reload: None,
                 },
                 |id| async move {
                     (hooks.stop_hls_session)(id).await;
@@ -824,12 +844,60 @@ async fn load_dlna_audio(
             control_url,
             hls_session_id: Some(route.session_id),
             stream_start_sec: 0.0,
+            reload: None,
         },
         |id| async move {
             (hooks.stop_hls_session)(id).await;
         },
     )
     .await
+}
+
+/// Starts the transcode again at `sec` and loads it on the renderer, keeping a paused renderer paused.
+async fn reload_dlna_transcode(
+    hooks: &CastHooks,
+    control_url: &str,
+    mut reload: DlnaReload,
+    sec: f64,
+) -> Result<(f64, DlnaReload), String> {
+    let start = sec.max(0.0);
+    let paused = dlna::status(control_url.to_string())
+        .await
+        .is_ok_and(|s| normalize_player_state(&s.player_state) == "PAUSED");
+    reload.args.start_time_sec = Some(start);
+    if let (Some(base), Some(style)) = (reload.sub_base.clone(), reload.sub_style.clone()) {
+        let prepared = (hooks.reprepare_sub)(base, style, start).await;
+        reload.args.burn_sub_path = Some(prepared.path.to_string_lossy().to_string());
+        reload.args.burn_sub_style = Some(prepared.force_style);
+    }
+    let proxied = (hooks.register_cast)(reload.args.clone()).await;
+    dlna::load(
+        control_url.to_string(),
+        proxied.url,
+        reload.title.clone(),
+        None,
+        Some("video/mpeg".to_string()),
+        true,
+    )
+    .await?;
+    if paused {
+        if let Err(error) = dlna::pause(control_url.to_string()).await {
+            eprintln!("[harbor::cast] renderer did not pause after the seek: {error}");
+        }
+    }
+    Ok((start, reload))
+}
+
+fn snapshot_dlna_reload() -> Option<(String, DlnaReload)> {
+    let active = ACTIVE.lock().ok()?;
+    match active.as_ref()? {
+        ActiveSession::Dlna {
+            control_url,
+            reload: Some(reload),
+            ..
+        } => Some((control_url.clone(), reload.clone())),
+        _ => None,
+    }
 }
 
 fn snapshot_dlna_audio() -> Option<(String, String)> {
@@ -1160,6 +1228,21 @@ pub async fn cast_seek(hooks: tauri::State<'_, CastHooks>, sec: f64) -> Result<(
         input.start_seconds = sec;
         return load_dlna_audio(&hooks, cu, input, paused, Some(&id)).await;
     }
+    if let Some((cu, reload)) = snapshot_dlna_reload() {
+        let (start, reload) = reload_dlna_transcode(&hooks, &cu, reload, sec).await?;
+        return replace_active_session(
+            ActiveSession::Dlna {
+                control_url: cu,
+                hls_session_id: None,
+                stream_start_sec: start,
+                reload: Some(reload),
+            },
+            |id| async move {
+                (hooks.stop_hls_session)(id).await;
+            },
+        )
+        .await;
+    }
     if let Some((cu, stream_start_sec)) = snapshot_dlna_stream() {
         // The renderer's clock starts where the transcode does.
         return dlna::seek(cu, (sec - stream_start_sec).max(0.0)).await;
@@ -1468,6 +1551,7 @@ mod cast_validation_tests {
                 control_url: "old".into(),
                 hls_session_id: None,
                 stream_start_sec: 0.0,
+                reload: None,
             })
         };
         let mut active = None;
@@ -1485,6 +1569,7 @@ mod cast_validation_tests {
             control_url: "new".into(),
             hls_session_id: None,
             stream_start_sec: 0.0,
+            reload: None,
         });
         super::restore_failed_stop_if_current(&mut active, old(), 7, 8);
         assert!(
@@ -1550,6 +1635,120 @@ mod cast_validation_tests {
     }
 
     #[tokio::test]
+    async fn a_dlna_seek_restarts_the_transcode_and_keeps_a_paused_renderer_paused() {
+        use super::{reload_dlna_transcode, DlnaReload};
+        use harbor_shared::cast_hooks::CastHooks;
+        use harbor_shared::cast_types::{CastSubStyle, PreparedSub, RegisterArgs, RegisterResult};
+        use std::path::PathBuf;
+
+        let soap = Arc::new(Mutex::new(Vec::<String>::new()));
+        let seen = soap.clone();
+        let router = axum::Router::new().route(
+            "/control",
+            axum::routing::post(move |body: String| {
+                let seen = seen.clone();
+                async move {
+                    seen.lock().unwrap().push(body.clone());
+                    if body.contains("u:GetTransportInfo") {
+                        "<CurrentTransportState>PAUSED_PLAYBACK</CurrentTransportState>".to_string()
+                    } else {
+                        String::new()
+                    }
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let control = format!("http://{}/control", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, router).await.unwrap() });
+
+        let registered = Arc::new(Mutex::new(Vec::<RegisterArgs>::new()));
+        let resubs = Arc::new(Mutex::new(Vec::<(PathBuf, f64)>::new()));
+        let (reg, subs) = (registered.clone(), resubs.clone());
+        let hooks = CastHooks {
+            register_cast: Arc::new(move |args: RegisterArgs| {
+                reg.lock().unwrap().push(args);
+                Box::pin(async {
+                    RegisterResult {
+                        session_id: "s2".into(),
+                        url: "http://192.0.2.9:1/s/s2.ts".into(),
+                    }
+                })
+            }),
+            register_audio_cast: Arc::new(|_| Box::pin(async { Err("unused".into()) })),
+            audio_cast_input: Arc::new(|_| Box::pin(async { None })),
+            stop_hls_session: Arc::new(|_| Box::pin(async { true })),
+            prepare_sub: Arc::new(|_, _, _, _, _| Box::pin(async { None })),
+            reprepare_sub: Arc::new(move |base: PathBuf, _style, seek: f64| {
+                subs.lock().unwrap().push((base.clone(), seek));
+                Box::pin(async move {
+                    PreparedSub {
+                        path: PathBuf::from(format!("shifted-{seek}.srt")),
+                        base,
+                        force_style: "Fontsize=11".into(),
+                    }
+                })
+            }),
+            cleanup_subs: Arc::new(|| {}),
+            ffmpeg_present: Arc::new(|| true),
+            locate_ffmpeg: Arc::new(|| None),
+        };
+        let reload = DlnaReload {
+            args: RegisterArgs {
+                url: "https://example.test/movie.mkv".into(),
+                headers: Default::default(),
+                transcode: true,
+                prebuffer_bytes: None,
+                profile: None,
+                target_host: Some("192.0.2.5".into()),
+                start_time_sec: Some(754.0),
+                burn_sub_path: Some("shifted-754.srt".into()),
+                burn_sub_style: Some("Fontsize=11".into()),
+                audio_ordinal: Some(2),
+                dlna: true,
+            },
+            title: Some("Movie".into()),
+            sub_base: Some(PathBuf::from("base.srt")),
+            sub_style: Some(CastSubStyle::default()),
+        };
+
+        let (start, next) = reload_dlna_transcode(&hooks, &control, reload, 1200.0)
+            .await
+            .expect("reload");
+
+        assert_eq!(start, 1200.0);
+        assert_eq!(next.args.start_time_sec, Some(1200.0));
+        let args = registered.lock().unwrap();
+        assert_eq!(args.len(), 1, "one new transcode per seek");
+        assert_eq!(args[0].start_time_sec, Some(1200.0));
+        assert_eq!(
+            args[0].audio_ordinal,
+            Some(2),
+            "the chosen audio track survives a seek"
+        );
+        assert_eq!(args[0].burn_sub_path.as_deref(), Some("shifted-1200.srt"));
+        assert_eq!(
+            resubs.lock().unwrap().as_slice(),
+            [(PathBuf::from("base.srt"), 1200.0)]
+        );
+        let calls = soap.lock().unwrap();
+        let actions: Vec<&str> = calls
+            .iter()
+            .filter_map(|b| {
+                ["SetAVTransportURI", "Play", "Pause", "Seek"]
+                    .into_iter()
+                    .find(|a| b.contains(&format!("u:{a} ")))
+            })
+            .collect();
+        assert_eq!(
+            actions,
+            ["SetAVTransportURI", "Play", "Pause"],
+            "no SOAP Seek, which the TV refuses"
+        );
+        assert!(calls.iter().any(|b| b.contains("/s/s2.ts")));
+        server.abort();
+    }
+
+    #[tokio::test]
     async fn replacing_an_active_cast_stops_its_hls_session() {
         ACTIVE.lock().expect("lock active session").take();
         let stopped = Arc::new(Mutex::new(Vec::new()));
@@ -1559,6 +1758,7 @@ mod cast_validation_tests {
                 control_url: "first".to_string(),
                 hls_session_id: Some("first-hls".to_string()),
                 stream_start_sec: 0.0,
+                reload: None,
             },
             |_| async {},
         )
@@ -1571,6 +1771,7 @@ mod cast_validation_tests {
                 control_url: "second".to_string(),
                 hls_session_id: Some("second-hls".to_string()),
                 stream_start_sec: 0.0,
+                reload: None,
             },
             move |id| async move {
                 assert!(
