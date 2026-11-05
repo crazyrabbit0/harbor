@@ -161,7 +161,9 @@ function discovery() {
 
 const arrows = (tree: N) =>
   all(tree)
-    .filter((n) => n.props["aria-label"] === "common.previous" || n.props["aria-label"] === "common.next")
+    .filter(
+      (n) => n.props["aria-label"] === "common.previous" || n.props["aria-label"] === "common.next",
+    )
     .map((n) => n.props.disabled);
 
 test("the discovery rail arrows disable at each edge and follow scrolling", async () => {
@@ -185,7 +187,10 @@ test("the discovery placeholder mirrors the tile it becomes instead of spinning"
   const parts = all(skeleton).map((n) => n.props.className);
   assert.ok(parts.includes("music-video-skeleton-art"));
   assert.ok(parts.includes("music-video-skeleton-line"));
-  assert.equal(all(first).some((n) => n.type === "LoaderCircle"), false);
+  assert.equal(
+    all(first).some((n) => n.type === "LoaderCircle"),
+    false,
+  );
   assert.match(rule(discoveryCss, ".music-video-skeleton-art"), /aspect-ratio:16\/9/);
   assert.equal(
     all(await d.start()).some((n) => n.props.className === "music-video-skeleton"),

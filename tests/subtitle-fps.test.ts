@@ -442,7 +442,10 @@ function mpvProperties(props: Record<string, unknown>) {
 test("video FPS prefers the estimated rate and only sub-fps is ever written", async () => {
   const both = mpvProperties({ "estimated-vf-fps": 23.976, "container-fps": 25 });
   assert.equal(await both.api.readMpvVideoFps(), 23.976);
-  assert.equal(await mpvProperties({ "estimated-vf-fps": 0, "container-fps": 25 }).api.readMpvVideoFps(), 25);
+  assert.equal(
+    await mpvProperties({ "estimated-vf-fps": 0, "container-fps": 25 }).api.readMpvVideoFps(),
+    25,
+  );
   assert.equal(await mpvProperties({}).api.readMpvVideoFps(), null);
 
   const live = mpvProperties({ "idle-active": "no", "sub-fps": 25 });
@@ -538,7 +541,11 @@ function fpsControl(options: { label?: string; engine?: "html5" | "mpv"; support
 }
 
 test("the FPS control appears only in the main mpv window once native support is confirmed", async () => {
-  for (const options of [{ engine: "html5" as const }, { label: "harbor-hdr-overlay" }, { supported: false }]) {
+  for (const options of [
+    { engine: "html5" as const },
+    { label: "harbor-hdr-overlay" },
+    { supported: false },
+  ]) {
     const c = fpsControl(options);
     c.render();
     await flushPromises();
@@ -555,7 +562,10 @@ test("the FPS control appears only in the main mpv window once native support is
   assert.equal(panel.props.autoSyncActive, true);
   assert.equal(panel.props.onBeforeApply, c.stop, "applying an FPS stops Auto Sync first");
   panel.props.onBack();
-  assert.equal(c.render().find((n) => n.type === "SubtitleFpsPanel"), undefined);
+  assert.equal(
+    c.render().find((n) => n.type === "SubtitleFpsPanel"),
+    undefined,
+  );
   assert.equal(c.focused, 1, "closing returns focus to the trigger");
 });
 
@@ -572,7 +582,11 @@ test("the FPS control follows mpv's file lifecycle", async () => {
   c.emit("file-loaded");
   await flushPromises();
   assert.ok(c.trigger(), "back after the next file loads");
-  assert.equal(c.render().find((n) => n.type === "SubtitleFpsPanel"), undefined, "the panel stays closed");
+  assert.equal(
+    c.render().find((n) => n.type === "SubtitleFpsPanel"),
+    undefined,
+    "the panel stays closed",
+  );
 });
 
 function fpsPanel(state: { subtitle: number | null; video: number | null; supported?: boolean }) {
@@ -654,7 +668,10 @@ test("the panel treats a correction the player reset as none", async () => {
   odd.render();
   await flushPromises();
   assert.equal(odd.dropdown().props.value, "custom");
-  assert.equal(odd.render().find((n) => n.props["aria-label"] === "Custom subtitle FPS")!.props.value, "24.5");
+  assert.equal(
+    odd.render().find((n) => n.props["aria-label"] === "Custom subtitle FPS")!.props.value,
+    "24.5",
+  );
   const preset = fpsPanel({ subtitle: 25, video: 23.976 });
   preset.render();
   await flushPromises();
@@ -757,7 +774,10 @@ test("a secondary subtitle switch waits for the FPS reset and drops a stale requ
   stale.resolve();
   await nextLoad;
   await flushBridge();
-  assert.ok(!secondary().some((c) => c.args.value === 3), "a switch from the old media never lands");
+  assert.ok(
+    !secondary().some((c) => c.args.value === 3),
+    "a switch from the old media never lands",
+  );
 
   h.resetWith(async () => {
     throw new Error("fixture FPS failure");
@@ -830,7 +850,11 @@ test("the main window applies forwarded subtitle switches only for the current m
     },
     { window: { __TAURI_INTERNALS__: {}, setInterval: () => 0, clearInterval() {} } },
   );
-  const src = { url: "https://media.test/a.mkv", meta: { id: "tt1" }, episode: { season: 1, episode: 2 } };
+  const src = {
+    url: "https://media.test/a.mkv",
+    meta: { id: "tt1" },
+    episode: { season: 1, episode: 2 },
+  };
   h.render({
     active: true,
     payload: { snap: {}, src },
@@ -859,25 +883,31 @@ test("the main window applies forwarded subtitle switches only for the current m
   fire(hdrOverlay.HDR_STAGE_SET_SECONDARY_SUBTITLE_TRACK, { id: "3", mediaKey: current });
   fire(hdrOverlay.HDR_STAGE_ADD_SUBTITLE, { requestId: "r2", url: "u", mediaKey: current });
   await flushPromises();
-  assert.deepEqual(calls, [["main", "2"], ["secondary", "3"], ["add", "u"]]);
+  assert.deepEqual(calls, [
+    ["main", "2"],
+    ["secondary", "3"],
+    ["add", "u"],
+  ]);
   assert.deepEqual(results.at(-1), { requestId: "r2", ok: true });
 });
 
 test("the subtitle menu header carries the FPS control next to sync", () => {
-  const header = hookHarness(
-    "src/components/player/subtitle-menu/menu-header.tsx",
-    "MenuHeader",
-    {
-      "lucide-react": { X: "X" },
-      "@/components/ui-icon": { UiIcon: "UiIcon" },
-      "@/lib/i18n": { useT: () => (s: string) => s },
-      "@/components/player/autosync/autosync-store": { useAutoSyncHandle: () => null },
-      "@/components/hover-tooltip": { HoverTooltip: "HoverTooltip" },
-      "./subtitle-fps-control": { SubtitleFpsControl: "SubtitleFpsControl" },
-      "./sync-control": { SyncControl: "SyncControl" },
-      "react/jsx-runtime": jsx,
-    },
-  ).render({ engine: "html5", count: 1, selectedTrack: { id: "1" }, hasSecondary: true, onClose() {} });
+  const header = hookHarness("src/components/player/subtitle-menu/menu-header.tsx", "MenuHeader", {
+    "lucide-react": { X: "X" },
+    "@/components/ui-icon": { UiIcon: "UiIcon" },
+    "@/lib/i18n": { useT: () => (s: string) => s },
+    "@/components/player/autosync/autosync-store": { useAutoSyncHandle: () => null },
+    "@/components/hover-tooltip": { HoverTooltip: "HoverTooltip" },
+    "./subtitle-fps-control": { SubtitleFpsControl: "SubtitleFpsControl" },
+    "./sync-control": { SyncControl: "SyncControl" },
+    "react/jsx-runtime": jsx,
+  }).render({
+    engine: "html5",
+    count: 1,
+    selectedTrack: { id: "1" },
+    hasSecondary: true,
+    onClose() {},
+  });
   const nodes = all(header);
   const control = nodes.find((n) => n.type === "SubtitleFpsControl")!;
   assert.deepEqual(

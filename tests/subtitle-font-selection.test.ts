@@ -56,7 +56,11 @@ function overlayFamily(id: string): string {
   type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
   const element = (type: unknown, props: N["props"]) => ({ type, props });
   const all = (n: unknown): N[] =>
-    Array.isArray(n) ? n.flatMap(all) : n && typeof n === "object" ? [n as N, ...all((n as N).props?.children)] : [];
+    Array.isArray(n)
+      ? n.flatMap(all)
+      : n && typeof n === "object"
+        ? [n as N, ...all((n as N).props?.children)]
+        : [];
   const nodes = all(
     hookHarness(
       "src/components/player/subtitle-overlay.tsx",
@@ -130,7 +134,12 @@ test("a custom font reaches mpv under its real family name", async () => {
 });
 
 function fontPicker(
-  options: { customFonts?: unknown[]; loaded?: string[]; failed?: string[]; saveFails?: boolean } = {},
+  options: {
+    customFonts?: unknown[];
+    loaded?: string[];
+    failed?: string[];
+    saveFails?: boolean;
+  } = {},
 ) {
   const patches: Record<string, unknown>[] = [];
   const saved: string[] = [];
@@ -139,7 +148,11 @@ function fontPicker(
   type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
   const element = (type: unknown, props: N["props"]) => ({ type, props });
   const all = (n: unknown): N[] =>
-    Array.isArray(n) ? n.flatMap(all) : n && typeof n === "object" ? [n as N, ...all((n as N).props?.children)] : [];
+    Array.isArray(n)
+      ? n.flatMap(all)
+      : n && typeof n === "object"
+        ? [n as N, ...all((n as N).props?.children)]
+        : [];
   class FakeFontFace {
     family: string;
     status = "loaded";
@@ -227,13 +240,22 @@ test("uploading a font stores its bytes outside the settings blob and registers 
   const input = p.render().find((n) => n.type === "input" && n.props.type === "file")!;
   const bytes = new ArrayBuffer(8);
   input.props.onChange({
-    target: { files: [{ name: "Fancy.ttf", size: 1000, arrayBuffer: async () => bytes }], value: "x" },
+    target: {
+      files: [{ name: "Fancy.ttf", size: 1000, arrayBuffer: async () => bytes }],
+      value: "x",
+    },
   });
   await flushPromises();
   assert.equal(p.saved.length, 1, "the bytes go to font storage");
-  const patch = p.patches[0] as { customFonts: Array<Record<string, unknown>>; subFontFamily: string };
+  const patch = p.patches[0] as {
+    customFonts: Array<Record<string, unknown>>;
+    subFontFamily: string;
+  };
   assert.deepEqual(Object.keys(patch.customFonts[0]).sort(), ["family", "format", "id", "name"]);
-  assert.deepEqual([patch.customFonts[0].family, patch.customFonts[0].format], ["Parsed Family", "truetype"]);
+  assert.deepEqual(
+    [patch.customFonts[0].family, patch.customFonts[0].format],
+    ["Parsed Family", "truetype"],
+  );
   assert.equal(patch.subFontFamily, `custom:${patch.customFonts[0].id}`);
   assert.equal(p.faces[0].source, bytes, "the face is built from bytes, not a data URL");
   assert.equal(p.added.length, 1);
@@ -243,11 +265,18 @@ test("a font whose bytes could not be stored is not added", async () => {
   const p = fontPicker({ saveFails: true });
   const input = p.render().find((n) => n.type === "input" && n.props.type === "file")!;
   input.props.onChange({
-    target: { files: [{ name: "Fancy.ttf", size: 1000, arrayBuffer: async () => new ArrayBuffer(8) }], value: "" },
+    target: {
+      files: [{ name: "Fancy.ttf", size: 1000, arrayBuffer: async () => new ArrayBuffer(8) }],
+      value: "",
+    },
   });
   await flushPromises();
   assert.deepEqual(p.patches, []);
-  assert.ok(p.render().some((n) => n.type === "p" && /Couldn't save that font/.test(String(n.props.children))));
+  assert.ok(
+    p
+      .render()
+      .some((n) => n.type === "p" && /Couldn't save that font/.test(String(n.props.children))),
+  );
 });
 
 test("a font that failed to load is shown as broken instead of silently falling back", async () => {
@@ -262,7 +291,12 @@ test("a font that failed to load is shown as broken instead of silently falling 
   p.render();
   await flushPromises();
   const button = (label: string) =>
-    p.render().find((n) => n.props["aria-pressed"] !== undefined && JSON.stringify(n.props.children).includes(label))!;
+    p
+      .render()
+      .find(
+        (n) =>
+          n.props["aria-pressed"] !== undefined && JSON.stringify(n.props.children).includes(label),
+      )!;
   assert.match(button("Broken").props.className, /border-danger/);
   assert.ok(button("Broken").props.title);
   assert.doesNotMatch(button("Good").props.className, /border-danger/);
@@ -270,32 +304,39 @@ test("a font that failed to load is shown as broken instead of silently falling 
 
 test("a settings write that does not persist is not swallowed", async () => {
   const errors: unknown[][] = [];
-  const api = loadModule("src/lib/settings/profile-store.ts", {
-    "@/lib/profile-roster": { activeSettingsSource: () => ({ profileId: "p", linked: false }) },
-    "./load": { loadStoredSettings: () => DEFAULT },
-    "@/lib/storage-recovery": { setItemWithRecovery: () => false },
-    "@/lib/secret-store": {
-      getSecret: () => null,
-      getSecretsWriteStatus: () => ({ ok: true }),
-      secretsDurable: () => true,
-      secretsSettled: () => false,
-      setSecret() {},
-      subscribeSecretsDurable: () => () => {},
+  const api = loadModule(
+    "src/lib/settings/profile-store.ts",
+    {
+      "@/lib/profile-roster": { activeSettingsSource: () => ({ profileId: "p", linked: false }) },
+      "./load": { loadStoredSettings: () => DEFAULT },
+      "@/lib/storage-recovery": { setItemWithRecovery: () => false },
+      "@/lib/secret-store": {
+        getSecret: () => null,
+        getSecretsWriteStatus: () => ({ ok: true }),
+        secretsDurable: () => true,
+        secretsSettled: () => false,
+        setSecret() {},
+        subscribeSecretsDurable: () => () => {},
+      },
+      "./secret-fields": {
+        SETTINGS_SECRETS_PREFIX: "s",
+        TRAKT_LEGACY_MIGRATED_KEY: "t",
+        applySecretChanges() {},
+        mergeSecrets: (s: unknown) => s,
+        missingSecrets: () => [],
+        parseSecrets: () => ({}),
+        pickSecrets: () => ({}),
+        serializeSecrets: () => "{}",
+        settingsSecretsKey: () => "k",
+        settingsSecretsKeyForBlob: () => "k",
+        stripSecrets: (s: unknown) => s,
+      },
     },
-    "./secret-fields": {
-      SETTINGS_SECRETS_PREFIX: "s",
-      TRAKT_LEGACY_MIGRATED_KEY: "t",
-      applySecretChanges() {},
-      mergeSecrets: (s: unknown) => s,
-      missingSecrets: () => [],
-      parseSecrets: () => ({}),
-      pickSecrets: () => ({}),
-      serializeSecrets: () => "{}",
-      settingsSecretsKey: () => "k",
-      settingsSecretsKeyForBlob: () => "k",
-      stripSecrets: (s: unknown) => s,
+    {
+      console: { error: (...args: unknown[]) => errors.push(args), warn() {} },
+      localStorage: { getItem: () => null },
     },
-  }, { console: { error: (...args: unknown[]) => errors.push(args), warn() {} }, localStorage: { getItem: () => null } });
+  );
   api.persistEffective(DEFAULT, "p", false);
   assert.equal(errors.length, 1);
 });
@@ -306,7 +347,10 @@ test("a deleted custom font never strands the font picker", () => {
   assert.equal(fontFamilyAfterRemoval("custom:a1", fonts), null);
   assert.equal(fontFamilyAfterRemoval("serif", []), null);
   const provider = read("src/lib/settings.tsx");
-  assert.match(provider, /fontFamilyAfterRemoval\(settings\.subFontFamily, settings\.customFonts \?\? \[\]\)/);
+  assert.match(
+    provider,
+    /fontFamilyAfterRemoval\(settings\.subFontFamily, settings\.customFonts \?\? \[\]\)/,
+  );
   assert.match(provider, /migrateInlineFonts\(legacy, saveFontData,/);
   assert.match(provider, /customFonts: stripMovedFonts\(s\.customFonts \?\? \[\], moved\)/);
 });

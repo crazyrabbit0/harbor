@@ -135,7 +135,11 @@ test("Focused Card, Expanding Cards, and Poster Dock remain independent settings
   const { loadStoredSettings } = await import("../src/lib/settings/load.ts");
   localStorage.setItem(
     "test.poster-cards",
-    JSON.stringify({ posterBackdropExpansion: true, posterFocusedCard: "true", posterDockMagnification: true }),
+    JSON.stringify({
+      posterBackdropExpansion: true,
+      posterFocusedCard: "true",
+      posterDockMagnification: true,
+    }),
   );
   const loaded = loadStoredSettings("test.poster-cards");
   assert.deepEqual(
@@ -155,9 +159,16 @@ test("Focused Card, Expanding Cards, and Poster Dock remain independent settings
   );
 });
 
-type Row = { enabled: boolean; expanded: boolean; expand: (w: number) => void; collapse: () => void };
+type Row = {
+  enabled: boolean;
+  expanded: boolean;
+  expand: (w: number) => void;
+  collapse: () => void;
+};
 
-function expandingCard(options: { enabled?: boolean; focusEnabled?: boolean; modality?: string } = {}) {
+function expandingCard(
+  options: { enabled?: boolean; focusEnabled?: boolean; modality?: string } = {},
+) {
   const prepared: string[] = [];
   const resolvers: Array<(url: string | undefined) => void> = [];
   const visibility: Array<(visible: boolean) => void> = [];
@@ -290,7 +301,10 @@ test("wide artwork decodes the card's own backdrop before asking remote sources"
       "@/lib/providers/kitsu": { parseKitsuId: () => null },
       "@/lib/providers/tmdb": {
         tmdbAnimeMatch: async () => null,
-        tmdbIdFromImdb: async (_k: string, id: string) => (remote.push(`tmdb:${id}`), "tmdb:movie:1"),
+        tmdbIdFromImdb: async (_k: string, id: string) => (
+          remote.push(`tmdb:${id}`),
+          "tmdb:movie:1"
+        ),
         tmdbMovieImages: async () => ["https://image.tmdb.org/t/p/w780/tmdb.jpg"],
       },
       "@/lib/providers/tvdb-proxy": {
@@ -302,7 +316,13 @@ test("wide artwork decodes the card's own backdrop before asking remote sources"
     },
     { Image: FakeImage },
   );
-  const withBackground = { id: "tt1", type: "movie", name: "One", poster: "https://img/p.jpg", background: "https://img/background.jpg" };
+  const withBackground = {
+    id: "tt1",
+    type: "movie",
+    name: "One",
+    poster: "https://img/p.jpg",
+    background: "https://img/background.jpg",
+  };
   assert.equal(
     await artwork.prepareExpandingCardArtwork(withBackground, "key"),
     "https://img/background.jpg",

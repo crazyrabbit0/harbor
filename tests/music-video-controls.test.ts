@@ -164,13 +164,19 @@ test("the lyrics button reports its state and an unavailable track is inert rath
   assert.deepEqual(on.calls, ["lyrics"]);
   assert.equal(controls({ lyricsState: "off" }).lyricsButton.props["aria-pressed"], false);
   const loading = controls({ lyricsState: "loading" });
-  assert.equal(all(loading.lyricsButton).some((n) => n.type === "Loader2"), true);
+  assert.equal(
+    all(loading.lyricsButton).some((n) => n.type === "Loader2"),
+    true,
+  );
   const unavailable = controls({ lyricsState: "unavailable" });
   assert.equal(unavailable.lyricsButton.props["data-state"], "unavailable");
   assert.equal(unavailable.lyricsButton.props["aria-disabled"], true);
   assert.equal(unavailable.lyricsButton.props["aria-pressed"], undefined);
   assert.equal(unavailable.lyricsButton.props.onClick, undefined);
-  assert.equal(all(unavailable.lyricsButton).some((n) => n.type === "CaptionsOff"), true);
+  assert.equal(
+    all(unavailable.lyricsButton).some((n) => n.type === "CaptionsOff"),
+    true,
+  );
   assert.equal(
     controls({ expanded: true }).buttons.length,
     3,

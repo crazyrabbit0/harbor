@@ -15,7 +15,10 @@ export function curatedListsHarness(loadListItems: (id: string) => Promise<reado
     "./catalog": { LIST_SEEDS },
     "./spine": spine,
   });
-  const canon = loadModule("src/lib/curated/canon.ts", { "./registry": registry, "./spine": spine });
+  const canon = loadModule("src/lib/curated/canon.ts", {
+    "./registry": registry,
+    "./spine": spine,
+  });
   const hook = hookHarness("src/lib/curated/use-canon.ts", "probe", {
     "./canon": canon,
     "./items": { loadListItems },

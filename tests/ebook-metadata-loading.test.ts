@@ -70,7 +70,12 @@ function metadataApi(answer: Answer, stored: Record<string, string> = {}) {
         setItemWithRecovery: (key: string, value: string) => (store.set(key, value), true),
       },
     },
-    { localStorage, setTimeout: (fn: () => void) => timers.push(fn), clearTimeout() {}, window: {} },
+    {
+      localStorage,
+      setTimeout: (fn: () => void) => timers.push(fn),
+      clearTimeout() {},
+      window: {},
+    },
   );
   const count = (host: string) => fetched.filter((url) => new URL(url).hostname === host).length;
   const runTimers = () => timers.splice(0).forEach((fn) => fn());
@@ -139,8 +144,8 @@ test("eBook metadata publishes provider results before every provider has settle
   const emma = book("Emma", ["Jane Austen"]);
 
   const staleAt = Date.now() - 8 * 24 * 60 * 60 * 1000;
-  const seeded = metadataApi(
-    (url) => (url.hostname === "www.googleapis.com" ? googleBook("Dune", "Frank Herbert") : {}),
+  const seeded = metadataApi((url) =>
+    url.hostname === "www.googleapis.com" ? googleBook("Dune", "Frank Herbert") : {},
   );
   await seeded.api.fetchEBookMetadata([dune]).catch(() => []);
   seeded.runTimers();
@@ -278,10 +283,15 @@ test("source browse enrichment does not block on a detail request per card", asy
       }),
   });
   const enrichedEarly: string[] = [];
-  const page = await providers.loadSourceEBookPage(undefined, "plugin:p", {}, {
-    onMetadata: (items: EBook[]) =>
-      enrichedEarly.push(...items.filter((item) => item.description).map((item) => item.title)),
-  });
+  const page = await providers.loadSourceEBookPage(
+    undefined,
+    "plugin:p",
+    {},
+    {
+      onMetadata: (items: EBook[]) =>
+        enrichedEarly.push(...items.filter((item) => item.description).map((item) => item.title)),
+    },
+  );
   await flushPromises();
   assert.deepEqual(
     pending.map((batch) => batch.titles.length),

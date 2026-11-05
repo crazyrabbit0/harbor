@@ -175,7 +175,10 @@ test("the wheel exposes every requested eBook action", () => {
     "Bookmark",
     "Mark as Read",
   ]);
-  assert.equal(menuLabels(wheelHarness(wheelBook, { resume: { chapterId: "c1" } }))[0], "Continue Reading");
+  assert.equal(
+    menuLabels(wheelHarness(wheelBook, { resume: { chapterId: "c1" } }))[0],
+    "Continue Reading",
+  );
 
   clickMenu(fresh, "Book Details");
   const details = text(fresh.render());
@@ -201,7 +204,10 @@ test("book details resolve source metadata and chapter statistics without a load
   );
   clickMenu(wheel, "Book Details");
   wheel.render();
-  assert.ok(all(wheel.render()).some((node) => node.type === "Loader2"), "stats show a spinner");
+  assert.ok(
+    all(wheel.render()).some((node) => node.type === "Loader2"),
+    "stats show a spinner",
+  );
   for (let pass = 0; pass < 3; pass++) {
     await flushPromises();
     wheel.render();

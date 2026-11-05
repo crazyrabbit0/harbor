@@ -108,7 +108,9 @@ test("user seeks use fast keyframes and step seeks stay exact", async () => {
   await h.bridge.load({ url: "a.mkv" });
   h.bridge.seek(40, "keyframes");
   h.bridge.seek(50);
-  const seeks = h.commands.filter((c) => c.command === "mpv_command" && (c.args.cmd as unknown[])[0] === "seek");
+  const seeks = h.commands.filter(
+    (c) => c.command === "mpv_command" && (c.args.cmd as unknown[])[0] === "seek",
+  );
   assert.deepEqual(
     seeks.map((c) => c.args.cmd),
     [
@@ -160,12 +162,21 @@ test("startup subtitle downloads never block the initial media load", async () =
         releaseSub = () => resolve({ playableUrl: url, format: "srt", cues: [], cleanup() {} });
       }),
   );
-  await h.bridge.load({ url: "a.mkv", subtitles: [{ url: "https://subs.test/x.srt", lang: "en" }] });
-  assert.ok(h.commands.some((c) => c.command === "mpv_start"), "the load returned before the subtitle");
+  await h.bridge.load({
+    url: "a.mkv",
+    subtitles: [{ url: "https://subs.test/x.srt", lang: "en" }],
+  });
+  assert.ok(
+    h.commands.some((c) => c.command === "mpv_start"),
+    "the load returned before the subtitle",
+  );
   assert.ok(!h.commands.some((c) => c.command === "mpv_sub_add"));
   releaseSub();
   await flushBridge();
-  assert.ok(h.commands.some((c) => c.command === "mpv_sub_add"), "the subtitle follows the load");
+  assert.ok(
+    h.commands.some((c) => c.command === "mpv_sub_add"),
+    "the subtitle follows the load",
+  );
 
   let reloaded = false;
   void h.bridge

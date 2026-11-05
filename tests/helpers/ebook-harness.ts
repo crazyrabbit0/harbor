@@ -246,7 +246,8 @@ export function wheelHarness(ebook: Record<string, any>, options: WheelOptions =
       "@/lib/ebook/providers": {
         sourceEBookDetail: async (route: string) => (calls.detail.push(route), options.detail),
         sourceEBookChapters: async (route: string) => (
-          calls.chapters.push(route), options.chapters ?? []
+          calls.chapters.push(route),
+          options.chapters ?? []
         ),
       },
       "@/lib/ebook/reader-state": { loadEBookResume: () => options.resume ?? null },
@@ -255,7 +256,9 @@ export function wheelHarness(ebook: Record<string, any>, options: WheelOptions =
         getEBookTracking: () => ({ status: "PLANNING", progress: 0 }),
         saveEBookTracking: async () => {},
       },
-      "@/lib/view": { useViewActions: () => ({ setView: (view: string) => calls.views.push(view) }) },
+      "@/lib/view": {
+        useViewActions: () => ({ setView: (view: string) => calls.views.push(view) }),
+      },
       "react/jsx-runtime": jsx,
     },
     {

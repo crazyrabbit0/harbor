@@ -19,7 +19,10 @@ const quality = (ncc: number) =>
   });
 
 const anchors = (n: number, offset: number, jitter = 0) =>
-  Array.from({ length: n }, (_, i) => [i * 30, i * 30 + offset + (i % 2 ? jitter : -jitter)] as [number, number]);
+  Array.from(
+    { length: n },
+    (_, i) => [i * 30, i * 30 + offset + (i % 2 ? jitter : -jitter)] as [number, number],
+  );
 
 const ctx: PipelineContext = {
   mediaUrl: "file:///movie.mkv",
@@ -35,13 +38,23 @@ const ctx: PipelineContext = {
 
 test("consensus anchors produce a fast transform only when there are enough and they agree", () => {
   const right = (textAnchors: unknown) =>
-    consensusAnchorFit({ verdict: "right", bestCandidate: null, agreement: 1, textAnchors } as never);
+    consensusAnchorFit({
+      verdict: "right",
+      bestCandidate: null,
+      agreement: 1,
+      textAnchors,
+    } as never);
   const fit = right(anchors(8, 2.5));
   assert.ok(fit && Math.abs(fit.offsetSec - 2.5) < 1e-6 && Math.abs(fit.ratio - 1) < 1e-6);
   assert.equal(right(anchors(7, 2.5)), null, "seven anchors are not enough");
   assert.equal(right(anchors(12, 2.5, 0.8)), null, "a noisy fit is not trusted");
   assert.equal(
-    consensusAnchorFit({ verdict: "wrong", bestCandidate: null, agreement: 1, textAnchors: anchors(9, 1) } as never),
+    consensusAnchorFit({
+      verdict: "wrong",
+      bestCandidate: null,
+      agreement: 1,
+      textAnchors: anchors(9, 1),
+    } as never),
     null,
   );
 });
@@ -68,8 +81,7 @@ test("the pipeline starts consensus and the quality probe before the hash tier",
 test("the fast consensus tier runs before audio VAD and stays an offer when audio cannot confirm", async () => {
   const order: string[] = [];
   const outcome = await runAutoSync(ctx, {
-    measureQuality: async (_c, t) =>
-      quality(t.kind === "affine" && t.offsetSec === 0 ? 0.4 : 0.7),
+    measureQuality: async (_c, t) => quality(t.kind === "affine" && t.offsetSec === 0 ? 0.4 : 0.7),
     consensus: async () => {
       order.push("consensus");
       return { verdict: "right", bestCandidate: null, agreement: 1, textAnchors: anchors(10, 3) };
@@ -87,7 +99,11 @@ test("the fast consensus tier runs before audio VAD and stays an offer when audi
 
 function consensus(userLines: string[], refs: Array<[string, string[]]>) {
   const cue = (i: number) => [i * 4, i * 4 + 2] as [number, number];
-  const results = refs.map(([source], i) => ({ url: `https://subs.test/${i}`, lang: "en", source }));
+  const results = refs.map(([source], i) => ({
+    url: `https://subs.test/${i}`,
+    lang: "en",
+    source,
+  }));
   const api = loadModule("src/lib/subtitles/autosync/consensus.ts", {
     "@/lib/debug": { dinfo() {}, dwarn() {} },
     "@/lib/subtitles/search": { searchSubtitles: async () => results },
@@ -113,12 +129,27 @@ function consensus(userLines: string[], refs: Array<[string, string[]]>) {
   );
 }
 
-const words = ["amber", "brook", "cinder", "delta", "ember", "fjord", "grove", "harbor", "iris", "jade"];
+const words = [
+  "amber",
+  "brook",
+  "cinder",
+  "delta",
+  "ember",
+  "fjord",
+  "grove",
+  "harbor",
+  "iris",
+  "jade",
+];
 const lines = (prefix: string) =>
-  Array.from({ length: 30 }, (_, i) => `${prefix} line number ${i} says something quite unique ${i * 7}`);
+  Array.from(
+    { length: 30 },
+    (_, i) => `${prefix} line number ${i} says something quite unique ${i * 7}`,
+  );
 const otherFilm = Array.from(
   { length: 30 },
-  (_, i) => `${words[i % 10]} ${words[(i * 3) % 10]} wanders ${i * 11} quietly ${words[(i * 7) % 10]}`,
+  (_, i) =>
+    `${words[i % 10]} ${words[(i * 3) % 10]} wanders ${i * 11} quietly ${words[(i * 7) % 10]}`,
 );
 
 test("single-source subtitles can still vote on the offset", async () => {
@@ -206,7 +237,9 @@ test("every audio and network port is timeout-bounded", async () => {
   const ports = api.buildTierPorts(ctx, settings, {
     osConfig: { apiKey: "k", userAgent: "ua" },
   });
-  const measured = await settled(ports.measureQuality(ctx, { kind: "affine", offsetSec: 0, ratio: 1 }));
+  const measured = await settled(
+    ports.measureQuality(ctx, { kind: "affine", offsetSec: 0, ratio: 1 }),
+  );
   assert.equal((measured as { status: string }).status, "unknown");
   assert.equal(await settled(ports.vadAffine(ctx, {})), null);
   assert.equal(await settled(ports.hashExact(ctx)), null);
@@ -241,7 +274,11 @@ test("auto-sync is a real toggle: stop reverts, and the menu turns it off", asyn
   type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
   const element = (type: unknown, props: N["props"]) => ({ type, props });
   const all = (n: unknown): N[] =>
-    Array.isArray(n) ? n.flatMap(all) : n && typeof n === "object" ? [n as N, ...all((n as N).props?.children)] : [];
+    Array.isArray(n)
+      ? n.flatMap(all)
+      : n && typeof n === "object"
+        ? [n as N, ...all((n as N).props?.children)]
+        : [];
   const calls: string[] = [];
   const menu = hookHarness(
     "src/components/player/subtitle-menu/sync-control.tsx",
@@ -256,13 +293,21 @@ test("auto-sync is a real toggle: stop reverts, and the menu turns it off", asyn
           run: () => calls.push("run"),
         }),
       },
-      "@/lib/i18n": { useT: () => (s: string, v?: Record<string, string>) => s.replace("{label}", v?.label ?? "") },
+      "@/lib/i18n": {
+        useT: () => (s: string, v?: Record<string, string>) => s.replace("{label}", v?.label ?? ""),
+      },
       "@/lib/player/sub-sync": { openSyncBar() {} },
       "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: "Fragment" },
     },
     { window: { addEventListener() {}, removeEventListener() {} } },
   );
-  const props = { canAutoSync: true, canLiveSync: true, delaySec: 0, delayNonZero: false, onClose: () => calls.push("close") };
+  const props = {
+    canAutoSync: true,
+    canLiveSync: true,
+    delaySec: 0,
+    delayNonZero: false,
+    onClose: () => calls.push("close"),
+  };
   const trigger = all(menu.render(props)).find((n) => n.props["aria-expanded"] === false)!;
   assert.equal(trigger.props["aria-label"], "Synced: on, sync options", "best effort shows as on");
   trigger.props.onClick();

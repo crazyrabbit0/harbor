@@ -30,23 +30,21 @@ test("plugins stay out of the surfaces outside their own page until they are all
 test("the switch is offered with the NEW badge", () => {
   const updates: unknown[] = [];
   const settings = { ...DEFAULT, pluginsOutsideTab: true };
-  const h = hookHarness(
-    "src/views/settings/plugins-panel/installed-tab.tsx",
-    "InstalledTab",
-    {
-      "../icons": names,
-      "@/lib/i18n": i18n,
-      "@/lib/plugins": { pluginKinds: () => [], usePluginKindsVersion: () => 0 },
-      "@/lib/read-at-version": { readAtVersion: (_v: unknown, fn: () => unknown) => fn() },
-      "@/lib/settings": { useSettings: () => ({ settings, update: (p: unknown) => updates.push(p) }) },
-      "../kit": names,
-      "../shared": names,
-      "../ui": names,
-      "./copy": { kindLabel: () => "" },
-      "./plugin-row": names,
-      "react/jsx-runtime": jsx,
+  const h = hookHarness("src/views/settings/plugins-panel/installed-tab.tsx", "InstalledTab", {
+    "../icons": names,
+    "@/lib/i18n": i18n,
+    "@/lib/plugins": { pluginKinds: () => [], usePluginKindsVersion: () => 0 },
+    "@/lib/read-at-version": { readAtVersion: (_v: unknown, fn: () => unknown) => fn() },
+    "@/lib/settings": {
+      useSettings: () => ({ settings, update: (p: unknown) => updates.push(p) }),
     },
-  );
+    "../kit": names,
+    "../shared": names,
+    "../ui": names,
+    "./copy": { kindLabel: () => "" },
+    "./plugin-row": names,
+    "react/jsx-runtime": jsx,
+  });
   const rows = all(h.render({ onAddRepository() {} })).filter(
     (n) => n.type === "ToggleRow" && n.props.newId === "plugins:outside-tab",
   );
@@ -220,7 +218,10 @@ test("the Plugins page is the only surface that always asks for plugin rows", ()
   }
   // Mobile search is over 1000 lines of view code, so its one call is checked as text.
   const mobile = readFileSync("src/views/mobile/mobile-search.tsx", "utf8");
-  assert.match(mobile, /listBrowseCatalogs\(authKey, \{\s+pluginRows: settings\.pluginsOutsideTab,/);
+  assert.match(
+    mobile,
+    /listBrowseCatalogs\(authKey, \{\s+pluginRows: settings\.pluginsOutsideTab,/,
+  );
 });
 
 test("every caller of the catalog list is one of the surfaces checked above", () => {
@@ -274,7 +275,10 @@ const addonSources = {
     filterEnabled: (list: unknown[]) => list,
   },
   "@/lib/addons": { userAddons: async () => [], withDebridKeys: (list: unknown[]) => [...list] },
-  "@/lib/addons-store/reorder": { applyOrderToItems: (l: unknown[]) => l, loadDisplayOrder: () => [] },
+  "@/lib/addons-store/reorder": {
+    applyOrderToItems: (l: unknown[]) => l,
+    loadDisplayOrder: () => [],
+  },
 };
 
 async function picker(settings: Record<string, unknown>) {
@@ -360,13 +364,27 @@ test("a plugin row pinned to Home goes with the others", async () => {
   });
   const pluginBase = extensionCatalogueBase("ext", "prov");
   const pinned = [
-    { id: "a", name: "Addon", source: "catalog", params: { base: "https://a", type: "movie", id: "x" } },
-    { id: "p", name: "Plugin", source: "catalog", params: { base: pluginBase, type: "movie", id: "y" } },
+    {
+      id: "a",
+      name: "Addon",
+      source: "catalog",
+      params: { base: "https://a", type: "movie", id: "x" },
+    },
+    {
+      id: "p",
+      name: "Plugin",
+      source: "catalog",
+      params: { base: pluginBase, type: "movie", id: "y" },
+    },
   ];
   const keys = async (pluginRows: boolean) =>
     (await buildPinnedCatalogRows(pinned, { pluginRows })).map((r: { key: string }) => r.key);
 
-  assert.deepEqual(await keys(false), ["pinned:a"], "a pinned plugin row is still a plugin being asked");
+  assert.deepEqual(
+    await keys(false),
+    ["pinned:a"],
+    "a pinned plugin row is still a plugin being asked",
+  );
   assert.deepEqual(fetched, ["https://a"]);
   assert.deepEqual(await keys(true), ["pinned:a", "pinned:p"]);
 });

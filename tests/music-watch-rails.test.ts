@@ -330,8 +330,10 @@ test("the loading skeletons still belong to the related rail alone", async () =>
   );
   const more = byClass(w.busy, "music-watch-more relative z-10")[0];
   assert.equal(
-    byClass(more, "music-watch-video-next music-watch-next-skeleton music-watch-next-skeleton-stacked")
-      .length,
+    byClass(
+      more,
+      "music-watch-video-next music-watch-next-skeleton music-watch-next-skeleton-stacked",
+    ).length,
     6,
   );
   assert.equal(

@@ -65,43 +65,39 @@ test("the subtitle menu enters live sync from the overlay window", async () => {
   const listeners = new Map<string, () => void>();
   const calls: string[] = [];
   const noop = () => {};
-  const menu = hookHarness(
-    "src/components/player/subtitle-menu.tsx",
-    "SubtitleMenu",
-    {
-      "lucide-react": { Subtitles: "SubsIcon" },
-      "@tauri-apps/api/event": {
-        listen: async (name: string, fn: () => void) => {
-          listeners.set(name, fn);
-          return noop;
-        },
+  const menu = hookHarness("src/components/player/subtitle-menu.tsx", "SubtitleMenu", {
+    "lucide-react": { Subtitles: "SubsIcon" },
+    "@tauri-apps/api/event": {
+      listen: async (name: string, fn: () => void) => {
+        listeners.set(name, fn);
+        return noop;
       },
-      "@/lib/modal-overlay": {
-        modalOverlayClose: async () => calls.push("close-overlay"),
-        modalOverlayEmitResult: noop,
-        modalOverlayEmitState: noop,
-        modalOverlayOpen: noop,
-      },
-      "@/lib/player/sub-presets": { openStyleBar: noop },
-      "@/lib/player/secondary-sub": { setSecondarySub: noop },
-      "@/lib/i18n": { useT: () => t },
-      "@/lib/settings": {
-        useSettingsSelector: (select: (s: unknown) => unknown) =>
-          select({ preferredLanguages: [], preferredSubLangs: [] }),
-      },
-      "@/lib/subtitles/limit-signal": { wasLimitReached: () => false },
-      "@/lib/subtitles/pending-subs": { wasPendingSub: () => false },
-      "@/lib/subtitles/provider-auth": { bindSubtitleDownloadAuth: async () => undefined },
-      "./subtitle-menu/menu-body": { MenuBody: "MenuBody" },
-      "./subtitle-menu/resizable-panel": { ResizableSubtitlePanel: "Panel" },
-      "./subtitle-menu/subtitle-context-store": { useSubtitleContext: () => null },
-      "./subtitle-menu/utils": { buildOverlayState: () => ({}) },
-      "./transport/tooltip": { Tooltip: "Tooltip" },
-      "./transport/hotkey-label": { withHotkey: (s: string) => s },
-      "@/lib/player/overlay-dismiss": { watchOutsideMouseDown: () => noop },
-      "react/jsx-runtime": jsx,
     },
-  );
+    "@/lib/modal-overlay": {
+      modalOverlayClose: async () => calls.push("close-overlay"),
+      modalOverlayEmitResult: noop,
+      modalOverlayEmitState: noop,
+      modalOverlayOpen: noop,
+    },
+    "@/lib/player/sub-presets": { openStyleBar: noop },
+    "@/lib/player/secondary-sub": { setSecondarySub: noop },
+    "@/lib/i18n": { useT: () => t },
+    "@/lib/settings": {
+      useSettingsSelector: (select: (s: unknown) => unknown) =>
+        select({ preferredLanguages: [], preferredSubLangs: [] }),
+    },
+    "@/lib/subtitles/limit-signal": { wasLimitReached: () => false },
+    "@/lib/subtitles/pending-subs": { wasPendingSub: () => false },
+    "@/lib/subtitles/provider-auth": { bindSubtitleDownloadAuth: async () => undefined },
+    "./subtitle-menu/menu-body": { MenuBody: "MenuBody" },
+    "./subtitle-menu/resizable-panel": { ResizableSubtitlePanel: "Panel" },
+    "./subtitle-menu/subtitle-context-store": { useSubtitleContext: () => null },
+    "./subtitle-menu/utils": { buildOverlayState: () => ({}) },
+    "./transport/tooltip": { Tooltip: "Tooltip" },
+    "./transport/hotkey-label": { withHotkey: (s: string) => s },
+    "@/lib/player/overlay-dismiss": { watchOutsideMouseDown: () => noop },
+    "react/jsx-runtime": jsx,
+  });
   menu.render({ useOverlayPopup: true, tracks: [], onEnterSync: () => calls.push("enter-sync") });
   await flushPromises();
   listeners.get("modal://subtitle/live-sync")!();
@@ -136,13 +132,20 @@ function list(props: Record<string, unknown>) {
     onRangeStart: (i: number) => calls.push(["start", i]),
     onRangeEnd: (i: number) => calls.push(["end", i]),
   };
-  const render = (over: Record<string, unknown> = {}) => all(h.render({ ...base, ...props, ...over }));
-  const row = (nodes: N[], i: number) => nodes.filter((n) => n.props["aria-pressed"] !== undefined)[i];
+  const render = (over: Record<string, unknown> = {}) =>
+    all(h.render({ ...base, ...props, ...over }));
+  const row = (nodes: N[], i: number) =>
+    nodes.filter((n) => n.props["aria-pressed"] !== undefined)[i];
   return { render, row, calls };
 }
 
 test("a tapped line offers Align to now, and the anchors read as Aligned and Drift fixed", () => {
-  const l = list({ points: [{ t: 0, at: 1 }, { t: 20, at: 22 }] });
+  const l = list({
+    points: [
+      { t: 0, at: 1 },
+      { t: 20, at: 22 },
+    ],
+  });
   const nodes = l.render();
   assert.deepEqual(
     nodes.filter((n) => n.type === "span" && /^(Aligned|Drift fixed)$/.test(text(n))).map(text),
@@ -186,7 +189,11 @@ test("live sync keeps the section steps in order", async () => {
   h.render().setRangeStart(1);
   h.render().setRangeEnd(2);
   h.render().setRangeStart(3);
-  assert.deepEqual([h.render().rangeStart, h.render().rangeEnd], [3, null], "a new start clears the end");
+  assert.deepEqual(
+    [h.render().rangeStart, h.render().rangeEnd],
+    [3, null],
+    "a new start clears the end",
+  );
 });
 
 test("saving live sync keeps the corrected track selected with its source metadata", async () => {
@@ -199,15 +206,26 @@ test("saving live sync keeps the corrected track selected with its source metada
   assert.equal(add.lang, "ar", "the source track's language");
   assert.match(add.path, /^saved\/harbor-subs\/saved\//, "saved under app data, not temp");
   assert.deepEqual(
-    (({ provider, providerDerived, matchConfidence, subId }) => ({ provider, providerDerived, matchConfidence, subId }))(
-      add.metadata as Record<string, unknown>,
-    ),
-    { provider: "Harbor Live Sync", providerDerived: false, matchConfidence: "exact", subId: "synced:fixture" },
+    (({ provider, providerDerived, matchConfidence, subId }) => ({
+      provider,
+      providerDerived,
+      matchConfidence,
+      subId,
+    }))(add.metadata as Record<string, unknown>),
+    {
+      provider: "Harbor Live Sync",
+      providerDerived: false,
+      matchConfidence: "exact",
+      subId: "synced:fixture",
+    },
   );
   assert.equal(h.delay(), 0, "the preview delay is baked in and cleared");
   assert.deepEqual(h.prefs.at(-1), ["fixture", { subDelaySec: 0 }]);
   const saved = h.saved.at(-1) as Record<string, unknown>;
-  assert.deepEqual([saved.url, saved.imported, saved.provider], [add.path, true, "Harbor Live Sync"]);
+  assert.deepEqual(
+    [saved.url, saved.imported, saved.provider],
+    [add.path, true, "Harbor Live Sync"],
+  );
 
   const unnamed = textSyncHarness({ subId: null });
   await unnamed.render().enter("fixture.mkv");
@@ -276,7 +294,9 @@ test("subtitle rows open their details from a keyboard-reachable button", () => 
     "lucide-react": { Check: "Check", Info: "Info", Languages: "Languages" },
     "@/components/hover-tooltip": { HoverTooltip: "HoverTooltip" },
     "@/lib/context-menu": {
-      useContextMenu: () => ({ openAt: (at: unknown, target: unknown) => opened.push([at, target]) }),
+      useContextMenu: () => ({
+        openAt: (at: unknown, target: unknown) => opened.push([at, target]),
+      }),
     },
     "@/lib/player/sub-format": { isImageSubTrack: () => false },
     "@/lib/subtitles/release-label": { subtitleReleaseLabel: () => "" },
@@ -293,11 +313,21 @@ test("subtitle rows open their details from a keyboard-reachable button", () => 
     "react/jsx-runtime": jsx,
   });
   const nodes = all(
-    row.render({ track: { id: "1", lang: "en" }, rank: 1, compatibilityPercent: 80, selected: false, onPick() {} }),
+    row.render({
+      track: { id: "1", lang: "en" },
+      rank: 1,
+      compatibilityPercent: 80,
+      selected: false,
+      onPick() {},
+    }),
   );
   assert.equal(nodes.filter((n) => n.props.onContextMenu).length, 0, "no right-click only path");
-  const details = nodes.find((n) => n.type === "button" && /Match estimate/.test(n.props["aria-label"] ?? ""))!;
-  details.props.onClick({ currentTarget: { getBoundingClientRect: () => ({ right: 40, bottom: 20 }) } });
+  const details = nodes.find(
+    (n) => n.type === "button" && /Match estimate/.test(n.props["aria-label"] ?? ""),
+  )!;
+  details.props.onClick({
+    currentTarget: { getBoundingClientRect: () => ({ right: 40, bottom: 20 }) },
+  });
   const [at, target] = opened[0] as [unknown, { kind: string }];
   assert.deepEqual(at, { x: 40, y: 20 });
   assert.equal(target.kind, "subtitle");
