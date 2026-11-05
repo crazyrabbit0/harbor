@@ -224,6 +224,13 @@ export function useCastPick(params: {
       const burnSub = burnSubsOnTv ? buildCastSub(snap.subtitleTracks) : null;
       const forceTranscode = resolved.kind === "transcode" || isLiveIptv || burnSub != null;
       const profile = forceTranscode ? UNIVERSAL_SAFE_PROFILE : undefined;
+      // An ordinal counts embedded tracks only, and only fits the source the player is showing.
+      const embeddedAudio = snap.audioTracks.filter((track) => !track.external);
+      const selectedAudio = embeddedAudio.find((track) => track.selected);
+      const audioTrackOrdinal =
+        selectedAudio && resolved.url === src.url
+          ? embeddedAudio.indexOf(selectedAudio)
+          : undefined;
       setCastTranscoding(forceTranscode);
       await pickCastDevice(
         device,
@@ -240,6 +247,7 @@ export function useCastPick(params: {
           profile,
           subtitle: burnSub,
           subStyle: burnSub ? buildCastSubStyle(settings) : null,
+          audioTrackOrdinal,
         },
         () => bridgeRef.current?.pause(),
       );

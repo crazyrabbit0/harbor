@@ -37,7 +37,7 @@ jobs:
           - name: macOS
             runner: macos-latest
           - name: Linux
-            runner: ubuntu-22.04
+            runner: ubuntu-24.04
 
     steps:
       - name: Checkout

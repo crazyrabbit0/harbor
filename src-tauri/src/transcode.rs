@@ -223,7 +223,8 @@ fn probe_ffprobe() -> Option<std::path::PathBuf> {
 #[derive(Default, Debug, Clone)]
 pub struct ProbedCodecs {
     pub video: Option<String>,
-    pub audio: Option<String>,
+    /// Codec of each audio stream in file order, so `0:a:N` can be judged on its own.
+    pub audio: Vec<String>,
 }
 
 pub async fn probe_codecs(url: &str, headers: &HashMap<String, String>) -> ProbedCodecs {
@@ -291,7 +292,7 @@ pub async fn probe_codecs(url: &str, headers: &HashMap<String, String>) -> Probe
             if let (Some(t), Some(c)) = (&cur_type, &cur_codec) {
                 match t.as_str() {
                     "video" if result.video.is_none() => result.video = Some(c.clone()),
-                    "audio" if result.audio.is_none() => result.audio = Some(c.clone()),
+                    "audio" => result.audio.push(c.clone()),
                     _ => {}
                 }
                 cur_type = None;
@@ -340,6 +341,11 @@ pub fn ts_content_type(dlna: bool) -> &'static str {
     }
 }
 
+/// The player's chosen audio stream, or every audio stream when none was chosen.
+pub fn audio_map(audio_ordinal: Option<u32>) -> String {
+    audio_ordinal.map_or_else(|| "0:a?".to_string(), |n| format!("0:a:{n}?"))
+}
+
 /// ffmpeg arguments that start the input at `start_sec`; empty for the beginning.
 fn input_seek_args(start_sec: f64) -> Vec<String> {
     if start_sec > 0.5 {
@@ -354,6 +360,7 @@ pub async fn handle_transcode(
     headers: &HashMap<String, String>,
     profile: &TranscodeProfile,
     burn_sub: Option<&(String, String)>,
+    audio_ordinal: Option<u32>,
     start_sec: f64,
     content_type: &'static str,
 ) -> Response {
@@ -375,7 +382,7 @@ pub async fn handle_transcode(
     );
 
     let video_is_h264 = probed.video.as_deref() == Some("h264");
-    let audio_is_aac = probed.audio.as_deref() == Some("aac");
+    let audio_is_aac = probed.audio.get(audio_ordinal.unwrap_or(0) as usize).map(String::as_str) == Some("aac");
     let reencode_video = profile.force_h264 || !video_is_h264 || burn_sub.is_some();
     let reencode_audio = profile.force_aac || !audio_is_aac;
     eprintln!(
@@ -434,7 +441,7 @@ pub async fn handle_transcode(
         .arg("-map")
         .arg("0:v?")
         .arg("-map")
-        .arg("0:a?");
+        .arg(audio_map(audio_ordinal));
 
     if reencode_video {
         let mut vf = scale_filter(profile.max_height);
@@ -554,6 +561,11 @@ pub async fn handle_transcode(
     transcode_response(Body::from_stream(reader), content_type)
 }
 
+/// A HEAD answer for a transcode: no data and no length, like the live GET, since `Content-Length: 0` reads as an empty file.
+pub fn unknown_length_body() -> Body {
+    Body::from_stream(futures_util::stream::empty::<Result<axum::body::Bytes, std::io::Error>>())
+}
+
 /// Headers a transcoded MPEG-TS stream is served with; a HEAD probe gets them without starting ffmpeg.
 pub fn transcode_response(body: Body, content_type: &'static str) -> Response {
     let mut hmap = HeaderMap::new();
@@ -598,6 +610,20 @@ mod tests {
         let response = transcode_response(Body::empty(), ts_content_type(true));
         assert_eq!(response.headers()["content-type"], "video/mpeg");
         assert_eq!(response.headers()["transferMode.dlna.org"], "Streaming");
+    }
+
+    #[test]
+    fn a_head_answer_declares_no_length() {
+        use axum::body::HttpBody;
+        assert_eq!(unknown_length_body().size_hint().exact(), None);
+        let response = transcode_response(unknown_length_body(), ts_content_type(true));
+        assert!(response.headers().get("content-length").is_none());
+    }
+
+    #[test]
+    fn the_chosen_audio_track_is_the_only_one_mapped() {
+        assert_eq!(audio_map(Some(2)), "0:a:2?");
+        assert_eq!(audio_map(None), "0:a?");
     }
 
     #[test]

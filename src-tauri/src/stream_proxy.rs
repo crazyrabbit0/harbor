@@ -34,6 +34,8 @@ struct Session {
     transcode: bool,
     profile: TranscodeProfile,
     burn_sub: Option<(String, String)>,
+    /// The embedded audio stream a transcode keeps; every stream when absent.
+    audio_ordinal: Option<u32>,
     prebuffer: Option<watch::Receiver<PrebufferState>>,
     /// Where a transcode starts, so a renderer that cannot seek a live stream still resumes.
     start_sec: f64,
@@ -206,6 +208,7 @@ impl ProxyState {
                     transcode: false,
                     profile: args.profile.unwrap_or_default(),
                     burn_sub: None,
+                    audio_ordinal: None,
                     prebuffer: None,
                     start_sec: 0.0,
                     dlna: false,
@@ -241,6 +244,7 @@ impl ProxyState {
             transcode: args.transcode,
             profile: args.profile.unwrap_or_default(),
             burn_sub: None,
+            audio_ordinal: None,
             prebuffer,
             start_sec: 0.0,
             dlna: false,
@@ -276,6 +280,7 @@ impl ProxyState {
                     args.headers.clone(),
                     seek,
                     burn_sub.clone(),
+                    args.audio_ordinal,
                 )
                 .await
             {
@@ -308,6 +313,7 @@ impl ProxyState {
                 transcode: false,
                 profile: args.profile.unwrap_or_default(),
                 burn_sub: None,
+                audio_ordinal: None,
                 prebuffer: None,
                 start_sec: 0.0,
                 dlna: args.dlna,
@@ -328,6 +334,7 @@ impl ProxyState {
             transcode: args.transcode,
             profile: args.profile.unwrap_or_default(),
             burn_sub,
+            audio_ordinal: args.audio_ordinal,
             prebuffer: None,
             start_sec: if args.transcode { seek } else { 0.0 },
             dlna: args.dlna,
@@ -904,13 +911,14 @@ async fn handle_stream(
         let ts_type = crate::transcode::ts_content_type(session.dlna);
         // DLNA renderers send HEAD before GET; answering it must not spawn a second transcode.
         if method == axum::http::Method::HEAD {
-            return crate::transcode::transcode_response(Body::empty(), ts_type);
+            return crate::transcode::transcode_response(crate::transcode::unknown_length_body(), ts_type);
         }
         return handle_transcode(
             &session.url,
             &session.headers,
             &session.profile,
             session.burn_sub.as_ref(),
+            session.audio_ordinal,
             session.start_sec,
             ts_type,
         )
@@ -1243,6 +1251,7 @@ mod tests {
             start_time_sec: Some(754.0),
             burn_sub_path: Some("C:/subs.ass".into()),
             burn_sub_style: None,
+            audio_ordinal: Some(1),
             dlna,
         };
         assert!(casts_through_hls(&args(false)), "other receivers keep the HLS emitter");
@@ -1254,6 +1263,7 @@ mod tests {
         assert!(session.transcode && session.dlna);
         assert_eq!(session.start_sec, 754.0);
         assert!(session.burn_sub.is_some(), "burn-in survives the switch away from HLS");
+        assert_eq!(session.audio_ordinal, Some(1), "the chosen audio track reaches the transcode");
     }
 
     #[test]

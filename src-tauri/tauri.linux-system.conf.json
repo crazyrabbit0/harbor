@@ -5,7 +5,7 @@
     "linux": {
       "deb": {
         "depends": [
-          "libmpv2 | libmpv1",
+          "libmpv2",
           "libwebkit2gtk-4.1-0",
           "libgl1",
           "libegl1",
