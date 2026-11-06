@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import ts from "typescript";
+import { fileURLToPath } from "node:url";
 import * as lyrics from "../src/lib/music/lyrics.ts";
 import type { LyricLine } from "../src/lib/music/lyrics.ts";
+import { hookHarness } from "./helpers/hook-harness.ts";
 
-const controlsUrl = new URL("../src/components/music/music-video-controls.tsx", import.meta.url);
-const cssUrl = new URL("../src/components/music/music-video-surface.css", import.meta.url);
-const stageUrl = new URL("../src/components/music/music-video-fullscreen.tsx", import.meta.url);
-const controlsSource = readFileSync(controlsUrl, "utf8");
-const css = readFileSync(cssUrl, "utf8");
-const stageSource = readFileSync(stageUrl, "utf8");
+const componentPath = (name: string) =>
+  fileURLToPath(new URL(`../src/components/music/${name}`, import.meta.url));
+const css = readFileSync(componentPath("music-video-surface.css"), "utf8");
 
 type Controls = typeof import("../src/components/music/music-video-controls.tsx");
 type N = { type: unknown; key?: unknown; props: Record<string, any> & { children?: unknown } };
 const element = (type: unknown, props: N["props"], key?: unknown) => ({ type, props, key });
+const jsxRuntime = { jsx: element, jsxs: element, Fragment: "Fragment" };
+const icons = new Proxy({}, { get: (_t, icon) => String(icon) });
 const all = (n: unknown): N[] =>
   Array.isArray(n)
     ? n.flatMap(all)
@@ -23,31 +23,58 @@ const all = (n: unknown): N[] =>
       : [];
 
 function load(): Controls {
-  const { outputText } = ts.transpileModule(controlsSource, {
-    compilerOptions: {
-      module: ts.ModuleKind.CommonJS,
-      target: ts.ScriptTarget.ES2022,
-      jsx: ts.JsxEmit.ReactJSX,
+  return hookHarness(componentPath("music-video-controls.tsx"), "MusicVideoControls", {
+    "@/lib/music/lyrics": lyrics,
+    "@/lib/i18n": { useT: () => (key: string) => key },
+    "@/lib/music/appearance": {
+      setMusicAppearance: () => {},
+      useMusicAppearance: () => ({ immersive: false }),
     },
-  });
-  const module = { exports: {} };
-  new Function("require", "module", "exports", outputText)(
-    (name: string) => {
-      if (name === "@/lib/music/lyrics") return lyrics;
-      if (name === "@/lib/i18n") return { useT: () => (key: string) => key };
-      if (name === "@/lib/music/appearance")
-        return { setMusicAppearance: () => {}, useMusicAppearance: () => ({ immersive: false }) };
-      if (name === "@/components/icons/music-icons")
-        return new Proxy({}, { get: (_t, icon) => String(icon) });
-      if (name === "react/jsx-runtime" || name === "react")
-        return { jsx: element, jsxs: element, Fragment: "Fragment" };
-      if (name.endsWith(".css")) return {};
-      throw new Error(`unexpected import ${name}`);
+    "@/components/icons/music-icons": icons,
+    "react/jsx-runtime": jsxRuntime,
+    "./music-video-surface.css": {},
+  }).exports;
+}
+
+function stageCss(): string {
+  const stage = hookHarness(
+    componentPath("music-video-fullscreen.tsx"),
+    "MusicVideoFullscreen",
+    {
+      "react-dom": { createPortal: (node: unknown) => node },
+      "@/components/icons/music-icons": icons,
+      "@/components/modal-shell": { useEscape: () => {} },
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/back-intercept": { pushBackHandler: () => () => {} },
+      "@/lib/music/video-session": {
+        musicVideoSurfaces: {
+          subscribe: () => () => {},
+          getSnapshot: () => ({ status: "loading" }),
+        },
+      },
+      "./music-video-transport": { MusicVideoTransport: "MusicVideoTransport" },
+      "@/lib/music/video-fullscreen": {
+        exitMusicVideoFullscreen: () => {},
+        getMusicVideoFullscreen: () => ({ active: true, stage: null }),
+        musicVideoFullscreenSurvives: () => true,
+        setMusicVideoFullscreenStage: () => {},
+        subscribeMusicVideoFullscreen: () => () => {},
+      },
+      "react/jsx-runtime": jsxRuntime,
     },
-    module,
-    module.exports,
+    {
+      setTimeout: () => 0,
+      clearTimeout: () => {},
+      requestAnimationFrame: () => 0,
+      cancelAnimationFrame: () => {},
+      HTMLElement: class {},
+      window: { addEventListener: () => {}, removeEventListener: () => {} },
+      document: { body: {}, activeElement: null },
+    },
   );
-  return module.exports as Controls;
+  const style = all(stage.render({ track: null })).find((n) => n.type === "style");
+  assert.equal(typeof style?.props.children, "string", "the stage renders its own style element");
+  return style!.props.children as string;
 }
 
 function controls(props: Record<string, unknown>) {
@@ -201,11 +228,7 @@ test("the control cluster sits above the subtitle and the subtitle clears the co
 });
 
 test("the fullscreen stage keeps the subtitle and the lyrics toggle, and only hides the duplicate exit", () => {
-  const stage = stageSource.slice(
-    stageSource.indexOf("const STAGE_CSS"),
-    stageSource.indexOf("const CHROME"),
-  );
-  assert.ok(stage);
+  const stage = stageCss();
   assert.match(stage, /\.music-video-fullscreen-toggle\{display:none\}/);
   assert.doesNotMatch(stage, /\.music-video-subtitle[^{]*\{[^}]*display:none/);
   assert.doesNotMatch(stage, /\.music-video-controls[^{]*\{[^}]*display:none/);
