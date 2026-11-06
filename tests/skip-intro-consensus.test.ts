@@ -2,10 +2,11 @@
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-import { dropOutvoted, dropSelfContradicting } from "../src/lib/skip-intro/consensus";
+import * as consensus from "../src/lib/skip-intro/consensus";
 import type { SkipKind, SkipSegment, SkipSource } from "../src/lib/skip-intro/types";
+import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
+
+const { dropOutvoted, dropSelfContradicting } = consensus;
 
 const seg = (source: SkipSource, startSec: number, endSec: number, kind: SkipKind = "intro") =>
   ({ kind, startSec, endSec, source }) satisfies SkipSegment;
@@ -44,10 +45,39 @@ test("an intro inside the same source's recap drops both, so the next source's i
     merged.map((s) => [s.source, s.kind, s.startSec, s.endSec]),
     [["introdb-app", "intro", 28, 59]],
   );
-  assert.match(
-    readFileSync(new URL("../src/lib/skip-intro/index.ts", import.meta.url), "utf8"),
-    /dropOutvoted\(\s*\[[^\]]*\]\.map\(\s*dropSelfContradicting,?\s*\)/,
-    "the segment pipeline runs every source through dropSelfContradicting",
+});
+
+test("the segment pipeline runs every source through dropSelfContradicting", async () => {
+  const empty = async () => [];
+  const h = hookHarness("src/lib/skip-intro/index.ts", "run", {
+    "../streams/anime-identity": {
+      animeIdentityEligible: () => false,
+      resolveAnimeIdentity: async () => null,
+    },
+    "./adcorpus": { fetchAdSegments: empty },
+    "./fingerprint": { fingerprint: () => ({ content: "", source: "" }) },
+    "./aniskip": { kitsuToMal: async () => null, fetchAniSkipSegments: empty },
+    "./chapters": { chaptersToSegments: () => [] },
+    "./consensus": consensus,
+    "./introdb-app": { fetchIntroDbAppSegments: async () => [seg("introdb-app", 28, 59)] },
+    "./skipdb": { fetchSkipDbSegments: empty },
+    "./theintrodb": {
+      fetchIntroDbSegments: async () => [seg("introdb", 0, 52, "recap"), seg("introdb", 0, 30)],
+      readTheIntroDbKey: () => "",
+      setTheIntroDbApiKey: () => {},
+    },
+    "../simkl/activities": { getLocalCache: () => null },
+    "../settings": { useSettings: () => ({ settings: {} }) },
+  });
+  const chapters: unknown[] = [];
+  const episode = { season: 9, episode: 2, imdbSeason: 9, imdbEpisode: 2 };
+  h.exports.run = () => h.exports.useSkipSegments({ id: "tt0182576" }, episode, chapters, 1400);
+  h.render();
+  await flushPromises();
+  const segments: SkipSegment[] = h.render();
+  assert.deepEqual(
+    segments.map((s) => [s.source, s.kind, s.startSec, s.endSec]),
+    [["introdb-app", "intro", 28, 59]],
   );
 });
 
