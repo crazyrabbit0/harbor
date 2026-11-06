@@ -17,7 +17,30 @@ pub fn local_ipv4_interfaces() -> Vec<Ipv4Addr> {
             }
         }
     }
+    // A full-tunnel VPN takes every probe route above, so the LAN address only shows up here.
+    for iface in if_addrs::get_if_addrs().unwrap_or_default() {
+        if let IpAddr::V4(v4) = iface.ip() {
+            if !v4.is_loopback() && !v4.is_unspecified() && !out.contains(&v4) {
+                out.push(v4);
+            }
+        }
+    }
     out
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn every_interface_address_is_listed_even_off_the_default_route() {
+        let listed = super::local_ipv4_interfaces();
+        for iface in if_addrs::get_if_addrs().unwrap() {
+            if let std::net::IpAddr::V4(v4) = iface.ip() {
+                if !v4.is_loopback() {
+                    assert!(listed.contains(&v4), "{v4} missing from {listed:?}");
+                }
+            }
+        }
+    }
 }
 
 #[tauri::command]

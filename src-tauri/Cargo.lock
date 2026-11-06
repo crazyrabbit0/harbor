@@ -2801,6 +2801,7 @@ name = "harbor-shared"
 version = "0.0.0"
 dependencies = [
  "futures-util",
+ "if-addrs",
  "libc",
  "libmpv2",
  "libmpv2-sys",
