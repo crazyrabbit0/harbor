@@ -384,7 +384,11 @@ pub async fn handle_transcode(
     );
 
     let video_is_h264 = probed.video.as_deref() == Some("h264");
-    let audio_is_aac = probed.audio.get(audio_ordinal.unwrap_or(0) as usize).map(String::as_str) == Some("aac");
+    let audio_is_aac = probed
+        .audio
+        .get(audio_ordinal.unwrap_or(0) as usize)
+        .map(String::as_str)
+        == Some("aac");
     let reencode_video = profile.force_h264 || !video_is_h264 || burn_sub.is_some();
     let reencode_audio = profile.force_aac || !audio_is_aac;
     eprintln!(
@@ -575,7 +579,9 @@ fn subtitle_filter(path: &str, force_style: &str, sub_offset: f64) -> String {
 
 /// A HEAD answer for a transcode: no data and no length, like the live GET, since `Content-Length: 0` reads as an empty file.
 pub fn unknown_length_body() -> Body {
-    Body::from_stream(futures_util::stream::empty::<Result<axum::body::Bytes, std::io::Error>>())
+    Body::from_stream(futures_util::stream::empty::<
+        Result<axum::body::Bytes, std::io::Error>,
+    >())
 }
 
 /// The start a DLNA `TimeSeekRange.dlna.org` request asks for: `npt=123.4-` or `npt=0:02:03.4-...`.
