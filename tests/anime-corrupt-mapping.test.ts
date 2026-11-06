@@ -1,20 +1,11 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { mergeAniZipEpisodes } from "../src/lib/providers/anime-episode-build.ts";
+import { buildAnimeOrder } from "../src/views/detail/anime-episodes/anime-order-utils.ts";
 import { resolveAnimeSlotMatch } from "../src/views/detail/anime-episodes/anime-slot-match.ts";
-
-type PoolEp = {
-  id: number;
-  number: number;
-  imdbSeason?: number;
-  imdbEpisode?: number;
-  absoluteNumber?: number;
-  tvdbEpisodeId?: number;
-};
+import { animePanelOf, tvdbOrderOf } from "./helpers/anime-panel-harness.ts";
 
 // Witch Hat Atelier (kitsu:46043): real AniZip payload is duplicate + shifted.
 // key 1: tvdb 9095554 S1E1 abs 1 | key 2: tvdb 9095554 S1E1 abs 1 (dup)
@@ -69,45 +60,27 @@ function witchHatSlots() {
   return ids.map((id, i) => ({ id, seasonNumber: 1, episodeNumber: i + 1, abs: i + 1 }));
 }
 
-// Panel-style grouping replica using the real matcher.
-function groupSeason1(pool: PoolEp[]) {
-  const byPair = new Map<string, any>();
-  const byAbs = new Map<number, any>();
-  const byTvdbId = new Map<number, any>();
-  for (const ep of pool) {
-    const abs = ep.absoluteNumber ?? ep.number;
-    if (abs != null && !byAbs.has(abs)) byAbs.set(abs, ep);
-    if (ep.tvdbEpisodeId != null && !byTvdbId.has(ep.tvdbEpisodeId))
-      byTvdbId.set(ep.tvdbEpisodeId, ep);
-    if (ep.imdbSeason != null && ep.imdbSeason >= 1 && ep.imdbEpisode != null) {
-      const k = `${ep.imdbSeason}:${ep.imdbEpisode}`;
-      if (!byPair.has(k)) byPair.set(k, ep);
-    }
-  }
-  const claimed = new Set<number>();
-  const rows: any[] = [];
-  for (const s of witchHatSlots()) {
-    const match = resolveAnimeSlotMatch(
-      s.seasonNumber,
-      s.episodeNumber,
-      s.id,
-      s.abs,
-      byTvdbId,
-      byPair,
-      byAbs,
-      claimed,
-    );
-    if (match) {
-      claimed.add(match.id);
-      rows.push(match);
-    } else {
-      rows.push({ id: -s.id, number: s.episodeNumber, synthetic: true });
-    }
-  }
-  const matchedIds = new Set(rows.map((r) => r.id));
-  const leftovers = pool.filter((e) => e.id > 0 && !matchedIds.has(e.id));
-  return { rows, leftovers };
+// A pool where E2 and E3 carry TVDB ids that belong to the neighbouring slots.
+function shiftedPool() {
+  const ep = (id: number, number: number, tvdbEpisodeId: number, absoluteNumber: number) => ({
+    id,
+    number,
+    title: `E${number}`,
+    synopsis: "",
+    imdbSeason: 1,
+    imdbEpisode: number,
+    tvdbEpisodeId,
+    absoluteNumber,
+  });
+  return [ep(1, 1, 100, 1), ep(2, 2, 100, 1), ep(3, 3, 200, 2)];
 }
+
+const shiftedSlots = () => [
+  { id: 100, seasonNumber: 1, episodeNumber: 1, abs: 1 },
+  { id: 200, seasonNumber: 1, episodeNumber: 2, abs: 2 },
+  { id: 300, seasonNumber: 1, episodeNumber: 3, abs: 3 },
+  { id: 400, seasonNumber: 2, episodeNumber: 1, abs: 4 },
+];
 
 test("merge sanitization: shifted/duplicate AniZip IDs are not applied", () => {
   const pool = witchHatPool();
@@ -192,23 +165,24 @@ test("slot matcher prefers the pair-correct episode over a stale tvdbId", () => 
   assert.equal(match?.id, 2, "slot S01E02 must resolve to E2, not the stale-id E3");
 });
 
-test("grouping: E2 stays in Season 1, no Extras, no duplicate E13", () => {
+test("grouping: E2 stays in Season 1, no Extras, no duplicate E13", async () => {
   const pool = witchHatPool();
   mergeAniZipEpisodes(pool, witchHatAniZip() as any);
-  const { rows, leftovers } = groupSeason1(pool);
-  assert.equal(
-    leftovers.length,
-    0,
-    `E2 must not land in Extras (leftovers: ${leftovers.map((e) => e.number)})`,
+  const panel = await animePanelOf(pool, witchHatSlots());
+  assert.ok(panel, "the panel is built");
+  assert.deepEqual(
+    panel.items.map((i) => i.key),
+    ["1"],
+    "E2 must not land in Extras",
   );
-  assert.equal(rows.length, 13);
+  const rows = panel.visibleEpisodes;
   assert.deepEqual(
     rows.map((r) => r.number),
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
   );
   assert.equal(new Set(rows.map((r) => r.id)).size, 13);
   assert.ok(
-    rows.every((r) => !r.synthetic),
+    rows.every((r) => r.id > 0),
     "no synthetic duplicate E13",
   );
   for (const ep of rows) {
@@ -219,24 +193,23 @@ test("grouping: E2 stays in Season 1, no Extras, no duplicate E13", () => {
   }
 });
 
-test("both season builders route through the shared slot matcher", () => {
-  const panel = readFileSync(
-    new URL("../src/views/detail/anime-episodes/use-anime-tvdb-panel.ts", import.meta.url),
-    "utf8",
+test("the panel builder resolves shifted tvdb ids through the shared slot matcher", async () => {
+  const panel = await animePanelOf(shiftedPool(), shiftedSlots());
+  assert.ok(panel, "the panel is built");
+  const season1 = panel.visibleEpisodes;
+  assert.deepEqual(
+    season1.map((r) => r.id),
+    [1, 2, 3],
+    "slot S01E02 must resolve to E2, not the stale-id E3",
   );
-  const utils = readFileSync(
-    new URL("../src/views/detail/anime-episodes/anime-order-utils.ts", import.meta.url),
-    "utf8",
+});
+
+test("the order builder resolves shifted tvdb ids through the shared slot matcher", () => {
+  const out = buildAnimeOrder(tvdbOrderOf(shiftedSlots()), shiftedPool() as any, "Extras");
+  assert.ok(out, "two seasons build an order");
+  assert.deepEqual(
+    out.subsetByKey.get("1")!.map((r) => r.id),
+    [1, 2, 3],
+    "slot S01E02 must resolve to E2, not the stale-id E3",
   );
-  for (const [name, src] of [
-    ["panel", panel],
-    ["order-utils", utils],
-  ] as const) {
-    assert.match(src, /resolveAnimeSlotMatch\(/, `${name} must use the shared matcher`);
-    assert.doesNotMatch(
-      src,
-      /byTvdbId\.get\(e\.id\) \?\? byPair\.get\(/,
-      `${name} must not use the greedy tvdb-first lookup`,
-    );
-  }
 });
