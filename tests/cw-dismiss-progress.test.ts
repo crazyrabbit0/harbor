@@ -5,7 +5,10 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import ts from "typescript";
+import { DEFAULT } from "../src/lib/settings/defaults.ts";
 import type { LibraryItem } from "../src/lib/stremio";
+import { continueCardHarness } from "./helpers/continue-card-harness.ts";
+import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 import { profileRosterFor } from "./helpers/profile-roster.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -276,21 +279,89 @@ test("external backfills preserve dismissals and save true remote progress only 
   }
 });
 
+// Runs the real mobile Continue Watching hook and records whether it asks for tracker rows.
+function mobileExternalRequests(perProfile: boolean, shares: boolean, sources: object) {
+  const requests: boolean[] = [];
+  const settings = { cwPerProfile: perProfile, cwSources: sources };
+  const row = hookHarness("src/views/mobile/mobile-cw-row.tsx", "useMobileCw", {
+    "react/jsx-runtime": { jsx: () => null, jsxs: () => null, Fragment: "fragment" },
+    "lucide-react": { X: "X" },
+    "@/components/icons/play-filled": { Play: "Play" },
+    "@/assets/simkl.png": { default: "simkl.png" },
+    "@/assets/trakt.svg": { default: "trakt.svg" },
+    "@/lib/auth": { useAuth: () => ({ authKey: null }) },
+    "@/lib/profiles": {
+      anyProfileSharesStremioWith: () => shares,
+      useProfiles: () => ({ activeProfile: { id: "a" }, profiles: [] }),
+    },
+    "@/lib/anime-hide": { useHideAnime: () => false },
+    "@/components/anime-hero/use-hero-logos": { useHeroLogos: () => ({}) },
+    "@/lib/cw-dismiss": {
+      dismissCw: () => {},
+      isCwDismissed: () => false,
+      useCwDismissVersion: () => 0,
+    },
+    "@/lib/local-cw": { listLocalCw: () => [], subscribeLocalCw: () => () => {} },
+    "@/lib/feed/external-cw": {
+      useExternalCw: (enabled: boolean) => {
+        requests.push(enabled);
+        return [];
+      },
+    },
+    "@/lib/snapshots": { readSnapshot: () => undefined, useSnapshotVersion: () => 0 },
+    "@/lib/settings": { useSettings: () => ({ settings }) },
+    "@/lib/i18n": { useT: () => (key: string) => key },
+    "@/lib/stremio": {
+      ANIME_CLOUD_ID: /^kitsu:/,
+      cwSortKey: () => 0,
+      episodeFromVideoId: () => null,
+      isAnimeCwItem: () => false,
+      isCwMember: () => true,
+      library: async () => [],
+      libraryMetaType: (type: string) => type,
+    },
+    "@/lib/read-at-version": { readAtVersion: (_v: unknown, read: () => unknown) => read() },
+  });
+  row.render(14);
+  return requests;
+}
+
 test("source toggles preserve the shared-profile protection on desktop and mobile", () => {
-  for (const path of ["src/views/home.tsx", "src/views/mobile/mobile-cw-row.tsx"]) {
-    assert.match(
-      read(path),
-      /!hideSharedCw && \(settings\.cwSources\.trakt \|\| settings\.cwSources\.simkl\)/,
-    );
-  }
+  // home.tsx is too large to load; pin its one wiring statement.
+  assert.match(
+    read("src/views/home.tsx"),
+    /const externalCw = useExternalCw\(\s*!hideSharedCw && \(settings\.cwSources\.trakt \|\| settings\.cwSources\.simkl\),\s*\);/,
+  );
+  assert.deepEqual(mobileExternalRequests(true, true, { trakt: true, simkl: true }), [false]);
+  assert.deepEqual(mobileExternalRequests(false, true, { trakt: true, simkl: false }), [true]);
+  assert.deepEqual(mobileExternalRequests(true, false, { trakt: false, simkl: true }), [true]);
+  assert.deepEqual(mobileExternalRequests(false, false, { trakt: false, simkl: false }), [false]);
 });
 
-test("episode artwork is opt-in and changing candidates retries the first image", () => {
-  assert.match(read("src/lib/settings/defaults.ts"), /cwPreferEpisodeStill: false/);
-  const card = read("src/components/continue-card.tsx");
-  assert.match(card, /upNext \|\| !settings\.cwPreferEpisodeStill/);
-  assert.match(card, /if \(still && !seen\.has\(still\)\) out\.unshift\(still\)/);
-  assert.match(card, /setImgIdx\(0\);\s*\}, \[candidates\]\)/);
+test("episode artwork is opt-in and changing candidates retries the first image", async () => {
+  assert.equal(DEFAULT.cwPreferEpisodeStill, false);
+  const still = "https://image.tmdb.org/t/p/w300/still.jpg";
+  const shown = async (prefer: boolean, upNext = false) => {
+    const h = continueCardHarness({
+      settings: { cwPreferEpisodeStill: prefer },
+      episodes: [{ episode: 2, still }],
+    });
+    const card = { ...item(), poster: "poster.jpg", upNext };
+    h.render({ item: card });
+    await flushPromises();
+    return h.image(h.render({ item: card }))?.props.src;
+  };
+  assert.equal(await shown(true), "https://image.tmdb.org/t/p/w780/still.jpg");
+  assert.equal(await shown(false), "poster.jpg");
+  assert.equal(await shown(true, true), "poster.jpg", "up-next cards keep series art");
+
+  const h = continueCardHarness();
+  const first = { ...item(), background: "one.jpg", poster: "poster.jpg" };
+  h.image(h.render({ item: first }))!.props.onError();
+  assert.equal(h.image(h.render({ item: first }))?.props.src, "poster.jpg");
+  const next = { ...first, background: "two.jpg" };
+  h.render({ item: next });
+  assert.equal(h.image(h.render({ item: next }))?.props.src, "two.jpg");
 });
 
 test("private-store migration preserves old dismissals only for profiles that existed at upgrade", () => {

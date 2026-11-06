@@ -1,10 +1,10 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import "./_localstorage-stub.ts";
+import { continueCardHarness } from "./helpers/continue-card-harness.ts";
+import { flushPromises, loadModule } from "./helpers/hook-harness.ts";
 import {
   aniZipLookupKey,
   applyAniZipEpisode,
@@ -162,26 +162,84 @@ test("the Continue Watching dedup key collapses suffix variants of one show", ()
   );
 });
 
-test("an imdb id resolves to the same franchise root as its Kitsu id", () => {
-  const src = readFileSync(
-    new URL("../src/lib/providers/anime-franchise-root.ts", import.meta.url),
-    "utf8",
+// Loads the real franchise-root module over scripted mappings and a fixed Kitsu relation graph.
+function franchiseRootModule(cwIds: Record<string, string>, imdb: Record<string, number>) {
+  const lookups: string[] = [];
+  const parseKitsuId = (id: string) => (/^kitsu:\d+$/.test(id) ? Number(id.slice(6)) : null);
+  const prequels: Record<number, number> = { 49002: 39431 };
+  const api = loadModule(
+    "src/lib/providers/anime-franchise-root.ts",
+    {
+      "@/lib/anime-cw-ids": { getAnimeCwId: (id: string) => cwIds[id] ?? null },
+      "@/lib/memory-profiler": { registerCache: () => {} },
+      "./anime-mapping": {
+        externalToKitsu: async () => null,
+        imdbToKitsu: async (id: string) => {
+          lookups.push(id);
+          if (!(id in imdb)) throw new Error("unmapped");
+          return imdb[id];
+        },
+      },
+      "./kitsu": {
+        parseKitsuId,
+        kitsuRelated: async (id: number) =>
+          id in prequels
+            ? [{ role: "prequel", meta: { id: `kitsu:${prequels[id]}`, type: "series" } }]
+            : [],
+      },
+      "@/lib/streams/anime-identity-core": { isScopedSplitFranchiseRoot: () => false },
+    },
+    {
+      localStorage: { getItem: () => null, setItem: () => {}, removeItem: () => {} },
+      window: { setTimeout: () => 0, clearTimeout: () => {} },
+    },
   );
-  assert.match(src, /if \(id\.startsWith\("tt"\)\) \{/);
-  assert.match(src, /parseKitsuId\(getAnimeCwId\(id\) \?\? ""\)/);
-  assert.match(src, /return imdbToKitsu\(id\)\.catch\(\(\) => null\);/);
+  return { franchiseRoot: api.franchiseRoot as (id: string) => Promise<string>, lookups };
+}
+
+test("an imdb id resolves to the same franchise root as its Kitsu id", async () => {
+  const mapped = franchiseRootModule({ tt13293588: "kitsu:49002" }, {});
+  assert.equal(await mapped.franchiseRoot("kitsu:49002"), "kitsu:39431");
+  assert.equal(await mapped.franchiseRoot("tt13293588"), "kitsu:39431");
+  assert.deepEqual(mapped.lookups, [], "a known Continue Watching mapping needs no lookup");
+
+  const looked = franchiseRootModule({}, { tt13293588: 49002 });
+  assert.equal(await looked.franchiseRoot("tt13293588"), "kitsu:39431");
+  assert.deepEqual(looked.lookups, ["tt13293588"]);
+
+  const unmapped = franchiseRootModule({}, {});
+  assert.equal(await unmapped.franchiseRoot("tt0000001"), "tt0000001");
 });
 
-test("the Continue Watching card enriches before it hands the episode to the player", () => {
-  const src = readFileSync(new URL("../src/components/continue-card.tsx", import.meta.url), "utf8");
-  assert.match(src, /if \(needsAniZipSyncIds\(item\._id, episode\) && episode\) \{/);
-  assert.doesNotMatch(
-    src,
-    /if \(episode && episode\.tvdbEpisodeId == null\) \{/,
-    "enrichment must not be nested inside the !episode branch again",
-  );
-  assert.doesNotMatch(src, /imdbToKitsu/);
-  assert.match(src, /const animeId = getAnimeCwId\(item\._id\);/);
+test("the Continue Watching card enriches before it hands the episode to the player", async () => {
+  const kitsu = {
+    _id: "kitsu:49002",
+    type: "series",
+    name: "Mushoku Tensei",
+    state: { season: 1, episode: 6, video_id: "kitsu:49002:6", timeOffset: 10, duration: 100 },
+  };
+  const h = continueCardHarness({ aniZip: MUSHOKU });
+  h.buttons(h.render({ item: kitsu }))[1].props.onClick({ stopPropagation() {} });
+  await flushPromises();
+  assert.deepEqual(h.calls.aniZip, [["kitsu", 49002]]);
+  const episode = h.calls.openPicker.at(-1)?.[1] as Record<string, unknown>;
+  assert.equal(episode.tvdbEpisodeId, 11872046);
+  assert.equal(episode.imdbSeason, 3);
+  assert.equal(episode.kitsuStreamId, "kitsu:49002:6");
+
+  const imdb = continueCardHarness({
+    animeCwId: (id) => (id === "tt13293588" ? "kitsu:49002" : null),
+  });
+  const show = {
+    ...kitsu,
+    _id: "tt13293588",
+    state: { ...kitsu.state, video_id: "tt13293588:3:6" },
+  };
+  imdb.buttons(imdb.render({ item: show }))[1].props.onClick({ stopPropagation() {} });
+  await flushPromises();
+  assert.deepEqual(imdb.calls.aniZip, [], "imdb ids are not looked up on AniZip");
+  const played = imdb.calls.openPicker.at(-1)?.[1] as Record<string, unknown>;
+  assert.equal(played.sourceMetaId, "kitsu:49002");
 });
 
 const SEQUEL_BASE_ENTRY = {
@@ -283,10 +341,30 @@ test("multi-season sync prefers the season-scoped identity over the base track i
   );
 });
 
-test("the AniList resolver still refuses to guess a media id from an imdb id", () => {
-  const src = readFileSync(new URL("../src/lib/anilist/sync.ts", import.meta.url), "utf8");
-  const body = /export async function resolveAnilistMediaId[\s\S]*?\r?\n\}/.exec(src)?.[0] ?? "";
-  assert.ok(body.length > 0);
-  assert.doesNotMatch(body, /startsWith\("tt"\)/);
-  assert.doesNotMatch(body, /imdbToKitsu/);
+test("the AniList resolver still refuses to guess a media id from an imdb id", async () => {
+  const requests: unknown[] = [];
+  const mapped: number[] = [];
+  const sync = loadModule("src/lib/anilist/sync.ts", {
+    "@/lib/active-profile-id": { activeProfileId: () => "a" },
+    "@/lib/providers/anime-mapping": {
+      kitsuToAnilist: async (id: number) => {
+        mapped.push(id);
+        return 108465;
+      },
+    },
+    "./client": {
+      AnilistApiError: class extends Error {},
+      anilistRequest: async (...args: unknown[]) => {
+        requests.push(args);
+        return { Media: { id: 7 } };
+      },
+    },
+    "./session": { isAuthenticated: () => true, getSession: () => ({}) },
+  });
+  assert.equal(await sync.resolveAnilistMediaId("tt13293588"), null);
+  assert.equal(await sync.resolveAnilistMediaId("tmdb:tv:94664"), null);
+  assert.deepEqual([mapped, requests], [[], []], "an imdb id triggers no mapping lookup");
+  assert.equal(await sync.resolveAnilistMediaId("kitsu:49002"), 108465);
+  assert.equal(await sync.resolveAnilistMediaId("anilist:21"), 21);
+  assert.equal(await sync.resolveAnilistMediaId("mal:59193"), 7);
 });
