@@ -35,6 +35,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           HAS_WINGET_TOKEN: ${{ secrets.WINGET_TOKEN != '' }}
           TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          WINGET_MANIFEST_PATH: manifests/c/CrazyRabbit/Harbor
         run: |
           set -euo pipefail
 
@@ -42,6 +43,18 @@ jobs:
             echo "::warning::No WINGET_TOKEN secret, so nothing is submitted to WinGet (see AGENTS.md, Releases)."
             echo "found=false" >> "$GITHUB_OUTPUT"
             exit 0
+          fi
+
+          # The releaser action only updates an existing package, so wait until the first manifest is merged.
+          code="$(curl -sS -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN" \
+            "https://api.github.com/repos/microsoft/winget-pkgs/contents/$WINGET_MANIFEST_PATH")"
+          if [ "$code" = "404" ]; then
+            echo "::warning::CrazyRabbit.Harbor is not in microsoft/winget-pkgs yet (microsoft/winget-pkgs#454723), so nothing is submitted."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          elif [ "$code" != "200" ]; then
+            echo "::error::Checking microsoft/winget-pkgs for CrazyRabbit.Harbor returned HTTP $code."
+            exit 1
           fi
 
           # Release tags are not consistently formatted (V0.9.21, v0.9.20,
