@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import ts from "typescript";
+import { fileURLToPath } from "node:url";
+import { loadModule } from "./helpers/hook-harness.ts";
 import { backingTrackVersion } from "../src/lib/music/source-version";
 import { planDailyMixes } from "../src/lib/music/daily-mixes";
 import type { DailyMix } from "../src/lib/music/daily-mixes";
@@ -85,10 +85,6 @@ test("extra sources widen the pool beyond recents and liked", () => {
 });
 
 function dailyMixes(loadPlaylistLikeThis: (...args: unknown[]) => Promise<MusicTrack[]>) {
-  const code = ts.transpileModule(
-    readFileSync(new URL("../src/lib/music/daily-mixes.ts", import.meta.url), "utf8"),
-    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
-  ).outputText;
   let cached: MusicTrack[] | null = null;
   const mocks: Record<string, unknown> = {
     "./source-version": { backingTrackVersion },
@@ -108,13 +104,10 @@ function dailyMixes(loadPlaylistLikeThis: (...args: unknown[]) => Promise<MusicT
       },
     },
   };
-  const module = { exports: {} };
-  new Function("require", "module", "exports", code)(
-    (id: string) => mocks[id],
-    module,
-    module.exports,
-  );
-  return module.exports as typeof import("../src/lib/music/daily-mixes");
+  return loadModule(
+    fileURLToPath(new URL("../src/lib/music/daily-mixes.ts", import.meta.url)),
+    mocks,
+  ) as typeof import("../src/lib/music/daily-mixes");
 }
 
 const mixOf = (seeds: MusicTrack[]): DailyMix => ({

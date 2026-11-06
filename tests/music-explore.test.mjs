@@ -1,23 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import fs from "node:fs";
-import ts from "typescript";
-function load(file, mocks = {}) {
-  const source = fs.readFileSync(new URL(`../src/lib/music/${file}.ts`, import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  });
-  const mod = { exports: {} };
-  new Function("require", "module", "exports", outputText)(
-    (name) => {
-      if (!(name in mocks)) throw Error(`Unmocked: ${name}`);
-      return mocks[name];
-    },
-    mod,
-    mod.exports,
-  );
-  return mod.exports;
-}
+import { fileURLToPath } from "node:url";
+import { loadModule } from "./helpers/hook-harness.ts";
+const load = (file, mocks = {}) =>
+  loadModule(fileURLToPath(new URL(`../src/lib/music/${file}.ts`, import.meta.url)), mocks);
 const genres = load("genre-catalog");
 const track = (id, title = "Song", artist = "Artist") => ({
   id,
