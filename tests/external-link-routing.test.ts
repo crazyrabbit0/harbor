@@ -1,13 +1,88 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
+import * as controller from "../src/lib/social/external-link-journey-controller.ts";
+import * as policy from "../src/lib/social/external-link-policy.ts";
+import * as preference from "../src/lib/social/external-link-preference.ts";
 import { renderBbcode } from "../src/lib/social/bbcode.ts";
 import { handleLinkOutActivation, safeExternalUrl } from "../src/lib/social/link-out-activation.ts";
+import { hookHarness } from "./helpers/hook-harness.ts";
 
-const interstitialSource = readFileSync(
-  new URL("../src/components/link-out-interstitial.tsx", import.meta.url),
-  "utf8",
-);
+type Listener = { fn: (e: any) => void; capture: unknown };
+type Node = { type: unknown; props: Record<string, any> };
+const element = (type: unknown, props: Node["props"], key?: unknown) => ({ type, props, key });
+const jsx = { jsx: element, jsxs: element, Fragment: "Fragment" };
+
+function dialog() {
+  const listeners = new Map<string, Listener[]>();
+  const log = { closes: 0, backHandlers: [] as Array<() => unknown>, backRemoved: 0 };
+  const journey = { url: "https://example.com/a", generation: 1 };
+  const win = {
+    requestAnimationFrame: (fn: () => void) => (fn(), 0),
+    addEventListener: (type: string, fn: (e: any) => void, capture?: unknown) =>
+      listeners.set(type, [...(listeners.get(type) ?? []), { fn, capture }]),
+    removeEventListener: (type: string, fn: (e: any) => void) =>
+      listeners.set(
+        type,
+        (listeners.get(type) ?? []).filter((l) => l.fn !== fn),
+      ),
+  };
+  const harness = hookHarness(
+    "src/components/link-out-interstitial.tsx",
+    "LinkOutJourneyInterstitial",
+    {
+      "lucide-react": new Proxy({}, { get: (_t, name) => String(name) }),
+      "react-dom": { createPortal: (tree: unknown) => tree },
+      "@/components/external-link-split-button": { ExternalLinkSplitButton: "Split" },
+      "@/components/external-link-viewer": { ExternalLinkViewer: "Viewer" },
+      "@/lib/back-intercept": {
+        pushBackHandler: (handler: () => unknown) => (
+          log.backHandlers.push(handler),
+          () => {
+            log.backRemoved++;
+          }
+        ),
+      },
+      "@/lib/external-link-viewer-modal": { createExternalLinkViewerFocusScope: () => () => {} },
+      "@/lib/keyboard-navigation/geometry": {
+        isBackKey: (e: { key: string }) => e.key === "Escape",
+      },
+      "@/lib/i18n": { useT: () => (s: string) => s },
+      "@/lib/social/external-link-journey-controller": controller,
+      "@/lib/social/external-link-preference": preference,
+      "@/lib/social/external-link-policy": policy,
+      "@/lib/social/link-out": {
+        closeLinkOut: () => log.closes++,
+        isCurrentLinkOutJourney: () => true,
+        useLinkOutJourney: () => journey,
+      },
+      "@/lib/window": { openExternalUrlStrict: async () => {} },
+      "react/jsx-runtime": jsx,
+    },
+    { window: win },
+    ["LinkOutJourneyInterstitial"],
+  );
+  const tree = harness.render({
+    journey,
+    preference: "browser",
+    onPreferenceChange: () => {},
+  }) as Node;
+  const dispatch = (type: string, key = "Escape") => {
+    const event = {
+      key,
+      prevented: false,
+      stopped: false,
+      preventDefault() {
+        this.prevented = true;
+      },
+      stopImmediatePropagation() {
+        this.stopped = true;
+      },
+    };
+    for (const l of listeners.get(type) ?? []) l.fn(event);
+    return event;
+  };
+  return { harness, tree, listeners, log, dispatch };
+}
 
 test("app-managed bbcode links do not request native blank-window navigation", () => {
   for (const body of [
@@ -121,11 +196,41 @@ test("delegated right-click keeps the context-menu interaction", () => {
   assert.deepEqual(opened, []);
 });
 
-test("the global confirmation owns back navigation and modal focus", () => {
-  assert.match(interstitialSource, /pushBackHandler\(/);
-  assert.match(interstitialSource, /isBackKey\(e\)/);
-  assert.match(interstitialSource, /addEventListener\("keydown", onKey, true\)/);
-  assert.match(interstitialSource, /addEventListener\("harbor:local-back", onLocalBack, true\)/);
-  assert.match(interstitialSource, /role="dialog"/);
-  assert.match(interstitialSource, /aria-modal="true"/);
+test("the confirmation renders as a modal dialog", () => {
+  const { tree } = dialog();
+  assert.equal(tree.props.role, "dialog");
+  assert.equal(tree.props["aria-modal"], "true");
+});
+
+test("the confirmation registers on the global back stack and closes the journey", () => {
+  const { log } = dialog();
+  assert.equal(log.backHandlers.length, 1);
+  assert.equal(log.backHandlers[0](), true);
+  assert.equal(log.closes, 1);
+});
+
+test("a capturing keydown listener takes back keys and ignores the rest", () => {
+  const { listeners, log, dispatch } = dialog();
+  assert.equal(listeners.get("keydown")?.length, 1);
+  assert.equal(listeners.get("keydown")![0].capture, true);
+  const other = dispatch("keydown", "a");
+  assert.deepEqual([other.prevented, other.stopped, log.closes], [false, false, 0]);
+  const back = dispatch("keydown");
+  assert.deepEqual([back.prevented, back.stopped, log.closes], [true, true, 1]);
+});
+
+test("a capturing local-back listener consumes the event and closes the journey", () => {
+  const { listeners, log, dispatch } = dialog();
+  assert.equal(listeners.get("harbor:local-back")?.length, 1);
+  assert.equal(listeners.get("harbor:local-back")![0].capture, true);
+  const event = dispatch("harbor:local-back");
+  assert.deepEqual([event.prevented, event.stopped, log.closes], [true, true, 1]);
+});
+
+test("unmounting releases the back stack entry and both listeners", () => {
+  const { harness, listeners, log } = dialog();
+  harness.unmount();
+  assert.equal(log.backRemoved, 1);
+  assert.equal(listeners.get("keydown")?.length, 0);
+  assert.equal(listeners.get("harbor:local-back")?.length, 0);
 });
