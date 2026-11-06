@@ -359,6 +359,14 @@ fn clamp_resolution(w: u32, h: u32) -> (u32, u32) {
     (target_w, target_h)
 }
 
+/// The title's length in seconds, or `None` when ffprobe cannot tell (a live channel, a slow host).
+pub(crate) async fn probe_duration(url: &str, headers: &HashMap<String, String>) -> Option<f64> {
+    probe_source(url, headers)
+        .await
+        .ok()
+        .map(|p| p.duration_sec)
+}
+
 async fn probe_source(url: &str, headers: &HashMap<String, String>) -> Result<Probe, String> {
     let ffprobe =
         crate::transcode::locate_ffprobe().ok_or_else(|| "ffprobe not found".to_string())?;
