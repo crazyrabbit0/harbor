@@ -179,10 +179,22 @@ test("the viewer is plain page content with a reload that remounts the frame", (
   assert.equal(close.props.autoFocus, true);
   close.props.onClick();
   assert.deepEqual(calls, ["reload", "close"]);
-  assert.doesNotMatch(
-    read("src/components/external-link-viewer.tsx"),
-    /@tauri-apps|postMessage|addEventListener\("message"|\binvoke\(/,
-  );
+});
+
+test("the viewer talks to the remote page through nothing but the iframe", () => {
+  const v = viewer("ExternalLinkViewer");
+  const props = {
+    link: LINK,
+    openingBrowser: false,
+    browserError: null,
+    onOpenBrowser: () => {},
+    onClose: () => {},
+    onReload: () => {},
+  };
+  // The harness rejects any import outside the mock list, so a Tauri or IPC import would throw here.
+  v.h.render(props);
+  v.h.render(props);
+  assert.equal(v.listeners.has("message"), false, "no cross-frame message listener");
 });
 
 function splitButton(props: Record<string, unknown>) {
@@ -340,7 +352,11 @@ test("the warning is the first stage of a single portal keyed by journey", () =>
     "the viewer never opens first",
   );
   assert.deepEqual([split(tree)!.props.main, split(tree)!.props.alternate], ["browser", "harbor"]);
-  assert.equal((read("src/App.tsx").match(/<LinkOutInterstitial \/>/g) ?? []).length, 1);
+  const app = read("src/App.tsx");
+  assert.equal(
+    app.split("\n").filter((line) => line.trim() === "<LinkOutInterstitial />").length,
+    1,
+  );
 });
 
 test("choosing a destination opens the viewer or the strict browser opener", async () => {

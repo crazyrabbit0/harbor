@@ -1,10 +1,10 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import "./_localstorage-stub.ts";
+import { simklScrobbleHarness } from "./helpers/tracker-scrobble-harness.ts";
+import { trackerProviderHarness } from "./helpers/tracker-provider-harness.ts";
 import {
   armOnlineFlush,
   clearPendingWatch,
@@ -196,13 +196,102 @@ test("online arming is safe without a window", () => {
   off();
 });
 
-test("hook queues failed stops and provider flushes on session", () => {
-  const hook = readFileSync(new URL("../src/lib/simkl/scrobble-hook.ts", import.meta.url), "utf8");
-  assert.match(hook, /recordPendingWatch\(prev\.metaId, prev\.episode,/);
-  assert.match(hook, /recordPendingWatch\(a\.metaId, a\.episode,/);
-  const provider = readFileSync(new URL("../src/lib/simkl/provider.tsx", import.meta.url), "utf8");
-  assert.match(provider, /armOnlineFlush\(\{/);
-  assert.match(provider, /stopScrobble:/);
-  assert.match(provider, /simklScrobble\("stop", metaId, episode, 100\)/);
-  assert.match(provider, /flushPendingWatches\(\)/);
+test("leaving an episode past the watched mark queues it only when the history write fails", async () => {
+  for (const historyOk of [false, true]) {
+    const h = simklScrobbleHarness();
+    h.state.historyOk = historyOk;
+    h.at({ status: "playing", sec: 300 });
+    h.at({ status: "paused", sec: 1450 });
+    h.at({ status: "paused", sec: 1450, episode: 3 });
+    await h.settle();
+    assert.equal(h.watched.length, 1);
+    assert.deepEqual(
+      h.queue().map((p) => [p.metaId, p.episode?.episode, p.imdb]),
+      historyOk ? [] : [["tt9", 2, "tt9"]],
+    );
+  }
+});
+
+test("exiting the player past the watched mark queues the watch until the history write confirms it", async () => {
+  for (const historyOk of [false, true]) {
+    const h = simklScrobbleHarness();
+    h.state.historyOk = historyOk;
+    h.at({ status: "playing", sec: 300 });
+    h.at({ status: "paused", sec: 1450 });
+    h.unmount();
+    assert.equal(h.queue().length, 1, "queued before the history write settles");
+    await h.settle();
+    assert.deepEqual(
+      h.queue().map((p) => [p.metaId, p.episode?.episode, p.imdb]),
+      historyOk ? [] : [["tt9", 2, "tt9"]],
+    );
+  }
+});
+
+test("closing the window past the watched mark queues the watch for the next launch", () => {
+  const h = simklScrobbleHarness();
+  h.at({ status: "playing", sec: 300 });
+  h.at({ status: "paused", sec: 1450 });
+  h.pagehide();
+  assert.deepEqual(
+    h.queue().map((p) => [p.metaId, p.episode?.episode]),
+    [["tt9", 2]],
+  );
+  assert.equal(h.beacons.at(-1)?.action, "stop");
+});
+
+function simklProvider() {
+  let session: object | null = { accessToken: "t", username: "u" };
+  const seen = {
+    armed: null as any,
+    flushes: 0,
+    stops: [] as unknown[][],
+    watched: [] as unknown[][],
+    notify: () => {},
+  };
+  const h = trackerProviderHarness("src/lib/simkl/provider.tsx", "SimklProvider", {
+    "./device-auth": {},
+    "./session": {
+      getSession: () => session,
+      setSession: () => {},
+      subscribeSession: (fn: () => void) => {
+        seen.notify = fn;
+        return () => {};
+      },
+    },
+    "@/lib/secret-store": { subscribeSecretsReady: () => () => {} },
+    "./ids": {},
+    "./history": {},
+    "./pending-sync": {
+      armOnlineFlush: (deps: unknown) => ((seen.armed = deps), () => {}),
+      flushPendingWatches: async () => (seen.flushes++, { flushed: 0, remaining: 0 }),
+    },
+    "./record-watched": {
+      recordWatchedFallback: async (...args: unknown[]) => (seen.watched.push(args), true),
+    },
+    "./scrobble": {
+      simklScrobble: async (...args: unknown[]) => (seen.stops.push(args), true),
+    },
+  });
+  return { h, seen, signOut: () => ((session = null), seen.notify()) };
+}
+
+test("the provider arms the online flush with a 100% stop and a history write, and flushes once a session exists", async () => {
+  const { h, seen, signOut } = simklProvider();
+  h.render();
+  const episode = { season: 1, episode: 2 };
+  assert.equal(seen.armed.hasSession(), true);
+  assert.equal(await seen.armed.stopScrobble("tt1", episode), true);
+  assert.deepEqual(seen.stops, [["stop", "tt1", episode, 100]]);
+  await seen.armed.recordWatched("tt1", episode, "tt9");
+  await seen.armed.recordWatched("tt1", episode);
+  assert.deepEqual(seen.watched, [
+    ["tt1", episode, { imdb: "tt9" }],
+    ["tt1", episode, undefined],
+  ]);
+  assert.equal(seen.flushes, 1);
+  signOut();
+  h.render();
+  assert.equal(seen.armed.hasSession(), false);
+  assert.equal(seen.flushes, 1, "no flush without a session");
 });

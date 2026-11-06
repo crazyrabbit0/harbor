@@ -1,62 +1,150 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import "./_localstorage-stub.ts";
+import { buildActivityFeed } from "../src/lib/social/activity-feed.ts";
 import {
   listWatchEvents,
   recordWatchEvent,
   subscribeWatchEvents,
   type WatchEvent,
 } from "../src/lib/watch-events.ts";
+import { hookHarness } from "./helpers/hook-harness.ts";
+import { markWatchedHarness } from "./helpers/mark-watched-harness.ts";
+import {
+  playbackParams,
+  playbackPersistenceHarness,
+} from "./helpers/playback-persistence-harness.ts";
 
-const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-
-const feed = read("src/lib/social/activity-feed.ts");
-const autosave = read("src/views/player/hooks/use-resume-autosave.ts");
-const marker = read("src/lib/mark-watched.ts");
-const sync = read("src/lib/social/use-activity-sync.ts");
+const baseFeed = { cw: [], ratings: [], favorites: [], mangaFavorites: [] };
 
 test("recent activity no longer derives only from the resume list", () => {
-  assert.match(feed, /watchEvents\?: WatchEvent\[\]/, "the feed must accept completion events");
-  const evt = feed.indexOf("input.watchEvents");
-  const cw = feed.indexOf("for (const c of input.cw)");
-  assert.ok(evt >= 0, "completion events must be read");
-  assert.ok(cw > evt, "completion events are merged before the resume list");
+  const feed = buildActivityFeed({
+    ...baseFeed,
+    cw: [{ id: "tt2", type: "series", name: "Resumed", progress: 0.4, at: 10 } as any],
+    watchEvents: [{ id: "tt1", type: "series", name: "Finished", season: 1, episode: 2, at: 5 }],
+  });
+
+  assert.deepEqual(
+    feed.map((item) => [item.kind, item.metaId]),
+    [
+      ["watched", "tt2"],
+      ["finished", "tt1"],
+    ],
+  );
 });
 
 test("completion events are marked finished and keep the episode label", () => {
-  const block = feed.slice(
-    feed.indexOf("input.watchEvents"),
-    feed.indexOf("for (const c of input.cw)"),
+  const feed = buildActivityFeed({
+    ...baseFeed,
+    watchEvents: [
+      { id: "tt1", type: "series", name: "Show", season: 3, episode: 4, at: 3 },
+      { id: "kitsu:7", type: "series", name: "Anime", season: 1, episode: 2, at: 2 },
+      { id: "tt9", type: "movie", name: "Film", at: 1 },
+    ],
+  });
+
+  assert.deepEqual(
+    feed.map((item) => [item.kind, item.mediaType, item.subtitle]),
+    [
+      ["finished", "series", "S3 E4"],
+      ["finished", "anime", "S1 E2"],
+      ["finished", "movie", undefined],
+    ],
   );
-  assert.match(block, /kind: "finished"/);
-  assert.match(block, /withAnime\(w\.id, w\.type\)/, "anime must still be typed as anime");
-  assert.match(block, /S\$\{w\.season\} E\$\{w\.episode\}/);
 });
 
 test("finishing playback records a watch event for every content type", () => {
-  assert.match(autosave, /if \(finished\) \{\s*recordWatchEvent\(/);
-  const guard = autosave.slice(
-    autosave.indexOf("if (finished) {"),
-    autosave.indexOf("const animeLocal"),
+  const play = (meta: Record<string, unknown>, position: number, season?: number) => {
+    const h = playbackPersistenceHarness();
+    const base = playbackParams(season, season ? 1 : undefined);
+    const p = { ...base, src: { ...base.src, meta } };
+    h.render(p);
+    h.render({
+      ...p,
+      snap: { ...p.snap, status: "playing", positionSec: position, durationSec: 1000 },
+    });
+    h.clock(position);
+    h.tick();
+    return h.watchEvents;
+  };
+
+  const series = play({ id: "tt100", type: "series", name: "Show" }, 900, 2);
+  const movie = play({ id: "tt200", type: "movie", name: "Film" }, 900);
+  const anime = play({ id: "kitsu:5", type: "anime", name: "Anime" }, 900, 1);
+  const unfinished = play({ id: "tt100", type: "series", name: "Show" }, 300, 2);
+
+  assert.deepEqual(
+    series.map((e) => [e.id, e.type, e.season, e.episode]),
+    [["tt100", "series", 2, 1]],
   );
-  assert.doesNotMatch(guard, /meta\.type === "series" &&/, "must not be limited to one media type");
+  assert.deepEqual(
+    movie.map((e) => [e.id, e.type]),
+    [["tt200", "movie"]],
+  );
+  assert.deepEqual(
+    anime.map((e) => [e.id, e.type]),
+    [["kitsu:5", "series"]],
+  );
+  assert.deepEqual(unfinished, []);
 });
 
-test("mark as watched records an event for both movies and shows", () => {
-  const hits = marker.match(/recordWatchEvent\(/g) ?? [];
-  assert.ok(hits.length >= 2, `expected movie and series paths, found ${hits.length}`);
-  assert.match(marker, /recordWatchEvent\(\{\s*id: meta\.id,\s*type: "movie"/);
-  assert.match(marker, /recordWatchEvent\(\{\s*id: meta\.id,\s*type: "series"/);
+test("mark as watched records an event for both movies and shows", async () => {
+  const { mod, watchEvents } = markWatchedHarness();
+
+  await mod.markMetaWatched({ id: "tt1", type: "movie", name: "Film" });
+  await mod.markMetaWatched({ id: "tt2", type: "series", name: "Show", videos: [] });
+
+  assert.deepEqual(
+    watchEvents.map((e) => [e.id, e.type]),
+    [
+      ["tt1", "movie"],
+      ["tt2", "series"],
+    ],
+  );
 });
 
 test("the sync hook re-pushes when a watch event lands", () => {
-  assert.match(sync, /subscribeWatchEvents\(\(\) => setWatchEvents\(listWatchEvents\(\)\)\)/);
-  assert.match(sync, /watchEvents,\r?\n\s*\}\),/, "events must be passed into the feed");
-  assert.match(sync, /\[cw, ratings, favMap, mangaMap, imports, watchEvents\]/);
+  const feeds: any[] = [];
+  let events: WatchEvent[] = [];
+  let notify = () => {};
+  const watchEvent: WatchEvent = { id: "tt1", type: "movie", name: "Film", at: 1 };
+  // The stores hand back the same references between renders, so only a real change busts the memo.
+  const stable = { cw: [], ratings: [], imports: [], favorites: new Map(), manga: new Map() };
+  const harness = hookHarness("src/lib/social/use-activity-sync.ts", "useActivitySync", {
+    "@/lib/theme-auth": { currentAuthor: () => null, subscribeAuthor: () => () => {} },
+    "@/lib/continue-watching": { useContinueWatching: () => stable.cw },
+    "@/lib/ratings/store": { useMyRatings: () => stable.ratings },
+    "@/lib/ratings/import/receipts": {
+      listImports: () => stable.imports,
+      subscribeImports: () => () => {},
+    },
+    "@/lib/media-favorites": { useMediaFavorites: () => ({ items: stable.favorites }) },
+    "@/lib/manga-favorites": { useMangaFavorites: () => ({ items: stable.manga }) },
+    "@/lib/watch-events": {
+      listWatchEvents: () => events,
+      subscribeWatchEvents: (fn: () => void) => {
+        notify = fn;
+        return () => {};
+      },
+    },
+    "./activity-feed": {
+      buildActivityFeed: (input: { watchEvents: WatchEvent[] }) => {
+        feeds.push(input.watchEvents);
+        return [];
+      },
+      pushActivity: async () => {},
+      sameFeed: () => false,
+    },
+  });
+
+  harness.render();
+  events = [watchEvent];
+  notify();
+  harness.render();
+
+  assert.deepEqual(feeds, [[], [watchEvent]]);
 });
 
 const event = (id: string, over: Partial<WatchEvent> = {}): WatchEvent => ({
