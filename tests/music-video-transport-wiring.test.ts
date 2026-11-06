@@ -6,6 +6,8 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import ts from "typescript";
 import { dedupeMusicTracks, sameMusicTrack } from "../src/lib/music/track-identity.ts";
+import * as videoSync from "../src/lib/music/video-sync.ts";
+import { hookHarness, loadModule } from "./helpers/hook-harness.ts";
 import { musicPlayerDependencies } from "./helpers/music-player-dependencies.ts";
 
 function read(path: string): string {
@@ -31,6 +33,7 @@ const two = {
 
 function loadPlayer() {
   const calls: Array<{ command: string; args: any }> = [];
+  const listened: string[] = [];
   const source = ts.transpileModule(read("lib/music/player.ts"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
   }).outputText;
@@ -47,7 +50,13 @@ function loadPlayer() {
           return undefined;
         },
       };
-    if (name === "@tauri-apps/api/event") return { listen: async () => () => {} };
+    if (name === "@tauri-apps/api/event")
+      return {
+        listen: async (event: string) => {
+          listened.push(event);
+          return () => {};
+        },
+      };
     if (name === "react") return { useSyncExternalStore: () => undefined };
     if (name === "./queue-order")
       return { queueTrackKey: (track: any) => `${track.connectorId}:${track.id}` };
@@ -122,6 +131,7 @@ function loadPlayer() {
   return {
     api: module.exports,
     calls,
+    listened,
     commands: (): string[] => calls.map((call) => call.command),
   };
 }
@@ -232,50 +242,286 @@ test("a report from a picture that no longer owns the dock is ignored", async ()
   assert.equal(api.getMusicState().currentTime, before.currentTime);
 });
 
-test("the music player carries no mpv command and no mpv event listener at all", () => {
-  const source = read("lib/music/player.ts");
-  for (const banned of [
-    "mpv_set_property",
-    "mpv_command",
-    "mpv_stop",
-    "mpv_start",
-    "mpv://event",
-  ]) {
-    assert.equal(source.includes(banned), false, `${banned} still drives the music path`);
-  }
+test("the music player carries no mpv command and no mpv event listener at all", async () => {
+  const { api, commands, listened } = loadPlayer();
+  await api.initializeMusic();
+  await api.playMusic(one, [one, two]);
+  api.toggleMusicPlayback();
+  api.seekMusic(10);
+  api.setMusicVolume(0.5);
+  api.nextMusic();
+  await settle();
+  await api.activateMusicVideo(two.id);
+  await api.closeMusicPlayer();
+  assert.ok(listened.includes("music://event"), "the player never subscribed to its own engine");
+  const mpvEvents = listened.filter((name) => name.startsWith("mpv"));
+  assert.deepEqual(mpvEvents, [], "an mpv event listener drives the music path");
+  const mpvCommands = commands().filter((command) => command.startsWith("mpv"));
+  assert.deepEqual(mpvCommands, [], "an mpv command drives the music path");
 });
 
-test("the session host is the production caller of the controller and of the report", () => {
-  const host = read("lib/music/video-host.ts");
-  assert.match(host, /setMusicVideoController\(/);
-  assert.match(host, /reportMusicVideoPlayback\(/);
-  assert.match(host, /addEventListener\("ended"/);
-  assert.match(host, /addEventListener\("timeupdate"/);
-  const surface = read("components/music/music-video-surface.tsx");
-  assert.equal(
-    surface.includes("setMusicVideoController"),
-    false,
-    "a React surface owning the controller dies with the page",
+class FakeMedia {
+  parentElement: FakeMedia | null = null;
+  children: FakeMedia[] = [];
+  listeners = new Map<string, Set<() => void>>();
+  attrs = new Map<string, string>();
+  style = { cssText: "" };
+  className = "";
+  playsInline = false;
+  preload = "";
+  disablePictureInPicture = false;
+  muted = false;
+  volume = 1;
+  currentTime = 0;
+  duration = 200;
+  playbackRate = 1;
+  seeking = false;
+  readyState = 4;
+  paused = true;
+  measured = 0;
+  get src(): string {
+    return this.attrs.get("src") ?? "";
+  }
+  set src(value: string) {
+    this.attrs.set("src", value);
+  }
+  getAttribute(name: string): string | null {
+    return this.attrs.get(name) ?? null;
+  }
+  setAttribute(name: string, value: string): void {
+    this.attrs.set(name, value);
+  }
+  hasAttribute(name: string): boolean {
+    return this.attrs.has(name);
+  }
+  removeAttribute(name: string): void {
+    this.attrs.delete(name);
+  }
+  addEventListener(type: string, fn: () => void): void {
+    if (!this.listeners.has(type)) this.listeners.set(type, new Set());
+    this.listeners.get(type)!.add(fn);
+  }
+  removeEventListener(type: string, fn: () => void): void {
+    this.listeners.get(type)?.delete(fn);
+  }
+  dispatch(type: string): void {
+    for (const fn of Array.from(this.listeners.get(type) ?? [])) fn();
+  }
+  appendChild(node: FakeMedia): FakeMedia {
+    return this.insertBefore(node, null);
+  }
+  append(...nodes: FakeMedia[]): void {
+    for (const node of nodes) this.appendChild(node);
+  }
+  insertBefore(node: FakeMedia, ref: FakeMedia | null): FakeMedia {
+    if (node.parentElement)
+      node.parentElement.children = node.parentElement.children.filter((c) => c !== node);
+    node.parentElement = this;
+    const at = ref ? this.children.indexOf(ref) : -1;
+    if (at < 0) this.children.push(node);
+    else this.children.splice(at, 0, node);
+    return node;
+  }
+  get firstChild(): FakeMedia | null {
+    return this.children[0] ?? null;
+  }
+  getBoundingClientRect() {
+    this.measured += 1;
+    return { left: 0, top: 0, width: 0, height: 0 };
+  }
+  focus(): void {}
+  play(): Promise<void> {
+    this.paused = false;
+    return Promise.resolve();
+  }
+  pause(): void {
+    this.paused = true;
+  }
+  load(): void {}
+}
+
+type Node = { type: unknown; props: Record<string, any> };
+const nodesOf = (tree: unknown): Node[] =>
+  Array.isArray(tree)
+    ? tree.flatMap(nodesOf)
+    : tree && typeof tree === "object"
+      ? [tree as Node, ...nodesOf((tree as Node).props?.children)]
+      : [];
+
+function jsxRuntime(nodeFor: () => FakeMedia) {
+  const element = (type: unknown, props: Record<string, any>) => {
+    if (typeof props?.ref === "function") props.ref(nodeFor());
+    else if (props?.ref && typeof props.ref === "object") props.ref.current = nodeFor();
+    return { type, props };
+  };
+  return { jsx: element, jsxs: element, Fragment: "Fragment" };
+}
+
+const videoStream = {
+  url: "https://example.test/picture.mp4",
+  audioUrl: "https://example.test/sound.m4a",
+};
+
+test("the session host is the production caller of the controller and of the report", async () => {
+  const loaded = await activeVideo();
+  const { api, calls } = loaded;
+  const body = new FakeMedia();
+  const document = { body, createElement: () => new FakeMedia() };
+  const host = loadModule(
+    "src/lib/music/video-host.ts",
+    { "./video-sync": videoSync, "./player": api },
+    { document, setInterval: () => 1, clearInterval: () => {} },
   );
-  assert.equal(
-    surface.includes("reportMusicVideoPlayback"),
-    false,
-    "a React surface owning the report dies with the page",
+  const media = host.setMusicVideoHostSource("youtube:v1", videoStream);
+  media.audio.currentTime = 4;
+  media.audio.dispatch("playing");
+  assert.equal(api.getMusicState().phase, "playing", "the picture's start never reached the dock");
+  media.audio.currentTime = 30;
+  media.audio.dispatch("timeupdate");
+  assert.equal(api.getMusicState().currentTime, 30, "the scrubber never heard the picture's clock");
+  api.toggleMusicPlayback();
+  assert.equal(media.audio.paused, true, "the dock pause never reached the session's elements");
+  assert.equal(media.video.paused, true);
+  api.seekMusic(55);
+  assert.equal(media.audio.currentTime, 55);
+  media.audio.dispatch("ended");
+  await settle();
+  const played = calls.filter((call) => call.command === "music_play_track");
+  assert.equal(played.length, 1, "the session's end never advanced the queue");
+  assert.equal(played[0].args.track.id, two.id);
+
+  const playerReads = new Set<string>();
+  const session: { owner: unknown; status: string; key: string } = {
+    owner: null,
+    status: "playing",
+    key: "k",
+  };
+  const surface = hookHarness(
+    "src/components/music/music-video-surface.tsx",
+    "MusicVideoSurface",
+    {
+      "react/jsx-runtime": jsxRuntime(() => new FakeMedia()),
+      "@/components/icons/music-icons": new Proxy({}, { get: (_t, icon) => String(icon) }),
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/music/player": new Proxy(
+        {},
+        {
+          get: (_t, name) => {
+            playerReads.add(String(name));
+            if (name === "useMusicPlayer") return () => ({ volume: 1, phase: "playing" });
+            return () => () => {};
+          },
+        },
+      ),
+      "@/lib/music/video-session": {
+        musicVideoSurfaces: {
+          subscribe: () => () => {},
+          getSnapshot: () => session,
+          register: (owner: unknown) => {
+            session.owner = owner;
+            return () => {};
+          },
+          retry: () => {},
+        },
+      },
+      "@/lib/music/video": {
+        musicVideoStream: async () => videoStream,
+        musicVideoStreamKey: (t: { id: string }) => `youtube:${t.id}`,
+      },
+      "@/lib/music/video-host": host,
+      "@/lib/music/video-fullscreen": {
+        getMusicVideoFullscreen: () => ({ active: false }),
+        subscribeMusicVideoFullscreen: () => () => {},
+        toggleMusicVideoFullscreen: () => {},
+      },
+      "@/lib/music/lyrics": { loadTrackLyrics: async () => null },
+      "./music-video-controls": { MusicVideoControls: "MusicVideoControls" },
+      "./music-video-surface.css": {},
+    },
+    {
+      window: {
+        setTimeout: () => 0,
+        clearTimeout: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      },
+      setTimeout: () => 0,
+      clearTimeout: () => {},
+    },
+  );
+  // The surface adopts the held session stream, so its media listeners are live during the events.
+  for (let i = 0; i < 3; i++) surface.render({ track: one });
+  assert.equal(media.audio.paused, false, "the surface never took the held stream");
+  media.audio.dispatch("timeupdate");
+  media.audio.dispatch("ended");
+  surface.unmount();
+  assert.deepEqual(
+    [...playerReads],
+    ["useMusicPlayer"],
+    "a React surface owning the controller or the report dies with the page",
   );
 });
 
 test("the fullscreen overlay stopped chasing a rectangle and stopped poking a native window", () => {
-  const overlay = read("components/music/music-video-fullscreen.tsx");
-  const banned = [
-    "getBoundingClientRect",
-    "mpv_force_below",
-    "harbor:mpv-force-geom",
-    "harbor:mpv-refresh-geom",
-    "webview_reapply_transparency",
-    "enterWindowFullscreen",
-    'addEventListener("scroll"',
-  ];
-  for (const value of banned) {
-    assert.equal(overlay.includes(value), false, `${value} still positions the music overlay`);
-  }
+  const nodes: FakeMedia[] = [];
+  const windowListeners: string[] = [];
+  const dispatched: unknown[] = [];
+  const stages: unknown[] = [];
+  let exits = 0;
+  const overlay = hookHarness(
+    "src/components/music/music-video-fullscreen.tsx",
+    "MusicVideoFullscreen",
+    {
+      "react/jsx-runtime": jsxRuntime(() => {
+        const node = new FakeMedia();
+        nodes.push(node);
+        return node;
+      }),
+      "react-dom": { createPortal: (child: unknown) => child },
+      "@/components/icons/music-icons": new Proxy({}, { get: (_t, icon) => String(icon) }),
+      "@/components/modal-shell": { useEscape: () => {} },
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/back-intercept": { pushBackHandler: () => () => {} },
+      "@/lib/music/video-session": {
+        musicVideoSurfaces: {
+          subscribe: () => () => {},
+          getSnapshot: () => ({ owner: null, status: "playing", key: "k" }),
+        },
+      },
+      "./music-video-transport": { MusicVideoTransport: "MusicVideoTransport" },
+      "@/lib/music/video-fullscreen": {
+        exitMusicVideoFullscreen: () => {
+          exits += 1;
+        },
+        getMusicVideoFullscreen: () => ({ active: true }),
+        musicVideoFullscreenSurvives: () => true,
+        setMusicVideoFullscreenStage: (node: unknown) => stages.push(node),
+        subscribeMusicVideoFullscreen: () => () => {},
+      },
+    },
+    {
+      window: {
+        addEventListener: (type: string) => windowListeners.push(type),
+        removeEventListener: () => {},
+        dispatchEvent: (event: unknown) => dispatched.push(event),
+      },
+      document: { activeElement: null, body: new FakeMedia() },
+      HTMLElement: FakeMedia,
+      requestAnimationFrame: () => 0,
+      cancelAnimationFrame: () => {},
+      setTimeout: () => 0,
+      clearTimeout: () => {},
+    },
+  );
+  const tree = overlay.render({ track: one });
+  const stage = nodesOf(tree).find((node) => "data-music-video-fullscreen-stage" in node.props);
+  assert.ok(stage, "the overlay rendered no fullscreen stage");
+  assert.ok(stages.length > 0 && stages.every(Boolean), "the stage never reached the store");
+  stage.props.onDoubleClick();
+  assert.equal(exits, 1, "the stage cannot leave fullscreen");
+  overlay.unmount();
+  const measured = nodes.reduce((sum, node) => sum + node.measured, 0);
+  assert.equal(measured, 0, "the overlay measured a rectangle to chase");
+  assert.equal(windowListeners.includes("scroll"), false, "the overlay tracks scroll");
+  assert.deepEqual(dispatched, [], "the overlay pokes a native window through events");
 });
