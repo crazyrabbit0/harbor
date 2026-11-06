@@ -434,7 +434,11 @@ pub(crate) fn lan_ip() -> Option<String> {
 /// not the Tailscale/VPN interface that `lan_ip()` might pick up.
 pub(crate) fn reachable_ip_for(target_host: &str) -> Option<String> {
     let socket = std::net::UdpSocket::bind("0.0.0.0:0").ok()?;
-    socket.connect((target_host, 1u16)).ok()?;
+    // Cast passes the renderer as "ip:port"; read as a host name it fails to resolve and the VPN address wins.
+    match target_host.parse::<std::net::SocketAddr>() {
+        Ok(addr) => socket.connect(addr).ok()?,
+        Err(_) => socket.connect((target_host, 1u16)).ok()?,
+    }
     let addr = socket.local_addr().ok()?;
     let ip = addr.ip();
     if ip.is_unspecified() || ip.is_loopback() {
@@ -1222,6 +1226,26 @@ mod tests {
         assert_eq!(requested_prefix_len(&headers, 1024, 4096), None);
         headers.insert("range", HeaderValue::from_static("bytes=20-40"));
         assert_eq!(requested_prefix_len(&headers, 1024, 4096), None);
+    }
+
+    #[test]
+    fn a_renderer_given_as_ip_and_port_still_picks_the_route_to_it() {
+        let Some(lan) = local_lan_ip_for_test() else {
+            return;
+        };
+        assert_eq!(
+            reachable_ip_for(&format!("{lan}:7676")).as_deref(),
+            Some(lan.as_str())
+        );
+        assert_eq!(reachable_ip_for(&lan).as_deref(), Some(lan.as_str()));
+        assert_eq!(reachable_ip_for("not a host:7676"), None);
+    }
+
+    fn local_lan_ip_for_test() -> Option<String> {
+        harbor_shared::lan::local_ipv4_interfaces()
+            .into_iter()
+            .find(|ip| ip.is_private())
+            .map(|ip| ip.to_string())
     }
 
     #[test]

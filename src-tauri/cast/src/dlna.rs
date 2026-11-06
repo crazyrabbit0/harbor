@@ -232,6 +232,8 @@ fn ssdp_search(timeout_ms: u64) -> Vec<(String, String)> {
             Ok(s) => {
                 let _ = s.set_read_timeout(Some(Duration::from_millis(200)));
                 let _ = s.set_multicast_ttl_v4(4);
+                // Binding alone does not choose the multicast interface; Linux would send via the VPN default route.
+                let _ = socket2::SockRef::from(&s).set_multicast_if_v4(&iface);
                 sockets.push(s);
             }
             Err(e) => eprintln!("[harbor::dlna] bind {iface} failed: {e}"),

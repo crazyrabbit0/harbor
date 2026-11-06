@@ -11,6 +11,7 @@ ts = ["dep:ts-rs"]
 [dependencies]
 reqwest = { version = "0.12", default-features = false }
 serde = { version = "1", features = ["derive"] }
+if-addrs = "0.13"
 tauri = { version = "2.12.0", features = ["protocol-asset"] }
 tokio = { version = "1", features = ["full"] }
 libmpv2 = { version = "4", optional = true }
