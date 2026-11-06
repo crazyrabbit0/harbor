@@ -1,11 +1,10 @@
 // @ts-expect-error Node test types are outside the browser tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are outside the browser tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are outside the browser tsconfig.
 import test from "node:test";
-import ts from "typescript";
+import { fileURLToPath } from "node:url";
 import * as policy from "../src/lib/player/rtx-video-policy.ts";
+import { flushPromises, loadModule } from "./helpers/hook-harness.ts";
 
 const request = { hdr: false, vsr: true, svpActive: false, hdrToSdr: true };
 function harness() {
@@ -33,21 +32,12 @@ function harness() {
       },
     },
   };
-  const module = { exports: {} };
-  const output = ts.transpileModule(
-    readFileSync(new URL("../src/lib/player/rtx-video.ts", import.meta.url), "utf8"),
-    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
-  ).outputText;
-  new Function("require", "module", "exports", output)(
-    (name: string) => {
-      assert.ok(Object.hasOwn(mocks, name));
-      return mocks[name];
-    },
-    module,
-    module.exports,
+  const api = loadModule(
+    fileURLToPath(new URL("../src/lib/player/rtx-video.ts", import.meta.url)),
+    mocks,
   );
   return {
-    api: module.exports as typeof import("../src/lib/player/rtx-video"),
+    api: api as typeof import("../src/lib/player/rtx-video"),
     filter: () => filter,
     hint: () => hint,
     commands,
@@ -84,11 +74,24 @@ test("session key changes clean native state without an explicit reset", async (
   assert.equal(h.filter(), null);
 });
 
+test("a new session key re-installs the filter on the fresh file", async () => {
+  const h = harness();
+  const hdrRequest = { ...request, hdr: true, hdrToSdr: false };
+  await h.api.applyRtxVideo(hdrRequest, "first");
+  await h.api.applyRtxVideo(hdrRequest, "first");
+  const adds = () => h.commands.filter((cmd) => cmd[1] === "add").length;
+  assert.equal(adds(), 1, "the same session keeps its filter");
+  await h.api.applyRtxVideo(hdrRequest, "second");
+  assert.equal(adds(), 2);
+});
+
 test("reset restores the original HDR hint and eligible SDR still works afterward", async () => {
   const h = harness();
   await h.api.applyRtxVideo({ ...request, hdr: true, hdrToSdr: false }, "first");
   assert.equal(h.hint(), "source");
   h.api.resetRtxVideoState();
+  await flushPromises();
+  assert.equal(h.hint(), "auto", "reset alone restores the hint");
   await h.api.applyRtxVideo({ ...request, vsr: false }, "second");
   assert.equal(h.hint(), "auto");
   assert.equal(h.filter(), null);

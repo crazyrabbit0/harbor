@@ -1,73 +1,45 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import ts from "typescript";
+import { fileURLToPath } from "node:url";
+import { flushPromises as flush, loadModule } from "./helpers/hook-harness.ts";
 
 type Call = { name: string; args: any };
 
-function compile(file: string) {
-  const source = readFileSync(new URL(`../src/lib/music/${file}`, import.meta.url), "utf8");
-  return ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-}
+const musicModule = (file: string) =>
+  fileURLToPath(new URL(`../src/lib/music/${file}`, import.meta.url));
 
 function load(handle: (name: string, args: any) => unknown = async () => null) {
   const calls: Call[] = [];
-  let listener: (event: any) => void = () => {};
-  const module = { exports: {} };
-  new Function("require", "module", "exports", compile("video.ts"))(
-    (name: string) => {
-      if (name === "@tauri-apps/api/core")
-        return {
-          invoke: async (command: string, args: any) => {
-            calls.push({ name: command, args });
-            return handle(command, args);
-          },
-        };
-      if (name === "@tauri-apps/api/event")
-        return {
-          listen: async (_: string, callback: typeof listener) => {
-            listener = callback;
-            return () => {};
-          },
-        };
-      throw Error(name);
+  const api = loadModule(musicModule("video.ts"), {
+    "@tauri-apps/api/core": {
+      invoke: async (command: string, args: any) => {
+        calls.push({ name: command, args });
+        return handle(command, args);
+      },
     },
-    module,
-    module.exports,
-  );
+  }) as typeof import("../src/lib/music/video.ts");
   return {
-    api: module.exports as typeof import("../src/lib/music/video.ts"),
+    api,
     resolved: () =>
       calls
         .filter((call) => call.name === "music_video_stream")
         .map((call) => call.args.track.sourceId as string),
     count: (name: string) => calls.filter((call) => call.name === name).length,
-    event: (payload: any) => listener({ payload }),
   };
 }
 
 function loadDiscovery(handle: (name: string, args: any) => unknown) {
   const queries: string[] = [];
-  const module = { exports: {} };
-  new Function("require", "module", "exports", compile("video-discovery.ts"))(
-    (name: string) => {
-      assert.equal(name, "@tauri-apps/api/core");
-      return {
-        invoke: async (command: string, args: any) => {
-          queries.push(args.query);
-          return handle(command, args);
-        },
-      };
+  const api = loadModule(musicModule("video-discovery.ts"), {
+    "@tauri-apps/api/core": {
+      invoke: async (command: string, args: any) => {
+        queries.push(args.query);
+        return handle(command, args);
+      },
     },
-    module,
-    module.exports,
-  );
-  return { api: module.exports as typeof import("../src/lib/music/video-discovery.ts"), queries };
+  }) as typeof import("../src/lib/music/video-discovery.ts");
+  return { api, queries };
 }
-
-const flush = () => new Promise((resolve) => setImmediate(resolve));
 const video = {
   mediaKind: "video",
   connectorId: "youtube",

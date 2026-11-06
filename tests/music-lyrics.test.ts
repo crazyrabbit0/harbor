@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import ts from "typescript";
+import { fileURLToPath } from "node:url";
+import { loadModule } from "./helpers/hook-harness.ts";
 
 type Lyrics = typeof import("../src/lib/music/lyrics.ts");
 
@@ -18,25 +18,15 @@ const KING_VON = [
 
 function build(safeFetch: (url: string) => Promise<unknown>) {
   const calls: string[] = [];
-  const input = readFileSync(new URL("../src/lib/music/lyrics.ts", import.meta.url), "utf8");
-  const output = ts.transpileModule(input, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  const module = { exports: {} };
-  new Function("require", "module", "exports", output)(
-    (name: string) => {
-      assert.equal(name, "@/lib/safe-fetch");
-      return {
-        safeFetch: async (url: string) => {
-          calls.push(url);
-          return safeFetch(url);
-        },
-      };
+  const lyrics = loadModule(fileURLToPath(new URL("../src/lib/music/lyrics.ts", import.meta.url)), {
+    "@/lib/safe-fetch": {
+      safeFetch: async (url: string) => {
+        calls.push(url);
+        return safeFetch(url);
+      },
     },
-    module,
-    module.exports,
-  );
-  return { lyrics: module.exports as Lyrics, calls };
+  }) as Lyrics;
+  return { lyrics, calls };
 }
 
 const ok = (body: unknown) => ({ ok: true, json: async () => body });

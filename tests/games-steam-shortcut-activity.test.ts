@@ -1,6 +1,5 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import fs from "node:fs";
 import {
   createShortcutActivity,
   shortcutActivityKey,
@@ -184,15 +183,16 @@ test("worst-case bounded diagnostic strings remain reloadable and subscriptions 
   assert.equal(changes, count);
 });
 
-test("all activity labels and interpolation values exist once in each of the16locales", () => {
-  const folder = new URL("../src/lib/i18n/locales/", import.meta.url);
+test("all activity labels and interpolation values exist in each of the 16 locales", async () => {
   const keys = new Map<string, string[]>();
-  const read = (locale: string) => [
-    ...fs
-      .readFileSync(new URL(`${locale}/game-steam-shortcuts.ts`, folder), "utf8")
-      .matchAll(/"(games\.shortcuts\.activity\.[^"]+)":\s*"((?:\\.|[^"\\])*)"/g),
-  ];
-  for (const row of read("en")) keys.set(row[1], (row[2].match(/\{\w+\}/g) ?? []).sort());
+  const read = async (locale: string) =>
+    Object.entries(
+      (await import(`../src/lib/i18n/locales/${locale}/game-steam-shortcuts.ts`)).default as Record<
+        string,
+        string
+      >,
+    ).filter(([key]) => key.startsWith("games.shortcuts.activity."));
+  for (const row of await read("en")) keys.set(row[0], (row[1].match(/\{\w+\}/g) ?? []).sort());
   assert.equal(keys.size, 19);
   for (const locale of [
     "ar",
@@ -212,14 +212,13 @@ test("all activity labels and interpolation values exist once in each of the16lo
     "vi",
     "zh",
   ]) {
-    const rows = read(locale);
-    assert.equal(rows.length, keys.size, locale);
-    assert.equal(new Set(rows.map((row) => row[1])).size, keys.size, locale);
+    const rows = await read(locale);
+    assert.deepEqual(rows.map((row) => row[0]).sort(), [...keys.keys()].sort(), locale);
     for (const row of rows)
       assert.deepEqual(
-        (row[2].match(/\{\w+\}/g) ?? []).sort(),
-        keys.get(row[1]),
-        `${locale} ${row[1]}`,
+        (row[1].match(/\{\w+\}/g) ?? []).sort(),
+        keys.get(row[0]),
+        `${locale} ${row[0]}`,
       );
   }
 });

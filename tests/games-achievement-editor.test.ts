@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync } from "node:fs";
 import {
   editAchievementDraft,
   MAX_ACHIEVEMENT_CHANGES,
@@ -102,17 +102,15 @@ test("reward links match the exact game and achievement with locally available s
     }
   }
 });
-test("every achievement editor locale has the English keys and matching placeholders", () => {
-  const catalog = (language: string) =>
+test("every achievement editor locale has the English keys and matching placeholders", async () => {
+  const catalog = async (language: string) =>
     Object.fromEntries(
-      [
-        ...readFileSync(
-          new URL(`../src/lib/i18n/locales/${language}/game-achievements.ts`, import.meta.url),
-          "utf8",
-        ).matchAll(/"(games\.achievementManager\.[^"]+)":\s*("(?:[^"\\]|\\.)*")/g),
-      ].map((match) => [match[1], JSON.parse(match[2]) as string]),
+      Object.entries(
+        (await import(`../src/lib/i18n/locales/${language}/game-achievements.ts`))
+          .default as Record<string, string>,
+      ).filter(([key]) => key.startsWith("games.achievementManager.")),
     );
-  const english = catalog("en");
+  const english = await catalog("en");
   for (const language of [
     "ar",
     "de",
@@ -130,7 +128,7 @@ test("every achievement editor locale has the English keys and matching placehol
     "vi",
     "zh",
   ]) {
-    const local = catalog(language);
+    const local = await catalog(language);
     for (const [key, value] of Object.entries(english)) {
       assert.equal(typeof local[key], "string", `${language}: ${key}`);
       assert.deepEqual(

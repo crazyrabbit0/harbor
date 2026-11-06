@@ -147,7 +147,9 @@ impl ProxyState {
             )
             .route("/health", get(handle_health))
             .with_state(state.clone());
-        let app = proxy_routes.merge(crate::cast_hls::router(hls)).merge(state.audio.clone().router());
+        let app = proxy_routes
+            .merge(crate::cast_hls::router(hls))
+            .merge(state.audio.clone().router());
         #[cfg(target_os = "linux")]
         let local_media = Router::new()
             .route(
@@ -372,13 +374,23 @@ impl ProxyState {
         self.sessions.write().await.remove(session_id);
     }
 
-    pub(crate) async fn register_audio_cast(&self, input: AudioCastInput) -> Result<RegisterResult, String> {
-        let host = reachable_ip_for(&input.target_host).or_else(lan_ip)
+    pub(crate) async fn register_audio_cast(
+        &self,
+        input: AudioCastInput,
+    ) -> Result<RegisterResult, String> {
+        let host = reachable_ip_for(&input.target_host)
+            .or_else(lan_ip)
             .ok_or("No network route to the speaker")?;
-        if self.port == 0 { return Err("Speaker audio server is not ready".into()); }
+        if self.port == 0 {
+            return Err("Speaker audio server is not ready".into());
+        }
         let session_id = self.audio.register(input).await?;
         let url = format!("http://{host}:{}/cast/audio/{session_id}", self.port);
-        Ok(RegisterResult { session_id, url, seekable_sec: None })
+        Ok(RegisterResult {
+            session_id,
+            url,
+            seekable_sec: None,
+        })
     }
 
     pub(crate) async fn audio_cast_input(&self, id: &str) -> Option<AudioCastInput> {
@@ -386,7 +398,9 @@ impl ProxyState {
     }
 
     pub async fn stop_hls_session(&self, session_id: &str) -> bool {
-        if session_id.starts_with("audio-") { return self.audio.stop(session_id).await; }
+        if session_id.starts_with("audio-") {
+            return self.audio.stop(session_id).await;
+        }
         self.hls.stop_session(session_id).await
     }
 
@@ -611,7 +625,11 @@ fn playlist_parts(url: &str) -> Option<(String, String, Option<String>)> {
     if last_seg.is_empty() {
         return None;
     }
-    Some((path_part[..last_slash].to_string(), last_seg.to_string(), query))
+    Some((
+        path_part[..last_slash].to_string(),
+        last_seg.to_string(),
+        query,
+    ))
 }
 
 /** True when a request names the manifest itself rather than something it refers to.
@@ -738,7 +756,12 @@ fn relabel_ts_for_dlna(headers: &mut HeaderMap) {
         .get("content-type")
         .and_then(|v| v.to_str().ok())
         .map(|ct| {
-            let ct = ct.split(';').next().unwrap_or("").trim().to_ascii_lowercase();
+            let ct = ct
+                .split(';')
+                .next()
+                .unwrap_or("")
+                .trim()
+                .to_ascii_lowercase();
             ct == "video/mp2t" || ct == "video/mp2ts" || ct == "video/vnd.dlna.mpeg-tts"
         })
         .unwrap_or(false);
@@ -1477,7 +1500,10 @@ mod tests {
         assert_eq!(relabel("video/mp2t"), "video/mpeg");
         assert_eq!(relabel("video/MP2T; charset=binary"), "video/mpeg");
         assert_eq!(relabel("video/mp4"), "video/mp4");
-        assert_eq!(relabel("application/vnd.apple.mpegurl"), "application/vnd.apple.mpegurl");
+        assert_eq!(
+            relabel("application/vnd.apple.mpegurl"),
+            "application/vnd.apple.mpegurl"
+        );
     }
 
     #[tokio::test]
@@ -1496,16 +1522,33 @@ mod tests {
             audio_ordinal: Some(1),
             dlna,
         };
-        assert!(casts_through_hls(&args(false)), "other receivers keep the HLS emitter");
-        assert!(!casts_through_hls(&args(true)), "DLNA never gets an HLS playlist");
+        assert!(
+            casts_through_hls(&args(false)),
+            "other receivers keep the HLS emitter"
+        );
+        assert!(
+            !casts_through_hls(&args(true)),
+            "DLNA never gets an HLS playlist"
+        );
         let result = state.register_cast(args(true)).await;
-        assert!(result.url.contains("/s/") && result.url.ends_with(".ts"), "{}", result.url);
+        assert!(
+            result.url.contains("/s/") && result.url.ends_with(".ts"),
+            "{}",
+            result.url
+        );
         assert!(!result.url.contains("/cast/hls/"));
         let session = state.sessions.read().await[&result.session_id].clone();
         assert!(session.transcode && session.dlna);
         assert_eq!(session.start_sec, 754.0);
-        assert!(session.burn_sub.is_some(), "burn-in survives the switch away from HLS");
-        assert_eq!(session.audio_ordinal, Some(1), "the chosen audio track reaches the transcode");
+        assert!(
+            session.burn_sub.is_some(),
+            "burn-in survives the switch away from HLS"
+        );
+        assert_eq!(
+            session.audio_ordinal,
+            Some(1),
+            "the chosen audio track reaches the transcode"
+        );
     }
 
     #[test]

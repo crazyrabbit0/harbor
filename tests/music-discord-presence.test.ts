@@ -1,43 +1,65 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import test from "node:test";
-import ts from "typescript";
+import { flushPromises, loadModule } from "./helpers/hook-harness";
+import {
+  musicAlbumPath,
+  musicArtistPath,
+  musicBounceUrl,
+  musicDeepLinkQuery,
+  musicDeepLinkUrl,
+  musicTrackPath,
+  parseMusicDeepLink,
+} from "../src/lib/music/deep-link";
 
 const DISCORD_URL_LIMIT = 512;
+const src = (file: string) => fileURLToPath(new URL(`../src/${file}`, import.meta.url));
 
-function loadDeepLink() {
-  const source = readFileSync(
-    new URL("../src/lib/music/deep-link.ts", import.meta.url),
-    "utf8",
-  ).replace(/^import[^\n]+;\r?\n/gm, "");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.ESNext, target: ts.ScriptTarget.ES2022 },
-  });
-  return import(`data:text/javascript;charset=utf-8,${encodeURIComponent(outputText)}`);
+const config = {
+  enabled: true,
+  hideTitle: false,
+  showWhenPaused: true,
+  showWhenBrowsing: true,
+  showPoster: true,
+  showTimestamp: true,
+  showPartyJoin: true,
+  showMusic: true,
+};
+const listening = {
+  title: "Roygbiv",
+  artist: "Boards of Canada",
+  album: "Music Has the Right to Children",
+  paused: false,
+  positionSec: 10,
+  durationSec: 200,
+};
+
+function discordPresence() {
+  const timers: Array<() => void> = [];
+  const sent: Array<{ cmd: string; args: any }> = [];
+  const api = loadModule(
+    src("lib/discord/presence.ts"),
+    {
+      "@/lib/config/endpoints": { HARBOR_DATA_BASE: "https://data.test" },
+      "@/lib/manga/title": { stripColorTag: (title: string) => title },
+      "./manga-cover": { mangaDiscordCover: () => undefined, onMangaCoverResolved: () => {} },
+      "@tauri-apps/api/core": {
+        invoke: async (cmd: string, args: any) => {
+          sent.push({ cmd, args });
+        },
+      },
+    },
+    { window: { __TAURI_INTERNALS__: {}, setTimeout: (run: () => void) => timers.push(run) } },
+  );
+  return {
+    api,
+    presences: () => sent.filter((c) => c.cmd === "discord_set_presence").map((c) => c.args.p),
+    async flush() {
+      for (const run of timers.splice(0)) run();
+      await flushPromises();
+    },
+  };
 }
-
-const deepLink = await loadDeepLink();
-const musicTrackPath = deepLink.musicTrackPath as (a: string, t: string) => string;
-const musicAlbumPath = deepLink.musicAlbumPath as (a: string, b: string) => string;
-const musicArtistPath = deepLink.musicArtistPath as (a: string) => string;
-const musicBounceUrl = deepLink.musicBounceUrl as (p: string) => string;
-const musicDeepLinkUrl = deepLink.musicDeepLinkUrl as (p: string) => string;
-const parseMusicDeepLink = deepLink.parseMusicDeepLink as (
-  u: string,
-) => { kind: string; artist: string; name?: string } | null;
-const musicDeepLinkQuery = deepLink.musicDeepLinkQuery as (l: {
-  artist: string;
-  name?: string;
-}) => string;
-
-const presenceSource = readFileSync(
-  new URL("../src/lib/discord/presence.ts", import.meta.url),
-  "utf8",
-);
-const musicPresenceSource = readFileSync(
-  new URL("../src/lib/music/presence.ts", import.meta.url),
-  "utf8",
-);
 
 test("track, album and artist links round trip through the harbor scheme", () => {
   const track = parseMusicDeepLink(musicDeepLinkUrl(musicTrackPath("AC/DC", "Thunderstruck")));
@@ -78,27 +100,71 @@ test("a search query is rebuilt from the link", () => {
   assert.equal(musicDeepLinkQuery({ artist: "Burial" }), "Burial");
 });
 
-test("music presence never reaches the social activity feed", () => {
-  const setter = presenceSource.slice(presenceSource.indexOf("export function setMusicPresence"));
-  const body = setter.slice(0, setter.indexOf("\n}"));
-  assert.ok(body.includes("schedule()"), "setMusicPresence must schedule a flush");
-  assert.ok(!body.includes("emitActivity"), "setMusicPresence must not emit a social activity");
-  const shape = "export type ActivityState = { playback: PlaybackPresence | null;";
-  assert.ok(
-    presenceSource.includes(`${shape} party: PartyPresence | null };`),
-    "ActivityState must stay limited to playback and party",
-  );
+test("music presence is sent to discord but never reaches the social activity feed", async () => {
+  const h = discordPresence();
+  const seen: unknown[] = [];
+  h.api.configureDiscord(config);
+  h.api.subscribeActivity((state: unknown) => seen.push(state));
+  h.api.setMusicPresence(listening);
+  await h.flush();
+  const [sent] = h.presences();
+  assert.equal(sent.details, listening.title);
+  assert.equal(sent.activityType, "listening");
+  assert.deepEqual(seen, [{ playback: null, party: null }]);
 });
 
-test("a watch party keeps its own activity instead of the listening one", () => {
-  assert.ok(
-    presenceSource.includes("if (music && config.showMusic && !party &&"),
-    "the music branch must yield to an active watch party",
-  );
+test("a watch party keeps its own activity instead of the listening one", async () => {
+  const h = discordPresence();
+  h.api.configureDiscord(config);
+  h.api.setPartyPresence({ id: "room", size: 2 });
+  h.api.setMusicPresence(listening);
+  await h.flush();
+  const party = h.presences().at(-1);
+  assert.notEqual(party.activityType, "listening");
+  assert.ok(!JSON.stringify(party).includes(listening.title));
+  h.api.setPartyPresence(null);
+  await h.flush();
+  const music = h.presences().at(-1);
+  assert.equal(music.details, listening.title);
+  assert.equal(music.activityType, "listening");
 });
 
 test("every deep link builder has a caller", () => {
-  assert.ok(musicPresenceSource.includes("musicTrackPath(track.artist, track.title)"));
-  assert.ok(musicPresenceSource.includes("musicArtistPath(track.artist)"));
-  assert.ok(musicPresenceSource.includes("musicAlbumPath(track.artist, album)"));
+  let publish = () => {};
+  const shown: any[] = [];
+  const state = {
+    phase: "playing",
+    currentTime: 5,
+    duration: 200,
+    current: {
+      id: "t1",
+      connectorId: "catalog",
+      title: listening.title,
+      artist: listening.artist,
+      album: listening.album,
+      durationSeconds: 200,
+    },
+  };
+  const api = loadModule(src("lib/music/presence.ts"), {
+    "@/lib/discord/presence": { setMusicPresence: (m: unknown) => shown.push(m) },
+    "./player": {
+      getMusicState: () => state,
+      subscribeMusic: (run: () => void) => {
+        publish = run;
+        return () => {};
+      },
+    },
+    "./deep-link": {
+      musicAlbumPath,
+      musicArtistPath,
+      musicBounceUrl,
+      musicTrackPath,
+    },
+  });
+  api.startMusicPresence();
+  publish();
+  const [first] = shown;
+  assert.equal(first.trackUrl, musicBounceUrl(musicTrackPath(listening.artist, listening.title)));
+  assert.equal(first.artistUrl, musicBounceUrl(musicArtistPath(listening.artist)));
+  assert.equal(first.albumUrl, musicBounceUrl(musicAlbumPath(listening.artist, listening.album)));
 });

@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import fs from "node:fs";
 import {
   discoveryDefaults,
   discoveryQueries,
@@ -501,18 +500,13 @@ test("metadata errors are not valid empty recommendations", () => {
   assert.throws(() => parseDiscoveryMetadata({}, [1]));
   assert.throws(() => parseDiscoveryMetadata({ response: { store_items: [] } }, [1]));
 });
-test("all 16 locale modules contain the same keys and interpolation tokens", () => {
-  const read = (lang: string) =>
-    JSON.parse(
-      fs
-        .readFileSync(
-          new URL(`../src/lib/i18n/locales/${lang}/game-discovery-picker.ts`, import.meta.url),
-          "utf8",
-        )
-        .replace("export default", "")
-        .replace(/,?\s*};\s*$/, "}"),
-    );
-  const english = read("en"),
+test("all 16 locale modules contain the same keys and interpolation tokens", async () => {
+  const read = async (lang: string) =>
+    (await import(`../src/lib/i18n/locales/${lang}/game-discovery-picker.ts`)).default as Record<
+      string,
+      string
+    >;
+  const english = await read("en"),
     tokens = (value: string) => [...value.matchAll(/\{\w+\}/g)].map((match) => match[0]).sort();
   for (const lang of [
     "en",
@@ -532,16 +526,16 @@ test("all 16 locale modules contain the same keys and interpolation tokens", () 
     "vi",
     "zh",
   ]) {
-    const data = read(lang);
+    const data = await read(lang);
     assert.deepEqual(Object.keys(data), Object.keys(english));
     for (const key of Object.keys(english)) {
       assert.ok(data[key].trim());
       assert.deepEqual(tokens(data[key]), tokens(english[key]));
     }
-    const root = fs.readFileSync(
-      new URL(`../src/lib/i18n/locales/${lang}.ts`, import.meta.url),
-      "utf8",
-    );
-    assert.ok(root.includes("...gameDiscoveryPicker,"));
+    const root = (await import(`../src/lib/i18n/locales/${lang}.ts`)).default as Record<
+      string,
+      string
+    >;
+    for (const key of Object.keys(data)) assert.equal(root[key], data[key], `${lang} ${key}`);
   }
 });
