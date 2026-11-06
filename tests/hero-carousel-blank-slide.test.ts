@@ -1,74 +1,81 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { flushPromises } from "./helpers/hook-harness.ts";
+import { heroCarouselHarness, heroHarness, slidesOf } from "./helpers/hero-carousel-harness.ts";
 
-const at = (p: string) => new URL(`../${p}`, import.meta.url);
-const carousel = readFileSync(at("src/components/hero-carousel.tsx"), "utf8");
-const hero = readFileSync(at("src/components/hero.tsx"), "utf8");
+const TMDB_W500 = "https://image.tmdb.org/t/p/w500/x.jpg";
+const TMDB_W1280 = "https://image.tmdb.org/t/p/w1280/x.jpg";
 
-function resolveBg(
-  bgUrl: string | undefined,
-  background: string | undefined,
-  poster: string | undefined,
-  bgResolved: boolean,
-): string | undefined {
-  return bgUrl ? `up(${bgUrl})` : (background ?? (bgResolved ? poster : undefined));
-}
-
-test("a hero slide never renders with nothing behind it", () => {
-  assert.equal(resolveBg(undefined, "bd.jpg", "p.jpg", false), "bd.jpg");
-  assert.equal(resolveBg(undefined, undefined, "p.jpg", true), "p.jpg");
-  assert.equal(resolveBg("tmdb.jpg", "bd.jpg", "p.jpg", true), "up(tmdb.jpg)");
-  assert.equal(
-    resolveBg(undefined, undefined, undefined, true),
-    undefined,
-    "only a meta with no artwork at all may fall through",
-  );
+test("a hero slide shows the meta backdrop before async resolution finishes", () => {
+  const h = heroHarness();
+  assert.equal(h.backdrop(h.render({ id: "tt1", type: "movie", name: "A" })), undefined);
+  const tree = h.render({ id: "tt1", type: "movie", name: "A", background: "bd.jpg" });
+  assert.equal(h.backdrop(tree), "bd.jpg");
 });
 
-test("the resolved TMDB image still wins over the fallback", () => {
-  assert.equal(resolveBg("tmdb.jpg", "bd.jpg", "p.jpg", false), "up(tmdb.jpg)");
+test("a resolved meta falls back to its poster when it has no backdrop", async () => {
+  const h = heroHarness();
+  const meta = { id: "tt2", type: "movie", name: "B", poster: "p.jpg" };
+  assert.equal(h.backdrop(h.render(meta)), undefined, "nothing is shown while unresolved");
+  await flushPromises();
+  assert.equal(h.backdrop(h.render(meta)), "p.jpg");
 });
 
-test("hero uses the meta backdrop before waiting on async resolution", () => {
-  assert.match(hero, /meta\.background \?\? \(bgResolved \? meta\.poster : undefined\)/);
-  assert.doesNotMatch(
-    hero,
-    /const bg = bgUrl \? upsizeTmdb\(bgUrl, fullQuality\) : bgResolved \? meta\.poster : undefined;/,
-    "the old form left the slide pure black until resolution finished",
-  );
+test("only a meta with no artwork at all falls through to no backdrop", async () => {
+  const h = heroHarness();
+  const meta = { id: "tt3", type: "movie", name: "C" };
+  h.render(meta);
+  await flushPromises();
+  assert.equal(h.backdrop(h.render(meta)), undefined);
+});
+
+test("the resolved TMDB image still wins over the poster fallback", async () => {
+  const h = heroHarness({ tmdbImages: [TMDB_W500] });
+  const meta = { id: "tmdb:1", type: "movie", name: "D", poster: "p.jpg" };
+  h.render(meta);
+  await flushPromises();
+  assert.equal(h.backdrop(h.render(meta)), TMDB_W1280);
 });
 
 test("the carousel can never point at a slide that does not exist", () => {
-  assert.match(
-    carousel,
-    /const safeActive = slides\.length > 0 \? Math\.min\(Math\.max\(active, 0\), slides\.length - 1\) : 0;/,
+  const c = heroCarouselHarness();
+  const wide = c.render({ slides: slidesOf(5) });
+  c.buttons(wide)
+    .find((b) => b.props["aria-label"] === "Slide 5")!
+    .props.onClick();
+  const tree = c.render({ slides: slidesOf(3) });
+
+  const shown = c.heroes(tree).filter((n) => n.props.active);
+  assert.deepEqual(
+    shown.map((n) => n.props.meta.id),
+    ["m2"],
+    "the last remaining slide is the one on show",
   );
-  for (const use of [
-    /\$\{-safeActive \* 100\}% \+ \$\{offset - safeActive \* SLIDE_GAP_PX\}px/,
-    /const isActive = i === safeActive;/,
-    /const distance = Math\.abs\(i - safeActive\);/,
-    /i === safeActive \? "w-12 bg-ink"/,
-  ]) {
-    assert.match(carousel, use);
-  }
+  assert.match(c.track(tree)!.props.style.transform, /calc\(-200% /);
+  const dots = c.buttons(tree).filter((b) => /^Slide \d$/.test(b.props["aria-label"]));
+  assert.deepEqual(
+    dots.map((d) => d.props.className === dots[2].props.className),
+    [false, false, true],
+    "only the clamped slide's dot is marked",
+  );
 });
 
-test("clamping keeps exactly one slide mounted at any index", () => {
-  const clamp = (active: number, len: number) =>
-    len > 0 ? Math.min(Math.max(active, 0), len - 1) : 0;
+test("clamping keeps the slide on show mounted at any index", () => {
   for (const [active, len] of [
     [0, 5],
     [4, 5],
-    [9, 5],
-    [-3, 5],
+    [4, 2],
+    [2, 1],
   ] as const) {
-    const safe = clamp(active, len);
-    const mounted = Array.from({ length: len }, (_, i) => Math.abs(i - safe) <= 1);
-    assert.equal(mounted.filter((_, i) => i === safe).length, 1);
-    assert.ok(mounted[safe], `active index ${active} of ${len} must mount`);
+    const c = heroCarouselHarness();
+    const wide = c.render({ slides: slidesOf(Math.max(len, active + 1)) });
+    c.buttons(wide)
+      .find((b) => b.props["aria-label"] === `Slide ${active + 1}`)!
+      .props.onClick();
+    const tree = c.render({ slides: slidesOf(len) });
+    const shown = c.heroes(tree).filter((n) => n.props.active);
+    assert.equal(shown.length, 1, `active ${active} of ${len} must mount the slide on show`);
   }
 });
