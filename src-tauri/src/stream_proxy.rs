@@ -41,6 +41,8 @@ struct Session {
     start_sec: f64,
     /// Serve MPEG-TS as video/mpeg, the type DLNA renderers accept.
     dlna: bool,
+    /// A DLNA transcode's title length; known means a TV remote may time-seek it (`TimeSeekRange.dlna.org`).
+    duration_sec: Option<f64>,
     created_at: Instant,
 }
 
@@ -212,6 +214,7 @@ impl ProxyState {
                     prebuffer: None,
                     start_sec: 0.0,
                     dlna: false,
+                    duration_sec: None,
                     created_at: Instant::now(),
                 };
                 self.sessions.write().await.insert(id.clone(), session);
@@ -220,6 +223,7 @@ impl ProxyState {
                 return RegisterResult {
                     session_id: id,
                     url,
+                    seekable_sec: None,
                 };
             }
         }
@@ -248,6 +252,7 @@ impl ProxyState {
             prebuffer,
             start_sec: 0.0,
             dlna: false,
+            duration_sec: None,
             created_at: Instant::now(),
         };
         self.sessions.write().await.insert(id.clone(), session);
@@ -256,6 +261,7 @@ impl ProxyState {
         RegisterResult {
             session_id: id,
             url,
+            seekable_sec: None,
         }
     }
 
@@ -293,6 +299,7 @@ impl ProxyState {
                     return RegisterResult {
                         session_id: hid,
                         url,
+                        seekable_sec: None,
                     };
                 }
                 Err(e) => {
@@ -317,6 +324,7 @@ impl ProxyState {
                 prebuffer: None,
                 start_sec: 0.0,
                 dlna: args.dlna,
+                duration_sec: None,
                 created_at: Instant::now(),
             };
             self.sessions.write().await.insert(id.clone(), session);
@@ -325,8 +333,17 @@ impl ProxyState {
             return RegisterResult {
                 session_id: id,
                 url,
+                seekable_sec: None,
             };
         }
+        let start_sec = if args.transcode { seek } else { 0.0 };
+        let duration_sec = if args.transcode && args.dlna {
+            crate::cast_hls::probe_duration(&args.url, &args.headers)
+                .await
+                .filter(|d| *d > start_sec)
+        } else {
+            None
+        };
         let session = Session {
             url: args.url.clone(),
             base_url: None,
@@ -336,8 +353,9 @@ impl ProxyState {
             burn_sub,
             audio_ordinal: args.audio_ordinal,
             prebuffer: None,
-            start_sec: if args.transcode { seek } else { 0.0 },
+            start_sec,
             dlna: args.dlna,
+            duration_sec,
             created_at: Instant::now(),
         };
         self.sessions.write().await.insert(id.clone(), session);
@@ -346,6 +364,7 @@ impl ProxyState {
         RegisterResult {
             session_id: id,
             url,
+            seekable_sec: duration_sec.map(|d| d - start_sec),
         }
     }
 
@@ -359,7 +378,7 @@ impl ProxyState {
         if self.port == 0 { return Err("Speaker audio server is not ready".into()); }
         let session_id = self.audio.register(input).await?;
         let url = format!("http://{host}:{}/cast/audio/{session_id}", self.port);
-        Ok(RegisterResult { session_id, url })
+        Ok(RegisterResult { session_id, url, seekable_sec: None })
     }
 
     pub(crate) async fn audio_cast_input(&self, id: &str) -> Option<AudioCastInput> {
@@ -696,6 +715,18 @@ fn guess_ct_from_url(url: &str) -> &'static str {
     "video/mp4"
 }
 
+/// The title time a renderer's `TimeSeekRange.dlna.org` asks for, kept inside a time-seekable session's title.
+fn time_seek_start(headers: &HeaderMap, session: &Session) -> Option<f64> {
+    let duration = session.duration_sec?;
+    let asked = headers
+        .get("timeseekrange.dlna.org")
+        .and_then(|v| v.to_str().ok())
+        .and_then(crate::transcode::requested_npt_start)?;
+    // A renderer seeks on its own clock, which counts from 0 where the session's stream starts.
+    let at = session.start_sec + asked;
+    (at < duration).then_some(at)
+}
+
 /// DLNA renderers take one progressive stream; HLS is for Chromecast, Roku and AirPlay.
 fn casts_through_hls(args: &RegisterArgs) -> bool {
     args.transcode && !args.dlna
@@ -913,20 +944,47 @@ async fn handle_stream(
 
     if session.transcode {
         let ts_type = crate::transcode::ts_content_type(session.dlna);
+        let seek = time_seek_start(&headers, &session);
         // DLNA renderers send HEAD before GET; answering it must not spawn a second transcode.
-        if method == axum::http::Method::HEAD {
-            return crate::transcode::transcode_response(crate::transcode::unknown_length_body(), ts_type);
+        let mut response = if method == axum::http::Method::HEAD {
+            crate::transcode::transcode_response(
+                crate::transcode::unknown_length_body(),
+                ts_type,
+                session.duration_sec,
+            )
+        } else {
+            let (start, sub_offset) = match seek {
+                Some(at) => (at, at - session.start_sec),
+                None => (session.start_sec, 0.0),
+            };
+            handle_transcode(
+                &session.url,
+                &session.headers,
+                &session.profile,
+                session.burn_sub.as_ref(),
+                session.audio_ordinal,
+                start,
+                sub_offset,
+                ts_type,
+                session.duration_sec,
+            )
+            .await
+        };
+        if let (Some(at), Some(duration)) = (seek, session.duration_sec) {
+            if response.status().is_success() {
+                // The renderer's clock counts from the session's start, so the range does too.
+                let range = crate::transcode::npt_range(
+                    at - session.start_sec,
+                    duration - session.start_sec,
+                );
+                if let Ok(value) = HeaderValue::from_str(&range) {
+                    response
+                        .headers_mut()
+                        .insert("TimeSeekRange.dlna.org", value);
+                }
+            }
         }
-        return handle_transcode(
-            &session.url,
-            &session.headers,
-            &session.profile,
-            session.burn_sub.as_ref(),
-            session.audio_ordinal,
-            session.start_sec,
-            ts_type,
-        )
-        .await;
+        return response;
     }
 
     if let Some(response) = prepared_prefix_response(&session, &headers) {
@@ -1226,6 +1284,166 @@ mod tests {
         assert_eq!(requested_prefix_len(&headers, 1024, 4096), None);
         headers.insert("range", HeaderValue::from_static("bytes=20-40"));
         assert_eq!(requested_prefix_len(&headers, 1024, 4096), None);
+    }
+
+    #[test]
+    fn a_remote_seek_lands_on_the_title_time_and_never_past_the_end() {
+        let session = |duration_sec| Session {
+            url: "https://example.test/movie.mkv".into(),
+            base_url: None,
+            headers: HashMap::new(),
+            transcode: true,
+            profile: TranscodeProfile::default(),
+            burn_sub: None,
+            audio_ordinal: None,
+            prebuffer: None,
+            start_sec: 600.0,
+            dlna: true,
+            duration_sec,
+            created_at: Instant::now(),
+        };
+        let asking = |value: &str| {
+            let mut headers = HeaderMap::new();
+            headers.insert(
+                "TimeSeekRange.dlna.org",
+                HeaderValue::from_str(value).unwrap(),
+            );
+            headers
+        };
+        let seekable = session(Some(5400.0));
+        assert_eq!(time_seek_start(&asking("npt=120-"), &seekable), Some(720.0));
+        assert_eq!(
+            time_seek_start(&asking("npt=0:10:00.000-"), &seekable),
+            Some(1200.0)
+        );
+        assert_eq!(
+            time_seek_start(&asking("npt=4800-"), &seekable),
+            None,
+            "past the end"
+        );
+        assert_eq!(time_seek_start(&HeaderMap::new(), &seekable), None);
+        assert_eq!(time_seek_start(&asking("npt=120-"), &session(None)), None);
+    }
+
+    #[tokio::test]
+    async fn a_dlna_transcode_is_time_seekable_only_with_a_known_length() {
+        let state = ProxyState::placeholder();
+        let args = RegisterArgs {
+            url: "not-a-real-source".into(),
+            headers: HashMap::new(),
+            transcode: true,
+            prebuffer_bytes: None,
+            profile: None,
+            target_host: Some("127.0.0.1".into()),
+            start_time_sec: Some(10.0),
+            burn_sub_path: None,
+            burn_sub_style: None,
+            audio_ordinal: None,
+            dlna: true,
+        };
+        let result = state.register_cast(args).await;
+        assert_eq!(
+            result.seekable_sec, None,
+            "an unprobeable source stays a plain live stream"
+        );
+        assert_eq!(
+            state.sessions.read().await[&result.session_id].duration_sec,
+            None
+        );
+    }
+
+    #[tokio::test]
+    async fn a_tv_remote_seek_restarts_the_transcode_at_the_asked_time() {
+        let Ok(path) = std::env::var("HARBOR_TEST_CAST_CLIP") else {
+            eprintln!("HARBOR_TEST_CAST_CLIP unset; skipping the ffmpeg time-seek check");
+            return;
+        };
+        // Sources arrive over HTTP, and the transcode's -reconnect options reject a plain file input.
+        let bytes = std::fs::read(&path).expect("clip");
+        let source = Router::new().route(
+            "/clip.mkv",
+            get(move || {
+                let bytes = bytes.clone();
+                async move { bytes }
+            }),
+        );
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let clip = format!("http://{}/clip.mkv", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move { axum::serve(listener, source).await.unwrap() });
+        let state = ProxyState::start().await.expect("proxy");
+        let result = state
+            .register_cast(RegisterArgs {
+                url: clip,
+                headers: HashMap::new(),
+                transcode: true,
+                prebuffer_bytes: None,
+                profile: None,
+                target_host: Some("127.0.0.1".into()),
+                start_time_sec: Some(30.0),
+                burn_sub_path: None,
+                burn_sub_style: None,
+                audio_ordinal: None,
+                dlna: true,
+            })
+            .await;
+        let left = result.seekable_sec.expect("a probed clip is time-seekable");
+        assert!((left - 90.0).abs() < 1.0, "{left}");
+        let url = format!("http://127.0.0.1:{}/s/{}.ts", state.port, result.session_id);
+        let client = reqwest::Client::new();
+        let head = client.head(&url).send().await.unwrap();
+        assert!(head.headers()["contentfeatures.dlna.org"]
+            .to_str()
+            .unwrap()
+            .contains("OP=10;"));
+        let mut get = client
+            .get(&url)
+            .header("TimeSeekRange.dlna.org", "npt=60-")
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(get.status(), 200);
+        let range = get.headers()["timeseekrange.dlna.org"]
+            .to_str()
+            .unwrap()
+            .to_string();
+        assert!(range.starts_with("npt=60.000-90.0"), "{range}");
+        let body = get.bytes().await.unwrap();
+        assert_eq!(body[0], 0x47, "MPEG-TS sync byte");
+        // Seeking to title second 90 of a 120 s clip leaves 30 s; serving from the session start would leave 90 s.
+        let span = pts_span_sec(&body).expect("PES timestamps in the stream");
+        assert!(
+            (25.0..40.0).contains(&span),
+            "the stream lasts {span}s, not the 30 s left after the seek"
+        );
+        server.abort();
+    }
+
+    /// Seconds between the first and last PES presentation timestamps in an MPEG-TS buffer.
+    fn pts_span_sec(ts: &[u8]) -> Option<f64> {
+        let mut first: Option<u64> = None;
+        let mut last = 0u64;
+        for packet in ts.chunks_exact(188) {
+            if packet[0] != 0x47 || packet[1] & 0x40 == 0 {
+                continue;
+            }
+            let mut i = 4;
+            if packet[3] & 0x20 != 0 {
+                i += 1 + packet[4] as usize;
+            }
+            let Some(pes) = packet.get(i..) else { continue };
+            if pes.len() < 14 || pes[..3] != [0, 0, 1] || pes[7] & 0x80 == 0 {
+                continue;
+            }
+            let p = &pes[9..14];
+            let ticks = ((p[0] as u64 >> 1) & 0x07) << 30
+                | (p[1] as u64) << 22
+                | ((p[2] as u64) >> 1) << 15
+                | (p[3] as u64) << 7
+                | (p[4] as u64) >> 1;
+            first.get_or_insert(ticks);
+            last = last.max(ticks);
+        }
+        first.map(|f| last.saturating_sub(f) as f64 / 90_000.0)
     }
 
     #[test]

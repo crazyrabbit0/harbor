@@ -362,7 +362,9 @@ pub async fn handle_transcode(
     burn_sub: Option<&(String, String)>,
     audio_ordinal: Option<u32>,
     start_sec: f64,
+    sub_offset: f64,
     content_type: &'static str,
+    duration: Option<f64>,
 ) -> Response {
     let ffmpeg = match locate_ffmpeg() {
         Some(p) => p,
@@ -447,7 +449,7 @@ pub async fn handle_transcode(
         let mut vf = scale_filter(profile.max_height);
         if let Some((path, force_style)) = burn_sub {
             vf.push(',');
-            vf.push_str(&crate::cast_subs::burn_filter(path, force_style));
+            vf.push_str(&subtitle_filter(path, force_style, sub_offset));
             eprintln!("[harbor::transcode] subtitle burn-in filter: {}", vf);
         }
         cmd.arg("-c:v")
@@ -558,7 +560,17 @@ pub async fn handle_transcode(
     });
 
     let reader = tokio_util::io::ReaderStream::with_capacity(stdout, 64 * 1024);
-    transcode_response(Body::from_stream(reader), content_type)
+    transcode_response(Body::from_stream(reader), content_type, duration)
+}
+
+/// The burn-in filter; `sub_offset` lines an unshifted subtitle file up with an input that starts that far in.
+fn subtitle_filter(path: &str, force_style: &str, sub_offset: f64) -> String {
+    let burn = crate::cast_subs::burn_filter(path, force_style);
+    if sub_offset > 0.0 {
+        format!("setpts=PTS+{sub_offset:.3}/TB,{burn},setpts=PTS-STARTPTS")
+    } else {
+        burn
+    }
 }
 
 /// A HEAD answer for a transcode: no data and no length, like the live GET, since `Content-Length: 0` reads as an empty file.
@@ -566,8 +578,33 @@ pub fn unknown_length_body() -> Body {
     Body::from_stream(futures_util::stream::empty::<Result<axum::body::Bytes, std::io::Error>>())
 }
 
-/// Headers a transcoded MPEG-TS stream is served with; a HEAD probe gets them without starting ffmpeg.
-pub fn transcode_response(body: Body, content_type: &'static str) -> Response {
+/// The start a DLNA `TimeSeekRange.dlna.org` request asks for: `npt=123.4-` or `npt=0:02:03.4-...`.
+pub fn requested_npt_start(value: &str) -> Option<f64> {
+    let range = value.trim().strip_prefix("npt=")?;
+    let start = range.split('-').next()?.trim();
+    if start.contains(':') {
+        let mut total = 0.0;
+        for part in start.split(':') {
+            total = total * 60.0 + part.parse::<f64>().ok()?;
+        }
+        Some(total)
+    } else {
+        start.parse::<f64>().ok()
+    }
+    .filter(|s| s.is_finite() && *s >= 0.0)
+}
+
+/// `TimeSeekRange.dlna.org` answer for a stream served from `start` of a `duration`-long title.
+pub fn npt_range(start: f64, duration: f64) -> String {
+    format!("npt={start:.3}-{duration:.3}/{duration:.3}")
+}
+
+/// MPEG-TS transcode headers; a known `duration` advertises time-seek (`DLNA.ORG_OP=10`), which a TV remote needs to seek.
+pub fn transcode_response(
+    body: Body,
+    content_type: &'static str,
+    duration: Option<f64>,
+) -> Response {
     let mut hmap = HeaderMap::new();
     hmap.insert("Content-Type", HeaderValue::from_static(content_type));
     hmap.insert("Cache-Control", HeaderValue::from_static("no-cache"));
@@ -578,9 +615,11 @@ pub fn transcode_response(body: Body, content_type: &'static str) -> Response {
     );
     hmap.insert(
         "contentFeatures.dlna.org",
-        HeaderValue::from_static(
-            "DLNA.ORG_PN=MPEG_TS;DLNA.ORG_OP=00;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000",
-        ),
+        HeaderValue::from_static(if duration.is_some() {
+            "DLNA.ORG_PN=MPEG_TS;DLNA.ORG_OP=10;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000"
+        } else {
+            "DLNA.ORG_PN=MPEG_TS;DLNA.ORG_OP=00;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000"
+        }),
     );
 
     let mut resp = Response::builder().status(StatusCode::OK);
@@ -607,7 +646,7 @@ mod tests {
     fn dlna_streams_are_labelled_video_mpeg() {
         assert_eq!(ts_content_type(true), "video/mpeg");
         assert_eq!(ts_content_type(false), "video/mp2t");
-        let response = transcode_response(Body::empty(), ts_content_type(true));
+        let response = transcode_response(Body::empty(), ts_content_type(true), None);
         assert_eq!(response.headers()["content-type"], "video/mpeg");
         assert_eq!(response.headers()["transferMode.dlna.org"], "Streaming");
     }
@@ -616,8 +655,42 @@ mod tests {
     fn a_head_answer_declares_no_length() {
         use axum::body::HttpBody;
         assert_eq!(unknown_length_body().size_hint().exact(), None);
-        let response = transcode_response(unknown_length_body(), ts_content_type(true));
+        let response = transcode_response(unknown_length_body(), ts_content_type(true), None);
         assert!(response.headers().get("content-length").is_none());
+    }
+
+    #[test]
+    fn only_a_stream_of_known_length_offers_time_seek() {
+        let features = |d| {
+            transcode_response(Body::empty(), ts_content_type(true), d).headers()
+                ["contentFeatures.dlna.org"]
+                .to_str()
+                .unwrap()
+                .to_string()
+        };
+        assert!(features(Some(5400.0)).contains("DLNA.ORG_OP=10;"));
+        assert!(features(None).contains("DLNA.ORG_OP=00;"));
+    }
+
+    #[test]
+    fn reads_the_start_of_a_time_seek_request() {
+        assert_eq!(requested_npt_start("npt=754.5-"), Some(754.5));
+        assert_eq!(requested_npt_start("npt=0:12:34.500-1:30:00"), Some(754.5));
+        assert_eq!(requested_npt_start(" npt=01:00:00- "), Some(3600.0));
+        assert_eq!(requested_npt_start("npt=now-"), None);
+        assert_eq!(requested_npt_start("bytes=0-"), None);
+        assert_eq!(npt_range(754.5, 5400.0), "npt=754.500-5400.000/5400.000");
+    }
+
+    #[test]
+    fn an_unshifted_subtitle_follows_a_seeked_input() {
+        let shifted = subtitle_filter("C:/s.srt", "Fontsize=11", 754.5);
+        assert!(
+            shifted.starts_with("setpts=PTS+754.500/TB,subtitles="),
+            "{shifted}"
+        );
+        assert!(shifted.ends_with(",setpts=PTS-STARTPTS"), "{shifted}");
+        assert!(subtitle_filter("C:/s.srt", "Fontsize=11", 0.0).starts_with("subtitles="));
     }
 
     #[test]

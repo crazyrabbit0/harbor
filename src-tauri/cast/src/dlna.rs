@@ -461,11 +461,12 @@ pub async fn load(
     start_sec: Option<f64>,
     content_type: Option<String>,
     is_live: bool,
+    seekable_sec: Option<f64>,
 ) -> Result<(), String> {
     let display_title = title.unwrap_or_else(|| "Harbor".into());
     let vendor = recall_vendor(&control_url);
     let mime = dlna_mime(&content_type.unwrap_or_else(|| pick_vendor_mime(vendor, is_live)));
-    let metadata = build_didl(&url, &display_title, &mime, is_live, vendor);
+    let metadata = build_didl(&url, &display_title, &mime, is_live, vendor, seekable_sec);
     if matches!(vendor, DlnaVendor::SonyBravia) {
         let pre_stop = soap_envelope("Stop", "<InstanceID>0</InstanceID>".into());
         let _ = soap_action(&control_url, "Stop", &pre_stop).await;
@@ -664,7 +665,16 @@ pub(crate) async fn load_audio_route(
     mime: String,
     paused: bool,
 ) -> Result<(), String> {
-    load(control_url.to_string(), url, title, None, Some(mime), true).await?;
+    load(
+        control_url.to_string(),
+        url,
+        title,
+        None,
+        Some(mime),
+        true,
+        None,
+    )
+    .await?;
     wait_audio_state(control_url, session_id, false, true).await?;
     if paused {
         pause(control_url.to_string()).await?;
@@ -786,7 +796,15 @@ pub(crate) fn dlna_mime(mime: &str) -> String {
     }
 }
 
-fn build_didl(url: &str, title: &str, mime: &str, is_live: bool, vendor: DlnaVendor) -> String {
+/// `seekable_sec` marks a transcode the proxy can time-seek; the TV only offers seeking with `OP=10` and a duration.
+fn build_didl(
+    url: &str,
+    title: &str,
+    mime: &str,
+    is_live: bool,
+    vendor: DlnaVendor,
+    seekable_sec: Option<f64>,
+) -> String {
     let audio = mime.trim().to_ascii_lowercase().starts_with("audio/");
     let class = if audio {
         "object.item.audioItem.musicTrack"
@@ -806,7 +824,14 @@ fn build_didl(url: &str, title: &str, mime: &str, is_live: bool, vendor: DlnaVen
             _ => "",
         }
     };
-    let op = if is_live { "00" } else { "01" };
+    let op = match (is_live, seekable_sec) {
+        (true, Some(_)) => "10",
+        (true, None) => "00",
+        (false, _) => "01",
+    };
+    let duration = seekable_sec
+        .map(|d| format!(" duration=\"{}.000\"", format_hms(d)))
+        .unwrap_or_default();
     let extra = format!(
         ":{pn}DLNA.ORG_OP={op};DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000"
     );
@@ -820,13 +845,14 @@ fn build_didl(url: &str, title: &str, mime: &str, is_live: bool, vendor: DlnaVen
 <item id=\"0\" parentID=\"-1\" restricted=\"1\">\
 <dc:title>{}</dc:title>\
 <upnp:class>{}</upnp:class>\
-<res protocolInfo=\"http-get:*:{}{}\">{}</res>\
+<res protocolInfo=\"http-get:*:{}{}\"{}>{}</res>\
 </item></DIDL-Lite>",
         extra_ns,
         xml_escape(title),
         class,
         xml_escape(mime),
         extra,
+        duration,
         xml_escape(url),
     )
 }
@@ -956,6 +982,7 @@ mod music_metadata_tests {
             "audio/flac",
             false,
             DlnaVendor::SonyBravia,
+            None,
         );
         assert!(xml.contains("object.item.audioItem.musicTrack"));
         assert!(xml.contains("http-get:*:audio/flac:"));
@@ -968,6 +995,7 @@ mod music_metadata_tests {
             "video/mp4",
             false,
             DlnaVendor::SonyBravia,
+            None,
         );
         assert!(video.contains("object.item.videoItem"));
         assert!(video.contains("DLNA.ORG_PN=AVC_MP4_MP_HD_AC3;"));
@@ -994,8 +1022,24 @@ mod music_metadata_tests {
             &dlna_mime("video/mp2t"),
             true,
             DlnaVendor::Samsung,
+            None,
         );
         assert!(samsung.contains("http-get:*:video/mpeg:"));
         assert!(!samsung.contains("video/mp2t"));
+        assert!(samsung.contains("DLNA.ORG_OP=00;") && !samsung.contains("duration="));
+    }
+
+    #[test]
+    fn a_seekable_transcode_offers_time_seek_and_its_length() {
+        let didl = build_didl(
+            "http://192.0.2.1/s/id.ts",
+            "Movie",
+            "video/mpeg",
+            true,
+            DlnaVendor::Samsung,
+            Some(4646.0),
+        );
+        assert!(didl.contains("DLNA.ORG_OP=10;"), "{didl}");
+        assert!(didl.contains(" duration=\"01:17:26.000\">"), "{didl}");
     }
 }

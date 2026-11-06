@@ -141,6 +141,9 @@ pub struct AudioCastInput {
 pub struct RegisterResult {
     pub session_id: String,
     pub url: String,
+    /// Set for a DLNA transcode the proxy can time-seek: the length of the stream it serves, from its start.
+    #[serde(skip)]
+    pub seekable_sec: Option<f64>,
 }
 
 #[derive(Clone, Deserialize)]

@@ -669,6 +669,7 @@ pub async fn cast_load(
         .url
         .contains("/cast/hls/")
         .then(|| proxied.session_id.clone());
+    let proxied_seekable_sec = proxied.seekable_sec;
     let cast_url = proxied.url;
     if kind_str == "dlna" {
         let cu = control_url.ok_or_else(|| "DLNA device missing control_url".to_string())?;
@@ -696,6 +697,7 @@ pub async fn cast_load(
             if do_transcode { None } else { start_time_sec },
             ct,
             do_transcode,
+            proxied_seekable_sec,
         )
         .await
         {
@@ -878,6 +880,7 @@ async fn reload_dlna_transcode(
         None,
         Some("video/mpeg".to_string()),
         true,
+        proxied.seekable_sec,
     )
     .await?;
     if paused {
@@ -1671,6 +1674,7 @@ mod cast_validation_tests {
                     RegisterResult {
                         session_id: "s2".into(),
                         url: "http://192.0.2.9:1/s/s2.ts".into(),
+                        seekable_sec: Some(4200.0),
                     }
                 })
             }),
@@ -1745,6 +1749,10 @@ mod cast_validation_tests {
             "no SOAP Seek, which the TV refuses"
         );
         assert!(calls.iter().any(|b| b.contains("/s/s2.ts")));
+        assert!(
+            calls.iter().any(|b| b.contains("DLNA.ORG_OP=10;")),
+            "the reloaded stream still offers time-seek to the remote"
+        );
         server.abort();
     }
 
