@@ -1,12 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import {
   adoptRequestedIdentity,
   replaceQueueTrack,
   selectableSources,
 } from "../src/lib/music/queue-source";
+import * as queueSource from "../src/lib/music/queue-source";
 import type { MusicSourceCandidate, MusicTrack } from "../src/lib/music/types";
+import { hookHarness } from "./helpers/hook-harness.ts";
 
 const track = (id: string, connectorId: string, extra: Partial<MusicTrack> = {}) =>
   ({
@@ -97,15 +98,64 @@ test("duplicate candidates are offered once", () => {
   assert.equal(offered.length, 1);
 });
 
+type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
+const all = (n: unknown): N[] =>
+  Array.isArray(n)
+    ? n.flatMap(all)
+    : n && typeof n === "object"
+      ? [n as N, ...all((n as N).props?.children)]
+      : [];
+
 test("the queue row swaps the source without starting playback", () => {
-  const queue = readFileSync("src/components/music/music-queue.tsx", "utf8");
-  assert.ok(
-    queue.includes("replaceQueueTrack(queue, index, candidate.track)"),
-    "the row must swap in place",
+  const queue = [track("a", "spotify"), track("b", "spotify"), track("c", "spotify")];
+  const writes: MusicTrack[][] = [];
+  const plays: unknown[] = [];
+  const element = (type: unknown, props: N["props"]) => ({ type, props });
+  class FakeElement {}
+  const h = hookHarness(
+    "src/components/music/music-queue.tsx",
+    "MusicQueue",
+    {
+      "@/lib/music/sources": {
+        getMusicSourceCandidates: async () => [],
+        musicPlaybackSource: (id: string) => id,
+      },
+      "@/lib/music/queue-source": queueSource,
+      "./music-track-labels": { MusicTrackLabels: "MusicTrackLabels" },
+      "react-dom": { createPortal: (tree: unknown) => tree },
+      "@/components/icons/music-icons": new Proxy({}, { get: (_t, n) => String(n) }),
+      "@/components/poster": { Poster: "Poster" },
+      "./music-now-playing-mark": { MusicTrackPlaybackMark: "MusicTrackPlaybackMark" },
+      "./music-service-logo": { MusicServiceLogo: "MusicServiceLogo" },
+      "./music-queue.css": {},
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/music/player": {
+        playMusic: async (...args: unknown[]) => plays.push(args),
+        setMusicQueue: (next: MusicTrack[]) => writes.push(next),
+        toggleMusicPlayback() {},
+        useMusicPlayer: () => ({ queue, queueIndex: 0, current: queue[0], phase: "playing" }),
+      },
+      "@/lib/music/transport": {
+        musicPriorityNext: () => null,
+        setMusicPriorityNext() {},
+        useMusicTransport: () => ({ shuffle: false }),
+      },
+      "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: "Fragment" },
+    },
+    {
+      document: { activeElement: null, body: {}, getElementById: () => null },
+      window: { addEventListener() {}, removeEventListener() {} },
+      HTMLElement: FakeElement,
+      requestAnimationFrame: () => 0,
+    },
   );
-  const handler = queue.slice(queue.indexOf("onSource={candidate =>"));
-  assert.ok(
-    !handler.slice(0, handler.indexOf("\n")).includes("playMusic"),
-    "switching an upcoming source must not start playing it",
+  const tree = h.render({ open: true, onClose() {} });
+  const row = all(tree).find((n) => typeof n.type === "function" && n.props.track?.id === "b")!;
+  row.props.onSource(candidate("youtube_music", "b2"));
+  assert.equal(writes.length, 1, "the row must swap in place");
+  assert.deepEqual(
+    writes[0].map((item) => `${item.connectorId}:${item.id}`),
+    ["spotify:a", "youtube_music:b2", "spotify:c"],
   );
+  assert.deepEqual(plays, [], "switching an upcoming source must not start playing it");
 });
