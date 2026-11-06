@@ -20,7 +20,8 @@ jobs:
   build:
     name: Build
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    # The offline cargo build alone takes 30-42 minutes, so 45 cancelled releases.
+    timeout-minutes: 75
     steps:
       - name: Checkout
         uses: actions/checkout@v6
