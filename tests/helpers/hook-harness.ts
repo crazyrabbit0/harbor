@@ -53,6 +53,7 @@ export function hookHarness(
       react.useEffect(run, deps);
     },
     useId: () => ":harbor-id:",
+    useDeferredValue: (value: any) => value,
     useSyncExternalStore(_subscribe: any, snapshot: () => any) {
       return snapshot();
     },
