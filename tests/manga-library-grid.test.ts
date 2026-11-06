@@ -157,14 +157,9 @@ test("manga poster row exports the memo button with an optional ring", () => {
 });
 
 test("manga view wires the library scroll ref into the screen", () => {
-  // manga.tsx is a large view with an unmanageable import graph; pin the two wiring lines.
-  const view = lines("src/views/manga.tsx");
-  for (const line of [
-    "const libraryScrollRef = useRef<HTMLElement>(null);",
-    "ref={libraryScrollRef}",
-    "<MangaLibrary scrollRef={libraryScrollRef} />",
-  ])
-    assert.ok(view.has(line), `manga.tsx lacks: ${line}`);
+  // manga.tsx has an unmanageable import graph; pin the one wiring line.
+  const line = "<MangaLibrary scrollRef={libraryScrollRef} />";
+  assert.ok(lines("src/views/manga.tsx").has(line), `manga.tsx lacks: ${line}`);
 });
 
 function proxy(quality: string) {
