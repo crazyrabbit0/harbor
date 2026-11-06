@@ -4,12 +4,12 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { TRAILER_FETCH_TIMEOUT_MS } from "../src/lib/trailer.ts";
 
-const frontend = readFileSync(new URL("../src/lib/trailer.ts", import.meta.url), "utf8");
 const backend = readFileSync(new URL("../src-tauri/src/trailer.rs", import.meta.url), "utf8");
 
-function numericConstant(source: string, name: string): number {
-  const match = source.match(
+function rustSeconds(name: string): number {
+  const match = backend.match(
     new RegExp(`const ${name}[^=]*=\\s*(?:Duration::from_secs\\()?([0-9_]+)`),
   );
   assert.ok(match, `${name} must remain an inspectable numeric constant`);
@@ -23,9 +23,9 @@ function stringConstant(name: string): string {
 }
 
 test("the frontend waits beyond the native metadata plus two-attempt worst case", () => {
-  const frontendTimeoutMs = numericConstant(frontend, "TRAILER_FETCH_TIMEOUT_MS");
-  const metadataSeconds = numericConstant(backend, "METADATA_TIMEOUT");
-  const progressiveSeconds = numericConstant(backend, "DOWNLOAD_TIMEOUT");
+  const frontendTimeoutMs = TRAILER_FETCH_TIMEOUT_MS;
+  const metadataSeconds = rustSeconds("METADATA_TIMEOUT");
+  const progressiveSeconds = rustSeconds("DOWNLOAD_TIMEOUT");
   const fetchBody = backend.slice(backend.indexOf("pub async fn fetch_trailer"));
   const inlineTimeouts = [...fetchBody.matchAll(/Duration::from_secs\(([0-9_]+)\)/g)].map((match) =>
     Number(match[1].replaceAll("_", "")),

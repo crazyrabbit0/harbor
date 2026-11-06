@@ -260,6 +260,7 @@ test("changing profile resets counts and ignores the old profile's next page", a
   await h.resolve(1, page(["alice-movie"], "movie-next"));
   h.click("Load more");
   h.render({ handle: "bob", alias: "Bob" });
+  assert.ok(h.buttons().includes("All0"), "the old profile's counts clear while the new one loads");
   const bobCounts = { total: 9, movie: 9, series: 0, anime: 0, manga: 0 };
   await h.resolve(3, page(["bob-movie"], undefined, bobCounts));
   await h.resolve(2, page(["alice-old"]));

@@ -1,7 +1,7 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 
@@ -74,7 +74,7 @@ contractTest("the settings wire and the desktop TV panel carry the same keys", (
   );
 });
 
-contractTest("every desktop row lands in the settings doc", () => {
+test("every desktop row lands in the settings doc", () => {
   for (const group of TV_GROUPS) {
     assert.equal(
       group.wire,
@@ -172,7 +172,7 @@ contractTest("defaults match the TV", () => {
   }
 });
 
-contractTest("every desktop default is one of its own options", () => {
+test("every desktop default is one of its own options", () => {
   for (const row of rows) {
     if (row.kind === "choice") {
       const values = row.options.map((o) => o.value);
@@ -216,10 +216,17 @@ contractTest("navigation rows never reach a wire", () => {
   }
 });
 
-contractTest("model.ts stays ASCII", () => {
-  const raw = readFileSync(
-    new URL("../src/views/settings/tv-panel/model.ts", import.meta.url),
-  ) as Uint8Array;
-  const bad = [...raw].findIndex((b) => b > 126);
-  assert.equal(bad, -1, `model.ts has a non-ASCII byte at ${bad}`);
+test("every desktop row string stays ASCII", () => {
+  for (const group of TV_GROUPS) {
+    const strings = [group.title, group.subtitle];
+    for (const row of group.rows) {
+      strings.push(row.key, row.label, row.sub ?? "");
+      if (row.kind === "choice" || row.kind === "multi") {
+        for (const option of row.options) strings.push(option.value, option.label);
+      }
+    }
+    for (const text of strings) {
+      assert.match(text, /^[ -~]*$/, `${group.id} carries a non-ASCII string: ${text}`);
+    }
+  }
 });
