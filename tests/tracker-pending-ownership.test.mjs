@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import "./_localstorage-stub.ts";
 import * as trakt from "../src/lib/trakt/pending-sync.ts";
 import * as simkl from "../src/lib/simkl/pending-sync.ts";
+import { loadModule } from "./helpers/hook-harness.ts";
 
 const profile = (id) =>
   localStorage.setItem("harbor.profiles.v1", JSON.stringify({ activeId: id }));
@@ -95,15 +95,46 @@ for (const [service, queue, record, list, clear, flush] of [
       list().map((item) => item.metaId),
       ["tt3"],
     );
-    const sessionSource = readFileSync(
-      new URL(`../src/lib/${service}/session.ts`, import.meta.url),
-      "utf8",
-    );
-    assert.match(sessionSource, /!session \|\| !cached \|\| session.username !== cached.username/);
-    assert.ok(
-      sessionSource.indexOf(`    clearPending`) < sessionSource.indexOf("  cached = session;"),
-    );
-    assert.ok(queue);
+    localStorage.clear();
+  });
+  test(`${service}: connecting, switching or dropping an account clears the queue before the new session is visible`, () => {
+    localStorage.clear();
+    const clearName = service === "trakt" ? "clearPendingStops" : "clearPendingWatches";
+    const clearedWhileSessionWas = [];
+    let api;
+    const mocks = {
+      "@/lib/active-profile-id": {
+        activeProfileId: () => "default",
+        activeProfileIsPrimary: () => true,
+      },
+      "@/lib/secret-store": {
+        getSecret: () => null,
+        setSecret: () => {},
+        subscribeSecretsReady: () => () => {},
+      },
+      "./pending-sync": {
+        ...queue,
+        [clearName]: () => {
+          clearedWhileSessionWas.push(api.getSession()?.username ?? null);
+          clear();
+        },
+      },
+      "./config": { REFRESH_THRESHOLD_SEC: 0 },
+    };
+    api = loadModule(`src/lib/${service}/session.ts`, mocks);
+    const session = (username) => ({ accessToken: "t", username });
+    record("tt1");
+    api.setSession(session("a"));
+    assert.equal(list().length, 0, "a first connection starts from an empty queue");
+    record("tt2");
+    api.setSession(session("a"));
+    assert.equal(list().length, 1, "a token refresh for the same account keeps the queue");
+    api.setSession(session("b"));
+    assert.equal(list().length, 0, "another account does not inherit the queue");
+    record("tt3");
+    api.setSession(null);
+    assert.equal(list().length, 0, "signing out drops the queue");
+    assert.deepEqual(clearedWhileSessionWas, [null, "a", "b"]);
     localStorage.clear();
   });
 }

@@ -1,86 +1,123 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { loadModule } from "./helpers/hook-harness.ts";
+import { simklScrobbleHarness, traktScrobbleHarness } from "./helpers/tracker-scrobble-harness.ts";
 
-const at = (p: string) => new URL(`../${p}`, import.meta.url);
-const read = (p: string) => readFileSync(at(p), "utf8");
-const simkl = read("src/lib/simkl/scrobble-hook.ts");
-const trakt = read("src/lib/trakt/scrobble-hook.ts");
-const safeFetch = read("src/lib/safe-fetch.ts");
-const simklClient = read("src/lib/simkl/client.ts");
-
-test("no tracker gates its pause behind a setting with no UI", () => {
-  for (const [name, src] of [
-    ["simkl", simkl],
-    ["trakt", trakt],
-  ] as const) {
-    assert.doesNotMatch(
-      src,
-      /pauseOnPauseRef|pauseListStatusOnPause/,
-      `${name} pause is gated again; the flag has no UI so the gate is always off`,
-    );
-  }
-});
+const trackers = [
+  { name: "simkl", make: simklScrobbleHarness },
+  { name: "trakt", make: traktScrobbleHarness },
+] as const;
 
 test("pausing playback always tells the tracker", () => {
-  for (const [name, src] of [
-    ["simkl", simkl],
-    ["trakt", trakt],
-  ] as const) {
-    const branch = src.match(
-      /status === "paused" && lastActionRef\.current === "start"\)\s*\{[\s\S]{0,220}?\n\s{4}\}/,
+  for (const { name, make } of trackers) {
+    const h = make();
+    h.at({ status: "playing", sec: 300 });
+    h.at({ status: "paused", sec: 600 });
+    assert.deepEqual(
+      h.scrobbles.map((s) => s.action),
+      ["start", "pause"],
+      name,
     );
-    assert.ok(branch, `${name} has no paused branch`);
-    assert.match(branch[0], /"pause"/, `${name} does not send pause`);
-    assert.doesNotMatch(branch[0], /if \(/, `${name} still guards the pause send`);
+    assert.equal(h.scrobbles[1].pct, 40, name);
   }
 });
 
 test("the Simkl exit send uses a transport that survives teardown", () => {
-  const beacon = simkl.slice(simkl.indexOf("function sendBeacon"));
-  assert.match(beacon, /void fetch\(url\.toString\(\), \{/);
-  assert.doesNotMatch(beacon, /safeFetch/);
-  assert.match(beacon, /keepalive: true/);
-  assert.match(safeFetch, /timeoutMs: 30000,/);
-  assert.doesNotMatch(
-    safeFetch.slice(
-      safeFetch.indexOf('invoke<HarborFetchResponse>("harbor_fetch"'),
-      safeFetch.indexOf('invoke<HarborFetchResponse>("harbor_fetch"') + 320,
-    ),
-    /keepalive/,
-    "if harbor_fetch ever forwards keepalive, revisit whether the beacon still needs native fetch",
+  const h = simklScrobbleHarness();
+  h.at({ status: "playing", sec: 300 });
+  h.at({ status: "paused", sec: 1450 });
+  h.unmount();
+  assert.equal(h.beacons.length, 1);
+  assert.equal(h.beacons[0].action, "stop");
+  assert.equal(h.beacons[0].keepalive, true);
+});
+
+test("the native fetch bridge cannot carry keepalive and caps a request at 30 s", async () => {
+  const calls: Array<Record<string, unknown>> = [];
+  class TrackerBlockedError extends Error {}
+  const api = loadModule(
+    "src/lib/safe-fetch.ts",
+    {
+      "@tauri-apps/api/core": {
+        invoke: async (_cmd: string, payload: { args: Record<string, unknown> }) => {
+          calls.push(payload.args);
+          return { status: 200, ok: true, body: "", contentType: null };
+        },
+      },
+      "@tauri-apps/plugin-http": { fetch: async () => new Response("") },
+      "./privacy/blocklist": {
+        TrackerBlockedError,
+        isBlockedUrl: () => false,
+        noteBlocked: () => {},
+      },
+      "./fetch-bridge-stats": { bridgeOutcome: () => "ok", recordBridge: () => {} },
+      "./direct-host-policy": {
+        allowDirectHost: () => {},
+        classifyDirectFailure: () => ({}),
+        clearDirectFailures: () => {},
+        directHostFor: () => null,
+        noteDirectFailure: () => {},
+      },
+      "./dev-proxy-hosts.json": { default: [] },
+      "./fetch-fallback-policy": {
+        hasSensitiveRequestHeaders: () => false,
+        shouldFallbackToPluginHttp: () => false,
+      },
+      "./local-network": { isLocalNetworkUrl: () => false },
+      "./subtitles/provider-url": {
+        isSafeProviderSubtitleUrl: () => true,
+        SUBTITLE_PUBLIC_NETWORK_HEADER: "x-public",
+      },
+    },
+    { window: { __TAURI_INTERNALS__: {} }, fetch: async () => new Response("") },
   );
+  await api.safeFetch("https://api.simkl.test/scrobble/stop", {
+    method: "POST",
+    keepalive: true,
+    body: "{}",
+  });
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].timeoutMs, 30000);
+  assert.equal("keepalive" in calls[0], false);
 });
 
 test("the Simkl exit send does not queue behind the POST throttle", () => {
-  assert.match(simklClient, /const POST_MIN_GAP_MS = 1050;/);
-  const unmount = simkl.slice(simkl.lastIndexOf("return () => {"));
-  assert.match(unmount, /sendBeacon\(/, "unmount must beacon, not go through the queued client");
-  assert.doesNotMatch(
-    unmount,
-    /simklScrobble\(/,
-    "simklScrobble waits on queueTail and can sleep 1050ms",
-  );
+  const h = simklScrobbleHarness();
+  h.at({ status: "playing", sec: 300 });
+  h.at({ status: "paused", sec: 1450 });
+  const queuedBefore = h.scrobbles.length;
+  h.unmount();
+  assert.equal(h.beacons.at(-1)?.action, "stop", "the beacon leaves synchronously");
+  assert.equal(h.scrobbles.length, queuedBefore, "no scrobble goes through the queued client");
 });
 
 test("Simkl and Trakt agree on when a session is finished", () => {
-  const traktPct = Number(trakt.match(/WATCHED_MARK_PCT\s*=\s*([\d.]+)/)?.[1]);
-  const simklRatio = Number(
-    read("src/lib/simkl/config.ts").match(/SIMKL_WATCHED_RATIO\s*=\s*([\d.]+)/)?.[1],
-  );
-  assert.equal(traktPct, 90);
-  assert.equal(simklRatio * 100, traktPct);
-  assert.match(simkl, /WATCHED_MARK_PCT = SIMKL_WATCHED_RATIO \* 100;/);
+  for (const { name, make } of trackers) {
+    const finishedAt = (sec: number) => {
+      const h = make();
+      h.at({ status: "playing", sec: 300 });
+      h.at({ status: "paused", sec });
+      const before = h.scrobbles.length;
+      h.unmount();
+      const sent = name === "simkl" ? h.beacons : h.scrobbles.slice(before);
+      return sent.at(-1)?.action;
+    };
+    assert.equal(finishedAt(1349), "pause", `${name} below 90%`);
+    assert.equal(finishedAt(1350), "stop", `${name} at 90%`);
+  }
 });
 
 test("Simkl does not write an early EOF directly to watched history", () => {
-  const ended = simkl.slice(
-    simkl.indexOf('if (snap.status === "ended")'),
-    simkl.indexOf("if (!loadResetSeenRef.current)"),
-  );
-  assert.match(ended, /if \(endPct >= WATCHED_MARK_PCT\)/);
-  assert.match(ended, /recordWatchedFallback/);
+  const early = simklScrobbleHarness();
+  early.at({ status: "playing", sec: 300 });
+  early.at({ status: "ended", sec: 600 });
+  assert.equal(early.beacons.at(-1)?.action, "stop");
+  assert.deepEqual(early.watched, []);
+  assert.deepEqual(early.queue(), []);
+  const real = simklScrobbleHarness();
+  real.at({ status: "playing", sec: 300 });
+  real.at({ status: "ended", sec: 1490 });
+  assert.equal(real.watched.length, 1);
 });
