@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import ts from "typescript";
+import { loadModule } from "./helpers/hook-harness.ts";
 
 function fixture({ delayed = new Set() } = {}) {
   const pending = new Map();
@@ -34,21 +33,28 @@ function fixture({ delayed = new Set() } = {}) {
       },
     }),
   };
-  const source = readFileSync(new URL("../src/lib/sample-artwork.ts", import.meta.url), "utf8");
-  const code = ts.transpileModule(
-    `${source}\nexport const audit = { hasPosterArtwork, previewPicks };`,
-    {
-      compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-    },
-  ).outputText;
-  const exports = {};
-  new Function("require", "exports", "Image", "document", code)(
-    () => ({}),
-    exports,
-    Image,
-    document,
+  const mocks = {
+    react: { useEffect: () => {}, useSyncExternalStore: () => [] },
+    "@/lib/cinemeta": {},
+    "@/lib/settings": { useSettingsSelector: () => ({}) },
+  };
+  for (const name of [
+    "the-general-poster",
+    "the-general-still",
+    "sherlock-jr-poster",
+    "the-kid-poster",
+    "safety-last-poster",
+    "namakura-gatana",
+  ]) {
+    mocks[`@/assets/settings-preview/${name}.webp`] = { default: name };
+  }
+  const api = loadModule(
+    "src/lib/sample-artwork.ts",
+    mocks,
+    { Image, document, setTimeout: () => 0, clearTimeout: () => {} },
+    ["hasPosterArtwork", "previewPicks"],
   );
-  return { ...exports.audit, pending };
+  return { ...api, pending };
 }
 
 const poster = (id) => `https://images.metahub.space/poster/small/${id}/img`;
@@ -66,6 +72,22 @@ test("catalog poster inspection bypasses a non-CORS redirect without accepting t
   const f = fixture();
   assert.equal(await f.hasPosterArtwork(poster("lanterns")), true);
   assert.equal(await f.hasPosterArtwork(poster("placeholder")), false);
+});
+
+test("previews drop picks whose poster is a title placeholder", async () => {
+  const f = fixture();
+  const batches = [];
+  const picks = await f.previewPicks([item("blank-placeholder"), item("real")], (p) =>
+    batches.push(p),
+  );
+  assert.deepEqual(
+    picks.map((pick) => pick.id),
+    ["real"],
+  );
+  assert.deepEqual(
+    batches.map((batch) => batch.map((pick) => pick.id)),
+    [["real"]],
+  );
 });
 
 test("a usable catalog batch reaches previews before later poster probes finish", async () => {

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import ts from "typescript";
+import { loadModule } from "./helpers/hook-harness.ts";
 
 type Runtime = typeof import("../src/lib/diagnostics/collect-runtime");
 
@@ -13,27 +12,20 @@ function load() {
     warn: (...args: unknown[]) => printed.push(args),
     error: (...args: unknown[]) => printed.push(args),
   };
-  const compiled = ts.transpileModule(
-    readFileSync(new URL("../src/lib/diagnostics/collect-runtime.ts", import.meta.url), "utf8"),
-    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
-  ).outputText;
-  const mocks: Record<string, unknown> = {
-    "../fetch-bridge-stats": { bridgeRows: () => [], formatBridgeSection: () => [] },
-    "../memory-profiler": {
-      getInstrumentationSupport: () => ({ jsHeap: false, longTasks: false, nativeRss: false }),
+  const api = loadModule(
+    "src/lib/diagnostics/collect-runtime.ts",
+    {
+      "../fetch-bridge-stats": { bridgeRows: () => [], formatBridgeSection: () => [] },
+      "../memory-profiler": {
+        getInstrumentationSupport: () => ({ jsHeap: false, longTasks: false, nativeRss: false }),
+      },
     },
-  };
-  const api = {} as Runtime;
-  new Function("require", "exports", "window", "console", "localStorage", compiled)(
-    (id: string) => {
-      assert.ok(id in mocks, `Unexpected import: ${id}`);
-      return mocks[id];
+    {
+      window: {},
+      console: fakeConsole,
+      localStorage: { length: 0, key: () => null, getItem: () => null },
     },
-    api,
-    {},
-    fakeConsole,
-    { length: 0, key: () => null, getItem: () => null },
-  );
+  ) as Runtime;
   return { api, console: fakeConsole, printed };
 }
 

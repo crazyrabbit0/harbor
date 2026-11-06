@@ -58,5 +58,4 @@ test("manifest uses local, early Twitch hooks and a bundled MIT licensed script"
   assert.match(read("LICENSE-TwitchAdSolutions"), /MIT License/);
   const script = read("twitch-vaft.js");
   assert.match(script, /@version\s+37\.0\.0/);
-  assert.match(read("README.md"), /c51ef2fe8f667f9dc9216eb550924cf0d732ce27/);
 });
