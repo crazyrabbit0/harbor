@@ -11,7 +11,9 @@ import {
   NOW_SEARCH_CEILING,
   NOW_SEARCH_PAGE,
 } from "../src/lib/music/now-search.ts";
+import * as nowSearchModule from "../src/lib/music/now-search.ts";
 import type { MusicTrack } from "../src/lib/music/types.ts";
+import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 
 function track(over: Partial<MusicTrack> & { id: string }): MusicTrack {
   return {
@@ -127,7 +129,97 @@ test("arrow keys walk the rows and stop at both ends", () => {
 });
 
 const CSS = readFileSync("src/components/music/music-now-search.css", "utf8");
-const TSX = readFileSync("src/components/music/music-now-search.tsx", "utf8");
+
+type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
+const all = (n: unknown): N[] =>
+  Array.isArray(n)
+    ? n.flatMap(all)
+    : n && typeof n === "object"
+      ? [n as N, ...all((n as N).props?.children)]
+      : [];
+
+type Page = { tracks: MusicTrack[]; next: string | null };
+
+/** Runs the real MusicNowSearch with a scripted catalog, a fake debounce timer and observer. */
+function nowSearch(videoPages: (() => Promise<Page>)[] = []) {
+  const timers: (() => void)[] = [];
+  const observers: { options: { root: unknown }; fire: () => void; observed: unknown[] }[] = [];
+  const typed: number[] = [];
+  const videoCalls: unknown[][] = [];
+  const list = { querySelector: () => null };
+  const sentinel = {};
+  const element = (type: unknown, props: N["props"]) => {
+    if (props.ref && props.className === "music-now-search-list") props.ref.current = list;
+    if (props.ref && props.className === "music-now-search-sentinel") props.ref.current = sentinel;
+    if (props.ref && type === "input") props.ref.current = { focus() {} };
+    return { type, props };
+  };
+  class FakeObserver {
+    observed: unknown[] = [];
+    constructor(callback: (entries: { isIntersecting: boolean }[]) => void, options: any) {
+      observers.push({
+        options,
+        observed: this.observed,
+        fire: () => callback([{ isIntersecting: true }]),
+      });
+    }
+    observe(node: unknown) {
+      this.observed.push(node);
+    }
+    disconnect() {}
+  }
+  const h = hookHarness(
+    "src/components/music/music-now-search.tsx",
+    "MusicNowSearch",
+    {
+      "@/components/icons/music-icons": new Proxy({}, { get: (_t, n) => String(n) }),
+      "@/components/poster": { Poster: "Poster" },
+      "./music-now-playing-mark": { MusicTrackPlaybackMark: "MusicTrackPlaybackMark" },
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/music/catalog": {
+        searchTyped: async (_value: string, limit: number) => {
+          typed.push(limit);
+          return { tracks: page(limit) };
+        },
+      },
+      "@/lib/music/player": { enqueueMusic() {}, playMusic: async () => {} },
+      "@/lib/music/search-ranking": { rankMusicSearch: () => null },
+      "@/lib/music/video-pages": {
+        searchMusicVideoPage: (...args: unknown[]) => {
+          videoCalls.push(args);
+          return videoPages[videoCalls.length - 1]();
+        },
+      },
+      "@/lib/music/now-search": nowSearchModule,
+      "./music-media-badge": { MusicMediaBadge: "MusicMediaBadge" },
+      "./music-now-search.css": {},
+      "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: "Fragment" },
+    },
+    {
+      setTimeout: (fn: () => void) => timers.push(fn),
+      clearTimeout() {},
+      IntersectionObserver: FakeObserver,
+    },
+  );
+  const render = () => h.render({ onClose() {} }) as unknown;
+  const settle = async () => {
+    render();
+    await flushPromises();
+    return render();
+  };
+  const type = async (value: string) => {
+    all(render())
+      .find((n) => n.type === "input")!
+      .props.onChange({ target: { value } });
+    render();
+    timers.shift()!();
+    return settle();
+  };
+  return { render, settle, type, observers, typed, videoCalls, list, sentinel };
+}
+
+const videos = (count: number) =>
+  page(count).map((item) => ({ ...item, mediaKind: "video" as const }));
 
 function listRule(): string {
   const at = CSS.indexOf("\n.music-now-search-list {");
@@ -143,21 +235,45 @@ test("the observer root actually clips, or every page loads at once without a sc
     /max-height:\s*min\(/,
     "a flex-only height leaves the list unclipped, so the sentinel is always intersecting",
   );
-  assert.match(
-    TSX,
-    /root:\s*listRef\.current/,
-    "the sentinel must be measured against the list, not the viewport",
-  );
+});
+
+test("the sentinel is measured against the list, not the viewport, and loads the next page", async () => {
+  const s = nowSearch();
+  await s.type("song");
+  assert.deepEqual(s.typed, [NOW_SEARCH_PAGE]);
+  const observer = s.observers.at(-1)!;
+  assert.equal(observer.options.root, s.list, "the observer root is the results list");
+  assert.deepEqual(observer.observed, [s.sentinel]);
+  observer.fire();
+  await s.settle();
+  assert.deepEqual(s.typed, [NOW_SEARCH_PAGE, NOW_SEARCH_PAGE * 2]);
 });
 
 test("a page never lands past the end of the list it scrolls in", () => {
   assert.match(listRule(), /overscroll-behavior:\s*contain/);
 });
 
-test("video mode follows the provider continuation instead of increasing a fixed search cap", () => {
-  assert.match(
-    TSX,
-    /searchMusicVideoPage\(value,\s*false,\s*videoCursors\.current\.get\(limit\)/,
-    "each video page needs its provider cursor, including on retry",
-  );
+test("video mode follows the provider continuation instead of increasing a fixed search cap", async () => {
+  const s = nowSearch([
+    async () => ({ tracks: videos(12), next: "cursor-2" }),
+    async () => {
+      throw new Error("offline");
+    },
+    async () => ({ tracks: videos(12), next: null }),
+  ]);
+  const tree = s.render();
+  all(tree)
+    .find((n) => n.type === "button" && n.props.children === "music.now.videos")!
+    .props.onClick();
+  await s.type("song");
+  assert.deepEqual(s.videoCalls[0], ["song", false, null]);
+  s.observers.at(-1)!.fire();
+  const failed = await s.settle();
+  assert.deepEqual(s.videoCalls[1], ["song", false, "cursor-2"], "the next page uses its cursor");
+  all(failed)
+    .find((n) => n.type === "button" && n.props.className === "music-now-search-retry")!
+    .props.onClick();
+  await s.settle();
+  assert.deepEqual(s.videoCalls[2], ["song", false, "cursor-2"], "a retry keeps the cursor");
+  assert.deepEqual(s.typed, [], "video mode never asks the capped song search");
 });
