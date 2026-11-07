@@ -35,6 +35,13 @@ async function readMpvBoolean(name: string): Promise<boolean | null> {
   }
 }
 
+/** The playing embedded audio track as `0:a:N`'s N; mpv numbers a file's own audio tracks from 1 in stream order. */
+export async function readMpvEmbeddedAudioOrdinal(): Promise<number | null> {
+  if ((await readMpvBoolean("current-tracks/audio/external")) !== false) return null;
+  const id = await readMpvNumber("current-tracks/audio/id");
+  return id != null && Number.isInteger(id) && id >= 1 ? id - 1 : null;
+}
+
 export async function readMpvVideoFps(): Promise<number | null> {
   const estimated = await readMpvNumber("estimated-vf-fps");
   if (estimated != null && estimated > 0) return estimated;

@@ -227,6 +227,50 @@ pub struct ProbedCodecs {
     pub audio: Vec<String>,
 }
 
+/// Successful probes by source URL, so the burst of requests a TV makes for one seek skips the 12 s ffprobe.
+static PROBE_CACHE: std::sync::Mutex<Option<HashMap<String, ProbedCodecs>>> =
+    std::sync::Mutex::new(None);
+
+async fn probe_codecs_cached(url: &str, headers: &HashMap<String, String>) -> ProbedCodecs {
+    if let Some(hit) = PROBE_CACHE
+        .lock()
+        .ok()
+        .and_then(|cache| cache.as_ref()?.get(url).cloned())
+    {
+        return hit;
+    }
+    let probed = probe_codecs(url, headers).await;
+    if probed.video.is_some() {
+        if let Ok(mut cache) = PROBE_CACHE.lock() {
+            let map = cache.get_or_insert_with(HashMap::new);
+            if map.len() >= 32 {
+                map.clear();
+            }
+            map.insert(url.to_string(), probed.clone());
+        }
+    }
+    probed
+}
+
+/// The ffmpeg serving one cast session; starting another ends it, so repeated TV requests never stack transcodes.
+#[derive(Clone, Default)]
+pub struct TranscodeSlot(
+    std::sync::Arc<std::sync::Mutex<Option<tokio::sync::oneshot::Sender<()>>>>,
+);
+
+impl TranscodeSlot {
+    /// Ends the previous transcode and returns the signal that ends this one.
+    fn take_turn(&self) -> tokio::sync::oneshot::Receiver<()> {
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        if let Ok(mut current) = self.0.lock() {
+            if let Some(previous) = current.replace(tx) {
+                let _ = previous.send(());
+            }
+        }
+        rx
+    }
+}
+
 pub async fn probe_codecs(url: &str, headers: &HashMap<String, String>) -> ProbedCodecs {
     let Some(ffprobe) = locate_ffprobe() else {
         eprintln!("[harbor::transcode] ffprobe not found, skipping codec probe");
@@ -341,9 +385,9 @@ pub fn ts_content_type(dlna: bool) -> &'static str {
     }
 }
 
-/// The player's chosen audio stream, or every audio stream when none was chosen.
+/// The player's chosen audio stream, or the first one, since a TV given several plays whichever it likes.
 pub fn audio_map(audio_ordinal: Option<u32>) -> String {
-    audio_ordinal.map_or_else(|| "0:a?".to_string(), |n| format!("0:a:{n}?"))
+    format!("0:a:{}?", audio_ordinal.unwrap_or(0))
 }
 
 /// ffmpeg arguments that start the input at `start_sec`; empty for the beginning.
@@ -365,6 +409,7 @@ pub async fn handle_transcode(
     sub_offset: f64,
     content_type: &'static str,
     duration: Option<f64>,
+    slot: Option<&TranscodeSlot>,
 ) -> Response {
     let ffmpeg = match locate_ffmpeg() {
         Some(p) => p,
@@ -377,7 +422,8 @@ pub async fn handle_transcode(
         }
     };
 
-    let probed = probe_codecs(url, headers).await;
+    let superseded = slot.map(TranscodeSlot::take_turn);
+    let probed = probe_codecs_cached(url, headers).await;
     eprintln!(
         "[harbor::transcode] probed: video={:?} audio={:?}",
         probed.video, probed.audio
@@ -557,9 +603,23 @@ pub async fn handle_transcode(
     }
 
     tokio::spawn(async move {
-        match child.wait().await {
-            Ok(status) => eprintln!("[harbor::transcode] ffmpeg exited: {status}"),
-            Err(e) => eprintln!("[harbor::transcode] ffmpeg wait err: {e}"),
+        let superseded = async {
+            match superseded {
+                Some(rx) => {
+                    let _ = rx.await;
+                }
+                None => std::future::pending::<()>().await,
+            }
+        };
+        tokio::select! {
+            status = child.wait() => match status {
+                Ok(status) => eprintln!("[harbor::transcode] ffmpeg exited: {status}"),
+                Err(e) => eprintln!("[harbor::transcode] ffmpeg wait err: {e}"),
+            },
+            _ = superseded => {
+                eprintln!("[harbor::transcode] a newer request replaced this transcode; stopping ffmpeg");
+                let _ = child.kill().await;
+            }
         }
     });
 
@@ -702,7 +762,17 @@ mod tests {
     #[test]
     fn the_chosen_audio_track_is_the_only_one_mapped() {
         assert_eq!(audio_map(Some(2)), "0:a:2?");
-        assert_eq!(audio_map(None), "0:a?");
+        assert_eq!(audio_map(None), "0:a:0?");
+    }
+
+    #[test]
+    fn a_new_transcode_request_ends_the_previous_one() {
+        let slot = TranscodeSlot::default();
+        let mut first = slot.take_turn();
+        assert!(first.try_recv().is_err());
+        let mut second = slot.take_turn();
+        assert_eq!(first.try_recv(), Ok(()));
+        assert!(second.try_recv().is_err());
     }
 
     #[test]

@@ -8,6 +8,7 @@ import {
 import { useDebridClients } from "@/lib/debrid/registry";
 import { t } from "@/lib/i18n";
 import type { PlayerBridge, PlayerSnapshot, TrackInfo } from "@/lib/player/bridge";
+import { readMpvEmbeddedAudioOrdinal } from "@/lib/player/mpv-properties";
 import { getPlaybackPosition } from "@/lib/player/playback-clock";
 import type { Settings } from "@/lib/settings";
 import type { PlayerSrc } from "@/lib/view";
@@ -227,10 +228,16 @@ export function useCastPick(params: {
       // An ordinal counts embedded tracks only, and only fits the source the player is showing.
       const embeddedAudio = snap.audioTracks.filter((track) => !track.external);
       const selectedAudio = embeddedAudio.find((track) => track.selected);
-      const audioTrackOrdinal =
-        selectedAudio && resolved.url === src.url
+      const sameSource = resolved.url === src.url;
+      // A snapshot that missed a track-list update still has mpv's own answer.
+      const noAudioSelected = !snap.audioTracks.some((track) => track.selected);
+      const audioTrackOrdinal = !sameSource
+        ? undefined
+        : selectedAudio
           ? embeddedAudio.indexOf(selectedAudio)
-          : undefined;
+          : noAudioSelected
+            ? ((await readMpvEmbeddedAudioOrdinal()) ?? undefined)
+            : undefined;
       setCastTranscoding(forceTranscode);
       await pickCastDevice(
         device,
