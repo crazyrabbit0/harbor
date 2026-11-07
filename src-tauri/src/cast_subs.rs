@@ -308,14 +308,17 @@ async fn shift_subtitle(input: &Path, seek_start: f64, dir: &Path) -> Option<Pat
     let out = dir.join(format!("{}.srt", Uuid::new_v4()));
     let mut cmd = tokio::process::Command::new(&ffmpeg);
     cmd.kill_on_drop(true);
+    // An input -ss on a subtitle file snaps back to the cue before the target, delaying every line; seek the output instead.
     cmd.arg("-hide_banner")
         .arg("-loglevel")
         .arg("error")
         .arg("-y")
-        .arg("-ss")
-        .arg(format!("{:.3}", seek_start))
         .arg("-i")
         .arg(input)
+        .arg("-ss")
+        .arg(format!("{:.3}", seek_start))
+        .arg("-output_ts_offset")
+        .arg(format!("-{:.3}", seek_start))
         .arg("-c:s")
         .arg("srt")
         .arg(&out);
@@ -366,6 +369,33 @@ mod tests {
             ..CastSubStyle::default()
         };
         assert!(build_force_style(&tiny, true).starts_with("Fontsize=8,"));
+    }
+
+    #[tokio::test]
+    async fn a_shifted_subtitle_keeps_each_line_at_its_own_time() {
+        if crate::transcode::locate_ffmpeg().is_none() {
+            eprintln!("ffmpeg not found; skipping the subtitle shift check");
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!("harbor-shift-{}", Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let input = dir.join("in.srt");
+        // A gap before the target: the old input seek snapped back to the 37:40 cue and delayed this line by 18 s.
+        std::fs::write(
+            &input,
+            "1\n00:37:40,969 --> 00:37:43,790\nEarlier\n\n2\n00:38:06,429 --> 00:38:08,668\nTarget\n",
+        )
+        .unwrap();
+        let out = shift_subtitle(&input, 2279.36, &dir)
+            .await
+            .expect("shifted file");
+        let text = std::fs::read_to_string(&out).unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(
+            text.contains("00:00:07,069 --> 00:00:09,308\nTarget"),
+            "{text}"
+        );
+        assert!(!text.contains("Earlier"), "{text}");
     }
 
     #[test]
