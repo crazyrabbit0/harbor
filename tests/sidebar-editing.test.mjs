@@ -2,6 +2,10 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
+import { LAYOUTS, navChromeHarness, nestedInButton } from "./helpers/nav-chrome-harness.ts";
+import { navDragHarness } from "./helpers/nav-drag-harness.ts";
+import { navMenuHarness } from "./helpers/nav-menu-harness.ts";
+import { all } from "./helpers/tree-render.ts";
 
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
 function load(file, mocks = {}, globals = {}) {
@@ -106,56 +110,135 @@ test("edit mode publishes changes and restores the root marker on exit", () => {
   assert.equal(document.documentElement.dataset.navEditing, undefined);
 });
 
-const layouts = [
-  "sidebar",
-  "siderail",
-  "nord-sidebar",
-  "dracula-sidebar",
-  "forest-sidebar",
-  "stremio-rail",
-  "topdock",
-  "royal-topbar",
-  "cinematic-overlay",
-  "minui-dock",
-];
-for (const name of layouts) {
+const ids = ["home", "movies", "settings", "calendar"];
+
+for (const name of Object.keys(LAYOUTS)) {
   test(`${name} retains available navigation, keyboard menus, and checked activation`, () => {
-    const source = read(`src/chrome/${name}.tsx`);
-    assert.match(source, /useAvailableNavItems\(\)/);
-    assert.match(source, /onKeyDown=\{drag.onKeyDown\}/);
-    assert.match(source, /onOpen: (?:onClick|\(\) => navigate\(item\))/);
-    const ast = ts.createSourceFile(name, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-    function visit(node, inButton = false) {
-      if (ts.isJsxElement(node)) {
-        const tag = node.openingElement.tagName.getText(ast);
-        assert.ok(!(inButton && tag === "button"), "buttons must not nest");
-        node.forEachChild((child) => visit(child, inButton || tag === "button"));
-      } else {
-        if (inButton && ts.isJsxSelfClosingElement(node))
-          assert.notEqual(node.tagName.getText(ast), "NavHideBadge");
-        node.forEachChild((child) => visit(child, inButton));
-      }
+    const chrome = navChromeHarness(name, { ids });
+    const drawn = chrome.entries.map((el) => el.props["data-nav-drop-id"]);
+    assert.ok(drawn.includes("home") && drawn.includes("calendar"), drawn.join());
+    assert.ok(!drawn.includes("games"), "only items useAvailableNavItems returned are drawn");
+
+    for (const entry of chrome.entries) {
+      chrome.pressKey(entry, "ContextMenu");
+      chrome.pressKey(entry, "F10", true);
     }
-    visit(ast);
+    assert.equal(
+      chrome.dispatched.length,
+      chrome.entries.length * 2,
+      "each item opens its menu by key",
+    );
+    assert.ok(chrome.dispatched.every((e) => e.type === "contextmenu"));
+
+    const home = chrome.entries.find((el) => el.props["data-nav-drop-id"] === "home");
+    const menu = chrome.menuFor(home);
+    assert.equal(menu.kind, "nav");
+    assert.equal(menu.itemId, "home");
+    chrome.click(home);
+    menu.onOpen();
+    assert.deepEqual(
+      chrome.views,
+      ["home", "home"],
+      "the menu's Open runs the same checked action as a click",
+    );
+
+    const editing = navChromeHarness(name, { ids, editing: true });
+    const badge = editing.navEdit().NavHideBadge;
+    assert.ok(
+      all(editing.tree).some((el) => el.type === badge),
+      "edit mode draws hide badges",
+    );
+    assert.deepEqual(nestedInButton(editing.tree, badge), [], "buttons must not nest");
   });
 }
+
 test("nav menu invokes the supplied checked action rather than navigating directly", () => {
-  const source = read("src/components/context-menu.tsx");
-  const begin = source.indexOf('key="nav-open"');
-  const block = source.slice(begin, source.indexOf('key="nav-hide"', begin));
-  assert.match(block, /target.onOpen\?\.\(\)/);
-  assert.doesNotMatch(block, /setView\(/);
-  assert.match(source, /data-tv-focus-scope=\{state.target.kind === "nav"/);
-  assert.match(source, /<TvModalClose onClose=\{close\}/);
-  assert.match(source, /cancelAnimationFrame\(focusFrame\)/);
-  assert.match(source, /new ResizeObserver\(measure\)/);
-  assert.match(source, /anchorTop \+ el.offsetHeight/);
+  const navItems = loadNavItems();
+  let opened = 0;
+  const menu = navMenuHarness(navItems, {
+    itemId: "home",
+    view: "home",
+    label: "Home",
+    onOpen: () => (opened += 1),
+  });
+  menu.item("nav-open").props.onClick();
+  assert.equal(opened, 1);
+  assert.deepEqual(menu.views, [], "Open never calls setView itself");
+  assert.equal(menu.closes(), 1);
+
+  const root = menu.menu();
+  assert.equal(root.props["data-tv-focus-scope"], true);
+  const close = all(root).find((el) => el.type === "TvModalClose");
+  close.props.onClose();
+  assert.equal(menu.closes(), 2, "the TV close button closes the menu");
+
+  assert.equal(menu.observers.length, 1);
+  assert.equal(menu.observers[0].target, menu.menuNode, "the menu re-measures on resize");
+  assert.equal(root.props.style.top, 672 - (672 + 300 - 792), "flips up by its overflow");
+
+  assert.equal(menu.frames.length, 1, "focus moves into the menu on the next frame");
+  menu.unmount();
+  assert.equal(menu.frames[0].cancelled, true, "closing before that frame cancels it");
+  assert.equal(menu.observers[0].disconnected, true);
+  assert.deepEqual(menu.focus, ["trigger"], "focus returns to the item that opened the menu");
+
+  const other = navMenuHarness(navItems, { itemId: "home", view: "home", label: "Home" });
+  assert.equal(other.item("nav-open").props.disabled, true, "no action means no Open");
+  const edit = navMenuHarness(navItems, { kind: "edit" });
+  assert.equal(edit.menu().props["data-tv-focus-scope"], undefined, "only nav menus trap focus");
 });
+
 test("drag cleanup, reduced motion, and RTL handling are present", () => {
-  const source = read("src/chrome/nav-edit.tsx");
-  assert.match(source, /cleanupDrag.current\?\.\(\)/);
-  assert.match(source, /g.inert = true/);
-  assert.match(source, /prefers-reduced-motion: reduce/);
-  assert.match(source, /direction === "rtl"/);
-  assert.match(source, /e.key === "ContextMenu"/);
+  const navItems = loadNavItems();
+  const ids = ["home", "movies", "calendar"];
+  const vertical = [0, 1, 2].map((i) => ({ left: 0, top: i * 50, width: 100, height: 40 }));
+  const drag = navDragHarness({ navItems, ids, boxes: vertical });
+  drag.dragTo(50, drag.center(2).y + 10);
+  assert.equal(drag.ghost.inert, true, "the drag ghost is inert");
+  assert.deepEqual(drag.mediaQueries, ["(prefers-reduced-motion: reduce)"]);
+  assert.ok(drag.ghost.style.transform.includes("scale(1.06)"));
+  drag.drop();
+  assert.deepEqual(orderOf(drag.commits.at(-1), ids), ["movies", "calendar", "home"]);
+  assert.deepEqual(
+    drag.listenerTypes(),
+    ["click"],
+    "only the one-shot click swallow stays after a drop",
+  );
+
+  const still = navDragHarness({ navItems, ids, boxes: vertical, reducedMotion: true });
+  still.dragTo(50, still.center(2).y + 10);
+  assert.ok(
+    still.ghost.style.transform.endsWith("scale(1)"),
+    "reduced motion keeps the ghost unscaled",
+  );
+  assert.deepEqual(still.animations, [], "reduced motion skips the reflow animation");
+
+  const leaving = navDragHarness({ navItems, ids, boxes: vertical });
+  leaving.dragTo(50, leaving.center(2).y + 10);
+  leaving.setEditing(false);
+  assert.equal(leaving.ghost.removed, true, "leaving edit mode cleans up the active drag");
+  assert.equal(leaving.listenerCount(), 0);
+  assert.deepEqual(leaving.commits, []);
+
+  const unmounted = navDragHarness({ navItems, ids, boxes: vertical });
+  unmounted.dragTo(50, unmounted.center(2).y + 10);
+  unmounted.unmount();
+  assert.equal(unmounted.ghost.removed, true, "unmounting mid-drag cleans up the active drag");
+  assert.equal(unmounted.listenerCount(), 0);
+  // In RTL the first item sits on the right, so a drop past the leftmost item lands it last.
+  const rtlBoxes = [2, 1, 0].map((i) => ({ left: i * 110, top: 0, width: 100, height: 40 }));
+  const rtl = navDragHarness({ navItems, ids, boxes: rtlBoxes, rtl: true });
+  rtl.dragTo(rtl.center(2).x - 30, 20);
+  rtl.drop();
+  assert.deepEqual(orderOf(rtl.commits.at(-1), ids), ["movies", "calendar", "home"]);
 });
+
+const orderOf = (cfg, ids) => cfg.order.filter((id) => ids.includes(id));
+
+function loadNavItems() {
+  return load("src/chrome/nav-items.tsx", {
+    "@/lib/sports/enabled": { useSportsEnabled: () => true },
+    "@/lib/streams/plugins/available": { usePluginCataloguesAvailable: () => true },
+    "@/lib/app-features": allFeatures,
+  });
+}

@@ -1,95 +1,50 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
-import ts from "typescript";
 import { requestOpenProfile, subscribeOpenProfile } from "../src/lib/social/open-profile.ts";
+import { BETA_THEMES } from "../src/lib/theme.ts";
 import { WINDOW_HARBOR } from "../src/views/settings/theme-panel/theme-studio/cheat-sheet-data.ts";
 import { createThemeDom } from "./helpers/elegantfin-dom.ts";
+import { sourceEffect } from "./helpers/source-effect.ts";
 
-const appText = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
-const appSource = ts.createSourceFile(
-  "App.tsx",
-  appText,
-  ts.ScriptTarget.ESNext,
-  true,
-  ts.ScriptKind.TSX,
-);
+// App.tsx is too large to render, so its window.harbor bridge effect runs alone against stand-ins.
+const bridgeEffect = sourceEffect("src/App.tsx", "tryViewMyProfile");
 
-function variableInitializer(name: string): string {
-  let initializer: string | undefined;
-  const visit = (node: ts.Node): void => {
-    if (
-      ts.isVariableDeclaration(node) &&
-      ts.isIdentifier(node.name) &&
-      node.name.text === name &&
-      node.initializer
-    ) {
-      initializer = node.initializer.getText(appSource);
-      return;
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(appSource);
-  assert.ok(initializer, name + " initializer");
-  return initializer;
-}
-
-function propertyInitializer(name: string): string {
-  let initializer: string | undefined;
-  const visit = (node: ts.Node): void => {
-    if (ts.isPropertyAssignment(node) && ts.isIdentifier(node.name) && node.name.text === name) {
-      initializer = node.initializer.getText(appSource);
-      return;
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(appSource);
-  assert.ok(initializer, name + " property");
-  return initializer;
-}
-
-function harborExposesShorthandProperty(name: string): boolean {
-  let exposed = false;
-  const visit = (node: ts.Node): void => {
-    if (
-      ts.isBinaryExpression(node) &&
-      node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
-      node.left.getText(appSource) === "w.harbor" &&
-      ts.isObjectLiteralExpression(node.right)
-    ) {
-      exposed = node.right.properties.some(
-        (property) => ts.isShorthandPropertyAssignment(property) && property.name.text === name,
-      );
-      return;
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(appSource);
-  return exposed;
-}
-
+type Bridge = { tryViewMyProfile: () => boolean; viewMyProfile: () => Promise<void> };
 type CurrentAuthor = () => { handle?: string | null } | null;
 
-function buildTryViewMyProfile(currentAuthor: CurrentAuthor): () => boolean {
-  return new Function(
-    "currentAuthor",
-    "requestOpenProfile",
-    '"use strict"; return (' + variableInitializer("tryViewMyProfile") + ");",
-  )(currentAuthor, requestOpenProfile) as () => boolean;
+function harborBridge(
+  currentAuthor: CurrentAuthor,
+  fetchMe: () => Promise<unknown> = async () => {},
+) {
+  const window: { harbor?: Bridge } = {};
+  bridgeEffect({
+    window,
+    currentAuthor,
+    requestOpenProfile,
+    fetchMe,
+    setView() {},
+    goBack() {},
+    setSearchOpen() {},
+    kid: null,
+    settings: { bigPictureButton: true },
+  });
+  return window.harbor!;
 }
 
-function buildViewMyProfile(
-  tryViewMyProfile: () => boolean,
-  fetchMe: () => Promise<unknown>,
-): () => Promise<void> {
-  return new Function(
-    "tryViewMyProfile",
-    "fetchMe",
-    '"use strict"; return (' + propertyInitializer("viewMyProfile") + ");",
-  )(tryViewMyProfile, fetchMe) as () => Promise<void>;
+const buildTryViewMyProfile = (currentAuthor: CurrentAuthor) =>
+  harborBridge(currentAuthor).tryViewMyProfile;
+
+/** The bridge's viewMyProfile, with the author handle readable once `ready()` turns true. */
+function buildViewMyProfile(ready: () => boolean, fetchMe: () => Promise<unknown>) {
+  const opened: string[] = [];
+  const unsubscribe = subscribeOpenProfile((handle) => opened.push(handle));
+  const bridge = harborBridge(() => (ready() ? { handle: "me" } : null), fetchMe);
+  return {
+    opened,
+    viewMyProfile: () => bridge.viewMyProfile().finally(unsubscribe),
+  };
 }
 
 test("tryViewMyProfile returns false without a usable handle", () => {
@@ -117,24 +72,22 @@ test("tryViewMyProfile requests the normalized current handle once", () => {
 });
 
 test("Harbor bridge exposes the immediate profile helper", () => {
-  assert.equal(harborExposesShorthandProperty("tryViewMyProfile"), true);
+  const bridge = harborBridge(() => ({ handle: "me" }));
+  assert.equal(typeof bridge.tryViewMyProfile, "function");
+  assert.equal(bridge.tryViewMyProfile(), true);
 });
 
 test("viewMyProfile skips fetch when immediate navigation succeeds", async () => {
-  let attempts = 0;
   let fetches = 0;
-  const viewMyProfile = buildViewMyProfile(
-    () => {
-      attempts += 1;
-      return true;
-    },
+  const run = buildViewMyProfile(
+    () => true,
     async () => {
       fetches += 1;
     },
   );
 
-  await viewMyProfile();
-  assert.equal(attempts, 1);
+  await run.viewMyProfile();
+  assert.deepEqual(run.opened, ["me"]);
   assert.equal(fetches, 0);
 });
 
@@ -142,7 +95,7 @@ test("viewMyProfile fetches once and retries the immediate helper", async () => 
   let ready = false;
   let attempts = 0;
   let fetches = 0;
-  const viewMyProfile = buildViewMyProfile(
+  const run = buildViewMyProfile(
     () => {
       attempts += 1;
       return ready;
@@ -153,14 +106,15 @@ test("viewMyProfile fetches once and retries the immediate helper", async () => 
     },
   );
 
-  await viewMyProfile();
+  await run.viewMyProfile();
   assert.equal(attempts, 2);
   assert.equal(fetches, 1);
+  assert.deepEqual(run.opened, ["me"]);
 });
 
 test("viewMyProfile preserves the swallowed fetch-failure contract", async () => {
   let attempts = 0;
-  const viewMyProfile = buildViewMyProfile(
+  const run = buildViewMyProfile(
     () => {
       attempts += 1;
       return false;
@@ -170,8 +124,9 @@ test("viewMyProfile preserves the swallowed fetch-failure contract", async () =>
     },
   );
 
-  await assert.doesNotReject(viewMyProfile());
+  await assert.doesNotReject(run.viewMyProfile());
   assert.equal(attempts, 2);
+  assert.deepEqual(run.opened, []);
 });
 
 test("Theme Studio does not document the account-only profile helpers", () => {
@@ -182,35 +137,7 @@ test("Theme Studio does not document the account-only profile helpers", () => {
 
 type ImmediateApi = { tryViewMyProfile?: () => unknown };
 
-function elegantFinScript(): string {
-  const themeText = readFileSync(new URL("../src/lib/theme.ts", import.meta.url), "utf8");
-  const themeSource = ts.createSourceFile(
-    "theme.ts",
-    themeText,
-    ts.ScriptTarget.ESNext,
-    true,
-    ts.ScriptKind.TS,
-  );
-  let script: string | undefined;
-  const visit = (node: ts.Node): void => {
-    if (ts.isFunctionDeclaration(node) && node.name?.text === "buildElegantFinJs" && node.body) {
-      const returned = node.body.statements.find(ts.isReturnStatement)?.expression;
-      assert.ok(returned && ts.isTemplateExpression(returned), "ElegantFin generated template");
-      script = returned.head.text;
-      for (const span of returned.templateSpans) {
-        const expression = span.expression.getText(themeSource);
-        const key = /^JSON\.stringify\(t\("([^"]+)"\)\)$/.exec(expression)?.[1];
-        assert.ok(key, `unsupported ElegantFin template expression: ${expression}`);
-        script += JSON.stringify(key) + span.literal.text;
-      }
-      return;
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(themeSource);
-  assert.ok(script, "ElegantFin generated script");
-  return script;
-}
+const elegantFinScript = () => BETA_THEMES.find((theme) => theme.id === "elegantfin")!.js!;
 
 function mountElegantFin(api?: ImmediateApi, collapsed = false) {
   const dom = createThemeDom(`
