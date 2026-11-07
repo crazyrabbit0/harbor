@@ -5,6 +5,7 @@ use std::{
 };
 
 /// Bundle identity comes from Info.plist, not an arbitrary executable inside Contents.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 pub fn bundle_executable(bundle: &Path) -> Result<PathBuf, &'static str> {
     let root = bundle.canonicalize().map_err(|_| "launch_missing")?;
     let info = root.join("Contents/Info.plist");

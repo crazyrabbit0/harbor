@@ -396,11 +396,6 @@ fn configured_vsscript_file() -> Option<PathBuf> {
     })
 }
 
-#[cfg(not(target_os = "linux"))]
-fn configure_vapoursynth() -> Result<(), String> {
-    Ok(())
-}
-
 #[cfg(target_os = "linux")]
 fn mpv_supports_vapoursynth() -> bool {
     crate::mpv::supports_vapoursynth_filter()
