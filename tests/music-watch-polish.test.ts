@@ -8,10 +8,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
+import { allNodes, byClass, mountWatch, watchTrack } from "./helpers/music-watch-harness.ts";
 
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const watchCss = compactCss(read("../src/components/music/music-watch.css"));
-const watchTsx = read("../src/components/music/music-watch.tsx");
 const discoveryCss = compactCss(read("../src/components/music/music-video-discovery.css"));
 
 const rule = (css: string, selector: string) => {
@@ -30,32 +30,53 @@ test("the watch stage reserves a 16:9 box and clips the media element itself", (
 
 test("the stage no longer pins itself to escape a native window it no longer hosts", () => {
   assert.doesNotMatch(watchCss, /position:sticky/);
-  assert.doesNotMatch(watchCss, /native window/i);
   assert.doesNotMatch(watchCss, /max-height:620px/);
 });
 
-test("the terminal error state replaces the picture and offers a reachable retry", () => {
-  assert.match(watchTsx, /preparationError \? \(/);
-  assert.match(watchTsx, /music-watch-stage-error/);
-  assert.match(watchTsx, /role="alert"/);
-  const retry = watchTsx.slice(
-    watchTsx.indexOf("music-watch-stage-error"),
-    watchTsx.indexOf("music-watch-stage-poster"),
+test("the terminal error state replaces the picture and offers a reachable retry", async () => {
+  const w = await mountWatch({ queue: [watchTrack("a")], index: 0, prepareFails: true });
+  const stage = byClass(w.loaded, "music-watch-stage")[0];
+  const error = byClass(stage, "music-watch-stage-error")[0];
+  assert.ok(error, "a failed preparation shows the error state");
+  assert.equal(error.props.role, "alert");
+  assert.equal(byClass(stage, "music-watch-stage-poster").length, 0, "it replaces the picture");
+  const retry = byClass(error, "music-watch-retry")[0];
+  assert.equal(retry.type, "button");
+  assert.equal(retry.props.type, "button");
+  assert.equal(retry.props["data-music-watch-retry"], true);
+  assert.ok([retry.props.children].flat().includes("common.retry"));
+  assert.equal(w.plays.length, 0, "the first attempt waited on the current track");
+  retry.props.onClick();
+  w.render();
+  await flushPromises();
+  assert.deepEqual(
+    w.plays.map((p) => p.track.id),
+    ["a"],
+    "retry loads the track again rather than waiting on the state that failed",
   );
-  assert.match(retry, /data-music-watch-retry/);
-  assert.match(retry, /type="button"/);
-  assert.match(retry, /t\("common\.retry"\)/);
-  assert.match(retry, /onClick=\{replayTrack\}/);
+  assert.equal(byClass(w.render(), "music-watch-stage-error").length, 0, "success clears it");
   assert.match(rule(watchCss, ".music-watch-retry"), /min-height:44px/);
   assert.match(watchCss, /\.music-watch-retry:focus-visible\{outline:/);
 });
 
-test("resolving shows artwork and shaped skeletons rather than an empty or frozen frame", () => {
-  assert.match(watchTsx, /music-watch-stage-poster/);
-  assert.match(watchTsx, /function VideoNextSkeleton/);
-  assert.match(watchTsx, /\{busy && \(\s*<ul className="music-watch-next-list"/);
-  assert.match(watchTsx, /similarBusy \? \(/);
-  assert.doesNotMatch(watchTsx, /Loader2/);
+test("resolving shows artwork and shaped skeletons rather than an empty or frozen frame", async () => {
+  const w = await mountWatch({ queue: [watchTrack("a")], index: 0, similar: [watchTrack("c")] });
+  const poster = byClass(w.busy, "music-watch-stage-poster")[0];
+  assert.ok(poster, "the stage shows the artwork while it resolves");
+  assert.equal(allNodes(poster).find((n) => n.type === "Poster")?.props.src, "art-a.jpg");
+  const rail = byClass(w.busy, "music-watch-next-list")[0];
+  assert.equal(rail.props.role, "status");
+  assert.equal(byClass(rail, "music-watch-video-next music-watch-next-skeleton").length, 4);
+  const more = byClass(w.busy, "music-watch-more relative z-10")[0];
+  assert.equal(
+    allNodes(more).filter((n) => n.props?.className?.includes?.("skeleton-stacked")).length,
+    6,
+  );
+  assert.equal(
+    allNodes(w.busy).some((n) => n.type === "Loader2" || n.type === "LoaderCircle"),
+    false,
+    "no spinner",
+  );
   assert.match(watchCss, /@keyframes music-watch-sheen/);
 });
 
