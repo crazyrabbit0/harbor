@@ -1,7 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import { viewportBottomGap } from "../src/lib/viewport-bottom";
+import { musicDockHarness } from "./helpers/music-dock-harness";
+import { floatingBottomOffsets, resolveOffset } from "./helpers/floating-surfaces";
 
 test("with no zoom the layout and visual viewports agree and nothing is offset", () => {
   assert.equal(viewportBottomGap(900, 900, 0), 0);
@@ -40,35 +41,30 @@ test("the gap can never exceed the viewport itself", () => {
   assert.equal(viewportBottomGap(500, -1000, 0), 500);
 });
 
+const LIFT = "--harbor-viewport-bottom";
+
 test("the dock anchors to the visual viewport, not the layout viewport", () => {
-  const dock = readFileSync("src/components/music/music-dock.tsx", "utf8");
-  assert.ok(dock.includes("trackViewportBottom()"), "the tracker must be installed");
-  assert.equal(
-    (dock.match(/bottom: "var\(--harbor-viewport-bottom, 0px\)"/g) ?? []).length,
-    2,
-    "both the dock and its collapsed tab must anchor",
-  );
+  const dock = musicDockHarness();
+  const bar = dock.render();
+  assert.equal(dock.tracker.installs, 1, "the tracker must be installed");
+  assert.equal(resolveOffset(bar.props.style.bottom, { [LIFT]: 40 }), 40);
+  const tab = dock.collapse();
+  assert.equal(tab.props["data-music-dock-tab"], true);
+  assert.equal(resolveOffset(tab.props.style.bottom, { [LIFT]: 40 }), 40, "the tab must anchor");
   assert.ok(
-    dock.includes("--harbor-dock-gap"),
+    dock.properties.has("--harbor-dock-gap"),
     "the dock must publish a composite gap for everything else to clear",
   );
+  dock.unmount();
+  assert.equal(dock.tracker.removals, 1, "the tracker is removed with the dock");
 });
 
 test("every floating bottom surface clears the zoom gap as well as the dock", () => {
-  const files = [
-    "src/components/back-to-top.tsx",
-    "src/components/scroll-top-button.tsx",
-    "src/components/floating-page-actions.tsx",
-    "src/components/controller-connected-toast.tsx",
-    "src/components/lists/list-toast.tsx",
-    "src/components/episode-jumper.tsx",
-    "src/components/update/update-card.tsx",
-    "src/components/music/music-source-picker.tsx",
-  ];
-  for (const file of files) {
-    assert.ok(
-      readFileSync(file, "utf8").includes("--harbor-viewport-bottom"),
-      `${file} would float away when zoomed`,
+  for (const [surface, offset] of Object.entries(floatingBottomOffsets())) {
+    assert.equal(
+      resolveOffset(offset, { [LIFT]: 40 }) - resolveOffset(offset),
+      40,
+      `${surface} would float away when zoomed`,
     );
   }
 });
