@@ -485,7 +485,16 @@ pub async fn load(
         tokio::time::sleep(Duration::from_millis(400)).await;
     }
     let play_body = soap_envelope("Play", "<InstanceID>0</InstanceID><Speed>1</Speed>".into());
-    soap_action(&control_url, "Play", &play_body).await?;
+    if let Err(error) = soap_action(&control_url, "Play", &play_body).await {
+        // A UE40H6400 starts a new URI by itself and then refuses Play with 701 (transition not available).
+        let started = error.contains("UPnP 701")
+            && status(control_url.clone())
+                .await
+                .is_ok_and(|s| matches!(s.player_state.as_str(), "PLAYING" | "TRANSITIONING"));
+        if !started {
+            return Err(error);
+        }
+    }
     if let Some(s) = start_sec {
         if s > 1.0 {
             tokio::time::sleep(Duration::from_millis(1200)).await;
@@ -966,6 +975,62 @@ mod audio_bridge_tests {
         changed.store(1, Ordering::Relaxed);
         stop_audio_if_owned(&url, "audio-test").await.unwrap();
         assert_eq!(stops.load(Ordering::Relaxed), 0);
+        server.abort();
+    }
+
+    /// A renderer that refuses Play with UPnP 701 and reports `state` afterwards.
+    async fn renderer_refusing_play(state: &'static str) -> (String, tokio::task::JoinHandle<()>) {
+        let router = axum::Router::new().route(
+            "/control",
+            axum::routing::post(move |body: String| async move {
+                if body.contains("u:Play ") {
+                    (
+                        axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                        "<errorCode>701</errorCode>".to_string(),
+                    )
+                } else if body.contains("u:GetTransportInfo") {
+                    (
+                        axum::http::StatusCode::OK,
+                        format!("<CurrentTransportState>{state}</CurrentTransportState>"),
+                    )
+                } else {
+                    (axum::http::StatusCode::OK, String::new())
+                }
+            }),
+        );
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let url = format!("http://{}/control", listener.local_addr().unwrap());
+        let server = tokio::spawn(async move {
+            axum::serve(listener, router).await.unwrap();
+        });
+        (url, server)
+    }
+
+    #[tokio::test]
+    async fn a_renderer_that_already_plays_the_new_uri_may_refuse_play() {
+        let load_to = |url: String| {
+            load(
+                url,
+                "http://192.0.2.9/s/x.ts".into(),
+                None,
+                None,
+                Some("video/mpeg".into()),
+                true,
+                None,
+            )
+        };
+        let (playing, server) = renderer_refusing_play("PLAYING").await;
+        assert_eq!(
+            load_to(playing).await,
+            Ok(()),
+            "701 after the TV started on its own is success"
+        );
+        server.abort();
+        let (stopped, server) = renderer_refusing_play("STOPPED").await;
+        let refused = load_to(stopped)
+            .await
+            .expect_err("a renderer that never started still fails");
+        assert!(refused.contains("UPnP 701"), "{refused}");
         server.abort();
     }
 }
