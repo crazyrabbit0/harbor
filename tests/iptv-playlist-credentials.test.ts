@@ -1,11 +1,9 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
-import ts from "typescript";
 import "./_localstorage-stub.ts";
+import { loadModule } from "./helpers/hook-harness.ts";
 import { profileRosterFor } from "./helpers/profile-roster.ts";
 
 // A Rust secrets.json behind a fake Tauri bridge; the modules read the bridge only at call time.
@@ -206,10 +204,6 @@ test("an Xtream EPG the user cleared stays cleared, a blanked built one comes ba
 
 // backup.ts is evaluated with its app-only imports stubbed and the real storage modules underneath.
 async function loadBackup(): Promise<typeof import("../src/lib/backup.ts")> {
-  const source = readFileSync(new URL("../src/lib/backup.ts", import.meta.url), "utf8");
-  const { outputText } = ts.transpileModule(source, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-  });
   const mocks: Record<string, unknown> = {
     "@/lib/download-text": {},
     "@/lib/profile-sync/backup-payload": { buildSyncBackup: () => ({}) },
@@ -234,18 +228,9 @@ async function loadBackup(): Promise<typeof import("../src/lib/backup.ts")> {
       restoreLocalLibrary() {},
     },
   };
-  const module = { exports: {} };
-  const require = (name: string) => {
-    assert.ok(Object.hasOwn(mocks, name), `Unexpected import: ${name}`);
-    return mocks[name];
-  };
-  new Function("require", "module", "exports", "__APP_VERSION__", outputText)(
-    require,
-    module,
-    module.exports,
-    "test",
-  );
-  return module.exports as typeof import("../src/lib/backup.ts");
+  return loadModule("src/lib/backup.ts", mocks, {
+    __APP_VERSION__: "test",
+  }) as typeof import("../src/lib/backup.ts");
 }
 
 test("Xtream logins export only with the Xtream credentials section and restore under the same key", async () => {
