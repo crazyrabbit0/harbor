@@ -1,9 +1,8 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { loadModule } from "./helpers/hook-harness.ts";
 import {
   animeCoordPairs,
   findAnimeEntryNumber,
@@ -143,10 +142,53 @@ test("a verified kitsu episode id still leads", () => {
   assert.equal(ids[0], "kitsu:48661:9");
 });
 
-test("an unverified anime id hands the imdb pair to addons that accept both", () => {
-  const src = readFileSync(new URL("../src/lib/streams/addons.ts", import.meta.url), "utf8");
-  assert.match(src, /if \(animeIdUnverified\) return \[ttId\];/);
-  assert.match(src, /pickIds\(addon, req\.type, req\.ids, req\.animeIdUnverified === true\)/);
+function addonsModule(urls: string[]) {
+  const safeFetch = async (url: string) => {
+    urls.push(url);
+    return new Response('{"streams":[]}');
+  };
+  return loadModule(
+    "src/lib/streams/addons.ts",
+    {
+      "@/lib/safe-fetch": { safeFetch, safeFetchLocal: safeFetch },
+      "@/lib/debug": { dlog() {}, dwarn() {} },
+      "@/lib/fetch-fallback-policy": { isHarborFetchPolicyError: () => false },
+      "@/lib/local-network": { isLocalNetworkUrl: () => false },
+      "./addon-detect": {
+        isAddonRanked: () => false,
+        isRetiredTorboxAddon: () => false,
+        isStatusOnlyAddon: () => false,
+        isStremioLocalAddon: () => false,
+      },
+      "./cached": { hasUncachedMarker: () => false },
+      "@/lib/torrent/magnet": {},
+      "./plugins/addon": { isPluginAddon: () => false, PLUGIN_ADDON_PREFIX: "plugin:" },
+    },
+    { console: { info() {} } },
+  );
+}
+
+test("an unverified anime id hands the imdb pair to addons that accept both", async () => {
+  const addon = {
+    transportUrl: "https://both.example/manifest.json",
+    manifest: { id: "both", name: "Both", resources: ["stream"], types: ["series"] },
+  };
+  const ids = ["kitsu:41493:9", "tt9335498:4:9"];
+  const asked = async (animeIdUnverified?: boolean) => {
+    const urls: string[] = [];
+    const mod = addonsModule(urls);
+    const req = { type: "series", ids, animeIdUnverified };
+    await mod.fetchAddonStreams([addon], req, new AbortController().signal);
+    return { urls, plugin: mod.pluginQueryId(addon, req, undefined) };
+  };
+  assert.deepEqual(await asked(true), {
+    urls: ["https://both.example/stream/series/tt9335498:4:9.json"],
+    plugin: "tt9335498:4:9",
+  });
+  assert.deepEqual(await asked(), {
+    urls: ["https://both.example/stream/series/kitsu:41493:9.json"],
+    plugin: "kitsu:41493:9",
+  });
 });
 
 test("episode filter drops only confident single-episode mismatches", () => {

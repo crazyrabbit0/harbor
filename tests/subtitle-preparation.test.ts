@@ -17,6 +17,10 @@ import { ARABIC_ASS } from "./fixtures/subtitle-p2-fixtures.ts";
 import { prepareSubtitleForSave } from "../src/lib/subtitles/save-to-disk.ts";
 import { resolveSwapCues } from "../src/lib/subtitles/autosync/opensubtitles.ts";
 import { prepareConsensusCandidate } from "../src/lib/subtitles/autosync/consensus.ts";
+import * as encoding from "../src/lib/subtitles/encoding.ts";
+import * as language from "../src/lib/subtitles/language.ts";
+import * as parser from "../src/lib/subtitles/parser.ts";
+import { loadModule } from "./helpers/hook-harness.ts";
 
 const english = `1
 00:00:01,000 --> 00:00:02,500
@@ -318,16 +322,23 @@ function fakePrepared(label: string): PreparedSubtitle {
 }
 
 test("top candidate preparation preserves rank when promises complete out of order", async () => {
-  const delays: Record<string, number> = { first: 30, second: 2, third: 10 };
+  const gates = new Map(
+    ["first", "second", "third"].map((c) => [c, Promise.withResolvers<void>()]),
+  );
   const completed: string[] = [];
-  const results = await prepareRankedSubtitleCandidates(
+  const pending = prepareRankedSubtitleCandidates(
     ["first", "second", "third", "fourth"],
     async (candidate) => {
-      await new Promise((resolve) => setTimeout(resolve, delays[candidate]));
+      await gates.get(candidate)!.promise;
       completed.push(candidate);
       return fakePrepared(candidate);
     },
   );
+  for (const candidate of ["second", "third", "first"]) {
+    gates.get(candidate)!.resolve();
+    await Promise.resolve();
+  }
+  const results = await pending;
 
   assert.deepEqual(completed, ["second", "third", "first"]);
   assert.deepEqual(
@@ -338,18 +349,58 @@ test("top candidate preparation preserves rank when promises complete out of ord
   if (results[0].status === "prepared") assert.equal(results[0].prepared.originalUrl, "first");
 });
 
-test("native prepared subtitle files use private per-file storage and startup recovery", () => {
-  const prepareSource = readFileSync(
-    new URL("../src/lib/subtitles/prepare.ts", import.meta.url),
-    "utf8",
+test("native prepared subtitle files use private per-file storage", async () => {
+  const calls: [string, string, Record<string, unknown> | undefined][] = [];
+  const fs = {
+    mkdir: async (path: string, options?: Record<string, unknown>) => {
+      calls.push(["mkdir", path, options]);
+    },
+    writeFile: async (path: string, _bytes: Uint8Array, options?: Record<string, unknown>) => {
+      calls.push(["writeFile", path, options]);
+    },
+    remove: async (path: string, options?: Record<string, unknown>) => {
+      calls.push(["remove", path, options]);
+    },
+  };
+  const native = loadModule(
+    "src/lib/subtitles/prepare.ts",
+    {
+      "@/lib/safe-fetch": { safeFetchBytes: async () => new Response() },
+      "./language": language,
+      "./encoding": encoding,
+      "./parser": parser,
+      "@tauri-apps/api/path": {
+        tempDir: async () => "T",
+        join: async (...parts: string[]) => parts.join("/"),
+      },
+      "@tauri-apps/plugin-fs": fs,
+    },
+    { window: { __TAURI_INTERNALS__: {} } },
   );
+  const prepared = await native.prepareSubtitleBytes(
+    "https://example.test/a.srt",
+    strToU8(english),
+    { format: "srt", language: "en" },
+  );
+  const [mkdir, write] = calls;
+  assert.equal(mkdir[0], "mkdir");
+  assert.match(mkdir[1], /^T\/harbor-subs\/prepared\/[^/]+$/, "each file gets its own folder");
+  assert.deepEqual(mkdir[2], { recursive: true, mode: 0o700 });
+  assert.deepEqual(write, [
+    "writeFile",
+    `${mkdir[1]}/subtitle.srt`,
+    { createNew: true, mode: 0o600 },
+  ]);
+  assert.equal(prepared.playableUrl, write[1]);
+  prepared.cleanup();
+  assert.deepEqual(calls[2], ["remove", mkdir[1], { recursive: true }]);
+});
+
+test("the native shell sweeps leftover prepared subtitles at startup", () => {
+  // Rust source: nothing here can run it, so the single wiring line stays a text check.
   const pruneSource = readFileSync(
     new URL("../src-tauri/src/temp_prune.rs", import.meta.url),
     "utf8",
   );
-
-  assert.match(prepareSource, /mode:\s*0o700/);
-  assert.match(prepareSource, /createNew:\s*true,\s*mode:\s*0o600/);
-  assert.match(prepareSource, /fs\.remove\(privateDir,\s*\{\s*recursive:\s*true\s*\}\)/);
-  assert.match(pruneSource, /sweep_prepared_subtitles\(&dir\)/);
+  assert.match(pruneSource, /sweep_prepared_subtitles\(&dir\);/);
 });
