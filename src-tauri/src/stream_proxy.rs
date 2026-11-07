@@ -43,6 +43,8 @@ struct Session {
     dlna: bool,
     /// A DLNA transcode's title length; known means a TV remote may time-seek it (`TimeSeekRange.dlna.org`).
     duration_sec: Option<f64>,
+    /// Shared by every request of this session, so a new one stops the transcode still running.
+    transcode_slot: crate::transcode::TranscodeSlot,
     created_at: Instant,
 }
 
@@ -217,6 +219,7 @@ impl ProxyState {
                     start_sec: 0.0,
                     dlna: false,
                     duration_sec: None,
+                    transcode_slot: crate::transcode::TranscodeSlot::default(),
                     created_at: Instant::now(),
                 };
                 self.sessions.write().await.insert(id.clone(), session);
@@ -255,6 +258,7 @@ impl ProxyState {
             start_sec: 0.0,
             dlna: false,
             duration_sec: None,
+            transcode_slot: crate::transcode::TranscodeSlot::default(),
             created_at: Instant::now(),
         };
         self.sessions.write().await.insert(id.clone(), session);
@@ -327,6 +331,7 @@ impl ProxyState {
                 start_sec: 0.0,
                 dlna: args.dlna,
                 duration_sec: None,
+                transcode_slot: crate::transcode::TranscodeSlot::default(),
                 created_at: Instant::now(),
             };
             self.sessions.write().await.insert(id.clone(), session);
@@ -358,6 +363,7 @@ impl ProxyState {
             start_sec,
             dlna: args.dlna,
             duration_sec,
+            transcode_slot: crate::transcode::TranscodeSlot::default(),
             created_at: Instant::now(),
         };
         self.sessions.write().await.insert(id.clone(), session);
@@ -990,6 +996,7 @@ async fn handle_stream(
                 sub_offset,
                 ts_type,
                 session.duration_sec,
+                Some(&session.transcode_slot),
             )
             .await
         };
@@ -1323,6 +1330,7 @@ mod tests {
             start_sec: 600.0,
             dlna: true,
             duration_sec,
+            transcode_slot: crate::transcode::TranscodeSlot::default(),
             created_at: Instant::now(),
         };
         let asking = |value: &str| {
