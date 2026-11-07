@@ -1,15 +1,11 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
+import { loadingSrc, posterHarness } from "./helpers/poster-harness.ts";
 
 const { ASPECT_PAD, RATIO_AR, posterTargetWidth } = await import("../src/lib/poster-sizing.ts");
-
-const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
-const poster = read("src/components/poster.tsx");
-const row = read("src/components/row.tsx");
 
 test("poster sizing accounts for the height it has to cover, not just width", () => {
   // A portrait card in a box that is wider than 2:3 needs its width; one taller than 2:3 needs height * 2/3.
@@ -28,12 +24,14 @@ test("poster sizing scales by device pixels, capped at 2, and by the quality set
 });
 
 test("poster sizing sees css transforms so scaled art is not blurry", () => {
-  assert.match(
-    poster,
-    /posterTargetWidth\(\s*el\.getBoundingClientRect\(\)/,
-    "clientWidth ignores transforms like scale()",
-  );
-  assert.match(poster, /\}, \[inView, qMult, ratio\]\);/, "ratio must be a dependency");
+  // The rendered box is 100x300; clientWidth reports 50 because it ignores transforms like scale().
+  const p = posterHarness("Poster", { box: { width: 100, height: 300 } });
+  const props = { src: "art", seed: "s", ratio: "portrait" };
+  p.render(props);
+  assert.equal(loadingSrc(p.render(props)), "art?w=200", "a 2:3 card covering 300px height");
+  const wider = { ...props, ratio: "landscape" };
+  p.render(wider);
+  assert.equal(loadingSrc(p.render(wider)), "art?w=534", "a ratio change re-measures the box");
 });
 
 test("the declared aspect ratios match the aspect padding", () => {
@@ -46,50 +44,151 @@ test("the declared aspect ratios match the aspect padding", () => {
   assert.equal(RATIO_AR.wide, 16 / 7);
 });
 
+function mountRow(settings: Record<string, unknown> = {}) {
+  let resize: () => void = () => {};
+  const actions = { rememberRowScroll() {}, recallRowScroll: () => null };
+  let frames: Array<() => void> = [];
+  const container = {
+    offsetParent: {},
+    getBoundingClientRect: () => ({ width: 1000, height: 300 }),
+    closest: () => null,
+  };
+  const track = {
+    scrollLeft: 0,
+    scrollWidth: 1000,
+    clientWidth: 1000,
+    style: {},
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  type Node = { type: unknown; props: Record<string, any> };
+  const jsx = (type: unknown, props: Record<string, any>): Node => {
+    const el = String(props.className).includes("harbor-row-track") ? track : container;
+    if (typeof props.ref === "function") props.ref(el);
+    else if (props.ref && typeof props.ref === "object") props.ref.current = el;
+    return { type, props };
+  };
+  const all = {
+    hidePosterTitles: false,
+    rowCardStyle: "poster",
+    posterScale: 1,
+    posterBackdropExpansion: false,
+    posterDockMagnification: false,
+    posterDockTransitionMs: 200,
+    rowTitleScale: 1,
+    posterRadius: 12,
+    ...settings,
+  };
+  const h = hookHarness(
+    "src/components/row.tsx",
+    "Row",
+    {
+      "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
+      "react-dom": { flushSync: (fn: () => void) => fn() },
+      "@/lib/visibility": { observeWithin: () => () => {} },
+      "lucide-react": { ChevronLeft: "ChevronLeft", ChevronRight: "ChevronRight" },
+      "@/components/ThreeLiquidGlassSurface": { ThreeLiquidGlassSurface: "Glass" },
+      "./nav-arrow": { NavChevron: "NavChevron" },
+      "@/lib/i18n": { useT: () => (k: string) => k, useUiLanguage: () => "en", isRtl: () => false },
+      "@/lib/settings": { useSettingsSelector: (pick: (s: unknown) => unknown) => pick(all) },
+      "@/lib/view": { useViewActions: () => actions },
+      "@/lib/poster-dock": { resetPosterDock() {}, updatePosterDock() {} },
+      "@/lib/poster-backdrop-expansion": { scrollDeltaToRevealCard: () => 0 },
+      "@/components/row-card-expansion": { RowCardExpansionProvider: "Expansion" },
+    },
+    {
+      ResizeObserver: class {
+        constructor(cb: () => void) {
+          resize = cb;
+        }
+        observe() {}
+        disconnect() {}
+      },
+      requestAnimationFrame: (fn: () => void) => frames.push(fn),
+      cancelAnimationFrame() {},
+      window: {
+        addEventListener() {},
+        removeEventListener() {},
+        setTimeout: () => 0,
+        clearTimeout() {},
+      },
+    },
+  );
+  const props = {
+    children: [
+      { type: "Card", props: {} },
+      { type: "Card", props: {} },
+    ],
+  };
+  const nodes = (n: unknown): Node[] =>
+    Array.isArray(n)
+      ? n.flatMap(nodes)
+      : n && typeof n === "object"
+        ? [n as Node, ...nodes((n as Node).props?.children)]
+        : [];
+  const trackNode = (tree: unknown) =>
+    nodes(tree).find((n) => String(n.props.className).includes("harbor-row-track"))!;
+  return {
+    settings: all,
+    render: () => trackNode(h.render(props)),
+    resize: () => {
+      resize();
+      const run = frames;
+      frames = [];
+      for (const fn of run) fn();
+    },
+  };
+}
+
+const classes = (node: { props: Record<string, any> }) => String(node.props.className).split(/\s+/);
+
 test("row tracks do not bleed the next card into horizontal padding", () => {
-  const track = row.match(/const trackPad = dockEnabled \? "([^"]*)" : "([^"]*)";/);
-  assert.ok(track, "trackPad must stay a single declaration so the sliver fix is auditable");
-  for (const cls of [track[1], track[2]]) {
-    const pad = [...cls.matchAll(/(?:^|\s)p([xy]?)-(\d+)/g)];
-    for (const [, axis, n] of pad) {
-      assert.match(
-        cls,
-        new RegExp(`(?:^|\\s)-m${axis}-${n}(?:\\s|$)`),
-        `p${axis}-${n} in "${cls}" is not cancelled by -m${axis}-${n}, which shows a sliver of the next card`,
+  for (const dock of [false, true]) {
+    const tokens = classes(mountRow({ posterDockMagnification: dock }).render());
+    for (const token of tokens) {
+      const pad = token.match(/^p([xy]?)-(\d+)$/);
+      if (!pad) continue;
+      assert.ok(
+        tokens.includes(`-m${pad[1]}-${pad[2]}`),
+        `${token} is not cancelled by -m${pad[1]}-${pad[2]}, which shows a sliver of the next card`,
       );
     }
+    assert.ok(
+      !tokens.includes("px-5") && !tokens.includes("p-5"),
+      "horizontal padding shows a sliver",
+    );
   }
-  assert.doesNotMatch(
-    row,
-    /px-5 pb-8 pt-14 -mx-5/,
-    "horizontal padding shows a sliver of the next card",
-  );
-  assert.doesNotMatch(row, /"p-5 -m-5"/, "horizontal padding shows a sliver of the next card");
 });
 
 test("row tracks keep vertical room for the hover lift", () => {
-  assert.match(row, /py-5 -my-5/, "vertical padding must survive so hover lift is not clipped");
-  assert.match(row, /pt-14/, "dock mode needs headroom above the cards");
-  assert.match(row, /-mt-14/, "the headroom is pulled back so layout does not shift");
+  const plain = classes(mountRow().render());
+  assert.ok(plain.includes("py-5") && plain.includes("-my-5"), "hover lift is not clipped");
+  const dock = classes(mountRow({ posterDockMagnification: true }).render());
+  assert.ok(dock.includes("pt-14"), "dock mode needs headroom above the cards");
+  assert.ok(dock.includes("-mt-14"), "the headroom is pulled back so layout does not shift");
 });
 
 test("scroll padding no longer offsets snapping now that the track has no inline padding", () => {
-  assert.doesNotMatch(
-    row,
-    /scroll-ps-5 scroll-pe-5/,
-    "20px scroll padding would misalign snap targets",
-  );
+  for (const dock of [false, true]) {
+    const tokens = classes(mountRow({ posterDockMagnification: dock }).render());
+    assert.ok(!tokens.includes("scroll-ps-5") && !tokens.includes("scroll-pe-5"));
+  }
 });
 
-test("row measurement never recomputes from a stale effMin after a style switch", () => {
-  assert.match(
-    row,
-    /const measureRef = useRef\(measure\)/,
-    "measure must be held in a ref so the ResizeObserver sees the latest effMin",
-  );
-  assert.match(
-    row,
-    /measureRef\.current\(\)/,
-    "the ResizeObserver must call the ref, not a captured measure closure",
+test("row measurement never recomputes from a stale effMin after a style switch", async () => {
+  const row = mountRow();
+  row.render();
+  await flushPromises();
+  assert.equal(row.render().props.style.gridAutoColumns, "150.015625px", "six 144px cards fit");
+  row.settings.posterScale = 2;
+  row.render();
+  await flushPromises();
+  row.render();
+  row.resize();
+  await flushPromises();
+  assert.equal(
+    row.render().props.style.gridAutoColumns,
+    "320.015625px",
+    "a resize after the switch measures with the new 288px minimum",
   );
 });
