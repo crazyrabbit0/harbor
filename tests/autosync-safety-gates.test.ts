@@ -1,9 +1,13 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import * as fpGate from "../src/lib/subtitles/autosync/fp-gate.ts";
+import * as directValidation from "../src/lib/subtitles/autosync/direct-validation.ts";
+import * as language from "../src/lib/subtitles/language.ts";
+import { makeTauriDriftPorts } from "../src/lib/subtitles/autosync/drift-ports.ts";
+import { autoSyncHarness } from "./helpers/autosync-harness.ts";
+import { flushPromises, loadModule } from "./helpers/hook-harness.ts";
 
 import {
   DEFAULT_BOUNDS,
@@ -33,8 +37,6 @@ import {
 import { audioLanguageFromSnapshot } from "../src/views/player/hooks/use-auto-sync.helpers.ts";
 import type { PlayerSnapshot } from "../src/lib/player/bridge.ts";
 import { consensusLanguages } from "../src/lib/subtitles/autosync/language-context.ts";
-
-const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const confidence = {
   pCorrect: 0.99,
@@ -536,25 +538,102 @@ test("selected audio metadata supplies audioLanguage independently of subtitle l
   assert.equal(audioLanguageFromSnapshot(selectedUnknown), null);
 });
 
-test("ASR language and ASS application paths are wired conservatively", () => {
-  const context = read("src/lib/subtitles/autosync/context.ts");
-  assert.match(context, /subLang: ctx\.audioLanguage \|\| null/);
-  assert.doesNotMatch(context, /subLang: ctx\.languages\[0\]/);
-  assert.doesNotMatch(context, /NEUTRAL_QUALITY|TORRENT_BASELINE/);
-
-  const torrent = read("src/lib/subtitles/autosync/torrent-sync.ts");
-  assert.doesNotMatch(torrent, /UNVERIFIED_BASELINE_NCC|BASELINE_Z/);
-
-  const hook = read("src/views/player/hooks/use-auto-sync.ts");
-  const protection = hook.indexOf('if (fmt === "ass" || fmt === "ssa")');
-  const rewrite = hook.indexOf("const finalCues = transformCues(cues, t);");
-  assert.ok(
-    protection >= 0 && rewrite > protection,
-    "ASS/SSA must be rejected before cue serialization",
+function contextPorts(invoke: (command: string, args: Record<string, unknown>) => unknown) {
+  return loadModule(
+    "src/lib/subtitles/autosync/context.ts",
+    {
+      "@tauri-apps/api/core": {
+        invoke: async (c: string, a: Record<string, unknown>) => invoke(c, a),
+      },
+      "@/lib/debug": { dinfo() {}, dwarn() {} },
+      "@/lib/subtitles/auto-sync": { estimateSubtitleOffset: async () => null },
+      "./fp-gate": fpGate,
+      "./direct-validation": directValidation,
+      "./opensubtitles": { resolveTier0: async () => ({}), resolveSwapCues: async () => null },
+      "./consensus": { createConsensusPort: () => async () => null },
+      "./crowd-db": {
+        createCrowdDbPort: () => async () => null,
+        crowdConfigFromSettings: () => null,
+      },
+      "@/lib/subtitles/language": language,
+      "./language-context": { consensusLanguages: () => [] },
+    },
+    { setTimeout: () => 0, clearTimeout() {} },
   );
-  assert.match(hook, /formatOf\(b, activeSelected\)/);
+}
 
-  const driftPorts = read("src/lib/subtitles/autosync/drift-ports.ts");
-  assert.doesNotMatch(driftPorts, /asr_confirm_window/);
-  assert.doesNotMatch(hook, /enableAsr:/);
+test("ASR transcription asks for the audio language, never the subtitle language", async () => {
+  const asked: unknown[] = [];
+  const api = contextPorts((command, args) => {
+    if (command === "asr_ensure_model") return "model.bin";
+    if (command === "asr_transcribe_windows") asked.push(args.subLang);
+    return [];
+  });
+  const settings = { subtitleAutoSyncAsr: true, subProvidersEnabled: {}, preferredSubLangs: [] };
+  for (const audio of ["ja", null]) {
+    const ctx = { ...languageContext(audio, "ar"), languages: ["ar"] };
+    await api.buildTierPorts(ctx, settings).asrTranscribe(ctx, []);
+  }
+  assert.deepEqual(asked, ["ja", null]);
+});
+
+test("a failed or empty native score is unknown quality, never a neutral baseline", async () => {
+  const ctx = languageContext("en", "en");
+  const identity = { kind: "affine", offsetSec: 0, ratio: 1 } as const;
+  const settings = { subProvidersEnabled: {}, preferredSubLangs: [] };
+  for (const native of [() => null, () => Promise.reject(new Error("boom"))]) {
+    const ports = contextPorts(native).buildTierPorts(ctx, settings);
+    assert.equal((await ports.measureQuality(ctx, identity)).status, "unknown");
+  }
+
+  const torrent = loadModule(
+    "src/lib/subtitles/autosync/torrent-sync.ts",
+    {
+      "@tauri-apps/api/core": { invoke: async () => null },
+      "./pipeline": { runAutoSync: async () => null },
+      "./opensubtitles": { resolveTier0: async () => ({}) },
+      "./fp-gate": fpGate,
+      "./direct-validation": directValidation,
+    },
+    { setTimeout: () => 0, clearTimeout() {} },
+  );
+  const torrentCtx = { ...ctx, sourceKind: "torrent", infoHash: "a".repeat(40) };
+  for (const availability of [undefined, { windows: [] }]) {
+    const ports = torrent.createTorrentPorts({ ctx: torrentCtx, fileIdx: 0, availability });
+    assert.equal((await ports.measureQuality(torrentCtx, identity)).status, "unknown");
+  }
+});
+
+test("drift correction never confirms by lexical ASR", () => {
+  const ports = makeTauriDriftPorts("https://media.test/a.mkv", undefined);
+  assert.equal(typeof ports.sampleSpeech, "function");
+  assert.equal(ports.confirmAsr, undefined);
+});
+
+test("ASS/SSA tracks are refused before any structural cue rewrite", async () => {
+  const apply = {
+    decision: { decision: "apply", reason: "fixture", pCorrect: 1 },
+    tiersRun: [],
+    candidate: { kind: "affine", offsetSec: 2, ratio: 1.04 },
+  };
+  const run = async (trackUrl: string, externalFilename?: string) => {
+    const h = autoSyncHarness({ outcome: apply, delayOnly: false, trackUrl });
+    const track = { id: "1", lang: "en", externalFilename };
+    h.render("https://media.test/a.mkv", track);
+    for (let i = 0; i < 6; i++) await flushPromises();
+    return { calls: h.calls, status: h.render("https://media.test/a.mkv", track).status };
+  };
+  const srt = await run("https://subs.test/track.srt");
+  assert.deepEqual(srt.calls, ["serialize srt", "save_text_file", "add", "delay 0"]);
+  assert.equal(srt.status, "synced");
+  const named = await run("https://subs.test/track", "named.srt");
+  assert.equal(named.status, "synced", "the selected track's file name sets the format");
+  for (const blocked of [
+    await run("https://subs.test/track.ass"),
+    await run("https://subs.test/track.ssa"),
+    await run("https://subs.test/track", "styled.ass"),
+  ]) {
+    assert.deepEqual(blocked.calls, [], "nothing is serialized, saved or added");
+    assert.notEqual(blocked.status, "synced");
+  }
 });

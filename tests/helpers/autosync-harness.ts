@@ -8,7 +8,14 @@ const refuse = { decision: { decision: "refuse", reason: "fixture", pCorrect: 0 
 
 /** Runs use-auto-sync with a scripted pipeline outcome and FPS reset; `calls` records bridge writes. */
 export function autoSyncHarness(
-  options: { outcome?: unknown; resetFps?: () => Promise<void> } = {},
+  options: {
+    outcome?: unknown;
+    resetFps?: () => Promise<void>;
+    /** Selected track URL the bridge reports (default an .srt). */
+    trackUrl?: string;
+    /** false routes every candidate through the structural rewrite path. */
+    delayOnly?: boolean;
+  } = {},
 ) {
   const runs: boolean[] = [];
   const calls: string[] = [];
@@ -16,10 +23,20 @@ export function autoSyncHarness(
     "src/views/player/hooks/use-auto-sync.ts",
     "useAutoSync",
     {
-      "@tauri-apps/api/core": { convertFileSrc: (u: string) => u, invoke: async () => {} },
+      "@tauri-apps/api/core": {
+        convertFileSrc: (u: string) => u,
+        invoke: async (command: string) => void calls.push(command),
+      },
+      "@tauri-apps/api/path": {
+        join: async (...parts: string[]) => parts.join("/"),
+        tempDir: async () => "/tmp",
+      },
       "@/lib/debug": { dwarn: noop },
       "@/lib/subtitles/parser": { fetchAndParse: async () => cues },
-      "@/lib/subtitles/serialize": { toSrt: () => "", toVtt: () => "" },
+      "@/lib/subtitles/serialize": {
+        toSrt: () => (calls.push("serialize srt"), ""),
+        toVtt: () => (calls.push("serialize vtt"), ""),
+      },
       "@/lib/subtitles/autosync/pipeline": {
         runAutoSync: async (_ctx: unknown, _ports: unknown, opts: { tryHarder: boolean }) => {
           runs.push(opts.tryHarder);
@@ -45,7 +62,7 @@ export function autoSyncHarness(
         sourceKindFor: () => "http",
       },
       "@/lib/subtitles/autosync/opensubtitles": { resolveSwapCues: async () => null },
-      "@/lib/subtitles/autosync/fp-gate": { isDelayOnlyTransform: () => true },
+      "@/lib/subtitles/autosync/fp-gate": { isDelayOnlyTransform: () => options.delayOnly ?? true },
       "@/lib/subtitles/autosync/html5-sync": { transformCues: (c: unknown) => c },
       "@/lib/subtitles/autosync/drift-monitor": {
         DriftMonitor: class {},
@@ -68,9 +85,10 @@ export function autoSyncHarness(
   );
   const bridge = {
     getSelectedTrackCues: () => cues,
-    getSelectedTrackUrl: () => "https://subs.test/track.srt",
+    getSelectedTrackUrl: () => options.trackUrl ?? "https://subs.test/track.srt",
     setSubDelay: (sec: number) => calls.push(`delay ${sec}`),
     setSubtitleTrack: (id: string) => calls.push(`track ${id}`),
+    addSubtitle: async () => (calls.push("add"), true),
   };
   const bridgeRef = { current: bridge };
   const settings = {
@@ -78,7 +96,11 @@ export function autoSyncHarness(
     preferredSubLangs: [],
     autoSyncApplyStructural: false,
   };
-  const render = (url: string, track: { id: string; lang: string }, subDelaySec = 0) =>
+  const render = (
+    url: string,
+    track: { id: string; lang: string; externalFilename?: string },
+    subDelaySec = 0,
+  ) =>
     h.render({
       bridgeRef,
       src: { url, meta: { id: "tt100" } },

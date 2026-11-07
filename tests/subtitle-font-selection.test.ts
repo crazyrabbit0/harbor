@@ -11,6 +11,9 @@ import {
   migrateInlineFonts,
   stripMovedFonts,
 } from "../src/lib/settings/custom-fonts.ts";
+import * as selectorStore from "../src/lib/settings/selector-store.ts";
+import * as settingsWriter from "../src/lib/settings/settings-writer.ts";
+import * as settingsPatch from "../src/lib/settings/patch.ts";
 import { previewFamily } from "../src/views/settings/player-panel/internals.tsx";
 import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness.ts";
 
@@ -341,18 +344,128 @@ test("a settings write that does not persist is not swallowed", async () => {
   assert.equal(errors.length, 1);
 });
 
-test("a deleted custom font never strands the font picker", () => {
+/** Renders the real SettingsProvider over `stored`; `settings()` re-renders and returns its context value. */
+function settingsProvider(stored: Record<string, unknown>, saveFontData: (id: string) => unknown) {
+  const noop = () => {};
+  const off = () => noop;
+  type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
+  const element = (type: unknown, props: N["props"]) => ({ type, props });
+  const h = hookHarness(
+    "src/lib/settings.tsx",
+    "SettingsProvider",
+    {
+      "@/lib/profile-roster": { activeSettingsSource: () => ({ profileId: "p", linked: true }) },
+      "@/lib/theme": { applyTheme: noop, isKnownPreset: () => true, nextColorTheme: noop },
+      "@/lib/app-icon": { applyAppIcon: async () => {} },
+      "@/lib/custom-themes": { getCustomThemes: () => [], subscribeCustomThemes: off },
+      "@/lib/theme-storage": { loadBgImage: async () => null, saveBgImage: async () => {} },
+      "@/lib/providers/tmdb/tmdb-client": {
+        effectiveTmdbLanguage: () => "en",
+        setTmdbLanguage: noop,
+      },
+      "@/lib/providers/rpdb": { setPosterBaseUrl: noop },
+      "@/lib/providers/mdblist-batch": { setMdblistBatchKey: noop },
+      "@/lib/providers/tvdb": { setTvdbKey: noop },
+      "@/lib/trakt/credentials": { setTraktCredentials: noop },
+      "@/lib/mal/credentials": { setMalClientId: noop },
+      "@/lib/games/igdb-client": { setIgdbCredentials: noop },
+      "@/lib/i18n": { setUiLanguage: noop },
+      "@/lib/tauri-unlisten": { makeSafeTauriUnlisten: (fn: unknown) => fn },
+      "./settings/defaults": { STORAGE_KEY: "harbor.settings" },
+      "./settings/file-store": { readSettingsFile: async () => null, writeSettingsFile: noop },
+      "./torrent/local-engine": { torrentEngineSetEnabled: async () => {} },
+      "./font-storage": { loadFontData: async () => null, saveFontData },
+      "./settings/custom-fonts": { fontFamilyAfterRemoval, migrateInlineFonts, stripMovedFonts },
+      "./avatars/catalog": { isRemovedBuiltinAvatar: () => false },
+      "./settings/profile-store": {
+        forkToProfile: noop,
+        loadEffective: () => ({ ...DEFAULT, ...stored }),
+        persistEffective: () => "{}",
+        readSettingsSecrets: () => ({}),
+        seedSharedFromLegacy: noop,
+        sourceKeyFor: () => "shared",
+        writeSettingsSecrets: noop,
+      },
+      "./settings/secret-fields": { changedSecrets: () => ({}), mergeSecrets: (s: unknown) => s },
+      "./settings/tmdb-key": { setTmdbKey: noop },
+      "./secret-store": {
+        flushSecrets: async () => {},
+        getSecretsWriteStatus: () => ({ ok: true }),
+        subscribeSecretsSettled: off,
+        subscribeSecretsWriteStatus: off,
+      },
+      "./profile-sync/scheduler": { markSectionDirty: noop },
+      "./layout-sync/store": { configureLayoutStore: noop },
+      "./layout-sync/sections": { SYNCED_SETTINGS_FIELDS: [] },
+      "./settings/selector-store": selectorStore,
+      "./settings/settings-writer": settingsWriter,
+      "./settings/patch": settingsPatch,
+      "@/lib/privacy/blocklist": { setTrackerBlocking: noop },
+      "@/lib/snapshots": { setSnapshotRetentionDays: noop },
+      "@tauri-apps/api/core": { invoke: async () => {} },
+      "react/jsx-runtime": { jsx: element, jsxs: element },
+    },
+    {
+      window: {
+        addEventListener: noop,
+        removeEventListener: noop,
+        setTimeout: () => 0,
+        clearTimeout: noop,
+      },
+      document: {
+        addEventListener: noop,
+        removeEventListener: noop,
+        documentElement: { style: { setProperty: noop } },
+        getElementById: () => null,
+      },
+      localStorage: { getItem: () => "{}", setItem: noop },
+      console: { warn() {}, error() {} },
+    },
+  );
+  const settings = () => {
+    let node = h.render({ children: null }) as N;
+    while (!node.props.value?.settings) node = node.props.children as N;
+    return node.props.value.settings as typeof DEFAULT;
+  };
+  return { settings };
+}
+
+test("a deleted custom font never strands the font picker", async () => {
   const fonts = [{ id: "a1", name: "A", format: "truetype" }];
   assert.equal(fontFamilyAfterRemoval("custom:gone", fonts), "inter");
   assert.equal(fontFamilyAfterRemoval("custom:a1", fonts), null);
   assert.equal(fontFamilyAfterRemoval("serif", []), null);
-  const provider = read("src/lib/settings.tsx");
-  assert.match(
-    provider,
-    /fontFamilyAfterRemoval\(settings\.subFontFamily, settings\.customFonts \?\? \[\]\)/,
+  const provider = (family: string) => {
+    const p = settingsProvider({ subFontFamily: family, customFonts: fonts }, async () => {});
+    p.settings();
+    return p.settings().subFontFamily;
+  };
+  assert.equal(provider("custom:gone"), "inter", "the provider moves off a removed font");
+  assert.equal(provider("custom:a1"), "custom:a1");
+});
+
+test("the provider moves inline fonts to font storage and keeps any it could not store", async () => {
+  const saved: string[] = [];
+  const p = settingsProvider(
+    {
+      subFontFamily: "inter",
+      customFonts: [
+        { id: "a", name: "A", format: "truetype", dataUrl: "data:a" },
+        { id: "b", name: "B", format: "woff", dataUrl: "data:b" },
+      ],
+    },
+    async (id: string) => {
+      saved.push(id);
+      if (id === "b") throw new Error("quota");
+    },
   );
-  assert.match(provider, /migrateInlineFonts\(legacy, saveFontData,/);
-  assert.match(provider, /customFonts: stripMovedFonts\(s\.customFonts \?\? \[\], moved\)/);
+  p.settings();
+  await flushPromises();
+  assert.deepEqual(saved, ["a", "b"]);
+  assert.deepEqual(p.settings().customFonts, [
+    { id: "a", name: "A", format: "truetype" },
+    { id: "b", name: "B", format: "woff", dataUrl: "data:b" },
+  ]);
 });
 
 test("a failed font migration never discards the only copy of the font", async () => {

@@ -52,7 +52,8 @@ export function hookHarness(
     useLayoutEffect(run: () => any, deps: any[]) {
       react.useEffect(run, deps);
     },
-    createContext: (value: any) => ({ Provider: "Context.Provider", value }),
+    // A context reads its default value; providers are plain elements in the rendered tree.
+    createContext: (value: any) => ({ Provider: { context: value }, value }),
     useContext: (context: { value: any }) => context.value,
     isValidElement: (node: any) => !!node && typeof node === "object" && "props" in node,
     Children: {
