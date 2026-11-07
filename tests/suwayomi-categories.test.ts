@@ -33,7 +33,7 @@ function setup(
       if (mode !== "rest") return null;
       if (path === "/api/v1/source/list") return sources;
       if (path === "/api/v1/category") return options.failCategories ? null : categories;
-      if (/^\/api\/v1\/category\//.test(path))
+      if (path.startsWith("/api/v1/category/"))
         return options.failCategory ? null : path.endsWith("/3") ? [] : [...manga, manga[0]];
       if (path.includes("/source/7/"))
         return { mangaList: [{ id: 99, title: "Source result" }], hasNextPage: false };

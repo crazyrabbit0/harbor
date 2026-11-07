@@ -21,6 +21,8 @@ export function treeHarness(
     lenient?: boolean;
     /** Fills a host element's object ref, standing in for the DOM node React would attach. */
     hostNode?: (tag: string, props: Record<string, any>) => unknown;
+    /** Leaves lazy modules unloaded, for a test that renders one component without its lazy children. */
+    deferLazy?: boolean;
   } = {},
 ) {
   const slots: Slot[] = [];
@@ -41,7 +43,7 @@ export function treeHarness(
     // A lazy component starts loading at once and records the module's default export as `resolved`.
     lazy(load: () => Promise<any>) {
       const component: any = Object.assign(() => null, { load });
-      load().then((m) => (component.resolved = m.default));
+      if (!options.deferLazy) load().then((m) => (component.resolved = m.default));
       return component;
     },
     startTransition: (run: () => void) => run(),
