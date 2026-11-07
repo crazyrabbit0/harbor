@@ -1,9 +1,13 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { emptySnapshot } from "../src/lib/player/bridge.ts";
+import * as autoload from "../src/lib/subtitles/autoload.ts";
+import * as autoloadRun from "../src/lib/subtitles/autoload-run.ts";
+import * as language from "../src/lib/subtitles/language.ts";
+import * as trackSelection from "../src/lib/subtitles/track-selection.ts";
+import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 import {
   audioLanguageOrder,
   originalLanguageForMeta,
@@ -65,11 +69,81 @@ test("a dubbed release lands on the original-language track", () => {
   assert.equal(pickBestTrack(noOriginal, audioLanguageOrder(["English"], null, "es"))?.id, "1");
 });
 
-test("autoload re-runs track selection once the original language resolves", () => {
-  const hook = readFileSync(
-    new URL("../src/views/player/hooks/use-track-autoload.ts", import.meta.url),
-    "utf8",
+function trackAutoloadHarness(originalLanguage: Promise<string | null>) {
+  const noop = () => {};
+  const pending = () => new Promise<never>(noop);
+  const audioPicks: string[] = [];
+  const h = hookHarness(
+    "src/views/player/hooks/use-track-autoload.ts",
+    "useTrackAutoload",
+    {
+      "@tauri-apps/api/core": { invoke: pending },
+      "@/lib/subtitles/language": language,
+      "@/lib/subtitles/fetch-into-player": {
+        fetchSubtitlesIntoPlayer: pending,
+        streamHintsOf: () => ({}),
+      },
+      "@/lib/subtitles/provider-label": { subtitleStreamDescriptor: () => null },
+      "@/components/player/subtitle-menu/subtitle-search-store": { publishSubtitleSearch: noop },
+      "@/components/player/subtitle-menu/subtitle-context-store": { publishSubtitleContext: noop },
+      "@/lib/player-prefs": { readPlayerPrefs: () => null },
+      "@/lib/player/original-audio": {
+        audioLanguageOrder,
+        resolveOriginalLanguage: () => originalLanguage,
+      },
+      "@/lib/providers/tmdb": { tmdbImdbId: async () => null },
+      "@/lib/subtitles/addon-source": { gatherSubtitleAddons: async () => [] },
+      "@/lib/streams/stream-ids": { buildStreamIds: (id: string) => [id] },
+      "@/lib/subtitles/autoload": autoload,
+      "@/lib/subtitles/autoload-run": autoloadRun,
+      "@/lib/subtitles/anime-numbering": { resolveAnimeSearchCoords: async () => null },
+      "@/lib/subtitles/track-selection": trackSelection,
+      "@/lib/subtitles/added-subs": { markAddedSub: noop },
+      "@/lib/player/imported-subs": { markImportedSub: noop },
+      "@/lib/subtitles/provider-auth": { bindSubtitleDownloadAuth: async () => undefined },
+      "@/lib/subtitles/subtitle-memory": {
+        readRememberedSub: () => null,
+        rememberedSubAppliesToStream: () => false,
+        rememberedSubtitleLoadMetadata: () => ({}),
+        rememberedSubtitleIsLocal: () => false,
+        subtitleMediaKey: () => "key",
+      },
+    },
+    { window: { setTimeout: () => 1, clearTimeout: noop }, console: { info: noop, warn: noop } },
   );
-  assert.match(hook, /audioLanguageOrder\(baseAudio, prefs\?\.audioLang, originalAudioLang\)/);
-  assert.match(hook, /settings\.trackBlockWords,\s*originalAudioLang,\s*\]\)/);
+  const bridge = {
+    canAutoSelectSubtitle: () => true,
+    setSubtitleTrack: noop,
+    setAudioTrack: (id: string) => audioPicks.push(id),
+    setAudioNormalize: noop,
+    setSubDelay: noop,
+    setRate: noop,
+  };
+  const audioTracks = [
+    { id: "1", lang: "eng", default: true, selected: true },
+    { id: "2", lang: "spa" },
+  ];
+  const settings = { preferredLanguages: ["English"], preferOriginalAudio: true };
+  const props = {
+    bridgeRef: { current: bridge },
+    src: { url: "https://media.test/a.mkv", meta: { id: "tt1", type: "movie" } },
+    snap: { ...emptySnapshot, durationSec: 1200, audioTracks, subtitleTracks: [] },
+    engine: "mpv",
+    settings,
+    authKey: null,
+  };
+  return { audioPicks, render: () => h.render(props) };
+}
+
+test("autoload re-runs track selection once the original language resolves", async () => {
+  let resolveLanguage!: (lang: string | null) => void;
+  const h = trackAutoloadHarness(new Promise((resolve) => (resolveLanguage = resolve)));
+  h.render();
+  await flushPromises();
+  h.render();
+  assert.deepEqual(h.audioPicks, [], "the default English track stays while the lookup runs");
+  resolveLanguage("es");
+  await flushPromises();
+  h.render();
+  assert.deepEqual(h.audioPicks, ["2"]);
 });

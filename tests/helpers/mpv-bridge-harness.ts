@@ -48,7 +48,11 @@ export function playerSnapshotChanged() {
 export function mpvBridgeHarness(
   prefs = { volume: 0.35, muted: false },
   options?: MpvOptions,
-  harness: { safeProviderUrl?: (url: string) => boolean } = {},
+  harness: {
+    safeProviderUrl?: (url: string) => boolean;
+    /** Stands in for subtitleTrackDownloadHeaders; its result reaches prepareSubtitle. */
+    trackHeaders?: (...args: any[]) => Record<string, string> | undefined;
+  } = {},
 ) {
   const source = readFileSync(new URL("../../src/lib/player/mpv.ts", import.meta.url), "utf8");
   const compiled = ts.transpileModule(source, {
@@ -106,7 +110,9 @@ export function mpvBridgeHarness(
         }
       },
     },
-    "@/lib/subtitles/provider-auth": { subtitleTrackDownloadHeaders: () => undefined },
+    "@/lib/subtitles/provider-auth": {
+      subtitleTrackDownloadHeaders: harness.trackHeaders ?? (() => undefined),
+    },
     "@/lib/subtitles/prepared-registry": {
       takePreparedSubtitle: (url: string) => {
         const entry = transferred.get(url) ?? null;
