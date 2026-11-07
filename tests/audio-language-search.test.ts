@@ -1,15 +1,77 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import * as language from "../src/lib/subtitles/language";
 import { normalizeLang } from "../src/lib/subtitles/language";
+import { hookHarness } from "./helpers/hook-harness.ts";
+import { all } from "./helpers/subtitle-addon-harness.ts";
 
-const menu = readFileSync(
-  new URL("../src/components/player/audio-menu.tsx", import.meta.url),
-  "utf8",
-);
+const element = (type: unknown, props: Record<string, any>) => ({ type, props });
+const noop = () => {};
+
+/** Renders the audio menu body; each render returns the header count, search input and listed tracks. */
+function menuBody(tracks: Record<string, unknown>[]) {
+  const h = hookHarness(
+    "src/components/player/audio-menu.tsx",
+    "MenuBody",
+    {
+      "lucide-react": new Proxy({}, { get: (_target, name) => String(name) }),
+      "@tauri-apps/api/event": { listen: async () => noop },
+      "@/components/flag": { Flag: "Flag" },
+      "@/lib/modal-overlay": {
+        modalOverlayClose: async () => {},
+        modalOverlayEmitState: async () => {},
+        modalOverlayOpen: async () => {},
+      },
+      "@/lib/subtitles/language": language,
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "./menu-side": { useMenuSide: () => ({ measure: noop }) },
+      "./transport/tooltip": { Tooltip: "Tooltip" },
+      "./transport/hotkey-label": { withHotkey: (s: string) => s },
+      "@/lib/player/overlay-dismiss": { watchOutsideMouseDown: () => noop },
+      "react/jsx-runtime": { jsx: element, jsxs: element, Fragment: "Fragment" },
+    },
+    {},
+    ["MenuBody"],
+  );
+  const props = {
+    tracks,
+    selectedId: null,
+    delaySec: 0,
+    engine: "mpv",
+    onSelect: noop,
+    onDelay: noop,
+    onClose: noop,
+  };
+  const view = () => {
+    const nodes = all(h.render(props));
+    const count = nodes.find((n) =>
+      String(n.props.className ?? "").includes("tabular-nums text-ink-subtle"),
+    );
+    const section = nodes.find((n) => typeof n.type === "function" && "tracks" in n.props);
+    return {
+      count: count?.props.children,
+      input: nodes.find((n) => n.type === "input"),
+      ids: (section?.props.tracks ?? []).map((track: { id: string }) => track.id),
+    };
+  };
+  return {
+    view,
+    search(query: string) {
+      view().input?.props.onChange({ target: { value: query } });
+      return view();
+    },
+  };
+}
+
+const dubs = [
+  { id: "en", lang: "en", title: "English" },
+  { id: "fr", lang: "fr", title: "Français" },
+  { id: "ar", lang: "ar", title: "Arabic Dub" },
+  { id: "ja", lang: "ja", title: "Japanese" },
+  { id: "de", lang: "de", title: "Deutsch" },
+];
 
 test("a language typed in its own script resolves to its code", () => {
   // The request came from someone looking for an Arabic dub; Gulf and Russian are the
@@ -41,16 +103,20 @@ test("adding native names did not disturb the existing region rules", () => {
 });
 
 test("the menu only offers search once a list is worth searching", () => {
-  assert.match(menu, /const SEARCH_FROM = \d+;/);
-  assert.match(menu, /tracks\.length >= SEARCH_FROM/);
+  assert.equal(menuBody(dubs.slice(0, 4)).view().input, undefined);
+  assert.ok(menuBody(dubs).view().input);
 });
 
 test("the match is diacritic-insensitive and language-aware", () => {
-  assert.match(menu, /normalize\("NFD"\)\.replace\(\/\\p\{M\}\/gu, ""\)/);
-  assert.match(menu, /normalizeLang\(track\.lang\) === wanted/);
+  const menu = menuBody([...dubs, { id: "cmt", title: "Café Commentary" }]);
+  assert.deepEqual(menu.search("cafe commentary").ids, ["cmt"]);
+  assert.deepEqual(menu.search("العربية").ids, ["ar"]);
+  assert.deepEqual(menu.search("Japanese").ids, ["ja"]);
 });
 
 test("the header count reflects the filtered list, not the whole file", () => {
   // The subtitle menu shipped the opposite of this and it read as a bug.
-  assert.match(menu, /tabular-nums text-ink-subtle">\{shown\.length\}/);
+  const menu = menuBody(dubs);
+  assert.equal(menu.view().count, 5);
+  assert.equal(menu.search("deutsch").count, 1);
 });
