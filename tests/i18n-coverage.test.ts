@@ -4,8 +4,10 @@ import assert from "node:assert/strict";
 import { readdirSync, readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { MOVIE_GENRES, TV_GENRES } from "../src/lib/feed/tags.ts";
 import { LANGUAGES as UI_LANGUAGES } from "../src/lib/i18n/languages.ts";
 import en from "../src/lib/i18n/locales/en.ts";
+import { hookHarness } from "./helpers/hook-harness.ts";
 import arCoverage from "../src/lib/i18n/locales/ar/coverage.ts";
 import deCoverage from "../src/lib/i18n/locales/de/coverage.ts";
 import esCoverage from "../src/lib/i18n/locales/es/coverage.ts";
@@ -40,8 +42,9 @@ const LANGS = [
   "vi",
   "zh",
 ] as const;
+// Literal t() keys can only be found by scanning source; the catalogs they must reach are imported.
 const CALL = /\b(?:t|tr)\(\s*(["'])((?:\\.|(?!\1)[^\\])*?)\1/g;
-const KEY = /^\s*(?:"((?:\\.|[^"\\])*)"|'((?:\\.|[^'\\])*)'|([A-Za-z_$][A-Za-z0-9_$]*))\s*:/gm;
+const ESCAPES: Record<string, string> = { n: "\n", t: "\t", r: "\r" };
 const COVERAGE = {
   ar: arCoverage,
   de: deCoverage,
@@ -78,40 +81,39 @@ function uiStrings(): Set<string> {
     let m: RegExpExecArray | null;
     CALL.lastIndex = 0;
     while ((m = CALL.exec(src))) {
-      const k = m[2].replace(/\\"/g, '"').replace(/\\'/g, "'");
+      const k = m[2].replace(/\\(.)/g, (_, c: string) => ESCAPES[c] ?? c);
       if (k && k.length <= 300) out.add(k);
     }
   }
-  const ageGate = readFileSync(new URL("src/components/age-gate-modal.tsx", ROOT), "utf8");
-  const bankStart = ageGate.indexOf("const QUESTION_BANK");
-  const bankEnd = ageGate.indexOf("const AR_QUESTION_BANK", bankStart);
-  assert.ok(bankStart >= 0 && bankEnd > bankStart, "age gate question bank is missing");
-  const questionBlock = ageGate.slice(bankStart, bankEnd);
-  for (const match of questionBlock.matchAll(/(["'])((?:\\.|(?!\1)[^\\])*?)\1/g)) {
-    const key = match[2].replace(/\\(["'\\])/g, "$1");
-    if (key) out.add(key);
-  }
+  // The English quiz renders each question and option through t(), so they are UI keys too.
+  for (const { q, options } of questionBank()) for (const key of [q, ...options]) out.add(key);
   return out;
 }
 
+function questionBank(): { q: string; options: string[] }[] {
+  const jsx = (type: unknown, props: unknown) => ({ type, props });
+  const modal = hookHarness(
+    "src/components/age-gate-modal.tsx",
+    "AgeGateModal",
+    {
+      "react/jsx-runtime": { jsx, jsxs: jsx, Fragment: "Fragment" },
+      "react-dom": { createPortal: (node: unknown) => node },
+      "@/lib/i18n": { useT: () => (k: string) => k, useUiLanguage: () => "en" },
+    },
+    {},
+    ["QUESTION_BANK"],
+  );
+  const bank = modal.exports.QUESTION_BANK;
+  assert.ok(Array.isArray(bank) && bank.length > 10, "age gate question bank is missing");
+  return bank;
+}
+
+const CATALOGS: Record<string, Record<string, string>> = {};
+for (const lang of LANGS)
+  CATALOGS[lang] = (await import(`../src/lib/i18n/locales/${lang}.ts`)).default;
+
 function localeKeys(lang: string): Set<string> {
-  const out = new Set<string>();
-  const files = [
-    new URL(`src/lib/i18n/locales/${lang}.ts`, ROOT),
-    new URL("src/lib/i18n/locales/ui-fallback.ts", ROOT),
-  ];
-  const dir = new URL(`src/lib/i18n/locales/${lang}/`, ROOT);
-  for (const e of readdirSync(dir)) if (e.endsWith(".ts")) files.push(new URL(e, dir));
-  for (const f of files) {
-    const src = readFileSync(f, "utf8");
-    let m: RegExpExecArray | null;
-    KEY.lastIndex = 0;
-    while ((m = KEY.exec(src))) {
-      const key = m[1] ?? m[2] ?? m[3];
-      out.add(key.replace(/\\"/g, '"').replace(/\\'/g, "'"));
-    }
-  }
-  return out;
+  return new Set(Object.keys(CATALOGS[lang]));
 }
 
 const strings = uiStrings();
@@ -133,17 +135,8 @@ test("every translated language covers every UI string", () => {
 });
 
 test("genre names reach the catalogs even though nothing passes them as a literal", () => {
-  const tags = readFileSync(new URL("src/lib/feed/tags.ts", ROOT), "utf8");
-  const block = (name: string) => {
-    const a = tags.indexOf(`export const ${name}`);
-    return tags.slice(a, tags.indexOf("};", a));
-  };
-  const ENTRY = /^\s*(?:"([^"]+)"|([A-Za-z][A-Za-z0-9_]*))\s*:\s*\d+\s*,/gm;
-  const names = new Set<string>();
-  for (const b of [block("MOVIE_GENRES"), block("TV_GENRES")]) {
-    for (const m of b.matchAll(ENTRY)) names.add(m[1] ?? m[2]);
-  }
-  assert.ok(names.size > 15, `only found ${names.size} genres, the scanner is broken`);
+  const names = new Set([...Object.keys(MOVIE_GENRES), ...Object.keys(TV_GENRES)]);
+  assert.ok(names.size > 15, `only found ${names.size} genres`);
   for (const lang of LANGS) {
     const have = localeKeys(lang);
     const missing = [...names].filter((g) => !have.has(g));
@@ -175,9 +168,14 @@ test("a translation never drops or invents a placeholder", () => {
 
 test("every locale barrel includes coverage and partitioned catalog layers", () => {
   for (const lang of LANGS) {
-    const src = readFileSync(new URL(`src/lib/i18n/locales/${lang}.ts`, ROOT), "utf8");
-    const spreads = src.match(/\.\.\.[A-Za-z_$][A-Za-z0-9_$]*,/g) ?? [];
-    assert.ok(spreads.includes("...coverage,"), `${lang}.ts does not spread coverage`);
-    assert.ok(spreads.length > 5, `${lang}.ts does not partition its catalog`);
+    const catalog = CATALOGS[lang];
+    const layer = Object.entries(COVERAGE[lang]);
+    // Later layers may override a few entries, but most coverage translations must reach the catalog.
+    const kept = layer.filter(([k, v]) => catalog[k] === v).length;
+    assert.ok(kept > layer.length / 2, `${lang}.ts does not spread coverage (${kept})`);
+    assert.ok(
+      Object.keys(catalog).length > layer.length * 5,
+      `${lang}.ts does not partition its catalog`,
+    );
   }
 });
