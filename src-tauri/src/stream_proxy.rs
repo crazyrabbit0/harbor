@@ -1461,7 +1461,7 @@ mod tests {
             .to_str()
             .unwrap()
             .contains("OP=10;"));
-        let mut get = client
+        let get = client
             .get(&url)
             .header("TimeSeekRange.dlna.org", "npt=60-")
             .send()

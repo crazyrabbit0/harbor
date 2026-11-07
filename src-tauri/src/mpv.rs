@@ -274,6 +274,7 @@ pub async fn mpv_probe(_app: AppHandle) -> MpvProbe {
     }
 }
 
+#[cfg(target_os = "linux")]
 pub(crate) fn supports_vapoursynth_filter() -> bool {
     force_c_numeric_locale();
     Mpv::new()
