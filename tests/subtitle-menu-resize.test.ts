@@ -1,27 +1,20 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import * as panelSize from "../src/components/player/subtitle-menu/panel-size.ts";
 import {
   DEFAULT_SUBTITLE_PANEL_SIZE,
   clampSubtitlePanelSize,
 } from "../src/components/player/subtitle-menu/panel-size.ts";
 import { marqueeDurationMs } from "../src/components/player/subtitle-menu/marquee-motion.ts";
+import { hookHarness } from "./helpers/hook-harness.ts";
+import { all, subtitleMenuHarness } from "./helpers/subtitle-addon-harness.ts";
 
-const resizablePanel = readFileSync(
-  new URL("../src/components/player/subtitle-menu/resizable-panel.tsx", import.meta.url),
-  "utf8",
-);
-const menuHeader = readFileSync(
-  new URL("../src/components/player/subtitle-menu/menu-header.tsx", import.meta.url),
-  "utf8",
-);
-const subtitleMenu = readFileSync(
-  new URL("../src/components/player/subtitle-menu.tsx", import.meta.url),
-  "utf8",
-);
+const element = (type: unknown, props: Record<string, any>) => ({ type, props });
+const jsx = { jsx: element, jsxs: element, Fragment: "Fragment" };
+const t = (key: string) => key;
+const noop = () => {};
 
 test("subtitle panel keeps its normal size when the viewport has enough room", () => {
   assert.deepEqual(
@@ -49,21 +42,69 @@ test("subtitle title marquee stays readable at short and long overflow distances
   assert.equal(marqueeDurationMs(1_000), 6_000);
 });
 
+const classes = (node: { props: Record<string, any> }) =>
+  String(node.props.className ?? "").split(/\s+/);
+
 test("the caller positioning stays separate from the panel's relative surface", () => {
-  assert.match(resizablePanel, /className=\{className\}/);
-  assert.match(resizablePanel, /<div className="relative flex h-full w-full/);
-  assert.doesNotMatch(resizablePanel, /className=\{`relative[^`]*\$\{className\}`\}/);
+  const h = hookHarness(
+    "src/components/player/subtitle-menu/resizable-panel.tsx",
+    "ResizableSubtitlePanel",
+    {
+      "lucide-react": { MoveDiagonal2: "MoveDiagonal2" },
+      "@/lib/i18n": { useT: () => t },
+      "./panel-size": panelSize,
+      "react/jsx-runtime": jsx,
+    },
+    {
+      window: {
+        innerWidth: 1_920,
+        innerHeight: 1_080,
+        addEventListener: noop,
+        removeEventListener: noop,
+      },
+      localStorage: { getItem: () => null, setItem: noop },
+    },
+  );
+  const outer = h.render({ className: "fixed end-14", children: "body" });
+  const surface = outer.props.children;
+  assert.equal(outer.props.className, "fixed end-14");
+  assert.deepEqual(outer.props.style, { width: "560px", height: "460px" });
+  assert.ok(classes(surface).includes("relative"));
+  assert.ok(!classes(surface).includes("fixed"), "the caller's position stays on the outer box");
+  assert.ok(all(surface).some((node) => node.type === "button" && node.props.onPointerDown));
 });
 
 test("the subtitle header reserves space for the top-left resize handle", () => {
-  assert.match(menuHeader, /pe-4 ps-10 py-2\.5/);
+  const h = hookHarness("src/components/player/subtitle-menu/menu-header.tsx", "MenuHeader", {
+    "lucide-react": { X: "X" },
+    "@/components/ui-icon": { UiIcon: "UiIcon" },
+    "@/lib/i18n": { useT: () => t },
+    "@/components/player/autosync/autosync-store": { useAutoSyncHandle: () => null },
+    "@/components/hover-tooltip": { HoverTooltip: "HoverTooltip" },
+    "./subtitle-fps-control": { SubtitleFpsControl: "SubtitleFpsControl" },
+    "./sync-control": { SyncControl: "SyncControl" },
+    "react/jsx-runtime": jsx,
+  });
+  const header = h.render({
+    engine: "mpv",
+    count: 0,
+    selectedTrack: null,
+    hasSecondary: false,
+    delaySec: 0,
+    delayNonZero: false,
+    onClose: noop,
+  });
+  assert.equal(header.type, "header");
+  assert.ok(classes(header).includes("ps-10"));
 });
 
 test("the inline subtitle menu keeps the resize handle instead of using a fixed panel", () => {
-  assert.match(subtitleMenu, /import \{ ResizableSubtitlePanel \}/);
-  assert.match(
-    subtitleMenu,
-    /<ResizableSubtitlePanel className="fixed end-14 bottom-\[150px\] animate-menu-pop">/,
-  );
-  assert.doesNotMatch(subtitleMenu, /flex h-\[460px\].*w-\[560px\]/);
+  const menu = subtitleMenuHarness([], []);
+  const button = all(menu.render({})).find(
+    (node) => node.type === "button" && node.props["data-player-subtitles"],
+  )!;
+  button.props.onClick();
+  const panel = all(menu.render({})).find((node) => node.type === "Panel")!;
+  assert.deepEqual(classes(panel), ["fixed", "end-14", "bottom-[150px]", "animate-menu-pop"]);
+  assert.equal(panel.props.children.type, "MenuBody");
 });

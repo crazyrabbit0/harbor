@@ -1,8 +1,6 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { PreparedSubtitleCleanupRegistry } from "../src/lib/player/prepared-subtitle-cleanups.ts";
 import { SubtitleSelectionCoordinator } from "../src/lib/player/subtitle-selection.ts";
@@ -17,7 +15,7 @@ import {
   pickDesiredSubtitleTrack,
   subtitleAutoSelectionSignature,
 } from "../src/lib/subtitles/track-selection.ts";
-import ts from "typescript";
+import { hookHarness, loadModule } from "./helpers/hook-harness.ts";
 import { html5BridgeHarness } from "./helpers/html5-bridge-harness.ts";
 import { deferred, flushBridge, mpvBridgeHarness } from "./helpers/mpv-bridge-harness.ts";
 
@@ -337,7 +335,7 @@ test("home-server playback marks its subtitles trusted, including after a qualit
     effectiveQuality: "original",
     subtitles: [{ id: "s1", url: `${url}.srt`, language: "en" }],
   });
-  const mocks: Record<string, unknown> = {
+  const mod = loadModule("src/lib/media-server/playback.ts", {
     "./sync": {
       mediaServerAdapter: () => ({ playback: async () => playback("http://10.0.0.5/b") }),
     },
@@ -347,16 +345,7 @@ test("home-server playback marks its subtitles trusted, including after a qualit
     },
     "./index-store": { mediaServerItems: async () => [item] },
     "./playback-policy": { decidePlaybackSource() {} },
-  };
-  const code = ts.transpileModule(
-    readFileSync(new URL("../src/lib/media-server/playback.ts", import.meta.url), "utf8"),
-    { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 } },
-  ).outputText;
-  const mod: Record<string, any> = {};
-  new Function("require", "exports", code)((id: string) => {
-    assert.ok(id in mocks, `Unexpected import ${id}`);
-    return mocks[id];
-  }, mod);
+  });
   const src = mod.mediaServerPlayerSrc({
     meta: { id: "tt1", name: "Movie" },
     connection,
@@ -374,13 +363,82 @@ test("home-server playback marks its subtitles trusted, including after a qualit
   assert.equal(switched.subtitles[0].trustedSource, true);
 });
 
-test("the media-server library builds its subtitles through the shared trusted mapping", () => {
-  const tab = readFileSync(
-    new URL("../src/views/library/media-servers-tab.tsx", import.meta.url),
-    "utf8",
+test("the media-server library plays a server copy with trusted subtitles", async () => {
+  const stub = new Proxy({}, { get: (_target, name) => String(name) });
+  const opened: Record<string, any>[] = [];
+  const connection = { id: "c1", provider: "jellyfin", name: "Home", preferredQuality: "original" };
+  const item = {
+    id: "i1",
+    connectionId: "c1",
+    kind: "movie",
+    identity: {},
+    versions: [{ id: "v1" }],
+  };
+  const source = {
+    url: "http://10.0.0.5/a",
+    direct: true,
+    versionId: "v1",
+    effectiveQuality: "original",
+    subtitles: [{ id: "s1", url: "http://10.0.0.5/a.srt", language: "en" }],
+  };
+  const playbackModule = loadModule("src/lib/media-server/playback.ts", {
+    "./sync": {},
+    "./connections": {},
+    "./index-store": {},
+    "./playback-policy": {},
+  });
+  const h = hookHarness(
+    "src/views/library/media-servers-tab.tsx",
+    "ServerCard",
+    {
+      "lucide-react": stub,
+      "@/components/poster": stub,
+      "@/components/virtual-grid": stub,
+      "@/lib/media-server/connections": stub,
+      "@/lib/media-server/index-store": stub,
+      "@/lib/media-server/selectors": {
+        serverPlayableCopies: () => [{ connectionId: "c1", itemId: "i1", version: { id: "v1" } }],
+      },
+      "@/lib/media-server/playback": playbackModule,
+      "@/lib/media-server/sync": {
+        mediaServerAdapter: () => ({ playback: async () => source }),
+      },
+      "@/lib/settings": stub,
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/view": { useViewActions: () => ({ openPlayer: (src: any) => opened.push(src) }) },
+      "@/lib/library/hydrate-meta": stub,
+      "./shared": stub,
+      "./featured-context": stub,
+      "./local-tab/identify-modal": stub,
+      "./local-tab/card-actions": stub,
+      "@/lib/player/local-episodes-modal": stub,
+      "@/lib/player/local-versions-modal": {
+        openLocalVersions: (args: any) => args.onPlayServer(args.serverCopies[0]),
+      },
+      "@/lib/download/downloads-store": stub,
+      "./local-tab/toolbar": stub,
+      "@/components/media-server-brand": stub,
+      "./filter-preferences": stub,
+      "@/lib/read-at-version": stub,
+      "react/jsx-runtime": {
+        jsx: (type: unknown, props: Record<string, any>) => ({ type, props }),
+        jsxs: (type: unknown, props: Record<string, any>) => ({ type, props }),
+        Fragment: "Fragment",
+      },
+    },
+    {},
+    ["ServerCard"],
   );
-  assert.match(tab, /subtitles: mediaServerSubtitles\(source\)/);
-  assert.doesNotMatch(tab, /trustedSource/, "no hand-built copy of the subtitle mapping");
+  const card = {
+    title: { key: "k", kind: "movie", identity: { imdbId: "tt1" }, connectionIds: ["c1"] },
+    meta: { id: "tt1", name: "Movie" },
+  };
+  const tree = h.render({ card, physical: [item], connections: [connection], cardConnections: [] });
+  tree.props.children[0].props.onClick();
+  await flushBridge();
+  assert.deepEqual(opened[0].subtitles, [
+    { id: "s1", url: "http://10.0.0.5/a.srt", lang: "en", trustedSource: true },
+  ]);
 });
 
 test("reversed seed completion cannot lock a lower-priority language before batch publish", () => {
