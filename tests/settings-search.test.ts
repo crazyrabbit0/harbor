@@ -1,10 +1,9 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { matchesSettingsSearch } from "../src/views/settings/search-match.ts";
+import { anchorOf, settingsNavHarness } from "./helpers/settings-nav-harness.ts";
 
 test("settings search matches translated labels without losing source-language matches", () => {
   const translations = new Map([
@@ -20,17 +19,26 @@ test("settings search matches translated labels without losing source-language m
 });
 
 test("settings search indexes open settings under Global", () => {
-  const nav = readFileSync(new URL("../src/views/settings/nav.tsx", import.meta.url), "utf8");
-  const entries = [
-    ...nav.matchAll(
-      /\{\s*label: "Open settings",\s*section: "hotkeys",\s*tab: "keys",\s*anchorTitle: "Global",\s*keywords: \[([^\]]+)\],?\s*\}/g,
-    ),
-  ];
+  const nav = settingsNavHarness();
+  const entries = nav.options.filter((option) => option.label === "Open settings");
   assert.equal(entries.length, 1, "exactly one Open settings search entry");
-  assert.equal(entries[0][1], '"settings shortcut", "settings hotkey", "ctrl s", "preferences"');
+  assert.deepEqual(entries[0], {
+    label: "Open settings",
+    section: "hotkeys",
+    tab: "keys",
+    anchorTitle: "Global",
+    keywords: ["settings shortcut", "settings hotkey", "ctrl s", "preferences"],
+  });
+  for (const query of ["settings hotkey", "ctrl s"]) {
+    const found = nav.search(query).optionMatches ?? [];
+    assert.ok(
+      found.some((option) => option.label === "Open settings"),
+      query,
+    );
+  }
+  assert.deepEqual(nav.submit("settings shortcut"), [["hotkeys", anchorOf("Global"), "keys"]]);
 
-  const focusAt = nav.indexOf('label: "Focus search"');
-  const settingsAt = nav.indexOf('label: "Open settings"');
-  const scaleAt = nav.indexOf('label: "Increase interface scale"');
-  assert.equal(focusAt < settingsAt && settingsAt < scaleAt, true);
+  const at = (label: string) => nav.options.findIndex((option) => option.label === label);
+  assert.ok(at("Focus search") < at("Open settings"));
+  assert.ok(at("Open settings") < at("Increase interface scale"));
 });

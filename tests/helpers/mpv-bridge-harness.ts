@@ -52,6 +52,8 @@ export function mpvBridgeHarness(
     safeProviderUrl?: (url: string) => boolean;
     /** Stands in for subtitleTrackDownloadHeaders; its result reaches prepareSubtitle. */
     trackHeaders?: (...args: any[]) => Record<string, string> | undefined;
+    /** Answer of isWindowsDesktop() (default true). */
+    windows?: boolean;
   } = {},
 ) {
   const source = readFileSync(new URL("../../src/lib/player/mpv.ts", import.meta.url), "utf8");
@@ -130,7 +132,7 @@ export function mpvBridgeHarness(
     "@/lib/subtitles/language": language,
     "./mpv-failure": failures,
     "@/lib/platform": {
-      isWindowsDesktop: () => true,
+      isWindowsDesktop: () => harness.windows ?? true,
       isLinuxDesktop: () => false,
       isMacDesktop: () => false,
     },
@@ -160,6 +162,7 @@ export function mpvBridgeHarness(
     },
   };
   const windowEvents = new EventTarget();
+  const windowListeners = new Map<string, Set<unknown>>();
   const frames = new Map<number, FrameRequestCallback>();
   let frameId = 0;
   const documentEvents = new EventTarget();
@@ -173,8 +176,18 @@ export function mpvBridgeHarness(
       return frameId;
     },
     cancelAnimationFrame: (id: number) => frames.delete(id),
-    addEventListener: windowEvents.addEventListener.bind(windowEvents),
-    removeEventListener: windowEvents.removeEventListener.bind(windowEvents),
+    // Resolved at call time so t.mock.timers can drive the bridge's timers.
+    setTimeout: (callback: () => void, ms?: number) => globalThis.setTimeout(callback, ms),
+    clearTimeout: (id: ReturnType<typeof setTimeout>) => globalThis.clearTimeout(id),
+    addEventListener: (name: string, listener: EventListener) => {
+      if (!windowListeners.has(name)) windowListeners.set(name, new Set());
+      windowListeners.get(name)!.add(listener);
+      windowEvents.addEventListener(name, listener);
+    },
+    removeEventListener: (name: string, listener: EventListener) => {
+      windowListeners.get(name)?.delete(listener);
+      windowEvents.removeEventListener(name, listener);
+    },
     dispatchEvent: (event: Event) => {
       errors.push(event.type);
       return windowEvents.dispatchEvent(event);
@@ -239,6 +252,8 @@ export function mpvBridgeHarness(
     emitWindow(name: string) {
       windowEvents.dispatchEvent(new Event(name));
     },
+    /** Number of listeners the bridge holds on the fake window for `name`. */
+    windowListenerCount: (name: string) => windowListeners.get(name)?.size ?? 0,
     runFrame() {
       const callbacks = [...frames.values()];
       frames.clear();

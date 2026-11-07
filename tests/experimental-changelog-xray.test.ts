@@ -6,6 +6,8 @@ import ts from "typescript";
 import * as jsx from "react/jsx-runtime";
 import { experimentalReleaseNote } from "../src/lib/updater/experimental-notes.ts";
 import { XrayRailCard, XrayTile } from "../src/components/player/xray/xray-actor-card.tsx";
+import { hookHarness } from "./helpers/hook-harness.ts";
+import { all, jsx as treeJsx, names } from "./helpers/plugin-ui-tree.ts";
 
 // Execute production component logic with only hooks and external boundaries stubbed.
 // No credentials, real player, network requests or persistent storage are used.
@@ -50,9 +52,10 @@ function component(path, overrides = {}) {
     },
   });
   const exports = {};
-  new Function("require", "exports", outputText)(
+  new Function("require", "exports", "document", outputText)(
     (id) => modules[id] ?? new Proxy({}, { get: (_, key) => String(key) }),
     exports,
+    { body: "body" },
   );
   return {
     render(name, props) {
@@ -169,29 +172,164 @@ test("actor browser starts at selected person and browses titles within the play
   );
 });
 
+const xray = (name, overrides = {}) =>
+  component(`src/components/player/xray/${name}.tsx`, { "@/lib/i18n": i18n, ...overrides });
+const i18n = { useT: () => (s) => s };
+const actor = { id: 7, name: "Scene Actor", sub: "Role", profilePath: null };
+
 test("X-Ray rail, scene and cast grid all forward actor activation", () => {
-  const source = (name) =>
-    readFileSync(new URL(`../src/components/player/xray/${name}.tsx`, import.meta.url), "utf8");
-  assert.equal((source("xray-overlay").match(/onOpenPerson=\{setPerson\}/g) ?? []).length, 2);
-  for (const name of ["xray-rail", "xray-scene", "xray-browser"])
-    assert.match(source(name), /onOpenPerson=\{onOpenPerson\}/);
-  assert.match(source("xray-overlay"), /initialPerson=\{person\}/);
+  const overlay = xray("xray-overlay", {
+    "@/lib/settings": {
+      useSettingsSelector: (pick) => pick({ tmdbKey: "k", xrayEnabled: true, xrayLiveScan: false }),
+    },
+    "@/lib/face/use-face-id": {
+      useFaceId: () => ({
+        people: [],
+        ready: true,
+        galleryReady: true,
+        progress: { done: 0, total: 0 },
+        error: null,
+      }),
+    },
+    "@/lib/xray/use-xray-cast": { useXrayCast: () => ({ cast: [], details: null }) },
+    "@/lib/visibility": { usePageVisible: () => true },
+  });
+  const props = { meta: { id: "tt1", name: "Film" }, visible: true, isPaused: true };
+  const draw = () => nodes(overlay.render("XrayOverlay", props));
+  draw()
+    .find((n) => n.type === "button")
+    .props.onClick();
+  const opened = (tree) => tree.find((n) => n.type === "CastModal")?.props.initialPerson;
+  draw()
+    .find((n) => n.type === "XrayRail")
+    .props.onOpenPerson(actor);
+  assert.equal(opened(draw()), actor, "the rail opens the actor browser");
+  const other = { ...actor, id: 8 };
+  draw()
+    .find((n) => n.type === "XrayRail")
+    .props.onViewAll();
+  draw()
+    .find((n) => n.type === "XrayBrowser")
+    .props.onOpenPerson(other);
+  assert.equal(opened(draw()), other, "the full browser opens the actor browser");
+
+  const activated = [];
+  const open = (p) => activated.push(p);
+  const cards = (tree, type) => nodes(tree).filter((n) => n.type === type);
+  const forwards = (card) => {
+    activated.length = 0;
+    card.props.onOpenPerson(card.props.person ?? actor);
+    return activated.length === 1;
+  };
+  const rail = xray("xray-rail").render("XrayRail", {
+    people: [actor],
+    ready: true,
+    galleryReady: true,
+    progress: { done: 1, total: 1 },
+    error: null,
+    onOpenPerson: open,
+    onViewAll() {},
+    onClose() {},
+  });
+  assert.ok(forwards(cards(rail, "XrayRailCard")[0]), "rail");
+  const scene = xray("xray-scene").render("XrayScene", {
+    people: [actor],
+    showName: "Film",
+    onOpenPerson: open,
+  });
+  assert.ok(forwards(cards(scene, "XrayTile")[0]), "scene");
+
+  const browser = xray("xray-browser");
+  const browserProps = {
+    meta: { id: "tt1", name: "Film" },
+    details: { cast: [{ id: 9, name: "Cast", character: "C", profilePath: null }], crew: [] },
+    people: [actor],
+    onOpenPerson: open,
+    onClose() {},
+  };
+  let tree = nodes(browser.render("XrayBrowser", browserProps));
+  assert.ok(forwards(tree.find((n) => n.type === "XrayScene")), "browser scene tab");
+  tree.find((n) => n.type === "button" && n.props.children[0] === "Cast").props.onClick();
+  tree = nodes(browser.render("XrayBrowser", browserProps));
+  const grid = tree.find((n) => typeof n.type === "function" && n.props.people);
+  assert.ok(forwards(cards(grid.type(grid.props), "XrayTile")[0]), "browser cast grid");
 });
 
 test("notes and actor browser register with Harbor's Back navigation", () => {
-  for (const file of [
-    "src/components/update/experimental-changelog.tsx",
-    "src/components/player/cast-modal.tsx",
-  ]) {
-    const source = readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
-    assert.match(source, /data-tv-focus-scope/);
-    assert.match(source, /data-tv-modal-close/);
-  }
-  const updates = readFileSync(
-    new URL("../src/views/settings/updates-panel.tsx", import.meta.url),
-    "utf8",
+  const isBackKey = { isBackKey: (e) => e.key === "Escape" };
+  const notes = component("src/components/update/experimental-changelog.tsx", {
+    "react-dom": { createPortal: (node) => node },
+    "@/lib/keyboard-navigation/geometry": isBackKey,
+  });
+  nodes(notes.render("ExperimentalChangelog"))
+    .find((n) => n.type === "button")
+    .props.onClick({ currentTarget: { focus() {} } });
+  const dialogElement = nodes(notes.render("ExperimentalChangelog")).find((n) => n.props?.note);
+  let closed = 0;
+  const dialog = nodes(dialogElement.type({ ...dialogElement.props, onClose: () => closed++ }));
+  const scope = dialog.find((n) => n.type === "dialog");
+  assert.equal(scope.props["data-tv-focus-scope"], true);
+  const close = dialog.find((n) => n.props?.["data-tv-modal-close"] === true);
+  close.props.onClick();
+  assert.equal(closed, 1, "the Back target closes the notes");
+  const key = { preventDefault() {}, stopPropagation() {} };
+  scope.props.onKeyDown({ ...key, nativeEvent: { key: "Escape" } });
+  assert.equal(closed, 2, "Back closes the notes");
+
+  const cast = component("src/components/player/cast-modal.tsx", {
+    "@/lib/keyboard-navigation/geometry": isBackKey,
+  });
+  let closes = 0;
+  const props = {
+    open: true,
+    meta: { id: "tt1", name: "Film" },
+    initialPerson: { id: 42, name: "Actor" },
+    tmdbKey: null,
+    onClose: () => closes++,
+  };
+  let tree = nodes(cast.render("CastModal", props));
+  assert.equal(tree.find((n) => n.props?.role === "dialog").props["data-tv-focus-scope"], true);
+  tree.find((n) => n.props?.["data-tv-modal-close"] === "").props.onClick();
+  assert.equal(closes, 1, "at the root the Back target closes the browser");
+  tree.find((n) => n.type === "PersonPanel").props.onOpenTitle({ id: "tt2", name: "Other" });
+  tree = nodes(cast.render("CastModal", props));
+  const back = tree.filter((n) => n.props?.["data-tv-modal-close"] != null);
+  assert.equal(back.length, 1);
+  back[0].props.onClick();
+  assert.equal(
+    nodes(cast.render("CastModal", props)).some((n) => n.type === "PersonPanel"),
+    true,
   );
-  assert.ok(
-    updates.indexOf("<ExperimentalChangelog />") < updates.indexOf("{supportsInAppUpdates &&"),
+  assert.equal(closes, 1, "deeper in, the Back target steps back instead of closing");
+});
+
+function updatesPanel(supportsInAppUpdates) {
+  const h = hookHarness(
+    "src/views/settings/updates-panel.tsx",
+    "UpdatesPanel",
+    {
+      "react/jsx-runtime": treeJsx,
+      "@/lib/i18n": i18n,
+      "@/components/update/experimental-changelog": names,
+      "@/lib/updater/in-app-updates": { useInAppUpdatesSupported: () => supportsInAppUpdates },
+      "./shared": { Section: "Section" },
+      "./advanced-panel": names,
+      "./rollback-row": names,
+      "./build-feedback": names,
+      "./backup-row": names,
+      "./settings-recover-row": names,
+      "./experimental-builds-section": names,
+      "@/lib/updater/beta-return": { readBetaReturnContext: () => null },
+      "@/lib/updater/experimental-access": { useExperimentalAccess: () => false },
+    },
+    { __APP_VERSION__: "0.999.4" },
   );
+  return all(h.render()).map((n) => (n.type === "Section" ? n.props.title : n.type));
+}
+
+test("installed notes sit above the Updates section, even without in-app updates", () => {
+  const order = updatesPanel(true);
+  assert.ok(order.indexOf("ExperimentalChangelog") >= 0);
+  assert.ok(order.indexOf("ExperimentalChangelog") < order.indexOf("Updates"));
+  assert.ok(updatesPanel(false).includes("ExperimentalChangelog"));
 });

@@ -1,24 +1,10 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import ts from "typescript";
+import { loadModule } from "./helpers/hook-harness.ts";
 
-function moduleWithMocks(path: string, mocks: Record<string, any>, window: any = {}) {
-  const source = readFileSync(new URL(path, import.meta.url), "utf8");
-  const output = ts.transpileModule(source, {
-    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
-  }).outputText;
-  const exports: any = {};
-  new Function("require", "exports", "window", output)(
-    (id: string) => {
-      assert.ok(id in mocks, `unexpected import ${id}`);
-      return mocks[id];
-    },
-    exports,
-    window,
-  );
-  return exports;
-}
+const moduleWithMocks = (path: string, mocks: Record<string, any>, window: any = {}) =>
+  loadModule(path.replace("../", ""), mocks, { window });
 function deferred() {
   let resolve!: (value: any) => void, reject!: (error: Error) => void;
   const promise = new Promise((yes, no) => {
