@@ -52,6 +52,9 @@ export function hookHarness(
     useLayoutEffect(run: () => any, deps: any[]) {
       react.useEffect(run, deps);
     },
+    // A context reads its default value; providers are plain elements in the rendered tree.
+    createContext: (value: any) => ({ Provider: { context: value }, value }),
+    useContext: (context: { value: any }) => context.value,
     useId: () => ":harbor-id:",
     useDeferredValue: (value: any) => value,
     useSyncExternalStore(_subscribe: any, snapshot: () => any) {
