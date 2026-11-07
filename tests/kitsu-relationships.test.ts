@@ -1,11 +1,9 @@
 // @ts-expect-error Node test types are outside the browser tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are outside the browser tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are outside the browser tsconfig.
 import test from "node:test";
-import ts from "typescript";
 import { isOrphanAnimeCandidate } from "../src/lib/anime-detect.ts";
+import { loadModule } from "./helpers/hook-harness.ts";
 
 test("isOrphanAnimeCandidate excludes western animation and requires East Asian origin", () => {
   // Western animation with US origin
@@ -135,15 +133,7 @@ test("kitsuMainTvSeries only follows parent_story or full_story, ignoring spinof
     "@/lib/addons-store/adult-filter": { adultContentHidden: () => false },
   };
 
-  const code = ts.transpileModule(
-    readFileSync(new URL("../src/lib/providers/kitsu.ts", import.meta.url), "utf8"),
-    { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS } },
-  ).outputText;
-
-  const exportsObj: { kitsuMainTvSeries?: (id: number) => Promise<number | null> } = {};
-  new Function("require", "exports", code)((id: string) => mocks[id] ?? {}, exportsObj);
-
-  const { kitsuMainTvSeries } = exportsObj;
+  const { kitsuMainTvSeries } = loadModule("src/lib/providers/kitsu.ts", mocks);
   assert.ok(typeof kitsuMainTvSeries === "function");
 
   // Case 1: Spinoff relationship (e.g. Adventure Time: Side Quests pointing to Adventure Time 2010)
