@@ -1,23 +1,11 @@
 // @ts-expect-error Node test types are outside the browser tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are outside the browser tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are outside the browser tsconfig.
 import test from "node:test";
-import ts from "typescript";
+import { loadModule } from "./helpers/hook-harness.ts";
 
-function load(path: string, mocks: Record<string, unknown>) {
-  const source = readFileSync(new URL(`../src/lib/manga/${path}.ts`, import.meta.url), "utf8");
-  const js = ts.transpileModule(source, {
-    compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS },
-  }).outputText;
-  const exports: Record<string, any> = {};
-  new Function("require", "exports", js)((id: string) => {
-    assert.ok(id in mocks, `Unexpected dependency: ${id}`);
-    return mocks[id];
-  }, exports);
-  return exports;
-}
+const load = (path: string, mocks: Record<string, unknown>) =>
+  loadModule(`src/lib/manga/${path}.ts`, mocks);
 
 function setup(
   mode: "rest" | "graphql",

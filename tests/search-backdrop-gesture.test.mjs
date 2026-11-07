@@ -1,19 +1,7 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import ts from "typescript";
+import { loadTsx } from "./helpers/manga-harness.ts";
 
-const source = readFileSync(
-  new URL("../src/components/search/search-overlay.tsx", import.meta.url),
-  "utf8",
-);
-const compiled = ts.transpileModule(source, {
-  compilerOptions: {
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.CommonJS,
-    jsx: ts.JsxEmit.ReactJSX,
-  },
-}).outputText;
 const flush = () => new Promise((resolve) => setImmediate(resolve));
 function deferred() {
   let resolve;
@@ -134,25 +122,17 @@ function harness(t, options = {}) {
       }),
     },
   };
+  // Child components and helpers outside the gesture render as empty stubs.
   const componentImports = new Proxy({}, { get: () => () => null });
-  const module = { exports: {} };
-  new Function(
-    "require",
-    "module",
-    "exports",
-    "window",
-    "document",
-    "HTMLElement",
-    "Node",
-    compiled,
-  )(
-    (name) => mocks[name] ?? componentImports,
-    module,
-    module.exports,
-    win,
-    { activeElement: null, body: { style: {}, contains: () => false } },
-    class {},
-    class {},
+  const overlay = loadTsx(
+    "src/components/search/search-overlay.tsx",
+    new Proxy(mocks, { has: () => true, get: (m, name) => m[name] ?? componentImports }),
+    {
+      window: win,
+      document: { activeElement: null, body: { style: {}, contains: () => false } },
+      HTMLElement: class {},
+      Node: class {},
+    },
   );
   function findBackdrop(tree) {
     if (!tree || typeof tree !== "object") return null;
@@ -167,7 +147,7 @@ function harness(t, options = {}) {
   function render() {
     cursor = 0;
     pending = [];
-    const tree = module.exports.SearchOverlay();
+    const tree = overlay.SearchOverlay();
     pending.forEach((effect) => effect());
     backdrop = findBackdrop(tree);
   }
@@ -269,6 +249,7 @@ for (const [name, options] of Object.entries({
     const h = harness(t, options);
     h.down();
     h.move(50);
+    await flush();
     h.move(30);
     h.up();
     await flush();
