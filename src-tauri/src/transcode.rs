@@ -271,6 +271,13 @@ impl TranscodeSlot {
     }
 }
 
+/// Resolves only when a newer request takes the slot; a slot dropped with its session leaves the stream running.
+async fn wait_for_newer_request(rx: tokio::sync::oneshot::Receiver<()>) {
+    if rx.await.is_err() {
+        std::future::pending::<()>().await;
+    }
+}
+
 pub async fn probe_codecs(url: &str, headers: &HashMap<String, String>) -> ProbedCodecs {
     let Some(ffprobe) = locate_ffprobe() else {
         eprintln!("[harbor::transcode] ffprobe not found, skipping codec probe");
@@ -385,9 +392,9 @@ pub fn ts_content_type(dlna: bool) -> &'static str {
     }
 }
 
-/// The player's chosen audio stream, or the first one, since a TV given several plays whichever it likes.
+/// The player's chosen audio stream, or every audio stream when none was chosen.
 pub fn audio_map(audio_ordinal: Option<u32>) -> String {
-    format!("0:a:{}?", audio_ordinal.unwrap_or(0))
+    audio_ordinal.map_or_else(|| "0:a?".to_string(), |n| format!("0:a:{n}?"))
 }
 
 /// ffmpeg arguments that start the input at `start_sec`; empty for the beginning.
@@ -605,9 +612,7 @@ pub async fn handle_transcode(
     tokio::spawn(async move {
         let superseded = async {
             match superseded {
-                Some(rx) => {
-                    let _ = rx.await;
-                }
+                Some(rx) => wait_for_newer_request(rx).await,
                 None => std::future::pending::<()>().await,
             }
         };
@@ -762,7 +767,16 @@ mod tests {
     #[test]
     fn the_chosen_audio_track_is_the_only_one_mapped() {
         assert_eq!(audio_map(Some(2)), "0:a:2?");
-        assert_eq!(audio_map(None), "0:a:0?");
+        assert_eq!(audio_map(None), "0:a?");
+    }
+
+    #[tokio::test]
+    async fn a_session_dropped_with_its_slot_leaves_the_stream_running() {
+        let slot = TranscodeSlot::default();
+        let wait = wait_for_newer_request(slot.take_turn());
+        drop(slot);
+        let outcome = tokio::time::timeout(std::time::Duration::from_millis(50), wait).await;
+        assert!(outcome.is_err(), "a dropped slot must not stop ffmpeg");
     }
 
     #[test]

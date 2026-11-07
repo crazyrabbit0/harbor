@@ -945,6 +945,15 @@ fn prepared_prefix_response(session: &Session, headers: &HeaderMap) -> Option<Re
         .ok()
 }
 
+/// A TV given several audio tracks plays whichever it likes, so a DLNA transcode keeps the first when the player named none.
+fn transcode_audio_ordinal(session: &Session) -> Option<u32> {
+    if session.dlna {
+        Some(session.audio_ordinal.unwrap_or(0))
+    } else {
+        session.audio_ordinal
+    }
+}
+
 async fn handle_stream(
     State(state): State<ProxyState>,
     Path(id_with_ext): Path<String>,
@@ -991,7 +1000,7 @@ async fn handle_stream(
                 &session.headers,
                 &session.profile,
                 session.burn_sub.as_ref(),
-                session.audio_ordinal,
+                transcode_audio_ordinal(&session),
                 start,
                 sub_offset,
                 ts_type,
@@ -1314,6 +1323,32 @@ mod tests {
         assert_eq!(requested_prefix_len(&headers, 1024, 4096), None);
         headers.insert("range", HeaderValue::from_static("bytes=20-40"));
         assert_eq!(requested_prefix_len(&headers, 1024, 4096), None);
+    }
+
+    #[test]
+    fn only_a_dlna_transcode_falls_back_to_the_first_audio_track() {
+        let session = |dlna, audio_ordinal| Session {
+            url: "https://example.test/movie.mkv".into(),
+            base_url: None,
+            headers: HashMap::new(),
+            transcode: true,
+            profile: TranscodeProfile::default(),
+            burn_sub: None,
+            audio_ordinal,
+            prebuffer: None,
+            start_sec: 0.0,
+            dlna,
+            duration_sec: None,
+            transcode_slot: crate::transcode::TranscodeSlot::default(),
+            created_at: Instant::now(),
+        };
+        assert_eq!(transcode_audio_ordinal(&session(true, None)), Some(0));
+        assert_eq!(transcode_audio_ordinal(&session(true, Some(2))), Some(2));
+        assert_eq!(
+            transcode_audio_ordinal(&session(false, None)),
+            None,
+            "the player keeps every track"
+        );
     }
 
     #[test]
