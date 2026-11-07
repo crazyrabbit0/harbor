@@ -100,9 +100,9 @@ function fixture() {
     fail: () => fail(),
     cancelled: () => cancelled,
     stream: (s: string) => (stream = s),
-    wait: async () => {
-      for (let i = 0; i < 30 && !calls.some((c) => c.kind); i++)
-        await new Promise((r) => setTimeout(r, 1));
+    wait: async (transfers = 1) => {
+      for (let i = 0; i < 200 && calls.filter((c) => c.kind).length < transfers; i++)
+        await Promise.resolve();
     },
   };
 }
@@ -150,8 +150,7 @@ test("failed download retries from an empty partial file; missing completed file
   await job;
   assert.equal(f.api.musicDownloadFor(track)?.status, "error");
   job = f.api.downloadMusic(track);
-  for (let i = 0; i < 30 && f.calls.filter((c) => c.kind).length < 2; i++)
-    await new Promise((r) => setTimeout(r, 1));
+  await f.wait(2);
   assert.equal(f.files.size, 0);
   f.finish();
   await job;

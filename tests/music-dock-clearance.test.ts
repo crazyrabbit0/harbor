@@ -1,11 +1,14 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { musicDockHarness } from "./helpers/music-dock-harness";
+import { floatingBottomOffsets, renderBackToTop, resolveOffset } from "./helpers/floating-surfaces";
 
-const DOCK = "var(--harbor-music-dock";
 const GAP = "var(--harbor-dock-gap";
 const NEWLINE = String.fromCharCode(10);
 const read = (p: string) => readFileSync(p, "utf8");
+const DOCK = "--harbor-music-dock";
+const LIFT = "--harbor-viewport-bottom";
 
 function topLevelBlock(css: string, selector: string): string {
   const lines = css.split(NEWLINE);
@@ -17,9 +20,11 @@ function topLevelBlock(css: string, selector: string): string {
 }
 
 test("the dock publishes its height for everything else to clear", () => {
-  assert.ok(
-    read("src/components/music/music-dock.tsx").includes('setProperty("--harbor-music-dock"'),
-  );
+  const dock = musicDockHarness();
+  dock.render();
+  assert.equal(dock.properties.get(DOCK), "76px");
+  dock.unmount();
+  assert.equal(dock.properties.has(DOCK), false, "a closed dock leaves no clearance behind");
 });
 
 test("settings content, rail and footer all clear the dock", () => {
@@ -34,32 +39,33 @@ test("settings content, rail and footer all clear the dock", () => {
 });
 
 test("the composite gap covers both the dock and any viewport lift", () => {
-  const dock = read("src/components/music/music-dock.tsx");
-  assert.ok(dock.includes("--harbor-dock-gap"), "the dock must publish the composite gap");
-  assert.ok(dock.includes("var(--harbor-viewport-bottom, 0px)"), "the gap must fold in the lift");
+  const dock = musicDockHarness();
+  dock.render();
+  const gap = dock.properties.get("--harbor-dock-gap")!;
+  assert.equal(resolveOffset(gap, { [DOCK]: 76, [LIFT]: 30 }), 106);
+  const collapsed = musicDockHarness();
+  collapsed.collapse();
+  const tabGap = collapsed.properties.get("--harbor-dock-gap")!;
+  assert.equal(resolveOffset(tabGap, { [DOCK]: 48, [LIFT]: 30 }), 30, "the tab floats over pages");
 });
 
 test("floating bottom surfaces clear the dock", () => {
-  const files = [
-    "src/components/back-to-top.tsx",
-    "src/components/scroll-top-button.tsx",
-    "src/components/floating-page-actions.tsx",
-    "src/components/controller-connected-toast.tsx",
-    "src/components/lists/list-toast.tsx",
-    "src/components/episode-jumper.tsx",
-    "src/components/update/update-card.tsx",
-    "src/components/music/music-source-picker.tsx",
-    "src/chrome/minui-dock.tsx",
-  ];
-  for (const file of files)
-    assert.ok(read(file).includes(DOCK), file + " floats at the bottom without clearing the dock");
+  for (const [surface, offset] of Object.entries(floatingBottomOffsets())) {
+    assert.equal(
+      resolveOffset(offset, { [DOCK]: 76 }) - resolveOffset(offset),
+      76,
+      surface + " floats at the bottom without clearing the dock",
+    );
+  }
 });
 
 test("the existing ebook back-to-top clears the music dock without a redesign", () => {
+  // The ebook view is 3,400 lines with a large import graph, so its one offset line stays text.
   const ebook = read("src/views/ebook.tsx");
   const control = ebook.slice(ebook.indexOf("{showScrollTop && !reading"));
-  assert.ok(control.includes(DOCK));
-  assert.ok(control.includes("var(--harbor-viewport-bottom"));
+  const offset = /bottom:\s*"(calc\([^"]+\))"/.exec(control)?.[1];
+  assert.ok(offset, "the ebook scroll-to-top control has a bottom offset");
+  assert.equal(resolveOffset(offset, { [DOCK]: 76, [LIFT]: 30 }) - resolveOffset(offset), 106);
 });
 
 test("the sports hub scroller clears the dock so the last card is reachable", () => {
@@ -69,8 +75,8 @@ test("the sports hub scroller clears the dock so the last card is reachable", ()
 });
 
 test("the shared back-to-top is flat and on theme, not an accent slab", () => {
-  const btn = read("src/components/back-to-top.tsx");
-  assert.ok(btn.includes("bg-elevated"));
-  assert.ok(btn.includes("ring-1 ring-edge-soft"));
-  assert.ok(!btn.includes("bg-accent"));
+  const classes = new Set(String(renderBackToTop().props.className).split(/\s+/));
+  for (const name of ["bg-elevated", "ring-1", "ring-edge-soft"])
+    assert.ok(classes.has(name), name);
+  assert.equal(classes.has("bg-accent"), false);
 });
