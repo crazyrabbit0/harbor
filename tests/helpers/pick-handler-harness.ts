@@ -12,6 +12,10 @@ export function pickHandlerHarness(
     preflight?: (url: string) => Promise<{ ok: boolean; reason?: string; sizeBytes?: number }>;
     p2pEligible?: boolean;
     preferP2pDownload?: boolean;
+    streamMode?: "both" | "addons" | "p2p";
+    p2pAutoConsent?: boolean;
+    cached?: boolean;
+    uncachedMarker?: boolean;
   } = {},
 ) {
   const opened: any[] = [],
@@ -30,7 +34,7 @@ export function pickHandlerHarness(
     "@/lib/season-lock": { saveSeasonLock() {} },
     "@/lib/dead-streams": { markStreamDead() {}, recordStubEvent() {} },
     "@/lib/torrent/stremio-stream": { engineP2pEligible: () => options.p2pEligible === true },
-    "@/lib/streams/cached": { hasUncachedMarker: () => false },
+    "@/lib/streams/cached": { hasUncachedMarker: () => options.uncachedMarker === true },
     "@/lib/streams/preflight": {
       preflightCheck: async (url: string) => {
         preflights.push(url);
@@ -81,12 +85,12 @@ export function pickHandlerHarness(
     },
   });
   const noop = () => {};
-  const api = h.render({
+  const props = {
     meta: { id: "tt100", name: "Fixture" },
     debrids: [],
-    isCached: () => true,
-    streamMode: "both",
-    p2pAutoConsent: true,
+    isCached: () => options.cached ?? true,
+    streamMode: options.streamMode ?? "both",
+    p2pAutoConsent: options.p2pAutoConsent ?? true,
     seasonLock: false,
     inSession: false,
     inviteSentRef: { current: null },
@@ -102,10 +106,13 @@ export function pickHandlerHarness(
       failed.push(...next(new Set())),
     setResolveError: noop,
     setResolving: (value: unknown) => resolving.push(value),
-  });
+  };
+  const api = h.render(props);
   return {
     ...h,
     api,
+    /** Renders again with the same props, returning the hook's latest result. */
+    rerender: () => h.render(props),
     opened,
     history,
     downloads,
