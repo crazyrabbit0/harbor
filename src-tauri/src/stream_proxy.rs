@@ -45,7 +45,10 @@ struct Session {
     duration_sec: Option<f64>,
     /// Shared by every request of this session, so a new one stops the transcode still running.
     transcode_slot: crate::transcode::TranscodeSlot,
-    created_at: Instant,
+    /// Registered by a cast, so a transcode keeps one audio track for the receiver.
+    cast: bool,
+    /// Refreshed by every request, so cleanup drops only sessions nobody fetches any more.
+    last_used: Instant,
 }
 
 #[derive(Clone)]
@@ -220,7 +223,8 @@ impl ProxyState {
                     dlna: false,
                     duration_sec: None,
                     transcode_slot: crate::transcode::TranscodeSlot::default(),
-                    created_at: Instant::now(),
+                    cast: false,
+                    last_used: Instant::now(),
                 };
                 self.sessions.write().await.insert(id.clone(), session);
                 let qs = query.map(|q| format!("?{}", q)).unwrap_or_default();
@@ -259,7 +263,8 @@ impl ProxyState {
             dlna: false,
             duration_sec: None,
             transcode_slot: crate::transcode::TranscodeSlot::default(),
-            created_at: Instant::now(),
+            cast: false,
+            last_used: Instant::now(),
         };
         self.sessions.write().await.insert(id.clone(), session);
         let suffix = if args.transcode { ".ts" } else { "" };
@@ -332,7 +337,8 @@ impl ProxyState {
                 dlna: args.dlna,
                 duration_sec: None,
                 transcode_slot: crate::transcode::TranscodeSlot::default(),
-                created_at: Instant::now(),
+                cast: true,
+                last_used: Instant::now(),
             };
             self.sessions.write().await.insert(id.clone(), session);
             let qs = query.map(|q| format!("?{}", q)).unwrap_or_default();
@@ -364,7 +370,8 @@ impl ProxyState {
             dlna: args.dlna,
             duration_sec,
             transcode_slot: crate::transcode::TranscodeSlot::default(),
-            created_at: Instant::now(),
+            cast: true,
+            last_used: Instant::now(),
         };
         self.sessions.write().await.insert(id.clone(), session);
         let suffix = if args.transcode { ".ts" } else { "" };
@@ -374,6 +381,14 @@ impl ProxyState {
             url,
             seekable_sec: duration_sec.map(|d| d - start_sec),
         }
+    }
+
+    /// The session a request asks for, marked as used so cleanup leaves it alone.
+    async fn touch_session(&self, id: &str) -> Option<Session> {
+        let mut map = self.sessions.write().await;
+        let session = map.get_mut(id)?;
+        session.last_used = Instant::now();
+        Some(session.clone())
     }
 
     pub async fn unregister(&self, session_id: &str) {
@@ -423,7 +438,10 @@ impl ProxyState {
             let mut map = self.sessions.write().await;
             let stale: Vec<String> = map
                 .iter()
-                .filter(|(_, s)| now.duration_since(s.created_at) > PROXY_MAX_AGE)
+                .filter(|(_, s)| {
+                    now.duration_since(s.last_used) > PROXY_MAX_AGE
+                        && !s.transcode_slot.is_running()
+                })
                 .map(|(k, _)| k.clone())
                 .collect();
             for k in &stale {
@@ -945,9 +963,9 @@ fn prepared_prefix_response(session: &Session, headers: &HeaderMap) -> Option<Re
         .ok()
 }
 
-/// A TV given several audio tracks plays whichever it likes, so a DLNA transcode keeps the first when the player named none.
+/// A receiver given several audio tracks plays whichever it likes, so a cast transcode keeps the first when the player named none.
 fn transcode_audio_ordinal(session: &Session) -> Option<u32> {
-    if session.dlna {
+    if session.cast {
         Some(session.audio_ordinal.unwrap_or(0))
     } else {
         session.audio_ordinal
@@ -970,14 +988,8 @@ async fn handle_stream(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("(no-range)");
     eprintln!("[harbor::proxy] req id={id} ua={ua} range={range}");
-    let session = {
-        let map = state.sessions.read().await;
-        match map.get(&id) {
-            Some(s) => s.clone(),
-            None => {
-                return (StatusCode::NOT_FOUND, "session not found").into_response();
-            }
-        }
+    let Some(session) = state.touch_session(&id).await else {
+        return (StatusCode::NOT_FOUND, "session not found").into_response();
     };
 
     if session.transcode {
@@ -1050,12 +1062,8 @@ async fn handle_playlist(
         .and_then(|v| v.to_str().ok())
         .unwrap_or("(no-range)");
     eprintln!("[harbor::proxy] playlist req id={id} path={rest} ua={ua} range={range}");
-    let session = {
-        let map = state.sessions.read().await;
-        match map.get(&id) {
-            Some(s) => s.clone(),
-            None => return (StatusCode::NOT_FOUND, "session not found").into_response(),
-        }
+    let Some(session) = state.touch_session(&id).await else {
+        return (StatusCode::NOT_FOUND, "session not found").into_response();
     };
     let base = match session.base_url.as_deref() {
         Some(b) => b,
@@ -1326,8 +1334,8 @@ mod tests {
     }
 
     #[test]
-    fn only_a_dlna_transcode_falls_back_to_the_first_audio_track() {
-        let session = |dlna, audio_ordinal| Session {
+    fn only_a_cast_transcode_falls_back_to_the_first_audio_track() {
+        let session = |cast, audio_ordinal| Session {
             url: "https://example.test/movie.mkv".into(),
             base_url: None,
             headers: HashMap::new(),
@@ -1337,10 +1345,11 @@ mod tests {
             audio_ordinal,
             prebuffer: None,
             start_sec: 0.0,
-            dlna,
+            dlna: false,
             duration_sec: None,
             transcode_slot: crate::transcode::TranscodeSlot::default(),
-            created_at: Instant::now(),
+            cast,
+            last_used: Instant::now(),
         };
         assert_eq!(transcode_audio_ordinal(&session(true, None)), Some(0));
         assert_eq!(transcode_audio_ordinal(&session(true, Some(2))), Some(2));
@@ -1348,6 +1357,80 @@ mod tests {
             transcode_audio_ordinal(&session(false, None)),
             None,
             "the player keeps every track"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_chromecast_falling_back_from_hls_still_casts_one_audio_track() {
+        let state = ProxyState::placeholder();
+        let result = state
+            .register_cast(RegisterArgs {
+                url: "https://example.test/movie.mkv".into(),
+                headers: HashMap::new(),
+                transcode: true,
+                prebuffer_bytes: None,
+                profile: None,
+                target_host: Some("127.0.0.1".into()),
+                start_time_sec: None,
+                burn_sub_path: None,
+                burn_sub_style: None,
+                audio_ordinal: None,
+                dlna: false,
+            })
+            .await;
+        assert!(result.url.ends_with(".ts"), "{}", result.url);
+        let session = state.sessions.read().await[&result.session_id].clone();
+        assert_eq!(transcode_audio_ordinal(&session), Some(0));
+    }
+
+    #[tokio::test]
+    async fn cleanup_keeps_a_session_that_is_still_fetched_or_streaming() {
+        let state = ProxyState::placeholder();
+        let long_ago = Instant::now() - Duration::from_secs(4 * 60 * 60);
+        let session = |last_used| Session {
+            url: "https://example.test/movie.mkv".into(),
+            base_url: None,
+            headers: HashMap::new(),
+            transcode: true,
+            profile: TranscodeProfile::default(),
+            burn_sub: None,
+            audio_ordinal: None,
+            prebuffer: None,
+            start_sec: 0.0,
+            dlna: true,
+            duration_sec: None,
+            transcode_slot: crate::transcode::TranscodeSlot::default(),
+            cast: true,
+            last_used,
+        };
+        let streaming = session(long_ago);
+        let _ffmpeg = streaming.transcode_slot.take_turn_for_test();
+        {
+            let mut map = state.sessions.write().await;
+            map.insert("idle".into(), session(long_ago));
+            map.insert("recent".into(), session(Instant::now()));
+            map.insert("streaming".into(), streaming);
+        }
+        state.gc_idle().await;
+        let map = state.sessions.read().await;
+        assert!(!map.contains_key("idle"), "an abandoned session is dropped");
+        assert!(map.contains_key("recent"), "a session fetched lately stays");
+        assert!(
+            map.contains_key("streaming"),
+            "a running transcode keeps its session"
+        );
+
+        drop(map);
+        state
+            .sessions
+            .write()
+            .await
+            .insert("fetched".into(), session(long_ago));
+        assert!(state.touch_session("fetched").await.is_some());
+        state.gc_idle().await;
+        assert!(
+            state.sessions.read().await.contains_key("fetched"),
+            "a request marks the session as used"
         );
     }
 
@@ -1366,7 +1449,8 @@ mod tests {
             dlna: true,
             duration_sec,
             transcode_slot: crate::transcode::TranscodeSlot::default(),
-            created_at: Instant::now(),
+            cast: false,
+            last_used: Instant::now(),
         };
         let asking = |value: &str| {
             let mut headers = HeaderMap::new();

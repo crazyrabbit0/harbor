@@ -259,6 +259,18 @@ pub struct TranscodeSlot(
 );
 
 impl TranscodeSlot {
+    /// Whether an ffmpeg started through this slot is still serving; its task holds the receiver until it ends.
+    pub fn is_running(&self) -> bool {
+        self.0
+            .lock()
+            .is_ok_and(|current| current.as_ref().is_some_and(|tx| !tx.is_closed()))
+    }
+
+    #[cfg(test)]
+    pub(crate) fn take_turn_for_test(&self) -> tokio::sync::oneshot::Receiver<()> {
+        self.take_turn()
+    }
+
     /// Ends the previous transcode and returns the signal that ends this one.
     fn take_turn(&self) -> tokio::sync::oneshot::Receiver<()> {
         let (tx, rx) = tokio::sync::oneshot::channel();
@@ -768,6 +780,16 @@ mod tests {
     fn the_chosen_audio_track_is_the_only_one_mapped() {
         assert_eq!(audio_map(Some(2)), "0:a:2?");
         assert_eq!(audio_map(None), "0:a?");
+    }
+
+    #[test]
+    fn a_slot_counts_as_running_only_while_its_ffmpeg_task_lives() {
+        let slot = TranscodeSlot::default();
+        assert!(!slot.is_running(), "nothing started yet");
+        let ffmpeg = slot.take_turn();
+        assert!(slot.is_running());
+        drop(ffmpeg);
+        assert!(!slot.is_running(), "the task ended with ffmpeg");
     }
 
     #[tokio::test]
