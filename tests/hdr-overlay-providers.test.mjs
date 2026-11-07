@@ -5,6 +5,7 @@ import test from "node:test";
 import ts from "typescript";
 import * as React from "react";
 import { renderToString } from "react-dom/server";
+import { hookHarness } from "./helpers/hook-harness.ts";
 
 const require = createRequire(import.meta.url);
 const read = (file) => readFileSync(new URL(`../${file}`, import.meta.url), "utf8");
@@ -105,12 +106,103 @@ test("HDR shell mounts with the actual profile, auth and navigation contexts", (
   );
 });
 
+// Runs the overlay with a fake jsx runtime so the returned tree and effects can be inspected.
+function overlay(exportName) {
+  const events = [];
+  const intervals = new Map();
+  let onProps;
+  let nextId = 0;
+  const providers = {
+    CompanionProfilesProvider: () => null,
+    AuthProvider: () => null,
+  };
+  const root = {
+    style: {},
+    inert: true,
+    removed: [],
+    removeAttribute: (n) => root.removed.push(n),
+  };
+  const boot = { removed: 0, remove: () => boot.removed++ };
+  const window = {
+    location: { search: "?stageId=s1" },
+    addEventListener() {},
+    removeEventListener() {},
+    setInterval: (fn) => (intervals.set(++nextId, fn), nextId),
+    clearInterval: (id) => intervals.delete(id),
+  };
+  const document = {
+    documentElement: { style: {} },
+    body: { style: {} },
+    getElementById: (id) => (id === "root" ? root : id === "harbor-boot" ? boot : null),
+  };
+  const harness = hookHarness(
+    "src/views/hdr-overlay-app.tsx",
+    exportName,
+    {
+      "react/jsx-runtime": {
+        jsx: (type, props) => ({ type, props }),
+        jsxs: (type, props) => ({ type, props }),
+      },
+      "@/lib/auth": { AuthProvider: providers.AuthProvider },
+      "@/lib/profiles": { CompanionProfilesProvider: providers.CompanionProfilesProvider },
+      "@/lib/settings": { SettingsProvider: () => null },
+      "./player/shell-layer": { ShellLayer: () => null },
+      "./player/drag-click-stage": { DragClickStage: () => null },
+      "@/lib/player/bridge": { emptySnapshot: {} },
+      "@/lib/player/mpv-forward": { createForwardingMpvBridge: () => ({ pushSnapshot() {} }) },
+      "@/lib/player/subtitle-fps": { buildSubtitleTimingMediaKey: () => "key" },
+      "@/lib/hdr-overlay": {
+        hdrOverlayEmitAction: (event) => events.push(event),
+        onHdrStageProps: (fn) => {
+          onProps = fn;
+          return Promise.resolve(() => {});
+        },
+      },
+      "@/lib/view": { PlayerNavigationProvider: () => null },
+      "@/components/player/player-interaction-lock": { PlayerInteractionLockControls: () => null },
+      "./player/hooks/use-player-interaction-lock": { usePlayerInteractionBlocker() {} },
+    },
+    { window, document, performance: { now: () => 0 } },
+    ["HdrOverlayChrome"],
+  );
+  return { harness, events, intervals, providers, root, boot, push: (p) => onProps(p) };
+}
+
 test("provider failures are inside the HDR error boundary", () => {
-  const source = read("src/views/hdr-overlay-app.tsx");
-  assert.match(source, /<OverlayErrorBoundary>\s*<CompanionProfilesProvider>\s*<AuthProvider>/);
-  assert.doesNotMatch(source, /requestAnimationFrame/);
-  assert.match(source, /\}, \[payload\?\.stageId\]\)/);
-  assert.match(source, /root\.inert = false/);
+  const { harness, events, providers } = overlay("HdrOverlayApp");
+  const tree = harness.render();
+  const profiles = tree.props.children;
+  assert.equal(profiles.type, providers.CompanionProfilesProvider);
+  assert.equal(profiles.props.children.type, providers.AuthProvider);
+  const Boundary = tree.type;
+  assert.deepEqual(Boundary.getDerivedStateFromError(new Error("provider")), { crashed: true });
+  const boundary = new Boundary();
+  boundary.props = { children: "shell" };
+  assert.equal(boundary.render(), "shell");
+  boundary.state = { crashed: true };
+  assert.equal(boundary.render(), null);
+  boundary.componentDidCatch();
+  assert.deepEqual(events, ["hdr-stage://dead"]);
+});
+
+test("the first payload reveals the stage and signals ready without an animation frame", () => {
+  const { harness, events, intervals, root, boot, push } = overlay("HdrOverlayChrome");
+  const payload = { stageId: "s1", snap: {}, src: { url: "u", meta: { id: "m" } }, visible: true };
+  harness.render();
+  assert.deepEqual(events, []);
+  push(payload);
+  harness.render();
+  const ready = () => events.filter((e) => e === "hdr-stage://ready").length;
+  assert.equal(ready(), 1, "ready is sent on commit, not on a later frame");
+  assert.equal(root.inert, false);
+  assert.deepEqual(root.removed, ["data-startup-hidden"]);
+  assert.equal(boot.removed, 1);
+  push({ ...payload, visible: false });
+  harness.render();
+  assert.equal(ready(), 1, "a new payload for the same stage must not restart the ready loop");
+  const before = intervals.size;
+  harness.unmount();
+  assert.ok(intervals.size < before, "unmount clears the ready interval");
 });
 
 test("overlay subscribes before requesting props and cancels late listener registration", async () => {
