@@ -8,6 +8,14 @@ import {
   playbackPersistenceHarness,
 } from "./helpers/playback-persistence-harness.ts";
 import { cwAdvanceHarness, simklProgress } from "./helpers/cw-advance-harness.ts";
+import {
+  callbackContaining,
+  effectContaining,
+  hookArgument,
+  jsxAttribute,
+  sourceCallback,
+} from "./helpers/source-callback.ts";
+import type { LibraryItem } from "../src/lib/stremio";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 const DAY = 864e5;
@@ -226,6 +234,61 @@ test("anime playback lands in local CW", () => {
   assert.equal(movie.entry?.type, "movie");
 });
 
+const cwItem = (id: string, patch: Partial<LibraryItem> = {}): LibraryItem => ({
+  _id: id,
+  type: "series",
+  name: id,
+  removed: false,
+  temp: false,
+  _ctime: iso(-DAY),
+  _mtime: iso(-DAY),
+  state: { timeOffset: 60000, duration: 1800000, season: 1, episode: 1, lastWatched: iso(-DAY) },
+  ...patch,
+});
+const ids = (list: LibraryItem[]) => list.map((i) => i._id);
+const railScope = {
+  readAtVersion: (_v: unknown, read: () => unknown) => read(),
+  cwVersion: 0,
+  cwRootVersion: 0,
+  animeDetectVer: 0,
+  localCwVer: 0,
+  localVersion: 0,
+  dismissVersion: 0,
+  activeProfile: { id: "a" },
+  hideSharedCw: false,
+  hideAnime: false,
+  externalCw: [],
+  localCwItems: [],
+  localAnimeCw: [],
+  simklCw: [],
+  trackerCw: [],
+  items: [],
+  libItems: [],
+  settings: { animeOnlyInAnimeRoom: false, hideContent: { anime: false } },
+  limit: 14,
+  listLocalCw: () => [],
+  localToLibraryItem: (e: unknown) => e,
+  isCwDismissed: () => false,
+  franchiseDedupKey: (s: string) => s.toLowerCase(),
+  franchiseRootSync: () => null,
+  ANIME_CLOUD_ID: stremio.ANIME_CLOUD_ID,
+  cwSortKey: stremio.cwSortKey,
+  isCwMember: stremio.isCwMember,
+  isAnimeCwItem: stremio.isAnimeCwItem,
+};
+const rail = (file: string, pick: Parameters<typeof sourceCallback>[1]) => (scope: object) =>
+  sourceCallback(file, pick, { ...railScope, ...scope })() as LibraryItem[];
+const homeRail = (items: LibraryItem[]) =>
+  rail("src/views/home.tsx", hookArgument("continueWatching"))({ items });
+const mobileRail = (items: LibraryItem[]) =>
+  rail(
+    "src/views/mobile/mobile-cw-row.tsx",
+    callbackContaining("useMemo", "ANIME_CLOUD_ID"),
+  )({ items });
+const showsRail = (items: LibraryItem[]) =>
+  rail("src/views/shows.tsx", hookArgument("continueWatching"))({ items });
+const animeRail = rail("src/views/anime.tsx", hookArgument("continueWatching"));
+
 test("every CW rail excludes cloud anime items", async () => {
   const lib = stremioModule().mod;
   const libItems = ["kitsu:1", "tt100"].map((id) => ({
@@ -268,35 +331,38 @@ test("every CW rail excludes cloud anime items", async () => {
     ["tt100"],
   );
   h.unmount();
-  const home = read("src/views/home.tsx");
-  assert.match(
-    home,
-    /: \[\.\.\.items\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\), \.\.\.externalCw\];/,
-  );
-  const mobile = read("src/views/mobile/mobile-cw-row.tsx");
-  assert.match(
-    mobile,
-    /: \[\.\.\.items\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\), \.\.\.externalCw\];/,
-  );
-  const shows = read("src/views/shows.tsx");
-  assert.match(
-    shows,
-    /i\.type === "series" &&\s+!ANIME_CLOUD_ID\.test\(i\._id\) &&\s+isCwMember\(i\)/,
-  );
-  const anime = read("src/views/anime.tsx");
-  assert.match(
-    anime,
-    /\.\.\.\(hideSharedCw \? \[\] : libItems\.filter\(\(i\) => !ANIME_CLOUD_ID\.test\(i\._id\)\)\),/,
-  );
+  const anime = cwItem("tt100", { isAnime: true });
+  const cloud = [cwItem("kitsu:1"), anime];
+  assert.deepEqual(ids(homeRail(cloud)), ["tt100"]);
+  assert.deepEqual(ids(mobileRail(cloud)), ["tt100"]);
+  assert.deepEqual(ids(showsRail(cloud)), ["tt100"]);
+  assert.deepEqual(ids(animeRail({ libItems: cloud })), ["tt100"]);
 });
 
 test("anime room sources local CW entries", () => {
-  const anime = read("src/views/anime.tsx");
-  assert.match(
-    anime,
-    /listLocalCw\(hideSharedCw\)\s*\.filter\(\(e\) => ANIME_CLOUD_ID\.test\(e\.id\) \|\| e\.isAnime\)/,
-  );
-  assert.match(anime, /return \[\s*\.\.\.localAnimeCw,/);
+  const now = Date.now();
+  const entry = (id: string, isAnime: boolean | undefined, ageMs: number) => ({
+    id,
+    type: "series",
+    name: id,
+    isAnime,
+    positionMs: 60000,
+    durationMs: 1800000,
+    season: 1,
+    episode: 2,
+    t: now - ageMs,
+  });
+  const localAnimeCw = sourceCallback("src/views/anime.tsx", hookArgument("localAnimeCw"), {
+    ...railScope,
+    activeProfile: { id: "a" },
+    listLocalCw: () => [
+      entry("kitsu:5", undefined, 0),
+      entry("tt7", true, 1000),
+      entry("tt8", false, 0),
+    ],
+  })();
+  assert.deepEqual(ids(localAnimeCw), ["kitsu:5", "tt7"]);
+  assert.deepEqual(ids(animeRail({ localAnimeCw })), ["kitsu:5", "tt7"]);
 });
 
 function absorbHarness(local: Record<string, { t: number }> = {}, dismissed = new Set<string>()) {
@@ -339,10 +405,35 @@ test("home and anime room absorb legacy cloud anime items into local CW", () => 
   assert.equal(h.saved[0].season, 1);
   assert.equal(h.saved[0].episode, 7, "kitsu video ids carry the episode as their third part");
   assert.equal(h.saved[0].positionMs, 60000);
-  const home = read("src/views/home.tsx");
-  assert.match(home, /if \(!hideSharedCw\) absorbCloudAnimeCw\(view\);/);
-  const anime = read("src/views/anime.tsx");
-  assert.match(anime, /if \(!hideSharedCw\) absorbCloudAnimeCw\(li\);/);
+  // Home's load effect is too large to run; its one absorb line stays as text.
+  assert.match(read("src/views/home.tsx"), /if \(!hideSharedCw\) absorbCloudAnimeCw\(view\);/);
+});
+
+test("anime room absorbs its loaded library unless the shared CW is hidden", async () => {
+  const absorbed: unknown[] = [];
+  const runEffect = async (hideSharedCw: boolean) => {
+    const lib = [cwItem("kitsu:1")];
+    const noop = () => {};
+    const cleanup = sourceCallback("src/views/anime.tsx", effectContaining("absorbCloudAnimeCw"), {
+      authKey: "key",
+      hideSharedCw,
+      library: async () => lib,
+      loadAddonRows: async () => [],
+      isAnimeRow: () => true,
+      setLibItems: noop,
+      setAddonRows: noop,
+      absorbCloudAnimeCw: (items: unknown) => absorbed.push(items),
+      window: { addEventListener: noop, removeEventListener: noop },
+      document: { visibilityState: "visible" },
+    })();
+    await flushPromises();
+    cleanup();
+    return lib;
+  };
+  await runEffect(true);
+  assert.deepEqual(absorbed, []);
+  const lib = await runEffect(false);
+  assert.deepEqual(absorbed, [lib]);
 });
 
 test("absorb cannot resurrect dismissed or ancient entries", () => {
@@ -359,13 +450,26 @@ test("absorb cannot resurrect dismissed or ancient entries", () => {
 });
 
 test("dismissing a local anime entry persists past re-absorb", () => {
-  const home = read("src/views/home.tsx");
-  assert.match(
-    home,
-    /if \(item\.local\) \{\s*clearLocalCw\(item\._id\);\s*dismissCw\(item, authKey\);/,
-  );
-  const anime = read("src/views/anime.tsx");
-  assert.match(anime, /if \(it\.local\) clearLocalCw\(it\._id\);\s*dismissCw\(it, authKey\);/);
+  for (const [file, pick] of [
+    ["src/views/home.tsx", hookArgument("onDismissCw")],
+    ["src/views/anime.tsx", jsxAttribute("ContinueCard", "onDismiss")],
+  ] as const) {
+    const calls: string[] = [];
+    const dismiss = sourceCallback(file, pick, {
+      authKey: "key",
+      clearLocalCw: (id: string) => calls.push(`clear:${id}`),
+      dismissCw: (item: LibraryItem, key: string) => calls.push(`dismiss:${item._id}:${key}`),
+      dismissManualWatched: (id: string) => calls.push(`manual:${id}`),
+    });
+    dismiss(cwItem("kitsu:1", { local: true }));
+    dismiss(cwItem("tt100"));
+    dismiss(cwItem("tt200", { manualWatched: true }));
+    assert.deepEqual(
+      calls,
+      ["clear:kitsu:1", "dismiss:kitsu:1:key", "dismiss:tt100:key", "manual:tt200"],
+      file,
+    );
+  }
 });
 
 test("library repair cannot rewrite live anime-scheme items", async () => {
@@ -588,13 +692,20 @@ test("tracker sync cannot corrupt the wrong cour", async () => {
 });
 
 test("home dedup prefers the twin that actually played most recently", () => {
-  const home = read("src/views/home.tsx");
-  assert.match(
-    home,
-    /if \(lastWatchedOf\(i\) > lastWatchedOf\(held\)\) \{\s*byId\.delete\(held\._id\);\s*byName\.set\(key, i\);\s*byId\.set\(i\._id, i\);/,
-  );
-  assert.match(
-    home,
-    /const lastWatchedOf = \(i: LibraryItem\) => \{[\s\S]{0,120}i\.state\?\.lastWatched[\s\S]{0,120}i\._mtime/,
-  );
+  const twin = (id: string, mtime: number, lastWatched?: number) =>
+    cwItem(id, {
+      name: "Same Show",
+      _mtime: iso(mtime),
+      state: {
+        timeOffset: 60000,
+        duration: 1800000,
+        lastWatched: lastWatched == null ? undefined : iso(lastWatched),
+      },
+    });
+  // The synced twin sorts first by mtime, but the other one was played more recently.
+  const synced = twin("tt1", 0, -3 * DAY);
+  const played = twin("tt2", -2 * DAY, -DAY);
+  assert.deepEqual(ids(homeRail([synced, played])), ["tt2"]);
+  // Without lastWatched the mtime decides.
+  assert.deepEqual(ids(homeRail([twin("tt3", -DAY), twin("tt4", -2 * DAY)])), ["tt3"]);
 });
