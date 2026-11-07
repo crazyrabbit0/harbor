@@ -105,7 +105,7 @@ pub fn send_clickable_notification(
 
     if let Some(link) = deep_link {
         let reserved = PENDING_CLICK_WAITS
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |n| {
                 (n < MAX_PENDING_CLICK_WAITS).then_some(n + 1)
             })
             .is_ok();

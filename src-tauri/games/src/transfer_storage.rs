@@ -249,7 +249,7 @@ impl Reservation {
             .unwrap_or_else(|e| e.into_inner());
         let _ = self
             .remaining
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |value| {
                 Some(value.saturating_sub(bytes))
             });
         if let Some(claim) = claims.get_mut(&self.id) {

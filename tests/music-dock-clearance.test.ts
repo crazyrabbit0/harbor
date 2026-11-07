@@ -27,6 +27,16 @@ test("the dock publishes its height for everything else to clear", () => {
   assert.equal(dock.properties.has(DOCK), false, "a closed dock leaves no clearance behind");
 });
 
+test("the dock watches the viewport bottom once and stops when it closes", () => {
+  const dock = musicDockHarness();
+  dock.render();
+  dock.render();
+  assert.equal(dock.tracker.installs, 1, "re-rendering must not add another viewport listener");
+  assert.equal(dock.tracker.removals, 0);
+  dock.unmount();
+  assert.equal(dock.tracker.removals, 1, "a closed dock removes its viewport listener");
+});
+
 test("settings content, rail and footer all clear the dock", () => {
   const css = read("src/index.css");
   for (const selector of [".hset-main", ".hset-rail", ".hset-main:has(.hset-footer)"]) {
