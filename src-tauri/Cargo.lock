@@ -2568,7 +2568,7 @@ dependencies = [
 
 [[package]]
 name = "harbor"
-version = "0.9.227"
+version = "0.9.228"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2668,7 +2668,7 @@ dependencies = [
 
 [[package]]
 name = "harbor-cast"
-version = "0.9.227"
+version = "0.9.228"
 dependencies = [
  "axum",
  "harbor-shared",
@@ -2700,7 +2700,7 @@ dependencies = [
 
 [[package]]
 name = "harbor-games"
-version = "0.9.227"
+version = "0.9.228"
 dependencies = [
  "anyhow",
  "aws-lc-rs",
@@ -2753,7 +2753,7 @@ version = "0.1.0"
 
 [[package]]
 name = "harbor-livetv"
-version = "0.9.227"
+version = "0.9.228"
 dependencies = [
  "harbor-shared",
  "serde",
@@ -2766,7 +2766,7 @@ dependencies = [
 
 [[package]]
 name = "harbor-music"
-version = "0.9.227"
+version = "0.9.228"
 dependencies = [
  "async-trait",
  "futures-util",
