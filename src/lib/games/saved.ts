@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { sourceOrigin } from "./source-origin";
 import type { GameSummary } from "./types";
 import { gameImage, steamSummary } from "./steam-data";
@@ -124,5 +125,5 @@ export function writeSavedGames(profile: string, games: GameSummary[]) {
       };
     })
     .filter(Boolean);
-  localStorage.setItem(key(profile), JSON.stringify(summaries));
+  durableSetItem(key(profile), JSON.stringify(summaries));
 }
