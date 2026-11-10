@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { HarborFetchArgs, HarborFetchResponse } from "@/lib/generated/fetch-ipc";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { readMusicPreference, writeMusicPreference } from "./preferences";
 import { broadcastWindowState, subscribeWindowState } from "./window-sync";
@@ -169,18 +170,15 @@ async function artworkBytes(src: string): Promise<Blob | null> {
   }
   if (!("__TAURI_INTERNALS__" in window) || !/^https?:\/\//i.test(src)) return null;
   try {
-    const response = await invoke<{ ok: boolean; body: string; contentType?: string }>(
-      "harbor_fetch",
-      {
-        args: {
-          url: src,
-          method: "GET",
-          responseType: "base64",
-          timeoutMs: 6000,
-          maxResponseBytes: MAX_BYTES,
-        },
-      },
-    );
+    const response = await invoke<HarborFetchResponse>("harbor_fetch", {
+      args: {
+        url: src,
+        method: "GET",
+        responseType: "base64",
+        timeoutMs: 6000,
+        maxResponseBytes: MAX_BYTES,
+      } satisfies HarborFetchArgs,
+    });
     if (!response.ok || response.body.length > Math.ceil(MAX_BYTES / 3) * 4) return null;
     const bytes = Uint8Array.from(atob(response.body), (char) => char.charCodeAt(0));
     if (bytes.byteLength > MAX_BYTES) return null;

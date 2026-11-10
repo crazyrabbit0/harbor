@@ -7,6 +7,7 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(optional_fields))]
 #[serde(rename_all = "camelCase")]
 pub struct HarborFetchArgs {
     pub url: String,
@@ -14,8 +15,11 @@ pub struct HarborFetchArgs {
     pub headers: Option<HashMap<String, String>>,
     pub body: Option<String>,
     pub body_base64: Option<String>,
+    #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
     pub timeout_ms: Option<u64>,
+    #[cfg_attr(feature = "ts", ts(optional, type = r#""base64""#))]
     pub response_type: Option<String>,
+    #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
     pub max_response_bytes: Option<u64>,
     pub credential_handle: Option<String>,
     pub public_network_only: Option<bool>,
@@ -25,6 +29,7 @@ pub struct HarborFetchArgs {
 }
 
 #[derive(Debug, Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 #[serde(rename_all = "camelCase")]
 pub struct HarborFetchResponse {
     pub status: u16,

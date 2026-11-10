@@ -1,11 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { HarborFetchArgs, HarborFetchResponse } from "@/lib/generated/fetch-ipc";
 
 export type BpPlatform = {
   lanAddress: () => Promise<string | null>;
   fetchImageBytes: (url: string) => Promise<Blob | null>;
 };
-
-type HarborFetchResponse = { ok: boolean; body: string; contentType?: string | null };
 
 const hasTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -38,7 +37,12 @@ const desktop: BpPlatform = {
     if (!hasTauri) return null;
     try {
       const resp = await invoke<HarborFetchResponse>("harbor_fetch", {
-        args: { url, method: "GET", responseType: "base64", timeoutMs: 15000 },
+        args: {
+          url,
+          method: "GET",
+          responseType: "base64",
+          timeoutMs: 15000,
+        } satisfies HarborFetchArgs,
       });
       if (!resp?.ok || !resp.body) return null;
       return new Blob([bytesFromBase64(resp.body)], { type: resp.contentType || "image/jpeg" });

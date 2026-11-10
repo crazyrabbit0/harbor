@@ -69,6 +69,8 @@ mod cast_hooks;
 mod cast_server;
 #[cfg(all(desktop, test))]
 mod cast_server_ipc;
+#[cfg(test)]
+mod fetch_ipc;
 #[cfg(desktop)]
 mod cf_relay;
 #[cfg(desktop)]
