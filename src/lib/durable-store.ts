@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-// localStorage keys (and their `<key>.<profile>` variants) also kept in user-data.json, so a cleared WebView keeps them.
+// localStorage keys (and their `<key>.<profile>` or `<key>:<profile>` variants) also kept in user-data.json, so a cleared WebView keeps them.
 export const DURABLE_PREFIXES = [
   "harbor.watchevents.v1",
   "harbor.playback-history.v1",
@@ -31,8 +31,14 @@ export const DURABLE_PREFIXES = [
   "harbor.mangabookmarks.v1",
   "harbor.ebook.bookmarks.v1",
   "harbor.ebook.annotations.v1",
-  // Episodes hidden from a show's list. The eBook lists stay local: an EPUB entry inlines its whole cover.
+  // Episodes hidden from a show's list.
   "harbor.hiddenepisodes.v1",
+  // The eBook library, favorites and read-later lists; EPUB covers are kept in IndexedDB (ebook-covers.ts).
+  "harbor.ebook.library.v1",
+  "harbor.ebook.favorites.v1",
+  "harbor.ebook.read-later.v1",
+  // Saved games, keyed harbor.games.saved.v1:<profile>.
+  "harbor.games.saved.v1",
 ];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.
@@ -49,7 +55,9 @@ let lastWriteAt = -Infinity;
 let lastContent: string | null = null;
 
 export function isDurableKey(key: string): boolean {
-  return DURABLE_PREFIXES.some((p) => key === p || key.startsWith(`${p}.`));
+  return DURABLE_PREFIXES.some(
+    (p) => key === p || key.startsWith(`${p}.`) || key.startsWith(`${p}:`),
+  );
 }
 
 function snapshot(): Record<string, string> {

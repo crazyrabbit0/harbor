@@ -22,6 +22,7 @@ import {
   releaseCollectionImage,
   restoreCollectionImages,
 } from "@/lib/collection-images";
+import { eBookCoverRefs, readEBookCovers, restoreEBookCovers } from "@/lib/ebook/covers";
 
 declare const __APP_VERSION__: string;
 
@@ -273,6 +274,8 @@ export type Backup = {
   bgImage?: string | null;
   /** Uploaded collection covers, keyed by the reference the collection stores. */
   collectionImages?: Record<string, string>;
+  /** Inline eBook covers (EPUB artwork), keyed by the reference the eBook lists store. */
+  ebookCovers?: Record<string, string>;
   /**
    * A resolved snapshot of everything account sync owns, so the server side never
    * becomes the only copy of a household's customisation. That is the standing wound on
@@ -347,6 +350,11 @@ export async function buildBackup(selected?: BackupSectionKey[]): Promise<Backup
       .filter(([key]) => key.startsWith("harbor.collections"))
       .flatMap(([, value]) => collectionImageRefs(value)),
   );
+  const ebookCovers = await readEBookCovers(
+    Object.entries(data)
+      .filter(([key]) => key.startsWith("harbor.ebook."))
+      .flatMap(([, value]) => eBookCoverRefs(value)),
+  );
   return {
     format: FORMAT,
     version: VERSION,
@@ -359,6 +367,7 @@ export async function buildBackup(selected?: BackupSectionKey[]): Promise<Backup
       : [...ALL_SECTION_KEYS],
     ...(Object.keys(bgImages).length > 0 ? { bgImages } : {}),
     ...(Object.keys(collectionImages).length > 0 ? { collectionImages } : {}),
+    ...(Object.keys(ebookCovers).length > 0 ? { ebookCovers } : {}),
   };
 }
 
@@ -419,6 +428,12 @@ export function parseBackup(text: string): ParsedBackup {
       if (typeof value === "string") collectionImages[ref] = value;
     }
   }
+  const ebookCovers: Record<string, string> = {};
+  if (b.ebookCovers && typeof b.ebookCovers === "object") {
+    for (const [ref, value] of Object.entries(b.ebookCovers)) {
+      if (typeof value === "string") ebookCovers[ref] = value;
+    }
+  }
   return {
     ok: true,
     backup: {
@@ -431,6 +446,7 @@ export function parseBackup(text: string): ParsedBackup {
       ...(Object.keys(bgImages).length > 0 ? { bgImages } : {}),
       ...(typeof b.bgImage === "string" || b.bgImage === null ? { bgImage: b.bgImage } : {}),
       ...(Object.keys(collectionImages).length > 0 ? { collectionImages } : {}),
+      ...(Object.keys(ebookCovers).length > 0 ? { ebookCovers } : {}),
     },
   };
 }
@@ -596,6 +612,9 @@ export async function applyBackup(backup: Backup): Promise<void> {
   }
   if (backup.collectionImages) {
     await restoreCollectionImages(backup.collectionImages).catch(() => {});
+  }
+  if (backup.ebookCovers) {
+    await restoreEBookCovers(backup.ebookCovers).catch(() => {});
   }
   for (const ref of wipedImageRefs) releaseCollectionImage(ref);
   await flushSecrets();

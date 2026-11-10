@@ -168,6 +168,11 @@ function loadBackup(): typeof import("../src/lib/backup.ts") {
     "@/lib/settings/profile-store": profileStore,
     "@/lib/storage-recovery": recovery,
     "@/lib/durable-store": { flushDurableStore: async () => {} },
+    "@/lib/ebook/covers": {
+      eBookCoverRefs: () => [],
+      readEBookCovers: async () => ({}),
+      restoreEBookCovers: async () => {},
+    },
     "@/lib/collection-images": {
       collectionImageRefs: () => [],
       readCollectionImages: async () => ({}),

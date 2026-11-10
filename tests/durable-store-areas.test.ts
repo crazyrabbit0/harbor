@@ -20,6 +20,7 @@ let writes = 0;
     },
   },
   addEventListener: () => {},
+  dispatchEvent: () => true,
 };
 
 const store = await import("../src/lib/durable-store.ts");
@@ -438,5 +439,154 @@ test("hidden episodes reach user-data.json and survive quota recovery", async ()
   await settle();
   assert.equal(fileKeys()["harbor.hiddenepisodes.v1"], '["tt5|1|3"]');
   assert.equal(recovery.isPrunable("harbor.hiddenepisodes.v1"), false);
-  assert.equal(store.isDurableKey("harbor.ebook.library.v1"), false, "EPUB covers are inline");
+});
+
+test("eBook lists reach user-data.json with inline EPUB covers kept in IndexedDB", async () => {
+  localStorage.clear();
+  const library = await import("../src/lib/ebook/library.ts");
+  const covers = await import("../src/lib/ebook/covers.ts");
+  const cover = `data:image/jpeg;base64,${"E".repeat(300_000)}`;
+  const book = { id: "local:epub1", source: "source", title: "Inline cover", authors: [], cover };
+  // Each write runs alone: any scheduled write snapshots every durable key, which would hide a missing trigger.
+  const writeAlone = async (write: () => void) => {
+    await store.flushDurableStore();
+    mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+    try {
+      write();
+      mock.timers.tick(10_000);
+    } finally {
+      mock.timers.reset();
+    }
+    await settle();
+    return fileKeys();
+  };
+  const afterAdd = await writeAlone(() => library.toggleEBookLibrary(book as never));
+  const saved = afterAdd["harbor.ebook.library.v1"] ?? "";
+  assert.match(saved, /"Inline cover"/);
+  assert.ok(saved.length < 2_000, `the list carries ${saved.length} bytes, not the cover`);
+  assert.equal(library.ebookLibrary()[0]?.cover, cover, "the cover still displays");
+  const refs = covers.eBookCoverRefs(saved);
+  assert.deepEqual(Object.values(await covers.readEBookCovers(refs)), [cover]);
+  const afterLater = await writeAlone(() => library.toggleEBookReadLater(book as never));
+  assert.match(afterLater["harbor.ebook.read-later.v1"] ?? "", /"Inline cover"/);
+  const afterFavorite = await writeAlone(() => library.toggleEBookFavorite(book as never));
+  assert.match(afterFavorite["harbor.ebook.favorites.v1"] ?? "", /"Inline cover"/);
+  library.toggleEBookLibrary(book as never);
+  library.toggleEBookReadLater(book as never);
+  await settle();
+  assert.equal(Object.keys(await covers.readEBookCovers(refs)).length, 1, "favorites still use it");
+  library.toggleEBookFavorite(book as never);
+  await settle();
+  assert.deepEqual(await covers.readEBookCovers(refs), {}, "the last list to drop it deletes it");
+});
+
+test("an eBook list saved by an older build moves its inline cover out on first read", () => {
+  localStorage.clear();
+  return (async () => {
+    const library = await import("../src/lib/ebook/library.ts");
+    const cover = `data:image/png;base64,${"F".repeat(200_000)}`;
+    localStorage.setItem(
+      "harbor.novel.read-later.v1",
+      JSON.stringify([{ id: "77", title: "Old build", authors: [], cover }]),
+    );
+    assert.equal(library.eBookReadLater()[0]?.cover, cover);
+    const stored = localStorage.getItem("harbor.ebook.read-later.v1") ?? "";
+    assert.match(stored, /"anilist:77"/);
+    assert.ok(!stored.includes("data:"), "the migrated list no longer carries the image");
+    localStorage.setItem(
+      "harbor.ebook.favorites.v1",
+      JSON.stringify([
+        { id: "anilist:8", source: "anilist", title: "Current key", authors: [], cover },
+      ]),
+    );
+    assert.equal(library.favoriteEBooks()[0]?.cover, cover);
+    assert.ok(
+      !(localStorage.getItem("harbor.ebook.favorites.v1") ?? "").includes("data:"),
+      "a current-key list with an inline cover is rewritten too",
+    );
+  })();
+});
+
+test("saved games reach user-data.json under their colon-separated profile key", async () => {
+  localStorage.clear();
+  await store.flushDurableStore();
+  const saved = await import("../src/lib/games/saved.ts");
+  mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+  try {
+    saved.writeSavedGames("p1", [
+      { id: "igdb:7", igdbId: 7, name: "Kept game", capsule: "", platforms: [] } as never,
+    ]);
+    mock.timers.tick(10_000);
+  } finally {
+    mock.timers.reset();
+  }
+  await settle();
+  assert.match(fileKeys()["harbor.games.saved.v1:p1"] ?? "", /"Kept game"/);
+  assert.equal(recovery.isPrunable("harbor.games.saved.v1:p1"), false);
+  assert.equal(store.isDurableKey("harbor.games.saved.v1x"), false);
+});
+
+test("a backup carries the eBook covers its lists reference, and restoring brings them back", async () => {
+  localStorage.clear();
+  const { loadModule } = await import("./helpers/hook-harness.ts");
+  const { profileRosterFor } = await import("./helpers/profile-roster.ts");
+  const covers = await import("../src/lib/ebook/covers.ts");
+  const library = await import("../src/lib/ebook/library.ts");
+  const backup = loadModule(
+    "src/lib/backup.ts",
+    {
+      "@/lib/download-text": {},
+      "@/lib/profile-sync/backup-payload": { buildSyncBackup: () => ({}) },
+      "@/lib/theme-storage": { loadBgImage: async () => null, saveBgImage: async () => {} },
+      "@/lib/profiles": { readAllProfilesIdentity: () => [] },
+      "@/lib/profile-roster": profileRosterFor(localStorage),
+      "@/lib/active-profile-id": { activeProfileId: () => "default" },
+      "@/lib/secret-store": {
+        flushSecrets: async () => {},
+        getAllSecrets: () => ({}),
+        isSecretKey: () => false,
+        secretKeyForProfile: (k: string) => k,
+        setSecret() {},
+      },
+      "@/lib/settings/profile-store": {
+        isSettingsSecretsKey: () => false,
+        migrateBlobSecrets: (v: string) => v,
+      },
+      "@/lib/storage-recovery": recovery,
+      "@/lib/durable-store": store,
+      "@/lib/ebook/covers": covers,
+      "@/lib/collection-images": {
+        collectionImageRefs: () => [],
+        readCollectionImages: async () => ({}),
+        releaseCollectionImage() {},
+        restoreCollectionImages: async () => {},
+      },
+      "@/lib/iptv/url-credentials": { URL_SECRET_PLACEHOLDER: "***", hasUrlSecrets: () => false },
+      "@/lib/local-library": {
+        localLibraryReady: async () => {},
+        readLocalLibrary: () => ({}),
+        restoreLocalLibrary() {},
+      },
+    },
+    { __APP_VERSION__: "test" },
+  );
+  const cover = `data:image/jpeg;base64,${"G".repeat(50_000)}`;
+  library.toggleEBookLibrary({
+    id: "local:bk",
+    source: "source",
+    title: "Backed up",
+    authors: [],
+    cover,
+  } as never);
+  await settle();
+  const exported = await backup.buildBackup();
+  assert.deepEqual(Object.values(exported.ebookCovers ?? {}), [cover]);
+  const parsed = backup.parseBackup(JSON.stringify(exported));
+  assert.equal(parsed.ok, true);
+  const refs = covers.eBookCoverRefs(exported.data["harbor.ebook.library.v1"] ?? null);
+  covers.releaseEBookCovers(refs, new Set());
+  await settle();
+  assert.deepEqual(await covers.readEBookCovers(refs), {}, "the cover is gone before the restore");
+  await backup.applyBackup(parsed.backup);
+  assert.deepEqual(Object.values(await covers.readEBookCovers(refs)), [cover]);
 });
