@@ -268,3 +268,46 @@ test("favorites, local Continue Watching and removed local files reach user-data
   }
   assert.equal(store.isDurableKey("harbor.library.local.v1"), false);
 });
+
+test("ratings and their import receipts reach user-data.json and survive quota recovery", async () => {
+  localStorage.clear();
+  await store.flushDurableStore();
+  const ratings = await import("../src/lib/ratings/store.ts");
+  const receipts = await import("../src/lib/ratings/import/receipts.ts");
+  mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+  try {
+    ratings.setRatingLocal({
+      itemKey: "tt42",
+      mediaType: "movie",
+      score: 9,
+      title: "Rated",
+      updatedAt: 1,
+    });
+    mock.timers.tick(10_000);
+  } finally {
+    mock.timers.reset();
+  }
+  await settle();
+  assert.match(fileKeys()["harbor.ratings.v1"] ?? "", /"Rated"/);
+  await store.flushDurableStore();
+  mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 120_000 });
+  try {
+    receipts.recordImport({
+      sourceId: "letterboxd",
+      sourceLabel: "Letterboxd",
+      count: 3,
+      startedAt: 1,
+      finishedAt: 2,
+    });
+    mock.timers.tick(10_000);
+  } finally {
+    mock.timers.reset();
+  }
+  await settle();
+  assert.match(fileKeys()["harbor.ratings.imports.v1"] ?? "", /"letterboxd"/);
+  for (const key of ["harbor.ratings.v1", "harbor.ratings.p1", "harbor.ratings.imports.v1"]) {
+    assert.equal(store.isDurableKey(key), true, key);
+    assert.equal(recovery.isPrunable(key), false, key);
+  }
+  assert.equal(store.isDurableKey("harbor.ratingposters.v1"), false);
+});
