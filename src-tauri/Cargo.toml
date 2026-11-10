@@ -1,5 +1,5 @@
 [workspace.package]
-version = "0.9.231"
+version = "0.9.232"
 
 [package]
 name = "harbor"
