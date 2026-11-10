@@ -311,3 +311,50 @@ test("ratings and their import receipts reach user-data.json and survive quota r
   }
   assert.equal(store.isDurableKey("harbor.ratingposters.v1"), false);
 });
+
+test("manga reading progress and read chapters reach user-data.json", async () => {
+  localStorage.clear();
+  const { loadModule } = await import("./helpers/hook-harness.ts");
+  const progress = loadModule("src/lib/manga-progress.ts", {
+    react: { useEffect() {}, useState: (v: unknown) => [v, () => {}] },
+    "./profiles": { useProfiles: () => ({ activeId: "p1" }) },
+    "./manga/sources/suwayomi/progress-bridge": { queueSuwayomiProgress() {} },
+    "./durable-store": store,
+  });
+  // Each write runs alone: any scheduled write snapshots every durable key, which would hide a missing trigger.
+  const writeAlone = async (write: () => void) => {
+    await store.flushDurableStore();
+    mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+    try {
+      write();
+      mock.timers.tick(10_000);
+    } finally {
+      mock.timers.reset();
+    }
+    await settle();
+    return fileKeys();
+  };
+  const afterRead = await writeAlone(() => progress.recordMangaChapterRead("p1", "m1", "c6"));
+  assert.match(afterRead["harbor.mangaread.chapters.v1.p1"] ?? "", /"c6"/);
+  const afterProgress = await writeAlone(() =>
+    progress.recordMangaProgress("p1", {
+      id: "m1",
+      title: "Kept manga",
+      chapterId: "c6",
+      chapterNumber: "6",
+      chapterLabel: "Chapter 6",
+      page: 3,
+      totalPages: 20,
+      updatedAt: 1,
+    }),
+  );
+  assert.match(afterProgress["harbor.mangaread.v1.p1"] ?? "", /"Kept manga"/);
+  const afterClear = await writeAlone(() => progress.removeMangaProgress("p1"));
+  assert.equal(
+    afterClear["harbor.mangaread.v1.p1"],
+    undefined,
+    "clearing progress clears the file",
+  );
+  assert.equal(recovery.isPrunable("harbor.mangaread.chapters.v1.p1"), false);
+  assert.equal(store.isDurableKey("harbor.manga.match.anilist.v1.p1"), false);
+});

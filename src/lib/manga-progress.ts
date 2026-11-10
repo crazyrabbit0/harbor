@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useProfiles } from "./profiles";
 import { queueSuwayomiProgress } from "./manga/sources/suwayomi/progress-bridge";
+import { durableSetItem, syncDurableStore } from "./durable-store";
 
 export type MangaProgressEntry = {
   id: string;
@@ -53,7 +54,7 @@ export function listMangaProgress(pid: string): MangaProgressEntry[] {
 
 function write(pid: string, list: MangaProgressEntry[]): void {
   try {
-    localStorage.setItem(keyFor(pid), JSON.stringify(list.slice(0, MAX)));
+    durableSetItem(keyFor(pid), JSON.stringify(list.slice(0, MAX)));
   } catch {
     return;
   }
@@ -88,6 +89,7 @@ export function removeMangaProgressEntry(pid: string, id: string): void {
 export function removeMangaProgress(pid: string): void {
   try {
     localStorage.removeItem(keyFor(pid));
+    syncDurableStore();
   } catch {
     return;
   }
@@ -123,7 +125,7 @@ export function recordMangaChapterRead(
     const prev = Array.isArray(rec[mangaId]) ? rec[mangaId] : [];
     if (prev.includes(chapterId)) return;
     rec[mangaId] = [chapterId, ...prev].slice(0, READ_MAX_PER_MANGA);
-    localStorage.setItem(readKeyFor(pid), JSON.stringify(rec));
+    durableSetItem(readKeyFor(pid), JSON.stringify(rec));
   } catch {
     return;
   }
@@ -157,7 +159,7 @@ export function removeMangaChapterRead(pid: string, mangaId: string, chapterId: 
     const next = prev.filter((v) => v !== chapterId);
     if (next.length === 0) delete rec[mangaId];
     else rec[mangaId] = next;
-    localStorage.setItem(readKeyFor(pid), JSON.stringify(rec));
+    durableSetItem(readKeyFor(pid), JSON.stringify(rec));
   } catch {
     return;
   }
