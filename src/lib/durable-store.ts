@@ -31,6 +31,8 @@ export const DURABLE_PREFIXES = [
   "harbor.mangabookmarks.v1",
   "harbor.ebook.bookmarks.v1",
   "harbor.ebook.annotations.v1",
+  // Episodes hidden from a show's list. The eBook lists stay local: an EPUB entry inlines its whole cover.
+  "harbor.hiddenepisodes.v1",
 ];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.

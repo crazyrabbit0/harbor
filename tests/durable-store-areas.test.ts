@@ -423,3 +423,20 @@ test("manga and eBook bookmarks and eBook annotations reach user-data.json", asy
   }
   assert.equal(store.isDurableKey("harbor.ebook.progress.v1.p1.b1.ch1"), false);
 });
+
+test("hidden episodes reach user-data.json and survive quota recovery", async () => {
+  localStorage.clear();
+  await store.flushDurableStore();
+  const hidden = await import("../src/lib/hidden-episodes.ts");
+  mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+  try {
+    hidden.setEpisodeHidden("tt5", 1, 3, true);
+    mock.timers.tick(10_000);
+  } finally {
+    mock.timers.reset();
+  }
+  await settle();
+  assert.equal(fileKeys()["harbor.hiddenepisodes.v1"], '["tt5|1|3"]');
+  assert.equal(recovery.isPrunable("harbor.hiddenepisodes.v1"), false);
+  assert.equal(store.isDurableKey("harbor.ebook.library.v1"), false, "EPUB covers are inline");
+});
