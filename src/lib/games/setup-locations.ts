@@ -1,7 +1,8 @@
 import { setupInstallFolder, setupPath, type SetupJob } from "./setup";
 
-export type SetupLocation = { path: string; label: string; availableBytes: number | null };
-export type SetupLocations = { drives: SetupLocation[]; selected: SetupLocation | null };
+import type { SetupLocation, SetupLocations } from "@/lib/generated/games-ipc";
+
+export type { SetupLocation, SetupLocations };
 export type SetupLocationChoice = SetupLocation & { destination: string; recent: boolean };
 
 export function setupParent(path: string) {

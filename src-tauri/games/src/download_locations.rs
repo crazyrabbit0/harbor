@@ -3,14 +3,17 @@ use std::path::{Path, PathBuf};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SetupLocation"))]
 pub struct Location {
     path: String,
     label: String,
+    #[cfg_attr(test, ts(type = "number | null"))]
     available_bytes: Option<u64>,
 }
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SetupLocations"))]
 pub struct Locations {
     drives: Vec<Location>,
     selected: Option<Location>,
@@ -93,5 +96,18 @@ mod tests {
         let temp = std::env::temp_dir();
         let selected = super::inspect(Some(temp.to_string_lossy().into_owned())).selected.unwrap();
         assert!(selected.available_bytes.is_some());
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::{Location, Locations};
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [Location::decl(&cfg), Locations::decl(&cfg)];
+        harbor_shared::ipc_bindings::check("games-ipc.ts", "games/src/download_locations.rs", &decls);
     }
 }
