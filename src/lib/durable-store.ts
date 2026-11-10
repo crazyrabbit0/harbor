@@ -22,6 +22,8 @@ export const DURABLE_PREFIXES = [
   "harbor.localcw.private.v1",
   // The scanned library itself is rebuilt by a rescan; the paths the user removed are not.
   "harbor.library.local.removed.v1",
+  // Your ratings (harbor.ratings.v1, harbor.ratings.<profile> for separate profiles) and their import receipts.
+  "harbor.ratings",
 ];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.

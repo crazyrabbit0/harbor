@@ -1,3 +1,5 @@
+import { durableSetItem } from "@/lib/durable-store";
+
 const KEY = "harbor.ratings.imports.v1";
 const KEEP = 10;
 const SLACK_MS = 5000;
@@ -35,7 +37,7 @@ function read(): ImportReceipt[] {
 
 function write(list: ImportReceipt[]): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(list.slice(0, KEEP)));
+    durableSetItem(KEY, JSON.stringify(list.slice(0, KEEP)));
   } catch {
     return;
   }
