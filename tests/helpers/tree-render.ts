@@ -23,6 +23,9 @@ export function treeHarness(
     hostNode?: (tag: string, props: Record<string, any>) => unknown;
     /** Leaves lazy modules unloaded, for a test that renders one component without its lazy children. */
     deferLazy?: boolean;
+    /** Takes 
+eact/jsx-runtime from the mocks like any other import, so a test keeps its own element shape. */
+    mockJsx?: boolean;
   } = {},
 ) {
   const slots: Slot[] = [];
@@ -130,7 +133,7 @@ export function treeHarness(
     new Function("require", "exports", ...Object.keys(globals), output)(
       (name: string) => {
         if (name === "react") return react;
-        if (name === "react/jsx-runtime") return jsx;
+        if (name === "react/jsx-runtime" && !options.mockJsx) return jsx;
         if (name in deps) return deps[name];
         if (options.lenient) return named;
         throw new Error(`Unexpected dependency ${name}`);

@@ -508,7 +508,9 @@ async fn spawn_continuous_ffmpeg(
         .arg("-map")
         .arg("0:v:0")
         .arg("-map")
-        .arg(format!("0:a:{}?", audio_ordinal.unwrap_or(0)))
+        .arg(crate::transcode::audio_map(Some(
+            harbor_shared::cast_types::cast_audio_ordinal(audio_ordinal),
+        )))
         .arg("-map_metadata")
         .arg("-1")
         .arg("-map_chapters")
