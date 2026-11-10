@@ -27,6 +27,10 @@ export const DURABLE_PREFIXES = [
   // Manga reading position per title and the chapters marked read, one key per profile.
   "harbor.mangaread.v1",
   "harbor.mangaread.chapters.v1",
+  // Bookmarks and annotations the user made in the manga and eBook readers.
+  "harbor.mangabookmarks.v1",
+  "harbor.ebook.bookmarks.v1",
+  "harbor.ebook.annotations.v1",
 ];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.

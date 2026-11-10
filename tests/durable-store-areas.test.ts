@@ -358,3 +358,68 @@ test("manga reading progress and read chapters reach user-data.json", async () =
   assert.equal(recovery.isPrunable("harbor.mangaread.chapters.v1.p1"), false);
   assert.equal(store.isDurableKey("harbor.manga.match.anilist.v1.p1"), false);
 });
+
+test("manga and eBook bookmarks and eBook annotations reach user-data.json", async () => {
+  localStorage.clear();
+  const { loadModule } = await import("./helpers/hook-harness.ts");
+  const manga = loadModule("src/lib/manga-bookmarks.ts", {
+    react: { useEffect() {}, useState: (v: unknown) => [v, () => {}] },
+    "./profiles": { useProfiles: () => ({ activeId: "p1" }) },
+    "./storage-recovery": recovery,
+  });
+  const ebook = await import("../src/lib/ebook/reader-state.ts");
+  // Each write runs alone: any scheduled write snapshots every durable key, which would hide a missing trigger.
+  const writeAlone = async (write: () => void) => {
+    await store.flushDurableStore();
+    mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+    try {
+      write();
+      mock.timers.tick(10_000);
+    } finally {
+      mock.timers.reset();
+    }
+    await settle();
+    return fileKeys();
+  };
+  const afterManga = await writeAlone(() =>
+    manga.addMangaBookmark("p1", {
+      mangaId: "m1",
+      title: "Marked manga",
+      chapterId: "c3",
+      chapterNumber: "3",
+      chapterLabel: "Chapter 3",
+      page: 12,
+      totalPages: 30,
+      name: "Big reveal",
+    }),
+  );
+  assert.match(afterManga["harbor.mangabookmarks.v1.p1"] ?? "", /"Big reveal"/);
+  const afterBookmark = await writeAlone(() =>
+    ebook.addEBookBookmark("p1", {
+      bookId: "b1",
+      chapterId: "ch1",
+      chapterTitle: "Opening",
+      line: 40,
+      preview: "It was a dark night",
+    }),
+  );
+  assert.match(afterBookmark["harbor.ebook.bookmarks.v1.p1.b1"] ?? "", /dark night/);
+  const afterNote = await writeAlone(() =>
+    ebook.saveEBookAnnotation("p1", "b1", {
+      chapterId: "ch1",
+      ranges: [{ line: 40, start: 0, end: 10 }],
+      text: "It was a d",
+      color: "yellow",
+      density: 1,
+      title: "",
+      body: "My note",
+      tags: [],
+      reference: false,
+    }),
+  );
+  assert.match(afterNote["harbor.ebook.annotations.v1.p1.b1"] ?? "", /"My note"/);
+  for (const key of ["harbor.mangabookmarks.v1.p1", "harbor.ebook.annotations.v1.p1.b1"]) {
+    assert.equal(recovery.isPrunable(key), false, key);
+  }
+  assert.equal(store.isDurableKey("harbor.ebook.progress.v1.p1.b1.ch1"), false);
+});
