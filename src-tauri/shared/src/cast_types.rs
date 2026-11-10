@@ -173,3 +173,19 @@ pub struct RegisterArgs {
     #[serde(default)]
     pub dlna: bool,
 }
+
+/// The embedded audio stream a cast keeps: the player's track, or the first, since a receiver given several plays whichever it likes.
+pub fn cast_audio_ordinal(chosen: Option<u32>) -> u32 {
+    chosen.unwrap_or(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_cast_keeps_the_players_audio_track_or_the_first() {
+        assert_eq!(cast_audio_ordinal(Some(2)), 2);
+        assert_eq!(cast_audio_ordinal(None), 0);
+    }
+}

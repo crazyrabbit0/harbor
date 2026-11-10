@@ -19,7 +19,8 @@ use crate::dlna;
 use crate::roku;
 use harbor_shared::cast_hooks::CastHooks;
 use harbor_shared::cast_types::{
-    AudioCastFormat, AudioCastInput, CastSub, CastSubStyle, RegisterArgs, TranscodeProfile,
+    cast_audio_ordinal, AudioCastFormat, AudioCastInput, CastSub, CastSubStyle, RegisterArgs,
+    TranscodeProfile,
 };
 
 const CAST_SERVICE_TYPE: &str = "_googlecast._tcp.local.";
@@ -556,7 +557,7 @@ pub async fn cast_load(
     let req_headers = headers.unwrap_or_default();
     let direct_audio = kind_str == "dlna"
         && !audio_start_paused.unwrap_or(false)
-        && audio_track_ordinal.unwrap_or(0) == 0
+        && cast_audio_ordinal(audio_track_ordinal) == 0
         && dlna::supports_direct_audio(
             control_url.as_deref().unwrap_or(""),
             content_type.as_deref(),
@@ -570,7 +571,7 @@ pub async fn cast_load(
         let input = AudioCastInput {
             url,
             headers: req_headers,
-            audio_ordinal: audio_track_ordinal.unwrap_or(0),
+            audio_ordinal: cast_audio_ordinal(audio_track_ordinal),
             start_seconds: start_time_sec.unwrap_or(0.0),
             // Live FLAC decoded on Sonos but failed real pause/resume tests. MP3 passed all controls.
             format: AudioCastFormat::Mp3,

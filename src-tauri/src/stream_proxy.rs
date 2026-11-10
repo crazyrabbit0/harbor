@@ -963,10 +963,12 @@ fn prepared_prefix_response(session: &Session, headers: &HeaderMap) -> Option<Re
         .ok()
 }
 
-/// A receiver given several audio tracks plays whichever it likes, so a cast transcode keeps the first when the player named none.
+/// A cast keeps one audio track (cast_audio_ordinal); the player's own remux keeps every track.
 fn transcode_audio_ordinal(session: &Session) -> Option<u32> {
     if session.cast {
-        Some(session.audio_ordinal.unwrap_or(0))
+        Some(harbor_shared::cast_types::cast_audio_ordinal(
+            session.audio_ordinal,
+        ))
     } else {
         session.audio_ordinal
     }
