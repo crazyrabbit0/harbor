@@ -981,6 +981,11 @@ test("backups neither enroll another device nor erase this device's channel or s
       },
       "@/lib/storage-recovery": h.recovery,
       "@/lib/durable-store": { flushDurableStore: async () => {} },
+      "@/lib/ebook/covers": {
+        eBookCoverRefs: () => [],
+        readEBookCovers: async () => ({}),
+        restoreEBookCovers: async () => {},
+      },
       "@/lib/collection-images": {
         collectionImageRefs: () => [],
         readCollectionImages: async () => ({}),
