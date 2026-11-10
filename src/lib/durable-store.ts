@@ -24,6 +24,9 @@ export const DURABLE_PREFIXES = [
   "harbor.library.local.removed.v1",
   // Your ratings (harbor.ratings.v1, harbor.ratings.<profile> for separate profiles) and their import receipts.
   "harbor.ratings",
+  // Manga reading position per title and the chapters marked read, one key per profile.
+  "harbor.mangaread.v1",
+  "harbor.mangaread.chapters.v1",
 ];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.
