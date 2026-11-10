@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import ts from "typescript";
+import { treeHarness } from "./tree-render";
 
+/** Runs a hook or component as one render pass per `render()` on the shared fake React of `tree-render.ts`. */
 export function hookHarness(
   file: string,
   exportName: string,
@@ -9,99 +11,11 @@ export function hookHarness(
   /** Module-local functions to make renderable as exports (e.g. a private child component). */
   expose: string[] = [],
 ) {
-  const refs: any[] = [],
-    states: any[] = [],
-    memos: any[] = [],
-    effects: any[] = [];
-  let ri = 0,
-    si = 0,
-    mi = 0,
-    ei = 0;
-  let pending: any[] = [];
-  const same = (a: any[], b: any[]) =>
-    !!a && !!b && a.length === b.length && a.every((v, i) => Object.is(v, b[i]));
-  const react = {
-    Component: class {},
-    memo: (component: any) => component,
-    useRef(value: any) {
-      const i = ri++;
-      return (refs[i] ??= { current: value });
-    },
-    useState(value: any) {
-      const i = si++;
-      if (!(i in states)) states[i] = typeof value === "function" ? value() : value;
-      return [
-        states[i],
-        (next: any) => {
-          states[i] = typeof next === "function" ? next(states[i]) : next;
-        },
-      ];
-    },
-    useMemo(create: () => any, deps: any[]) {
-      const i = mi++;
-      if (!memos[i] || !same(memos[i].deps, deps)) memos[i] = { deps, value: create() };
-      return memos[i].value;
-    },
-    useCallback(fn: any, deps: any[]) {
-      return react.useMemo(() => fn, deps);
-    },
-    useEffect(run: () => any, deps: any[]) {
-      const i = ei++;
-      if (!effects[i] || !same(effects[i].deps, deps)) pending.push({ i, run, deps });
-    },
-    useLayoutEffect(run: () => any, deps: any[]) {
-      react.useEffect(run, deps);
-    },
-    // A context reads its default value; providers are plain elements in the rendered tree.
-    createContext: (value: any) => ({ Provider: { context: value }, value }),
-    useContext: (context: { value: any }) => context.value,
-    isValidElement: (node: any) => !!node && typeof node === "object" && "props" in node,
-    Children: {
-      toArray: (children: any) => [children].flat(Infinity).filter((c) => c != null),
-      count: (children: any) => [children].flat(Infinity).filter((c) => c != null).length,
-      map: (children: any, fn: (child: any, i: number) => any) =>
-        [children]
-          .flat(Infinity)
-          .filter((c) => c != null)
-          .map(fn),
-    },
-    useId: () => ":harbor-id:",
-    useDeferredValue: (value: any) => value,
-    useSyncExternalStore(_subscribe: any, snapshot: () => any) {
-      return snapshot();
-    },
-  };
-  const output =
-    ts.transpileModule(readFileSync(file, "utf8"), {
-      compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2022,
-        jsx: ts.JsxEmit.ReactJSX,
-      },
-    }).outputText + expose.map((name) => `\nexports.${name} = ${name};`).join("");
-  const api: any = {};
-  new Function("require", "exports", ...Object.keys(globals), output)(
-    (name: string) => {
-      if (name === "react") return react;
-      if (!(name in mocks)) throw new Error(`Unexpected dependency ${name}`);
-      return mocks[name];
-    },
-    api,
-    ...Object.values(globals),
-  );
+  const harness = treeHarness(file, mocks, { globals, expose, deferLazy: true, mockJsx: true });
   return {
-    exports: api,
-    render(args?: any) {
-      ri = si = mi = ei = 0;
-      pending = [];
-      const result = api[exportName](args);
-      for (const { i } of pending) effects[i]?.cleanup?.();
-      for (const { i, run, deps } of pending) effects[i] = { deps, cleanup: run() };
-      return result;
-    },
-    unmount() {
-      for (const effect of effects) effect?.cleanup?.();
-    },
+    exports: harness.exports,
+    render: (args?: any) => harness.run(() => harness.exports[exportName](args)),
+    unmount: () => harness.unmount(),
   };
 }
 
