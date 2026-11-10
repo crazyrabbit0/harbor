@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import type { HarborFetchArgs, HarborFetchResponse } from "@/lib/generated/fetch-ipc";
 import { chapterPages } from "@/lib/manga/api";
 import { isSuwayomiServerUrl } from "@/lib/manga/sources/suwayomi/auth-registry";
 
@@ -824,7 +825,7 @@ export async function downloadMangaPage(
       const fetchHeaders = { ...IMG_HEADERS, ...headers };
       try {
         const { invoke } = await import("@tauri-apps/api/core");
-        const resp = (await invoke("harbor_fetch", {
+        const resp = await invoke<HarborFetchResponse>("harbor_fetch", {
           args: {
             url: pageUrl,
             method: "GET",
@@ -832,14 +833,8 @@ export async function downloadMangaPage(
             responseType: "base64",
             timeoutMs: 30000,
             allowLocalNetwork: isSuwayomiServerUrl(pageUrl),
-          },
-        })) as {
-          status: number;
-          ok: boolean;
-          body: string;
-          ContentType?: string;
-          headers?: Record<string, string>;
-        };
+          } satisfies HarborFetchArgs,
+        });
         if (resp.ok && typeof resp.body === "string" && resp.body) {
           const bin = atob(resp.body.trim());
           bytes = new Uint8Array(bin.length);

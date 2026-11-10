@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { HarborFetchArgs, HarborFetchResponse } from "@/lib/generated/fetch-ipc";
 import { fetch as tauriFetchImpl } from "@tauri-apps/plugin-http";
 import { TrackerBlockedError, isBlockedUrl, noteBlocked } from "./privacy/blocklist";
 import { bridgeOutcome, recordBridge } from "./fetch-bridge-stats";
@@ -168,15 +169,6 @@ function rewriteForWeb(url: string, init?: RequestInit): { url: string; init?: R
   return { url: proxied, init: { ...init, headers: out } };
 }
 
-type HarborFetchResponse = {
-  status: number;
-  ok: boolean;
-  body: string;
-  contentType: string | null;
-  headers?: Record<string, string>;
-  url?: string;
-};
-
 export const FINAL_URL_HEADER = "x-harbor-final-url";
 
 export { allowDirectHost };
@@ -241,24 +233,22 @@ async function invokeHarborFetch(
           ? JSON.stringify(init.body)
           : undefined;
   const started = Date.now();
-  const request = invoke<HarborFetchResponse>("harbor_fetch", {
-    args: {
-      url: input,
-      method: init?.method ?? "GET",
-      headers,
-      body,
-      bodyBase64: binaryBody ? bytesToBase64(binaryBody) : undefined,
-      timeoutMs: 30000,
-      ...(timeoutMs === 30000 ? {} : { timeoutMs }),
-      responseType,
-      maxResponseBytes,
-      credentialHandle,
-      publicNetworkOnly,
-      allowLocalNetwork,
-      followRedirects:
-        init?.redirect === "manual" || init?.redirect === "error" ? false : undefined,
-    },
-  });
+  const args: HarborFetchArgs = {
+    url: input,
+    method: init?.method ?? "GET",
+    headers,
+    body,
+    bodyBase64: binaryBody ? bytesToBase64(binaryBody) : undefined,
+    timeoutMs: 30000,
+    ...(timeoutMs === 30000 ? {} : { timeoutMs }),
+    responseType,
+    maxResponseBytes,
+    credentialHandle,
+    publicNetworkOnly,
+    allowLocalNetwork,
+    followRedirects: init?.redirect === "manual" || init?.redirect === "error" ? false : undefined,
+  };
+  const request = invoke<HarborFetchResponse>("harbor_fetch", { args });
   return request.then(
     (resp) => {
       recordBridge("harborFetch", input, Date.now() - started, "ok");
@@ -329,7 +319,7 @@ export function safeFetchBase64(
       ok: resp.ok,
       headers: resp.headers ?? (resp.contentType ? { "content-type": resp.contentType } : {}),
       body: resp.body,
-      url: resp.url,
+      url: resp.url ?? undefined,
     }),
   );
   return withDeadline(raw, init?.signal, timeoutMs + 5_000);

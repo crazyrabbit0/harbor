@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { HarborFetchArgs, HarborFetchResponse } from "@/lib/generated/fetch-ipc";
 import { isSuwayomiServerUrl } from "@/lib/manga/sources/suwayomi/auth-registry";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -8,14 +9,6 @@ const MEASURE_TIMEOUT_MS = 8000;
 export const IMAGE_FALLBACK_HEADERS: Record<string, string> = {
   "User-Agent":
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36",
-};
-
-type HarborFetchResponse = {
-  status: number;
-  ok: boolean;
-  body: string;
-  contentType?: string | null;
-  headers?: Record<string, string>;
 };
 
 function base64ToBytes(b64: string): Uint8Array<ArrayBuffer> {
@@ -38,7 +31,7 @@ export async function fetchImageObjectUrl(
       responseType: "base64",
       timeoutMs,
       allowLocalNetwork: isSuwayomiServerUrl(url),
-    },
+    } satisfies HarborFetchArgs,
   });
   if (!resp.ok) throw new Error(`status ${resp.status}`);
   const type = resp.headers?.["content-type"] || resp.contentType || "";
