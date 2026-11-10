@@ -4,9 +4,8 @@ import { invoke } from "@tauri-apps/api/core";
 import { Dropdown } from "@/components/dropdown";
 import { useT } from "@/lib/i18n";
 import { transferBytes } from "@/lib/games/transfers";
+import type { SetupLocations } from "@/lib/games/setup-locations";
 
-type Location = { path: string; label: string; availableBytes: number | null };
-type Locations = { drives: Location[]; selected: Location | null };
 const HEADROOM = 32 * 1024 * 1024;
 
 export function TorrentDestination({
@@ -29,7 +28,7 @@ export function TorrentDestination({
   onInsufficient: (value: boolean) => void;
 }) {
   const t = useT(),
-    [locations, setLocations] = useState<Locations>({ drives: [], selected: null }),
+    [locations, setLocations] = useState<SetupLocations>({ drives: [], selected: null }),
     [pending, setPending] = useState(true),
     [unavailable, setUnavailable] = useState(false);
   useEffect(() => {
@@ -37,7 +36,7 @@ export function TorrentDestination({
     setPending(true);
     const refresh = async () => {
       const work = async () => {
-        const value = await invoke<Locations>("games_download_locations", {
+        const value = await invoke<SetupLocations>("games_download_locations", {
           parent: parent || null,
         });
         if (live) {
