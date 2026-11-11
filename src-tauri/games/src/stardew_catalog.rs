@@ -45,6 +45,7 @@ const SEEDS: &[Seed] = &[
 ];
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewProject"))]
 pub struct Project {
     pub id: String,
     pub name: String,
@@ -57,6 +58,7 @@ pub struct Project {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewCatalog"))]
 pub struct Catalog {
     pub projects: Vec<Project>,
     pub snapshot: String,

@@ -9,16 +9,25 @@ use std::{collections::BTreeMap, fs, io::Read, path::Path};
 const MAX_MODS: usize = 512;
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewRequirement"))]
 pub struct Requirement {
+    #[cfg_attr(test, ts(type = r#""mod" | "smapi" | "game""#))]
     pub kind: &'static str,
     pub id: String,
     pub minimum: Option<String>,
     pub required: bool,
+    #[cfg_attr(
+        test,
+        ts(
+            type = r#""present" | "older" | "missing" | "optional" | "unchecked" | "duplicate" | "unusable""#
+        )
+    )]
     pub status: &'static str,
     pub installed: Option<String>,
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewMod"))]
 pub struct Mod {
     pub folder: String,
     pub manifest: manifest::Manifest,
@@ -27,12 +36,14 @@ pub struct Mod {
     pub requirements: Vec<Requirement>,
 }
 #[derive(Clone, Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewIssue"))]
 pub struct Issue {
     pub path: String,
     pub reason: &'static str,
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewInventory"))]
 pub struct Inventory {
     pub path: String,
     pub game_version: Option<String>,

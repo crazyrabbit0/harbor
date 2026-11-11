@@ -1,55 +1,32 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type StardewRequirement = {
-  kind: "mod" | "smapi" | "game";
-  id: string;
-  minimum: string | null;
-  required: boolean;
-  status: "present" | "older" | "missing" | "optional" | "unchecked" | "duplicate" | "unusable";
-  installed: string | null;
+import type {
+  StardewRequirement,
+  StardewMod,
+  StardewInventory,
+  StardewUpdate,
+  StardewReport,
+  StardewOrigin,
+  StardewItem,
+  StardewWorkspace,
+  StardewReview,
+  StardewProject,
+  StardewCatalog,
+} from "@/lib/generated/games-mod-managers-ipc";
+export type {
+  StardewRequirement,
+  StardewMod,
+  StardewInventory,
+  StardewUpdate,
+  StardewReport,
+  StardewOrigin,
+  StardewItem,
+  StardewWorkspace,
+  StardewReview,
+  StardewProject,
+  StardewCatalog,
 };
-export type StardewMod = {
-  folder: string;
-  manifest: {
-    id: string;
-    name: string;
-    author: string;
-    description: string;
-    version: string;
-    entryDll: string | null;
-    contentPackFor: string | null;
-    minimumApi: string | null;
-    minimumGame: string | null;
-    dependencies: { id: string; minimum: string | null; required: boolean }[];
-    updateKeys: string[];
-    unsupportedKeys: boolean;
-  };
-  missingDll: boolean;
-  duplicate: boolean;
-  requirements: StardewRequirement[];
-};
-export type StardewInventory = {
-  path: string;
-  gameVersion: string | null;
-  smapiVersion: string | null;
-  mods: StardewMod[];
-  issues: { path: string; reason: string }[];
-  partial: boolean;
-};
-export type StardewUpdate = {
-  id: string;
-  state: "available" | "noneSuggested" | "unknown";
-  version: string | null;
-  url: string | null;
-  name: string | null;
-  communityNote: string | null;
-  errors: string[];
-};
-export type StardewReport = {
-  inventory: StardewInventory;
-  updates: StardewUpdate[];
-  observedAt: number;
-};
+
 export type StardewProgress = {
   profile: string;
   operationId: string;
@@ -135,37 +112,10 @@ export function rememberStardewFolder(profile: string, path: string) {
   }
 }
 
-export type StardewOrigin = { url: string; file: string; sha256: string };
-export type StardewItem = {
-  id: string;
-  title: string;
-  version: string;
-  folder: string;
-  enabled: boolean;
-  fileCount: number;
-  origin: StardewOrigin | null;
-};
-export type StardewWorkspace = {
-  supported: boolean;
-  pending: boolean;
-  groups: StardewItem[];
-  backups: { token: string; createdAt: number; item: StardewItem }[];
-  kept: string[];
-};
 export type StardewAction =
   | { kind: "import"; archive: string }
   | { kind: "toggle" | "remove" | "restore"; id: string }
   | { kind: "creator"; project: string };
-export type StardewReview = {
-  token: string;
-  action: "install" | "update" | "enable" | "disable" | "remove" | "restore";
-  before: StardewItem | null;
-  after: StardewItem | null;
-  bytes: number;
-  files: string[];
-  fileCount: number;
-  requirements: StardewRequirement[];
-};
 export const stardewWorkspace = (path: string) =>
   invoke<StardewWorkspace>("games_stardew_workspace", { path });
 export const stardewReview = (
@@ -188,23 +138,5 @@ export const stardewRecover = (profile: string, path: string, operationId: strin
   invoke<StardewWorkspace>("games_stardew_recover", { profile, path, operationId });
 export const stardewDiscard = (profile: string, token: string) =>
   invoke<boolean>("games_stardew_discard", { profile, token });
-export type StardewProject = {
-  id: string;
-  name: string;
-  author: string;
-  description: string;
-  url: string;
-  version: string;
-  updated: string;
-  creator: boolean;
-};
-export type StardewCatalog = {
-  projects: StardewProject[];
-  snapshot: string;
-  commit: string;
-  observedAt: number;
-  unavailable: number;
-  stale: boolean;
-};
 export const stardewCatalog = (profile: string, operationId: string, refresh = false) =>
   invoke<StardewCatalog>("games_stardew_catalog", { profile, operationId, refresh });

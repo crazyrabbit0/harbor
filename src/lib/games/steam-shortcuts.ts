@@ -1,27 +1,13 @@
-export type SteamShortcut = {
-  id: string;
-  accountId: number;
-  appId: number | null;
-  runGameId: string | null;
-  name: string;
-  executable: string;
-  startDirectory: string;
-  launchOptions: string;
-  hidden: boolean;
-  lastPlayed: number;
-  tags: string[];
-  state: "ready" | "missing" | "account" | "local";
-  artwork: { capsule?: string; portrait?: string; hero?: string; icon?: string };
-  iconKey?: string | null;
+import type {
+  SteamShortcut as WireSteamShortcut,
+  SteamShortcutArtwork,
+  SteamShortcutScan as WireSteamShortcutScan,
+} from "@/lib/generated/games-launchers-ipc";
+/** useSteamShortcuts drops null artwork paths and converts the rest to asset URLs. */
+export type SteamShortcut = Omit<WireSteamShortcut, "artwork"> & {
+  artwork: { [K in keyof SteamShortcutArtwork]?: string };
 };
-export type SteamShortcutScan = {
-  steamFound: boolean;
-  activeAccountId: number | null;
-  accounts: number[];
-  games: SteamShortcut[];
-  warnings: string[];
-  directLaunch?: boolean;
-};
+export type SteamShortcutScan = Omit<WireSteamShortcutScan, "games"> & { games: SteamShortcut[] };
 export type SteamShortcutSettings = { root: string | null; accountId: number | null };
 export const steamShortcutKey = (profile: string) =>
   `harbor.games.steam-shortcuts.v1:${encodeURIComponent(profile)}`;

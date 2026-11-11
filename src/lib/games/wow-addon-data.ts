@@ -1,28 +1,9 @@
-export type WowAddonManifest = {
-  file: string;
-  title: string;
-  version: string;
-  author: string;
-  notes: string;
-  interfaces: number[];
-  dependencies: string[];
-  wowiId: number | null;
-  website: string;
-  loadOnDemand: boolean;
-};
-export type WowAddon = {
-  folder: string;
-  manifest: WowAddonManifest | null;
-  state: "ready" | "unreadable" | "noManifest" | "ambiguous";
-  missingDependencies: string[];
-};
-export type WowAddonInventory = {
-  id: string;
-  clientVersion: string | null;
-  addons: WowAddon[];
-  partial: boolean;
-  checkedAt: number;
-};
+import type {
+  WowAddonManifest,
+  WowAddon,
+  WowAddonInventory,
+} from "@/lib/generated/games-mod-managers-ipc";
+export type { WowAddonManifest, WowAddon, WowAddonInventory };
 export function wowAddonWebsite(addon: WowAddon): string | null {
   if (
     addon.manifest?.wowiId &&

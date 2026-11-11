@@ -30,6 +30,7 @@ fn gate() -> &'static Mutex<()> {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LocalAchievementReview"))]
 pub struct Review {
     pub token: String,
     pub snapshot: Snapshot,

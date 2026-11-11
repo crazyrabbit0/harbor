@@ -31,6 +31,7 @@ struct Preparation {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsKeptFile"))]
 pub struct KeptFiles {
     pub id: String,
     pub title: String,

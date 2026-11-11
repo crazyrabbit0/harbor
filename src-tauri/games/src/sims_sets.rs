@@ -5,6 +5,7 @@ use sha2::{Digest, Sha256};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsSetMember"))]
 pub struct Member {
     pub id: String,
     pub title: String,
@@ -12,6 +13,7 @@ pub struct Member {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsModSet"))]
 pub struct ModSet {
     pub id: String,
     pub title: String,
@@ -42,6 +44,7 @@ pub struct Edit {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsChange"))]
 pub struct Change {
     pub id: String,
     pub title: String,

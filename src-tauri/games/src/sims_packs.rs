@@ -19,11 +19,13 @@ const MAX_PACK_FILES: usize = 256;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsPackStatus"))]
 pub enum Status {
     Found,
     Unchecked,
 }
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsPack"))]
 pub struct Pack {
     pub code: String,
     pub status: Status,
@@ -31,6 +33,7 @@ pub struct Pack {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsPackReport"))]
 pub struct Report {
     pub path: String,
     pub packs: Vec<Pack>,

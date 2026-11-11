@@ -3,31 +3,16 @@ import { launcherCatalogArtwork } from "./launcher-discovery";
 import { wowClassicEdition } from "./wow-classic";
 import { wowClassicArt } from "./wow-art";
 
-export type GameLauncher =
-  | "battlenet"
-  | "ea"
-  | "ubisoft"
-  | "epic"
-  | "gog"
-  | "riot"
-  | "rockstar"
-  | "rsi"
-  | "bsg"
-  | "itch";
-export type LauncherGame = {
-  id: string;
-  launcher: GameLauncher;
-  productId: string;
-  name: string;
-  installPath: string;
-  state: "installed" | "missing" | "incomplete" | "ambiguous" | "notInstalled" | "unknown";
+import type {
+  GameLauncher,
+  LauncherGame as WireLauncherGame,
+  LauncherScan as WireLauncherScan,
+} from "@/lib/generated/games-launchers-ipc";
+export type { GameLauncher };
+export type LauncherGame = Omit<WireLauncherGame, "state"> & {
+  /** Native states, plus the account-only rows the frontend adds for owned games it did not find. */
+  state: WireLauncherGame["state"] | "notInstalled" | "unknown";
   accountOwned?: boolean;
-  launchMode: "play" | "client" | "direct";
-  /** Exact native uninstall registration; independent of mutable EA launch aliases. */
-  installKey?: string;
-  /** Exact product artwork observed in the launcher's public local catalog. */
-  artwork?: { capsule?: string; hero?: string; logo?: string };
-  catalogSteamId?: number;
   /** Per-profile native observation; never inferred from successful client dispatch. */
   activity?: {
     seconds?: number;
@@ -35,12 +20,7 @@ export type LauncherGame = {
     state?: "waiting" | "running" | "unconfirmed" | "notStarted";
   };
 };
-export type LauncherScan = {
-  supported: boolean;
-  clients: { launcher: GameLauncher; installed: boolean }[];
-  games: LauncherGame[];
-  warnings: string[];
-};
+export type LauncherScan = Omit<WireLauncherScan, "games"> & { games: LauncherGame[] };
 export const LAUNCHER_NAMES: Record<GameLauncher, string> = {
   battlenet: "Battle.net",
   ea: "EA app",

@@ -1,43 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-export type WowManagedAddon = {
-  id: number;
-  title: string;
-  version: string;
-  folders: string[];
-  files: number;
-  bytes: number;
-};
-export type WowAddonWorkspace = {
-  id: string;
-  clientVersion: string;
-  revision: string | null;
-  addons: WowManagedAddon[];
-  backups: { token: string; createdAt: number; addon: WowManagedAddon }[];
-  recoveryPending: boolean;
-  canAdopt?: boolean;
-};
+import type {
+  WowManagedAddon,
+  WowAddonWorkspace,
+  WowAddonReview,
+} from "@/lib/generated/games-mod-managers-ipc";
+export type { WowManagedAddon, WowAddonWorkspace, WowAddonReview };
+
 export type WowAddonRequest =
   | { action: "install" | "remove" | "adopt"; addonId: number }
   | { action: "restore"; backup: string };
-export type WowAddonReview = {
-  token: string;
-  id: string;
-  addonId: number;
-  title: string;
-  clientVersion: string;
-  fromVersion: string | null;
-  version: string | null;
-  restore: boolean;
-  adopt?: boolean;
-  folders: { name: string; action: "add" | "replace" | "remove" | "keep" }[];
-  files: number;
-  bytes: number;
-  backupBytes: number;
-  dependencies: string[];
-  expiresAt: number;
-};
 export const loadWowAddonWorkspace = (id: string) =>
   invoke<WowAddonWorkspace>("games_wow_addon_workspace", { id });
 export const reviewWowAddon = (

@@ -12,6 +12,7 @@ use std::{
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsDuplicateCopy"))]
 pub struct Copy {
     pub path: String,
     pub group_id: Option<String>,
@@ -19,12 +20,14 @@ pub struct Copy {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsDuplicateMatch"))]
 pub struct Match {
     pub bytes: u64,
     pub copies: Vec<Copy>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsDuplicates"))]
 pub struct Report {
     pub matches: Vec<Match>,
     pub checked_files: usize,

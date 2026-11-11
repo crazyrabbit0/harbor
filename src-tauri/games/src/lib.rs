@@ -184,6 +184,7 @@ mod battlenet_account_browser;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SteamInstall"))]
 pub struct SteamGame {
     app_id: u32,
     name: String,
@@ -191,7 +192,9 @@ pub struct SteamGame {
     library_path: String,
     size_bytes: u64,
     last_played: u64,
+    #[cfg_attr(test, ts(type = r#""installed" | "updating" | "missing""#))]
     state: &'static str,
+    #[cfg_attr(test, ts(type = r#""none" | "queued" | "downloading" | "paused" | "validating" | "repair" | "uninstalling""#))]
     update: &'static str,
     bytes_to_download: u64,
     bytes_downloaded: u64,
@@ -200,6 +203,7 @@ pub struct SteamGame {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SteamArtwork {
     capsule: Option<String>,
     portrait: Option<String>,
@@ -209,6 +213,7 @@ pub struct SteamArtwork {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SteamLibrary {
     path: String,
     available: bool,
@@ -217,6 +222,7 @@ pub struct SteamLibrary {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SteamLibraryScan"))]
 pub struct SteamScan {
     steam_found: bool,
     libraries: Vec<SteamLibrary>,

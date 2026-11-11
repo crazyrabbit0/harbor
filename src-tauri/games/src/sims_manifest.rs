@@ -9,6 +9,7 @@ const ERROR: &str = "sims_manifest";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsManifestRequirement"))]
 pub struct Requirement {
     #[serde(skip)]
     pub check: Option<Dependency>,
@@ -21,6 +22,7 @@ pub struct Requirement {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsManifest"))]
 pub struct Manifest {
     #[serde(skip)]
     pub identity: Option<Identity>,

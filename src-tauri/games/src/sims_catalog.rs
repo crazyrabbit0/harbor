@@ -14,6 +14,7 @@ pub const PAGE: &str = "https://deaderpool-mccc.com/downloads.html";
 const MAX_DOWNLOAD: usize = 32 * 1024 * 1024;
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsCreatorRelease"))]
 pub struct Release {
     pub version: String,
     pub game_patch: String,
@@ -23,6 +24,7 @@ pub struct Release {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsCreatorCatalog"))]
 pub struct Catalog {
     pub releases: Vec<Release>,
     pub observed_at: u64,

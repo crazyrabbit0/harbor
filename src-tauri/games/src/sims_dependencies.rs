@@ -13,6 +13,7 @@ use std::{
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsDependencyStatus"))]
 pub enum Status {
     Found,
     Missing,
@@ -22,6 +23,7 @@ pub enum Status {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsDependency"))]
 pub struct Requirement {
     pub file: String,
     pub mod_name: String,
@@ -33,6 +35,7 @@ pub struct Requirement {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsDependencies"))]
 pub struct Report {
     pub requirements: Vec<Requirement>,
     pub checked_files: usize,

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import type { SteamLibraryScan } from "@/lib/games/installed";
+import type { SteamLibraryScan as WireSteamLibraryScan } from "@/lib/generated/games-launchers-ipc";
 import { osClass } from "@/lib/platform";
 
 export function useSteamLibrary(active: boolean) {
@@ -36,8 +37,9 @@ export function useSteamLibrary(active: boolean) {
         setError(false);
       }
       try {
-        const value = await invoke<SteamLibraryScan>("games_scan_steam");
-        value.games = value.games.map((game) => ({
+        const wire = await invoke<WireSteamLibraryScan>("games_scan_steam");
+        const value: SteamLibraryScan = { ...wire, games: [] };
+        value.games = wire.games.map((game) => ({
           ...game,
           artwork: Object.fromEntries(
             Object.entries(game.artwork ?? {}).flatMap(([key, path]) =>

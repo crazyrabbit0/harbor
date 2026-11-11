@@ -54,6 +54,7 @@ pub enum Request {
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddonFolderAction"))]
 pub enum Action {
     Add,
     Keep,
@@ -61,12 +62,14 @@ pub enum Action {
     Remove,
 }
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddonFolder"))]
 pub struct Folder {
     pub name: String,
     pub action: Action,
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddonReview"))]
 pub struct Review {
     pub token: String,
     pub id: String,
@@ -86,6 +89,7 @@ pub struct Review {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowManagedAddon"))]
 pub struct Addon {
     pub id: u32,
     pub title: String,
@@ -108,6 +112,7 @@ impl From<&Group> for Addon {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddonBackup"))]
 pub struct Backup {
     pub token: String,
     pub created_at: u64,
@@ -115,6 +120,7 @@ pub struct Backup {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddonWorkspace"))]
 pub struct Workspace {
     pub id: String,
     pub client_version: String,

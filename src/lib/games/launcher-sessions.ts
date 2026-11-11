@@ -1,20 +1,8 @@
 import type { LauncherGame, LauncherScan } from "./launchers";
 
-export type LauncherSession = {
-  profile: string;
-  id: string;
-  sessionId: string;
-  state: string;
-  requestedAt: number;
-  startedAt: number;
-  updatedAt: number;
-  elapsedMs: number;
-};
-export type LauncherSessions = {
-  sessions: LauncherSession[];
-  activity: { id: string; seconds: number; lastPlayed: number }[];
-  error: boolean;
-};
+import type { LauncherSession, LauncherSessions } from "@/lib/generated/games-launchers-ipc";
+export type { LauncherSession, LauncherSessions };
+
 export const emptyLauncherSessions = (): LauncherSessions => ({
   sessions: [],
   activity: [],

@@ -1,18 +1,5 @@
-export type PublicFile = {
-  id: string;
-  name: string;
-  bytes: number | null;
-  sha256: string | null;
-  state: "available" | "review" | "limited" | "restricted" | "missing" | "unknown";
-  speedLimit: number | null;
-};
-export type PublicFiles = { title: string; files: PublicFile[]; selectedId: string | null };
-export type PublicDownload = {
-  url: string;
-  name: string;
-  expectedBytes: number | null;
-  expectedSha256: string | null;
-};
+import type { PublicFile, PublicFiles, PublicDownload } from "@/lib/generated/games-launchers-ipc";
+export type { PublicFile, PublicFiles, PublicDownload };
 export const PUBLIC_BATCH_LIMIT = 200;
 export const canPreparePublicFile = (file: PublicFile) =>
   file.state === "available" || file.state === "unknown";

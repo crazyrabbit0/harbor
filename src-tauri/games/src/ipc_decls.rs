@@ -27,7 +27,8 @@ impl Decls {
     pub fn add<T: TS + 'static + ?Sized>(mut self) -> Self {
         let start = self.out.len();
         self.visit::<T>();
-        if let Some(root) = self.out.pop() {
+        if self.out.len() > start {
+            let root = self.out.pop().unwrap();
             self.out[start..].sort();
             self.out.push(root);
         }
@@ -141,5 +142,72 @@ mod tests {
             "games/src/ipc_decls.rs",
             &decls,
         );
+    }
+
+    #[test]
+    fn export_launchers() {
+        use crate::{
+            achievement_protocol, launcher_scan, launcher_sessions, source_public_files,
+            steam_achievements, steam_shortcut_commands, SteamScan,
+        };
+        let decls = Decls::new()
+            .add::<SteamScan>()
+            .add::<steam_shortcut_commands::Snapshot>()
+            .add::<launcher_scan::Scan>()
+            .add::<launcher_sessions::Snapshot>()
+            .add::<steam_achievements::Review>()
+            .add::<achievement_protocol::Applied>()
+            .add::<source_public_files::PublicFiles>()
+            .add::<source_public_files::PublicDownload>()
+            .finish();
+        harbor_shared::ipc_bindings::check(
+            "games-launchers-ipc.ts",
+            "games/src/ipc_decls.rs",
+            &decls,
+        );
+    }
+
+    #[test]
+    fn export_mod_managers() {
+        use crate::{stardew, stardew_catalog, stardew_reviews, stardew_updates};
+        use crate::{wow_addon_reviews, wow_addons};
+        let decls = Decls::new()
+            .add::<stardew::Inventory>()
+            .add::<stardew_updates::Report>()
+            .add::<stardew_reviews::Workspace>()
+            .add::<stardew_reviews::Review>()
+            .add::<stardew_catalog::Catalog>()
+            .add::<wow_addons::Inventory>()
+            .add::<wow_addon_reviews::Workspace>()
+            .add::<wow_addon_reviews::Review>()
+            .finish();
+        harbor_shared::ipc_bindings::check(
+            "games-mod-managers-ipc.ts",
+            "games/src/ipc_decls.rs",
+            &decls,
+        );
+    }
+
+    #[test]
+    fn export_sims() {
+        use crate::{sims_catalog, sims_cc, sims_dependencies, sims_duplicates, sims_files};
+        use crate::{sims_lot51, sims_mts, sims_mts_browse, sims_packs, sims_reviews, sims_store};
+        let decls = Decls::new()
+            .add::<sims_files::Folder>()
+            .add::<sims_reviews::Workspace>()
+            .add::<sims_reviews::Review>()
+            .add::<sims_store::sets::ModSet>()
+            .add::<sims_store::metadata::Report>()
+            .add::<sims_dependencies::Report>()
+            .add::<sims_duplicates::Report>()
+            .add::<sims_cc::Report>()
+            .add::<sims_packs::Report>()
+            .add::<sims_catalog::Catalog>()
+            .add::<sims_lot51::Catalog>()
+            .add::<sims_lot51::Detail>()
+            .add::<sims_mts::Detail>()
+            .add::<sims_mts_browse::Page>()
+            .finish();
+        harbor_shared::ipc_bindings::check("games-sims-ipc.ts", "games/src/ipc_decls.rs", &decls);
     }
 }
