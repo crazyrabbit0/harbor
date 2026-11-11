@@ -1,5 +1,11 @@
 import { minecraftPackUpdateError } from "./minecraft-pack-update";
 
+import type {
+  MinecraftRecoveryCopy,
+  MinecraftStorageState,
+} from "@/lib/generated/games-minecraft-ipc";
+export type { MinecraftRecoveryCopy, MinecraftStorageState };
+
 export type MinecraftExportPlan = {
   token: string;
   name: string;
@@ -13,16 +19,6 @@ export type MinecraftExportPlan = {
   settings: boolean;
   excluded: number;
 };
-export type MinecraftRecoveryCopy = {
-  key: string;
-  name: string;
-  version: string;
-  gameVersion: string;
-  loader: string;
-  latest: boolean;
-  savedAt: number | null;
-};
-export type MinecraftStorageState = { backups: MinecraftRecoveryCopy[]; unreadable: number };
 export type MinecraftRemovePlan = {
   token: string;
   name: string;

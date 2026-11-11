@@ -10,10 +10,13 @@ type Result<T> = std::result::Result<T, &'static str>;
 
 #[derive(Serialize)]
 #[serde(rename_all="camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PatchDownloadFile"))]
 pub struct DownloadFile { pub name: String, pub path: String, pub bytes: usize, pub sha256: String }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PatchDownloadLink"))]
 pub struct DownloadLink { pub name: String, pub url: String }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct DownloadReview { pub files: Vec<DownloadFile>, pub links: Vec<DownloadLink>, pub notes: Vec<String> }
 
 fn url(value: &str) -> Result<Url> {

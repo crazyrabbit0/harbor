@@ -101,13 +101,34 @@ mod tests {
 
 #[cfg(test)]
 mod ipc_tests {
-    use super::{Location, Locations};
-    use ts_rs::TS;
+    use super::Locations;
+    use crate::{
+        archive_cleanup, archive_cleanup_store, archive_jobs, archives, download_preparation, p2p,
+        setup, transfer_storage, transfers,
+    };
 
     #[test]
     fn export_bindings() {
-        let cfg = ts_rs::Config::default();
-        let decls = [Location::decl(&cfg), Locations::decl(&cfg)];
-        harbor_shared::ipc_bindings::check("games-ipc.ts", "games/src/download_locations.rs", &decls);
+        let decls = crate::ipc_decls::Decls::new()
+            .add::<Locations>()
+            .add::<setup::SetupPlan>()
+            .add::<setup::SetupJob>()
+            .add::<download_preparation::Choice>()
+            .add::<transfers::Transfer>()
+            .add::<transfers::TransferSettings>()
+            .add::<transfer_storage::Forecast>()
+            .add::<p2p::TorrentPlan>()
+            .add::<p2p::TorrentRecord>()
+            .add::<archives::ArchivePlan>()
+            .add::<archives::ArchiveSpace>()
+            .add::<archive_jobs::ArchiveJob>()
+            .add::<archive_cleanup::Review>()
+            .add::<archive_cleanup_store::Record>()
+            .finish();
+        harbor_shared::ipc_bindings::check(
+            "games-ipc.ts",
+            "games/src/download_locations.rs",
+            &decls,
+        );
     }
 }

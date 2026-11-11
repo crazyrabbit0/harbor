@@ -7,6 +7,7 @@ pub type Result<T> = std::result::Result<T, &'static str>;
 pub const RECORD: &str = "instance.json";
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftInstance"))]
 pub struct Instance {
     pub schema: u8, pub id: String, pub owner: String, pub name: String,
     pub game_version: String, pub loader: String, pub loader_version: String,
@@ -14,9 +15,11 @@ pub struct Instance {
 }
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftPackSource"))]
 pub struct PackSource { pub name: String, pub version: String, pub project: Option<String>, pub version_id: Option<String>, pub icon: String }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftInstanceLibrary"))]
 pub struct Library { pub path: String, pub instances: Vec<Instance>, pub unreadable: usize }
 
 pub fn now() -> u64 { std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs() }

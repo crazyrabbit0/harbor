@@ -18,6 +18,7 @@ pub struct Plan {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftPackHistory"))]
 pub struct State { pub previous: Option<Instance> }
 struct Prepared {
     profile: String, root: PathBuf, folder: PathBuf, before: Instance, after: Instance, fingerprint: String,

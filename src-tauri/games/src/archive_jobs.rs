@@ -19,10 +19,12 @@ fn valid_expected_parts(parts:&[archives::ArchivePart])->bool{
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "ArchiveJobStatus"))]
 pub enum Status { Running, Complete, Failed, Canceled, Interrupted }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ArchiveJob {
     pub id: String,
     pub profile: String,
@@ -39,10 +41,13 @@ pub struct ArchiveJob {
     pub started_at: u64,
     pub updated_at: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub expected_sha256: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub allowed_parts: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub expected_parts: Option<Vec<archives::ArchivePart>>,
 }
 #[derive(Serialize, Deserialize)]

@@ -1,4 +1,7 @@
-import { minecraftInstanceError, type MinecraftInstance } from "./minecraft-instances";
+import { minecraftInstanceError } from "./minecraft-instances";
+
+import type { MinecraftPackHistory } from "@/lib/generated/games-minecraft-ipc";
+export type { MinecraftPackHistory };
 
 export type MinecraftPackChange = {
   path: string;
@@ -26,7 +29,6 @@ export type MinecraftPackUpdate = {
   optional: { path: string; bytes: number; optional: boolean }[];
   selectedOptional: string[];
 };
-export type MinecraftPackHistory = { previous: MinecraftInstance | null };
 export function minecraftPackUpdateError(reason: unknown) {
   const code = String(reason);
   const keys: Record<string, string> = {

@@ -114,7 +114,14 @@ pub struct SaveRestorePlan {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SaveRestoreReceipt {
+    #[cfg_attr(
+        test,
+        ts(
+            type = r#""restored" | "rolledBack" | "recoveryNeeded" | "notRestored" | "keptCurrent""#
+        )
+    )]
     pub status: String,
     pub target: String,
     pub recovery_snapshot_id: Option<String>,

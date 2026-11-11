@@ -1,8 +1,16 @@
 import { parseImportedArtwork } from "./imported-artwork";
 import type { GameSummary } from "./types";
 
-export type EmulatorKind = "mgba" | "dolphin" | "ppsspp" | "retroarch";
-export type Emulator = { kind: EmulatorKind; path: string; corePath?: string | null };
+import type {
+  Emulator as WireEmulator,
+  RomScan,
+  RunningGame,
+} from "@/lib/generated/games-library-ipc";
+export type { RomScan, RunningGame };
+
+export type EmulatorKind = WireEmulator["kind"];
+/** Stored profiles leave out an empty corePath; native results always send it. */
+export type Emulator = Omit<WireEmulator, "corePath"> & { corePath?: string | null };
 export type LocalGame = {
   path: string;
   name: string;
@@ -14,15 +22,14 @@ export type LocalGame = {
   discs: number;
   linked?: GameSummary;
 };
-export type RomScan = { root: string; games: LocalGame[]; skipped: number; limited: boolean };
-export type RomFolder = RomScan & {
+export type RomFolder = Omit<RomScan, "games"> & {
+  games: LocalGame[];
   id: string;
   system: number;
   scannedAt: number;
   unavailable?: boolean;
   files?: string[];
 };
-export type RunningGame = { path: string; pid: number; startedAt: number; system: number };
 export type EmulationStore = {
   version: 1;
   folders: RomFolder[];

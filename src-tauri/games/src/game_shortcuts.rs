@@ -4,6 +4,7 @@ use serde::Serialize;
 
 #[derive(Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "GameShortcuts"))]
 pub struct Shortcuts {
     pub desktop: Option<String>,
     pub start_menu: Option<String>,

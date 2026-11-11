@@ -17,8 +17,10 @@ const LIFETIME: Duration = Duration::from_secs(15 * 60);
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct PatchPlan {
     token: String,
+    #[cfg_attr(test, ts(type = r#""BPS" | "IPS" | "UPS""#))]
     format: &'static str,
     source_name: String,
     patch_name: String,
@@ -35,6 +37,7 @@ pub struct PatchPlan {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct PatchReceipt {
     path: String,
     bytes: usize,

@@ -6,13 +6,14 @@ import { minecraftRuntimeError } from "@/lib/games/minecraft-runtime";
 import { GameRequestPool } from "@/lib/games/request-pool";
 import "./minecraft-loader-choice.css";
 
+import type { MinecraftLoaderRelease as Release } from "@/lib/generated/games-library-ipc";
+
 export type MinecraftCreation = {
   loader: "vanilla" | "fabric" | "quilt" | "forge" | "neoforge";
   version: string;
   ready: boolean;
   game: string;
 };
-type Release = { version: string; stable: boolean };
 const k = (key: string) => `games.minecraft.creation.${key}`;
 const versionsPool = new GameRequestPool(2);
 const loaders = {

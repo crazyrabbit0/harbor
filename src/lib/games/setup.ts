@@ -1,54 +1,15 @@
 import { customLinkedGame, emptyLaunchConfig, type CustomGame } from "./custom-library";
 import { downloadGame as sanitizeDownloadGame, type DownloadGame } from "./transfers";
 
-export type SetupEntry = {
-  id: string;
-  path: string;
-  relativePath: string;
-  bytes: number;
-  kind: "installer" | "archive" | "torrent" | "game" | "externalArchive" | "rom";
-  engine?: "inno" | null;
-};
-export type SetupPlan = { token: string; root: string; entries: SetupEntry[]; truncated: boolean };
-export type SetupVerification = {
-  checkedFiles?: number | null;
-  totalFiles?: number | null;
-  badFiles?: number | null;
-  missingFiles?: number | null;
-};
-export type SetupProgress = {
-  stage?: "installing" | "checking";
-  verification?: SetupVerification | null;
-  percent?: number | null;
-  phase?: string | null;
-  currentFile?: string | null;
-  elapsedSeconds?: number | null;
-  remainingSeconds?: number | null;
-  ioBytesPerSecond?: number | null;
-  observedAt: number;
-  canReveal?: boolean;
-  canObserve?: boolean;
-};
-export type SetupJob = {
-  id: string;
-  profile: string;
-  source: string;
-  installer: string;
-  startedAt: number;
-  updatedAt: number;
-  reconnectedAt?: number | null;
-  status: "running" | "finished" | "failed" | "interrupted" | "external";
-  exitCode: number | null;
-  error: string | null;
-  engine?: "inno" | null;
-  destination?: string | null;
-  activity?: { bytes: number; files: number; truncated: boolean } | null;
-  gameCandidates?: string[];
-  scanTruncated?: boolean;
-  rootGameCandidates?: string[];
-  rootCandidatesComplete?: boolean;
-  progress?: SetupProgress | null;
-};
+import type {
+  SetupEntry,
+  SetupJob,
+  SetupPlan,
+  SetupProgress,
+  SetupVerification,
+} from "@/lib/generated/games-ipc";
+
+export type { SetupEntry, SetupJob, SetupPlan, SetupProgress, SetupVerification };
 export type SetupSource = {
   source: string;
   originSource?: string;

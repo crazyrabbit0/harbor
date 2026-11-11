@@ -1,3 +1,5 @@
+import type { SaveRestoreReceipt } from "@/lib/generated/games-library-ipc";
+export type { SaveRestoreReceipt };
 export type SaveFolders = { version: 1; source: string; vault: string };
 export type SaveSnapshot = {
   id: string;
@@ -33,14 +35,6 @@ export type SaveRestorePlan = {
   added: number;
   replaced: number;
   removed: number;
-};
-export type SaveRestoreReceipt = {
-  status: "restored" | "rolledBack" | "recoveryNeeded" | "notRestored" | "keptCurrent";
-  target: string;
-  recoverySnapshotId: string | null;
-  recoveryFolder: string | null;
-  files: number;
-  bytes: number;
 };
 export type SaveRestoreChange = SaveRestorePlan["changes"][number];
 export type SaveChangeFilter = "all" | SaveRestoreChange["status"];

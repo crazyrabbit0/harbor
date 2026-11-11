@@ -1,15 +1,9 @@
 import { parseImportedArtwork } from "./imported-artwork";
 import { parseHydraOrigin, type HydraOrigin } from "./hydra-import-records";
 import type { GameSummary } from "./types";
-export type LaunchConfig = {
-  executable: string;
-  workingDirectory: string | null;
-  arguments: string[];
-  mode: "native" | "wine" | "proton";
-  runner: string | null;
-  prefix: string | null;
-  steamDirectory: string | null;
-};
+
+import type { LaunchConfig, CustomProcess, CustomExit } from "@/lib/generated/games-library-ipc";
+export type { LaunchConfig, CustomProcess, CustomExit };
 export type CustomPlaytimeCorrection = {
   totalSeconds: number;
   measuredSeconds: number;
@@ -40,25 +34,6 @@ export type CustomSession = {
   code: number | null;
 };
 export type CustomLibrary = { version: 1; games: CustomGame[]; sessions: CustomSession[] };
-export type CustomProcess = {
-  profile: string;
-  id: string;
-  sessionId: string;
-  path: string;
-  pid: number;
-  startedAt: number;
-};
-export type CustomExit = {
-  profile: string;
-  id: string;
-  sessionId: string;
-  pid: number;
-  seconds: number;
-  startedAt: number;
-  success: boolean;
-  code: number | null;
-  endedAt: number;
-};
 export const emptyCustomLibrary = (): CustomLibrary => ({ version: 1, games: [], sessions: [] });
 export const emptyLaunchConfig = (): LaunchConfig => ({
   executable: "",

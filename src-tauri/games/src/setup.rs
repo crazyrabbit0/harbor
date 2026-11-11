@@ -40,12 +40,14 @@ mod resume;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum SetupEngine {
     Inno,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum SetupKind {
     Installer,
     Archive,
@@ -57,6 +59,7 @@ pub enum SetupKind {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SetupEntry {
     pub id: String,
     pub path: String,
@@ -68,6 +71,7 @@ pub struct SetupEntry {
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SetupPlan {
     pub token: String,
     pub root: String,
@@ -77,6 +81,7 @@ pub struct SetupPlan {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum SetupStatus {
     Running,
     Finished,
@@ -87,6 +92,7 @@ pub enum SetupStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SetupJob {
     pub id: String,
     pub profile: String,
@@ -114,13 +120,17 @@ pub struct SetupJob {
     #[serde(default)]
     pub root_candidates_complete: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub reconnected_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
+    #[cfg_attr(test, ts(type = "unknown"))]
     recovery: Option<resume::State>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SetupActivity {
     pub bytes: u64,
     pub files: u64,
@@ -129,6 +139,7 @@ pub struct SetupActivity {
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SetupProgress {
     #[serde(default)]
     pub stage: SetupStage,
@@ -149,6 +160,7 @@ pub struct SetupProgress {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum SetupStage {
     #[default]
     Installing,
@@ -157,6 +169,7 @@ pub enum SetupStage {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SetupVerification {
     pub checked_files: u64,
     pub total_files: u64,

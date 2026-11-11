@@ -1,5 +1,7 @@
 #[cfg(test)]
 mod test_lock;
+#[cfg(test)]
+mod ipc_decls;
 mod pokemon_bank;
 mod pokemon_save_discovery;
 mod retro_save_path;

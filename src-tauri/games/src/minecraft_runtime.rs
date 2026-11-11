@@ -9,9 +9,11 @@ use tokio::io::AsyncWriteExt;
 const MANIFEST: &str = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftRuntimePlan"))]
 pub struct Plan { pub token: String, pub instance: String, pub game: String, pub loader: String, pub loader_version: String, pub java: u32, pub files: usize, pub bytes: u64, pub cached_files: usize, pub cached_bytes: u64, pub processors: usize }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftRuntimeState"))]
 pub struct State { pub installed: bool, pub java: Option<u32>, pub files: usize, pub bytes: u64 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

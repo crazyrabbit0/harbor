@@ -7,6 +7,7 @@ use tokio::io::AsyncWriteExt;
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftPackPlan"))]
 pub struct Plan {
     pub token: String, pub name: String, pub version: String, pub summary: String, pub game_version: String,
     pub loader: String, pub loader_version: String, pub files: Vec<ReviewFile>, pub override_count: usize,

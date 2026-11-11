@@ -1,15 +1,7 @@
-export type AdLink = {
-  name: string;
-  expectedBytes: number | null;
-  delayedId: string | null;
-  url: string | null;
-};
-export type AdStatus = {
-  status: "preparing" | "ready" | "failed";
-  url: string | null;
-  seconds: number | null;
-};
 import type { WebIntent } from "./cloud-web-jobs";
+
+import type { AdLink, AdStatus } from "@/lib/generated/games-sources-ipc";
+export type { AdLink, AdStatus };
 export function adIntent(value: WebIntent | null) {
   if (
     value &&
