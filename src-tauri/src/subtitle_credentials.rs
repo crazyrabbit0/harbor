@@ -133,9 +133,10 @@ fn vault() -> &'static CredentialVault {
     VAULT.get_or_init(CredentialVault::default)
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct BindSubtitleCredentialArgs {
+    #[ts(type = "\"subsource-api-key\" | \"subdl-api-key\"")]
     kind: String,
     api_key: String,
 }
@@ -325,13 +326,16 @@ mod tests {
 
 #[cfg(test)]
 mod ipc_tests {
-    use super::SubtitleCredentialRef;
+    use super::{BindSubtitleCredentialArgs, SubtitleCredentialRef};
     use ts_rs::TS;
 
     #[test]
     fn export_bindings() {
         let cfg = ts_rs::Config::default();
-        let decls = [SubtitleCredentialRef::decl(&cfg)];
+        let decls = [
+            BindSubtitleCredentialArgs::decl(&cfg),
+            SubtitleCredentialRef::decl(&cfg),
+        ];
         crate::ipc_bindings::check(
             "subtitle-credentials-ipc.ts",
             "subtitle_credentials.rs",

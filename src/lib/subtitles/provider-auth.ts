@@ -1,6 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { SUBTITLE_PUBLIC_NETWORK_HEADER } from "./provider-url";
-import type { SubtitleCredentialRef } from "@/lib/generated/subtitle-credentials-ipc";
+import type {
+  BindSubtitleCredentialArgs,
+  SubtitleCredentialRef,
+} from "@/lib/generated/subtitle-credentials-ipc";
 
 export type SubtitleDownloadAuthKind = "subsource-api-key" | "subdl-api-key";
 
@@ -100,9 +103,8 @@ export async function bindSubtitleDownloadAuth(
 
   if (isNativeRuntime()) {
     try {
-      const auth = await invoke<SubtitleDownloadAuth>("subtitle_credential_bind", {
-        args: { kind, apiKey: normalized },
-      });
+      const args: BindSubtitleCredentialArgs = { kind, apiKey: normalized };
+      const auth = await invoke<SubtitleDownloadAuth>("subtitle_credential_bind", { args });
       return isAuth(auth, kind) ? auth : undefined;
     } catch {
       return undefined;

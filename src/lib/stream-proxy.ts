@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { RegisterArgs, RegisterResult } from "@/lib/generated/stream-proxy-ipc";
 
 export type ProxyResult = {
   sessionId: string;
@@ -12,7 +13,7 @@ export async function registerStreamProxy(
   headers?: Record<string, string>,
   opts?: { transcode?: boolean; prebufferBytes?: number },
 ): Promise<ProxyResult> {
-  const args: Record<string, unknown> = { url, headers: headers ?? {} };
+  const args: RegisterArgs = { url, headers: headers ?? {} };
   if (opts?.transcode) {
     args.transcode = true;
     args.profile = { force_h264: false, force_aac: false };
@@ -20,7 +21,7 @@ export async function registerStreamProxy(
   if (opts?.prebufferBytes && opts.prebufferBytes > 0) {
     args.prebufferBytes = opts.prebufferBytes;
   }
-  const r = await invoke<{ session_id: string; url: string }>("proxy_register", { args });
+  const r = await invoke<RegisterResult>("proxy_register", { args });
   return { sessionId: r.session_id, url: r.url };
 }
 

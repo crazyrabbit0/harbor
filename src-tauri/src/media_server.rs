@@ -4,18 +4,20 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(optional_fields)]
 pub struct MediaServerRequestArgs {
     origin: String,
     url: String,
     method: Option<String>,
     headers: Option<HashMap<String, String>>,
     body: Option<String>,
+    #[ts(optional, type = "number")]
     timeout_ms: Option<u64>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ts_rs::TS)]
 pub struct MediaServerResponse {
     status: u16,
     headers: HashMap<String, String>,
@@ -132,5 +134,21 @@ mod tests {
             &a,
             &reqwest::Url::parse("http://server:8097/b").unwrap()
         ));
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::{MediaServerRequestArgs, MediaServerResponse};
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [
+            MediaServerRequestArgs::decl(&cfg),
+            MediaServerResponse::decl(&cfg),
+        ];
+        crate::ipc_bindings::check("media-server-ipc.ts", "media_server.rs", &decls);
     }
 }

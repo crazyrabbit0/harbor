@@ -7,12 +7,16 @@ use std::path::PathBuf;
 #[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct TranscodeProfile {
     #[serde(default = "default_max_height")]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub max_height: u32,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub force_h264: bool,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub force_aac: bool,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub force_stereo: bool,
     #[serde(default)]
     #[cfg_attr(feature = "ts", ts(optional))]
@@ -138,6 +142,7 @@ pub struct AudioCastInput {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct RegisterResult {
     pub session_id: String,
     pub url: String,
@@ -148,13 +153,17 @@ pub struct RegisterResult {
 
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS), ts(optional_fields))]
 pub struct RegisterArgs {
     pub url: String,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub headers: HashMap<String, String>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub transcode: bool,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
     pub prebuffer_bytes: Option<usize>,
     #[serde(default)]
     pub profile: Option<TranscodeProfile>,
@@ -171,6 +180,7 @@ pub struct RegisterArgs {
     pub audio_ordinal: Option<u32>,
     /// DLNA renderers get one MPEG-TS stream as video/mpeg; many (2014 Samsung) reject HLS and video/mp2t.
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(optional = nullable))]
     pub dlna: bool,
 }
 

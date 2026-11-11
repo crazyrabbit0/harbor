@@ -644,8 +644,9 @@ fn is_cloudflare_challenge(status: u16, cf_mitigated: Option<&str>, body: &str) 
         || body.contains("cf-please-wait")
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(optional_fields)]
 pub struct HarborUploadArgs {
     pub url: String,
     pub field: String,
@@ -653,6 +654,7 @@ pub struct HarborUploadArgs {
     pub content_type: Option<String>,
     pub data_base64: String,
     pub headers: Option<HashMap<String, String>>,
+    #[ts(optional, type = "number")]
     pub timeout_ms: Option<u64>,
 }
 
