@@ -32,7 +32,7 @@ pub struct EBookTtsProgress {
     percent: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct EBookWordBoundary {
     offset_ms: f64,
@@ -40,14 +40,14 @@ pub struct EBookWordBoundary {
     text: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct EBookTtsResult {
     audio_base64: String,
     boundaries: Vec<EBookWordBoundary>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct EBookTtsVoice {
     id: String,
@@ -381,5 +381,22 @@ mod tests {
         assert_ne!(results[0].1, results[1].1, "Hamed and Shakir returned identical audio");
         assert_ne!(results[0].1, results[2].1, "Hamed and Hamdan returned identical audio");
         assert_ne!(results[1].1, results[2].1, "Shakir and Hamdan returned identical audio");
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::{EBookTtsResult, EBookTtsVoice, EBookWordBoundary};
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [
+            EBookWordBoundary::decl(&cfg),
+            EBookTtsResult::decl(&cfg),
+            EBookTtsVoice::decl(&cfg),
+        ];
+        crate::ipc_bindings::check("ebook-tts-ipc.ts", "ebook_tts.rs", &decls);
     }
 }

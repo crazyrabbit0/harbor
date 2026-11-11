@@ -28,16 +28,20 @@ pub struct DvrStartArgs {
 }
 
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 #[serde(rename_all = "camelCase")]
 pub struct DvrSession {
     pub id: String,
     pub output_path: String,
     pub channel_name: String,
     pub program_title: Option<String>,
+    #[cfg_attr(test, ts(type = "number"))]
     pub started_at_ms: i64,
     pub planned_duration_sec: f64,
+    #[cfg_attr(test, ts(type = "number"))]
     pub bytes_written: u64,
     pub elapsed_sec: f64,
+    #[cfg_attr(test, ts(type = "\"recording\" | \"done\" | \"error\""))]
     pub state: String,
     pub error: Option<String>,
 }
@@ -404,4 +408,20 @@ pub async fn dvr_reveal(_app: AppHandle, path: String) -> Result<(), String> {
         let _ = std::process::Command::new("xdg-open").arg(&target).spawn();
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::DvrSession;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        harbor_shared::ipc_bindings::check(
+            "dvr-ipc.ts",
+            "livetv/src/dvr.rs",
+            &[DvrSession::decl(&cfg)],
+        );
+    }
 }

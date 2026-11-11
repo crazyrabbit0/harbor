@@ -4,12 +4,11 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { collectRuntime } from "@/lib/diagnostics/collect-runtime";
 import { uploadDiagnosticsBundle } from "@/lib/social/diagnostics";
 import { DIAG_STEPS, type DiagError } from "./remote-support-progress";
+import type { CollectResult } from "@/lib/generated/diagnostics-ipc";
 
 const STEP_ADVANCE_MS = 380;
 const BUNDLE_STAGE = 6;
 const TRANSMIT_STAGE = 7;
-
-type CollectResult = { tempPath: string; bytes: number };
 
 function prefersReducedMotion(): boolean {
   return (

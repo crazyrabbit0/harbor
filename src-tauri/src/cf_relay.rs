@@ -9,13 +9,13 @@ const CF_BASE: &str = "https://api.cloudflare.com/client/v4";
 
 const NAMESPACE_RETRY_BACKOFF_MS: [u64; 6] = [1500, 2500, 4000, 6000, 8000, 10000];
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone, ts_rs::TS)]
 pub struct CfAccount {
     pub id: String,
     pub name: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ts_rs::TS)]
 pub struct DeployResult {
     pub url: String,
     pub account_id: String,
@@ -267,4 +267,17 @@ pub async fn cf_relay_status(api_token: String, account_id: String) -> Result<bo
         .await
         .map_err(|e| format!("network error: {e}"))?;
     Ok(res.status().is_success())
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::{CfAccount, DeployResult};
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [CfAccount::decl(&cfg), DeployResult::decl(&cfg)];
+        crate::ipc_bindings::check("cf-relay-ipc.ts", "cf_relay.rs", &decls);
+    }
 }

@@ -12,9 +12,10 @@ static PENDING: OnceLock<Mutex<Option<StartupCrashReport>>> = OnceLock::new();
 static PANIC_PATH: OnceLock<PathBuf> = OnceLock::new();
 static MARKER_PATH: OnceLock<PathBuf> = OnceLock::new();
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
+#[derive(Clone, Debug, Deserialize, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct StartupCrashReport {
+    #[ts(type = "\"panic\"")]
     pub kind: String,
     pub version: String,
     pub platform: String,
@@ -280,5 +281,18 @@ mod tests {
 
         assert!(!marker.exists());
         std::fs::remove_dir_all(dir).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::StartupCrashReport;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [StartupCrashReport::decl(&cfg)];
+        crate::ipc_bindings::check("crash-report-ipc.ts", "crash_report.rs", &decls);
     }
 }

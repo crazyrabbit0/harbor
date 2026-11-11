@@ -6,23 +6,7 @@ import { useT } from "@/lib/i18n";
 import { matchPlayerKey, storedHotkeyOverrides, type HotkeyId } from "@/lib/hotkeys";
 import { broadcastFromPipSession } from "@/lib/sports/broadcast-pip";
 import { EmbeddedBroadcastPip } from "./sports/embedded-broadcast-player";
-
-type PipSubtitle = {
-  url: string;
-  lang: string | null;
-  label: string | null;
-};
-
-type PipSession = {
-  url: string;
-  startAtSec: number;
-  playing: boolean;
-  volume: number;
-  muted: boolean;
-  title: string | null;
-  subtitle: string | null;
-  subtitles: PipSubtitle[];
-};
+import type { PipSession } from "@/lib/generated/pip-ipc";
 
 const STATE_PUBLISH_INTERVAL_MS = 1500;
 

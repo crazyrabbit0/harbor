@@ -140,9 +140,10 @@ pub struct BindSubtitleCredentialArgs {
     api_key: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct SubtitleCredentialRef {
+    #[ts(type = "\"subsource-api-key\" | \"subdl-api-key\"")]
     kind: String,
     credential_id: String,
 }
@@ -319,5 +320,22 @@ mod tests {
         let duplicate =
             reqwest::Url::parse("https://api.subdl.com/api/v1/subtitles?api_key=visible").unwrap();
         assert!(apply_to_request(&duplicate, &credential).is_err());
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::SubtitleCredentialRef;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [SubtitleCredentialRef::decl(&cfg)];
+        crate::ipc_bindings::check(
+            "subtitle-credentials-ipc.ts",
+            "subtitle_credentials.rs",
+            &decls,
+        );
     }
 }

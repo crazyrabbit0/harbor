@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { suwayomiAuthFor } from "@/lib/manga/sources/suwayomi/auth-registry";
 import { useSettingsSelector } from "@/lib/settings";
+import type { ThumbCacheSize } from "@/lib/generated/thumb-cache-ipc";
 
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
@@ -53,7 +54,7 @@ export async function clearThumbCache(): Promise<void> {
   await invoke("clear_thumb_cache");
 }
 
-export type ThumbCacheSize = { bytes: number; files: number };
+export type { ThumbCacheSize };
 
 export async function getThumbCacheSize(): Promise<ThumbCacheSize | null> {
   try {

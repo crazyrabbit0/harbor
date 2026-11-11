@@ -34,9 +34,7 @@ import { createConsensusPort, type ConsensusConfig } from "./consensus";
 import { createCrowdDbPort, crowdConfigFromSettings } from "./crowd-db";
 import { normalizeLang } from "@/lib/subtitles/language";
 import { consensusLanguages } from "./language-context";
-
-type AsrTokenRaw = { text?: string; t0?: number; t1?: number; p?: number };
-type AsrWindowRaw = { startSec?: number; lenSec?: number; lang?: string; tokens?: AsrTokenRaw[] };
+import type { AsrWindow } from "@/lib/generated/subsync-ipc";
 
 const PIECE_MARGIN = 0.1;
 const PIECE_OFFSETS = [-2, 0, 2];
@@ -313,7 +311,7 @@ function makePiecewisePort(
   };
 }
 
-function flattenAsr(out: AsrWindowRaw[] | null): AsrTranscript {
+function flattenAsr(out: AsrWindow[] | null): AsrTranscript {
   if (!Array.isArray(out)) return { phrases: [], detectedLanguage: null };
   const segs: AsrPhrase[] = [];
   const languageCounts = new Map<string, number>();
@@ -353,7 +351,7 @@ function makeAsrTranscribePort(): NonNullable<TierPorts["asrTranscribe"]> {
     const probeCount = spans.length > 0 ? spans.length : 3;
     const windowSec = spans.length > 0 ? median(spans.map((w) => Math.max(5, w.lenSec))) : null;
     try {
-      const out = await invoke<AsrWindowRaw[]>("asr_transcribe_windows", {
+      const out = await invoke<AsrWindow[]>("asr_transcribe_windows", {
         url: ctx.mediaUrl,
         headers: ctx.headers ?? null,
         durationSec: ctx.durationSec,

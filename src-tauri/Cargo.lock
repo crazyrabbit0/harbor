@@ -2761,6 +2761,7 @@ dependencies = [
  "serde_json",
  "tauri",
  "tokio",
+ "ts-rs",
  "uuid 1.23.1",
  "windows 0.62.2",
 ]

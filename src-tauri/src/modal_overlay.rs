@@ -9,10 +9,11 @@ use tokio::sync::Mutex;
 
 const OVERLAY_LABEL: &str = "harbor-modal-overlay";
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ModalPayload {
     pub kind: String,
+    #[ts(type = "unknown")]
     pub state: Value,
 }
 
@@ -187,4 +188,17 @@ pub async fn modal_overlay_get_pending(
 ) -> Result<Option<ModalPayload>, String> {
     let g = state.pending.lock().await;
     Ok(g.clone())
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::ModalPayload;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [ModalPayload::decl(&cfg)];
+        crate::ipc_bindings::check("modal-overlay-ipc.ts", "modal_overlay.rs", &decls);
+    }
 }

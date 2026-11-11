@@ -34,7 +34,7 @@ pub(crate) enum ScoreTransform {
     },
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ScoredWindow {
     id: String,
@@ -42,7 +42,7 @@ pub struct ScoredWindow {
     to_sec: f32,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ScoredAlignmentQuality {
     ncc: f32,
@@ -61,7 +61,7 @@ pub struct PreflightCandidateInput {
     cues: Vec<[f32; 2]>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PreflightCandidateScore {
     id: String,

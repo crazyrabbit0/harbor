@@ -25,7 +25,7 @@ export type HeldOutValidation = {
   windowIds: string[];
   windows?: QualityValidationWindow[];
   provenance?: string;
-  requestProvenance?: string;
+  requestProvenance?: string | null;
 };
 
 export type QualityValidationWindow = {

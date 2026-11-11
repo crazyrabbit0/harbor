@@ -18,7 +18,7 @@ mod asr_whisper;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 pub struct SyncOut {
     #[serde(rename = "offsetSec")]
     pub offset_sec: f32,
@@ -92,4 +92,28 @@ pub async fn sync_subtitle(
             .map(|window| window.id.to_string())
             .collect(),
     }))
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::asr::{AsrToken, AsrWindow};
+    use super::correlate::AlignmentQuality;
+    use super::scorer::{PreflightCandidateScore, ScoredAlignmentQuality, ScoredWindow};
+    use super::SyncOut;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [
+            SyncOut::decl(&cfg),
+            AsrToken::decl(&cfg),
+            AsrWindow::decl(&cfg),
+            AlignmentQuality::decl(&cfg),
+            ScoredWindow::decl(&cfg),
+            ScoredAlignmentQuality::decl(&cfg),
+            PreflightCandidateScore::decl(&cfg),
+        ];
+        crate::ipc_bindings::check("subsync-ipc.ts", "subsync/mod.rs", &decls);
+    }
 }

@@ -1,10 +1,8 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
+import type { ModalPayload } from "@/lib/generated/modal-overlay-ipc";
 
-export type ModalPayload = {
-  kind: string;
-  state: unknown;
-};
+export type { ModalPayload };
 
 let overlayOpen = false;
 
