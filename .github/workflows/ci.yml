@@ -133,6 +133,8 @@ jobs:
       - name: Install Linux build dependencies
         if: steps.native-changes.outputs.changed == 'true'
         run: |
+          # Azure's Ubuntu mirror sometimes answers every package with Ign: and stalls the job, so use the main archive.
+          sudo sed -i -E 's#azure\.(archive|ports)\.ubuntu\.com#\1.ubuntu.com#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev \
