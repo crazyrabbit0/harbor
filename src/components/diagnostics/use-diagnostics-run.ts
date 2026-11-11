@@ -4,7 +4,7 @@ import { readFile } from "@tauri-apps/plugin-fs";
 import { collectRuntime } from "@/lib/diagnostics/collect-runtime";
 import { uploadDiagnosticsBundle } from "@/lib/social/diagnostics";
 import { DIAG_STEPS, type DiagError } from "./remote-support-progress";
-import type { CollectResult } from "@/lib/generated/diagnostics-ipc";
+import type { CollectInput, CollectResult } from "@/lib/generated/diagnostics-ipc";
 
 const STEP_ADVANCE_MS = 380;
 const BUNDLE_STAGE = 6;
@@ -41,9 +41,8 @@ export function useDiagnosticsRun(requestId: string, ticket: string) {
     advance(0);
     const attempt = async () => {
       const runtimeText = collectRuntime();
-      const collectP = invoke<CollectResult>("diagnostics_collect", {
-        input: { requestId, ticket, runtimeText },
-      });
+      const input: CollectInput = { requestId, ticket, runtimeText };
+      const collectP = invoke<CollectResult>("diagnostics_collect", { input });
       const step = reducedMotion ? 0 : STEP_ADVANCE_MS;
       for (let s = 0; s < BUNDLE_STAGE; s++) {
         advance(s);

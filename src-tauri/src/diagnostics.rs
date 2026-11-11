@@ -15,7 +15,7 @@ const MAX_MPV_BYTES: usize = 20 * 1024 * 1024;
 const MAX_RUNTIME_BYTES: usize = 4 * 1024 * 1024;
 const MAX_PANIC_BYTES: usize = 256 * 1024;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CollectInput {
     pub request_id: String,
@@ -311,13 +311,13 @@ mod tests {
 
 #[cfg(test)]
 mod ipc_tests {
-    use super::CollectResult;
+    use super::{CollectInput, CollectResult};
     use ts_rs::TS;
 
     #[test]
     fn export_bindings() {
         let cfg = ts_rs::Config::default();
-        let decls = [CollectResult::decl(&cfg)];
+        let decls = [CollectInput::decl(&cfg), CollectResult::decl(&cfg)];
         crate::ipc_bindings::check("diagnostics-ipc.ts", "diagnostics.rs", &decls);
     }
 }

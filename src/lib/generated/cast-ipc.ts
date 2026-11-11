@@ -10,4 +10,4 @@ export type CastSub = { kind: "external" | "embedded", url?: string, src_index?:
 
 export type CastSubStyle = { font_size: number, font_color: string, border_color: string, border_size: number, margin_y: number, align_x: "left" | "center" | "right", };
 
-export type TranscodeProfile = { max_height: number, force_h264: boolean, force_aac: boolean, force_stereo: boolean, max_video_kbps?: number, };
+export type TranscodeProfile = { max_height?: number, force_h264?: boolean, force_aac?: boolean, force_stereo?: boolean, max_video_kbps?: number, };

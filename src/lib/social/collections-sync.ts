@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { HarborFetchResponse, HarborUploadArgs } from "@/lib/generated/fetch-ipc";
 import { safeFetch } from "@/lib/safe-fetch";
 import { authToken } from "@/lib/theme-auth";
 import { HARBOR_API_BASE, HARBOR_DATA_BASE } from "@/lib/config/endpoints";
@@ -280,17 +281,16 @@ async function postImage(
   if (!token) throw new Error("Sign in first.");
   if (isTauri) {
     const dataBase64 = await blobToBase64(blob);
-    const resp = await invoke<{ status: number; ok: boolean; body: string }>("harbor_upload", {
-      args: {
-        url: `${BASE}${path}`,
-        field,
-        filename,
-        contentType: blob.type || "image/webp",
-        dataBase64,
-        headers: { authorization: `Bearer ${token}` },
-        timeoutMs: 30000,
-      },
-    });
+    const args: HarborUploadArgs = {
+      url: `${BASE}${path}`,
+      field,
+      filename,
+      contentType: blob.type || "image/webp",
+      dataBase64,
+      headers: { authorization: `Bearer ${token}` },
+      timeoutMs: 30000,
+    };
+    const resp = await invoke<HarborFetchResponse>("harbor_upload", { args });
     return readImageResult(new Response(resp.body, { status: resp.status || 502 }));
   }
   const fd = new FormData();

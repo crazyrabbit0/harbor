@@ -1,4 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
+import type {
+  MediaServerRequestArgs,
+  MediaServerResponse as MediaServerWireResponse,
+} from "@/lib/generated/media-server-ipc";
 
 export type MediaServerResponse<T = unknown> = {
   status: number;
@@ -68,19 +72,15 @@ export async function mediaServerRequest<T>(
   const url = new URL(path.replace(/^\/+/, ""), `${normalized}/`);
   if (url.origin !== new URL(normalized).origin)
     throw new Error("Media server request escaped its configured origin");
-  const response = await invoke<{ status: number; headers: Record<string, string>; body: string }>(
-    "media_server_request",
-    {
-      args: {
-        origin: normalized,
-        url: url.toString(),
-        method: init.method,
-        headers: init.headers,
-        body: init.body == null ? undefined : JSON.stringify(init.body),
-        timeoutMs: init.timeoutMs,
-      },
-    },
-  );
+  const args: MediaServerRequestArgs = {
+    origin: normalized,
+    url: url.toString(),
+    method: init.method,
+    headers: init.headers,
+    body: init.body == null ? undefined : JSON.stringify(init.body),
+    timeoutMs: init.timeoutMs,
+  };
+  const response = await invoke<MediaServerWireResponse>("media_server_request", { args });
   let body: unknown = response.body;
   try {
     body = response.body ? JSON.parse(response.body) : null;

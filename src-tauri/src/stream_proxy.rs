@@ -1298,6 +1298,24 @@ pub async fn proxy_gc_idle(state: tauri::State<'_, ProxyState>) -> Result<usize,
 }
 
 #[cfg(test)]
+mod ipc_tests {
+    use super::{RegisterArgs, RegisterResult};
+    use harbor_shared::cast_types::TranscodeProfile;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [
+            RegisterArgs::decl(&cfg),
+            RegisterResult::decl(&cfg),
+            TranscodeProfile::decl(&cfg),
+        ];
+        crate::ipc_bindings::check("stream-proxy-ipc.ts", "stream_proxy.rs", &decls);
+    }
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
