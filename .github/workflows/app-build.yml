@@ -46,8 +46,8 @@ jobs:
       - name: Install Linux build dependencies
         if: matrix.platform.name == 'Linux'
         run: |
-          # Azure's Ubuntu mirror sometimes answers every package with Ign: and stalls the job, so use the main archive.
-          sudo sed -i -E 's#azure\.(archive|ports)\.ubuntu\.com#\1.ubuntu.com#g' /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
+          # Azure's Ubuntu mirror sometimes stops resolving and stalls apt for hours, so use the main archive.
+          sudo sed -i -E 's#azure\.(archive|ports)\.ubuntu\.com#\1.ubuntu.com#g' /etc/apt/apt-mirrors.txt /etc/apt/sources.list.d/*.sources /etc/apt/sources.list 2>/dev/null || true
           sudo apt-get update
           sudo apt-get install -y \
             libasound2-dev \
