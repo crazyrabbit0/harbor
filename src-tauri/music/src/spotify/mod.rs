@@ -57,6 +57,7 @@ impl Account {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SpotifyStatus {
     pub connected: bool,
     pub username: Option<String>,

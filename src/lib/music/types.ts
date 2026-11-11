@@ -1,10 +1,12 @@
 import type {
   MusicAlbumRef,
   MusicArtistRef as GeneratedMusicArtistRef,
+  MusicCatalogPage as GeneratedMusicCatalogPage,
+  MusicCatalogRow as GeneratedMusicCatalogRow,
+  MusicPlaylist as GeneratedMusicPlaylist,
+  MusicSearchResults as GeneratedMusicSearchResults,
   MusicSourceCandidate as GeneratedMusicSourceCandidate,
-  MusicCatalogScope,
   MusicPlaylistRef,
-  MusicRowLayout,
   MusicStationRef,
   MusicTrackCore,
 } from "@/lib/generated/music-ipc";
@@ -46,38 +48,9 @@ export type MusicSourceCandidate = Omit<GeneratedMusicSourceCandidate, "track"> 
   track: MusicTrack;
 };
 
-export type SpotifyStatus = {
-  connected: boolean;
-  username?: string;
-  country?: string;
-  premium: boolean;
-  error?: string;
-};
+export type { MusicAlbum, MusicArtist, SpotifyStatus } from "@/lib/generated/music-ipc";
 
-export type MusicAlbum = {
-  id: number;
-  title: string;
-  artist: string;
-  artwork: string;
-  trackCount: number;
-};
-
-export type MusicArtist = {
-  id: number;
-  name: string;
-  trackCount: number;
-  albumCount: number;
-};
-
-export type MusicPlaylist = {
-  id: string;
-  name: string;
-  createdAt: string;
-  updatedAt: string;
-  /** Collection-specific timestamps; older entries may have no recorded date. */
-  trackAddedAt?: Record<string, string>;
-  tracks: MusicTrack[];
-};
+export type MusicPlaylist = Omit<GeneratedMusicPlaylist, "tracks"> & { tracks: MusicTrack[] };
 
 export type MusicPlaybackPhase = "idle" | "resolving" | "playing" | "paused" | "error";
 
@@ -120,28 +93,18 @@ export type MusicCatalogItem =
   | ({ kind: "playlist" } & MusicPlaylistRef)
   | ({ kind: "station" } & MusicStationRef);
 
-export type MusicCatalogPage = {
-  items: MusicCatalogItem[];
-  nextCursor: string | null;
-  total?: number | null;
-  /** A top/limited selection must not be presented as the artist's complete tracks. */
-  scope: MusicCatalogScope;
-};
-
-export type MusicCatalogRow = {
-  id: string;
-  title: string;
-  titleLiteral: boolean;
-  subtitle?: string;
-  layout: MusicRowLayout;
-  source: string;
+export type MusicCatalogPage = Omit<GeneratedMusicCatalogPage, "items"> & {
   items: MusicCatalogItem[];
 };
 
-export type MusicSearchResults = {
-  top?: MusicCatalogItem;
+/** Rows built in the frontend may leave out the subtitle Rust always sends. */
+export type MusicCatalogRow = Omit<GeneratedMusicCatalogRow, "items" | "subtitle"> & {
+  subtitle?: string | null;
+  items: MusicCatalogItem[];
+};
+
+export type MusicSearchResults = Omit<GeneratedMusicSearchResults, "top" | "tracks" | "artists"> & {
+  top?: MusicCatalogItem | null;
   tracks: MusicTrack[];
-  albums: MusicAlbumRef[];
   artists: MusicArtistRef[];
-  playlists: MusicPlaylistRef[];
 };

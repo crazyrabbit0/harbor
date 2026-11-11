@@ -1,27 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type CableStatus = {
-  supported: boolean;
-  active: boolean;
-  backend: string;
-  sinkName: string;
-  monitorName: string;
-  monitorLabel: string;
-  micName: string;
-  micLabel: string;
-  micReady: boolean;
-  monitorReady: boolean;
-  spec: string | null;
-  rate: number | null;
-  format: string | null;
-  channels: number | null;
-  requestedRate: number | null;
-  graphRate: number | null;
-  bitPerfect: boolean;
-  resampledBy: string | null;
-  outputDevice: string | null;
-  detail: string | null;
-};
+import type { CableStatus } from "@/lib/generated/music-ipc";
+
+export type { CableStatus };
 
 export const IDLE_CABLE: CableStatus = {
   supported: false,

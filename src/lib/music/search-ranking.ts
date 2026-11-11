@@ -187,8 +187,8 @@ function pickTop(
   results: MusicSearchResults,
 ): MusicCatalogItem | undefined {
   const best = ranked[0];
-  if (!best) return results.top;
-  return best.relevance >= RELEVANT_NAME_SCORE ? best.item : results.top;
+  if (!best) return results.top ?? undefined;
+  return best.relevance >= RELEVANT_NAME_SCORE ? best.item : (results.top ?? undefined);
 }
 
 /** Ranked grids in the shape the panel already renders. Nothing is dropped, only reordered. */
@@ -228,6 +228,6 @@ export function musicSearchTop(
   query: string,
 ): MusicCatalogItem | undefined {
   if (!results) return undefined;
-  if (!normalizeName(query)) return results.top;
+  if (!normalizeName(query)) return results.top ?? undefined;
   return pickTop(rankMusicItems(results, query), results);
 }

@@ -1,8 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { musicVideoIdentity, musicVideoResults, searchMusicVideos } from "./video-discovery";
+import type { MusicVideoPage as GeneratedMusicVideoPage } from "@/lib/generated/music-ipc";
 import type { MusicTrack } from "./types";
 
-export type MusicVideoPage = { tracks: MusicTrack[]; next: string | null };
+export type MusicVideoPage = Omit<GeneratedMusicVideoPage, "tracks"> & { tracks: MusicTrack[] };
 const cache = new Map<string, { until: number; request: Promise<MusicVideoPage> }>();
 
 export function appendMusicVideos(previous: MusicTrack[], incoming: MusicTrack[]): MusicTrack[] {

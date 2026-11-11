@@ -1,13 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type MusicFxKind = "off" | "echo" | "delay" | "spiral" | "wide";
+import type { MusicFx, MusicFxKind } from "@/lib/generated/music-ipc";
 
-export type MusicFx = {
-  kind: MusicFxKind;
-  depth: number;
-  beats: number;
-  bpm: number;
-};
+export type { MusicFx, MusicFxKind };
 
 export const FX_OFF: MusicFx = { kind: "off", depth: 0.5, beats: 0.5, bpm: 120 };
 
