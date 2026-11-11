@@ -1,6 +1,9 @@
 import type { GameSummary } from "./types";
 import type { SteamInstall } from "./installed";
 
+import type { SteamAchievement, SteamAchievements } from "@/lib/generated/games-library-ipc";
+export type { SteamAchievement, SteamAchievements };
+
 export type SteamOwnedGame = {
   appId: number;
   name: string;
@@ -20,22 +23,6 @@ export type SteamAccountStatus = {
   connected: boolean;
   remembered: boolean;
   snapshot: SteamAccountSnapshot | null;
-};
-export type SteamAchievement = {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  lockedIcon: string;
-  hidden: boolean;
-  unlocked: boolean;
-  unlockedAt: number;
-};
-export type SteamAchievements = {
-  steamId: string;
-  appId: number;
-  items: SteamAchievement[];
-  updatedAt: number;
 };
 
 export function steamOwnedSummary(game: SteamOwnedGame): GameSummary {

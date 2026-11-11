@@ -9,6 +9,7 @@ const SCAN_LIMIT: usize = 8 * 1024 * 1024;
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddonManifest"))]
 pub struct Manifest {
     pub file: String, pub title: String, pub version: String, pub author: String,
     pub notes: String, pub interfaces: Vec<u32>, pub dependencies: Vec<String>,
@@ -16,12 +17,16 @@ pub struct Manifest {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddon"))]
 pub struct Addon {
-    pub folder: String, pub manifest: Option<Manifest>, pub state: &'static str,
+    pub folder: String, pub manifest: Option<Manifest>,
+    #[cfg_attr(test, ts(type = r#""ready" | "unreadable" | "noManifest" | "ambiguous""#))]
+    pub state: &'static str,
     pub missing_dependencies: Vec<String>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddonInventory"))]
 pub struct Inventory {
     pub id: String, pub client_version: Option<String>, pub addons: Vec<Addon>,
     pub partial: bool, pub checked_at: u64,

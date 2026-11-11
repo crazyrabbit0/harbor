@@ -8,7 +8,7 @@ use std::time::Duration;
 pub const HARBOR_SERVICE_TYPE: &str = "_harbor-app._tcp.local.";
 const DEFAULT_DISCOVER_MS: u64 = 1800;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct HarborIdentity {
     pub id: String,
@@ -17,7 +17,7 @@ pub struct HarborIdentity {
     pub version: String,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct HarborInstance {
     pub id: String,
@@ -255,4 +255,17 @@ pub async fn harbor_lan_discover(timeout_ms: Option<u64>) -> Vec<HarborInstance>
     })
     .await
     .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::{HarborIdentity, HarborInstance};
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [HarborIdentity::decl(&cfg), HarborInstance::decl(&cfg)];
+        crate::ipc_bindings::check("harbor-lan-ipc.ts", "harbor_lan.rs", &decls);
+    }
 }

@@ -9,6 +9,7 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsStamp"))]
 pub struct Stamp {
     pub name: String,
     pub bytes: u64,
@@ -16,14 +17,17 @@ pub struct Stamp {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsFile"))]
 pub struct Entry {
     pub path: String,
     pub bytes: u64,
+    #[cfg_attr(test, ts(type = r#""package" | "script" | "settings""#))]
     pub kind: &'static str,
     pub script_too_deep: bool,
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsFolder"))]
 pub struct Folder {
     pub path: String,
     pub game_version: String,

@@ -18,8 +18,11 @@ pub struct CustomLaunch {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsLaunchSettings"))]
 pub struct Settings {
+    #[cfg_attr(test, ts(type = r#""steam" | "ea" | "custom" | null"#))]
     pub source: Option<&'static str>,
+    #[cfg_attr(test, ts(type = r#""checked" | "unknown" | "conflicting""#))]
     pub state: &'static str,
     pub disabled: BTreeSet<String>,
 }

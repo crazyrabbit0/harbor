@@ -23,18 +23,21 @@ use household::Resource;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsContentArea"))]
 pub enum Area {
     Mods,
     Disabled,
     Game,
 }
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsContentSim"))]
 pub struct Sim {
     pub id: String,
     pub name: String,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsContentMatch"))]
 pub struct Match {
     pub path: String,
     pub area: Area,
@@ -47,6 +50,7 @@ pub struct Match {
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsContentReport"))]
 pub struct Report {
     pub sims: Vec<Sim>,
     pub objects: Option<usize>,

@@ -45,12 +45,14 @@ pub struct SaveSnapshot {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SaveSnapshotInfo {
     pub id: String,
     pub game_name: String,
     pub label: String,
     pub created_at: u64,
     pub source_path: String,
+    #[cfg_attr(test, ts(type = r#""manual" | "beforeRestore""#))]
     pub kind: String,
     pub file_count: usize,
     pub bytes: u64,
@@ -114,7 +116,14 @@ pub struct SaveRestorePlan {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SaveRestoreReceipt {
+    #[cfg_attr(
+        test,
+        ts(
+            type = r#""restored" | "rolledBack" | "recoveryNeeded" | "notRestored" | "keptCurrent""#
+        )
+    )]
     pub status: String,
     pub target: String,
     pub recovery_snapshot_id: Option<String>,

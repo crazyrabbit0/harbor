@@ -5,6 +5,7 @@ pub type Result<T> = std::result::Result<T, &'static str>;
 pub const MAX_CHANGES: usize = 2000;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LocalAchievement"))]
 pub struct Achievement {
     pub id: String,
     pub name: String,
@@ -18,6 +19,7 @@ pub struct Achievement {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LocalAchievementSnapshot"))]
 pub struct Snapshot {
     pub app_id: u32,
     pub steam_id: String,
@@ -54,6 +56,7 @@ pub enum Request {
 }
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LocalAchievementResult"))]
 pub struct ChangeResult {
     pub id: String,
     pub requested: bool,
@@ -62,6 +65,7 @@ pub struct ChangeResult {
 }
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LocalAchievementApplied"))]
 pub struct Applied {
     pub snapshot: Option<Snapshot>,
     pub results: Vec<ChangeResult>,

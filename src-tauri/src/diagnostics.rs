@@ -23,10 +23,11 @@ pub struct CollectInput {
     pub runtime_text: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct CollectResult {
     pub temp_path: String,
+    #[ts(type = "number")]
     pub bytes: u64,
 }
 
@@ -305,5 +306,18 @@ mod tests {
     fn keeps_ordinary_prose() {
         let out = diagnostics_scrub("player started ok at position 42 seconds");
         assert_eq!(out, "player started ok at position 42 seconds");
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::CollectResult;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [CollectResult::decl(&cfg)];
+        crate::ipc_bindings::check("diagnostics-ipc.ts", "diagnostics.rs", &decls);
     }
 }

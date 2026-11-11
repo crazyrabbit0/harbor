@@ -178,7 +178,7 @@ pub fn solve(
     })
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 pub struct AlignmentQuality {
     pub ncc: f32,
     pub coverage: f32,

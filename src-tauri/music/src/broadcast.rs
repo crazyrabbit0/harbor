@@ -28,6 +28,7 @@ const SIGNATURES: [(&str, &str, &str); 12] = [
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct VirtualAudioDevice {
     pub name: String,
     pub description: String,
@@ -37,6 +38,7 @@ pub struct VirtualAudioDevice {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct BroadcastTargets {
     pub devices: Vec<VirtualAudioDevice>,
     pub install_product: String,
@@ -45,6 +47,7 @@ pub struct BroadcastTargets {
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct BroadcastStatus {
     pub active: bool,
     pub device: Option<String>,
@@ -340,6 +343,20 @@ pub(super) fn install_hint() -> (&'static str, &'static str) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn export_bindings() {
+        use ts_rs::TS;
+        let cfg = ts_rs::Config::default();
+        let decls = [
+            VirtualAudioDevice::decl(&cfg),
+            BroadcastTargets::decl(&cfg),
+            BroadcastStatus::decl(&cfg),
+            super::super::MusicDeckState::decl(&cfg),
+            crate::MusicDeckSnapshot::decl(&cfg),
+        ];
+        harbor_shared::ipc_bindings::check("music-deck-ipc.ts", "music/src/broadcast.rs", &decls);
+    }
 
     fn device(name: &str, description: &str) -> AudioDevice {
         AudioDevice {

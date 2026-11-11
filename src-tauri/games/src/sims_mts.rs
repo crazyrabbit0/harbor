@@ -24,6 +24,7 @@ pub(super) mod metrics;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMtsFile"))]
 pub struct Download {
     pub version: String,
     pub name: String,
@@ -33,8 +34,10 @@ pub struct Download {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMtsDetail"))]
 pub struct Detail {
     pub metrics: metrics::Metrics,
+    #[cfg_attr(test, ts(type = r#"2 | 3 | 4"#))]
     pub game: u8,
     pub project: String,
     pub title: String,

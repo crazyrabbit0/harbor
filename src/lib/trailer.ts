@@ -2,15 +2,9 @@ import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { lruSet } from "@/lib/cache";
 import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { tmdbTrailerList } from "@/lib/providers/tmdb";
+import type { TrailerInfo } from "@/lib/generated/trailer-ipc";
 
-export type TrailerInfo = {
-  file_path: string;
-  stream_url?: string | null;
-  quality: string;
-  duration_seconds: number;
-  title: string;
-  size_bytes: number;
-};
+export type { TrailerInfo };
 
 export type Quality = "360p" | "720p" | "1080p" | "best";
 export type TrailerQualityPref = "auto" | Quality;

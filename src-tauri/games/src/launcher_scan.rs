@@ -24,6 +24,7 @@ mod battle_classic;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "GameLauncher"))]
 pub enum Launcher {
     Battlenet,
     Ea,
@@ -55,30 +56,38 @@ impl Launcher {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LauncherGame"))]
 pub struct Game {
     pub id: String,
     pub launcher: Launcher,
     pub product_id: String,
     pub name: String,
     pub install_path: String,
+    #[cfg_attr(test, ts(type = r#""installed" | "missing" | "incomplete" | "ambiguous""#))]
     pub state: &'static str,
     /// Some Battle.net variants support selecting their client page, not direct launch.
+    #[cfg_attr(test, ts(type = r#""play" | "client" | "direct""#))]
     pub launch_mode: &'static str,
     /// Observed Windows uninstall registration, never a launch argument.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub install_key: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub artwork: Option<ubisoft::Artwork>,
     /// Exact publisher catalog association; never used for ownership or dispatch.
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub catalog_steam_id: Option<u32>,
 }
 #[derive(Debug, Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LauncherClient"))]
 pub struct Client {
     pub launcher: Launcher,
     pub installed: bool,
 }
 #[derive(Debug, Default, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LauncherScan"))]
 pub struct Scan {
     pub supported: bool,
     pub clients: Vec<Client>,

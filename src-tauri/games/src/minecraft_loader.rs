@@ -4,6 +4,7 @@ use serde_json::Value;
 use std::{collections::HashSet, sync::atomic::AtomicBool, time::Duration};
 
 #[derive(Clone, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftLoaderRelease"))]
 pub struct Release { pub version: String, pub stable: bool }
 
 pub fn route_for(kind: &str, game: &str, loader: Option<&str>) -> Result<reqwest::Url> {

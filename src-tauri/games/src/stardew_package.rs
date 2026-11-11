@@ -29,6 +29,7 @@ pub struct Package {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewOrigin"))]
 pub struct Origin {
     pub url: String,
     pub file: String,

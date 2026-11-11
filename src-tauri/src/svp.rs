@@ -6,7 +6,7 @@ use std::sync::Mutex;
 use std::time::{Duration, Instant};
 use tauri::Manager;
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 pub struct SvpStatus {
     supported: bool,
     reason: Option<String>,
@@ -712,5 +712,18 @@ mod tests {
         assert_eq!(target_value("48"), "48");
         assert_eq!(target_value("60"), "60");
         assert_eq!(target_value("display"), "0");
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::SvpStatus;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [SvpStatus::decl(&cfg)];
+        crate::ipc_bindings::check("svp-ipc.ts", "svp.rs", &decls);
     }
 }

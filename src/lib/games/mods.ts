@@ -1,6 +1,9 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { GameRequestPool } from "./request-pool";
 
+import type { ModPackage, ModWorkspace, ModPlan } from "@/lib/generated/games-minecraft-ipc";
+export type { ModPackage, ModWorkspace, ModPlan };
+
 export const MOD_LOADERS = ["fabric", "forge", "neoforge", "quilt"] as const;
 export type ModLoader = (typeof MOD_LOADERS)[number];
 export type ModProject = {
@@ -20,37 +23,6 @@ export type ModVersion = {
   type: string;
   date: string;
   bytes: number;
-};
-export type ModPackage = {
-  project: string;
-  version: string;
-  name: string;
-  number: string;
-  filename: string;
-  url: string;
-  bytes: number;
-  sha512: string;
-  enabled: boolean;
-  dependencies: { project_id: string | null; version_id: string | null; dependency_type: string }[];
-};
-export type ModWorkspace = {
-  schema: number;
-  owner: string;
-  revision: string;
-  loader: ModLoader;
-  gameVersion: string;
-  packages: ModPackage[];
-  backups?: { package: ModPackage; file: string }[];
-};
-export type ModPlan = {
-  token: string;
-  packages: ModPackage[];
-  replaced?: ModPackage[];
-  existing: number;
-  optional: number;
-  bytes: number;
-  loader: string;
-  gameVersion: string;
 };
 export type ModProgress = {
   profile: string;

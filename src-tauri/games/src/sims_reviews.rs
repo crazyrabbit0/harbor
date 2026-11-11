@@ -12,6 +12,7 @@ use std::{
 };
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsWorkspace"))]
 pub struct Workspace {
     pub tray: store::tray::View,
     pub folder: files::Folder,
@@ -23,6 +24,7 @@ pub struct Workspace {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsReview"))]
 pub struct Review {
     pub source: Option<store::CreatorSource>,
     pub token: String,

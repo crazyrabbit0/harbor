@@ -13,6 +13,7 @@ pub struct AdPrepare {
 pub struct AdRequest { pub key: String, pub id: String }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AdLink {
     pub name: String,
     pub expected_bytes: Option<u64>,
@@ -20,7 +21,9 @@ pub struct AdLink {
     pub url: Option<String>,
 }
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct AdStatus {
+    #[cfg_attr(test, ts(type = r#""preparing" | "ready" | "failed""#))]
     pub status: String,
     pub url: Option<String>,
     pub seconds: Option<u64>,

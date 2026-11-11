@@ -19,7 +19,7 @@ fn gamepads() -> &'static Mutex<Vec<GamepadInfo>> {
     GAMEPADS.get_or_init(|| Mutex::new(Vec::new()))
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Clone, Serialize, ts_rs::TS)]
 pub struct GamepadInfo {
     pub id: u32,
     pub name: String,
@@ -521,5 +521,18 @@ mod tests {
             assert_eq!(map_axis_code(raw), None, "raw {raw} must not map");
             assert_eq!(hat_axis_code(raw), None, "raw {raw} must not map");
         }
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::GamepadInfo;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [GamepadInfo::decl(&cfg)];
+        crate::ipc_bindings::check("gamepad-ipc.ts", "gamepad.rs", &decls);
     }
 }

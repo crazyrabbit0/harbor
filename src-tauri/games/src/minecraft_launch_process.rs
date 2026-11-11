@@ -5,12 +5,14 @@ use tokio::{io::{AsyncRead, AsyncReadExt}, process::Child};
 
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftLaunchSession"))]
 pub struct Session {
     pub schema: u8, pub id: String, pub pid: u32, pub marker: String,
     pub started_at: u64, pub ended_at: Option<u64>, pub exit_code: Option<i32>,
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftLaunchState"))]
 pub struct State { pub running: bool, pub session: Option<Session>, pub log: Option<String> }
 struct Held { session: Session, lines: VecDeque<String>, bytes: usize }
 fn sessions() -> &'static Mutex<HashMap<PathBuf, Arc<Mutex<Held>>>> {

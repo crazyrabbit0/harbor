@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::{collections::BTreeSet, path::Path};
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LauncherProcess"))]
 pub(super) struct Process {
     pub pid: u32,
     pub created: u64,

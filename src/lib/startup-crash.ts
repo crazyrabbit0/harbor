@@ -1,13 +1,7 @@
 import type { HarborError } from "@/components/error-view";
+import type { StartupCrashReport } from "@/lib/generated/crash-report-ipc";
 
-export type StartupCrashReport = {
-  kind: "panic";
-  version: string;
-  platform: string;
-  message: string | null;
-  location: string | null;
-  backtrace: string | null;
-};
+export type { StartupCrashReport };
 
 let startupReportPromise: Promise<StartupCrashReport | null> | null = null;
 

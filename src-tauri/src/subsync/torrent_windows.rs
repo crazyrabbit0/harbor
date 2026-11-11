@@ -15,8 +15,9 @@ pub struct Geometry {
     pub file_len: u64,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
+#[ts(rename = "TorrentWindow")]
 pub struct Window {
     pub start_sec: f32,
     pub len_sec: f32,

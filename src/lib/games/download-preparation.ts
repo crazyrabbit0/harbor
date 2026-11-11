@@ -3,25 +3,14 @@ import { archivePartName } from "./archive-parts";
 import { downloadDestination } from "./download-locations";
 import type { DownloadItem, DownloadGroup } from "./download-presentation";
 
-export type PreparationEngine = "direct" | "torrent";
-export type PreparationTarget = {
-  profile: string;
-  engine: PreparationEngine;
-  downloadId: string;
-  archive: string;
-  members: string[];
-};
+import type {
+  PreparationChoice,
+  PreparationEngine,
+  PreparationTarget,
+} from "@/lib/generated/games-ipc";
+
+export type { PreparationChoice, PreparationEngine, PreparationTarget };
 export type PreparationDraft = { archive: string; parent: string; name: string; members: string[] };
-export type PreparationChoice = {
-  id: string;
-  target: PreparationTarget;
-  identity: string;
-  parent: string;
-  name: string;
-  status: "waiting" | "queued" | "dispatching" | "started" | "failed" | "disabled";
-  error: string | null;
-  updatedAt: number;
-};
 export type PreparationFile = { path: string; selected: boolean };
 export type PreparationOption = { archive: string; members: string[]; complete: boolean };
 export type PreparationForm = {

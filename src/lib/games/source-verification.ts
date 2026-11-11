@@ -1,11 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type NativeSourceDocument = {
-  status: number;
-  body: string;
-  headers: Record<string, string>;
-  url?: string;
-};
+import type { HarborFetchResponse as NativeSourceDocument } from "@/lib/generated/fetch-ipc";
+export type { NativeSourceDocument };
+
 const unavailable = (reason: unknown, command: string) =>
   String(reason).includes(command) && /not found|unknown command/i.test(String(reason));
 export const sourceVerificationAvailable = () =>

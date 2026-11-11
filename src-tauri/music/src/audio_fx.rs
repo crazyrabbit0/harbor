@@ -11,6 +11,7 @@ const MAX_BPM: f64 = 220.0;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum MusicFxKind {
     Off,
     Echo,
@@ -21,6 +22,7 @@ pub enum MusicFxKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicFx {
     pub kind: MusicFxKind,
     pub depth: f64,

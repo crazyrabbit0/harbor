@@ -1,5 +1,6 @@
+import type { GameShortcuts } from "@/lib/generated/games-library-ipc";
+export type { GameShortcuts };
 export type GameShortcutTarget = "desktop" | "startMenu";
-export type GameShortcuts = { desktop: string | null; startMenu: string | null };
 
 export function shortcutError(reason: unknown) {
   const code = String(reason);

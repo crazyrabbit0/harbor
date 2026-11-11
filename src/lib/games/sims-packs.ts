@@ -2,17 +2,9 @@ import names from "./sims-pack-names.json";
 import { invoke } from "@tauri-apps/api/core";
 import type { SimsCustomLaunch } from "./sims-installations";
 
-export type SimsPackReport = {
-  path: string;
-  packs: { code: string; status: "found" | "unchecked"; files: string[] }[];
-  partial: boolean;
-  checkedAt: number;
-  launch?: {
-    source: "steam" | "ea" | "custom" | null;
-    state: "checked" | "unknown" | "conflicting";
-    disabled: string[];
-  };
-};
+import type { SimsPackReport } from "@/lib/generated/games-sims-ipc";
+export type { SimsPackReport };
+
 export type SimsPackSelection = { path: string; custom: SimsCustomLaunch[] };
 export const simsCheckPacks = (
   profile: string,

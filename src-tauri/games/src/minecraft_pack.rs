@@ -21,6 +21,7 @@ pub struct PackFile {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftPackFile"))]
 pub struct ReviewFile { pub path: String, pub bytes: u64, pub optional: bool }
 #[derive(Clone)]
 pub struct Override { pub archive_name: String, pub path: String, pub bytes: u64 }

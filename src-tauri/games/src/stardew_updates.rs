@@ -15,8 +15,10 @@ use std::{
 const ENDPOINT: &str = "https://smapi.io/api/v4.0.0/mods";
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewUpdate"))]
 pub struct Update {
     pub id: String,
+    #[cfg_attr(test, ts(type = r#""available" | "noneSuggested" | "unknown""#))]
     pub state: &'static str,
     pub version: Option<String>,
     pub url: Option<String>,
@@ -26,6 +28,7 @@ pub struct Update {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewReport"))]
 pub struct Report {
     pub inventory: Inventory,
     pub updates: Vec<Update>,

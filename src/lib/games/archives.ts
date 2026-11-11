@@ -1,64 +1,26 @@
-import type { DownloadGame } from "./transfers";
 import type { DownloadItem } from "./download-presentation";
 import { setupPath } from "./setup";
 import { archivePartName } from "./archive-parts";
 
-export type ArchiveEntry = { path: string; bytes: number; directory: boolean };
-export type ArchivePart = { name: string; bytes: number; sha256: string };
-export type ArchivePlan = {
-  token: string;
-  source: string;
-  archiveBytes: number;
-  expandedBytes: number;
-  fileCount: number;
-  directoryCount: number;
-  sha256: string;
-  entries: ArchiveEntry[];
-  executableCount: number;
-  parts?: ArchivePart[];
+import type {
+  ArchiveEntry,
+  ArchivePart,
+  ArchivePlan,
+  ArchiveReceipt,
+  ArchiveSpace,
+  ArchiveProgress,
+  ArchiveJob,
+} from "@/lib/generated/games-ipc";
+export type {
+  ArchiveEntry,
+  ArchivePart,
+  ArchivePlan,
+  ArchiveReceipt,
+  ArchiveSpace,
+  ArchiveProgress,
+  ArchiveJob,
 };
-export type ArchiveReceipt = {
-  destination: string;
-  source: string;
-  sha256: string;
-  files: number;
-  bytes: number;
-  parts?: ArchivePart[];
-};
-export type ArchiveSpace = {
-  volume: string | null;
-  availableBytes: number | null;
-  expandedBytes: number;
-  reservedBytes: number;
-  afterBytes: number | null;
-  shortfallBytes: number | null;
-};
-export type ArchiveProgress = {
-  profile: string;
-  operationId: string;
-  phase: "checking" | "extracting" | "publishing" | "complete";
-  bytes: number;
-  totalBytes: number;
-  files: number;
-  totalFiles: number;
-  currentFile?: string | null;
-};
-export type ArchiveJob = {
-  id: string;
-  profile: string;
-  source: string;
-  originSource: string;
-  name: string;
-  game?: DownloadGame | null;
-  destination: string;
-  stage?: string | null;
-  status: "running" | "complete" | "failed" | "canceled" | "interrupted";
-  progress?: ArchiveProgress | null;
-  receipt?: ArchiveReceipt | null;
-  error?: string | null;
-  startedAt: number;
-  updatedAt: number;
-};
+
 const errors = new Set([
   "archive_profile",
   "archive_busy",

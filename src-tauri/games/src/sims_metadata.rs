@@ -14,12 +14,14 @@ pub enum Target {
     File { file: String },
 }
 #[derive(Debug, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMetadataFile"))]
 pub struct Information {
     pub file: String,
     pub manifests: Vec<manifest::Manifest>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMetadataReport"))]
 pub struct Report {
     pub files: Vec<Information>,
     pub checked_files: usize,

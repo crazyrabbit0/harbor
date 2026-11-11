@@ -504,7 +504,8 @@ export function SourceCloudTransfer({
                       <strong>{item.name || item.id}</strong>
                       <small>
                         {copy(item.status)}
-                        {item.createdAt != null &&
+                        {"createdAt" in item &&
+                          item.createdAt != null &&
                           ` · ${new Date(item.createdAt * 1000).toLocaleString(language)}`}
                       </small>
                     </span>

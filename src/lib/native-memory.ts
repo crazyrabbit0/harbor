@@ -1,11 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { ProcMem } from "@/lib/generated/proc-mem-ipc";
 
-export type NativeMem = {
-  harborRss: number;
-  webviewRss: number;
-  total: number;
-  totalPhys: number;
-};
+export type NativeMem = ProcMem;
 
 export type RamTier = "tiny" | "low" | "mid" | "high";
 

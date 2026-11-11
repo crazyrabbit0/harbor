@@ -276,10 +276,12 @@ pub async fn clear_thumb_cache(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct ThumbCacheSize {
+    #[ts(type = "number")]
     pub bytes: u64,
+    #[ts(type = "number")]
     pub files: usize,
 }
 
@@ -773,5 +775,18 @@ mod tests {
         let mut body = Some(b"safe-to-drop".to_vec());
         apply_redirect_method(&mut method, &mut body, StatusCode::SEE_OTHER);
         assert!(!cross_origin_redirect_forwards_body(true, &body));
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::ThumbCacheSize;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [ThumbCacheSize::decl(&cfg)];
+        crate::ipc_bindings::check("thumb-cache-ipc.ts", "http_fetch.rs", &decls);
     }
 }

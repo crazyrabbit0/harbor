@@ -1,6 +1,21 @@
 import type { SetupJob, SetupProgress, SetupVerification } from "./setup";
 
-export function setupVerification(input?: SetupVerification | null): SetupVerification | undefined {
+/** Sanitized views: a field that fails validation is left out. */
+export type SetupVerificationView = { [K in keyof SetupVerification]?: number };
+export type SetupProgressView = Pick<SetupProgress, "observedAt" | "stage"> & {
+  verification?: SetupVerificationView;
+  percent?: number;
+  phase?: string;
+  currentFile?: string;
+  elapsedSeconds?: number;
+  remainingSeconds?: number;
+  ioBytesPerSecond?: number;
+  canReveal: boolean;
+};
+
+export function setupVerification(
+  input?: SetupVerification | null,
+): SetupVerificationView | undefined {
   if (!input) return;
   const count = (value: unknown) =>
     typeof value === "number" && Number.isSafeInteger(value) && value >= 0 ? value : undefined;
@@ -25,7 +40,7 @@ export function setupVerificationFailed(job: SetupJob) {
 }
 
 /** Missing or stale installer signals must never turn into 0%, 100%, or invented ETA. */
-export function setupProgress(job: SetupJob, now = Date.now()): SetupProgress | undefined {
+export function setupProgress(job: SetupJob, now = Date.now()): SetupProgressView | undefined {
   const input = job.progress;
   if (
     job.status !== "running" ||

@@ -37,3 +37,41 @@ export type MusicVideoStream = { url: string, audioUrl: string | null, httpHeade
 export type MusicMigration = { likedIds: Array<string> | null, recents: Array<MusicTrackCore> | null, queue: Array<MusicTrackCore> | null, };
 
 export type MusicBootstrap = { likedIds: Array<string>, likedTracks: Array<MusicTrackCore>, recents: Array<MusicTrackCore>, queue: Array<MusicTrackCore>, };
+
+export type MusicCatalogItem = { "kind": "track" } & MusicTrackCore | { "kind": "album" } & MusicAlbumRef | { "kind": "artist" } & MusicArtistRef | { "kind": "playlist" } & MusicPlaylistRef | { "kind": "station" } & MusicStationRef;
+
+export type MusicCatalogPage = { items: Array<MusicCatalogItem>, nextCursor: string | null, total: number | null, scope: MusicCatalogScope, };
+
+export type MusicCatalogRow = { id: string, title: string, titleLiteral: boolean, subtitle: string | null, layout: MusicRowLayout, source: string, items: Array<MusicCatalogItem>, };
+
+export type MusicSearchResults = { top: MusicCatalogItem | null, tracks: Array<MusicTrackCore>, albums: Array<MusicAlbumRef>, artists: Array<MusicArtistRef>, playlists: Array<MusicPlaylistRef>, };
+
+export type MusicVideoPage = { tracks: Array<MusicTrackCore>, next: string | null, };
+
+export type MusicAlbum = { id: number, title: string, artist: string, artwork: string, trackCount: number, };
+
+export type MusicArtist = { id: number, name: string, trackCount: number, albumCount: number, };
+
+export type MusicPlaylist = { id: string, name: string, createdAt: string, updatedAt: string, tracks: Array<MusicTrackCore>, trackAddedAt: { [key in string]: string }, };
+
+export type FilterType = "peak" | "lowShelf" | "highShelf" | "lowPass" | "highPass" | "notch";
+
+export type PeqFilter = { type: FilterType, frequency: number, gain: number, q: number, enabled: boolean, };
+
+export type MusicAudioSettings = { device: string, eqEnabled: boolean, eqBands: [number, number, number, number, number, number, number, number, number, number], boostEnabled: boolean, volumeLimit: number, balance: number, autoHeadroom: boolean, equipmentLabel: string, replayGain: "off" | "track" | "album", eqMode: "graphic" | "parametric", peqFilters: Array<PeqFilter>, eqStrength: number, preampDb: number, crossfeed: number, dspBypass: boolean, exclusive: boolean, sampleRate: number, speed: number, keepPitch: boolean, reverb: number, pitch: number, broadcastEnabled: boolean, broadcastDevice: string, };
+
+export type MusicFxKind = "off" | "echo" | "delay" | "spiral" | "wide";
+
+export type MusicFx = { kind: MusicFxKind, depth: number, beats: number, bpm: number, };
+
+export type CableStatus = { supported: boolean, active: boolean, backend: string, sinkName: string, monitorName: string, monitorLabel: string, micName: string, micLabel: string, micReady: boolean, monitorReady: boolean, spec: string | null, rate: number | null, format: string | null, channels: number | null, requestedRate: number | null, graphRate: number | null, bitPerfect: boolean, resampledBy: string | null, outputDevice: string | null, detail: string | null, };
+
+export type LastFmAuthStart = { token: string, authUrl: string, };
+
+export type LastFmSession = { username: string, sessionKey: string, };
+
+export type LastFmStatus = { connected: boolean, username: string | null, };
+
+export type SpotifyStatus = { connected: boolean, username: string | null, country: string | null, premium: boolean, accountType: string | null, error: string | null, };
+
+export type SpotifyDevice = { id: string, name: string, kind: string, active: boolean, restricted: boolean, volumePercent: number | null, };

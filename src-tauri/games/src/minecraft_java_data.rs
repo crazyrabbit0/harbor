@@ -7,9 +7,11 @@ pub const MAX_ARCHIVE: u64 = 256 * 1024 * 1024;
 pub const MAX_UNPACKED: u64 = 2 * 1024 * 1024 * 1024;
 #[derive(Clone, Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftJava"))]
 pub struct Java { pub path: String, pub major: u32, pub version: String, pub vendor: String, pub arch: String, pub managed: bool }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftJavaConfig"))]
 pub struct Config { pub java: Java, pub memory_mib: u32 }
 #[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Package { pub major: u32, pub version: String, pub name: String, pub bytes: u64, pub sha256: String, pub url: String, pub os: String, pub arch: String }

@@ -6,6 +6,7 @@ use serde::Serialize;
 
 #[derive(Debug, Clone, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicDeckState {
     pub deck: u8,
     pub live: bool,

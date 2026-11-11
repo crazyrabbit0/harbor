@@ -1,23 +1,5 @@
-export type TransferStatus =
-  | "queued"
-  | "connecting"
-  | "retrying"
-  | "downloading"
-  | "checking"
-  | "pausing"
-  | "paused"
-  | "canceling"
-  | "canceled"
-  | "complete"
-  | "failed";
-export type DownloadGame = {
-  id: string;
-  name: string;
-  artwork?: string;
-  logo?: string;
-  sourceName?: string;
-  contentKind?: "game" | "patch" | "mod" | "extra";
-};
+import type { TransferStatus, DownloadGame, GameTransfer } from "@/lib/generated/games-ipc";
+export type { TransferStatus, DownloadGame, GameTransfer };
 export function downloadGame(value: DownloadGame | undefined): DownloadGame | undefined {
   const text = (input: unknown, max: number) =>
     typeof input === "string" &&
@@ -64,32 +46,6 @@ export function downloadGame(value: DownloadGame | undefined): DownloadGame | un
     ...(contentKind ? { contentKind } : {}),
   };
 }
-export type GameTransfer = {
-  batchId?: string | null;
-  checkingPartial?: number | null;
-  preparation?: import("./download-preparation").PreparationChoice | null;
-  id: string;
-  profile: string;
-  name: string;
-  url: string;
-  sourcePage?: string;
-  sourceLink?: string;
-  destination: string;
-  status: TransferStatus;
-  received: number;
-  total: number | null;
-  expectedBytes: number | null;
-  expectedSha256: string | null;
-  sha256: string | null;
-  validator: string | null;
-  createdAt: number;
-  updatedAt: number;
-  error: string | null;
-  bytesPerSecond: number;
-  diskBytesPerSecond?: number;
-  game?: DownloadGame;
-  queueOrder?: number;
-};
 export const canOrderTransfer = (status: TransferStatus) =>
   ["queued", "paused", "failed"].includes(status);
 export function compareTransferQueue(a: GameTransfer, b: GameTransfer) {

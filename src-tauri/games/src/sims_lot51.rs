@@ -16,6 +16,7 @@ const HOME: &str = "https://lot51.cc";
 const MAX_PAGE: usize = 1024 * 1024;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsLot51Project"))]
 pub struct Project {
     pub slug: String,
     pub title: String,
@@ -27,6 +28,7 @@ pub struct Project {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsLot51Catalog"))]
 pub struct Catalog {
     pub projects: Vec<Project>,
     pub observed_at: u64,
@@ -34,6 +36,7 @@ pub struct Catalog {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsLot51Detail"))]
 pub struct Detail {
     pub project: Project,
     pub description: String,

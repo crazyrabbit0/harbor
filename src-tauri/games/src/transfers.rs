@@ -31,6 +31,7 @@ mod relink;
 pub use relink::Relink;
 #[derive(Clone, Serialize, Deserialize, PartialEq, Debug)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "TransferStatus"))]
 pub enum Status {
     Queued,
     Connecting,
@@ -46,22 +47,29 @@ pub enum Status {
 }
 #[derive(Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "GameTransfer"))]
 pub struct Transfer {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub batch_id: Option<String>,
     /// Some while a replacement URL must prove the saved prefix before appending.
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub checking_partial: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub preparation: Option<super::download_preparation::Choice>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub source_link: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub source_page: Option<String>,
     pub id: String,
     pub profile: String,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub game: Option<DownloadGame>,
     pub url: String,
     pub destination: String,
@@ -78,6 +86,7 @@ pub struct Transfer {
     #[serde(default)]
     pub bytes_per_second: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub disk_bytes_per_second: Option<u64>,
     #[serde(default)]
     pub queue_order: u64,
@@ -113,6 +122,7 @@ struct State {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct TransferSettings {
     pub profile: String,
     pub bytes_per_second_limit: u64,

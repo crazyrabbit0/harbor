@@ -1,4 +1,5 @@
-export type BrowserSourceFile = { url: string; name: string; browserTicket: string };
+import type { BrowserSourceFile } from "@/lib/generated/games-library-ipc";
+export type { BrowserSourceFile };
 export const BROWSER_SOURCE_HOSTS = {
   gofile: "Gofile",
   fuckingfast: "FuckingFast",

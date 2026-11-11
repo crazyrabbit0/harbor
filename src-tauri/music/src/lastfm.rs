@@ -80,6 +80,7 @@ impl MusicConnector for LastFmConnector {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct LastFmAuthStart {
     token: String,
     auth_url: String,
@@ -87,6 +88,7 @@ pub struct LastFmAuthStart {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct LastFmSession {
     username: String,
     session_key: String,
@@ -94,6 +96,7 @@ pub struct LastFmSession {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct LastFmStatus {
     pub(super) connected: bool,
     username: Option<String>,

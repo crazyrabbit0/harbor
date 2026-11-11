@@ -308,7 +308,7 @@ export function mergeMusicSearchLanes(
   const bucket = <T>(pick: (results: MusicSearchResults) => T[]) =>
     lanes.map((lane) => ({ id: lane.id, items: pick(lane.results) }));
   return {
-    top: lanes.find((lane) => lane.results.top)?.results.top,
+    top: lanes.find((lane) => lane.results.top)?.results.top ?? undefined,
     tracks: mergeBucket(
       bucket((results) => results.tracks),
       musicTrackKey,

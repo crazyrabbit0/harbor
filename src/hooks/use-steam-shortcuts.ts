@@ -4,6 +4,7 @@ import { osClass } from "@/lib/platform";
 import { useSteamShortcutLaunch } from "./use-steam-shortcut-launch";
 import { useSteamShortcutActivity } from "./use-steam-shortcut-activity";
 import type { ShortcutActivityEvent } from "@/lib/games/steam-shortcut-activity";
+import type { SteamShortcutScan as WireSteamShortcutScan } from "@/lib/generated/games-launchers-ipc";
 import {
   readSteamShortcutSettings,
   selectedShortcutAccount,
@@ -86,10 +87,11 @@ export function useSteamShortcuts(profile: string, active: boolean) {
       accountId: settings.accountId ?? undefined,
     });
     try {
-      const value = await invoke<SteamShortcutScan>("games_scan_steam_shortcuts", {
+      const wire = await invoke<WireSteamShortcutScan>("games_scan_steam_shortcuts", {
         root: settings.root,
       });
-      value.games = value.games.map((game) => ({
+      const value: SteamShortcutScan = { ...wire, games: [] };
+      value.games = wire.games.map((game) => ({
         ...game,
         artwork: Object.fromEntries(
           Object.entries(game.artwork ?? {}).flatMap(([key, path]) =>

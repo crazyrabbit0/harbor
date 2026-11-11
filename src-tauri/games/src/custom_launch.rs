@@ -14,10 +14,12 @@ type Result<T> = std::result::Result<T, &'static str>;
 mod windows_launch;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct LaunchConfig {
     pub executable: String,
     pub working_directory: Option<String>,
     pub arguments: Vec<String>,
+    #[cfg_attr(test, ts(type = r#""native" | "wine" | "proton""#))]
     pub mode: String,
     pub runner: Option<String>,
     pub prefix: Option<String>,
@@ -25,6 +27,7 @@ pub struct LaunchConfig {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CustomProcess {
     pub profile: String,
     pub id: String,
@@ -35,6 +38,7 @@ pub struct CustomProcess {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CustomExit {
     pub profile: String,
     pub id: String,

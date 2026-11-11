@@ -8,6 +8,7 @@ use tauri::Emitter;
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SteamShortcut"))]
 pub struct Game {
     id: String,
     account_id: u32,
@@ -20,6 +21,7 @@ pub struct Game {
     last_played: u32,
     hidden: bool,
     tags: Vec<String>,
+    #[cfg_attr(test, ts(type = r#""ready" | "missing" | "account" | "local""#))]
     state: &'static str,
     artwork: Artwork,
     icon_key: Option<String>,
@@ -27,6 +29,7 @@ pub struct Game {
 
 #[derive(Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SteamShortcutArtwork"))]
 pub struct Artwork {
     capsule: Option<String>,
     portrait: Option<String>,
@@ -36,6 +39,7 @@ pub struct Artwork {
 
 #[derive(Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SteamShortcutScan"))]
 pub struct Snapshot {
     steam_found: bool,
     active_account_id: Option<u32>,

@@ -22,16 +22,20 @@ type Result<T> = std::result::Result<T, &'static str>;
 const LIMIT: usize = 8 * 1024 * 1024;
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CloudEntry {
     pub id: String,
     pub name: String,
+    #[cfg_attr(test, ts(type = r#""torrent" | "folder" | "file""#))]
     pub kind: String,
     pub bytes: Option<u64>,
     pub ready: bool,
+    #[cfg_attr(test, ts(type = r#""ready" | "preparing" | "failed""#))]
     pub status: String,
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CloudPage {
     pub entries: Vec<CloudEntry>,
     pub next: Option<u32>,
@@ -39,6 +43,7 @@ pub struct CloudPage {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CloudDownload {
     pub url: String,
     pub name: String,

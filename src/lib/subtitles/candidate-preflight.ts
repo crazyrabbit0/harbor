@@ -1,5 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { PreparedSubtitle, PreparedCandidateResult } from "./prepare";
+import type { PreflightCandidateScore } from "@/lib/generated/subsync-ipc";
 
 type TimingQuality = { ncc: number; coverage: number; z: number };
 type TimingTransform = { offsetSec: number; ratio: number };
@@ -62,17 +63,6 @@ export type CandidatePreflightProbe = (
   context: CandidatePreflightContext,
 ) => Promise<TimingMeasurement>;
 
-type NativePreflightScore = {
-  id: string;
-  invalid: boolean;
-  identity?: TimingQuality | null;
-  best?: TimingQuality | null;
-  offsetSec?: number | null;
-  ratio?: number | null;
-  windowIds?: string[];
-  provenance?: string;
-};
-
 const ALIGNED_NCC = 0.75;
 const ALIGNED_COVERAGE = 0.65;
 const ALIGNED_Z = 4;
@@ -111,7 +101,7 @@ function qualityValid(value: TimingQuality | null | undefined): value is TimingQ
   );
 }
 
-function heldOutEvidenceValid(score: NativePreflightScore): boolean {
+function heldOutEvidenceValid(score: PreflightCandidateScore): boolean {
   return (
     score.provenance === PREFLIGHT_HELD_OUT_PROVENANCE &&
     score.windowIds?.length === PREFLIGHT_HELD_OUT_WINDOWS.length &&
@@ -162,7 +152,7 @@ export async function probePreparedSubtitleBatch(
   let timer: ReturnType<typeof setTimeout> | null = null;
   try {
     const measured = await Promise.race([
-      invoke<NativePreflightScore[] | null>("subsync_preflight_candidates", {
+      invoke<PreflightCandidateScore[] | null>("subsync_preflight_candidates", {
         url: context.mediaUrl,
         headers: context.headers ?? null,
         durationSec: context.durationSec,

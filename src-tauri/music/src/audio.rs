@@ -12,6 +12,7 @@ pub const EQ_FREQUENCIES: [f64; 10] = [
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicAudioSettings {
     pub device: String,
     pub eq_enabled: bool,
@@ -21,7 +22,9 @@ pub struct MusicAudioSettings {
     pub balance: f64,
     pub auto_headroom: bool,
     pub equipment_label: String,
+    #[cfg_attr(test, ts(type = r#""off" | "track" | "album""#))]
     pub replay_gain: String,
+    #[cfg_attr(test, ts(type = r#""graphic" | "parametric""#))]
     pub eq_mode: String,
     pub peq_filters: Vec<dsp::PeqFilter>,
     pub eq_strength: f64,

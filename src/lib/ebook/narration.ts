@@ -1,4 +1,9 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
+import type {
+  EBookTtsResult,
+  EBookTtsVoice,
+  EBookWordBoundary,
+} from "@/lib/generated/ebook-tts-ipc";
 
 export type NarrationProgress = {
   completed: number;
@@ -6,23 +11,9 @@ export type NarrationProgress = {
   percent: number;
 };
 
-export type NarrationBoundary = {
-  offsetMs: number;
-  durationMs: number;
-  text: string;
-};
+export type NarrationBoundary = EBookWordBoundary;
 
-export type EdgeNarrationVoice = {
-  id: string;
-  locale: string;
-  gender: string;
-  name: string;
-};
-
-type NativeNarrationResult = {
-  audioBase64: string;
-  boundaries: NarrationBoundary[];
-};
+export type EdgeNarrationVoice = EBookTtsVoice;
 const CACHE = "harbor-ebook-edge-narration-v1";
 const CACHE_MAX_AGE = 30 * 24 * 60 * 60 * 1_000;
 const CACHED_AT = "X-Harbor-Cached-At";
@@ -94,7 +85,7 @@ export async function synthesizeNarration(
       cached.headers.get(CACHED_VOICE) === voice &&
       cached.headers.get(CACHED_LOCALE) === locale
     ) {
-      const result = (await cached.json()) as NativeNarrationResult;
+      const result = (await cached.json()) as EBookTtsResult;
       onProgress({ completed: 1, total: 1, percent: 100 });
       return { blob: fromBase64(result.audioBase64), boundaries: result.boundaries ?? [] };
     }
@@ -102,7 +93,7 @@ export async function synthesizeNarration(
   }
   const channel = new Channel<NarrationProgress>();
   channel.onmessage = onProgress;
-  const result = await invoke<NativeNarrationResult>("ebook_tts_synthesize", {
+  const result = await invoke<EBookTtsResult>("ebook_tts_synthesize", {
     requestId,
     text,
     voice,

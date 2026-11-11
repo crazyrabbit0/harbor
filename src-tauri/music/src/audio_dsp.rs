@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum FilterType {
     Peak,
     LowShelf,
@@ -13,6 +14,7 @@ pub enum FilterType {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct PeqFilter {
     pub r#type: FilterType,
     pub frequency: f64,

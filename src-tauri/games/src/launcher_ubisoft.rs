@@ -8,12 +8,16 @@ const ASSETS: &str = "https://ubistatic3-a.akamaihd.net/orbit/uplay_launcher_3_0
 const KEYS: [&str; 4] = ["name", "thumb_image", "background_image", "logo_image"];
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LauncherArtwork"))]
 pub struct Artwork {
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub capsule: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub hero: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub logo: Option<String>,
 }
 

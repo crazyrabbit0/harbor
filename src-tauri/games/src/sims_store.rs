@@ -30,8 +30,10 @@ pub mod tray;
 pub mod trouble;
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsGroup"))]
 pub struct Group {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub source: Option<CreatorSource>,
     pub id: String,
     pub title: String,
@@ -42,11 +44,15 @@ pub struct Group {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsCreatorSource"))]
 pub struct CreatorSource {
+    #[cfg_attr(test, ts(type = r#""mccc" | "lot51" | "mts""#))]
     pub provider: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub project: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub required_core: Option<String>,
     pub version: String,
     pub game_patch: String,
@@ -154,12 +160,14 @@ pub(super) fn verified_core(
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsBackup"))]
 pub struct Backup {
     pub id: String,
     pub group: Group,
     pub created_at: u64,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsState"))]
 pub struct State {
     pub schema: u8,
     pub root: String,
@@ -167,6 +175,7 @@ pub struct State {
     pub groups: Vec<Group>,
     pub backups: Vec<Backup>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub troubleshoot: Option<trouble::Session>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -192,6 +201,7 @@ struct Journal {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "kind", rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsAction"))]
 pub enum Action {
     TrayImport {
         title: String,
