@@ -46,6 +46,7 @@ fn emit(app: &Option<tauri::AppHandle>, profile: &str, operation: &str, phase: &
     rename_all_fields = "camelCase",
     deny_unknown_fields
 )]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "WowAddonReviewRequest"))]
 pub enum Request {
     Install { addon_id: u32 },
     Adopt { addon_id: u32 },

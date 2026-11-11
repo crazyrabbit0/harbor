@@ -3,7 +3,25 @@ use serde::Deserialize;
 
 #[derive(Deserialize)]
 #[serde(default)]
-pub struct Request { pub kind: String, pub r#type: String, pub query: String, pub loader: String, pub game: String, pub category: String, pub offset: u32, pub sort: String }
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftCatalogRequest"))]
+pub struct Request {
+    #[cfg_attr(test, ts(optional = nullable, type = r#""search" | "project" | "versions" | "version" | "categories" | "games""#))]
+    pub kind: String,
+    #[cfg_attr(test, ts(optional = nullable, type = r#""modpack" | "mod" | "resourcepack" | "shader""#))]
+    pub r#type: String,
+    #[cfg_attr(test, ts(optional = nullable))]
+    pub query: String,
+    #[cfg_attr(test, ts(optional = nullable))]
+    pub loader: String,
+    #[cfg_attr(test, ts(optional = nullable))]
+    pub game: String,
+    #[cfg_attr(test, ts(optional = nullable))]
+    pub category: String,
+    #[cfg_attr(test, ts(optional = nullable))]
+    pub offset: u32,
+    #[cfg_attr(test, ts(optional = nullable))]
+    pub sort: String,
+}
 impl Default for Request { fn default() -> Self { Self { kind:"search".into(), r#type:"modpack".into(), query:String::new(), loader:String::new(), game:String::new(), category:String::new(), offset:0, sort:"downloads".into() } } }
 pub fn route(args: &Request) -> modrinth::Result<reqwest::Url> {
     if !["mod", "modpack", "resourcepack", "shader"].contains(&args.r#type.as_str()) || args.query.len() > 200 || args.offset > 10000 || !["relevance", "downloads", "updated", "newest"].contains(&args.sort.as_str()) || !args.loader.is_empty() && !["fabric", "forge", "neoforge", "quilt", "iris", "optifine", "canvas", "minecraft"].contains(&args.loader.as_str()) || args.game.len() > 60 || !args.game.bytes().all(|c| c.is_ascii_alphanumeric() || b"._ -".contains(&c)) || args.category.len() > 60 || !args.category.bytes().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == b'-') { return Err("mods_request"); }

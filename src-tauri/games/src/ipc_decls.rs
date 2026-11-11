@@ -189,6 +189,41 @@ mod tests {
     }
 
     #[test]
+    fn export_requests() {
+        use crate::{
+            cloud_files, download_preparation, hydra_import, minecraft_catalog, p2p,
+            preparation_intake, saves, sims_catalog, sims_lot51, sims_mts, source_public_files,
+            transfers, wow_addon_reviews,
+        };
+        let decls = Decls::new()
+            .add::<hydra_import::Request>()
+            .add::<minecraft_catalog::Request>()
+            .add::<source_public_files::Request>()
+            .add::<source_public_files::batch::Request>()
+            .add::<sims_mts::Request>()
+            .add::<sims_lot51::Request>()
+            .add::<sims_catalog::Request>()
+            .add::<saves::SaveRequest>()
+            .add::<wow_addon_reviews::Request>()
+            .add::<cloud_files::Request>()
+            .add::<cloud_files::LinkRequest>()
+            .add::<cloud_files::AdPrepare>()
+            .add::<cloud_files::AdRequest>()
+            .add::<p2p::StartTorrent>()
+            .add::<preparation_intake::Draft>()
+            .add::<download_preparation::Configure>()
+            .add::<transfers::NewTransfer>()
+            .add::<transfers::NewBatch>()
+            .add::<transfers::Relink>()
+            .finish();
+        harbor_shared::ipc_bindings::check(
+            "games-requests-ipc.ts",
+            "games/src/ipc_decls.rs",
+            &decls,
+        );
+    }
+
+    #[test]
     fn export_sims() {
         use crate::{sims_catalog, sims_cc, sims_dependencies, sims_duplicates, sims_files};
         use crate::{sims_lot51, sims_mts, sims_mts_browse, sims_packs, sims_reviews, sims_store};

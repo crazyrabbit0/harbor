@@ -13,6 +13,7 @@ use tokio_util::sync::CancellationToken;
 const LIMIT: usize = 200;
 const WAIT: Duration = Duration::from_secs(120);
 #[derive(Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PublicBatchRequest"))]
 pub struct Request {
     pub profile: String,
     pub session: String,

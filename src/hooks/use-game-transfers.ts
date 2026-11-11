@@ -13,6 +13,7 @@ import {
   type GameTransfer,
 } from "@/lib/games/transfers";
 import { useGameTorrents } from "./use-game-torrents";
+import type { NewBatch, NewTransfer, TransferRelink } from "@/lib/generated/games-requests-ipc";
 import { useGameDownloadDestination } from "./use-game-download-destination";
 import {
   forgetDownloadContext,
@@ -131,7 +132,7 @@ export function useGameTransfers(profile: string, active: boolean) {
               profile,
               name: request.name?.trim() || downloadFilename(request.url),
               destination: selection.path,
-            },
+            } satisfies NewTransfer,
             preparation: selection.preparation,
           });
           if (record.profile !== profile) return false;
@@ -185,7 +186,7 @@ export function useGameTransfers(profile: string, active: boolean) {
                 game: downloadGame(request.game),
                 name: request.name?.trim() || request.filename,
               })),
-            },
+            } satisfies NewBatch,
             preparation: selection.preparation,
           });
           rememberBatchDownloadContexts(profile, requests, added);
@@ -276,7 +277,7 @@ export function useGameTransfers(profile: string, active: boolean) {
           browserTicket: file.browserTicket,
           expectedBytes: file.expectedBytes,
           expectedSha256: file.expectedSha256,
-        },
+        } satisfies TransferRelink,
       });
       if (updated.profile !== profile || updated.id !== record.id) throw Error("transfer_state");
       const event = events.current.get(record.id),

@@ -93,6 +93,7 @@ pub struct Transfer {
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields))]
 pub struct NewTransfer {
     #[serde(default)]
     pub source_link: Option<String>,

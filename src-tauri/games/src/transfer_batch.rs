@@ -3,6 +3,7 @@ use std::collections::HashSet;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields, rename = "TransferBatchFile"))]
 pub struct BatchFile {
     #[serde(default)]
     pub source_link: Option<String>,
@@ -18,6 +19,7 @@ pub struct BatchFile {
 }
 
 #[derive(Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct NewBatch {
     pub profile: String,
     pub directory: String,

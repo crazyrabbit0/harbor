@@ -31,6 +31,7 @@ import tbLogo from "@/assets/addon-logos/torbox.png";
 import pmLogo from "@/assets/addon-logos/premiumize.png";
 import "./game-cloud.css";
 import type { CloudWebJob, CloudWebPage } from "@/lib/games/cloud-web-jobs";
+import type { CloudRequest } from "@/lib/generated/games-requests-ipc";
 
 const logos = { rd: rdLogo, tb: tbLogo, pm: pmLogo };
 type Location = { entry: CloudEntry; page: number; query: string; scroll: number };
@@ -155,7 +156,7 @@ export function GameCloudDialog({
       return;
     }
     setLoading(true);
-    const request = { args: { provider, key, parent, page } };
+    const request = { args: { provider, key, parent, page } satisfies CloudRequest };
     const load =
       jobs && !folder
         ? parent
@@ -220,7 +221,7 @@ export function GameCloudDialog({
     const work = async () => {
       const value = await invoke<CloudFileDownload>(
         jobs && !folder ? `${jobCommand}_download` : "games_cloud_download",
-        { args: { provider, key, parent, file: entry.id } },
+        { args: { provider, key, parent, file: entry.id } satisfies CloudRequest },
       );
       if (alive.current && current === revision.current) {
         setSelected(value);

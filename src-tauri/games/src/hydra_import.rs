@@ -24,6 +24,7 @@ type Result<T> = std::result::Result<T, &'static str>;
 const WAIT: Duration = Duration::from_secs(30);
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "HydraImportRequest"))]
 pub struct Request {
     pub profile: String,
     pub session: String,

@@ -12,6 +12,7 @@ import {
 } from "@/lib/games/download-preparation";
 import type { GamePreparations } from "@/hooks/use-game-preparations";
 import { GamePreparationOptions } from "./game-preparation-options";
+import type { PreparationConfigure } from "@/lib/generated/games-requests-ipc";
 
 export function PreparationStatus({
   choice,
@@ -124,7 +125,11 @@ export function GamePreparationReview({
         });
       else {
         const updated = await invoke<PreparationChoice>("games_set_preparation", {
-          request: { target: choice.target, parent: draft!.parent, name: draft!.name },
+          request: {
+            target: choice.target,
+            parent: draft!.parent,
+            name: draft!.name,
+          } satisfies PreparationConfigure,
         });
         if (live.current) preparations.accept(updated);
       }

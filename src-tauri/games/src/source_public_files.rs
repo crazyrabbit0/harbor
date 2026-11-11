@@ -9,7 +9,8 @@ const MAX_BYTES: usize = 16 * 1024 * 1024;
 const MAX_FILES: usize = 10_000;
 
 #[derive(Deserialize)]
-pub struct Request { pub url: String, #[serde(default)] pub file: String }
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PublicFilesRequest"))]
+pub struct Request { pub url: String, #[serde(default)] #[cfg_attr(test, ts(optional = nullable))] pub file: String }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(test, derive(ts_rs::TS))]

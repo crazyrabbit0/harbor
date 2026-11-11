@@ -31,8 +31,10 @@ pub struct Catalog {
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsCreatorRequest"))]
 pub struct Request {
     pub version: String,
+    #[cfg_attr(test, ts(optional))]
     pub target: Option<String>,
 }
 fn has_core<'a>(names: impl Iterator<Item = &'a str>) -> bool {

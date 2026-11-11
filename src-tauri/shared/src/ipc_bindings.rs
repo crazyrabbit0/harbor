@@ -46,5 +46,5 @@ fn strip_doc_comments(decl: &str) -> String {
         rest = rest[end..].trim_start_matches(['\n', ' ']);
     }
     out.push_str(rest);
-    out.replace(", \n", ", ")
+    out.replace(", \n", ", ").replace("{ \n", "{ ")
 }

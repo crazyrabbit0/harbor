@@ -14,6 +14,7 @@ import {
 } from "@/lib/games/saves";
 import type { GameSummary } from "@/lib/games/types";
 import { simsError } from "@/lib/games/sims";
+import type { SaveRequest } from "@/lib/generated/games-requests-ipc";
 
 export function useGameSaves(profile: string, game: GameSummary, simsPath?: string) {
   const configId = simsPath ? `${game.id}:sims:${simsPath}` : game.id;
@@ -179,7 +180,7 @@ export function useGameSaves(profile: string, game: GameSummary, simsPath?: stri
           vault: folders.vault,
           label,
           operationId,
-        },
+        } satisfies SaveRequest,
       });
       await refresh();
     });

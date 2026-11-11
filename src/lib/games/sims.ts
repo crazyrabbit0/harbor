@@ -1,6 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
 import { saveErrorKey } from "./saves";
 import type { SimsPackSelection } from "./sims-packs";
+import type {
+  SimsCreatorRequest,
+  SimsLot51Request,
+  SimsMtsRequest,
+} from "@/lib/generated/games-requests-ipc";
 
 import type {
   SimsStamp,
@@ -170,14 +175,18 @@ export const simsCreatorReview = (
         {
           profile,
           path,
-          request: { project: request.project, version: request.version, target: request.target },
+          request: {
+            project: request.project,
+            version: request.version,
+            target: request.target,
+          } satisfies Partial<SimsMtsRequest & SimsLot51Request>,
           operationId,
         },
       )
     : invoke<SimsReview>("games_sims_creator_review", {
         profile,
         path,
-        request: { version: request.version, target: request.target },
+        request: { version: request.version, target: request.target } satisfies SimsCreatorRequest,
         operationId,
       });
 export const simsReview = (

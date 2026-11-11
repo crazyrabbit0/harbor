@@ -16,6 +16,7 @@ import { readWebIntent, claimWebIntent, writeWebIntent } from "@/lib/games/cloud
 import { sourceLinkError, type SourceLink } from "@/lib/games/source-links";
 import { transferBytes } from "@/lib/games/transfers";
 import { GameCloudDialog } from "./game-cloud";
+import type { CloudLinkRequest, CloudRequest } from "@/lib/generated/games-requests-ipc";
 
 const pmCopy = new Set([
   "start",
@@ -80,7 +81,7 @@ export function SourceCloudTransfer({
     revision.current = currentRevision;
   }, [currentRevision]);
   const valid = () => alive.current && revision.current === currentRevision;
-  const args = { provider, key, parent: intent?.remoteId ?? "", page: 0, file: "" };
+  const args: CloudRequest = { provider, key, parent: intent?.remoteId ?? "", page: 0, file: "" };
   const fail = (reason: unknown) =>
     setError(
       String(reason).includes("web_storage")
@@ -217,7 +218,7 @@ export function SourceCloudTransfer({
       setRecent([]);
       if (!claimed.created) return;
       const remoteId = await invoke<string>(command("create"), {
-        args: { provider, key, url: link.url },
+        args: { provider, key, url: link.url } satisfies CloudLinkRequest,
       });
       const updated = { ...claimed.intent, remoteId };
       await writeWebIntent(storeKey, updated);
@@ -249,7 +250,7 @@ export function SourceCloudTransfer({
         provider === "pm"
           ? await invoke<CloudWebPage>(command("list"), { args: { ...args, page } })
           : await invoke<CloudWebPage>("games_cloud_web_find", {
-              args: { provider, key, url: link.url },
+              args: { provider, key, url: link.url } satisfies CloudLinkRequest,
               page,
             });
       if (!valid()) return;

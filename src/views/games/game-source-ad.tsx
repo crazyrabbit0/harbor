@@ -18,6 +18,7 @@ import { webIntentKey, type WebIntent } from "@/lib/games/cloud-web-jobs";
 import { claimWebIntent, readWebIntent, replaceWebIntent } from "@/lib/games/cloud-web-store";
 import { sourceLinkError, type SourceLink } from "@/lib/games/source-links";
 import { transferBytes } from "@/lib/games/transfers";
+import type { CloudAdPrepare, CloudAdRequest } from "@/lib/generated/games-requests-ipc";
 
 type PendingSave = { before: WebIntent; after: WebIntent; result: AdLink };
 export function SourceAllDebrid({
@@ -168,7 +169,7 @@ export function SourceAllDebrid({
       if (!claim.created) return;
       claimed = claim.intent;
       const result = await invoke<AdLink>("games_cloud_ad_prepare", {
-        args: { key: apiKey, url: link.url, password },
+        args: { key: apiKey, url: link.url, password } satisfies CloudAdPrepare,
       });
       lastCheck.current = Date.now();
       const save = {
@@ -241,7 +242,7 @@ export function SourceAllDebrid({
       if (!valid()) return;
       lastCheck.current = Date.now();
       const result = await invoke<AdStatus>("games_cloud_ad_status", {
-        args: { key: apiKey, id: remoteId },
+        args: { key: apiKey, id: remoteId } satisfies CloudAdRequest,
       });
       if (valid()) {
         setStatus(result);

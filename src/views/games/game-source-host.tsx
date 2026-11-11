@@ -5,6 +5,7 @@ import { useT, useUiLanguage } from "@/lib/i18n";
 import type { SourceLinkProvider } from "@/lib/games/source-links";
 import type { HostCheck } from "@/lib/games/source-hosts";
 import { transferBytes } from "@/lib/games/transfers";
+import type { CloudLinkRequest } from "@/lib/generated/games-requests-ipc";
 import "./game-source-host.css";
 
 export function GameSourceHost({
@@ -39,7 +40,8 @@ export function GameSourceHost({
     pending.current = true;
     setLoading(true);
     // Read the service's directory only; the source URL is never fetched or submitted.
-    void invoke<HostCheck>("games_cloud_host_check", { args: { provider, key: apiKey, url } })
+    const args: CloudLinkRequest = { provider, key: apiKey, url };
+    void invoke<HostCheck>("games_cloud_host_check", { args })
       .then((result) => {
         if (current) setValue(result);
       })
