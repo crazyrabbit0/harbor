@@ -3,6 +3,7 @@ use super::*;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields, rename = "TransferRelink"))]
 pub struct Relink {
     pub profile: String,
     pub id: String,

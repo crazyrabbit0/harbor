@@ -6,11 +6,10 @@ import type {
   WowAddonWorkspace,
   WowAddonReview,
 } from "@/lib/generated/games-mod-managers-ipc";
+import type { WowAddonReviewRequest } from "@/lib/generated/games-requests-ipc";
 export type { WowManagedAddon, WowAddonWorkspace, WowAddonReview };
 
-export type WowAddonRequest =
-  | { action: "install" | "remove" | "adopt"; addonId: number }
-  | { action: "restore"; backup: string };
+export type WowAddonRequest = WowAddonReviewRequest;
 export const loadWowAddonWorkspace = (id: string) =>
   invoke<WowAddonWorkspace>("games_wow_addon_workspace", { id });
 export const reviewWowAddon = (

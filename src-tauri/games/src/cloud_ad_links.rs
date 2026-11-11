@@ -3,13 +3,16 @@ use super::*;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CloudAdPrepare"))]
 pub struct AdPrepare {
     pub key: String,
     pub url: String,
     #[serde(default)]
+    #[cfg_attr(test, ts(optional = nullable))]
     pub password: String,
 }
 #[derive(Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CloudAdRequest"))]
 pub struct AdRequest { pub key: String, pub id: String }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]

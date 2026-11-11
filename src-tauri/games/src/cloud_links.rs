@@ -4,6 +4,7 @@ use std::collections::HashSet;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CloudLinkRequest"))]
 pub struct LinkRequest {
     pub provider: String,
     pub key: String,

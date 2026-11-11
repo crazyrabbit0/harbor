@@ -2,6 +2,7 @@ import { GameFileIcon } from "./game-file-icon";
 import { SourceFilesLoading } from "./game-source-loading";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import type { PublicBatchRequest, PublicFilesRequest } from "@/lib/generated/games-requests-ipc";
 import { ArrowDown, ArrowUpRight, Check, ShieldCheck, Square, SquareCheck } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
@@ -70,9 +71,8 @@ export function SourcePublicFiles({
     setBusy(true);
     setError(null);
     const work = async () => {
-      const next = await invoke<PublicFiles>("games_source_public_review", {
-        args: { url: link.url },
-      });
+      const args: PublicFilesRequest = { url: link.url };
+      const next = await invoke<PublicFiles>("games_source_public_review", { args });
       if (!alive.current) return;
       const initial = next.files.find((item) => item.id === next.selectedId) ?? next.files[0];
       setResult(next);
@@ -102,20 +102,19 @@ export function SourcePublicFiles({
       if (chosen.length === 1) {
         files = [
           await invoke<PublicDownload>("games_source_public_prepare", {
-            args: { url: link.url, file: chosen[0].id },
+            args: { url: link.url, file: chosen[0].id } satisfies PublicFilesRequest,
           }),
         ];
       } else {
         session = crypto.randomUUID();
         operation.current = { profile: downloads.profile, session };
-        files = await invoke<PublicDownload[]>("games_source_public_prepare_batch", {
-          args: {
-            profile: downloads.profile,
-            session,
-            url: link.url,
-            files: chosen.map((item) => item.id),
-          },
-        });
+        const args: PublicBatchRequest = {
+          profile: downloads.profile,
+          session,
+          url: link.url,
+          files: chosen.map((item) => item.id),
+        };
+        files = await invoke<PublicDownload[]>("games_source_public_prepare_batch", { args });
       }
       if (!alive.current) return;
       if (files.length !== chosen.length) throw Error("public_metadata");

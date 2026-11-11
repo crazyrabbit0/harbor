@@ -1,4 +1,4 @@
-import type { DownloadGame } from "./transfers";
+import type { StartTorrent } from "@/lib/generated/games-requests-ipc";
 
 import type {
   TorrentFile,
@@ -16,15 +16,7 @@ export type {
   TorrentSharing,
   GameTorrent,
 };
-export type TorrentRequest = {
-  token: string;
-  parent: string;
-  name: string;
-  selected: number[];
-  downloadBps: number;
-  uploadBps: number;
-  game?: DownloadGame;
-};
+export type TorrentRequest = Omit<StartTorrent, "profile">;
 const errors = new Set([
   "torrent_seed_files",
   "torrent_seed_limits",

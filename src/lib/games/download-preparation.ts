@@ -8,9 +8,10 @@ import type {
   PreparationEngine,
   PreparationTarget,
 } from "@/lib/generated/games-ipc";
+import type { PreparationDraftArgs } from "@/lib/generated/games-requests-ipc";
 
 export type { PreparationChoice, PreparationEngine, PreparationTarget };
-export type PreparationDraft = { archive: string; parent: string; name: string; members: string[] };
+export type PreparationDraft = Required<PreparationDraftArgs>;
 export type PreparationFile = { path: string; selected: boolean };
 export type PreparationOption = { archive: string; members: string[]; complete: boolean };
 export type PreparationForm = {

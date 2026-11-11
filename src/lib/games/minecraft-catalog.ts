@@ -1,17 +1,11 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { GameRequestPool } from "./request-pool";
+import type { MinecraftCatalogRequest } from "@/lib/generated/games-requests-ipc";
 
 export const MINECRAFT_CONTENT = ["modpack", "mod", "resourcepack", "shader"] as const;
 export type MinecraftContent = (typeof MINECRAFT_CONTENT)[number];
-export type MinecraftCatalogQuery = {
-  kind: "search" | "project" | "versions" | "version" | "categories" | "games";
-  type?: MinecraftContent;
-  query?: string;
-  loader?: string;
-  game?: string;
-  category?: string;
-  offset?: number;
-  sort?: string;
+export type MinecraftCatalogQuery = MinecraftCatalogRequest & {
+  kind: NonNullable<MinecraftCatalogRequest["kind"]>;
 };
 export type MinecraftProject = {
   id: string;

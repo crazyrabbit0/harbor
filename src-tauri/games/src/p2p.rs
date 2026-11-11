@@ -111,12 +111,14 @@ pub struct TorrentRecord {
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct StartTorrent {
     pub profile: String,
     pub token: String,
     pub parent: String,
     pub name: String,
     #[serde(default)]
+    #[cfg_attr(test, ts(optional))]
     pub game: Option<DownloadGame>,
     pub selected: Vec<usize>,
     pub download_bps: u32,

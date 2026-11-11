@@ -48,6 +48,7 @@ import { SourceBrowserFiles } from "./game-source-browser";
 import { GameDownloadDestination } from "./game-download-destination";
 import { GameDownloadRelink } from "./game-download-relink";
 import type { GameTransfer } from "@/lib/games/transfers";
+import type { CloudLinkRequest } from "@/lib/generated/games-requests-ipc";
 import "./game-source-links.css";
 
 const SourceTransfersContext = createContext<GameTransfers | undefined>(undefined);
@@ -255,7 +256,7 @@ function SourceLinkDialog({
     setError("");
     downloads.dismissError();
     await invoke<CloudDownload[]>("games_cloud_resolve_link", {
-      args: { provider, key, url: link.url },
+      args: { provider, key, url: link.url } satisfies CloudLinkRequest,
     })
       .then(
         (result) => {

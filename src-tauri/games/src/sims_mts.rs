@@ -53,9 +53,11 @@ pub struct Detail {
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMtsRequest"))]
 pub struct Request {
     pub project: String,
     pub version: String,
+    #[cfg_attr(test, ts(optional))]
     pub target: Option<String>,
 }
 pub(super) fn number(value: &str) -> bool {

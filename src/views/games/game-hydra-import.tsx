@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import type { HydraImportRequest } from "@/lib/generated/games-requests-ipc";
 import { FileUp, FolderOpen, Search, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { GamesIcon } from "@/components/icons/games-icon";
@@ -27,9 +28,8 @@ async function read(profile: string, directory: string, signal: AbortSignal) {
   signal.throwIfAborted();
   signal.addEventListener("abort", cancel, { once: true });
   try {
-    const result = await invoke("games_hydra_import_review", {
-      args: { profile, session, directory },
-    });
+    const args: HydraImportRequest = { profile, session, directory };
+    const result = await invoke("games_hydra_import_review", { args });
     signal.throwIfAborted();
     return parseHydraReview(result);
   } finally {

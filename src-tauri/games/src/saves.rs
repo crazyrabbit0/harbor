@@ -73,6 +73,7 @@ impl From<&SaveSnapshot> for SaveSnapshotInfo {
 }
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SaveRequest {
     pub profile: String,
     pub game_id: String,

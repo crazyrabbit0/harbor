@@ -14,6 +14,7 @@ type Result<T> = std::result::Result<T, &'static str>;
 
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PreparationDraftArgs"))]
 pub struct Draft {
     /// Exact filename in this direct request/batch, or selected torrent path.
     pub archive: String,
@@ -21,6 +22,7 @@ pub struct Draft {
     pub name: String,
     /// Additional filenames explicitly selected in the same direct batch.
     #[serde(default)]
+    #[cfg_attr(test, ts(optional = nullable))]
     pub members: Vec<String>,
 }
 

@@ -51,14 +51,18 @@ pub struct CloudDownload {
 }
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CloudRequest"))]
 pub struct Request {
     pub provider: String,
     pub key: String,
     #[serde(default)]
+    #[cfg_attr(test, ts(optional = nullable))]
     pub parent: String,
     #[serde(default)]
+    #[cfg_attr(test, ts(optional = nullable))]
     pub page: u32,
     #[serde(default)]
+    #[cfg_attr(test, ts(optional = nullable))]
     pub file: String,
 }
 struct Api {

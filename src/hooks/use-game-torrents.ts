@@ -3,6 +3,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { osClass } from "@/lib/platform";
 import type { PreparationDraft } from "@/lib/games/download-preparation";
+import type { StartTorrent } from "@/lib/generated/games-requests-ipc";
 import {
   torrentError,
   type GameTorrent,
@@ -108,7 +109,7 @@ export function useGameTorrents(profile: string, active: boolean) {
   }, [active, available, profile]);
   const start = async (request: TorrentRequest, preparation?: PreparationDraft | null) => {
     const record = await invoke<GameTorrent>("games_start_torrent", {
-      args: { ...request, game: downloadGame(request.game), profile },
+      args: { ...request, game: downloadGame(request.game), profile } satisfies StartTorrent,
       preparation: preparation ?? null,
     });
     if (record.profile === profile)

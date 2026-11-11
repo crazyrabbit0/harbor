@@ -76,6 +76,7 @@ pub struct Choice {
 }
 #[derive(Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PreparationConfigure"))]
 pub struct Configure {
     pub target: Target,
     pub parent: String,
