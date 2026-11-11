@@ -406,13 +406,15 @@ pub fn sweep_cache() {
     }
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ts_rs::TS)]
 pub struct TrailerInfo {
     pub file_path: String,
     pub stream_url: Option<String>,
     pub quality: String,
+    #[ts(type = "number")]
     pub duration_seconds: u64,
     pub title: String,
+    #[ts(type = "number")]
     pub size_bytes: u64,
 }
 
@@ -566,3 +568,16 @@ async fn trailer_stream_url(
 #[cfg(test)]
 #[path = "trailer_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::TrailerInfo;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [TrailerInfo::decl(&cfg)];
+        crate::ipc_bindings::check("trailer-ipc.ts", "trailer.rs", &decls);
+    }
+}

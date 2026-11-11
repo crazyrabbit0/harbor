@@ -3,7 +3,7 @@ use std::collections::VecDeque;
 
 use serde::Serialize;
 
-#[derive(Serialize)]
+#[derive(Serialize, ts_rs::TS)]
 pub struct SongResult {
     pub title: String,
     pub artist: String,
@@ -221,4 +221,17 @@ async fn audd_recognize(wav: Vec<u8>, api_token: String) -> Result<Option<SongRe
         artwork,
         link,
     }))
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::SongResult;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [SongResult::decl(&cfg)];
+        crate::ipc_bindings::check("song-id-ipc.ts", "song_id.rs", &decls);
+    }
 }

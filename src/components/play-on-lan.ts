@@ -1,25 +1,9 @@
 import { invoke } from "@tauri-apps/api/core";
 import { REMOTE_PROTO, REMOTE_WS_PATH, WEB_PORT } from "@/lib/remote/protocol";
 import { getThemeById } from "@/lib/theme";
+import type { HarborIdentity, HarborInstance } from "@/lib/generated/harbor-lan-ipc";
 
-export type HarborIdentity = {
-  id: string;
-  name: string;
-  platform: string;
-  version: string;
-};
-
-export type HarborInstance = {
-  id: string;
-  name: string;
-  host: string;
-  port: number;
-  platform: string;
-  version: string;
-  commandable: boolean;
-  theme: string | null;
-  isSelf: boolean;
-};
+export type { HarborIdentity, HarborInstance };
 
 export type HarborTrust = "unknown" | "paired" | "pairable";
 

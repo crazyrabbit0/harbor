@@ -24,26 +24,13 @@ import {
   type NativeDirectScore,
 } from "./direct-validation";
 
-export type TorrentWindow = { startSec: number; lenSec: number };
+import type {
+  TorrentAvailability,
+  TorrentSyncOut,
+  TorrentWindow,
+} from "@/lib/generated/torrent-sync-ipc";
 
-export type TorrentAvailability = {
-  windows: TorrentWindow[];
-  headReady: boolean;
-  tailReady: boolean;
-  downloadedFrac: number;
-  lateRegionReady: boolean;
-  fileLen: number;
-};
-
-export type TorrentSyncOut = {
-  offsetSec: number;
-  ratio: number;
-  confidence: number;
-  leverSec: number;
-  windows: number;
-  ratioLocked: boolean;
-  fitWindowIds?: string[];
-};
+export type { TorrentAvailability, TorrentSyncOut, TorrentWindow };
 
 export type TorrentRef = { infoHash?: string | null; fileIdx?: number | null };
 

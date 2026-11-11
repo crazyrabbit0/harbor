@@ -95,12 +95,13 @@ fn ensure_recovery_marker(dest: &Path, version: &str) -> Result<bool, String> {
     Ok(true)
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct HandoffProbe {
     supported: bool,
     managed: bool,
     install_dir: String,
+    #[ts(type = "number")]
     payload_version: u64,
     platform_key: String,
     app_image: bool,
@@ -544,5 +545,18 @@ mod tests {
         assert!(ensure_recovery_marker(&dest, "0.9.124").is_err());
         assert_eq!(std::fs::read(dest.join(MARKER)).unwrap(), b"not json");
         std::fs::remove_dir_all(dest).unwrap();
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::HandoffProbe;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [HandoffProbe::decl(&cfg)];
+        crate::ipc_bindings::check("installer-handoff-ipc.ts", "installer_handoff.rs", &decls);
     }
 }

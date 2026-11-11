@@ -1,15 +1,9 @@
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { HARBOR_RELEASES_URL } from "@/lib/config/endpoints";
 import { safeFetch } from "@/lib/safe-fetch";
+import type { HandoffProbe } from "@/lib/generated/installer-handoff-ipc";
 
-export type HandoffProbe = {
-  supported: boolean;
-  managed: boolean;
-  installDir: string;
-  payloadVersion: number;
-  platformKey: string;
-  appImage?: boolean;
-};
+export type { HandoffProbe };
 
 export type HandoffPlan = {
   version: string;

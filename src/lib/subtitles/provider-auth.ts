@@ -1,12 +1,10 @@
 import { invoke } from "@tauri-apps/api/core";
 import { SUBTITLE_PUBLIC_NETWORK_HEADER } from "./provider-url";
+import type { SubtitleCredentialRef } from "@/lib/generated/subtitle-credentials-ipc";
 
 export type SubtitleDownloadAuthKind = "subsource-api-key" | "subdl-api-key";
 
-export type SubtitleDownloadAuth = Readonly<{
-  kind: SubtitleDownloadAuthKind;
-  credentialId: string;
-}>;
+export type SubtitleDownloadAuth = Readonly<SubtitleCredentialRef>;
 
 export type SubtitleCredentialRequest = {
   url: string;

@@ -1,13 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type CfAccount = { id: string; name: string };
+import type { CfAccount, DeployResult } from "@/lib/generated/cf-relay-ipc";
 
-export type DeployResult = {
-  url: string;
-  account_id: string;
-  script_name: string;
-  subdomain: string;
-};
+export type { CfAccount, DeployResult };
 
 const NOT_NATIVE_MSG =
   "Relay deploy is only available in the Harbor desktop app. Open Harbor outside the browser to continue.";

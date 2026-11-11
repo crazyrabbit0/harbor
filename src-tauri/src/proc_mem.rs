@@ -1,13 +1,17 @@
 use serde::Serialize;
 
-#[derive(Serialize, Default, Clone, Copy)]
+#[derive(Serialize, Default, Clone, Copy, ts_rs::TS)]
 pub struct ProcMem {
     #[serde(rename = "harborRss")]
+    #[ts(type = "number")]
     pub harbor_rss: u64,
     #[serde(rename = "webviewRss")]
+    #[ts(type = "number")]
     pub webview_rss: u64,
+    #[ts(type = "number")]
     pub total: u64,
     #[serde(rename = "totalPhys")]
+    #[ts(type = "number")]
     pub total_phys: u64,
 }
 
@@ -445,5 +449,18 @@ mod tests {
         assert!(memory.harbor_rss > 0);
         assert!(memory.total >= memory.harbor_rss);
         assert!(memory.total_phys > 0);
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::ProcMem;
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [ProcMem::decl(&cfg)];
+        crate::ipc_bindings::check("proc-mem-ipc.ts", "proc_mem.rs", &decls);
     }
 }

@@ -10,7 +10,7 @@ use super::url_guard;
 pub const ASR_SAMPLE_RATE: u32 = 16000;
 const PCM_TIMEOUT_SECS: u64 = 60;
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, serde::Serialize, ts_rs::TS)]
 pub struct AsrToken {
     pub text: String,
     pub t0: f32,
@@ -28,7 +28,7 @@ pub struct AsrSegment {
     pub tokens: Vec<AsrToken>,
 }
 
-#[derive(Clone, serde::Serialize)]
+#[derive(Clone, serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct AsrWindow {
     pub start_sec: f32,

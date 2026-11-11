@@ -1,13 +1,13 @@
 import {
   measuredQuality,
   unknownQuality,
-  type AlignmentQuality,
   type QualityMeasurement,
   type QualityMeasurementRequest,
   type QualityValidationWindow,
   type SyncTransform,
 } from "./fp-gate";
 import type { PipelineContext } from "./pipeline";
+import type { ScoredAlignmentQuality, ScoredWindow } from "@/lib/generated/subsync-ipc";
 
 export const DIRECT_HELD_OUT_PROVENANCE = "direct-middle-held-out-v2";
 export const DIRECT_EXPLICIT_HELD_OUT_PROVENANCE = "direct-explicit-held-out-v1";
@@ -16,14 +16,9 @@ export const TORRENT_EXPLICIT_HELD_OUT_PROVENANCE = "torrent-explicit-held-out-v
 const DEFAULT_VALIDATION_WINDOWS = ["validation-middle-a", "validation-middle-b"] as const;
 const RANGE_EPSILON_SEC = 0.002;
 
-export type NativeScoredWindow = QualityValidationWindow;
+export type NativeScoredWindow = ScoredWindow;
 
-export type NativeDirectScore = AlignmentQuality & {
-  windowIds?: string[];
-  windows?: NativeScoredWindow[];
-  provenance?: string;
-  requestProvenance?: string;
-};
+export type NativeDirectScore = ScoredAlignmentQuality;
 
 export function directScoreInvokeArgs(
   ctx: PipelineContext,

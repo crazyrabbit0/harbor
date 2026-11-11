@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { SyncOut } from "@/lib/generated/subsync-ipc";
 
 export type AutoSyncInput = {
   mediaUrl: string;
@@ -8,12 +9,7 @@ export type AutoSyncInput = {
   infoHash?: string | null;
 };
 
-export type AutoSyncResult = {
-  offsetSec: number;
-  ratio: number;
-  confidence: number;
-  fitWindowIds?: string[];
-};
+export type AutoSyncResult = SyncOut;
 
 export const AUTO_SYNC_AVAILABLE = true;
 

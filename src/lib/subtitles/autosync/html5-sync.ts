@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { SyncOut } from "@/lib/generated/subsync-ipc";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import type { SubCue } from "@/lib/subtitles/parser";
 import { fetchAndParse } from "@/lib/subtitles/parser";
@@ -139,7 +140,7 @@ export type VadInput = {
   confMin?: number;
 };
 
-export type VadAffine = { offsetSec: number; ratio: number; confidence: number };
+export type VadAffine = SyncOut;
 
 export async function analyzeVad(input: VadInput): Promise<VadAffine | null> {
   if (!input.readiness.vadCapable) return null;

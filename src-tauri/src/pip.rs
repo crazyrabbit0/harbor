@@ -20,7 +20,7 @@ struct WindowSnapshot {
     maximized: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PipSubtitle {
     pub url: String,
@@ -28,7 +28,7 @@ pub struct PipSubtitle {
     pub label: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct PipSession {
     pub url: String,
@@ -324,4 +324,17 @@ pub async fn window_pip_exit(app: AppHandle, state: State<'_, PipState>) -> Resu
 
     let _ = app.emit_to("main", "pip://exited", ());
     Ok(())
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::{PipSession, PipSubtitle};
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [PipSubtitle::decl(&cfg), PipSession::decl(&cfg)];
+        crate::ipc_bindings::check("pip-ipc.ts", "pip.rs", &decls);
+    }
 }

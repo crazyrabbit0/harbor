@@ -1,14 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import type { Settings } from "@/lib/settings/types";
+import type { SvpStatus } from "@/lib/generated/svp-ipc";
 
-export type SvpStatus = {
-  supported: boolean;
-  reason?: string | null;
-  installed: boolean;
-  ready: boolean;
-  loadable?: boolean | null;
-  load_error?: string | null;
-};
+export type { SvpStatus };
 
 export async function svpStatus(): Promise<SvpStatus> {
   return invoke<SvpStatus>("svp_status");

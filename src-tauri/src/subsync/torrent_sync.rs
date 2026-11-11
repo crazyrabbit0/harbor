@@ -67,7 +67,7 @@ pub fn classify(url: &str, info_hash: Option<&str>) -> SourceMode {
     SourceMode::RestrictedStream
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TorrentAvailability {
     pub windows: Vec<Window>,
@@ -75,16 +75,18 @@ pub struct TorrentAvailability {
     pub tail_ready: bool,
     pub downloaded_frac: f32,
     pub late_region_ready: bool,
+    #[ts(type = "number")]
     pub file_len: u64,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, ts_rs::TS)]
 #[serde(rename_all = "camelCase")]
 pub struct TorrentSyncOut {
     pub offset_sec: f32,
     pub ratio: f32,
     pub confidence: f32,
     pub lever_sec: f32,
+    #[ts(type = "number")]
     pub windows: usize,
     pub ratio_locked: bool,
     pub fit_window_ids: Vec<String>,
@@ -531,5 +533,23 @@ mod tests {
             &validation,
             &excluded
         ));
+    }
+}
+
+#[cfg(test)]
+mod ipc_tests {
+    use super::windows::Window;
+    use super::{TorrentAvailability, TorrentSyncOut};
+    use ts_rs::TS;
+
+    #[test]
+    fn export_bindings() {
+        let cfg = ts_rs::Config::default();
+        let decls = [
+            Window::decl(&cfg),
+            TorrentAvailability::decl(&cfg),
+            TorrentSyncOut::decl(&cfg),
+        ];
+        crate::ipc_bindings::check("torrent-sync-ipc.ts", "subsync/torrent_sync.rs", &decls);
     }
 }

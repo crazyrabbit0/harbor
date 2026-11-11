@@ -1,13 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 import { t } from "@/lib/i18n";
+import type { SongResult as SongMatch } from "@/lib/generated/song-id-ipc";
 
-export type SongResult = {
-  title: string;
-  artist: string;
-  album: string;
-  artwork: string;
-  link: string;
-} | null;
+export type SongResult = SongMatch | null;
 
 export type SongIdToastMsg = {
   kind: "info" | "result" | "error";

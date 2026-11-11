@@ -19,7 +19,7 @@ export type GpButton =
 
 export type GpAxis = "lx" | "ly" | "rx" | "ry";
 
-export type GamepadInfo = { id: number; name: string };
+export type { GamepadInfo } from "@/lib/generated/gamepad-ipc";
 
 export type GamepadEventPayload =
   | { kind: "connected"; id: number; name: string }
