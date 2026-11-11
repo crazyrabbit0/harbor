@@ -49,6 +49,7 @@ mod backend {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CableStatus {
     pub supported: bool,
     pub active: bool,

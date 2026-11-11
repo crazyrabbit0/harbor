@@ -17,12 +17,14 @@ const END_WINDOW_MS: u64 = 4_000;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SpotifyDevice {
     pub id: String,
     pub name: String,
     pub kind: String,
     pub active: bool,
     pub restricted: bool,
+    #[cfg_attr(test, ts(type = "number | null"))]
     pub volume_percent: Option<u64>,
 }
 

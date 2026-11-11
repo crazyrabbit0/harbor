@@ -10,25 +10,33 @@ const TRACK_COLUMNS: &str =
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicAlbum {
+    #[cfg_attr(test, ts(type = "number"))]
     id: i64,
     title: String,
     artist: String,
     artwork: String,
+    #[cfg_attr(test, ts(type = "number"))]
     track_count: u64,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicArtist {
+    #[cfg_attr(test, ts(type = "number"))]
     id: i64,
     name: String,
+    #[cfg_attr(test, ts(type = "number"))]
     track_count: u64,
+    #[cfg_attr(test, ts(type = "number"))]
     album_count: u64,
 }
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicPlaylist {
     id: String,
     name: String,

@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicVideoPage {
     pub tracks: Vec<MusicTrack>,
     pub next: Option<String>,
@@ -59,6 +60,7 @@ pub struct MusicStationRef {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(tag = "kind", rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub enum MusicCatalogItem {
     Track(MusicTrack),
     Album(MusicAlbumRef),
@@ -86,9 +88,11 @@ pub enum MusicCatalogScope {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicCatalogPage {
     pub items: Vec<MusicCatalogItem>,
     pub next_cursor: Option<String>,
+    #[cfg_attr(test, ts(type = "number | null"))]
     pub total: Option<u64>,
     pub scope: MusicCatalogScope,
 }
@@ -125,6 +129,7 @@ impl MusicRowLayout {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicCatalogRow {
     pub id: String,
     pub title: String,
@@ -137,6 +142,7 @@ pub struct MusicCatalogRow {
 
 #[derive(Debug, Clone, Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicSearchResults {
     pub top: Option<MusicCatalogItem>,
     pub tracks: Vec<MusicTrack>,
@@ -249,6 +255,25 @@ mod tests {
             crate::MusicVideoStream::decl(&cfg),
             crate::MusicMigration::decl(&cfg),
             crate::MusicBootstrap::decl(&cfg),
+            MusicCatalogItem::decl(&cfg),
+            MusicCatalogPage::decl(&cfg),
+            MusicCatalogRow::decl(&cfg),
+            MusicSearchResults::decl(&cfg),
+            MusicVideoPage::decl(&cfg),
+            crate::library::MusicAlbum::decl(&cfg),
+            crate::library::MusicArtist::decl(&cfg),
+            crate::library::MusicPlaylist::decl(&cfg),
+            crate::audio::dsp::FilterType::decl(&cfg),
+            crate::audio::dsp::PeqFilter::decl(&cfg),
+            crate::audio::MusicAudioSettings::decl(&cfg),
+            crate::audio::fx::MusicFxKind::decl(&cfg),
+            crate::audio::fx::MusicFx::decl(&cfg),
+            crate::CableStatus::decl(&cfg),
+            crate::lastfm::LastFmAuthStart::decl(&cfg),
+            crate::lastfm::LastFmSession::decl(&cfg),
+            crate::lastfm::LastFmStatus::decl(&cfg),
+            crate::spotify::SpotifyStatus::decl(&cfg),
+            crate::spotify::devices::SpotifyDevice::decl(&cfg),
         ];
         harbor_shared::ipc_bindings::check("music-ipc.ts", "music/src/model.rs", &decls);
     }

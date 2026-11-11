@@ -270,6 +270,7 @@ pub async fn music_deck_stop(
 
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MusicDeckSnapshot {
     pub decks: Vec<MusicDeckState>,
     pub primary: u8,

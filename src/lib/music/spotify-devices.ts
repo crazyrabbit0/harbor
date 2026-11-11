@@ -1,13 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
 
-export type SpotifyDevice = {
-  id: string;
-  name: string;
-  kind: string;
-  active: boolean;
-  restricted: boolean;
-  volumePercent: number | null;
-};
+import type { SpotifyDevice } from "@/lib/generated/music-ipc";
+
+export type { SpotifyDevice };
 
 export function spotifyDevices(): Promise<SpotifyDevice[]> {
   return invoke<SpotifyDevice[]>("music_spotify_devices");

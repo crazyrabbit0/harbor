@@ -5,20 +5,9 @@ export const LASTFM_API_SECRET = "harbor.lastfm.v1.apiSecret";
 export const LASTFM_SESSION_KEY = "harbor.lastfm.v1.sessionKey";
 export const LASTFM_USERNAME = "harbor.lastfm.v1.username";
 
-export type LastFmAuthStart = {
-  token: string;
-  authUrl: string;
-};
+import type { LastFmAuthStart, LastFmSession, LastFmStatus } from "@/lib/generated/music-ipc";
 
-export type LastFmSession = {
-  username: string;
-  sessionKey: string;
-};
-
-export type LastFmStatus = {
-  connected: boolean;
-  username: string | null;
-};
+export type { LastFmAuthStart, LastFmSession, LastFmStatus };
 
 export function startLastFmAuth(apiKey: string, apiSecret: string): Promise<LastFmAuthStart> {
   return invoke<LastFmAuthStart>("music_lastfm_auth", { apiKey, apiSecret });

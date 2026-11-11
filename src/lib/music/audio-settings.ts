@@ -1,6 +1,8 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { AudioDevice } from "@/lib/generated/mpv-ipc";
+import type { MusicAudioSettings } from "@/lib/generated/music-ipc";
 import { useEffect, useSyncExternalStore } from "react";
-import { clampNumber, normalizePeq, type PeqFilter } from "./parametric-eq";
+import { clampNumber, normalizePeq } from "./parametric-eq";
 import { broadcastWindowState, subscribeWindowState } from "./window-sync";
 
 const AUDIO_CHANNEL = "harbor://music-audio-settings";
@@ -8,33 +10,9 @@ const AUDIO_CHANNEL = "harbor://music-audio-settings";
 export const MUSIC_EQ_FREQUENCIES = [
   31.5, 63, 125, 250, 500, 1000, 2000, 4000, 8000, 16000,
 ] as const;
-export type MusicAudioSettingsValue = {
-  device: string;
-  eqEnabled: boolean;
-  eqBands: number[];
-  boostEnabled: boolean;
-  volumeLimit: number;
-  balance: number;
-  autoHeadroom: boolean;
-  equipmentLabel: string;
-  replayGain: "off" | "track" | "album";
-  eqMode: "graphic" | "parametric";
-  peqFilters: PeqFilter[];
-  eqStrength: number;
-  preampDb: number;
-  crossfeed: number;
-  dspBypass: boolean;
-  exclusive: boolean;
-  sampleRate: number;
-  speed: number;
-  keepPitch: boolean;
-  reverb: number;
-  /** Semitones, independent of speed. */
-  pitch: number;
-  broadcastEnabled: boolean;
-  broadcastDevice: string;
-};
-export type MusicAudioDevice = { name: string; description: string };
+/** Rust holds exactly 10 bands; the frontend builds them as plain arrays. */
+export type MusicAudioSettingsValue = Omit<MusicAudioSettings, "eqBands"> & { eqBands: number[] };
+export type MusicAudioDevice = AudioDevice;
 export const DEFAULT_MUSIC_AUDIO: MusicAudioSettingsValue = {
   device: "auto",
   eqEnabled: false,
