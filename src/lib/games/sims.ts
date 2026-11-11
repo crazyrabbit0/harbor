@@ -1,8 +1,72 @@
 import { invoke } from "@tauri-apps/api/core";
-import { saveErrorKey, type SaveSnapshot } from "./saves";
-import type { SimsPackReport, SimsPackSelection } from "./sims-packs";
+import { saveErrorKey } from "./saves";
+import type { SimsPackSelection } from "./sims-packs";
 
-export type SimsStamp = { name: string; bytes: number; hash: string };
+import type {
+  SimsStamp,
+  SimsFile,
+  SimsFolder,
+  SimsCreatorSource,
+  SimsCreatorItem,
+  SimsCreatorContent,
+  SimsMtsMetrics,
+  SimsMtsDetail,
+  SimsMtsQuery as WireSimsMtsQuery,
+  SimsMtsProject as WireSimsMtsProject,
+  SimsMtsPage,
+  SimsLot51Project,
+  SimsLot51Catalog,
+  SimsLot51Detail,
+  SimsCreatorRelease,
+  SimsCreatorCatalog,
+  SimsGroup,
+  SimsBackup,
+  SimsTroubleshooting,
+  SimsTrayItem,
+  SimsWorkspace,
+  SimsAction,
+  SimsReview,
+  SimsModSet,
+  SimsManifest,
+  SimsMetadataReport,
+  SimsDependencies,
+  SimsDuplicates,
+} from "@/lib/generated/games-sims-ipc";
+export type {
+  SimsStamp,
+  SimsFile,
+  SimsFolder,
+  SimsCreatorSource,
+  SimsCreatorItem,
+  SimsCreatorContent,
+  SimsMtsMetrics,
+  SimsMtsDetail,
+  SimsMtsQuery as WireSimsMtsQuery,
+  SimsMtsProject as WireSimsMtsProject,
+  SimsMtsPage,
+  SimsLot51Project,
+  SimsLot51Catalog,
+  SimsLot51Detail,
+  SimsCreatorRelease,
+  SimsCreatorCatalog,
+  SimsGroup,
+  SimsBackup,
+  SimsTroubleshooting,
+  SimsTrayItem,
+  SimsWorkspace,
+  SimsAction,
+  SimsReview,
+  SimsModSet,
+  SimsManifest,
+  SimsMetadataReport,
+  SimsDependencies,
+  SimsDuplicates,
+};
+/** Browse input: native code defaults an omitted game to The Sims 4. */
+export type SimsMtsQuery = Omit<WireSimsMtsQuery, "game"> & { game?: WireSimsMtsQuery["game"] };
+/** CurseForge cards reuse this shape without a picked flag. */
+export type SimsMtsProject = Omit<WireSimsMtsProject, "picked"> & { picked?: boolean };
+
 export type SimsProgress = {
   profile: string;
   operationId: string;
@@ -12,103 +76,14 @@ export type SimsProgress = {
   totalBytes: number;
   canCancel: boolean;
 };
-export type SimsFile = {
-  path: string;
-  bytes: number;
-  kind: "package" | "script" | "settings";
-  scriptTooDeep: boolean;
-};
-export type SimsFolder = {
-  path: string;
-  gameVersion: string;
-  modsEnabled: boolean | null;
-  scriptsEnabled: boolean | null;
-  resourceReady: boolean;
-  files: SimsFile[];
-  partial: boolean;
-  saveRecovery: boolean;
-};
-export type SimsCreatorSource = {
-  provider: "mccc" | "lot51" | "mts";
-  project?: string;
-  requiredCore?: string;
-  version: string;
-  gamePatch: string;
-  archiveHash: string;
-};
 export const simsCreatorName = (source: SimsCreatorSource) =>
   source.provider === "mts"
     ? "Mod The Sims"
     : source.provider === "lot51"
       ? "Lot 51"
       : "Deaderpool";
-export type SimsCreatorItem = {
-  title: string;
-  creator: string;
-  page: string | null;
-  project: string | null;
-  included: boolean | null;
-};
-export type SimsCreatorContent = {
-  listed: boolean;
-  partial: boolean;
-  items: SimsCreatorItem[];
-  notes?: { partial: boolean; items: SimsCreatorItem[] };
-};
-export type SimsMtsMetrics = {
-  downloads?: number | null;
-  favorites?: number | null;
-  comments?: number | null;
-  thanks?: number | null;
-  views?: number | null;
-  rounded?: Partial<Record<"downloads" | "favorites" | "comments" | "thanks" | "views", string>>;
-};
-export type SimsMtsDetail = {
-  metrics?: SimsMtsMetrics;
-  game?: 2 | 3 | 4;
-  body?: string;
-  gallery?: string[];
-  project: string;
-  title: string;
-  creator: string;
-  description: string;
-  image: string;
-  page: string;
-  packs: string[];
-  files: { version: string; name: string; supported: boolean }[];
-  content?: SimsCreatorContent;
-};
 export const simsMtsDetail = (profile: string, page: string, operationId: string) =>
   invoke<SimsMtsDetail>("games_sims_mts_detail", { profile, page, operationId });
-export type SimsMtsQuery = {
-  game?: 2 | 3 | 4;
-  category: number;
-  sort: number;
-  query: string;
-  page: number;
-};
-export type SimsMtsProject = {
-  metrics?: SimsMtsMetrics;
-  updated?: string;
-  picked?: boolean;
-  game?: 2 | 3 | 4;
-  id: string;
-  title: string;
-  creator: string;
-  image: string;
-  page: string;
-  description: string;
-  category: string;
-};
-export type SimsMtsPage = {
-  query: SimsMtsQuery;
-  projects: SimsMtsProject[];
-  next: boolean;
-  total: number | null;
-  url: string;
-  observedAt: number;
-  stale: boolean;
-};
 export const simsMtsBrowse = (
   profile: string,
   query: SimsMtsQuery,
@@ -121,106 +96,10 @@ export const simsMtsBrowse = (
     operationId,
     refresh,
   });
-export type SimsLot51Project = {
-  slug: string;
-  title: string;
-  subtitle: string;
-  version: string;
-  icon: string;
-  image: string;
-  page: string;
-};
-export type SimsLot51Catalog = {
-  projects: SimsLot51Project[];
-  observedAt: number;
-  cached: boolean;
-};
-export type SimsLot51Detail = {
-  project: SimsLot51Project;
-  description: string;
-  packs: string[];
-  requiredCore: string | null;
-  changelog: string;
-};
 export const simsLot51Catalog = (refresh = false) =>
   invoke<SimsLot51Catalog>("games_sims_lot51_catalog", { refresh });
 export const simsLot51Detail = (project: string) =>
   invoke<SimsLot51Detail>("games_sims_lot51_detail", { project });
-export type SimsCreatorRelease = { version: string; gamePatch: string; changelog: string };
-export type SimsCreatorCatalog = { releases: SimsCreatorRelease[]; observedAt: number };
-export type SimsGroup = {
-  source?: SimsCreatorSource;
-  id: string;
-  title: string;
-  enabled: boolean;
-  files: SimsStamp[];
-  installedAt: number;
-  gameVersion: string;
-};
-export type SimsBackup = { id: string; group: SimsGroup; createdAt: number };
-export type SimsTroubleshooting = {
-  id: string;
-  round: number;
-  phase: "baseline" | "test" | "suspect" | "inconclusive";
-  selected: { id: string; title: string; enabled: boolean }[];
-  testing: string[];
-  remaining: number;
-  fixedEnabled: number;
-  versionChanged: boolean;
-};
-export type SimsTrayItem = {
-  id: string;
-  title: string;
-  category: "lot" | "room" | "household";
-  files: SimsStamp[];
-  installed: boolean;
-  installedAt: number;
-  ccGroup: string | null;
-  source?: SimsCreatorSource;
-};
-export type SimsWorkspace = {
-  tray?: { items: SimsTrayItem[] };
-  folder: SimsFolder;
-  state: { root: string; revision: string; groups: SimsGroup[]; backups: SimsBackup[] };
-  recoveryNeeded: boolean;
-  keptFiles?: { id: string; title: string; path: string; createdAt: number }[];
-  saveBackup?: SaveSnapshot | null;
-  troubleshooting?: SimsTroubleshooting | null;
-};
-export type SimsAction =
-  | { kind: "trayImport"; title: string }
-  | { kind: "trayRemove" | "trayRestore"; id: string }
-  | { kind: "startTest"; groups: string[]; backupFolder: string | null }
-  | { kind: "answerTest"; id: string; round: number; present: boolean }
-  | { kind: "restoreTest"; id: string }
-  | { kind: "install" | "adopt"; title: string }
-  | { kind: "update" | "enable" | "disable" | "remove"; id: string }
-  | { kind: "restore"; backup: string }
-  | { kind: "applySet"; id: string; backupFolder: string | null };
-export type SimsReview = {
-  information?: SimsMetadataReport | null;
-  source?: SimsCreatorSource | null;
-  token: string;
-  action: SimsAction;
-  title: string;
-  folder: string;
-  gameVersion: string;
-  files: SimsStamp[];
-  skipped: string[];
-  bytes: number;
-  expiresAt: number;
-  changes: { id: string; title: string; enabled: boolean; fileCount: number; bytes: number }[];
-  backupFolder: string | null;
-  sourceFolder: string | null;
-  destinationFolder: string | null;
-  preview: string | null;
-};
-export type SimsModSet = {
-  id: string;
-  title: string;
-  members: { id: string; title: string; enabled: boolean }[];
-  updatedAt: number;
-};
 export type SimsSetEdit = {
   revision: string;
   previous: SimsModSet | null;
@@ -235,51 +114,12 @@ export const simsSetRemove = (profile: string, path: string, previous: SimsModSe
   invoke<SimsModSet[]>("games_sims_set_remove", { profile, path, previous });
 export type SimsInspection = { resources: number; category: string; thumbnail: string | null };
 export type SimsMetadataTarget = { kind: "group"; id: string } | { kind: "file"; file: string };
-export type SimsManifest = {
-  name: string;
-  description: string | null;
-  version: string | null;
-  creators: string[];
-  url: string | null;
-  requiredPacks: string[];
-  incompatiblePacks: string[];
-  requirements: {
-    name: string;
-    version: string | null;
-    creators: string[];
-    url: string | null;
-    features: string[];
-    conditional: boolean;
-  }[];
-};
-export type SimsMetadataReport = {
-  files: { file: string; manifests: SimsManifest[] }[];
-  checkedFiles: number;
-  partial: boolean;
-};
 export const simsMetadata = (
   profile: string,
   path: string,
   target: SimsMetadataTarget,
   operationId: string,
 ) => invoke<SimsMetadataReport>("games_sims_metadata", { profile, path, target, operationId });
-export type SimsDependencies = {
-  requirements: {
-    file: string;
-    modName: string;
-    name: string;
-    version: string | null;
-    url: string | null;
-    status: "found" | "missing" | "unchecked" | "notRequired" | "alternative";
-    matchedFiles: string[];
-  }[];
-  checkedFiles: number;
-  manifestFiles: number;
-  partial: boolean;
-  checkedAt: number;
-  packs?: SimsPackReport | null;
-  packError?: string | null;
-};
 export const simsDependencies = (
   profile: string,
   path: string,
@@ -287,16 +127,6 @@ export const simsDependencies = (
   installation: SimsPackSelection | null = null,
 ) =>
   invoke<SimsDependencies>("games_sims_dependencies", { profile, path, operationId, installation });
-export type SimsDuplicates = {
-  matches: {
-    bytes: number;
-    copies: { path: string; groupId: string | null; groupTitle: string | null }[];
-  }[];
-  checkedFiles: number;
-  skippedFiles: number;
-  partial: boolean;
-  checkedAt: number;
-};
 export const simsDuplicates = (profile: string, path: string, operationId: string) =>
   invoke<SimsDuplicates>("games_sims_duplicates", { profile, path, operationId });
 export const isSims4 = (game: { steamId?: number; igdbId?: number }) =>

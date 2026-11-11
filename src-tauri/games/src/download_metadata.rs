@@ -15,16 +15,21 @@ pub fn source_link(value: Option<String>) -> Option<String> {
 /// Display identity supplied by an exact catalog selection, never inferred from a filename.
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct DownloadGame {
     pub id: String,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub artwork: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub logo: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub source_name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional, type = r#""game" | "patch" | "mod" | "extra""#))]
     pub content_kind: Option<String>,
 }
 

@@ -25,6 +25,7 @@ fn operations() -> &'static Mutex<HashMap<String, CancellationToken>> {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "ModPlan"))]
 pub struct Plan {
     pub token: String,
     pub packages: Vec<Package>,

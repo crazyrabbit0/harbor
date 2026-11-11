@@ -24,6 +24,7 @@ pub enum Action {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewItem"))]
 pub struct Item {
     pub id: String,
     pub title: String,
@@ -48,6 +49,7 @@ impl From<&Group> for Item {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewBackup"))]
 pub struct Backup {
     pub token: String,
     pub created_at: u64,
@@ -55,6 +57,7 @@ pub struct Backup {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewWorkspace"))]
 pub struct Workspace {
     pub supported: bool,
     pub pending: bool,
@@ -86,8 +89,13 @@ pub fn workspace(path: &str) -> Result<Workspace> {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewReview"))]
 pub struct Review {
     pub token: String,
+    #[cfg_attr(
+        test,
+        ts(type = r#""install" | "update" | "enable" | "disable" | "remove" | "restore""#)
+    )]
     pub action: &'static str,
     pub before: Option<Item>,
     pub after: Option<Item>,

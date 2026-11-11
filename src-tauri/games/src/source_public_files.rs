@@ -12,15 +12,19 @@ const MAX_FILES: usize = 10_000;
 pub struct Request { pub url: String, #[serde(default)] pub file: String }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct PublicFile {
     pub id: String, pub name: String, pub bytes: Option<u64>, pub sha256: Option<String>,
+    #[cfg_attr(test, ts(type = r#""available" | "review" | "limited" | "restricted" | "missing" | "unknown""#))]
     pub state: String, pub speed_limit: Option<u64>,
 }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct PublicFiles { pub title: String, pub files: Vec<PublicFile>, pub selected_id: Option<String> }
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct PublicDownload { pub url: String, pub name: String, pub expected_bytes: Option<u64>, pub expected_sha256: Option<String> }
 #[derive(Debug)]
 struct Target { id: String, list: bool, selected: Option<usize> }

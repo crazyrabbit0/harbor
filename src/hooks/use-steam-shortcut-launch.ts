@@ -5,13 +5,9 @@ import { customLaunchError } from "@/lib/games/custom-library";
 import { shortcutError, type SteamShortcut } from "@/lib/games/steam-shortcuts";
 import type { ShortcutActivity, ShortcutActivityEvent } from "@/lib/games/steam-shortcut-activity";
 
-export type ShortcutProcess = {
-  profile: string;
-  id: string;
-  sessionId: string;
-  pid: number;
-  startedAt: number;
-};
+import type { ShortcutProcess } from "@/lib/generated/games-library-ipc";
+export type { ShortcutProcess };
+
 export function useSteamShortcutLaunch(
   profile: string,
   root: string | null,

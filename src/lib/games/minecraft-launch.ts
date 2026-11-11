@@ -1,17 +1,9 @@
 import { minecraftAccountError } from "@/hooks/use-minecraft-account";
 import { minecraftJavaError } from "./minecraft-java";
 
-export type MinecraftLaunchState = {
-  running: boolean;
-  session: {
-    id: string;
-    pid: number;
-    startedAt: number;
-    endedAt: number | null;
-    exitCode: number | null;
-  } | null;
-  log: string | null;
-};
+import type { MinecraftLaunchState } from "@/lib/generated/games-minecraft-ipc";
+export type { MinecraftLaunchState };
+
 export type MinecraftLaunchProgress = {
   profile: string;
   operationId: string;

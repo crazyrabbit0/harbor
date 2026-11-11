@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 
-type TransferSettings = { profile: string; bytesPerSecondLimit: number };
+import type { TransferSettings } from "@/lib/generated/games-ipc";
+
 /** Mounted per profile by the control; old requests cannot update a new profile. */
 export function useGameTransferSettings(profile: string, active: boolean, available: boolean) {
   const [value, setValue] = useState<TransferSettings | null>(null),

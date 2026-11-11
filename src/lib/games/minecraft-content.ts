@@ -1,4 +1,5 @@
-import type { ModWorkspace } from "./mods";
+import type { MinecraftContentState } from "@/lib/generated/games-minecraft-ipc";
+export type { MinecraftContentState };
 
 export type MinecraftModBinding = {
   id: string;
@@ -6,9 +7,4 @@ export type MinecraftModBinding = {
   libraryPath: string;
   gameVersion: string;
   loader: "fabric";
-};
-export type MinecraftContentState = {
-  path: string;
-  workspace: ModWorkspace;
-  external: { name: string; bytes: number }[];
 };

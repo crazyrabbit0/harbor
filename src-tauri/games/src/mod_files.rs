@@ -15,10 +15,12 @@ pub const MANIFEST: &str = ".harbor-mods.json";
 const JOURNAL: &str = ".harbor-mods-transaction.json";
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "ModWorkspace"))]
 pub struct Workspace {
     pub schema: u8,
     pub owner: String,
     pub revision: String,
+    #[cfg_attr(test, ts(type = r#""fabric" | "forge" | "neoforge" | "quilt""#))]
     pub loader: String,
     pub game_version: String,
     pub packages: Vec<Package>,
@@ -26,6 +28,7 @@ pub struct Workspace {
     pub backups: Vec<Backup>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "ModBackup"))]
 pub struct Backup {
     pub package: Package,
     pub file: String,

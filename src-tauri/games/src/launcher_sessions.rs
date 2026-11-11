@@ -18,6 +18,7 @@ const EXIT_GRACE: u64 = 6_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LauncherSession"))]
 pub struct Session {
     pub profile: String,
     pub id: String,
@@ -50,12 +51,14 @@ impl Session {
 }
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LauncherActivity"))]
 pub struct Activity {
     pub id: String,
     pub seconds: u64,
     pub last_played: u64,
 }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "LauncherSessions"))]
 pub struct Snapshot {
     pub sessions: Vec<Session>,
     pub activity: Vec<Activity>,

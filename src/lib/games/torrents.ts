@@ -1,55 +1,20 @@
 import type { DownloadGame } from "./transfers";
-export type TorrentFile = { index: number; path: string; bytes: number; padding?: boolean };
-export type TorrentPlan = {
-  token: string;
-  name: string;
-  infoHash: string;
-  totalBytes: number;
-  pieceLength: number;
-  files: TorrentFile[];
-  private: boolean;
-};
-export type TorrentStatus =
-  | "queued"
-  | "checking"
-  | "downloading"
-  | "paused"
-  | "complete"
-  | "failed";
-export type TorrentSeedPolicy = { ratioMilli: number; seconds: number; uploadBps: number };
-export type TorrentSharing = {
-  policy: TorrentSeedPolicy;
-  status: "checking" | "seeding" | "stopped" | "limitReached" | "failed";
-  uploadedBytes: number;
-  elapsedSeconds: number;
-  error: string | null;
-};
-export type GameTorrent = {
-  preparation?: import("./download-preparation").PreparationChoice | null;
-  completedAt?: number;
-  sharing?: TorrentSharing;
-  queueOrder?: number;
-  id: string;
-  profile: string;
-  name: string;
-  infoHash: string;
-  metadataSha: string;
-  destination: string;
-  selected: number[];
-  totalBytes: number;
-  received: number;
-  status: TorrentStatus;
-  downloadBps: number;
-  uploadBps: number;
-  createdAt: number;
-  updatedAt: number;
-  error: string | null;
-  bytesPerSecond: number;
-  diskBytesPerSecond?: number;
-  game?: DownloadGame;
-  uploadPerSecond: number;
-  peers: number;
-  seeders?: number;
+
+import type {
+  TorrentFile,
+  TorrentPlan,
+  TorrentStatus,
+  TorrentSeedPolicy,
+  TorrentSharing,
+  GameTorrent,
+} from "@/lib/generated/games-ipc";
+export type {
+  TorrentFile,
+  TorrentPlan,
+  TorrentStatus,
+  TorrentSeedPolicy,
+  TorrentSharing,
+  GameTorrent,
 };
 export type TorrentRequest = {
   token: string;

@@ -17,6 +17,7 @@ pub struct Review {
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "ShortcutProcess"))]
 pub struct Process {
     pub profile: String,
     pub id: String,

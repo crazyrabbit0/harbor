@@ -4,6 +4,7 @@ use super::*;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsTroubleshootSession"))]
 pub struct Session {
     pub id: String,
     pub version: String,
@@ -13,6 +14,7 @@ pub struct Session {
 }
 #[derive(Clone, Copy, Debug, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsTroubleshootPhase"))]
 pub enum Phase {
     Baseline,
     Test,
@@ -26,6 +28,7 @@ struct Progress {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsTroubleshooting"))]
 pub struct View {
     pub id: String,
     pub round: usize,

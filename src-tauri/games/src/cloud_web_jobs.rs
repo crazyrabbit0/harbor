@@ -3,16 +3,19 @@ use super::*;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all="camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CloudWebJob"))]
 pub struct WebJob {
     pub id: String,
     pub name: String,
     pub hash: String,
+    #[cfg_attr(test, ts(type = r#""preparing" | "ready" | "failed" | "missing""#))]
     pub status: String,
     pub progress: Option<f64>,
     pub bytes: Option<u64>,
     pub files: Vec<CloudEntry>,
 }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CloudWebPage"))]
 pub struct WebPage { pub jobs: Vec<WebJob>, pub next: Option<u32> }
 fn numeric(value: &str) -> Result<()> { if value.is_empty() || value.parse::<u64>().is_err() { Err("cloud_request") } else { Ok(()) } }
 fn job(value: &Value) -> Result<WebJob> {

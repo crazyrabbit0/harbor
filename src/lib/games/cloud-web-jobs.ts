@@ -1,15 +1,12 @@
-import type { CloudEntry } from "./cloud-files";
-export type CloudWebJob = {
-  id: string;
-  name: string;
-  hash: string;
-  status: "preparing" | "ready" | "failed" | "missing";
-  progress: number | null;
-  bytes: number | null;
-  files: CloudEntry[];
-  createdAt?: number | null;
-};
-export type CloudWebPage = { jobs: CloudWebJob[]; next: number | null };
+import type {
+  CloudPmJob,
+  CloudPmPage,
+  CloudWebJob as TorBoxJob,
+  CloudWebPage as TorBoxPage,
+} from "@/lib/generated/games-sources-ipc";
+/** TorBox (`games_cloud_web_*`) and Premiumize (`games_cloud_pm_*`) jobs share one view; only Premiumize sends createdAt. */
+export type CloudWebJob = TorBoxJob | CloudPmJob;
+export type CloudWebPage = TorBoxPage | CloudPmPage;
 export type WebIntent = {
   version: 1;
   url: string;

@@ -1,4 +1,7 @@
 import type { Emulator, LocalGame } from "./emulation";
+
+import type { EmbeddedRuntime, EmbeddedSession } from "@/lib/generated/games-library-ipc";
+export type { EmbeddedRuntime, EmbeddedSession };
 const cores: Record<number, string> = {
   24: "mgba",
   33: "gambatte",
@@ -35,8 +38,6 @@ export function embeddedSystemForPath(path: string): number | null {
   );
 }
 export type EmbeddedGame = LocalGame & { root: string; sessionId: string; profile: string };
-export type EmbeddedRuntime = { installed: boolean; bytes: number; version: string };
-export type EmbeddedSession = { id: string; url: string };
 
 /** A configured external player is an explicit user choice, including incomplete setup. */
 export function romPlayerMode(

@@ -19,6 +19,7 @@ const MAX_STORE: usize = 4 * 1024 * 1024;
 const MARKER: &str = ".harbor-source-cleanup";
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CleanupPhase"))]
 pub enum Phase {
     Staging,
     Held,
@@ -29,6 +30,7 @@ pub enum Phase {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CleanupRecord"))]
 pub struct Record {
     pub id: String,
     pub profile: String,

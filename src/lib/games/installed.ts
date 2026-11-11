@@ -1,5 +1,16 @@
 import type { GameSummary } from "./types";
 
+import type {
+  SteamArtwork,
+  SteamInstall as WireSteamInstall,
+  SteamLibraryScan as WireSteamLibraryScan,
+} from "@/lib/generated/games-launchers-ipc";
+/** useSteamLibrary drops null artwork paths and converts the rest to asset URLs. */
+export type SteamInstall = Omit<WireSteamInstall, "artwork"> & {
+  artwork?: { [K in keyof SteamArtwork]?: string };
+};
+export type SteamLibraryScan = Omit<WireSteamLibraryScan, "games"> & { games: SteamInstall[] };
+
 export const STEAM_UPDATE_STATES = [
   "none",
   "queued",
@@ -11,25 +22,6 @@ export const STEAM_UPDATE_STATES = [
 ] as const;
 export type SteamUpdateState = (typeof STEAM_UPDATE_STATES)[number];
 
-export type SteamInstall = {
-  appId: number;
-  name: string;
-  installPath: string;
-  libraryPath: string;
-  sizeBytes: number;
-  lastPlayed: number;
-  state: "installed" | "updating" | "missing";
-  update?: SteamUpdateState;
-  bytesToDownload?: number;
-  bytesDownloaded?: number;
-  artwork?: { capsule?: string; portrait?: string; libraryHero?: string; logo?: string };
-};
-export type SteamLibraryScan = {
-  steamFound: boolean;
-  libraries: { path: string; available: boolean; appCount: number }[];
-  games: SteamInstall[];
-  warnings: string[];
-};
 export type LibrarySort = "recent" | "name" | "size";
 
 export function installedSummary(game: SteamInstall): GameSummary {

@@ -5,19 +5,27 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMtsMetrics"))]
 pub struct Metrics {
     // Provider-rounded labels are useful, but must not become invented exact counts.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    #[cfg_attr(test, ts(optional = nullable))]
+    #[cfg_attr(test, ts(type = r#"Partial<Record<"downloads" | "favorites" | "comments" | "views", string>>"#))]
     pub rounded: BTreeMap<String, String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub downloads: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub favorites: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub comments: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub thanks: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub views: Option<u64>,
 }
 fn count(value: &str) -> Option<u64> {

@@ -28,6 +28,7 @@ pub(super) use parts::{candidate as preparation_candidate,same_family as prepara
 
 #[derive(Clone, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ArchiveEntry {
     pub path: String,
     pub bytes: u64,
@@ -35,6 +36,7 @@ pub struct ArchiveEntry {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ArchivePlan {
     pub token: String,
     pub source: String,
@@ -49,9 +51,11 @@ pub struct ArchivePlan {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ArchiveProgress {
     pub profile: String,
     pub operation_id: String,
+    #[cfg_attr(test, ts(type = r#""checking" | "extracting" | "publishing" | "complete""#))]
     pub phase: String,
     pub bytes: u64,
     pub total_bytes: u64,
@@ -62,6 +66,7 @@ pub struct ArchiveProgress {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ArchiveReceipt {
     pub destination: String,
     pub source: String,
@@ -73,6 +78,7 @@ pub struct ArchiveReceipt {
 }
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ArchiveSpace {
     pub volume: Option<String>,
     pub available_bytes: Option<u64>,

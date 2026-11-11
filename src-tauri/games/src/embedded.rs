@@ -28,12 +28,14 @@ struct Asset {
     bytes: usize,
 }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "EmbeddedRuntime"))]
 pub struct RuntimeStatus {
     installed: bool,
     bytes: usize,
     version: &'static str,
 }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "EmbeddedSession"))]
 pub struct Session {
     id: String,
     url: String,

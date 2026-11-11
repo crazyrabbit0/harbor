@@ -8,15 +8,18 @@ pub mod images;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsTrayItem"))]
 pub struct Item {
     pub id: String,
     pub title: String,
+    #[cfg_attr(test, ts(type = r#""lot" | "room" | "household""#))]
     pub category: String,
     pub files: Vec<files::Stamp>,
     pub installed: bool,
     pub installed_at: u64,
     pub cc_group: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub source: Option<CreatorSource>,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
@@ -32,6 +35,7 @@ pub struct Selection {
     pub item: Item,
 }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsTrayView"))]
 pub struct View {
     pub items: Vec<Item>,
 }

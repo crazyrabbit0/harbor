@@ -13,6 +13,7 @@ const MAX_DIRECTORY_ENTRIES: usize = 20_000;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct ArchivePart {
     pub name: String,
     pub bytes: u64,

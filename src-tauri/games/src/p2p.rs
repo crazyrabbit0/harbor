@@ -30,6 +30,7 @@ const TTL: Duration = Duration::from_secs(15 * 60);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct TorrentFile {
     pub index: usize,
     pub path: String,
@@ -38,6 +39,7 @@ pub struct TorrentFile {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct TorrentPlan {
     pub token: String,
     pub name: String,
@@ -49,6 +51,7 @@ pub struct TorrentPlan {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "TorrentStatus"))]
 pub enum Status {
     Queued,
     Checking,
@@ -59,14 +62,19 @@ pub enum Status {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "GameTorrent"))]
 pub struct TorrentRecord {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub preparation: Option<super::download_preparation::Choice>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub completed_at: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub sharing: Option<seeding::SeedState>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub storage_bytes: Option<u64>,
     #[serde(default)]
     pub queue_order: u64,
@@ -74,6 +82,7 @@ pub struct TorrentRecord {
     pub profile: String,
     pub name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub game: Option<DownloadGame>,
     pub info_hash: String,
     pub metadata_sha: String,
@@ -90,12 +99,14 @@ pub struct TorrentRecord {
     #[serde(default)]
     pub bytes_per_second: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub disk_bytes_per_second: Option<u64>,
     #[serde(default)]
     pub upload_per_second: u64,
     #[serde(default)]
     pub peers: usize,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
     pub seeders: Option<usize>,
 }
 #[derive(Deserialize)]

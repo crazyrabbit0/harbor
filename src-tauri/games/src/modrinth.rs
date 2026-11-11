@@ -99,6 +99,7 @@ pub fn route(
     Ok(url)
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "ModDependency"))]
 pub struct Dependency {
     pub project_id: Option<String>,
     pub version_id: Option<String>,
@@ -106,6 +107,7 @@ pub struct Dependency {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "ModPackage"))]
 pub struct Package {
     pub project: String,
     pub version: String,

@@ -6,9 +6,11 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftJavaState"))]
 pub struct State { pub required: Option<u32>, pub configured: Option<Config>, pub compatible: bool }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftJavaPlan"))]
 pub struct Plan { pub token: String, pub instance: String, pub major: u32, pub version: String, pub bytes: u64, pub name: String }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

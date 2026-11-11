@@ -11,6 +11,7 @@ pub(super) fn author_html(html: &str) -> Result<String, bool> {
 
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsCreatorContent"))]
 pub struct List {
     pub listed: bool,
     pub partial: bool,
@@ -19,6 +20,7 @@ pub struct List {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsCreatorItem"))]
 pub struct Item {
     pub title: String,
     pub creator: String,

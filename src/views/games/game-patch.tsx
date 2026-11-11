@@ -22,13 +22,10 @@ import { localGames } from "@/lib/games/emulation";
 import { GameArt } from "./game-art";
 import type { GameSummary } from "@/lib/games/types";
 
+import type { DownloadReview } from "@/lib/generated/games-sources-ipc";
+
 const loadDialog = () => import("@tauri-apps/plugin-dialog");
 type PatchGame = GameSummary & { projectUrl?: string; parent?: GameSummary };
-type DownloadReview = {
-  files: { name: string; path: string; bytes: number; sha256: string }[];
-  links: { name: string; url: string }[];
-  notes: string[];
-};
 export function GamePatchLauncher({
   game,
   className = "",

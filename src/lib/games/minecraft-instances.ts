@@ -1,41 +1,9 @@
-export type MinecraftInstance = {
-  schema: number;
-  id: string;
-  owner: string;
-  name: string;
-  gameVersion: string;
-  loader: string;
-  loaderVersion: string;
-  createdAt: number;
-  files: number;
-  bytes: number;
-  pack: {
-    name: string;
-    version: string;
-    project: string | null;
-    versionId: string | null;
-    icon: string;
-  } | null;
-};
-export type MinecraftInstanceLibrary = {
-  path: string;
-  instances: MinecraftInstance[];
-  unreadable: number;
-};
-export type MinecraftPackPlan = {
-  token: string;
-  name: string;
-  version: string;
-  summary: string;
-  gameVersion: string;
-  loader: string;
-  loaderVersion: string;
-  files: { path: string; bytes: number; optional: boolean }[];
-  overrideCount: number;
-  overrideBytes: number;
-  skipped: number;
-  source: MinecraftInstance["pack"];
-};
+import type {
+  MinecraftInstance,
+  MinecraftInstanceLibrary,
+  MinecraftPackPlan,
+} from "@/lib/generated/games-minecraft-ipc";
+export type { MinecraftInstance, MinecraftInstanceLibrary, MinecraftPackPlan };
 export type MinecraftPackRequest = { version: string; name: string; icon: string };
 export type MinecraftPackProgress = {
   profile: string;

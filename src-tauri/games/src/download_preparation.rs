@@ -27,12 +27,14 @@ fn now() -> u64 {
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PreparationEngine"))]
 pub enum Engine {
     Direct,
     Torrent,
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PreparationTarget"))]
 pub struct Target {
     pub profile: String,
     pub engine: Engine,
@@ -45,6 +47,7 @@ pub struct Target {
 }
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PreparationStatus"))]
 pub enum Status {
     Waiting,
     Queued,
@@ -60,6 +63,7 @@ impl Status {
 }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "PreparationChoice"))]
 pub struct Choice {
     pub id: String,
     pub target: Target,

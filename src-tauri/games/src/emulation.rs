@@ -140,6 +140,7 @@ fn references(
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct LocalGame {
     pub path: String,
     pub name: String,
@@ -152,6 +153,7 @@ pub struct LocalGame {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct RomScan {
     pub root: String,
     pub games: Vec<LocalGame>,
@@ -267,7 +269,9 @@ pub fn scan_roms(root: String, system: u32) -> Result<RomScan> {
 
 #[derive(Clone, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct Emulator {
+    #[cfg_attr(test, ts(type = r#""mgba" | "dolphin" | "ppsspp" | "retroarch""#))]
     pub kind: String,
     pub path: String,
     pub core_path: Option<String>,
@@ -459,6 +463,7 @@ pub fn discover() -> Vec<Emulator> {
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct RunningGame {
     pub path: String,
     pub pid: u32,

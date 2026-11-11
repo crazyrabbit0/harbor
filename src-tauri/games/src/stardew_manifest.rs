@@ -5,6 +5,7 @@ use serde_json::Value;
 pub type Result<T> = std::result::Result<T, &'static str>;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewDependency"))]
 pub struct Dependency {
     pub id: String,
     pub minimum: Option<String>,
@@ -12,6 +13,7 @@ pub struct Dependency {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "StardewManifest"))]
 pub struct Manifest {
     pub id: String,
     pub name: String,

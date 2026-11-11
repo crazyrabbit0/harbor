@@ -1,16 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 
-export type GameStorageForecast = {
-  volume: string;
-  availableBytes: number | null;
-  remainingBytes: number;
-  unknownFiles: number;
-  estimatedFiles?: number;
-  fileCount: number;
-  otherReservedBytes: number;
-  shortfallBytes: number | null;
-};
+import type { GameStorageForecast } from "@/lib/generated/games-ipc";
+export type { GameStorageForecast };
+
 export function useGameStorage(
   profile: string,
   active: boolean,

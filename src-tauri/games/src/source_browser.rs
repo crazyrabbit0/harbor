@@ -25,6 +25,7 @@ fn sessions() -> &'static Mutex<HashMap<String, Session>> {
 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "BrowserSourceFile"))]
 pub struct BrowserFile {
     pub url: String,
     pub name: String,

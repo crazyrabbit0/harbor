@@ -2,22 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import type { SkinModel } from "@/lib/games/minecraft-skin";
 
-export type MinecraftSkin = { id: string; url: string; variant: SkinModel; active: boolean };
-export type MinecraftCape = { id: string; url: string; name: string; active: boolean };
-export type MinecraftProfile = {
-  id: string;
-  name: string;
-  skins: MinecraftSkin[];
-  capes: MinecraftCape[];
-};
-type Status = { configured: boolean; account: MinecraftProfile | null; updated_at: number | null };
-type Challenge = {
-  flow: string;
-  user_code: string;
-  verification_uri: string;
-  expires_at: number;
-  interval: number;
-};
+import type {
+  MinecraftSkin,
+  MinecraftCape,
+  MinecraftProfile,
+  MinecraftAccountStatus as Status,
+  MinecraftChallenge as Challenge,
+} from "@/lib/generated/games-library-ipc";
+export type { MinecraftSkin, MinecraftCape, MinecraftProfile };
+
 const ERROR_KEYS: Record<string, string> = {
   minecraft_app_config: "setup",
   minecraft_network: "network",

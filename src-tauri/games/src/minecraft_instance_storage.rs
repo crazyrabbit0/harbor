@@ -4,8 +4,10 @@ use std::{collections::HashMap, fs, path::{Path, PathBuf}, sync::{atomic::Atomic
 
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftRecoveryCopy"))]
 pub struct Backup { pub key: String, pub name: String, pub version: String, pub game_version: String, pub loader: String, pub latest: bool, pub saved_at: Option<u64> }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftStorageState"))]
 pub struct State { pub backups: Vec<Backup>, pub unreadable: usize }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

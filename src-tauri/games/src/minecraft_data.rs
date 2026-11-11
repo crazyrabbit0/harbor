@@ -2,13 +2,16 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftSkin"))]
 pub struct Skin {
     pub id: String,
     pub url: String,
+    #[cfg_attr(test, ts(type = r#""classic" | "slim""#))]
     pub variant: String,
     pub active: bool,
 }
 #[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftCape"))]
 pub struct Cape {
     pub id: String,
     pub url: String,
@@ -16,6 +19,7 @@ pub struct Cape {
     pub active: bool,
 }
 #[derive(Clone, Serialize, Deserialize)]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct MinecraftProfile {
     pub id: String,
     pub name: String,
@@ -34,6 +38,7 @@ pub struct Account {
     pub minecraft: MinecraftProfile,
 }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftAccountStatus"))]
 pub struct Status {
     pub configured: bool,
     pub account: Option<MinecraftProfile>,

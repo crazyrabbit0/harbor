@@ -1,35 +1,20 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { osClass } from "@/lib/platform";
 
-export type LocalAchievement = {
-  id: string;
-  name: string;
-  description: string;
-  icon: string;
-  lockedIcon: string;
-  hidden: boolean;
-  unlocked: boolean;
-  unlockedAt: number;
-  editable: boolean;
+import type {
+  LocalAchievement,
+  LocalAchievementSnapshot,
+  LocalAchievementReview,
+  LocalAchievementApplied,
+} from "@/lib/generated/games-launchers-ipc";
+export type {
+  LocalAchievement,
+  LocalAchievementSnapshot,
+  LocalAchievementReview,
+  LocalAchievementApplied,
 };
-export type LocalAchievementSnapshot = {
-  appId: number;
-  steamId: string;
-  updatedAt: number;
-  items: LocalAchievement[];
-};
-export type LocalAchievementReview = {
-  token: string;
-  expiresIn: number;
-  snapshot: LocalAchievementSnapshot;
-};
+
 export type LocalAchievementChange = { id: string; unlocked: boolean };
-export type LocalAchievementApplied = {
-  snapshot: LocalAchievementSnapshot | null;
-  results: { id: string; requested: boolean; actual: boolean | null; verified: boolean }[];
-  confirmed: boolean;
-  error: string | null;
-};
 export function localAchievementsAvailable() {
   return isTauri() && osClass() === "windows";
 }

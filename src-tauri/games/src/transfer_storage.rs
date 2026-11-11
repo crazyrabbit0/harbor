@@ -311,6 +311,7 @@ impl Drop for Reservation {
 
 #[derive(Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "GameStorageForecast"))]
 pub struct Forecast {
     pub volume: String,
     pub available_bytes: Option<u64>,

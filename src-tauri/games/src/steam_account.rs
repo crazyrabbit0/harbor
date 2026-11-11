@@ -39,6 +39,7 @@ pub struct SteamAccountStatus {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SteamAchievement {
     pub id: String,
     pub name: String,
@@ -51,6 +52,7 @@ pub struct SteamAchievement {
 }
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct SteamAchievements {
     pub steam_id: String,
     pub app_id: u32,

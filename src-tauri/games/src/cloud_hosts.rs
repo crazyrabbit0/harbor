@@ -3,18 +3,23 @@ use super::*;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct HostAllowance {
     pub remaining: Option<u64>,
     pub limit: Option<u64>,
+    #[cfg_attr(test, ts(type = r#""links" | "bytes""#))]
     pub unit: String,
+    #[cfg_attr(test, ts(type = r#""daily" | "weekly" | "monthly" | "current""#))]
     pub period: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct HostCheck {
     pub domain: String,
     pub name: String,
+    #[cfg_attr(test, ts(type = r#""available" | "listed" | "down" | "unsupported" | "queue" | "unknown" | "limited""#))]
     pub state: String,
     pub icon: Option<String>,
     pub note: Option<String>,

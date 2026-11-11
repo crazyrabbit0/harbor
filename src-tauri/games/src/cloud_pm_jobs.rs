@@ -3,12 +3,14 @@ use super::*;
 
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CloudPmJob"))]
 pub struct PmJob {
     #[serde(flatten)]
     pub job: WebJob,
     pub created_at: Option<u64>,
 }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CloudPmPage"))]
 pub struct PmPage { pub jobs: Vec<PmJob>, pub next: Option<u32> }
 struct Transfer { value: PmJob, folder: Option<String>, file: Option<String> }
 

@@ -17,6 +17,7 @@ type Result<T> = std::result::Result<T, &'static str>;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CleanupBlocker"))]
 pub enum Blocker {
     AnotherProfile,
     ActiveDownload,
@@ -34,6 +35,7 @@ pub(crate) struct Usage {
 
 #[derive(Clone,Debug,Serialize,Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS))]
 pub struct CleanupFile {
     pub identity:String,
     pub path: String,
@@ -44,6 +46,7 @@ pub struct CleanupFile {
 
 #[derive(Clone,Debug,Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "CleanupReview"))]
 pub struct Review {
     pub token:Option<String>,
     pub job_id: String,

@@ -1,3 +1,5 @@
+import type { PatchPlan, PatchReceipt } from "@/lib/generated/games-sources-ipc";
+export type { PatchPlan, PatchReceipt };
 export const GAME_FILE_EXTENSIONS = [
   "gba",
   "gb",
@@ -19,22 +21,6 @@ export const GAME_FILE_EXTENSIONS = [
   "iso",
   "rom",
 ];
-export type PatchPlan = {
-  token: string;
-  format: "BPS" | "IPS" | "UPS";
-  sourceName: string;
-  patchName: string;
-  sourceBytes: number;
-  targetBytes: number;
-  sourceSha256: string;
-  patchSha256: string;
-  targetSha256: string;
-  checksumsVerified: boolean;
-  metadata: string;
-  outputName: string;
-  extension: string;
-};
-export type PatchReceipt = { path: string; bytes: number; sha256: string };
 export function fileName(path: string) {
   return path.split(/[\\/]/).pop() ?? path;
 }

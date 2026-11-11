@@ -21,6 +21,7 @@ struct DeviceFlow {
 }
 struct DeviceState { code: String, interval: u64, next_poll: u64, expires_at: u64 }
 #[derive(Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftChallenge"))]
 pub struct Challenge { pub flow: String, pub user_code: String, pub verification_uri: String, pub expires_at: u64, pub interval: u64 }
 #[derive(Serialize)]
 pub struct Poll { pub pending: bool, pub interval: u64, pub status: Option<Status> }

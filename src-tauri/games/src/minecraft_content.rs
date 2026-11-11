@@ -4,9 +4,11 @@ use std::{fs, path::{Path, PathBuf}};
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftExternalFile"))]
 pub struct File { pub name: String, pub bytes: u64 }
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "MinecraftContentState"))]
 pub struct Content { pub path: String, pub workspace: mod_files::Workspace, pub external: Vec<File> }
 
 pub struct Guard { _work: minecraft_runtime::Work, instance: instances::Instance }

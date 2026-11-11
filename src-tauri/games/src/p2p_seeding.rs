@@ -4,6 +4,7 @@ mod storage;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "TorrentSeedPolicy"))]
 pub struct SeedPolicy { pub ratio_milli: u32, pub seconds: u32, pub upload_bps: u32 }
 impl SeedPolicy {
     pub fn validate(&self) -> Result<()> {
@@ -18,9 +19,11 @@ impl SeedPolicy {
 }
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "TorrentSeedStatus"))]
 pub enum SeedStatus { Checking, Seeding, Stopped, LimitReached, Failed }
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "TorrentSharing"))]
 pub struct SeedState {
     pub policy: SeedPolicy, pub status: SeedStatus, pub uploaded_bytes: u64, pub elapsed_seconds: u64,
     pub error: Option<String>,

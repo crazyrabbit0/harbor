@@ -4,6 +4,7 @@ use serde::Serialize;
 use std::collections::BTreeSet;
 
 #[derive(Clone, Debug, Default, Serialize)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsCreatorNotes"))]
 pub struct Links {
     pub partial: bool,
     pub items: Vec<Item>,

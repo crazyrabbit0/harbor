@@ -1,24 +1,11 @@
 import { minecraftInstanceError } from "./minecraft-instances";
 
-export type MinecraftRuntimePlan = {
-  token: string;
-  instance: string;
-  game: string;
-  loader: string;
-  loaderVersion: string;
-  java: number;
-  files: number;
-  bytes: number;
-  cachedFiles: number;
-  cachedBytes: number;
-  processors?: number;
-};
-export type MinecraftRuntimeState = {
-  installed: boolean;
-  java: number | null;
-  files: number;
-  bytes: number;
-};
+import type {
+  MinecraftRuntimePlan,
+  MinecraftRuntimeState,
+} from "@/lib/generated/games-minecraft-ipc";
+export type { MinecraftRuntimePlan, MinecraftRuntimeState };
+
 export type MinecraftRuntimeProgress = {
   profile: string;
   operationId: string;

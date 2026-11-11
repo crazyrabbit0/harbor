@@ -15,8 +15,10 @@ use std::{
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMtsQuery"))]
 pub struct Query {
     #[serde(default = "default_game")]
+    #[cfg_attr(test, ts(type = r#"2 | 3 | 4"#))]
     pub game: u8,
     pub category: u16,
     pub sort: u8,
@@ -63,9 +65,11 @@ impl Query {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMtsProject"))]
 pub struct Project {
     pub metrics: mts::metrics::Metrics,
     pub picked: bool,
+    #[cfg_attr(test, ts(type = r#"2 | 3 | 4"#))]
     pub game: u8,
     pub id: String,
     pub title: String,
@@ -78,6 +82,7 @@ pub struct Project {
 }
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(rename = "SimsMtsPage"))]
 pub struct Page {
     pub query: Query,
     pub projects: Vec<Project>,

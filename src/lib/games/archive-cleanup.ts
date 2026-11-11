@@ -1,34 +1,13 @@
 import { archiveError, type ArchiveJob } from "./archives";
 
-export type CleanupFile = { path: string; name: string; bytes: number; sha256: string };
-export type CleanupBlocker =
-  | "anotherProfile"
-  | "activeDownload"
-  | "sharing"
-  | "pendingPreparation"
-  | "otherExtraction";
-export type CleanupReview = {
-  token: string | null;
-  jobId: string;
-  destination: string;
-  bytes: number;
-  files: CleanupFile[];
-  filesVerified: boolean;
-  blockers: CleanupBlocker[];
-};
-export type CleanupRecord = {
-  id: string;
-  profile: string;
-  jobId: string;
-  destination: string;
-  parent: string;
-  stage: string;
-  files: CleanupFile[];
-  phase: "staging" | "held" | "recycling" | "complete" | "restored" | "unconfirmed";
-  restoring: boolean;
-  error: string | null;
-  updatedAt: number;
-};
+import type {
+  CleanupFile,
+  CleanupBlocker,
+  CleanupReview,
+  CleanupRecord,
+} from "@/lib/generated/games-ipc";
+export type { CleanupFile, CleanupBlocker, CleanupReview, CleanupRecord };
+
 export function cleanupPending(record: CleanupRecord) {
   return !["complete", "restored", "unconfirmed"].includes(record.phase);
 }
