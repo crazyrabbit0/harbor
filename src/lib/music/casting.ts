@@ -1,6 +1,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { appFeatures } from "@/lib/app-features";
 import type { CastDeviceInfo, CastStatus } from "@/lib/cast";
+import type { CastLoadArgs } from "@/lib/generated/cast-ipc";
 import type { MusicTrack } from "./types";
 import {
   claimCastSession,
@@ -222,26 +223,25 @@ export async function loadMusicOnSpeaker(
       const start =
         track.durationSeconds > 0 && position >= track.durationSeconds - 0.5 ? 0 : position;
       loading = true;
-      await withCastSession(session, () =>
-        invoke("cast_load", {
-          host: device.host,
-          port: device.port,
-          kind: device.kind,
-          controlUrl: device.control_url,
-          url: stream.url,
-          contentType: stream.mimeType,
-          title: `${track.title} — ${track.artist}`,
-          poster: /^https?:\/\//i.test(track.artwork) ? track.artwork : null,
-          // The native cast proxy forwards source-issued headers; the speaker receives its LAN URL.
-          startTimeSec: start,
-          headers: stream.httpHeaders ?? null,
-          transcode: false,
-          profile: null,
-          subtitle: null,
-          subStyle: null,
-          audioOnly: device.kind === "dlna",
-        }),
-      );
+      const args: CastLoadArgs = {
+        host: device.host,
+        port: device.port,
+        kind: device.kind,
+        controlUrl: device.control_url,
+        url: stream.url,
+        contentType: stream.mimeType,
+        title: `${track.title} — ${track.artist}`,
+        poster: /^https?:\/\//i.test(track.artwork) ? track.artwork : null,
+        // The native cast proxy forwards source-issued headers; the speaker receives its LAN URL.
+        startTimeSec: start,
+        headers: stream.httpHeaders ?? null,
+        transcode: false,
+        profile: null,
+        subtitle: null,
+        subStyle: null,
+        audioOnly: device.kind === "dlna",
+      };
+      await withCastSession(session, () => invoke("cast_load", { args }));
       current(token);
       if (!ownsCastSession(session)) throw new MusicSpeakerError("music.cast.cancelled");
       update({

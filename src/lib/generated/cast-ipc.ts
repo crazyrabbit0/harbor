@@ -6,6 +6,8 @@ export type CastDeviceInfo = { id: string, name: string, host: string, port: num
 
 export type CastStatus = { position_sec: number, player_state: string, connected: boolean, transport_codec?: string, };
 
+export type CastLoadArgs = { host: string, port: number, url: string, title?: string | null, poster?: string | null, contentType?: string | null, startTimeSec?: number | null, kind?: CastKind, controlUrl?: string | null, headers?: { [key in string]: string } | null, transcode?: boolean | null, profile?: TranscodeProfile | null, subtitle?: CastSub | null, subStyle?: CastSubStyle | null, audioOnly?: boolean | null, audioTrackOrdinal?: number | null, audioStartPaused?: boolean | null, };
+
 export type CastSub = { kind: "external" | "embedded", url?: string, src_index?: number, format?: "srt" | "ass" | "ssa" | "vtt", off: boolean, };
 
 export type CastSubStyle = { font_size: number, font_color: string, border_color: string, border_size: number, margin_y: number, align_x: "left" | "center" | "right", };

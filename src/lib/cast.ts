@@ -3,6 +3,7 @@ import { appFeatures } from "@/lib/app-features";
 import type {
   CastDeviceInfo,
   CastKind,
+  CastLoadArgs,
   CastStatus,
   CastSub,
   CastSubStyle,
@@ -47,7 +48,7 @@ export async function castLoad(opts: {
 }): Promise<{ ok: boolean; error: string | null }> {
   if (!isTauri) return { ok: false, error: "Casting requires the desktop build." };
   try {
-    await invoke("cast_load", {
+    const args: CastLoadArgs = {
       host: opts.host,
       port: opts.port,
       url: opts.url,
@@ -65,7 +66,8 @@ export async function castLoad(opts: {
       audioOnly: opts.audioOnly ?? false,
       audioTrackOrdinal: opts.audioTrackOrdinal ?? null,
       audioStartPaused: opts.audioStartPaused ?? false,
-    });
+    };
+    await invoke("cast_load", { args });
     return { ok: true, error: null };
   } catch (e) {
     return { ok: false, error: e instanceof Error ? e.message : String(e) };

@@ -6,7 +6,7 @@ use rust_cast::{
     },
     CastDevice, ChannelMessage,
 };
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
 use std::str::FromStr;
@@ -530,27 +530,56 @@ fn launch_receiver_app<'a>(
     Ok((transport_id, session_id))
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(test, derive(ts_rs::TS), ts(optional_fields = nullable))]
+pub struct CastLoadArgs {
+    pub host: String,
+    pub port: u16,
+    pub url: String,
+    pub title: Option<String>,
+    pub poster: Option<String>,
+    pub content_type: Option<String>,
+    pub start_time_sec: Option<f64>,
+    #[cfg_attr(test, ts(optional, type = "CastKind"))]
+    pub kind: Option<String>,
+    pub control_url: Option<String>,
+    pub headers: Option<HashMap<String, String>>,
+    pub transcode: Option<bool>,
+    pub profile: Option<TranscodeProfile>,
+    pub subtitle: Option<CastSub>,
+    pub sub_style: Option<CastSubStyle>,
+    /// Extract audio from this exact source; the receiver must confirm progress before LOAD resolves.
+    pub audio_only: Option<bool>,
+    /// Embedded audio ordinal in this exact source (FFmpeg `0:a:N`), never the mpv aid.
+    pub audio_track_ordinal: Option<u32>,
+    pub audio_start_paused: Option<bool>,
+}
+
 #[tauri::command]
 pub async fn cast_load(
     hooks: tauri::State<'_, CastHooks>,
-    host: String,
-    port: u16,
-    url: String,
-    title: Option<String>,
-    poster: Option<String>,
-    content_type: Option<String>,
-    start_time_sec: Option<f64>,
-    kind: Option<String>,
-    control_url: Option<String>,
-    headers: Option<std::collections::HashMap<String, String>>,
-    transcode: Option<bool>,
-    profile: Option<TranscodeProfile>,
-    subtitle: Option<CastSub>,
-    sub_style: Option<CastSubStyle>,
-    audio_only: Option<bool>,
-    audio_track_ordinal: Option<u32>,
-    audio_start_paused: Option<bool>,
+    args: CastLoadArgs,
 ) -> Result<(), String> {
+    let CastLoadArgs {
+        host,
+        port,
+        url,
+        title,
+        poster,
+        content_type,
+        start_time_sec,
+        kind,
+        control_url,
+        headers,
+        transcode,
+        profile,
+        subtitle,
+        sub_style,
+        audio_only,
+        audio_track_ordinal,
+        audio_start_paused,
+    } = args;
     let kind_str = kind.unwrap_or_else(|| "chromecast".into());
     let _operation = TRANSPORT_OPS.lock().await;
     let control_url = required_control_url(&kind_str, control_url)?;
