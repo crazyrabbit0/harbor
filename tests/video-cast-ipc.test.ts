@@ -43,15 +43,18 @@ test("audio-only video IPC forwards exact source headers, embedded ordinal and p
     startTimeSec: 54,
   });
   assert.equal(result.ok, true);
-  assert.equal(calls[0].args.audioOnly, true);
-  assert.equal(calls[0].args.audioTrackOrdinal, 2);
-  assert.equal(calls[0].args.audioStartPaused, true);
-  assert.equal(calls[0].args.url, "https://example.test/actual.mkv");
-  assert.deepEqual(calls[0].args.headers, { "Accept-Language": "en-US,en;q=0.9" });
-  assert.equal(calls[0].args.startTimeSec, 54);
-  assert.equal(calls[0].args.transcode, false);
-  assert.equal("volume" in calls[0].args, false);
-  assert.equal("audioStreamIndex" in calls[0].args, false);
+  assert.equal(calls[0].command, "cast_load");
+  assert.deepEqual(Object.keys(calls[0].args), ["args"]);
+  const load = calls[0].args.args;
+  assert.equal(load.audioOnly, true);
+  assert.equal(load.audioTrackOrdinal, 2);
+  assert.equal(load.audioStartPaused, true);
+  assert.equal(load.url, "https://example.test/actual.mkv");
+  assert.deepEqual(load.headers, { "Accept-Language": "en-US,en;q=0.9" });
+  assert.equal(load.startTimeSec, 54);
+  assert.equal(load.transcode, false);
+  assert.equal("volume" in load, false);
+  assert.equal("audioStreamIndex" in load, false);
 });
 test("TV casting retains the normal video payload; failed controls and status reject honestly", async () => {
   const normal = fixture();
@@ -60,10 +63,11 @@ test("TV casting retains the normal video payload; failed controls and status re
     port: 8009,
     url: "https://example.test/video.mp4",
   });
-  assert.equal(normal.calls[0].args.kind, "chromecast");
-  assert.equal(normal.calls[0].args.audioOnly, false);
-  assert.equal(normal.calls[0].args.audioStartPaused, false);
-  assert.equal(normal.calls[0].args.audioTrackOrdinal, null);
+  const load = normal.calls[0].args.args;
+  assert.equal(load.kind, "chromecast");
+  assert.equal(load.audioOnly, false);
+  assert.equal(load.audioStartPaused, false);
+  assert.equal(load.audioTrackOrdinal, null);
   const { api } = fixture(true);
   for (const command of [
     api.castPlay,

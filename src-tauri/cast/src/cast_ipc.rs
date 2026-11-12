@@ -12,6 +12,7 @@ mod tests {
             r#"export type CastKind = "chromecast" | "dlna" | "roku" | "airplay";"#.to_string(),
             crate::cast::CastDeviceInfo::decl(&cfg),
             crate::cast::CastStatus::decl(&cfg),
+            crate::cast::CastLoadArgs::decl(&cfg),
             CastSub::decl(&cfg),
             CastSubStyle::decl(&cfg),
             TranscodeProfile::decl(&cfg),

@@ -127,7 +127,7 @@ test("only the resolved audio URL, MIME and real headers are forwarded through c
   assert.equal(loaded.active, true);
   assert.equal(loaded.phase, "unknown");
   assert.equal(calls[0].command, "music_resolve_stream");
-  const load = calls.find((call) => call.command === "cast_load")!.args;
+  const load = calls.find((call) => call.command === "cast_load")!.args.args;
   assert.equal(load.url, stream.url);
   assert.equal(load.contentType, "audio/mpeg");
   assert.deepEqual(load.headers, stream.httpHeaders);
@@ -152,7 +152,10 @@ test("transferring a finished song starts it again while mid-song transfers reta
   ]) {
     const { casting, calls } = fixture();
     await casting.loadMusicOnSpeaker(track, speaker, position);
-    assert.equal(calls.find((call) => call.command === "cast_load")!.args.startTimeSec, expected);
+    assert.equal(
+      calls.find((call) => call.command === "cast_load")!.args.args.startTimeSec,
+      expected,
+    );
     assert.equal(casting.getMusicSpeakerState().positionSec, expected);
   }
 });
