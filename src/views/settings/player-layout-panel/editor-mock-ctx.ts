@@ -10,9 +10,9 @@ import type {
 import { emptySnapshot, type PlayerCapabilities } from "@/lib/player/bridge";
 
 const NOOP = () => {};
-const NOOP_NUM = (_: number) => {};
-const NOOP_STR = (_: string) => {};
-const NOOP_BOOL = (_: boolean) => {};
+const NOOP_NUM: (value: number) => void = NOOP;
+const NOOP_STR: (value: string) => void = NOOP;
+const NOOP_BOOL: (value: boolean) => void = NOOP;
 
 const MOCK_CAPS: PlayerCapabilities = {
   engine: "mpv",

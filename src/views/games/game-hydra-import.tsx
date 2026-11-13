@@ -311,8 +311,9 @@ export function GameHydraImport({
     };
     await work()
       .catch((reason) => {
-        if (current())
-          abort.signal.aborted ? setNotice("games.hydra.stopped") : setError(errorKey(reason));
+        if (!current()) return;
+        if (abort.signal.aborted) setNotice("games.hydra.stopped");
+        else setError(errorKey(reason));
       })
       .finally(() => {
         inFlight.current = false;
@@ -322,7 +323,8 @@ export function GameHydraImport({
   const toggle = (key: string) =>
     setSelected((value) => {
       const next = new Set(value);
-      next.has(key) ? next.delete(key) : next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
       return next;
     });
   return (

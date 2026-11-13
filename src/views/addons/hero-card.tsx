@@ -70,7 +70,8 @@ export function HeroCard({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              installed ? onUninstall() : onInstall();
+              if (installed) onUninstall();
+              else onInstall();
             }}
             className={`h-9 rounded-full px-5 text-[13px] font-semibold transition-all ${
               installed

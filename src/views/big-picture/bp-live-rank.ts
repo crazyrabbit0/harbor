@@ -16,7 +16,7 @@ const ADMIT_MIN = 8;
 // exclusive. scoreChannel in top-networks.ts is not exported, and this table is
 // the replacement rather than a second copy of it.
 const JUNK: ReadonlyArray<{ re: RegExp; penalty: number }> = [
-  { re: /(^|[^a-z0-9])24\s*[\/x]\s*7([^a-z0-9]|$)/i, penalty: -45 },
+  { re: /(^|[^a-z0-9])24\s*[/x]\s*7([^a-z0-9]|$)/i, penalty: -45 },
   { re: /[#*=~_]{2,}/, penalty: -40 },
   { re: /\b(raw|backup|feed|mirror|secondary|dummy|test|tmp|temp)\b/i, penalty: -30 },
   { re: /\b\d{2,3}\s*fps\b/i, penalty: -30 },

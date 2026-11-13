@@ -123,7 +123,7 @@ function SingleUpload({
   const handleFile = async (file: File | undefined) => {
     if (!file) return;
     setWarning(null);
-    if (!/^image\//.test(file.type)) {
+    if (!file.type.startsWith("image/")) {
       window.alert(t("Please choose a PNG, SVG, JPG, or WebP image."));
       return;
     }

@@ -172,7 +172,7 @@ export function GameLibraryLinks({
       live.current = false;
       cancelAnimationFrame(frame);
       document.removeEventListener("keydown", trap);
-      previous?.isConnected && previous.focus({ preventScroll: true });
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
   useEffect(() => {

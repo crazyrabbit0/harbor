@@ -50,7 +50,7 @@ function useBpCollection(id: number, fallbackName: string): CollectionState {
           metas: [],
           loading: wanted.length > 0,
         });
-        const found = new Array<Meta | null>(wanted.length).fill(null);
+        const found = Array.from({ length: wanted.length }, (): Meta | null => null);
         await bpMapLimit(wanted, HYDRATE_LANES, async ({ e, i }) => {
           const card = await fetchTvdbEntity(e.kind, e.tvdbId).catch(() => null);
           if (!alive || !card) return;

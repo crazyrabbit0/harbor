@@ -105,8 +105,10 @@ export function useRetroNavigation(
         event.preventDefault();
         event.stopImmediatePropagation();
         if (!event.repeat) {
-          if (event.key === "Escape") live.current.playing ? live.current.action("pause") : back();
-          else live.current.action(shortcuts[event.key as keyof typeof shortcuts]);
+          if (event.key === "Escape") {
+            if (live.current.playing) live.current.action("pause");
+            else back();
+          } else live.current.action(shortcuts[event.key as keyof typeof shortcuts]);
         }
         return;
       }
@@ -175,7 +177,8 @@ export function useRetroNavigation(
         }
         const chord = pad.buttons[8]?.pressed && pad.buttons[9]?.pressed;
         if (edge(16) || (chord && (edge(8) || edge(9)))) {
-          live.current.playing ? live.current.action("pause") : back();
+          if (live.current.playing) live.current.action("pause");
+          else back();
           continue;
         }
         if (live.current.playing || document.hidden || !document.hasFocus()) continue;

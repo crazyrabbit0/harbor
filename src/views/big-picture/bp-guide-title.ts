@@ -1,6 +1,6 @@
 export type BpChannelLabel = { name: string; badge: string | null };
 
-const COUNTRY_RE = /^([A-Za-z]{2,5})\s*[|:\-]\s*/;
+const COUNTRY_RE = /^([A-Za-z]{2,5})\s*[|:-]\s*/;
 const LEAD_DECOR_RE = /^[\s#*_~=.\-|>]+/;
 const TRAIL_DECOR_RE = /[\s#*_~=.\-|<]+$/;
 const LEAD_STRAY_RE = /^[\s#*_~=.\-|>:,]+/;

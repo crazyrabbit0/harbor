@@ -86,7 +86,7 @@ export function useLobbyGate(params: {
       const seen = firstSeenRef.current;
       const ids = new Set(roomSnapshot.participants.map((p) => p.id));
       for (const id of ids) if (!seen.has(id)) seen.set(id, now);
-      for (const id of [...seen.keys()]) if (!ids.has(id)) seen.delete(id);
+      for (const id of seen.keys()) if (!ids.has(id)) seen.delete(id);
       const next = new Set<string>();
       for (const p of roomSnapshot.participants) {
         if (!p.ready && now - (seen.get(p.id) ?? now) > READY_STALE_MS) next.add(p.id);

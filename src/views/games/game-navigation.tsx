@@ -226,7 +226,8 @@ export function GameNavigation({
                 role="menuitem"
                 onClick={() => {
                   close(true);
-                  openMods ? openMods(null) : navigate("mods");
+                  if (openMods) openMods(null);
+                  else navigate("mods");
                 }}
               >
                 <ModsIcon />
@@ -240,7 +241,8 @@ export function GameNavigation({
                   aria-current={tab === "mods" && modGame === game.id ? "page" : undefined}
                   onClick={() => {
                     close(true);
-                    openMods ? openMods(game.id) : navigate("mods");
+                    if (openMods) openMods(game.id);
+                    else navigate("mods");
                   }}
                 >
                   <ModGameLogo game={game.id} compact decorative />
