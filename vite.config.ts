@@ -107,6 +107,8 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/dj/",
   "/src/views/downloads.tsx",
   "/src/views/downloads/",
+  "/src/views/ebook.tsx",
+  "/src/views/ebook/",
   "/src/views/episode-detail.tsx",
   "/src/views/feed.tsx",
   "/src/views/feed/",

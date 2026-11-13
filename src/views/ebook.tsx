@@ -418,13 +418,9 @@ export function EBookView() {
     if (liveCollections.length) writeSourceEBookCollections(collectionScope, liveCollections);
   }, [collectionScope, liveCollections]);
 
-  const loadSources = useCallback((requestedProvider?: string, requestedTag?: string) => {
+  const fetchSources = useCallback((requestedProvider?: string, requestedTag?: string) => {
     const seq = ++sourceSeq.current;
     cursorRef.current = {};
-    setHasMore(false);
-    setSourceItems(null);
-    setSourceCatalogItems(null);
-    setAwardSourceItems([]);
     void listEBookProviders()
       .then((list) => {
         if (seq !== sourceSeq.current) return null;
@@ -478,13 +474,37 @@ export function EBookView() {
         }
       });
   }, []);
+  const resetSources = useCallback(() => {
+    setHasMore(false);
+    setSourceItems(null);
+    setSourceCatalogItems(null);
+    setAwardSourceItems([]);
+  }, []);
+  const loadSources = (requestedProvider?: string, requestedTag?: string) => {
+    resetSources();
+    fetchSources(requestedProvider, requestedTag);
+  };
+  const sourcesLoadKey = `${metadataVersion}\0${uiLanguage}`;
+  const [seenSourcesLoadKey, setSeenSourcesLoadKey] = useState(sourcesLoadKey);
+  if (seenSourcesLoadKey !== sourcesLoadKey) {
+    setSeenSourcesLoadKey(sourcesLoadKey);
+    resetSources();
+  }
 
   const sourceCatalogReady = sourceCatalogItems !== null;
+  const collectionsRefreshKey =
+    screen === "collections" && providerId && sourceCatalogReady
+      ? `${collectionScope}\0${providerId}`
+      : null;
+  const [seenCollectionsRefreshKey, setSeenCollectionsRefreshKey] = useState<string | null>(null);
+  if (seenCollectionsRefreshKey !== collectionsRefreshKey) {
+    setSeenCollectionsRefreshKey(collectionsRefreshKey);
+    if (collectionsRefreshKey !== null) setCollectionsRefreshing(true);
+  }
   useEffect(() => {
     if (screen !== "collections" || !providerId || !sourceCatalogReady) return;
     const seq = sourceSeq.current;
     let active = true;
-    setCollectionsRefreshing(true);
     void (async () => {
       const loadCatalog = async () => {
         let nextCursor = { ...cursorRef.current };
@@ -545,15 +565,19 @@ export function EBookView() {
   }, [cachedAwardBooks, collectionScope, providerId, screen, sourceCatalogReady]);
 
   useEffect(() => {
-    loadSources();
-    const sources = subscribeEBookSources(loadSources);
-    const extensions = subscribeEBookExtensions(loadSources);
+    fetchSources();
+    const reload = () => {
+      resetSources();
+      fetchSources();
+    };
+    const sources = subscribeEBookSources(reload);
+    const extensions = subscribeEBookExtensions(reload);
     return () => {
       window.clearTimeout(searchTimer.current);
       sources();
       extensions();
     };
-  }, [loadSources, metadataVersion, uiLanguage]);
+  }, [fetchSources, metadataVersion, resetSources, uiLanguage]);
 
   useEffect(() => {
     const update = () => {
@@ -570,15 +594,30 @@ export function EBookView() {
     return () => window.removeEventListener("harbor:ebook-resume", update);
   }, []);
 
+  const selectionInputs = { currentItems, ebookId, displayFavorites, displaySaved, uiLanguage };
+  const [seenSelectionInputs, setSeenSelectionInputs] = useState<typeof selectionInputs | null>(
+    null,
+  );
+  if (
+    seenSelectionInputs === null ||
+    seenSelectionInputs.currentItems !== currentItems ||
+    seenSelectionInputs.ebookId !== ebookId ||
+    seenSelectionInputs.displayFavorites !== displayFavorites ||
+    seenSelectionInputs.displaySaved !== displaySaved ||
+    seenSelectionInputs.uiLanguage !== uiLanguage
+  ) {
+    setSeenSelectionInputs(selectionInputs);
+    setSelected(
+      ebookId
+        ? (currentItems.get(ebookId) ??
+            [...displayFavorites, ...displaySaved].find((ebook) => ebook.id === ebookId) ??
+            null)
+        : null,
+    );
+  }
+
   useEffect(() => {
-    if (!ebookId) {
-      setSelected(null);
-      return;
-    }
-    const cached =
-      currentItems.get(ebookId) ??
-      [...displayFavorites, ...displaySaved].find((ebook) => ebook.id === ebookId);
-    setSelected(cached ?? null);
+    if (!ebookId) return;
     const source = ebookId.startsWith("source:");
     void (source ? sourceEBookDetail(ebookId) : ebookDetail(ebookId))
       .then((detail) => {
@@ -1470,13 +1509,16 @@ function EBookLibraryHero({
     return () => window.clearInterval(id);
   }, [paused, ebooks.length, pageVisible]);
 
-  useEffect(() => {
-    if (active >= ebooks.length) setActive(0);
-  }, [ebooks.length, active]);
+  if (active !== 0 && active >= ebooks.length) setActive(0);
+
+  const [seenFade, setSeenFade] = useState({ active, shown });
+  if (seenFade.active !== active || seenFade.shown !== shown) {
+    setSeenFade({ active, shown });
+    if (active !== shown) setVisible(false);
+  }
 
   useEffect(() => {
     if (active === shown) return;
-    setVisible(false);
     const timer = window.setTimeout(() => {
       setShown(active);
       setVisible(true);
@@ -2371,12 +2413,21 @@ function EBookInformation({ ebook }: { ebook: EBook }) {
     items: Array<{ id: string; title: string; cover?: string }>;
   } | null>(null);
   const { openManga, openMeta } = useViewActions();
-
-  useEffect(() => {
-    let active = true;
+  const adaptationKey = { id: ebook.id, anilistId: ebook.anilistId, wikidataId: ebook.wikidataId };
+  const [seenAdaptationKey, setSeenAdaptationKey] = useState(adaptationKey);
+  if (
+    seenAdaptationKey.id !== adaptationKey.id ||
+    seenAdaptationKey.anilistId !== adaptationKey.anilistId ||
+    seenAdaptationKey.wikidataId !== adaptationKey.wikidataId
+  ) {
+    setSeenAdaptationKey(adaptationKey);
     setAdaptations(null);
     setAdaptationStatus(null);
     setAdaptationChoices(null);
+  }
+
+  useEffect(() => {
+    let active = true;
     void ebookAdaptations(ebook).then((value) => {
       if (active) setAdaptations(value);
     });
@@ -2739,7 +2790,9 @@ function EBookDetails({
   const descriptionRef = useRef<HTMLParagraphElement>(null);
   const detailScrollRef = useRef<HTMLElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [authorBooks, setAuthorBooks] = useState<EBook[] | null>(null);
+  const [authorBooks, setAuthorBooks] = useState<EBook[] | null>(() =>
+    ebook?.authors.length ? null : [],
+  );
   const [recommendations, setRecommendations] = useState<EBook[] | null>(null);
   const [recommendationsError, setRecommendationsError] = useState(false);
   const [recommendationsAttempt, setRecommendationsAttempt] = useState(0);
@@ -2779,12 +2832,56 @@ function EBookDetails({
     element.addEventListener("scroll", update, { passive: true });
     return () => element.removeEventListener("scroll", update);
   }, [ebookId]);
-  useEffect(() => setSaved(ebookId ? ebookInLibrary(ebookId) : false), [ebookId]);
-  useEffect(() => setFavorite(ebookId ? ebookIsFavorite(ebookId) : false), [ebookId]);
-  useEffect(() => {
+  const [seenEbookId, setSeenEbookId] = useState(ebookId);
+  if (seenEbookId !== ebookId) {
+    setSeenEbookId(ebookId);
+    setSaved(ebookId ? ebookInLibrary(ebookId) : false);
+    setFavorite(ebookId ? ebookIsFavorite(ebookId) : false);
     setDescriptionExpanded(false);
     setDescriptionClipped(false);
-  }, [ebookId]);
+    setReading(null);
+  }
+  const authorKeyFor = `${ebookId ?? ""}\0${authorKey ?? ""}`;
+  const [seenAuthorKey, setSeenAuthorKey] = useState(authorKeyFor);
+  if (seenAuthorKey !== authorKeyFor) {
+    setSeenAuthorKey(authorKeyFor);
+    setAuthorBooks(ebook?.authors.length ? null : []);
+  }
+  const recommendationsKey = `${ebookId ?? ""}\0${genreKey ?? ""}\0${recommendationsAttempt}`;
+  const [seenRecommendationsKey, setSeenRecommendationsKey] = useState(recommendationsKey);
+  if (seenRecommendationsKey !== recommendationsKey) {
+    setSeenRecommendationsKey(recommendationsKey);
+    if (ebook) {
+      setRecommendations(null);
+      setRecommendationsError(false);
+    }
+  }
+  const sourceResolveKey = [
+    ebookId,
+    ebook?.source,
+    ebook?.title,
+    sourceAliasKey,
+    sourceKey,
+    sourceCandidateKey,
+  ].join("\u0001");
+  const [seenSourceResolveKey, setSeenSourceResolveKey] = useState<string | null>(null);
+  if (seenSourceResolveKey !== sourceResolveKey) {
+    setSeenSourceResolveKey(sourceResolveKey);
+    if (ebook) {
+      const existing = (ebook.books ?? [ebook]).filter((book) => book.source === "source");
+      setSourceOptions(existing);
+      setSourceRoute(existing[0]?.id ?? null);
+      setResolvingSource(existing.length === 0);
+    }
+  }
+  const chaptersKey = `${sourceRoute ?? ""}\0${profile}\0${ebook?.id ?? ""}`;
+  const [seenChaptersKey, setSeenChaptersKey] = useState(chaptersKey);
+  if (seenChaptersKey !== chaptersKey) {
+    setSeenChaptersKey(chaptersKey);
+    setSelectedVolume(null);
+    setChapters(null);
+    if (sourceRoute) setSavedChapters([]);
+  }
   useEffect(() => {
     const element = descriptionRef.current;
     if (!element || descriptionExpanded) return;
@@ -2795,12 +2892,8 @@ function EBookDetails({
     return () => observer.disconnect();
   }, [descriptionExpanded, ebook?.description, ebookId]);
   useEffect(() => {
-    if (!ebook || !ebook.authors.length) {
-      setAuthorBooks([]);
-      return;
-    }
+    if (!ebook || !ebook.authors.length) return;
     let active = true;
-    setAuthorBooks(null);
     const authors = ebook.authors.slice(0, 2);
     void (async () => {
       const sourceResults = (
@@ -2826,8 +2919,6 @@ function EBookDetails({
   useEffect(() => {
     if (!ebook) return;
     let active = true;
-    setRecommendations(null);
-    setRecommendationsError(false);
     const normalizeTitle = (value: string) =>
       value
         .normalize("NFKD")
@@ -2898,15 +2989,9 @@ function EBookDetails({
     };
   }, [ebookId, genreKey, recommendationsAttempt]);
   useEffect(() => {
-    setReading(null);
-  }, [ebookId]);
-  useEffect(() => {
     if (!ebook) return;
     let active = true;
     const existing = (ebook.books ?? [ebook]).filter((book) => book.source === "source");
-    setSourceOptions(existing);
-    setSourceRoute(existing[0]?.id ?? null);
-    setResolvingSource(existing.length === 0);
     const queries = [
       ebook.title,
       ...(ebook.sourceAliases ?? []),
@@ -2973,15 +3058,8 @@ function EBookDetails({
     };
   }, [ebookId, ebook?.source, ebook?.title, sourceAliasKey, sourceKey, sourceCandidateKey]);
   useEffect(() => {
+    if (!sourceRoute) return;
     let active = true;
-    if (!sourceRoute) {
-      setSelectedVolume(null);
-      setChapters(null);
-      return;
-    }
-    setSelectedVolume(null);
-    setChapters(null);
-    setSavedChapters([]);
     void sourceEBookChapters(sourceRoute)
       .then(async (items) => {
         if (!active) return;
@@ -3029,11 +3107,9 @@ function EBookDetails({
         });
       });
   }, [chapters]);
-  useEffect(() => {
-    if (selectedVolume !== null && !volumeGroups.some((group) => group.volume === selectedVolume))
-      setSelectedVolume(null);
-  }, [selectedVolume, volumeGroups]);
-  const readChapter = useCallback(
+  if (selectedVolume !== null && !volumeGroups.some((group) => group.volume === selectedVolume))
+    setSelectedVolume(null);
+  const fetchChapter = useCallback(
     (chapter: EBookChapter) => {
       if (!sourceRoute || !ebook) return;
       saveEBookResume(profile, ebook.id, {
@@ -3043,7 +3119,6 @@ function EBookDetails({
         volumeLabel:
           chapter.volumeTitle || (chapter.volume ? `Volume ${chapter.volume}` : undefined),
       });
-      setReading({ chapter, content: null });
       void sourceEBookContent(sourceRoute, chapter.id, chapter.title)
         .then((content) => {
           setReading((current) =>
@@ -3074,39 +3149,46 @@ function EBookDetails({
     },
     [chapters, ebook, profile, sourceRoute],
   );
-  useEffect(() => {
-    if (!autoRead || !ebook || chapters === null || !sourceRoute) return;
-    if (!chapters.length) {
-      onAutoReadConsumed();
-      return;
-    }
+  const readChapter = useCallback(
+    (chapter: EBookChapter) => {
+      if (!sourceRoute || !ebook) return;
+      setReading({ chapter, content: null });
+      fetchChapter(chapter);
+    },
+    [ebook, fetchChapter, sourceRoute],
+  );
+  // undefined: nothing to auto-open yet; null: consume the intent without opening a chapter.
+  let autoReadTarget: EBookChapter | null | undefined;
+  const resetsSettled =
+    seenEbookId === ebookId &&
+    seenSourceResolveKey === sourceResolveKey &&
+    seenChaptersKey === chaptersKey;
+  if (resetsSettled && autoRead && ebook && chapters !== null && sourceRoute) {
     const resume = loadEBookResume(profile, ebook.id);
     if (
-      resume &&
-      ![...chapters, ...savedChapters].some((chapter) => chapter.id === resume.chapterId)
-    ) {
-      onAutoReadConsumed();
-      return;
-    }
-    const target =
-      chapters.find((chapter) => chapter.id === resume?.chapterId) ??
-      savedChapters.find((chapter) => chapter.id === resume?.chapterId) ??
-      [...chapters].sort(
-        (left, right) =>
-          (left.position ?? Number.MAX_SAFE_INTEGER) - (right.position ?? Number.MAX_SAFE_INTEGER),
-      )[0];
+      !chapters.length ||
+      (resume &&
+        ![...chapters, ...savedChapters].some((chapter) => chapter.id === resume.chapterId))
+    )
+      autoReadTarget = null;
+    else
+      autoReadTarget =
+        chapters.find((chapter) => chapter.id === resume?.chapterId) ??
+        savedChapters.find((chapter) => chapter.id === resume?.chapterId) ??
+        [...chapters].sort(
+          (left, right) =>
+            (left.position ?? Number.MAX_SAFE_INTEGER) -
+            (right.position ?? Number.MAX_SAFE_INTEGER),
+        )[0] ??
+        null;
+  }
+  if (autoReadTarget && reading?.chapter.id !== autoReadTarget.id)
+    setReading({ chapter: autoReadTarget, content: null });
+  useEffect(() => {
+    if (autoReadTarget === undefined) return;
     onAutoReadConsumed();
-    if (target) readChapter(target);
-  }, [
-    autoRead,
-    chapters,
-    ebook,
-    onAutoReadConsumed,
-    profile,
-    readChapter,
-    savedChapters,
-    sourceRoute,
-  ]);
+    if (autoReadTarget) fetchChapter(autoReadTarget);
+  }, [autoReadTarget, fetchChapter, onAutoReadConsumed]);
   if (!ebook)
     return (
       <div className="flex flex-1 items-center justify-center text-ink-muted">

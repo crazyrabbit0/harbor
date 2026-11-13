@@ -217,6 +217,13 @@ function VoicePicker({
   const selected = voices.find((voice) => voice.id === value) ?? fallbackNarrationVoices[0];
   const selectedLanguage = selected.locale.split("-")[0].toLocaleLowerCase();
   const [activeLanguage, setActiveLanguage] = useState(selectedLanguage);
+  // Opening the picker (or the selected voice changing while open) jumps to that voice's language.
+  const openLanguage = open ? selectedLanguage : null;
+  const [seenOpenLanguage, setSeenOpenLanguage] = useState(openLanguage);
+  if (seenOpenLanguage !== openLanguage) {
+    setSeenOpenLanguage(openLanguage);
+    if (openLanguage !== null) setActiveLanguage(openLanguage);
+  }
   const languageGroups = useMemo(() => {
     const groups = new Map<string, ReaderNarrationVoice[]>();
     for (const voice of voices) {
@@ -260,10 +267,6 @@ function VoicePicker({
     window.addEventListener("pointerdown", close);
     return () => window.removeEventListener("pointerdown", close);
   }, [open]);
-
-  useEffect(() => {
-    if (open) setActiveLanguage(selectedLanguage);
-  }, [open, selectedLanguage]);
 
   return (
     <div ref={root} className="relative">
@@ -756,16 +759,21 @@ export function HarborReader({
     }, 260);
   }, []);
 
+  const [flipPagesFor, setFlipPagesFor] = useState(progressId);
+  if (flipPagesFor !== progressId) {
+    setFlipPagesFor(progressId);
+    setFlipLayers([]);
+    setActiveFlipLayerId(null);
+    setFlipPages({ urls: [], paragraphStarts: [] });
+  }
+
   useEffect(() => {
     window.clearTimeout(flipLayerRetireTimer.current);
     const previous = flipLayersRef.current;
     flipLayersRef.current = [];
-    setFlipLayers([]);
     activeFlipLayerIdRef.current = null;
-    setActiveFlipLayerId(null);
     bookApi.current = null;
     flipPagesRef.current = { urls: [], paragraphStarts: [] };
-    setFlipPages({ urls: [], paragraphStarts: [] });
     previous.forEach((item) => releaseFlipPages(item.pages));
   }, [progressId]);
 
@@ -846,7 +854,24 @@ export function HarborReader({
     replaceFlipPages,
   ]);
 
-  useEffect(() => {
+  const [seenContent, setSeenContent] = useState({
+    text: content.text,
+    translated: content.translated,
+    translatedTitle: content.translatedTitle,
+    originalTitle,
+  });
+  if (
+    seenContent.text !== content.text ||
+    seenContent.translated !== content.translated ||
+    seenContent.translatedTitle !== content.translatedTitle ||
+    seenContent.originalTitle !== originalTitle
+  ) {
+    setSeenContent({
+      text: content.text,
+      translated: content.translated,
+      translatedTitle: content.translatedTitle,
+      originalTitle,
+    });
     setReaderText(content.text ?? "");
     setReaderTitle(content.translatedTitle ?? originalTitle);
     setTranslation(
@@ -858,7 +883,7 @@ export function HarborReader({
     setTranslated(Boolean(content.translated));
     setTranslationError("");
     setTranslationProgress({ percent: 0, etaMs: null });
-  }, [content.text, content.translated, content.translatedTitle, originalTitle]);
+  }
 
   const updateTrace = useCallback(
     (mouseY?: number) => {
@@ -1540,11 +1565,12 @@ export function HarborReader({
     : results.filter((result) => result.index <= current);
   const hiddenResults = results.length - shownResults.length;
 
-  useEffect(() => setShowFutureResults(false), [query]);
-  useEffect(() => {
+  const [seenVolumes, setSeenVolumes] = useState({ chapterId: chapter.id, volumes });
+  if (seenVolumes.chapterId !== chapter.id || seenVolumes.volumes !== volumes) {
+    setSeenVolumes({ chapterId: chapter.id, volumes });
     const owner = volumes.find((volume) => volume.chapters.some((item) => item.id === chapter.id));
     if (owner) setSidebarVolume(owner.volume);
-  }, [chapter.id, volumes]);
+  }
   useEffect(() => {
     if (!chaptersOpen) return;
     const timer = window.setTimeout(
@@ -1556,11 +1582,27 @@ export function HarborReader({
     );
     return () => window.clearTimeout(timer);
   }, [chapter.id, chaptersOpen, sidebarVolume]);
+  // updateTrace changes identity exactly when persistReadingPosition does.
+  const traceLayout = {
+    mouseLineTrack: prefs.mouseLineTrack,
+    fontSize: prefs.fontSize,
+    lineHeight: prefs.lineHeight,
+    width: prefs.width,
+    persistReadingPosition,
+  };
+  const [seenTraceLayout, setSeenTraceLayout] = useState(traceLayout);
+  if (
+    seenTraceLayout.mouseLineTrack !== traceLayout.mouseLineTrack ||
+    seenTraceLayout.fontSize !== traceLayout.fontSize ||
+    seenTraceLayout.lineHeight !== traceLayout.lineHeight ||
+    seenTraceLayout.width !== traceLayout.width ||
+    seenTraceLayout.persistReadingPosition !== traceLayout.persistReadingPosition
+  ) {
+    setSeenTraceLayout(traceLayout);
+    if (!prefs.mouseLineTrack) setTrace(null);
+  }
   useEffect(() => {
-    if (!prefs.mouseLineTrack) {
-      traceY.current = null;
-      setTrace(null);
-    }
+    if (!prefs.mouseLineTrack) traceY.current = null;
     updateTrace();
   }, [prefs.mouseLineTrack, prefs.fontSize, prefs.lineHeight, prefs.width, updateTrace]);
 
@@ -2355,7 +2397,10 @@ export function HarborReader({
                   <input
                     autoFocus
                     value={query}
-                    onChange={(event) => setQuery(event.target.value)}
+                    onChange={(event) => {
+                      setQuery(event.target.value);
+                      setShowFutureResults(false);
+                    }}
                     className="h-11 min-w-0 flex-1 bg-transparent outline-none"
                     placeholder={t("Find a word or passage")}
                   />

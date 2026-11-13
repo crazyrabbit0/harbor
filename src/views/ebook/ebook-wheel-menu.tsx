@@ -114,9 +114,11 @@ export function EBookWheelMenu({
   );
   const [detailBook, setDetailBook] = useState<EBook>(ebook);
   const [stats, setStats] = useState<{ volumes: number; chapters: number } | null>(null);
-  const [statsLoading, setStatsLoading] = useState(false);
   const [exporting, setExporting] = useState<EBookExportFormat | null>(null);
   const firstAction = useRef<HTMLButtonElement>(null);
+  // Without a source route the totals come straight from the book metadata.
+  const statsRoute = sourceRouteForEBook(ebook);
+  const statsLoading = mode === "details" && !stats && statsRoute !== null;
   const resume = loadEBookResume(profile, ebook.id);
   const viewportWidth = typeof window === "undefined" ? 1_280 : window.innerWidth;
   const viewportHeight = typeof window === "undefined" ? 800 : window.innerHeight;
@@ -136,15 +138,9 @@ export function EBookWheelMenu({
   }, [mode, onClose]);
 
   useEffect(() => {
-    if (mode !== "details" || stats) return;
-    const route = sourceRouteForEBook(ebook);
-    if (!route) {
-      setStats({ volumes: ebook.volumes ?? 0, chapters: ebook.chapters ?? 0 });
-      return;
-    }
+    if (mode !== "details" || stats || !statsRoute) return;
     let active = true;
-    setStatsLoading(true);
-    void sourceEBookDetail(route)
+    void sourceEBookDetail(statsRoute)
       .then((detail) => {
         if (!active || !detail) return;
         setDetailBook({
@@ -158,7 +154,7 @@ export function EBookWheelMenu({
         });
       })
       .catch(() => {});
-    void sourceEBookChapters(route)
+    void sourceEBookChapters(statsRoute)
       .then((chapters) => {
         if (!active) return;
         const volumes = new Set(chapters.map((chapter) => chapter.volume?.trim()).filter(Boolean));
@@ -169,14 +165,11 @@ export function EBookWheelMenu({
       })
       .catch(() => {
         if (active) setStats({ volumes: ebook.volumes ?? 0, chapters: ebook.chapters ?? 0 });
-      })
-      .finally(() => {
-        if (active) setStatsLoading(false);
       });
     return () => {
       active = false;
     };
-  }, [ebook, mode, stats]);
+  }, [ebook, mode, stats, statsRoute]);
 
   const markCompleted = async () => {
     const next = !completed;
