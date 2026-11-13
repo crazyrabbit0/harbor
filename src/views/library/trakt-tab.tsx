@@ -28,7 +28,6 @@ export function TraktTab() {
 
   useEffect(() => {
     let cancelled = false;
-    setStatus("loading");
     Promise.all([fetchWatchlist(), fetchWatchedHistory(200)])
       .then(([w, h]) => {
         if (cancelled) return;

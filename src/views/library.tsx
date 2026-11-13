@@ -93,25 +93,13 @@ export function LibraryView({ active }: { active: boolean }) {
     } catch {}
   }, [tab]);
 
-  useEffect(() => {
-    if (tab === "trakt" && !traktConnected) setTab("library");
-  }, [tab, traktConnected]);
-
-  useEffect(() => {
-    if (tab === "anilist" && !anilistConnected) setTab("library");
-  }, [tab, anilistConnected]);
-
-  useEffect(() => {
-    if (tab === "simkl" && !simklConnected) setTab("library");
-  }, [tab, simklConnected]);
-
-  useEffect(() => {
-    if (tab === "letterboxd" && !lb.isActive) setTab("library");
-  }, [tab, lb.isActive]);
-
-  useEffect(() => {
-    if (tab === "mal" && !malConnected) setTab("library");
-  }, [tab, malConnected]);
+  const tabUnavailable =
+    (tab === "trakt" && !traktConnected) ||
+    (tab === "anilist" && !anilistConnected) ||
+    (tab === "simkl" && !simklConnected) ||
+    (tab === "letterboxd" && !lb.isActive) ||
+    (tab === "mal" && !malConnected);
+  if (tabUnavailable) setTab("library");
 
   useEffect(() => {
     if (!active) return;

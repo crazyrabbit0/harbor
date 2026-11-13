@@ -76,16 +76,13 @@ function cacheItemToMeta(item: SimklCacheItem, cache: SimklCache): Meta | null {
 export function SimklTab() {
   const tr = useT();
   const settings = useSettingsSelector((s) => ({ librarySort: s.librarySort }));
-  const [cache, setCache] = useState<SimklCache | null>(null);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [enhancedFranchises, setEnhancedFranchises] = useState<AnimeFranchise[]>([]);
-
-  useEffect(() => {
-    if (!cache) {
-      setEnhancedFranchises([]);
-      return;
-    }
-
+  const [initial] = useState(getLocalCache);
+  const [cache, setCache] = useState<SimklCache | null>(initial);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    initial ? "ready" : "loading",
+  );
+  const syncFranchises = useMemo(() => {
+    if (!cache) return [];
     const animeItems = Object.values(cache.items).filter((item) => {
       if (item.type === "anime") return true;
       if (item.type === "movie") {
@@ -96,14 +93,22 @@ export function SimklTab() {
       }
       return false;
     });
-    const syncFranchises = groupAnimeByFranchise(animeItems);
-    setEnhancedFranchises(syncFranchises);
+    return groupAnimeByFranchise(animeItems);
+  }, [cache]);
+  const [enhanced, setEnhanced] = useState<{
+    cache: SimklCache;
+    franchises: AnimeFranchise[];
+  } | null>(null);
+  const enhancedFranchises =
+    cache && enhanced?.cache === cache ? enhanced.franchises : syncFranchises;
 
+  useEffect(() => {
+    if (!cache) return;
     let cancelled = false;
     enhanceGroupsWithRelations(syncFranchises)
-      .then((enhanced) => {
+      .then((franchises) => {
         if (cancelled) return;
-        setEnhancedFranchises(enhanced);
+        setEnhanced({ cache, franchises });
       })
       .catch((err) => {
         console.error("Failed to enhance groups with relations:", err);
@@ -112,18 +117,10 @@ export function SimklTab() {
     return () => {
       cancelled = true;
     };
-  }, [cache]);
+  }, [cache, syncFranchises]);
 
   useEffect(() => {
     let cancelled = false;
-
-    const initial = getLocalCache();
-    if (initial) {
-      setCache(initial);
-      setStatus("ready");
-    } else {
-      setStatus("loading");
-    }
 
     syncWatchlistCache()
       .then((updated) => {
@@ -138,7 +135,7 @@ export function SimklTab() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initial]);
 
   const [subTab, setSubTab] = useState<"movies" | "shows" | "anime">("movies");
 
@@ -151,11 +148,9 @@ export function SimklTab() {
 
   const [statusFilter, setStatusFilter] = useState<string>("plantowatch");
 
-  useEffect(() => {
-    if (!(allowedStatuses as readonly string[]).includes(statusFilter)) {
-      setStatusFilter(allowedStatuses[0]);
-    }
-  }, [subTab, allowedStatuses, statusFilter]);
+  if (!(allowedStatuses as readonly string[]).includes(statusFilter)) {
+    setStatusFilter(allowedStatuses[0]);
+  }
 
   const statusCounts = useMemo(() => {
     const counts: Record<string, number> = {};

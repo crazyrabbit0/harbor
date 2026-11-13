@@ -16,23 +16,34 @@ import {
 } from "./shared";
 import { useReportFeatured } from "./featured-context";
 
+const EMPTY: WatchlistMerged[] = [];
+
 export function LetterboxdTab() {
   const tr = useT();
   const lb = useLetterboxd();
   const settings = useSettingsSelector((s) => ({ librarySort: s.librarySort }));
-  const [items, setItems] = useState<WatchlistMerged[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [result, setResult] = useState<{
+    session: typeof lb.session;
+    configSegment: typeof lb.configSegment;
+    items: WatchlistMerged[];
+    status: "ready" | "error";
+  } | null>(null);
+  if (!lb.isActive && result !== null) setResult(null);
+  const current =
+    lb.isActive && result?.session === lb.session && result.configSegment === lb.configSegment
+      ? result
+      : null;
+  const items = current?.items ?? EMPTY;
+  const status: "loading" | "ready" | "error" = !lb.isActive
+    ? "ready"
+    : (current?.status ?? "loading");
 
   useEffect(() => {
-    if (!lb.isActive) {
-      setItems([]);
-      setStatus("ready");
-      return;
-    }
+    if (!lb.isActive) return;
 
     let cancelled = false;
-    setStatus("loading");
-    setItems([]);
+    const session = lb.session;
+    const configSegment = lb.configSegment;
 
     async function fetchWatchlist() {
       const catalogId = "letterboxd-watchlist";
@@ -49,12 +60,11 @@ export function LetterboxdTab() {
         return { key: `lb-wl-${meta.id}`, meta, date: null };
       });
 
-      setItems(entries);
-      setStatus("ready");
+      setResult({ session, configSegment, items: entries, status: "ready" });
     }
 
     fetchWatchlist().catch(() => {
-      if (!cancelled) setStatus("error");
+      if (!cancelled) setResult({ session, configSegment, items: [], status: "error" });
     });
 
     return () => {

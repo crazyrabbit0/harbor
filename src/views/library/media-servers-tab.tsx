@@ -80,8 +80,6 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
   const [revision, setRevision] = useState(0);
   const [syncing, setSyncing] = useState(initialProgress?.active ?? false);
   const [loading, setLoading] = useState(true);
-  const [metadataLoading, setMetadataLoading] = useState(true);
-  const [showLoading, setShowLoading] = useState(false);
   const [syncMessage, setSyncMessage] = useState(initialProgress?.message ?? "");
   const [reviewing, setReviewing] = useState<MediaServerTitle | null>(null);
   const [syncCount, setSyncCount] = useState<{ processed?: number; total?: number }>({
@@ -112,22 +110,23 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
       library,
     });
   }, [type, selectedGenres, sort, sortDir, server, library]);
-  useEffect(() => {
-    if (server !== "all" && !connections.some((connection) => connection.id === server))
-      setServer("all");
-  }, [connections, server]);
-  const reload = useCallback(async () => {
-    setItems(await mediaServerItems());
+  if (server !== "all" && !connections.some((connection) => connection.id === server))
+    setServer("all");
+  const applyItems = useCallback((next: MediaServerItem[]) => {
+    setItems(next);
     setRevision((value) => value + 1);
     setLoading(false);
   }, []);
+  const reload = useCallback(async () => {
+    applyItems(await mediaServerItems());
+  }, [applyItems]);
   useEffect(() => {
-    void reload();
+    void mediaServerItems().then(applyItems);
     return subscribeMediaServerConnections(() => {
       setRevision((value) => value + 1);
       void reload();
     });
-  }, [reload]);
+  }, [applyItems, reload]);
   useEffect(
     () =>
       subscribeMediaServerSyncProgress((progress) => {
@@ -157,14 +156,30 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
     () => new Map(connections.map((connection) => [connection.id, connection])),
     [connections],
   );
-  useEffect(() => {
-    if (loading || library === "all") return;
-    if (!items.some((item) => item.libraryId === library)) setLibrary("all");
-  }, [items, library, loading]);
+  if (!loading && library !== "all" && !items.some((item) => item.libraryId === library))
+    setLibrary("all");
+  const [cardsFor, setCardsFor] = useState<{
+    titles: MediaServerTitle[];
+    tmdbKey: typeof settings.tmdbKey;
+    tmdbLanguage: typeof settings.tmdbLanguage;
+    tmdbImageLangs: typeof settings.tmdbImageLangs;
+  } | null>(null);
+  const metadataLoading = !(
+    cardsFor !== null &&
+    cardsFor.titles === titles &&
+    cardsFor.tmdbKey === settings.tmdbKey &&
+    cardsFor.tmdbLanguage === settings.tmdbLanguage &&
+    cardsFor.tmdbImageLangs === settings.tmdbImageLangs
+  );
   useEffect(() => {
     if (loading) return;
     let alive = true;
-    setMetadataLoading(true);
+    const request = {
+      titles,
+      tmdbKey: settings.tmdbKey,
+      tmdbLanguage: settings.tmdbLanguage,
+      tmdbImageLangs: settings.tmdbImageLangs,
+    };
     const languageKey = `${settings.tmdbLanguage || "en"}:${(settings.tmdbImageLangs ?? []).join(",")}`;
     void Promise.all(
       titles.map(async (title) => {
@@ -180,22 +195,23 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
     ).then((next) => {
       if (alive) {
         setCards(next);
-        setMetadataLoading(false);
+        setCardsFor(request);
       }
     });
     return () => {
       alive = false;
     };
   }, [loading, titles, settings.tmdbKey, settings.tmdbLanguage, settings.tmdbImageLangs]);
+  const busyKey =
+    loading || metadataLoading || syncing ? `${loading}|${metadataLoading}|${syncing}` : "";
+  const [shownFor, setShownFor] = useState("");
+  if (!busyKey && shownFor !== "") setShownFor("");
+  const showLoading = busyKey !== "" && shownFor === busyKey;
   useEffect(() => {
-    if (!loading && !metadataLoading && !syncing) {
-      setShowLoading(false);
-      return;
-    }
-    setShowLoading(false);
-    const timer = window.setTimeout(() => setShowLoading(true), 250);
+    if (!busyKey) return;
+    const timer = window.setTimeout(() => setShownFor(busyKey), 250);
     return () => window.clearTimeout(timer);
-  }, [loading, metadataLoading, syncing]);
+  }, [busyKey]);
   useReportFeatured(useMemo(() => cards.map((card) => card.meta), [cards]));
   const counts = useMemo(
     () => ({

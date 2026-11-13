@@ -55,13 +55,27 @@ export function WatchlistTab({
   const [rawCount, setRawCount] = useState(0);
   const [trakt, setTrakt] = useState<TraktItem[]>([]);
   const [localEntries, setLocalEntries] = useState<LocalEntry[]>(() => readLocalEntries());
-  const [traktStatus, setTraktStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [traktDone, setTraktDone] = useState<{
+    refreshSeq: number;
+    status: "ready" | "error";
+  } | null>(null);
   // Bumped on every removal. Fetch completions capture the value at start and
   // revalidate instead of applying when a removal landed mid-flight, so a
   // stale response can never resurrect a just-removed card for a beat.
   const guardSeq = useRef(0);
   const pendingRemovals = useRef(0);
   const [refreshSeq, setRefreshSeq] = useState(0);
+  const [traktFor, setTraktFor] = useState(traktConnected);
+  if (traktFor !== traktConnected) {
+    setTraktFor(traktConnected);
+    setTraktDone(null);
+    if (!traktConnected) setTrakt([]);
+  }
+  const traktStatus: "idle" | "loading" | "ready" | "error" = !traktConnected
+    ? "idle"
+    : traktDone?.refreshSeq === refreshSeq
+      ? traktDone.status
+      : "loading";
 
   useEffect(() => {
     let cancelled = false;
@@ -189,13 +203,8 @@ export function WatchlistTab({
   );
 
   useEffect(() => {
-    if (!traktConnected) {
-      setTrakt([]);
-      setTraktStatus("idle");
-      return;
-    }
+    if (!traktConnected) return;
     let cancelled = false;
-    setTraktStatus("loading");
     const loadTrakt = () => {
       if (cancelled || pendingRemovals.current > 0) return;
       const mySeq = guardSeq.current;
@@ -207,10 +216,10 @@ export function WatchlistTab({
             return;
           }
           setTrakt(items);
-          setTraktStatus("ready");
+          setTraktDone({ refreshSeq, status: "ready" });
         })
         .catch(() => {
-          if (!cancelled) setTraktStatus("error");
+          if (!cancelled) setTraktDone({ refreshSeq, status: "error" });
         });
     };
     loadTrakt();

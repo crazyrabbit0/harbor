@@ -31,18 +31,38 @@ export function HistoryTab() {
   const { isConnected: traktConnected } = useTrakt();
   const [stremio, setStremio] = useState<LibraryItem[]>([]);
   const [trakt, setTrakt] = useState<HistoryItem[]>([]);
-  const [traktStatus, setTraktStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
-  const [stremioLoading, setStremioLoading] = useState<boolean>(!!authKey);
+  const [traktDone, setTraktDone] = useState<{
+    reloadKey: number;
+    status: "ready" | "error";
+  } | null>(null);
+  const [stremioDone, setStremioDone] = useState<{ authKey: string; reloadKey: number } | null>(
+    null,
+  );
   const [reloadKey, setReloadKey] = useState(0);
   const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
+  const [stremioFor, setStremioFor] = useState(authKey);
+  if (stremioFor !== authKey) {
+    setStremioFor(authKey);
+    setStremioDone(null);
+    if (!authKey) setStremio([]);
+  }
+  const [traktFor, setTraktFor] = useState(traktConnected);
+  if (traktFor !== traktConnected) {
+    setTraktFor(traktConnected);
+    setTraktDone(null);
+    if (!traktConnected) setTrakt([]);
+  }
+  const stremioLoading =
+    !!authKey && !(stremioDone?.authKey === authKey && stremioDone.reloadKey === reloadKey);
+  const traktStatus: "idle" | "loading" | "ready" | "error" = !traktConnected
+    ? "idle"
+    : traktDone?.reloadKey === reloadKey
+      ? traktDone.status
+      : "loading";
 
   useEffect(() => {
-    if (!authKey) {
-      setStremio([]);
-      return;
-    }
+    if (!authKey) return;
     let cancelled = false;
-    setStremioLoading(true);
     library(authKey)
       .then((items) => {
         if (cancelled) return;
@@ -50,7 +70,7 @@ export function HistoryTab() {
       })
       .catch(() => {})
       .finally(() => {
-        if (!cancelled) setStremioLoading(false);
+        if (!cancelled) setStremioDone({ authKey, reloadKey });
       });
     return () => {
       cancelled = true;
@@ -73,22 +93,17 @@ export function HistoryTab() {
   );
 
   useEffect(() => {
-    if (!traktConnected) {
-      setTrakt([]);
-      setTraktStatus("idle");
-      return;
-    }
+    if (!traktConnected) return;
     let cancelled = false;
-    setTraktStatus("loading");
     fetchWatchedHistory(200)
       .then((items) => {
         if (!cancelled) {
           setTrakt(items);
-          setTraktStatus("ready");
+          setTraktDone({ reloadKey, status: "ready" });
         }
       })
       .catch(() => {
-        if (!cancelled) setTraktStatus("error");
+        if (!cancelled) setTraktDone({ reloadKey, status: "error" });
       });
     return () => {
       cancelled = true;
