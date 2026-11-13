@@ -165,7 +165,9 @@ export function SpooktoberPlaylist({
   const [sort, setSort] = useState("default");
   const [saving, setSaving] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
-  const [savedId, setSavedId] = useState<string | null>(null);
+  const [savedId, setSavedId] = useState<string | null>(
+    () => savedCopies.get(`${activeProfileId()}:${playlistId}`) ?? null,
+  );
   const heading = useRef<HTMLHeadingElement>(null);
   const root = useRef<HTMLElement>(null);
   const generation = useRef(0);
@@ -174,9 +176,13 @@ export function SpooktoberPlaylist({
   const title = playlist ? t(`spooktober.playlist.${playlist.id}.title`) : "Spooktober";
 
   useSectionBack(onBack, active);
+  const [failedFor, setFailedFor] = useState(revision);
+  if (failedFor !== revision) {
+    setFailedFor(revision);
+    setFailed(false);
+  }
   useEffect(() => {
     let cancelled = false;
-    setFailed(false);
     void loadSpooktoberMusic()
       .then((next) => {
         if (cancelled) return;
@@ -202,13 +208,17 @@ export function SpooktoberPlaylist({
       cancelled = true;
     };
   }, [revision]);
-  useEffect(() => {
-    generation.current += 1;
+  const [stateFor, setStateFor] = useState(saveKey);
+  if (stateFor !== saveKey) {
+    setStateFor(saveKey);
     setQuery("");
     setSort("default");
     setSaving(false);
     setSaveFailed(false);
     setSavedId(savedCopies.get(saveKey) ?? null);
+  }
+  useEffect(() => {
+    generation.current += 1;
     return () => {
       generation.current += 1;
     };
@@ -226,10 +236,20 @@ export function SpooktoberPlaylist({
     () => new Map(tracks.map((track, index) => [track.id, index + 1])),
     [tracks],
   );
+  const [focusFor, setFocusFor] = useState({ active, focusTrackId, tracks });
+  if (
+    focusFor.active !== active ||
+    focusFor.focusTrackId !== focusTrackId ||
+    focusFor.tracks !== tracks
+  ) {
+    setFocusFor({ active, focusTrackId, tracks });
+    if (active && focusTrackId && tracks.length) {
+      setQuery("");
+      setSort("default");
+    }
+  }
   useEffect(() => {
     if (!active || !focusTrackId || !tracks.length) return;
-    setQuery("");
-    setSort("default");
     const frame = requestAnimationFrame(() => {
       const row = [
         ...(root.current?.querySelectorAll<HTMLElement>("[data-spooktober-track]") ?? []),

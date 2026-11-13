@@ -12,36 +12,41 @@ export function useIptvPlaylist(source: IptvPlaylistSource | null): {
   state: PlaylistState;
   refresh: () => void;
 } {
-  const [state, setState] = useState<PlaylistState>({ kind: "idle" });
   const [tick, setTick] = useState(0);
+  const requestKey = source ? `${source.id}\n${source.url}\n${tick}` : null;
+  const [result, setResult] = useState<{ key: string; state: PlaylistState } | null>(null);
+  if (requestKey === null && result !== null) setResult(null);
+  const state: PlaylistState =
+    requestKey === null
+      ? { kind: "idle" }
+      : result?.key === requestKey
+        ? result.state
+        : { kind: "loading" };
 
   useEffect(() => {
-    if (!source) {
-      setState({ kind: "idle" });
-      return;
-    }
+    if (!source || requestKey === null) return;
     const id = source.id;
     let cancelled = false;
-    setState({ kind: "loading" });
+    const settle = (next: PlaylistState) => setResult({ key: requestKey, state: next });
     loadPlaylist(source, { force: tick > 0 })
       .then((pl) => {
         if (cancelled) return;
-        setState({ kind: "ready", playlist: pl });
+        settle({ kind: "ready", playlist: pl });
       })
       .catch((e) => {
         if (cancelled) return;
-        setState({ kind: "error", message: e instanceof Error ? e.message : String(e) });
+        settle({ kind: "error", message: e instanceof Error ? e.message : String(e) });
       });
     const unsub = subscribePlaylists(() => {
       if (cancelled) return;
       const cached = getCachedPlaylist(id);
-      if (cached) setState({ kind: "ready", playlist: cached });
+      if (cached) settle({ kind: "ready", playlist: cached });
     });
     return () => {
       cancelled = true;
       unsub();
     };
-  }, [source?.id, source?.url, tick]);
+  }, [requestKey, source?.id, source?.url, tick]);
 
   return {
     state,

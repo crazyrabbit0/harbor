@@ -75,19 +75,28 @@ export function PeopleView({ init }: { init: PeopleInit }) {
     };
   }, []);
 
-  useEffect(() => {
-    if (!init) return;
-    if (init.source) setSource(init.source);
-    if (init.dept) setDept(init.dept);
-    if (init.focusSource) {
-      const el = scrollRef.current;
-      el?.scrollTo({ top: 0, behavior: "auto" });
-      requestAnimationFrame(() => el?.scrollTo({ top: 0, behavior: "auto" }));
-    }
-  }, [init?.nonce]);
+  const [initFor, setInitFor] = useState(init?.nonce);
+  if (initFor !== init?.nonce) {
+    setInitFor(init?.nonce);
+    if (init?.source) setSource(init.source);
+    if (init?.dept) setDept(init.dept);
+  }
 
   useEffect(() => {
+    if (!init?.focusSource) return;
+    const el = scrollRef.current;
+    el?.scrollTo({ top: 0, behavior: "auto" });
+    requestAnimationFrame(() => el?.scrollTo({ top: 0, behavior: "auto" }));
+  }, [init?.nonce]);
+
+  const filterKey = `${source}\n${dept}\n${country}\n${genre}`;
+  const [expandedFor, setExpandedFor] = useState(filterKey);
+  if (expandedFor !== filterKey) {
+    setExpandedFor(filterKey);
     setExpandedId(null);
+  }
+
+  useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
   }, [source, dept, country, genre]);
 

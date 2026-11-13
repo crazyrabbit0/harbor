@@ -42,7 +42,10 @@ export function UserRatings({
   const t = useT();
   const [type, setType] = useState("all");
   const [items, setItems] = useState<PublicRating[]>([]);
-  const [counts, setCounts] = useState<RatingCounts>(EMPTY_COUNTS);
+  const [countsState, setCountsState] = useState<{ handle: string; counts: RatingCounts } | null>(
+    null,
+  );
+  const counts = countsState?.handle === handle ? countsState.counts : EMPTY_COUNTS;
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [more, setMore] = useState(false);
@@ -60,21 +63,27 @@ export function UserRatings({
     };
   }, [onClose]);
 
-  useEffect(() => {
-    const ac = new AbortController();
-    const current = { handle, type, controller: ac, loading: true, more: false };
-    request.current = current;
+  const requestKey = `${handle}\n${type}`;
+  const [requestFor, setRequestFor] = useState(requestKey);
+  if (requestFor !== requestKey) {
+    setRequestFor(requestKey);
     setLoading(true);
     setMore(false);
     setCursor(undefined);
     setItems([]);
-    if (seen.current !== handle) setCounts(EMPTY_COUNTS);
+  }
+
+  useEffect(() => {
+    const ac = new AbortController();
+    const current = { handle, type, controller: ac, loading: true, more: false };
+    request.current = current;
     fetchUserRatings(handle, { type }, ac.signal)
       .then((page) => {
         if (ac.signal.aborted) return;
         setItems(page.items);
         setCursor(page.nextCursor);
-        if (seen.current !== handle || type === "all") setCounts(page.counts);
+        if (seen.current !== handle || type === "all")
+          setCountsState({ handle, counts: page.counts });
         seen.current = handle;
         current.loading = false;
         setLoading(false);

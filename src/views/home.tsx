@@ -402,11 +402,10 @@ export function Home({
     };
   }, [active]);
 
+  const animeRowsEnabled = !settings.hideContent.anime && settings.homeMode !== "classic";
+  if (!animeRowsEnabled && animeRows.length > 0) setAnimeRows([]);
   useEffect(() => {
-    if (settings.hideContent.anime || settings.homeMode === "classic") {
-      setAnimeRows([]);
-      return;
-    }
+    if (!animeRowsEnabled) return;
     let cancelled = false;
     (async () => {
       const built = await buildAnimeHomeRows();
@@ -416,13 +415,13 @@ export function Home({
     return () => {
       cancelled = true;
     };
-  }, [settings.hideContent.anime, settings.homeMode]);
+  }, [animeRowsEnabled, settings.hideContent.anime, settings.homeMode]);
 
+  const arabicRowsEnabled =
+    uiLang === "ar" && settings.homeMode !== "classic" && !!settings.tmdbKey;
+  if (!arabicRowsEnabled && arabicRows.length > 0) setArabicRows([]);
   useEffect(() => {
-    if (uiLang !== "ar" || settings.homeMode === "classic" || !settings.tmdbKey) {
-      setArabicRows([]);
-      return;
-    }
+    if (!arabicRowsEnabled) return;
     let cancelled = false;
     buildArabicHomeRows(settings.tmdbKey)
       .then((rs) => {
@@ -432,13 +431,13 @@ export function Home({
     return () => {
       cancelled = true;
     };
-  }, [uiLang, settings.homeMode, settings.tmdbKey, settings.tmdbLanguage]);
+  }, [arabicRowsEnabled, uiLang, settings.homeMode, settings.tmdbKey, settings.tmdbLanguage]);
 
+  const russianRowsEnabled =
+    uiLang === "ru" && settings.homeMode !== "classic" && !!settings.tmdbKey;
+  if (!russianRowsEnabled && russianRows.length > 0) setRussianRows([]);
   useEffect(() => {
-    if (uiLang !== "ru" || settings.homeMode === "classic" || !settings.tmdbKey) {
-      setRussianRows([]);
-      return;
-    }
+    if (!russianRowsEnabled) return;
     let cancelled = false;
     buildRussianHomeRows(settings.tmdbKey)
       .then((rs) => {
@@ -448,14 +447,14 @@ export function Home({
     return () => {
       cancelled = true;
     };
-  }, [uiLang, settings.homeMode, settings.tmdbKey, settings.tmdbLanguage]);
+  }, [russianRowsEnabled, uiLang, settings.homeMode, settings.tmdbKey, settings.tmdbLanguage]);
 
+  if (!traktConnected && (traktRows.length > 0 || traktWatched.size > 0)) {
+    setTraktRows([]);
+    setTraktWatched(new Set());
+  }
   useEffect(() => {
-    if (!traktConnected) {
-      setTraktRows([]);
-      setTraktWatched(new Set());
-      return;
-    }
+    if (!traktConnected) return;
     let cancelled = false;
     buildTraktHomeRows(settings.tmdbKey)
       .then((rs) => {
@@ -474,11 +473,9 @@ export function Home({
     };
   }, [traktConnected, traktSession, activeProfile?.id, settings.tmdbKey]);
 
+  if (!simklConnected && simklRows.length > 0) setSimklRows([]);
   useEffect(() => {
-    if (!simklConnected) {
-      setSimklRows([]);
-      return;
-    }
+    if (!simklConnected) return;
     let cancelled = false;
     buildSimklHomeRows(getSettings())
       .then((rs) => {
@@ -497,12 +494,12 @@ export function Home({
     settings.simklGranularFilters,
   ]);
 
+  if (!simklConnected && (simklWatchedMap.size > 0 || simklStatusMap.size > 0)) {
+    setSimklWatchedMap(new Map());
+    setSimklStatusMap(new Map());
+  }
   useEffect(() => {
-    if (!simklConnected) {
-      setSimklWatchedMap(new Map());
-      setSimklStatusMap(new Map());
-      return;
-    }
+    if (!simklConnected) return;
     let cancelled = false;
     loadSimklWatchedMap()
       .then((map) => {
@@ -519,19 +516,13 @@ export function Home({
     };
   }, [simklConnected]);
 
+  const letterboxdRowsEnabled =
+    letterboxd.isActive &&
+    !(letterboxd.mode === "full" && !letterboxd.session) &&
+    !(letterboxd.mode === "public" && !letterboxd.configSegment);
+  if (!letterboxdRowsEnabled && letterboxdRows.length > 0) setLetterboxdRows([]);
   useEffect(() => {
-    if (!letterboxd.isActive) {
-      setLetterboxdRows([]);
-      return;
-    }
-    if (letterboxd.mode === "full" && !letterboxd.session) {
-      setLetterboxdRows([]);
-      return;
-    }
-    if (letterboxd.mode === "public" && !letterboxd.configSegment) {
-      setLetterboxdRows([]);
-      return;
-    }
+    if (!letterboxdRowsEnabled) return;
     let cancelled = false;
     buildLetterboxdHomeRows({
       configSegment: letterboxd.configSegment,
@@ -549,6 +540,7 @@ export function Home({
       cancelled = true;
     };
   }, [
+    letterboxdRowsEnabled,
     letterboxd.isActive,
     letterboxd.mode,
     letterboxd.configSegment,
@@ -561,10 +553,10 @@ export function Home({
 
   const trackedRef = useRef<Set<string>>(new Set());
   const lastLibraryRef = useRef<string | null>(null);
+  if (!authKey && items.length > 0) setItems([]);
   useEffect(() => {
     if (!authKey) {
       lastLibraryRef.current = null;
-      setItems([]);
       return;
     }
     let cancelled = false;
@@ -798,11 +790,9 @@ export function Home({
       }),
     [items, localCwItems, manualWatchedVer],
   );
+  if (!anilistConnected && anilistWatchedMap.size > 0) setAnilistWatchedMap(new Map());
   useEffect(() => {
-    if (!anilistConnected) {
-      setAnilistWatchedMap((prev) => (prev.size ? new Map() : prev));
-      return;
-    }
+    if (!anilistConnected) return;
     let cancelled = false;
     const ids = continueWatching
       .filter((i) => /^(kitsu|mal|anilist):/.test(i._id))

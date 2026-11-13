@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { Poster } from "@/components/poster";
 import { useT } from "@/lib/i18n";
@@ -47,9 +47,7 @@ export function PersonRankRow({
   const ranked = harbor && person.score !== null;
   const tier: "featured" | "dense" = person.rank <= 10 ? "featured" : "dense";
   const [everOpened, setEverOpened] = useState(false);
-  useEffect(() => {
-    if (expanded) setEverOpened(true);
-  }, [expanded]);
+  if (expanded && !everOpened) setEverOpened(true);
 
   const departmentKey = DEPT_LABEL[person.department];
   const dept = departmentKey ? t(departmentKey) : person.department;

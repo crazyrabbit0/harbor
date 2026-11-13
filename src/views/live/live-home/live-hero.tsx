@@ -46,9 +46,12 @@ export function LiveHero({
     return () => window.clearInterval(t);
   }, [paused, playing, items.length, pageVisible]);
 
-  useEffect(() => {
+  const activeChannelId = active?.channel.id;
+  const [playingFor, setPlayingFor] = useState(activeChannelId);
+  if (playingFor !== activeChannelId) {
+    setPlayingFor(activeChannelId);
     setPlaying(false);
-  }, [active?.channel.id]);
+  }
 
   useEffect(() => {
     onAmbient?.(heroArt);

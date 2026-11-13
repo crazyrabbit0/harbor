@@ -75,20 +75,19 @@ export function LiveView({ active }: { active: boolean }) {
   const sources = usePlaylists();
 
   const [activeId, setActiveId] = useState<string | null>(() => readActiveId());
+  const validActiveId =
+    sources.length === 0
+      ? null
+      : activeId && sources.some((s) => s.id === activeId)
+        ? activeId
+        : (sources[0]?.id ?? null);
+  if (validActiveId !== activeId) setActiveId(validActiveId);
+  const storedActiveIdRef = useRef(activeId);
   useEffect(() => {
-    if (sources.length === 0) {
-      if (activeId !== null) {
-        setActiveId(null);
-        writeActiveId(null);
-      }
-      return;
-    }
-    if (!activeId || !sources.find((s) => s.id === activeId)) {
-      const fallback = sources[0]?.id ?? null;
-      setActiveId(fallback);
-      writeActiveId(fallback);
-    }
-  }, [sources, activeId]);
+    if (storedActiveIdRef.current === activeId) return;
+    storedActiveIdRef.current = activeId;
+    writeActiveId(activeId);
+  }, [activeId]);
 
   const activeSource: IptvPlaylistSource | null = useMemo(() => {
     if (!activeId) return null;
@@ -172,13 +171,13 @@ export function LiveView({ active }: { active: boolean }) {
     window.addEventListener("harbor:immersive", onImm);
     return () => window.removeEventListener("harbor:immersive", onImm);
   }, []);
-  useEffect(() => {
-    if (mode !== "multiview" && immersive) setImmersive(false);
-  }, [mode, immersive]);
-  useEffect(() => {
-    setGroup(favoritesCountRef.current > 0 ? FAVORITES_GROUP_KEY : null);
+  if (mode !== "multiview" && immersive) setImmersive(false);
+  const [groupResetFor, setGroupResetFor] = useState(activeId);
+  if (groupResetFor !== activeId) {
+    setGroupResetFor(activeId);
+    setGroup(favorites.count > 0 ? FAVORITES_GROUP_KEY : null);
     setQuery("");
-  }, [activeId]);
+  }
 
   const region = settings.region || "US";
   const preferredLanguages =

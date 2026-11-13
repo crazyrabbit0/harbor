@@ -149,12 +149,10 @@ type RemoteSurfaceMode = "browse" | "nowPlaying";
 /** Enter Now Playing immediately; leave only after idle has settled. */
 function useRemoteSurfaceMode(idle: boolean): RemoteSurfaceMode {
   const [mode, setMode] = useState<RemoteSurfaceMode>(() => (idle ? "browse" : "nowPlaying"));
+  if (!idle && mode !== "nowPlaying") setMode("nowPlaying");
 
   useEffect(() => {
-    if (!idle) {
-      setMode("nowPlaying");
-      return;
-    }
+    if (!idle) return;
     const t = window.setTimeout(() => setMode("browse"), LEAVE_NOW_PLAYING_MS);
     return () => window.clearTimeout(t);
   }, [idle]);
@@ -518,17 +516,12 @@ function RemoteBody({
   }, []);
 
   // Open fullscreen whenever the host arms a text field (search on focus, others on tap).
+  if (textEntryActive && !textDismissed && !typing) setTyping(true);
+  if (!textEntryActive && textDismissed) setTextDismissed(false);
+  // Media active → drop text UI immediately so Now Playing can show (e.g. Open from search).
+  if (!textEntryActive && !snapshot.idle && typing) setTyping(false);
   useEffect(() => {
-    if (textEntryActive) {
-      if (!textDismissed) setTyping(true);
-      return;
-    }
-    setTextDismissed(false);
-    // Media active → drop text UI immediately so Now Playing can show (e.g. Open from search).
-    if (!snapshot.idle) {
-      setTyping(false);
-      return;
-    }
+    if (textEntryActive || !snapshot.idle) return;
     // Idle: brief grace so focus moving between inputs doesn't flash the overlay away.
     const t = window.setTimeout(() => setTyping(false), 100);
     return () => window.clearTimeout(t);
@@ -781,13 +774,13 @@ export function RemoteApp() {
   const watching = !!snapshot.mediaId && !snapshot.idle;
   useRegisterSheet(confirmBack);
 
+  if (status === "connected" && (!wasConnected || showDisconnected)) {
+    setWasConnected(true);
+    setShowDisconnected(false);
+  }
+
   useEffect(() => {
-    if (status === "connected") {
-      setWasConnected(true);
-      setShowDisconnected(false);
-      return;
-    }
-    if (!wasConnected) return;
+    if (status === "connected" || !wasConnected) return;
     const t = window.setTimeout(() => setShowDisconnected(true), DISCONNECT_OVERLAY_MS);
     return () => window.clearTimeout(t);
   }, [status, wasConnected]);

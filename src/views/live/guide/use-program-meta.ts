@@ -77,13 +77,12 @@ export function programMetaCached(title: string): ProgramMeta | null | undefined
 export function useProgramMeta(title: string, apiKey: string | null | undefined, enabled: boolean) {
   const cacheKey = title.trim().toLowerCase();
   const [value, setValue] = useState<ProgramMeta | null | undefined>(() => cache.get(cacheKey));
+  const cacheHit = !!enabled && !!apiKey && !!cacheKey && cache.has(cacheKey);
+  if (cacheHit && value !== cache.get(cacheKey)) setValue(cache.get(cacheKey));
 
   useEffect(() => {
     if (!enabled || !apiKey || !cacheKey) return;
-    if (cache.has(cacheKey)) {
-      setValue(cache.get(cacheKey));
-      return;
-    }
+    if (cache.has(cacheKey)) return;
     let alive = true;
     let job = inflight.get(cacheKey);
     if (!job) {

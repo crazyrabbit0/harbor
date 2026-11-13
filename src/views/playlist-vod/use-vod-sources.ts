@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlaylists, writePlaylists } from "@/lib/iptv/playlists-store";
 import { clearPlaylistCache } from "@/lib/iptv/store";
 import { clearEpg } from "@/lib/iptv/epg-store";
@@ -79,21 +79,19 @@ export function useVodSources() {
   );
 
   const [activeId, setActiveId] = useState<string | null>(() => readActive());
-
+  const validActiveId =
+    sources.length === 0
+      ? null
+      : activeId && sources.some((s) => s.id === activeId)
+        ? activeId
+        : (sources[0]?.id ?? null);
+  if (validActiveId !== activeId) setActiveId(validActiveId);
+  const storedActiveIdRef = useRef(activeId);
   useEffect(() => {
-    if (sources.length === 0) {
-      if (activeId !== null) {
-        setActiveId(null);
-        writeActive(null);
-      }
-      return;
-    }
-    if (!activeId || !sources.find((s) => s.id === activeId)) {
-      const fallback = sources[0]?.id ?? null;
-      setActiveId(fallback);
-      writeActive(fallback);
-    }
-  }, [sources, activeId]);
+    if (storedActiveIdRef.current === activeId) return;
+    storedActiveIdRef.current = activeId;
+    writeActive(activeId);
+  }, [activeId]);
 
   const selectId = useCallback((id: string) => {
     setActiveId(id);

@@ -158,10 +158,11 @@ export function GameArcade({
   const t = useT();
   const [playing, setPlaying] = useState<Game | null>(null);
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>("All");
-
-  useEffect(() => {
+  const [seenExitSignal, setSeenExitSignal] = useState(exitSignal);
+  if (seenExitSignal !== exitSignal) {
+    setSeenExitSignal(exitSignal);
     if (exitSignal > 0) setPlaying(null);
-  }, [exitSignal]);
+  }
 
   useEffect(() => {
     onPlayingChange(playing != null);

@@ -58,13 +58,11 @@ export function PeopleRankList({
 
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [visibleCount, setVisibleCount] = useState(BATCH);
+  const observerSupported = typeof IntersectionObserver !== "undefined";
+  if (!observerSupported && visibleCount < total) setVisibleCount(total);
 
   useEffect(() => {
-    if (visibleCount >= total) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setVisibleCount(total);
-      return;
-    }
+    if (visibleCount >= total || !observerSupported) return;
     const node = sentinelRef.current;
     if (!node) return;
     const obs = new IntersectionObserver(
@@ -77,7 +75,7 @@ export function PeopleRankList({
     );
     obs.observe(node);
     return () => obs.disconnect();
-  }, [visibleCount, total]);
+  }, [visibleCount, total, observerSupported]);
 
   if (status === "loading") return <LoadingState hero={heroEligible} />;
   if (status === "no-key") return <NoKeyState onOpenSettings={onOpenSettings} />;

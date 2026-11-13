@@ -65,11 +65,11 @@ export function VideoPipApp() {
   }, []);
 
   useEffect(() => {
-    wake();
+    idleTimer.current = window.setTimeout(() => setAwake(false), IDLE_MS);
     return () => {
       if (idleTimer.current) window.clearTimeout(idleTimer.current);
     };
-  }, [wake]);
+  }, []);
 
   // mpv broadcasts globally, so this window sees the same property stream the player does.
   useEffect(() => {

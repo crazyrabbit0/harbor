@@ -199,14 +199,17 @@ function TournamentRow({
 
 function DrawPanel({ tournament }: { tournament: TennisTournament }) {
   const t = useT();
-  const [draw, setDraw] = useState<TournamentDraw | null | "error">(null);
+  const [drawResult, setDrawResult] = useState<{
+    tournament: TennisTournament;
+    draw: TournamentDraw | "error";
+  } | null>(null);
+  const draw = drawResult?.tournament === tournament ? drawResult.draw : null;
 
   useEffect(() => {
     let dead = false;
-    setDraw(null);
     fetchTournamentDraw(tournament)
-      .then((d) => !dead && setDraw(d ?? "error"))
-      .catch(() => !dead && setDraw("error"));
+      .then((d) => !dead && setDrawResult({ tournament, draw: d ?? "error" }))
+      .catch(() => !dead && setDrawResult({ tournament, draw: "error" }));
     return () => {
       dead = true;
     };

@@ -44,27 +44,27 @@ export function useChannelHydration(channelNames: string[]): Map<string, Meta | 
     runningRef.current = false;
   };
 
+  const namesKey = channelNames.join("|");
+  const [seenNamesKey, setSeenNamesKey] = useState(namesKey);
+  if (seenNamesKey !== namesKey) {
+    setSeenNamesKey(namesKey);
+    const next = new Map(hydrations);
+    for (const n of channelNames) {
+      if (next.has(n)) continue;
+      const cached = getCachedHydration(n);
+      if (cached !== undefined) next.set(n, cached);
+    }
+    if (next.size !== hydrations.size) setHydrations(next);
+  }
+
   useEffect(() => {
-    const pending: string[] = [];
-    setHydrations((prev) => {
-      let changed = false;
-      const next = new Map(prev);
-      for (const n of channelNames) {
-        if (next.has(n)) continue;
-        const cached = getCachedHydration(n);
-        if (cached !== undefined) {
-          next.set(n, cached);
-          changed = true;
-        } else {
-          pending.push(n);
-        }
-      }
-      return changed ? next : prev;
-    });
+    const pending = channelNames.filter(
+      (n) => !hydrations.has(n) && getCachedHydration(n) === undefined,
+    );
     if (pending.length === 0) return;
     queueRef.current.push(...pending);
     if (!runningRef.current) runQueue();
-  }, [channelNames.join("|")]);
+  }, [namesKey]);
 
   return hydrations;
 }

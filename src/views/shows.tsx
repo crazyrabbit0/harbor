@@ -86,20 +86,23 @@ export function Shows({ active = true }: { active?: boolean }) {
     setScrollEl(el);
   }, []);
 
+  if (!authKey && items.length > 0) setItems([]);
   useEffect(() => {
-    if (!authKey) {
-      setItems([]);
-      return;
-    }
+    if (!authKey) return;
     library(authKey)
       .then(setItems)
       .catch(() => {});
   }, [authKey]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const [catalogFor, setCatalogFor] = useState(settings.tmdbKey);
+  if (catalogFor !== settings.tmdbKey) {
+    setCatalogFor(settings.tmdbKey);
     setHero([]);
     setRows([]);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       if (settings.tmdbKey) {
         const specs = showSpecs(settings.tmdbKey);

@@ -22,9 +22,13 @@ export function useCreditImdbRatings(credits: PersonCredit[]): Map<string, strin
   const idKey = credits.map((c) => creditToMeta(c).id).join("|");
   const ids = useMemo(() => (idKey ? idKey.split("|") : []), [idKey]);
   const [ratings, setRatings] = useState<Map<string, string>>(() => seedFromCache(ids));
+  const [seededFor, setSeededFor] = useState({ ids, key: settings.tmdbKey });
+  if (seededFor.ids !== ids || seededFor.key !== settings.tmdbKey) {
+    setSeededFor({ ids, key: settings.tmdbKey });
+    setRatings(seedFromCache(ids));
+  }
 
   useEffect(() => {
-    setRatings(seedFromCache(ids));
     const key = settings.tmdbKey;
     if (!key || ids.length === 0) return;
     let cancelled = false;

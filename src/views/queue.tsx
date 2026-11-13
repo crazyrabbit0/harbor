@@ -363,14 +363,14 @@ function useQueueLogo(meta: Meta): string | undefined {
   const [logo, setLogo] = useState<string | undefined>(() =>
     peekCachedLogo(settings.tmdbKey, meta),
   );
+  const [logoFor, setLogoFor] = useState({ meta, key: settings.tmdbKey });
+  if (logoFor.meta !== meta || logoFor.key !== settings.tmdbKey) {
+    setLogoFor({ meta, key: settings.tmdbKey });
+    setLogo(peekCachedLogo(settings.tmdbKey, meta));
+  }
   useEffect(() => {
     let cancelled = false;
-    const cached = peekCachedLogo(settings.tmdbKey, meta);
-    if (cached) {
-      setLogo(cached);
-      return;
-    }
-    setLogo(undefined);
+    if (peekCachedLogo(settings.tmdbKey, meta)) return;
     resolveLogo(settings.tmdbKey, meta)
       .then((url) => {
         if (!cancelled && url) setLogo(url);

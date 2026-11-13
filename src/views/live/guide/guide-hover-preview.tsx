@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Spinner } from "@/components/spinner";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
@@ -28,10 +28,11 @@ export function GuideHoverPreview({
   const [failedTick, setFailedTick] = useState(0);
 
   const channelId = channel?.id ?? "";
-
-  useEffect(() => {
+  const [playingFor, setPlayingFor] = useState(channelId);
+  if (playingFor !== channelId) {
+    setPlayingFor(channelId);
     setPlaying(false);
-  }, [channelId]);
+  }
 
   if (!channel || !channel.url) return null;
 

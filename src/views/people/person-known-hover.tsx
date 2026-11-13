@@ -67,10 +67,15 @@ export function KnownTileHover({ meta, rect }: { meta: Meta; rect: DOMRect }) {
   const [full, setFull] = useState<FullMeta | null>(null);
   const [art, setArt] = useState<string | null>(null);
   const local = meta.background ?? meta.poster ?? null;
-
-  useEffect(() => {
+  const hoverKey = `${meta.type}:${meta.id}:${local}`;
+  const [hoverFor, setHoverFor] = useState(hoverKey);
+  if (hoverFor !== hoverKey) {
+    setHoverFor(hoverKey);
     setFull(null);
     setArt(null);
+  }
+
+  useEffect(() => {
     let alive = true;
 
     const settle = (src: string | null) => {

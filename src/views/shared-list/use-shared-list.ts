@@ -19,12 +19,20 @@ export function useSharedList(handle: string, listId: string): SharedListBundle 
   const [nonce, setNonce] = useState(0);
   const reload = useCallback(() => setNonce((n) => n + 1), []);
 
+  const requestKey = handle && listId ? `${handle}\n${listId}\n${nonce}` : null;
+  const [requestFor, setRequestFor] = useState(requestKey);
+  if (requestFor !== requestKey) {
+    setRequestFor(requestKey);
+    if (requestKey !== null) {
+      setState("loading");
+      setSummary(null);
+      setList(null);
+    }
+  }
+
   useEffect(() => {
     if (!handle || !listId) return;
     const ac = new AbortController();
-    setState("loading");
-    setSummary(null);
-    setList(null);
     fetchSummary(handle, ac.signal)
       .then((s) => {
         if (ac.signal.aborted) return;

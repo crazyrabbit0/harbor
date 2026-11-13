@@ -111,12 +111,9 @@ export function OceanFacts() {
   const [seed] = useState(() => Math.floor(Math.random() * 233280));
   const order = useMemo(() => shuffled(seed), [seed]);
   const [idx, setIdx] = useState(0);
-  const [imgFailed, setImgFailed] = useState(false);
+  const [failedIdx, setFailedIdx] = useState<number | null>(null);
+  const imgFailed = failedIdx === idx;
   const fact = FACTS[order[idx % order.length]];
-
-  useEffect(() => {
-    setImgFailed(false);
-  }, [idx]);
 
   useEffect(() => {
     const next = FACTS[order[(idx + 1) % order.length]];
@@ -136,7 +133,7 @@ export function OceanFacts() {
               src={fact.img}
               alt=""
               draggable={false}
-              onError={() => setImgFailed(true)}
+              onError={() => setFailedIdx(idx)}
               className="h-full w-full object-cover"
             />
             <span className="absolute bottom-2 end-3 rounded-full bg-black/45 px-2.5 py-0.5 text-[9.5px] font-semibold uppercase tracking-[0.1em] text-white/85">

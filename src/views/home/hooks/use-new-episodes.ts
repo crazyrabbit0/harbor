@@ -20,11 +20,11 @@ export function useNewEpisodes(items: LibraryItem[], enabled: boolean) {
     [series],
   );
 
+  const active = enabled && series.length > 0;
+  if (!active && found.length > 0) setFound([]);
+
   useEffect(() => {
-    if (!enabled || series.length === 0) {
-      setFound([]);
-      return;
-    }
+    if (!active) return;
     let cancelled = false;
 
     void Promise.all(series.map((s) => newEpisodesFor(s).catch(() => [])))
@@ -48,7 +48,7 @@ export function useNewEpisodes(items: LibraryItem[], enabled: boolean) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, signature, series.length]);
+  }, [active, enabled, signature, series.length]);
 
   const episodes = useMemo(
     () =>
