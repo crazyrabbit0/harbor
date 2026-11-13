@@ -703,9 +703,13 @@ function RepoCard({ url }: { url: string }) {
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState(false);
+  const [stateFor, setStateFor] = useState(url);
+  if (stateFor !== url) {
+    setStateFor(url);
+    setState("loading");
+  }
   useEffect(() => {
     let cancelled = false;
-    setState("loading");
     void browseEBookRepo(url)
       .then((value) => {
         if (!cancelled) {
