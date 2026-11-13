@@ -36,10 +36,11 @@ const IS_TAURI = typeof window !== "undefined" && "__TAURI_INTERNALS__" in windo
 
 function PresenceAvatar({ name, src, color }: { name: string; src: string | null; color: string }) {
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
+  const [failedFor, setFailedFor] = useState(src);
+  if (failedFor !== src) {
+    setFailedFor(src);
     setFailed(false);
-  }, [src]);
+  }
 
   if (src && !failed) {
     return (
