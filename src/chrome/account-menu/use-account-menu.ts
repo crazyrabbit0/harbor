@@ -25,9 +25,7 @@ export function useAccountMenu() {
   const [pendingSwitch, setPendingSwitch] = useState<Profile | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!menuOpen) setManageOpen(false);
-  }, [menuOpen]);
+  if (!menuOpen && manageOpen) setManageOpen(false);
 
   useEffect(() => {
     if (!menuOpen && !statusOpen) return;
