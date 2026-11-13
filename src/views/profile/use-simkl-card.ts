@@ -37,10 +37,18 @@ export function useSimklCard(
   const [connected, setConnected] = useState(() => enabled && !!getSession());
   const [username, setUsername] = useState<string | null>(() => getSession()?.username ?? null);
   const [state, setState] = useState<SimklCardState>(() =>
-    getSession() ? { kind: "loading" } : { kind: "disconnected" },
+    enabled && getSession() ? { kind: "loading" } : { kind: "disconnected" },
   );
   const [nonce, setNonce] = useState(0);
   const forceRef = useRef(false);
+  const active = enabled && connected;
+  const loadKey = `${connected}|${nonce}|${includeStats}|${enabled}`;
+  const [seenLoadKey, setSeenLoadKey] = useState(loadKey);
+  if (seenLoadKey !== loadKey) {
+    setSeenLoadKey(loadKey);
+    if (active) setState((cur) => (cur.kind === "loading" ? cur : { kind: "loading" }));
+    else setState((cur) => (cur.kind === "disconnected" ? cur : { kind: "disconnected" }));
+  }
 
   const reload = useCallback(() => {
     forceRef.current = true;
@@ -58,14 +66,10 @@ export function useSimklCard(
   );
 
   useEffect(() => {
-    if (!enabled || !connected) {
-      setState((cur) => (cur.kind === "disconnected" ? cur : { kind: "disconnected" }));
-      return;
-    }
+    if (!enabled || !connected) return;
     const force = forceRef.current;
     forceRef.current = false;
     let cancelled = false;
-    setState((cur) => (cur.kind === "loading" ? cur : { kind: "loading" }));
 
     void fetchSimklProfile({ force })
       .then((result) => {

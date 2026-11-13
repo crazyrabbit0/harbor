@@ -43,12 +43,16 @@ export function useMentionSuggest(text: string, caret: number) {
   const [friends, setFriends] = useState<Friend[]>([]);
   const [dismissedAt, setDismissedAt] = useState<number | null>(null);
   const [index, setIndex] = useState(0);
+  if (!token && dismissedAt !== null) setDismissedAt(null);
+  const query = token?.query;
+  const [indexFor, setIndexFor] = useState(query);
+  if (indexFor !== query) {
+    setIndexFor(query);
+    setIndex(0);
+  }
 
   useEffect(() => {
-    if (!token) {
-      setDismissedAt(null);
-      return;
-    }
+    if (!token) return;
     let live = true;
     void loadFriends().then((f) => live && setFriends(f));
     return () => {
@@ -59,10 +63,6 @@ export function useMentionSuggest(text: string, caret: number) {
   const options = useMemo(() => (token ? rank(friends, token.query) : []), [friends, token]);
   const open = !!token && options.length > 0 && dismissedAt !== token.start;
   const active = Math.max(0, Math.min(index, options.length - 1));
-
-  useEffect(() => {
-    setIndex(0);
-  }, [token?.query]);
 
   return {
     token,

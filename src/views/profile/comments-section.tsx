@@ -1,5 +1,5 @@
 import { MessageSquare } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useT } from "@/lib/i18n";
 import { CommentCompose } from "./comment-compose";
 import { CommentItem } from "./comment-item";
@@ -24,10 +24,11 @@ export function CommentsSection({
   const { state, comments, total, hasMore, loadMore, submit, remove, toggleLike, sending } =
     useComments(handle);
   const [shown, setShown] = useState(COMMENTS_PAGE);
-
-  useEffect(() => {
+  const [shownFor, setShownFor] = useState(handle);
+  if (shownFor !== handle) {
+    setShownFor(handle);
     setShown(COMMENTS_PAGE);
-  }, [handle]);
+  }
 
   const ids = new Set(comments.map((c) => c.id));
   const roots = comments.filter((c) => !c.parentId || !ids.has(c.parentId));

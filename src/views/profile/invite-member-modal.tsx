@@ -40,14 +40,20 @@ export function InviteMemberModal({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  useEffect(() => {
-    const q = query.trim();
-    if (!q) {
+  const [seenQuery, setSeenQuery] = useState(query);
+  if (seenQuery !== query) {
+    setSeenQuery(query);
+    if (query.trim()) {
+      setPhase("searching");
+    } else {
       setResults([]);
       setPhase("idle");
-      return;
     }
-    setPhase("searching");
+  }
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) return;
     const ctrl = new AbortController();
     const id = window.setTimeout(() => {
       searchUsers(q, ctrl.signal)

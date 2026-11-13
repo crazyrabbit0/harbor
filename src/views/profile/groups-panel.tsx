@@ -1,5 +1,5 @@
 import { ChevronRight, Plus, UsersRound } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { useViewActions } from "@/lib/view";
 import { fetchGroupInvites, fetchMyGroups, fetchUserGroups, type Group } from "@/lib/social/groups";
@@ -34,35 +34,37 @@ export function GroupsPanel({ isOwner, handle }: { isOwner: boolean; handle: str
   const [invites, setInvites] = useState<Group[]>([]);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [createOpen, setCreateOpen] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const loadKey = `${attempt}|${isOwner ? 1 : 0}|${handle}`;
+  const [seenLoadKey, setSeenLoadKey] = useState(loadKey);
+  if (seenLoadKey !== loadKey) {
+    setSeenLoadKey(loadKey);
+    setPhase("loading");
+  }
 
-  const load = useCallback(
-    (signal?: AbortSignal) => {
-      setPhase("loading");
-      if (isOwner) {
-        fetchGroupInvites(signal)
-          .then((list) => !signal?.aborted && setInvites(list))
-          .catch(() => {});
-      }
-      const req = isOwner ? fetchMyGroups(signal) : fetchUserGroups(handle, signal);
-      req
-        .then((list) => {
-          if (signal?.aborted) return;
-          setGroups(list);
-          setPhase("ready");
-        })
-        .catch(() => {
-          if (signal?.aborted) return;
-          setPhase("error");
-        });
-    },
-    [isOwner, handle],
-  );
+  const load = () => setAttempt((n) => n + 1);
 
   useEffect(() => {
     const ctrl = new AbortController();
-    load(ctrl.signal);
+    const signal = ctrl.signal;
+    if (isOwner) {
+      fetchGroupInvites(signal)
+        .then((list) => !signal.aborted && setInvites(list))
+        .catch(() => {});
+    }
+    const req = isOwner ? fetchMyGroups(signal) : fetchUserGroups(handle, signal);
+    req
+      .then((list) => {
+        if (signal.aborted) return;
+        setGroups(list);
+        setPhase("ready");
+      })
+      .catch(() => {
+        if (signal.aborted) return;
+        setPhase("error");
+      });
     return () => ctrl.abort();
-  }, [load]);
+  }, [isOwner, handle, attempt]);
 
   // On other people's profiles, only show the panel when they have public groups to show.
   if (!isOwner && (phase !== "ready" || groups.length === 0)) return null;
