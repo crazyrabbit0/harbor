@@ -54,15 +54,16 @@ export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
   );
   const [logoLoaded, setLogoLoaded] = useState<boolean>(!!peekCachedLogo(settings.tmdbKey, meta));
 
-  useEffect(() => {
+  const [logoFor, setLogoFor] = useState({ meta, tmdbKey: settings.tmdbKey });
+  if (logoFor.meta !== meta || logoFor.tmdbKey !== settings.tmdbKey) {
+    setLogoFor({ meta, tmdbKey: settings.tmdbKey });
     const cached = peekCachedLogo(settings.tmdbKey, meta);
-    if (cached) {
-      setLogo(cached);
-      setLogoLoaded(true);
-      return;
-    }
-    setLogo(null);
-    setLogoLoaded(false);
+    setLogo(cached ?? null);
+    setLogoLoaded(!!cached);
+  }
+
+  useEffect(() => {
+    if (peekCachedLogo(settings.tmdbKey, meta)) return;
     let cancelled = false;
     resolveLogo(settings.tmdbKey, meta)
       .then((url) => {
@@ -75,9 +76,15 @@ export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
     };
   }, [meta, settings.tmdbKey]);
 
-  useEffect(() => {
+  const dataKey = JSON.stringify([meta.id, meta.type, settings.tmdbKey]);
+  const [dataSeen, setDataSeen] = useState(dataKey);
+  if (dataSeen !== dataKey) {
+    setDataSeen(dataKey);
     setOverviewOpen(false);
     setData(null);
+  }
+
+  useEffect(() => {
     if (!settings.tmdbKey) return;
     let cancelled = false;
     tmdbCriticData(settings.tmdbKey, meta.id, narrowMediaType(meta.type)).then((d) => {
@@ -88,11 +95,10 @@ export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
     };
   }, [meta.id, meta.type, settings.tmdbKey]);
 
+  if (!settings.tmdbKey && stills.length > 0) setStills([]);
+
   useEffect(() => {
-    if (!settings.tmdbKey) {
-      setStills([]);
-      return;
-    }
+    if (!settings.tmdbKey) return;
     let cancelled = false;
     tmdbMovieImages(settings.tmdbKey, meta.id)
       .then((urls) => !cancelled && setStills(urls))
@@ -107,9 +113,11 @@ export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
   const reviews = data?.reviews ?? [];
   const [reviewIdx, setReviewIdx] = useState(0);
   const [reviewVisible, setReviewVisible] = useState(true);
-  useEffect(() => {
+  const [reviewFor, setReviewFor] = useState(meta.id);
+  if (reviewFor !== meta.id) {
+    setReviewFor(meta.id);
     setReviewIdx(0);
-  }, [meta.id]);
+  }
   const changeReview = useCallback(
     (dir: number) => {
       setReviewVisible(false);

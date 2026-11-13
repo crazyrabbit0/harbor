@@ -12,10 +12,14 @@ export function useModalExit(onClose: () => void, open = true) {
     setClosing(true);
   }, []);
 
+  const [openSeen, setOpenSeen] = useState(open);
+  if (openSeen !== open) {
+    setOpenSeen(open);
+    if (open) setClosing(false);
+  }
+
   useEffect(() => {
-    if (!open) return;
-    fired.current = false;
-    setClosing(false);
+    if (open) fired.current = false;
   }, [open]);
 
   useEffect(() => {

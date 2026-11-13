@@ -99,9 +99,11 @@ export function TogetherPopover({
   const [view, setView] = useState<"default" | "link">("default");
   const cursorKnob = useKnobAnim(settings.togetherShareCursors);
 
-  useEffect(() => {
+  const [nameSeen, setNameSeen] = useState(displayName);
+  if (nameSeen !== displayName) {
+    setNameSeen(displayName);
     setDraftName(displayName);
-  }, [displayName]);
+  }
 
   const inSession = snapshot.state === "joined" && !!snapshot.room;
   const connecting = snapshot.state === "connecting";

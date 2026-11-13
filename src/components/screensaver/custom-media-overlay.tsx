@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { screensaverMediaSrc } from "@/lib/screensaver/media";
 import type { ScreensaverMedia } from "@/lib/settings/types";
 
@@ -16,9 +16,11 @@ export function CustomMediaOverlay({
   const [ready, setReady] = useState(false);
   const src = screensaverMediaSrc(media.path);
 
-  useEffect(() => {
+  const [srcSeen, setSrcSeen] = useState(src);
+  if (srcSeen !== src) {
+    setSrcSeen(src);
     setReady(false);
-  }, [src]);
+  }
 
   return (
     <div

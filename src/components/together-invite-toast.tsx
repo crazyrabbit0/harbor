@@ -16,11 +16,20 @@ export function TogetherInviteToast() {
   const [handledAt, setHandledAt] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
 
+  const [inviteSeen, setInviteSeen] = useState(incomingInvite);
+  if (inviteSeen !== incomingInvite) {
+    setInviteSeen(incomingInvite);
+    if (!incomingInvite) {
+      setHandledAt(null);
+      setProgress(0);
+    } else if (handledAt !== incomingInvite.at) {
+      setProgress(0);
+    }
+  }
+
   useEffect(() => {
     if (!incomingInvite) {
       handledRef.current = null;
-      setHandledAt(null);
-      setProgress(0);
       return;
     }
     if (handledRef.current === incomingInvite.at) return;
@@ -42,7 +51,6 @@ export function TogetherInviteToast() {
       openPicker(meta, invite.episode, { autoPlay: invite.guestPick !== true });
       dismissInvite();
     };
-    setProgress(0);
     const start = Date.now();
     const id = window.setInterval(() => {
       const elapsed = Date.now() - start;

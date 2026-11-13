@@ -129,8 +129,6 @@ export function EditorView({
     continueWatching: false,
   });
   const [selectedAddons, setSelectedAddons] = useState<Set<string>>(new Set());
-  const [sourceSummary, setSourceSummary] = useState<ImportSourceSummary | null>(null);
-  const [overlaps, setOverlaps] = useState<Partial<Record<ImportDomain, DomainOverlap>>>({});
   const [domainChoices, setDomainChoices] = useState<
     Partial<Record<ImportDomain, ImportDomainChoice>>
   >({});
@@ -185,27 +183,18 @@ export function EditorView({
     (d) => importSelection[d],
   );
 
-  useEffect(() => {
-    setSourceSummary(importSourceId ? summarizeSource(importSourceId) : null);
-  }, [importSourceId]);
+  const sourceSummary: ImportSourceSummary | null = importSourceId
+    ? summarizeSource(importSourceId)
+    : null;
 
   const targetProfileId = editing?.id ?? null;
-  useEffect(() => {
-    if (!importSourceId || !targetProfileId) {
-      setOverlaps({});
-      return;
-    }
-    const selectedMergeable = (Object.keys(importSelection) as ImportDomain[]).filter(
-      (d) => importSelection[d] && (d === "watchlist" || d === "favorites" || d === "addons"),
-    );
-    if (selectedMergeable.length === 0) {
-      setOverlaps({});
-      return;
-    }
-    setOverlaps(
-      analyzeOverlaps(importSourceId, targetProfileId, selectedMergeable, [...selectedAddons]),
-    );
-  }, [importSourceId, targetProfileId, importSelection, selectedAddons]);
+  const selectedMergeable = (Object.keys(importSelection) as ImportDomain[]).filter(
+    (d) => importSelection[d] && (d === "watchlist" || d === "favorites" || d === "addons"),
+  );
+  const overlaps: Partial<Record<ImportDomain, DomainOverlap>> =
+    importSourceId && targetProfileId && selectedMergeable.length > 0
+      ? analyzeOverlaps(importSourceId, targetProfileId, selectedMergeable, [...selectedAddons])
+      : {};
 
   const resetImportChoice = () => {
     setImportSelection({
@@ -217,7 +206,6 @@ export function EditorView({
       continueWatching: false,
     });
     setSelectedAddons(new Set());
-    setOverlaps({});
     setDomainChoices({});
   };
 

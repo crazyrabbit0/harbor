@@ -35,11 +35,10 @@ export function AiModeButton({
     ...pruneToCatalog(AI_MODELS, orCatalog),
   ];
 
+  if (!open && rect) setRect(null);
+
   useEffect(() => {
-    if (!open) {
-      setRect(null);
-      return;
-    }
+    if (!open) return;
     const place = () => {
       const el = wrapRef.current;
       if (el) setRect(el.getBoundingClientRect());

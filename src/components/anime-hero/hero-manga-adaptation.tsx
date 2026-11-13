@@ -10,14 +10,17 @@ const loadMangaApi = () => import("@/lib/manga/api");
 export function HeroMangaAdaptation({ meta }: { meta: Meta }) {
   const t = useT();
   const { openEBook, openManga } = useViewActions();
-  const [source, setSource] = useState<AnimeReadingSource | null>(null);
+  const key = `${meta.id}|${meta.malId}|${meta.name}`;
+  const [result, setResult] = useState<{ key: string; source: AnimeReadingSource | null } | null>(
+    null,
+  );
+  const source = result?.key === key ? result.source : null;
 
   useEffect(() => {
     let cancelled = false;
-    setSource(null);
     resolveAnimeSourceReading(meta.id, meta.malId, meta.name)
       .then((resolved) => {
-        if (!cancelled) setSource(resolved);
+        if (!cancelled) setResult({ key, source: resolved });
       })
       .catch(() => {});
     return () => {

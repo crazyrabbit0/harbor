@@ -78,9 +78,7 @@ export function CinemaHero({
     return () => clearInterval(id);
   }, [paused, dragging, inViewport, pageVisible, slides.length]);
 
-  useEffect(() => {
-    if (active >= slides.length) setActive(0);
-  }, [slides.length, active]);
+  if (active !== 0 && active >= slides.length) setActive(0);
 
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
@@ -275,10 +273,24 @@ function CinemaSlide({
     };
   }, [active, logoResolved, meta.id, meta.type, settings.tmdbKey]);
 
+  const trailerRun = JSON.stringify([
+    active,
+    meta.id,
+    meta.type,
+    settings.tmdbKey,
+    settings.heroTrailers,
+  ]);
+  const [trailerSeen, setTrailerSeen] = useState(trailerRun);
+  if (trailerSeen !== trailerRun) {
+    setTrailerSeen(trailerRun);
+    if (active && settings.heroTrailers) {
+      setTrailerCandidates([]);
+      setTrailerInfo(null);
+    }
+  }
+
   useEffect(() => {
     if (!active || !settings.heroTrailers) return;
-    setTrailerCandidates([]);
-    setTrailerInfo(null);
     let cancelled = false;
     const isTmdb = meta.id.startsWith("tmdb:");
     const lookup: Promise<string[]> = isTmdb

@@ -1,5 +1,5 @@
 import { ArrowLeft, Loader2, Shuffle, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { AddonsIcon } from "@/components/icons/addons-icon";
 import { AnimeIcon } from "@/components/icons/anime-icon";
 import { CalendarIcon } from "@/components/icons/calendar-icon";
@@ -131,31 +131,36 @@ export function EmptyState({
     return out;
   }, [filterTab, isServiceTab, settings.region]);
 
-  useEffect(() => {
-    fetchRef.current?.abort();
-    fetchRef.current = null;
-    seenRef.current = new Set();
+  const [browseSeen, setBrowseSeen] = useState({ genreBrowse, filterTab });
+  const browseChanged =
+    browseSeen.genreBrowse !== genreBrowse || browseSeen.filterTab !== filterTab;
+  if (browseChanged) {
+    setBrowseSeen({ genreBrowse, filterTab });
     setItems([]);
     setMoviePage(1);
     setTvPage(1);
     setMovieDone(false);
     setTvDone(false);
     setLoading(false);
+  }
+  useEffect(() => {
+    fetchRef.current?.abort();
+    fetchRef.current = null;
+    seenRef.current = new Set();
   }, [genreBrowse, filterTab]);
 
-  const loadMore = useCallback(async () => {
+  const cinemetaOnly = !settings.tmdbKey;
+  const needMovies =
+    wantMovies &&
+    !movieDone &&
+    moviePage <= MAX_PAGES &&
+    (cinemetaOnly || typeof movieId === "number");
+  const needSeries =
+    wantSeries && !tvDone && tvPage <= MAX_PAGES && (cinemetaOnly || typeof tvId === "number");
+
+  const fetchPage = useCallback(async () => {
     if (!genreBrowse) return;
-    if (loading) return;
-    const cinemetaOnly = !settings.tmdbKey;
-    const needMovies =
-      wantMovies &&
-      !movieDone &&
-      moviePage <= MAX_PAGES &&
-      (cinemetaOnly || typeof movieId === "number");
-    const needSeries =
-      wantSeries && !tvDone && tvPage <= MAX_PAGES && (cinemetaOnly || typeof tvId === "number");
     if (!needMovies && !needSeries) return;
-    setLoading(true);
     fetchRef.current?.abort();
     const ac = new AbortController();
     fetchRef.current = ac;
@@ -219,24 +224,44 @@ export function EmptyState({
   }, [
     genreBrowse,
     settings.tmdbKey,
-    loading,
-    wantMovies,
-    wantSeries,
+    needMovies,
+    needSeries,
+    cinemetaOnly,
     movieId,
     tvId,
-    movieDone,
-    tvDone,
     moviePage,
     tvPage,
     servicePart,
     filterTab,
   ]);
 
+  // Each bump of `request` starts one fetchPage for the state of the render that bumped it.
+  const [request, setRequest] = useState(0);
+  const loadMore = useCallback(() => {
+    if (!genreBrowse || loading) return;
+    if (!needMovies && !needSeries) return;
+    setLoading(true);
+    setRequest((r) => r + 1);
+  }, [genreBrowse, loading, needMovies, needSeries]);
+
+  if (
+    !browseChanged &&
+    genreBrowse &&
+    items.length === 0 &&
+    !loading &&
+    (needMovies || needSeries)
+  ) {
+    setLoading(true);
+    setRequest(request + 1);
+  }
+
+  const fetchPageRef = useRef(fetchPage);
+  useLayoutEffect(() => {
+    fetchPageRef.current = fetchPage;
+  }, [fetchPage]);
   useEffect(() => {
-    if (!genreBrowse) return;
-    if (items.length > 0) return;
-    void loadMore();
-  }, [genreBrowse, filterTab, items.length, loadMore]);
+    if (request > 0) void fetchPageRef.current();
+  }, [request]);
 
   useEffect(() => {
     if (!genreBrowse) return;

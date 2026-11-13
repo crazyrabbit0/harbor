@@ -194,13 +194,18 @@ export const ContinueCard = memo(function ContinueCard({
     upNext,
   ]);
 
+  const [candidatesSeen, setCandidatesSeen] = useState(candidates);
+  if (candidatesSeen !== candidates) {
+    setCandidatesSeen(candidates);
+    setImgIdx(0);
+  }
+
   const src = candidates[imgIdx];
 
-  useEffect(() => {
-    setImgIdx(0);
-  }, [candidates]);
-
-  useEffect(() => {
+  const hydrateKey = JSON.stringify([item._id, item.type, item.state?.video_id, authKey]);
+  const [hydrateSeen, setHydrateSeen] = useState(hydrateKey);
+  if (hydrateSeen !== hydrateKey) {
+    setHydrateSeen(hydrateKey);
     setLogo(undefined);
     setMetaBg(undefined);
     setHydratedMeta(null);
@@ -208,6 +213,9 @@ export const ContinueCard = memo(function ContinueCard({
     setAbsoluteNumber(null);
     setTranslatedTitle(null);
     setImgIdx(0);
+  }
+
+  useEffect(() => {
     const el = cardRef.current;
     if (!el) return;
     let cancelled = false;
@@ -341,9 +349,14 @@ export const ContinueCard = memo(function ContinueCard({
 
   const epSeason = ep?.season;
   const epEpisode = ep?.episode;
-  useEffect(() => {
+  const epKey = JSON.stringify([item._id, epSeason, epEpisode, kitsuThreeSeg]);
+  const [epSeen, setEpSeen] = useState(epKey);
+  if (epSeen !== epKey) {
+    setEpSeen(epKey);
     setEpTitle(null);
     setEpStill(null);
+  }
+  useEffect(() => {
     if (epSeason == null || epEpisode == null || kitsuThreeSeg) return;
     if (/^(kitsu|mal|anilist|anidb):/.test(item._id)) return;
     let cancelled = false;
@@ -823,11 +836,9 @@ function GlassReveal({
       card.removeEventListener("pointerout", hide);
     };
   }, []);
+  if (!mounted && armed) setArmed(false);
   useEffect(() => {
-    if (!mounted) {
-      setArmed(false);
-      return;
-    }
+    if (!mounted) return;
     let frame = requestAnimationFrame(() => {
       frame = requestAnimationFrame(() => setArmed(true));
     });

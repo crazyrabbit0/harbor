@@ -53,10 +53,15 @@ export function DiagnosticsConsentModal({
   const [summary, setSummary] = useState<DiagnosticsRequestSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const ac = new AbortController();
+  const [requestSeen, setRequestSeen] = useState(requestId);
+  if (requestSeen !== requestId) {
+    setRequestSeen(requestId);
     setSummary(null);
     setError(null);
+  }
+
+  useEffect(() => {
+    const ac = new AbortController();
     fetchDiagnosticsRequest(requestId, ac.signal)
       .then(setSummary)
       .catch((e: unknown) => {

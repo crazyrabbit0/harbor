@@ -63,13 +63,12 @@ function sameRoster(a: RosterEntry[], b: RosterEntry[]): boolean {
 
 export function useDeviceRoster(peers: HarborInstance[], settled: boolean): RosterEntry[] {
   const [entries, setEntries] = useState<RosterEntry[]>([]);
-
-  useEffect(() => {
-    setEntries((prev) => {
-      const next = reconcile(prev, peers, settled);
-      return sameRoster(prev, next) ? prev : next;
-    });
-  }, [peers, settled]);
+  const [seen, setSeen] = useState<{ peers: HarborInstance[]; settled: boolean } | null>(null);
+  if (seen?.peers !== peers || seen.settled !== settled) {
+    setSeen({ peers, settled });
+    const next = reconcile(entries, peers, settled);
+    if (!sameRoster(entries, next)) setEntries(next);
+  }
 
   useEffect(() => {
     if (!entries.some((entry) => entry.leaving)) return;

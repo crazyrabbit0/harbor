@@ -17,15 +17,16 @@ export function useBrandRanking(
 ): { brands: BrandSummary[]; loading: boolean } {
   const [brands, setBrands] = useState<BrandSummary[]>(() => tmdbBrandRankingCached(kind, scope));
   const [loading, setLoading] = useState(brands.length === 0);
+  const [seen, setSeen] = useState({ kind, scope });
+  if (seen.kind !== kind || seen.scope !== scope) {
+    setSeen({ kind, scope });
+    const cached = tmdbBrandRankingCached(kind, scope);
+    if (cached.length > 0) setBrands(cached);
+    setLoading(cached.length === 0);
+  }
   useEffect(() => {
     let alive = true;
-    const cached = tmdbBrandRankingCached(kind, scope);
-    if (cached.length > 0) {
-      setBrands(cached);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (tmdbBrandRankingCached(kind, scope).length > 0) return;
     void tmdbBrandRanking(kind, scope).then((list) => {
       if (!alive) return;
       setBrands(list);

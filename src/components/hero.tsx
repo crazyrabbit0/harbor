@@ -136,11 +136,13 @@ export const Hero = memo(function Hero({
     },
   });
 
-  useEffect(() => {
+  const [trailerFor, setTrailerFor] = useState(meta.id);
+  if (trailerFor !== meta.id) {
+    setTrailerFor(meta.id);
     setTrailerCandidates([]);
     setTrailerInfo(null);
     setEnded(getHeroEnded(meta.id));
-  }, [meta.id]);
+  }
 
   useEffect(() => {
     if (!playTrailer || trailerCandidates.length > 0) return;
@@ -271,11 +273,10 @@ export const Hero = memo(function Hero({
     return () => io.disconnect();
   }, [audioHero]);
 
+  if (!onScreen && lingered) setLingered(false);
+
   useEffect(() => {
-    if (!onScreen) {
-      setLingered(false);
-      return;
-    }
+    if (!onScreen) return;
     const id = window.setTimeout(() => setLingered(true), 1000);
     return () => window.clearTimeout(id);
   }, [onScreen]);

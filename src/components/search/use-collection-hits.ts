@@ -23,12 +23,11 @@ export function collectionForTitle(
 
 export function useCollectionHits(query: string): TvdbCollectionHit[] {
   const [hits, setHits] = useState<TvdbCollectionHit[]>([]);
+  const short = query.trim().length < 3;
+  if (short && hits.length > 0) setHits([]);
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 3) {
-      setHits([]);
-      return;
-    }
+    if (q.length < 3) return;
     let cancelled = false;
     const id = window.setTimeout(() => {
       searchTvdbCollections(q)

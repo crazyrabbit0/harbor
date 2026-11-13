@@ -26,11 +26,13 @@ export function ProfilePickerModal() {
   const [cameFromList, setCameFromList] = useState(false);
   const timers = useRef<number[]>([]);
 
+  if (!pickerOpen && (selectingId !== null || exiting || cameFromList)) {
+    setSelectingId(null);
+    setExiting(false);
+    setCameFromList(false);
+  }
   useEffect(() => {
     if (!pickerOpen) {
-      setSelectingId(null);
-      setExiting(false);
-      setCameFromList(false);
       timers.current.forEach((id) => window.clearTimeout(id));
       timers.current = [];
     }

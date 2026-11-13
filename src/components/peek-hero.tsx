@@ -54,9 +54,7 @@ export function PeekHero({ slides }: { slides: Meta[] }) {
     return () => clearInterval(id);
   }, [paused, dragging, inViewport, pageVisible, slides.length]);
 
-  useEffect(() => {
-    if (active >= slides.length) setActive(0);
-  }, [slides.length, active]);
+  if (active !== 0 && active >= slides.length) setActive(0);
 
   if (slides.length === 0) {
     return (

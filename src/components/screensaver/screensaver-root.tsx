@@ -146,13 +146,13 @@ export function ScreensaverRoot() {
     showing && !suppressed && (catBoat || halloween || !!customMedia || items.length > 0);
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  if (wantShow && !mounted) setMounted(true);
+  if (!wantShow && visible) setVisible(false);
   useEffect(() => {
     if (wantShow) {
-      setMounted(true);
       const id = requestAnimationFrame(() => setVisible(true));
       return () => cancelAnimationFrame(id);
     }
-    setVisible(false);
     const id = window.setTimeout(() => setMounted(false), suppressed ? 0 : EXIT_MS);
     return () => window.clearTimeout(id);
   }, [wantShow, suppressed]);

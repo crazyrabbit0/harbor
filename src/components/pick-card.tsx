@@ -237,8 +237,12 @@ const PosterCard = memo(function PosterCard({
   const animeWantsImdb = isAnimeCardId && settings.animeCardRating === "imdb";
   const ratingTt = isAnimeCardId ? (animeWantsImdb ? animeImdb : undefined) : imdbId;
   const [harborRating, setHarborRating] = useState<string | undefined>();
-  useEffect(() => {
+  const [ratingFor, setRatingFor] = useState(ratingTt);
+  if (ratingFor !== ratingTt) {
+    setRatingFor(ratingTt);
     setHarborRating(undefined);
+  }
+  useEffect(() => {
     if (!ratingTt || !ratingTt.startsWith("tt")) return;
     let cancelled = false;
     harborImdbTitle(ratingTt)
@@ -388,17 +392,20 @@ const PosterCard = memo(function PosterCard({
       pinnedPoster,
     ],
   );
+  const [candidatesSeen, setCandidatesSeen] = useState(posterCandidates);
+  if (candidatesSeen !== posterCandidates) {
+    setCandidatesSeen(posterCandidates);
+    setImgIdx(0);
+  }
   const posterSrc = posterCandidates[imgIdx];
 
-  useEffect(() => {
-    setImgIdx(0);
-  }, [posterCandidates]);
-
-  useEffect(() => {
+  const [idSeen, setIdSeen] = useState(meta.id);
+  if (idSeen !== meta.id) {
+    setIdSeen(meta.id);
     setHydratedPoster(undefined);
     setAnimeImdb(undefined);
     setAnimeTvdb(undefined);
-  }, [meta.id]);
+  }
 
   useEffect(() => {
     if (!isAnimeCardId || (!settings.rpdbKey && !settings.posterBaseUrl && !animeWantsImdb)) return;
@@ -465,9 +472,14 @@ const PosterCard = memo(function PosterCard({
   }, [posterSrc, hydratedPoster, meta.type, meta.id, posterPending]);
 
   const [preferredTitle, setPreferredTitle] = useState<string | null>(null);
+  const preferredKey = JSON.stringify([meta.id, meta.type, settings.preferCustomMetaAddon]);
+  const [preferredSeen, setPreferredSeen] = useState(preferredKey);
+  if (preferredSeen !== preferredKey) {
+    setPreferredSeen(preferredKey);
+    setPreferredTitle(null);
+  }
 
   useEffect(() => {
-    setPreferredTitle(null);
     if (!settings.preferCustomMetaAddon || isAnimeCardId) return;
     if (meta.type !== "movie" && meta.type !== "series") return;
     const el = ref.current;
@@ -490,9 +502,14 @@ const PosterCard = memo(function PosterCard({
   }, [meta.id, meta.type, isAnimeCardId, settings.preferCustomMetaAddon]);
 
   const [translatedTitle, setTranslatedTitle] = useState<string | null>(null);
+  const translatedKey = JSON.stringify([meta.id, settings.simklAnimeTitleLanguage]);
+  const [translatedSeen, setTranslatedSeen] = useState(translatedKey);
+  if (translatedSeen !== translatedKey) {
+    setTranslatedSeen(translatedKey);
+    setTranslatedTitle(null);
+  }
 
   useEffect(() => {
-    setTranslatedTitle(null);
     if (!isAnimeCardId) return;
     const el = ref.current;
     if (!el) return;

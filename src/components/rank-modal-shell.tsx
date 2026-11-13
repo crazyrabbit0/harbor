@@ -29,9 +29,14 @@ export function RankModalShell({
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  const [openSeen, setOpenSeen] = useState(open);
+  if (openSeen !== open) {
+    setOpenSeen(open);
+    if (open) setShowTop(false);
+  }
+
   useEffect(() => {
     if (!open) return;
-    setShowTop(false);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {

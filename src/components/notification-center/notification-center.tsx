@@ -23,16 +23,16 @@ export function NotificationCenter({ trigger = true }: { trigger?: boolean } = {
   const wasOpen = useRef(false);
   const viewedProfile = useRef(nc.profile);
 
-  useEffect(() => {
+  const [profileSeen, setProfileSeen] = useState(nc.profile);
+  if (profileSeen !== nc.profile) {
+    setProfileSeen(nc.profile);
     setOpen(false);
     setDetail(null);
-  }, [nc.profile]);
+  }
 
   useEffect(() => subscribeNotificationOpen(() => setOpen(true)), []);
 
-  useEffect(() => {
-    if (!open) setDetail(null);
-  }, [open]);
+  if (!open && detail) setDetail(null);
 
   useEffect(() => {
     if (open && !wasOpen.current) {

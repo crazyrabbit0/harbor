@@ -124,7 +124,9 @@ test("experimental update notes remain visible during and after download", () =>
   for (const status of ["available", "downloading", "downloaded"]) {
     update.status = status;
     assert.ok(
-      nodes(app.render("UpdateCard")).some((n) => n.props?.children === "Tester notes"),
+      nodes(app.render("UpdateCard")).some(
+        (n) => n.props?.note?.title === "Harbor Experimental 0.0.4",
+      ),
       status,
     );
   }

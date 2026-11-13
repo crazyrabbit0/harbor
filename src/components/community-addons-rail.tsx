@@ -47,10 +47,15 @@ export function CommunityAddonsRail({
   );
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const [loadSeen, setLoadSeen] = useState({ sortMode, showAdult });
+  if (loadSeen.sortMode !== sortMode || loadSeen.showAdult !== showAdult) {
+    setLoadSeen({ sortMode, showAdult });
     setItems(null);
     setError(null);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
     const nsfw: "exclude" | undefined = showAdult ? undefined : "exclude";
     const topRated = () =>
       listAddons({ limit: 40, sort_by: "stars", order: "desc", nsfw }).then((r) => r.addons);

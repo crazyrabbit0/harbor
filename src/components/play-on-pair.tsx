@@ -129,11 +129,14 @@ function PairPanel({ instance }: { instance: HarborInstance }) {
 
   const now = useNow(1000, expiresAt > 0);
 
-  useEffect(() => {
-    if (phase.kind !== "entering" || !expiresAt || now < expiresAt) return;
-    session.current?.close();
+  if (phase.kind === "entering" && expiresAt && now >= expiresAt) {
     setPhase({ kind: "failed", code: "expired" });
-  }, [phase.kind, expiresAt, now]);
+  }
+
+  const expired = phase.kind === "failed" && phase.code === "expired";
+  useEffect(() => {
+    if (expired) session.current?.close();
+  }, [expired]);
 
   const clean = normalizePairCode(typed);
   const ready = clean.length === len && phase.kind === "entering";

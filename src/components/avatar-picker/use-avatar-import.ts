@@ -29,9 +29,7 @@ export function useAvatarImport(section: string) {
   const packRef = useRef<HTMLInputElement>(null);
   const flashTimer = useRef<number>(0);
 
-  useEffect(() => {
-    if (section === UPLOADS_ID) setUploadsBadge(0);
-  }, [section]);
+  if (section === UPLOADS_ID && uploadsBadge !== 0) setUploadsBadge(0);
   useEffect(() => () => window.clearTimeout(flashTimer.current), []);
 
   const commitGroups = async (groups: ImportGroup[]) => {

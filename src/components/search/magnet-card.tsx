@@ -62,8 +62,13 @@ export function MagnetCard({ raw, onClose }: { raw: string; onClose: () => void 
   const dn = parsed?.name ?? null;
   const label = useMemo(() => cleanReleaseName(dn, t), [dn, t]);
 
-  useEffect(() => {
+  const [dnSeen, setDnSeen] = useState(dn);
+  if (dnSeen !== dn) {
+    setDnSeen(dn);
     setMatch(null);
+  }
+
+  useEffect(() => {
     if (!dn) return;
     let alive = true;
     void resolveMagnetMeta(dn).then((m) => {

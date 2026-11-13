@@ -90,11 +90,10 @@ export function Dropdown({
     };
   }, [open]);
 
+  if (!open && box) setBox(null);
+
   useLayoutEffect(() => {
-    if (!open) {
-      setBox(null);
-      return;
-    }
+    if (!open) return;
     const place = () => {
       const el = ref.current;
       if (!el) return;

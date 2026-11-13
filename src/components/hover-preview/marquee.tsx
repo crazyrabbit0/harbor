@@ -39,16 +39,14 @@ function useCrownLogo(meta: Meta): string | undefined {
   const [logo, setLogo] = useState<string | undefined>(
     () => meta.logo ?? peekCachedLogo(settings.tmdbKey, meta),
   );
+  const [seen, setSeen] = useState({ meta, tmdbKey: settings.tmdbKey });
+  if (seen.meta !== meta || seen.tmdbKey !== settings.tmdbKey) {
+    setSeen({ meta, tmdbKey: settings.tmdbKey });
+    const known = meta.logo ?? peekCachedLogo(settings.tmdbKey, meta);
+    if (known) setLogo(known);
+  }
   useEffect(() => {
-    if (meta.logo) {
-      setLogo(meta.logo);
-      return;
-    }
-    const cached = peekCachedLogo(settings.tmdbKey, meta);
-    if (cached) {
-      setLogo(cached);
-      return;
-    }
+    if (meta.logo || peekCachedLogo(settings.tmdbKey, meta)) return;
     let alive = true;
     resolveLogo(settings.tmdbKey, meta)
       .then((l) => alive && l && setLogo(l))
@@ -87,16 +85,14 @@ function useAdvisory(imdbId: string | undefined): ParentalCategory[] {
   const [cats, setCats] = useState<ParentalCategory[]>(() =>
     imdbId ? (harborImdbParentalCached(imdbId) ?? []) : [],
   );
+  const [seenId, setSeenId] = useState(imdbId);
+  if (seenId !== imdbId) {
+    setSeenId(imdbId);
+    const known = imdbId ? harborImdbParentalCached(imdbId) : [];
+    if (known) setCats(known);
+  }
   useEffect(() => {
-    if (!imdbId) {
-      setCats([]);
-      return;
-    }
-    const cached = harborImdbParentalCached(imdbId);
-    if (cached) {
-      setCats(cached);
-      return;
-    }
+    if (!imdbId || harborImdbParentalCached(imdbId)) return;
     let alive = true;
     harborImdbParental(imdbId)
       .then((c) => alive && setCats(c))

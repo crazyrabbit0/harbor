@@ -117,9 +117,14 @@ export function CollectionPane({
     onBackdrop(image);
   }, [image, onBackdrop]);
 
+  const [seen, setSeen] = useState({ id, onBackdrop });
+  if (seen.id !== id || seen.onBackdrop !== onBackdrop) {
+    setSeen({ id, onBackdrop });
+    setLoading(true);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     fetchTvdbCollection(id)
       .then((c) => {
         if (cancelled) return;

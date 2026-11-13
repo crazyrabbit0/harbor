@@ -90,9 +90,12 @@ export function SearchOverlay() {
   const storeQuery = activeProfile?.kid
     ? null
     : steamStoreQuery(query, settings.steamSearchShortcut);
-  useEffect(() => {
+  const [querySeen, setQuerySeen] = useState(query);
+  if (querySeen !== query) {
+    setQuerySeen(query);
     setMediaFilter("all");
-  }, [query]);
+    if (explore.length > 0) setExplore([]);
+  }
   const { mounted, closing } = useExitPresence(open, 150);
   const fullscreen = useWindowFullscreen();
 
@@ -135,10 +138,6 @@ export function SearchOverlay() {
       }
     };
   }, [open]);
-
-  useEffect(() => {
-    setExplore((s) => (s.length === 0 ? s : []));
-  }, [query]);
 
   useEffect(() => {
     setAiHold(aiMode || storeQuery !== null);
