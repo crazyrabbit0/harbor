@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { editGroup, groupPerms, type GroupDetail, type GroupVisibility } from "@/lib/social/groups";
@@ -32,11 +32,13 @@ export function GroupAbout({
   const [error, setError] = useState<string | null>(null);
   const [confirming, setConfirming] = useState(false);
 
-  useEffect(() => {
+  const [seenDetail, setSeenDetail] = useState(detail);
+  if (seenDetail !== detail) {
+    setSeenDetail(detail);
     setVis(detail.visibility);
     setTags(detail.tags);
     setDescription(detail.description ?? "");
-  }, [detail]);
+  }
 
   const dirty =
     vis !== detail.visibility ||

@@ -123,11 +123,14 @@ export function CalendarView({
     animeDub,
   });
 
+  const [seenLibrary, setSeenLibrary] = useState({ authKey, source });
+  if (seenLibrary.authKey !== authKey || seenLibrary.source !== source) {
+    setSeenLibrary({ authKey, source });
+    if (!authKey || source !== "all") setLibraryItems([]);
+  }
+
   useEffect(() => {
-    if (!authKey || source !== "all") {
-      setLibraryItems([]);
-      return;
-    }
+    if (!authKey || source !== "all") return;
     let cancelled = false;
     library(authKey)
       .then((rows) => {

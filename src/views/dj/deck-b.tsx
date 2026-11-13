@@ -25,6 +25,12 @@ const HEARTBEAT = 8;
 let cued: MusicTrack | null = null;
 let ticket = 0;
 
+async function readDecks() {
+  const snapshot = await deckSnapshot();
+  const status = await broadcastStatus();
+  return { snapshot, status };
+}
+
 function candidateTrack(track: MusicTrack, next: MusicTrack): MusicTrack {
   return {
     ...track,
@@ -77,56 +83,58 @@ export function DeckB({ next }: { next: MusicTrack | undefined }) {
     [],
   );
 
-  const sync = useCallback(async () => {
-    const snapshot = await deckSnapshot();
-    const status = await broadcastStatus();
-    if (!live.current) return;
-    const slot = snapshot.primary === 1 ? 0 : 1;
-    freeRef.current = slot;
-    setFreeDeck(slot);
-    const deck = snapshot.decks[slot];
-    setState(deck);
-    const onAirDeck = snapshot.decks[snapshot.primary];
-    if (!deck.live && !dragging.current && onAirDeck?.live) {
-      const home = snapshot.primary === 1 ? 1 : -1;
-      if (fadeRef.current !== home) {
-        fadeRef.current = home;
-        setFade(home);
-        void setCrossfade(home).catch(() => {});
-      }
-    }
-    setBroadcasting(status.active);
-    setPrimary(snapshot.primary);
-    const holds = !cued || !deck.trackId || cued.id === deck.trackId;
-    if (!cueing.current && (!deck.live || !holds)) {
-      cued = null;
-      setLoaded(null);
-    }
-    if (deck.live && cued) setLoaded((shown) => shown ?? cued);
-    const air = snapshot.decks[snapshot.primary];
-    const key = `${snapshot.primary}:${air?.trackId ?? ""}`;
-    const settled = landed.current.key === key;
-    setConfirmed(snapshot.primary === 1 && landed.current.deck === 1);
-    if (settled && beats.current < HEARTBEAT) {
-      beats.current += 1;
-      return;
-    }
-    beats.current = 0;
-    ticket += 1;
-    pending.current = { nonce: ticket, key };
-    sendDeckCommand({
-      kind: "adopt",
-      nonce: ticket,
-      deck: snapshot.primary,
-      track: cued && cued.id === air?.trackId ? cued : null,
-      trackId: air?.trackId ?? null,
-      connectorId: air?.connectorId ?? null,
-      live: air?.live ?? false,
-      paused: air?.paused ?? true,
-      position: air?.positionSeconds ?? null,
-      duration: air?.durationSeconds ?? null,
-    });
-  }, []);
+  const sync = useCallback(
+    () =>
+      readDecks().then(({ snapshot, status }) => {
+        if (!live.current) return;
+        const slot = snapshot.primary === 1 ? 0 : 1;
+        freeRef.current = slot;
+        setFreeDeck(slot);
+        const deck = snapshot.decks[slot];
+        setState(deck);
+        const onAirDeck = snapshot.decks[snapshot.primary];
+        if (!deck.live && !dragging.current && onAirDeck?.live) {
+          const home = snapshot.primary === 1 ? 1 : -1;
+          if (fadeRef.current !== home) {
+            fadeRef.current = home;
+            setFade(home);
+            void setCrossfade(home).catch(() => {});
+          }
+        }
+        setBroadcasting(status.active);
+        setPrimary(snapshot.primary);
+        const holds = !cued || !deck.trackId || cued.id === deck.trackId;
+        if (!cueing.current && (!deck.live || !holds)) {
+          cued = null;
+          setLoaded(null);
+        }
+        if (deck.live && cued) setLoaded((shown) => shown ?? cued);
+        const air = snapshot.decks[snapshot.primary];
+        const key = `${snapshot.primary}:${air?.trackId ?? ""}`;
+        const settled = landed.current.key === key;
+        setConfirmed(snapshot.primary === 1 && landed.current.deck === 1);
+        if (settled && beats.current < HEARTBEAT) {
+          beats.current += 1;
+          return;
+        }
+        beats.current = 0;
+        ticket += 1;
+        pending.current = { nonce: ticket, key };
+        sendDeckCommand({
+          kind: "adopt",
+          nonce: ticket,
+          deck: snapshot.primary,
+          track: cued && cued.id === air?.trackId ? cued : null,
+          trackId: air?.trackId ?? null,
+          connectorId: air?.connectorId ?? null,
+          live: air?.live ?? false,
+          paused: air?.paused ?? true,
+          position: air?.positionSeconds ?? null,
+          duration: air?.durationSeconds ?? null,
+        });
+      }),
+    [],
+  );
 
   useEffect(() => {
     live.current = true;

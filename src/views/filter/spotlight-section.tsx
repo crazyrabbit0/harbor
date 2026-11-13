@@ -119,14 +119,17 @@ export function SpotlightSection({
     return () => window.clearTimeout(safety);
   }, [spotlight, genreId, reportDone]);
 
+  const lookupDeps = [settings.tmdbKey, spotlight.name, spotlight.query, spotlight.dept];
+  const [seenLookupDeps, setSeenLookupDeps] = useState<unknown[] | null>(null);
+  if (!seenLookupDeps || lookupDeps.some((dep, i) => dep !== seenLookupDeps[i])) {
+    setSeenLookupDeps(lookupDeps);
+    setPersonId(null);
+    setPersonLookupDone(!settings.tmdbKey);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setPersonId(null);
-    setPersonLookupDone(false);
-    if (!settings.tmdbKey) {
-      setPersonLookupDone(true);
-      return;
-    }
+    if (!settings.tmdbKey) return;
     tmdbPersonIdByName(settings.tmdbKey, spotlight.query ?? spotlight.name, spotlight.dept)
       .then((id) => {
         if (cancelled) return;
@@ -142,17 +145,21 @@ export function SpotlightSection({
     };
   }, [settings.tmdbKey, spotlight.name, spotlight.query, spotlight.dept]);
 
+  const creditDeps = [settings.tmdbKey, personId, personLookupDone, genreId, spotlight];
+  const [seenCreditDeps, setSeenCreditDeps] = useState<unknown[] | null>(null);
+  if (!seenCreditDeps || creditDeps.some((dep, i) => dep !== seenCreditDeps[i])) {
+    setSeenCreditDeps(creditDeps);
+    setItems(!settings.tmdbKey || (personLookupDone && personId == null) ? [] : null);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setItems(null);
     if (!settings.tmdbKey) {
-      setItems([]);
       reportDone();
       return;
     }
     if (!personLookupDone) return;
     if (personId == null) {
-      setItems([]);
       reportDone();
       return;
     }

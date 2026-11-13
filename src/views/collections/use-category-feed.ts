@@ -68,7 +68,7 @@ export function useCategoryFeed(params: {
 } {
   const { tmdbKey, category, active, excludeNames, stripSuffix } = params;
   const [hits, setHits] = useState<CategoryHit[]>([]);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState(!active);
   const [loading, setLoading] = useState(false);
   const pageRef = useRef(0);
   const seenRef = useRef<Set<number>>(new Set());
@@ -83,12 +83,16 @@ export function useCategoryFeed(params: {
   const armedRef = useRef<Element | null>(null);
   const armedIdRef = useRef("");
   const ioRef = useRef<IntersectionObserver | null>(null);
-
-  useEffect(() => {
-    runRef.current += 1;
+  const [seenFeed, setSeenFeed] = useState({ category, active });
+  if (seenFeed.category !== category || seenFeed.active !== active) {
+    setSeenFeed({ category, active });
     setHits([]);
     setDone(!active);
     setLoading(false);
+  }
+
+  useEffect(() => {
+    runRef.current += 1;
     pageRef.current = 0;
     seenRef.current = new Set();
     loadingRef.current = false;

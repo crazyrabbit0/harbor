@@ -15,9 +15,13 @@ export function CatalogShelf({ catalog }: { catalog: BrowseCatalog }) {
   const loadedRef = useRef(0);
   const startedRef = useRef(false);
   const ref = useRef<HTMLDivElement>(null);
+  const [seenKey, setSeenKey] = useState(catalog.key);
+  if (seenKey !== catalog.key) {
+    setSeenKey(catalog.key);
+    setItems(null);
+  }
 
   useEffect(() => {
-    setItems(null);
     startedRef.current = false;
     pageRef.current = 1;
     loadedRef.current = 0;

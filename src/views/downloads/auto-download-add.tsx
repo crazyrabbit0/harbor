@@ -19,17 +19,24 @@ export function AutoDownloadAdd() {
   const [focused, setFocused] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const reqRef = useRef(0);
+  const [seenSearch, setSeenSearch] = useState({ query, tmdbKey: settings.tmdbKey });
+  if (seenSearch.query !== query || seenSearch.tmdbKey !== settings.tmdbKey) {
+    setSeenSearch({ query, tmdbKey: settings.tmdbKey });
+    if (query.trim().length < 2) {
+      setResults([]);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }
 
   useEffect(() => {
     const trimmed = query.trim();
     if (trimmed.length < 2) {
       reqRef.current++;
-      setResults([]);
-      setLoading(false);
       return;
     }
     const id = ++reqRef.current;
-    setLoading(true);
     const timer = window.setTimeout(() => {
       void (async () => {
         const [tmdb, cine] = await Promise.all([

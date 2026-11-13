@@ -66,7 +66,6 @@ function PillSelect({
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
-    setQ("");
     const onDown = (e: MouseEvent) => {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
     };
@@ -80,7 +79,10 @@ function PillSelect({
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (!open) setQ("");
+          setOpen(!open);
+        }}
         className={`flex h-10 items-center gap-2 rounded-full border ps-3 pe-3.5 text-start transition-colors ${
           open
             ? "border-edge bg-elevated"
@@ -184,18 +186,14 @@ export function CatalogBrowser() {
     return out;
   }, [catalogs]);
 
-  useEffect(() => {
-    if (!type && types.length) setType(types[0]);
-  }, [types, type]);
+  if (!type && types.length) setType(types[0]);
 
   const ofType = useMemo(() => catalogs.filter((c) => c.type === type), [catalogs, type]);
 
-  useEffect(() => {
-    if (ofType.length && !ofType.some((c) => c.key === catKey)) {
-      setCatKey(ofType[0].key);
-      setGenre(null);
-    }
-  }, [ofType, catKey]);
+  if (ofType.length && !ofType.some((c) => c.key === catKey)) {
+    setCatKey(ofType[0].key);
+    setGenre(null);
+  }
 
   const selected = useMemo(
     () => catalogs.find((c) => c.key === catKey) ?? null,

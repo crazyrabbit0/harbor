@@ -24,24 +24,23 @@ export function useLiveAudio() {
   const pending = useRef<Partial<MusicAudioSettingsValue>>({});
   const timer = useRef(0);
   const latest = useRef(stored);
+  const [seenStored, setSeenStored] = useState(stored);
+  if (seenStored !== stored) {
+    setSeenStored(stored);
+    const next: Partial<MusicAudioSettingsValue> = {};
+    let changed = false;
+    for (const [key, value] of Object.entries(draft)) {
+      const live = stored[key as keyof MusicAudioSettingsValue];
+      if (JSON.stringify(live) === JSON.stringify(value)) changed = true;
+      else Object.assign(next, { [key]: value });
+    }
+    if (changed) setDraft(next);
+  }
 
   const settings = useMemo(() => ({ ...stored, ...draft }), [stored, draft]);
   useLayoutEffect(() => {
     latest.current = settings;
   }, [settings]);
-
-  useEffect(() => {
-    setDraft((current) => {
-      const next: Partial<MusicAudioSettingsValue> = {};
-      let changed = false;
-      for (const [key, value] of Object.entries(current)) {
-        const live = stored[key as keyof MusicAudioSettingsValue];
-        if (JSON.stringify(live) === JSON.stringify(value)) changed = true;
-        else Object.assign(next, { [key]: value });
-      }
-      return changed ? next : current;
-    });
-  }, [stored]);
 
   useEffect(
     () => () => {

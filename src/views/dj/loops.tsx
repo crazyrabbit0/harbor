@@ -30,11 +30,15 @@ export function LoopBay({
   const [end, setEnd] = useState<number | null>(null);
   const [active, setActive] = useState(false);
   const taps = useRef<number[]>([]);
-
-  useEffect(() => {
+  const [seenTrackId, setSeenTrackId] = useState(trackId);
+  if (seenTrackId !== trackId) {
+    setSeenTrackId(trackId);
     setStart(null);
     setEnd(null);
     setActive(false);
+  }
+
+  useEffect(() => {
     sendDeckCommand({ kind: "loop", start: null, end: null });
   }, [trackId]);
 

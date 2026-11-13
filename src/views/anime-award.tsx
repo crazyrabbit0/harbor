@@ -29,11 +29,15 @@ export function AnimeAwardView({ sourceId }: { sourceId: AwardSourceId }) {
   const scrollRef = useRef<HTMLElement>(null);
   const [year, setYear] = useState<number | null>(null);
   const [query, setQuery] = useState("");
+  const [seenSourceId, setSeenSourceId] = useState(sourceId);
+  if (seenSourceId !== sourceId) {
+    setSeenSourceId(sourceId);
+    setYear(null);
+    setQuery("");
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
-    setYear(null);
-    setQuery("");
   }, [sourceId]);
 
   const tint = SOURCE_TINTS[sourceId] ?? "#E8AA6C";

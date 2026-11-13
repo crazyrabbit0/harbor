@@ -28,12 +28,19 @@ export function useGroupDiscovery(signedIn: boolean): DiscoveryState {
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
   const [tick, setTick] = useState(0);
+  const [seenMine, setSeenMine] = useState({ signedIn, tick });
+  if (seenMine.signedIn !== signedIn || seenMine.tick !== tick) {
+    setSeenMine({ signedIn, tick });
+    if (!signedIn) setMine([]);
+  }
+  const [seenQuery, setSeenQuery] = useState({ q, tag, tick });
+  if (seenQuery.q !== q || seenQuery.tag !== tag || seenQuery.tick !== tick) {
+    setSeenQuery({ q, tag, tick });
+    setPhase("loading");
+  }
 
   useEffect(() => {
-    if (!signedIn) {
-      setMine([]);
-      return;
-    }
+    if (!signedIn) return;
     const ctrl = new AbortController();
     fetchMyGroups(ctrl.signal)
       .then((list) => {
@@ -45,7 +52,6 @@ export function useGroupDiscovery(signedIn: boolean): DiscoveryState {
 
   useEffect(() => {
     const ctrl = new AbortController();
-    setPhase("loading");
     const timer = window.setTimeout(
       () => {
         fetchPublicGroups({ q: q.trim() || undefined, tag: tag || undefined }, ctrl.signal)

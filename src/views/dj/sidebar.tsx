@@ -82,9 +82,7 @@ export function DeckBrowser({
       .filter((row) => !needle || row.sample.name.toLowerCase().includes(needle));
   }, [pads, term]);
 
-  useEffect(() => {
-    setActive((current) => (current >= rows.length ? rows.length - 1 : current));
-  }, [rows.length]);
+  if (active >= rows.length) setActive(rows.length - 1);
 
   const audition = useCallback(
     (index: number, commit: boolean) => {

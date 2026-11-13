@@ -60,8 +60,9 @@ export function AwardView({ awardType }: { awardType: AwardType }) {
     }
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const [seenSource, setSeenSource] = useState({ awardType, tmdbKey: settings.tmdbKey });
+  if (seenSource.awardType !== awardType || seenSource.tmdbKey !== settings.tmdbKey) {
+    setSeenSource({ awardType, tmdbKey: settings.tmdbKey });
     setFilms([]);
     setFilmsDone(false);
     setExpanded(false);
@@ -69,6 +70,10 @@ export function AwardView({ awardType }: { awardType: AwardType }) {
     setLoadingMore(false);
     setPeople(EMPTY_PEOPLE);
     setLoadingPeople(true);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
     targetRef.current = PREVIEW;
     loadAwardFilms(settings.tmdbKey, awardType, PREVIEW)
       .then(({ films, done }) => {

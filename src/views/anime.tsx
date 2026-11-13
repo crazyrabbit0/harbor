@@ -268,12 +268,16 @@ export function AnimeView({ active = true }: { active?: boolean }) {
   const filtersInitRef = useRef(true);
   const [anilistTrending, setAnilistTrending] = useState<Meta[]>([]);
   const [hostedHero, setHostedHero] = useState<HostedHeroItem[] | null>(() => peekHostedHero());
+  const [hostedArrival, setHostedArrival] = useState<HostedHeroItem[] | null>(null);
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
     fetchHostedHero()
       .then((h) => {
-        if (!cancelled && h) setHostedHero(h);
+        if (cancelled || !h) return;
+        setHostedHero(h);
+        // An unresolved hero (stale cache) switches to the hosted pick as soon as it arrives.
+        if (!heroResolvedRef.current) setHostedArrival(h);
       })
       .catch(() => {});
     return () => {
@@ -301,18 +305,18 @@ export function AnimeView({ active = true }: { active?: boolean }) {
     setHeroSeed(Math.floor(Math.random() * 0x7fffffff));
     setHero({ metas: [], trending: {} });
   }, [filterSig]);
-  const buildHostedSelection = useCallback(
-    (seed: number): boolean => {
-      if (!hostedHero || hostedHero.length < 3) return false;
-      const filterOpts: AnimeFilterOpts = {
-        excludeOrigins: settings.animeExcludeOrigins,
-        hideWatched: settings.animeHideWatchedPicks,
-      };
-      const hosted = buildHostedHero(hostedHero, seed, filterOpts);
-      if (hosted.metas.length < 3) return false;
+  const hostedSelection = (seed: number): HeroBuilt | null => {
+    if (!hostedHero || hostedHero.length < 3) return null;
+    const hosted = buildHostedHero(hostedHero, seed, {
+      excludeOrigins: settings.animeExcludeOrigins,
+      hideWatched: settings.animeHideWatchedPicks,
+    });
+    return hosted.metas.length < 3 ? null : hosted;
+  };
+  const adoptHosted = useCallback(
+    (hosted: HeroBuilt) => {
       heroResolvedRef.current = true;
       const buildId = ++heroBuildRef.current;
-      setHero(hosted);
       cacheHero(hosted, filterSig);
       void upgradeHeroArtFromStatic(hosted).then((up) => {
         if (heroBuildRef.current === buildId) {
@@ -320,18 +324,50 @@ export function AnimeView({ active = true }: { active?: boolean }) {
           cacheHero(up, filterSig);
         }
       });
+    },
+    [filterSig],
+  );
+  const buildHostedSelection = useCallback(
+    (seed: number): boolean => {
+      if (!hostedHero || hostedHero.length < 3) return false;
+      const hosted = buildHostedHero(hostedHero, seed, {
+        excludeOrigins: settings.animeExcludeOrigins,
+        hideWatched: settings.animeHideWatchedPicks,
+      });
+      if (hosted.metas.length < 3) return false;
+      setHero(hosted);
+      adoptHosted(hosted);
       return true;
     },
-    [hostedHero, settings.animeExcludeOrigins, settings.animeHideWatchedPicks, filterSig],
+    [hostedHero, settings.animeExcludeOrigins, settings.animeHideWatchedPicks, adoptHosted],
   );
+  const [hostedApplied, setHostedApplied] = useState<HeroBuilt | null>(null);
+  const [staleHeroChecked, setStaleHeroChecked] = useState(false);
+  const applyHosted = () => {
+    const hosted = hostedSelection(heroSeed);
+    if (!hosted) return;
+    setHero(hosted);
+    setHostedApplied(hosted);
+  };
+  if (hero.metas.length === 0) applyHosted();
+  if (!staleHeroChecked) {
+    setStaleHeroChecked(true);
+    if (hero.metas.length > 0 && !isHeroCacheFresh(filterSig)) applyHosted();
+  }
+  if (hostedArrival) {
+    setHostedArrival(null);
+    applyHosted();
+  }
   useEffect(() => {
-    if (hero.metas.length === 0 && buildHostedSelection(heroSeed)) return;
+    if (hostedApplied) adoptHosted(hostedApplied);
+  }, [hostedApplied]);
+  useEffect(() => {
     if (heroResolvedRef.current) return;
     if (hero.metas.length > 0 && isHeroCacheFresh(filterSig)) {
       heroResolvedRef.current = true;
       return;
     }
-    if (buildHostedSelection(heroSeed)) return;
+    if (hostedSelection(heroSeed)) return;
     const readyCount = SPECS.filter((s) => rowsByKey[s.key]?.ready).length;
     if (readyCount < 2 && anilistTrending.length === 0) return;
     if (heroBuildingRef.current) return;
@@ -384,12 +420,25 @@ export function AnimeView({ active = true }: { active?: boolean }) {
     () => new Map(),
   );
   const [addonRows, setAddonRows] = useState<AddonRow[]>([]);
-  useEffect(() => {
+  const [seenAuthKey, setSeenAuthKey] = useState(authKey);
+  if (seenAuthKey !== authKey) {
+    setSeenAuthKey(authKey);
     if (!authKey) {
       setLibItems([]);
       setAddonRows([]);
-      return;
     }
+  }
+  const [seenSimkl, setSeenSimkl] = useState(simklConnected);
+  if (seenSimkl !== simklConnected) {
+    setSeenSimkl(simklConnected);
+    if (!simklConnected) {
+      setSimklCw([]);
+      setSimklWatchedMap(new Map());
+      setSimklStatusMap(new Map());
+    }
+  }
+  useEffect(() => {
+    if (!authKey) return;
     const load = () => {
       library(authKey)
         .then((li) => {
@@ -410,10 +459,7 @@ export function AnimeView({ active = true }: { active?: boolean }) {
   }, [authKey, hideSharedCw]);
 
   useEffect(() => {
-    if (!simklConnected) {
-      setSimklCw([]);
-      return;
-    }
+    if (!simklConnected) return;
     let cancelled = false;
     fetchSimklPlaybackItems()
       .then((cw) => {
@@ -542,11 +588,7 @@ export function AnimeView({ active = true }: { active?: boolean }) {
     [libItems, manualWatchedVer],
   );
   useEffect(() => {
-    if (!simklConnected) {
-      setSimklWatchedMap(new Map());
-      setSimklStatusMap(new Map());
-      return;
-    }
+    if (!simklConnected) return;
     let cancelled = false;
     loadSimklWatchedMap()
       .then((m) => {

@@ -23,10 +23,14 @@ export function GroupPosts({
   const [canPost, setCanPost] = useState(false);
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [more, setMore] = useState(false);
+  const [seenGroup, setSeenGroup] = useState({ id: detail.id, isMember: detail.isMember });
+  if (seenGroup.id !== detail.id || seenGroup.isMember !== detail.isMember) {
+    setSeenGroup({ id: detail.id, isMember: detail.isMember });
+    setPhase("loading");
+  }
 
   useEffect(() => {
     const ctrl = new AbortController();
-    setPhase("loading");
     fetchGroupPosts(detail.id, undefined, ctrl.signal)
       .then((d) => {
         if (ctrl.signal.aborted) return;

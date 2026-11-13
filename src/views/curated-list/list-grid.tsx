@@ -42,10 +42,11 @@ export function ListGrid({
   const [shown, setShown] = useState(PAGE);
   const sentinel = useRef<HTMLDivElement>(null);
   const sorted = useMemo(() => sortItems(items, sort), [items, sort]);
-
-  useEffect(() => {
+  const [seenInputs, setSeenInputs] = useState({ sort, items });
+  if (seenInputs.sort !== sort || seenInputs.items !== items) {
+    setSeenInputs({ sort, items });
     setShown(PAGE);
-  }, [sort, items]);
+  }
 
   useEffect(() => {
     const el = sentinel.current;

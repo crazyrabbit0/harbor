@@ -25,6 +25,11 @@ const initial: Feed = {
 
 export function useCommunityCollections(active: boolean) {
   const [state, setState] = useState<Feed>(initial);
+  const [seenActive, setSeenActive] = useState(active);
+  if (seenActive !== active) {
+    setSeenActive(active);
+    if (!active && state.loading) setState({ ...state, loading: false });
+  }
   const current = useRef(state);
   const enabled = useRef(active);
   // Declared before the load effects so they and later handlers read this commit's values.
@@ -97,7 +102,6 @@ export function useCommunityCollections(active: boolean) {
     } else {
       request.current?.abort();
       request.current = null;
-      setState((old) => (old.loading ? { ...old, loading: false } : old));
     }
     return () => {
       request.current?.abort();

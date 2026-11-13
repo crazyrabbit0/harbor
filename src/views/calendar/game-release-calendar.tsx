@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useNow } from "@/lib/use-now";
 import { RefreshCw, Search, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
@@ -61,25 +61,26 @@ export function GameReleaseCalendar({
     () => gameReleaseCalendar(games, data.results, year, month, query, platform),
     [games, data.results, year, month, query, platform],
   );
-  useEffect(() => {
-    if (platform !== calendar.platform) setPlatform(calendar.platform);
-  }, [platform, calendar.platform]);
+  if (platform !== calendar.platform) setPlatform(calendar.platform);
   const cells = useMemo(
     () => buildMonthCells(year, month, weekStartsMonday),
     [year, month, weekStartsMonday],
   );
+  const [droppedDays, setDroppedDays] = useState(0);
+  if (
+    expandedDay &&
+    (!calendar.days.has(expandedDay) ||
+      !cells.some((cell) => cell.inMonth && cell.iso === expandedDay))
+  ) {
+    setExpandedDay(null);
+    setDroppedDays((n) => n + 1);
+  }
   useLayoutEffect(() => {
-    if (
-      expandedDay &&
-      (!calendar.days.has(expandedDay) ||
-        !cells.some((cell) => cell.inMonth && cell.iso === expandedDay))
-    ) {
-      if (active && expandedFocus.current && document.activeElement === document.body)
-        root.current?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
-      expandedFocus.current = false;
-      setExpandedDay(null);
-    }
-  }, [active, calendar.days, cells, expandedDay]);
+    if (!droppedDays) return;
+    if (active && expandedFocus.current && document.activeElement === document.body)
+      root.current?.querySelector<HTMLElement>("h2")?.focus({ preventScroll: true });
+    expandedFocus.current = false;
+  }, [droppedDays]);
   const nowMs = useNow(15 * 60_000, active),
     today = new Date(nowMs),
     todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;

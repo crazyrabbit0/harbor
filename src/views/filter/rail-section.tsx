@@ -20,21 +20,22 @@ export function RailSection({ filter, rail }: { filter: MetaFilter; rail: Standa
   const owner = `rail:${mediaType}:${rail.id}`;
   const dedup = useDedupOnSeenIds(owner);
   const claim = useClaimSeenIds(owner);
-  const [items, setItems] = useState<Meta[] | null>(null);
+  const [items, setItems] = useState<Meta[] | null>(settings.tmdbKey ? null : []);
   const [page, setPage] = useState(1);
   const [exhausted, setExhausted] = useState(false);
   const loadingRef = useRef(false);
+  const loadDeps = [settings.tmdbKey, mediaType, rail.params, dedup, claim, noDedup, gate.ready];
+  const [seenDeps, setSeenDeps] = useState<unknown[]>(loadDeps);
+  if (loadDeps.some((dep, i) => dep !== seenDeps[i])) {
+    setSeenDeps(loadDeps);
+    setItems(settings.tmdbKey ? null : []);
+    setPage(1);
+    setExhausted(false);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setItems(null);
-    setPage(1);
-    setExhausted(false);
-    if (!settings.tmdbKey) {
-      setItems([]);
-      return;
-    }
-    if (!gate.ready) return;
+    if (!settings.tmdbKey || !gate.ready) return;
     (async () => {
       loadingRef.current = true;
       let collected: Meta[] = [];

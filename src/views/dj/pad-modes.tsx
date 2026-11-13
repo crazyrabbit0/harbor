@@ -113,11 +113,14 @@ export function PadDeck({
   const rollKey = useRef<string | null>(null);
   const beat = bpm && bpm > 0 ? 60 / bpm : null;
 
+  const [seenTrackId, setSeenTrackId] = useState(trackId);
+  if (seenTrackId !== trackId) {
+    setSeenTrackId(trackId);
+    if (!trackId) setCues([]);
+  }
+
   useEffect(() => {
-    if (!trackId) {
-      setCues([]);
-      return;
-    }
+    if (!trackId) return;
     let live = true;
     void readCues(trackId).then((saved) => {
       if (live) setCues(saved ?? []);

@@ -28,12 +28,10 @@ export function Rail({
   const root = useContext(ScrollRootContext);
   const element = useRef<HTMLDivElement>(null);
   const [near, setNear] = useState(false);
+  const observable = typeof IntersectionObserver !== "undefined";
+  if (!near && !observable && active && root) setNear(true);
   useEffect(() => {
-    if (!active || !root || !element.current) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setNear(true);
-      return;
-    }
+    if (!active || !root || !element.current || !observable) return;
     const el = element.current;
     const observer = new IntersectionObserver(
       ([entry]) => {

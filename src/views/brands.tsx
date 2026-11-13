@@ -94,9 +94,16 @@ export function BrandsView({ brand }: { brand: BrandKind }) {
     return list;
   }, [brands, country, query, sort]);
 
-  useEffect(() => {
+  const [seenFilters, setSeenFilters] = useState({ brand, sort, country, query });
+  if (
+    seenFilters.brand !== brand ||
+    seenFilters.sort !== sort ||
+    seenFilters.country !== country ||
+    seenFilters.query !== query
+  ) {
+    setSeenFilters({ brand, sort, country, query });
     setLimit(PAGE);
-  }, [brand, sort, country, query]);
+  }
 
   const hasMore = limit < shown.length;
   useEffect(() => {

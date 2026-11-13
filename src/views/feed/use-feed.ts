@@ -29,10 +29,14 @@ export function useFeed(): FeedState {
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
   const [tick, setTick] = useState(0);
+  const [seenTick, setSeenTick] = useState(tick);
+  if (seenTick !== tick) {
+    setSeenTick(tick);
+    setPhase("loading");
+  }
 
   useEffect(() => {
     const ctrl = new AbortController();
-    setPhase("loading");
     fetchFriendsFeed(undefined, ctrl.signal)
       .then((d) => {
         if (ctrl.signal.aborted) return;

@@ -37,9 +37,17 @@ export function Catalogs({ active = true }: { active?: boolean }) {
   const [customize, setCustomize] = useState(false);
   void active;
 
+  const [seenSource, setSeenSource] = useState({
+    authKey,
+    pluginRows: settings.pluginsOutsideTab,
+  });
+  if (seenSource.authKey !== authKey || seenSource.pluginRows !== settings.pluginsOutsideTab) {
+    setSeenSource({ authKey, pluginRows: settings.pluginsOutsideTab });
+    setLoading(true);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void listBrowseCatalogs(authKey, { pluginRows: settings.pluginsOutsideTab }).then((list) => {
       if (cancelled) return;
       setCatalogs(list);

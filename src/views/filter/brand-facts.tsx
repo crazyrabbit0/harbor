@@ -20,25 +20,27 @@ export function useBrandStats(filter: Browsed): {
   stats: BrandStats | null;
 } {
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
-  const [details, setDetails] = useState<BrandDetails | null>(null);
-  const [stats, setStats] = useState<BrandStats | null>(null);
   const browseId = browsedId(filter);
+  const requestKey = `${settings.tmdbKey}|${filter.kind}|${browseId}|${filter.mediaType}`;
+  const [details, setDetails] = useState<{ key: string; value: BrandDetails | null } | null>(null);
+  const [stats, setStats] = useState<{ key: string; value: BrandStats | null } | null>(null);
   useEffect(() => {
-    setDetails(null);
-    setStats(null);
     if (!settings.tmdbKey) return;
     let alive = true;
     void tmdbBrandDetails(settings.tmdbKey, filter.kind, browseId).then((d) => {
-      if (alive) setDetails(d);
+      if (alive) setDetails({ key: requestKey, value: d });
     });
     void tmdbBrandStats(settings.tmdbKey, filter.kind, browseId, filter.mediaType).then((s) => {
-      if (alive) setStats(s);
+      if (alive) setStats({ key: requestKey, value: s });
     });
     return () => {
       alive = false;
     };
   }, [settings.tmdbKey, filter.kind, browseId, filter.mediaType]);
-  return { details, stats };
+  return {
+    details: details?.key === requestKey ? details.value : null,
+    stats: stats?.key === requestKey ? stats.value : null,
+  };
 }
 
 type Fact = { key: string; value: string; label: string; title?: BrandTitle; sub?: string };

@@ -59,16 +59,17 @@ export function EpisodeDetailView({
   const omdbScores = useOmdbScores(imdbId ?? undefined);
   const episodeImdbId = episodeData?.imdbId ?? undefined;
   const episodeOmdbScores = useOmdbScores(episodeImdbId);
-  const [harborEpisodeRating, setHarborEpisodeRating] = useState<string | undefined>();
+  const ratingKey = `${imdbId}:${season}:${episode}`;
+  const [harborRating, setHarborRating] = useState<{ key: string; value: string } | null>(null);
+  const harborEpisodeRating = harborRating?.key === ratingKey ? harborRating.value : undefined;
   useEffect(() => {
-    setHarborEpisodeRating(undefined);
     if (!imdbId || !imdbId.startsWith("tt")) return;
     let cancelled = false;
     void harborImdbEpisodes(imdbId)
       .then((map) => {
         if (cancelled) return;
         const r = map.get(`${season}:${episode}`);
-        if (r != null) setHarborEpisodeRating(r.toFixed(1));
+        if (r != null) setHarborRating({ key: ratingKey, value: r.toFixed(1) });
       })
       .catch(() => {});
     return () => {
@@ -94,13 +95,22 @@ export function EpisodeDetailView({
   const artworkHidden =
     settings.hideSpoilers && settings.blurEpisodes && revealedArtwork !== episodeKey;
   const { tmdbKey } = settings;
-
-  useEffect(() => {
-    let cancelled = false;
+  const [seenLoad, setSeenLoad] = useState({ episodeKey, initialSeriesMeta, playback, tmdbKey });
+  if (
+    seenLoad.episodeKey !== episodeKey ||
+    seenLoad.initialSeriesMeta !== initialSeriesMeta ||
+    seenLoad.playback !== playback ||
+    seenLoad.tmdbKey !== tmdbKey
+  ) {
+    setSeenLoad({ episodeKey, initialSeriesMeta, playback, tmdbKey });
     setLoading(true);
     setError(null);
     setEpisodeData(null);
     setSeriesMeta(initialSeriesMeta ?? null);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
 
     const load = async () => {
       {

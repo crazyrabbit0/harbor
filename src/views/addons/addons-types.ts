@@ -37,6 +37,10 @@ export function requestAddonsTab(tab: Tab): void {
   pendingAddonsTab = tab;
 }
 
+export function peekAddonsTab(): Tab | null {
+  return pendingAddonsTab;
+}
+
 export function consumeAddonsTab(): Tab | null {
   const v = pendingAddonsTab;
   pendingAddonsTab = null;
