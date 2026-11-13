@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { captureDirLabel } from "../src/lib/player/capture-path.ts";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
+import { named, ofType, treeHarness } from "./helpers/tree-render.ts";
 
 const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
 
@@ -121,8 +122,38 @@ test("saving a clip shows one busy toast, not a second centred pill", async () =
   const props = { open: true, onPick() {}, onClose() {} };
   assert.equal(chooser.render({ ...props, saving: true }), null);
   assert.notEqual(chooser.render({ ...props, saving: false }), null);
-  assert.match(
-    read("src/components/player/quick-tools.tsx"),
-    /toast\.kind === "busy"[\s\S]*animate-spin/,
-  );
+});
+
+/** Renders the player's capture toasts and A-B chip with their child components. */
+function quickTools(props: Record<string, unknown>) {
+  const revealed: string[] = [];
+  const h = treeHarness("src/components/player/quick-tools.tsx", {
+    "@tauri-apps/plugin-opener": { revealItemInDir: (path: string) => revealed.push(path) },
+    "lucide-react": named,
+    "@/lib/i18n": { useT: () => (s: string) => s },
+    "@/lib/hotkeys": { effectiveBinding: () => "", formatBindingForDisplay: String },
+    "@/lib/settings": { useSettingsSelector: () => ({ hotkeys: {} }) },
+  });
+  const tree = h.render({
+    type: h.exports.QuickTools,
+    props: { visible: true, ab: { a: null, b: null, active: false, clear() {} }, ...props },
+  });
+  return { tree, revealed };
+}
+
+test("a busy capture toast spins instead of showing the camera", () => {
+  const busy = quickTools({
+    toast: null,
+    clipToast: { id: 1, kind: "busy", text: "Saving clip…", path: "/clips/pending.mp4" },
+  });
+  assert.equal(ofType(busy.tree, "Loader2").length, 1);
+  assert.equal(ofType(busy.tree, "Camera").length, 0);
+  assert.match(ofType(busy.tree, "Loader2")[0].props.className, /animate-spin/);
+  assert.equal(ofType(busy.tree, "button").length, 0, "a busy toast offers no folder yet");
+
+  const saved = quickTools({ toast: { id: 2, kind: "ok", text: "Saved", path: "/clips/a.mp4" } });
+  assert.equal(ofType(saved.tree, "Loader2").length, 0);
+  assert.equal(ofType(saved.tree, "Camera").length, 1);
+  ofType(saved.tree, "button")[0].props.onClick();
+  assert.deepEqual(saved.revealed, ["/clips/a.mp4"], "Open folder reveals the saved file");
 });
