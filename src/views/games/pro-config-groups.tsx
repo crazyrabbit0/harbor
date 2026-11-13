@@ -48,19 +48,20 @@ export function ConfigCopy({
   );
 }
 
-const groupIcon = (group: ProGroup) => {
+const GROUP_ICONS = { Mouse, Crosshair, Terminal, Keyboard, Cpu, Monitor };
+const groupIcon = (group: ProGroup): keyof typeof GROUP_ICONS => {
   const key = `${group.id} ${group.title}`.toLowerCase();
   return /mouse/.test(key)
-    ? Mouse
+    ? "Mouse"
     : /crosshair/.test(key)
-      ? Crosshair
+      ? "Crosshair"
       : /launch/.test(key)
-        ? Terminal
+        ? "Terminal"
         : /key|console|bind/.test(key)
-          ? Keyboard
+          ? "Keyboard"
           : /graphics|processor/.test(key)
-            ? Cpu
-            : Monitor;
+            ? "Cpu"
+            : "Monitor";
 };
 const rowText = (row: ProSetting) => `${row.label}: ${row.value}`;
 export const groupText = (group: ProGroup) =>
@@ -120,7 +121,7 @@ export function SettingGrid({ values }: { values: ProSetting[] }) {
 
 function ConfigGroup({ group, code }: { group: ProGroup; code: string }) {
   const t = useT(),
-    Icon = groupIcon(group);
+    Icon = GROUP_ICONS[groupIcon(group)];
   const options = group.text !== undefined && isLaunchOptions(group.text);
   const copyable = options ? (group.text ?? "") : group.text === undefined ? groupText(group) : "";
   const shown =

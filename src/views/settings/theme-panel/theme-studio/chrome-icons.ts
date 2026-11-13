@@ -442,12 +442,9 @@ export const CHROME_ICONS: ChromeIcon[] = RAW.map((Icon, i) => {
   return { id, label: id.replace(/-/g, " "), Icon };
 });
 
-const BY_ID: Record<string, LucideIcon> = {};
+const BY_ID: Record<string, LucideIcon | undefined> = {};
 for (const c of CHROME_ICONS) BY_ID[c.id] = c.Icon;
-
-export function iconComponent(id: string): LucideIcon | undefined {
-  return BY_ID[id];
-}
+export const CHROME_ICON_BY_ID: Readonly<Record<string, LucideIcon | undefined>> = BY_ID;
 
 const svgCache: Record<string, string> = {};
 

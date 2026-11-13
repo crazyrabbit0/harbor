@@ -21,6 +21,92 @@ import { useHackVideo } from "./game-hack-video";
 import { LeagueLink, LeagueStatus } from "./game-league-companion";
 import { useLeagueFeed } from "./use-league-feed";
 
+type LeagueFormats = { numeric: Intl.NumberFormat; percent: Intl.NumberFormat };
+
+function BuildGroup({
+  group,
+  assets,
+  title,
+  arrows = false,
+  numeric,
+  percent,
+}: LeagueFormats & {
+  group: LeagueBuildGroup | null;
+  assets: LeagueAssets | null;
+  title: string;
+  arrows?: boolean;
+}) {
+  const t = useT();
+  if (!group) return null;
+  return (
+    <div className="league-build-group">
+      <h4>{title}</h4>
+      <div className="league-build-icons">
+        {group.ids.map((id, index) => (
+          <div key={`${id}:${index}`} className="league-build-icon">
+            <HoverTooltip label={assets?.[id]?.description || assets?.[id]?.name || String(id)}>
+              <span tabIndex={0}>
+                <GameArt src={assets?.[id]?.image ?? ""} alt={assets?.[id]?.name ?? String(id)} />
+              </span>
+            </HoverTooltip>
+            <span>{assets?.[id]?.name ?? `#${id}`}</span>
+            {arrows && index < group.ids.length - 1 && <ArrowRight size={13} />}
+          </div>
+        ))}
+      </div>
+      <p className="league-build-sample">
+        <b>{percent.format(group.wins / group.games)}</b> {t("games.league.winRate")}
+        <span>· {t("games.league.games", { count: numeric.format(group.games) })}</span>
+      </p>
+    </div>
+  );
+}
+
+function MatchupCounters({
+  counters,
+  title,
+  champion,
+  champions,
+  choose,
+  numeric,
+  percent,
+}: LeagueFormats & {
+  counters: LeagueCounter[];
+  title: string;
+  champion: LeagueChampion;
+  champions: LeagueChampion[];
+  choose: (champion: LeagueChampion) => void;
+}) {
+  const t = useT();
+  return (
+    <div className="league-counters">
+      <h4>{title}</h4>
+      <p>{t("games.league.matchupRate", { champion: champion.name })}</p>
+      {counters.length ? (
+        counters.map((counter) => {
+          const opponent = champions.find((c) => c.id === counter.id);
+          return (
+            <button
+              key={counter.id}
+              disabled={!opponent}
+              onClick={() => opponent && choose(opponent)}
+            >
+              <GameArt src={opponent?.portrait ?? ""} />
+              <span>
+                <strong>{opponent?.name ?? counter.name}</strong>
+                <small>{t("games.league.games", { count: numeric.format(counter.games) })}</small>
+              </span>
+              <b>{percent.format(counter.winRate)}</b>
+            </button>
+          );
+        })
+      ) : (
+        <p>{t("games.league.noSample")}</p>
+      )}
+    </div>
+  );
+}
+
 export function LeagueChampionView({
   champion,
   champions,
@@ -83,66 +169,8 @@ export function LeagueChampionView({
   const numeric = new Intl.NumberFormat(language),
     percent = new Intl.NumberFormat(language, { style: "percent", maximumFractionDigits: 1 });
   const urlKey = champion.key === "MonkeyKing" ? "wukong" : champion.key.toLowerCase();
-  const Group = ({
-    group,
-    assets,
-    title,
-  }: {
-    group: LeagueBuildGroup | null;
-    assets: LeagueAssets | null;
-    title: string;
-  }) =>
-    group && (
-      <div className="league-build-group">
-        <h4>{title}</h4>
-        <div className="league-build-icons">
-          {group.ids.map((id, index) => (
-            <div key={`${id}:${index}`} className="league-build-icon">
-              <HoverTooltip label={assets?.[id]?.description || assets?.[id]?.name || String(id)}>
-                <span tabIndex={0}>
-                  <GameArt src={assets?.[id]?.image ?? ""} alt={assets?.[id]?.name ?? String(id)} />
-                </span>
-              </HoverTooltip>
-              <span>{assets?.[id]?.name ?? `#${id}`}</span>
-              {index < group.ids.length - 1 && title === t("games.league.core") && (
-                <ArrowRight size={13} />
-              )}
-            </div>
-          ))}
-        </div>
-        <p className="league-build-sample">
-          <b>{percent.format(group.wins / group.games)}</b> {t("games.league.winRate")}
-          <span>· {t("games.league.games", { count: numeric.format(group.games) })}</span>
-        </p>
-      </div>
-    );
-  const Counters = ({ counters, title }: { counters: LeagueCounter[]; title: string }) => (
-    <div className="league-counters">
-      <h4>{title}</h4>
-      <p>{t("games.league.matchupRate", { champion: champion.name })}</p>
-      {counters.length ? (
-        counters.map((counter) => {
-          const opponent = champions.find((c) => c.id === counter.id);
-          return (
-            <button
-              key={counter.id}
-              disabled={!opponent}
-              onClick={() => opponent && choose(opponent)}
-            >
-              <GameArt src={opponent?.portrait ?? ""} />
-              <span>
-                <strong>{opponent?.name ?? counter.name}</strong>
-                <small>{t("games.league.games", { count: numeric.format(counter.games) })}</small>
-              </span>
-              <b>{percent.format(counter.winRate)}</b>
-            </button>
-          );
-        })
-      ) : (
-        <p>{t("games.league.noSample")}</p>
-      )}
-    </div>
-  );
+  const formats = { numeric, percent },
+    matchups = { champion, champions, choose, ...formats };
   return (
     <>
       <div className="league-champion-hero">
@@ -213,19 +241,41 @@ export function LeagueChampionView({
               <div className="league-build-layout">
                 <div className="league-build-main">
                   <div className="league-core">
-                    <Group title={t("games.league.core")} group={data.core} assets={items.data} />
+                    <BuildGroup
+                      title={t("games.league.core")}
+                      group={data.core}
+                      assets={items.data}
+                      arrows
+                      {...formats}
+                    />
                   </div>
                   <div className="league-build-essentials">
-                    <Group title={t("games.league.start")} group={data.start} assets={items.data} />
-                    <Group title={t("games.league.boots")} group={data.boots} assets={items.data} />
-                    <Group
+                    <BuildGroup
+                      title={t("games.league.start")}
+                      group={data.start}
+                      assets={items.data}
+                      {...formats}
+                    />
+                    <BuildGroup
+                      title={t("games.league.boots")}
+                      group={data.boots}
+                      assets={items.data}
+                      {...formats}
+                    />
+                    <BuildGroup
                       title={t("games.league.spells")}
                       group={data.spells}
                       assets={spells.data}
+                      {...formats}
                     />
                   </div>
                   <div className="league-runes">
-                    <Group title={t("games.league.runes")} group={data.runes} assets={runes.data} />
+                    <BuildGroup
+                      title={t("games.league.runes")}
+                      group={data.runes}
+                      assets={runes.data}
+                      {...formats}
+                    />
                   </div>
                   {(items.failed || spells.failed || runes.failed) && (
                     <p className="league-status">{t("games.league.iconsUnavailable")}</p>
@@ -258,8 +308,16 @@ export function LeagueChampionView({
                   )}
                 </div>
                 <aside className="league-matchups">
-                  <Counters counters={data.weak} title={t("games.league.weak")} />
-                  <Counters counters={data.strong} title={t("games.league.strong")} />
+                  <MatchupCounters
+                    counters={data.weak}
+                    title={t("games.league.weak")}
+                    {...matchups}
+                  />
+                  <MatchupCounters
+                    counters={data.strong}
+                    title={t("games.league.strong")}
+                    {...matchups}
+                  />
                 </aside>
               </div>
               {data.videos.length > 0 && (

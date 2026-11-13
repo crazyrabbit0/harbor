@@ -11,6 +11,20 @@ declare const process: { env: Record<string, string | undefined> };
 
 // Folders (trailing /) and files the React Compiler memoizes; see docs/ARCHITECTURE-FOLLOWUPS.md.
 const REACT_COMPILER_DIRS = ["/src/components/", "/src/chrome/", "/src/views/"];
+// oxlint's React Compiler rules that `vp check` enforces on those folders.
+const REACT_COMPILER_RULES = [
+  "error-boundaries",
+  "globals",
+  "immutability",
+  "preserve-manual-memoization",
+  "refs",
+  "set-state-in-render",
+  "static-components",
+  "use-memo",
+  "void-use-memo",
+];
+// Default react-plugin warnings left off: too many existing call sites (check:react-compiler covers memo deps).
+const REACT_COMPILER_RULES_OFF = ["incompatible-library", "purity", "set-state-in-effect"];
 // Babel runs only on these folders; every other file skips it and goes straight to esbuild.
 const compilesReact = (id: string) =>
   REACT_COMPILER_DIRS.some((dir) => id.replace(/\\/g, "/").includes(dir));
@@ -61,6 +75,20 @@ export default defineConfig(({ mode }) => {
   const devHost = process.env.TAURI_DEV_HOST;
   return {
     staged: { "*": "vp check --fix" },
+    // Rules of React on the compiled folders; which compiler rules stay off is in docs/ARCHITECTURE-FOLLOWUPS.md.
+    lint: {
+      overrides: [
+        {
+          files: REACT_COMPILER_DIRS.map((dir) => `${dir.slice(1)}**`),
+          plugins: ["react"],
+          rules: {
+            ...Object.fromEntries(REACT_COMPILER_RULES.map((rule) => [`react/${rule}`, "error"])),
+            ...Object.fromEntries(REACT_COMPILER_RULES_OFF.map((rule) => [`react/${rule}`, "off"])),
+            "react-hooks/exhaustive-deps": "off",
+          },
+        },
+      ],
+    },
     plugins: [
       react({
         babel: (id) =>
