@@ -54,7 +54,7 @@ function SpeedTestButtonInner() {
   const [liveMbps, setLiveMbps] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [cooldownUntil, setCooldownUntil] = useState<number>(0);
-  const [now, setNow] = useState<number>(Date.now());
+  const [now, setNow] = useState<number>(Date.now);
 
   useEffect(() => {
     if (cooldownUntil <= Date.now()) return;

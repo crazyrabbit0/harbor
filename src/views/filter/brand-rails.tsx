@@ -121,10 +121,11 @@ function decadeParams(browseKey: string, browseId: string, dateKey: string, deca
 export function DecadesSection({ filter, stats }: { filter: Browsed; stats: BrandStats }) {
   const t = useT();
   const firstYear = stats.first?.year ?? null;
+  const [thisYear] = useState(() => new Date().getFullYear());
   const decades = useMemo(() => {
     if (!firstYear) return [];
     const start = Math.floor(firstYear / 10) * 10;
-    const end = Math.floor(new Date().getFullYear() / 10) * 10;
+    const end = Math.floor(thisYear / 10) * 10;
     const out: number[] = [];
     for (let d = start; d <= end; d += 10) out.push(d);
     return out;

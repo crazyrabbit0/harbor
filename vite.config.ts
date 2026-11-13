@@ -17,6 +17,7 @@ const REACT_COMPILER_RULES = [
   "globals",
   "immutability",
   "preserve-manual-memoization",
+  "purity",
   "refs",
   "set-state-in-render",
   "static-components",
@@ -24,7 +25,7 @@ const REACT_COMPILER_RULES = [
   "void-use-memo",
 ];
 // Default react-plugin warnings left off: too many existing call sites (check:react-compiler covers memo deps).
-const REACT_COMPILER_RULES_OFF = ["incompatible-library", "purity", "set-state-in-effect"];
+const REACT_COMPILER_RULES_OFF = ["incompatible-library", "set-state-in-effect"];
 // Babel runs only on these folders; every other file skips it and goes straight to esbuild.
 const compilesReact = (id: string) =>
   REACT_COMPILER_DIRS.some((dir) => id.replace(/\\/g, "/").includes(dir));

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Bell, BellRing, Clock } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { useSettingsSelector } from "@/lib/settings";
 import { useViewActions } from "@/lib/view";
 import type { SportsGame } from "@/lib/sports/espn-types";
@@ -18,6 +19,7 @@ export function SportsReminderButton({ game }: { game: SportsGame }) {
   const [open, setOpen] = useState(false);
   const [lead, setLead] = useState(existing?.leadMinutes ?? 15);
   const [error, setError] = useState(false);
+  const now = useNow(60_000);
   const destinations = (["discord", "telegram"] as const).filter((channel) =>
     channel === "discord" ? settings.webhooks.discordUrl : settings.webhooks.telegramUrl,
   );
@@ -25,7 +27,7 @@ export function SportsReminderButton({ game }: { game: SportsGame }) {
     game.dateOnly !== undefined ||
     game.state !== "pre" ||
     !Number.isFinite(game.startMs) ||
-    game.startMs <= Date.now()
+    game.startMs <= now
   )
     return null;
   const save = () => {

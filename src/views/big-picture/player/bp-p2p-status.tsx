@@ -4,6 +4,7 @@ import { parseEngineStats, readinessScore, type EngineStats } from "@/lib/torren
 import { torrentEngineStats } from "@/lib/torrent/local-engine";
 import { startStatsPoll } from "@/lib/torrent/stats-poll";
 import { useBpT } from "../bp-i18n";
+import { useNow } from "@/lib/use-now";
 
 export type BpP2pPhase = "searching" | "connected" | "slow" | "no-peers";
 
@@ -132,6 +133,7 @@ export function useBpP2pStatus(params: {
   // but it still needs a clock: the "still looking" note is gated on elapsed
   // time and would otherwise never appear on this path.
   const [relayStart] = useState(() => Date.now());
+  const now = useNow(1000, !live && !!torrent && !!stats);
   const relayed = useMemo<Sample>(() => {
     if (!torrent || !stats) return IDLE;
     const peers = stats.unchoked > 0 ? stats.unchoked : stats.peers;
@@ -142,9 +144,9 @@ export function useBpP2pStatus(params: {
       downloaded: stats.downloaded,
       total: stats.streamLen,
       readiness: readinessScore(stats, true),
-      elapsedMs: Date.now() - relayStart,
+      elapsedMs: now - relayStart,
     };
-  }, [torrent, stats, relayStart]);
+  }, [torrent, stats, relayStart, now]);
 
   const retry = useCallback(() => setAttempt((a) => a + 1), []);
   const current = live ? sample : relayed;

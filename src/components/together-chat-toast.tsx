@@ -8,7 +8,8 @@ const MAX_TOASTS = 3;
 export function TogetherChatToast() {
   const { chat, modalOpen, clientId, snapshot } = useTogether();
   const { player } = useViewSelector((v) => ({ player: !!v.player }));
-  const seenAtRef = useRef<number>(Date.now());
+  const [mountedAt] = useState(Date.now);
+  const seenAtRef = useRef(mountedAt);
   const [toasts, setToasts] = useState<ChatMessage[]>([]);
 
   useEffect(() => {

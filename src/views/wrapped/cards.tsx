@@ -1,5 +1,5 @@
 import { BarChart3, CalendarClock, Cat, Film, Flame, Sparkles, Tv } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Poster } from "@/components/poster";
 import { useT } from "@/lib/i18n";
 import type { TopTitle, WrappedStats } from "@/lib/wrapped/types";
@@ -246,10 +246,10 @@ function heatColor(count: number, max: number): string {
 
 export function HeatmapCard({ stats }: { stats: WrappedStats }) {
   const t = useT();
+  const [end] = useState(() => new Date());
   if (stats.heatmap.length === 0) return null;
   const map = new Map(stats.heatmap.map((c) => [c.date, c.count]));
   const max = Math.max(...stats.heatmap.map((c) => c.count));
-  const end = new Date();
   const cells: Array<{ key: string; count: number }> = [];
   for (let i = 363; i >= 0; i--) {
     const d = new Date(end);

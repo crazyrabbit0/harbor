@@ -17,6 +17,7 @@ import { gameKey } from "@/lib/sports/hub-cache";
 import { hubLeague } from "@/lib/sports/hub-data";
 import { BpArt } from "../bp-art-img";
 import { useBpT } from "../bp-i18n";
+import { useNow } from "@/lib/use-now";
 import { subscribeBpTick } from "../bp-live-tick";
 import { bpSportsCardArt, bpSportsGroup, bpSportsSingleSubject } from "./bp-sports-art";
 import { BpSportsLeagueMark, BpSportsMark } from "./bp-sports-mark";
@@ -109,6 +110,7 @@ function BpSportsState({
   locale: string;
 }) {
   const t = useBpT();
+  const now = useNow(60_000, game.state === "pre");
   if (stale) return <span className={STATE}>{t("Saved")}</span>;
   if (game.state === "in")
     return (
@@ -128,8 +130,8 @@ function BpSportsState({
   const soon =
     game.dateOnly === undefined &&
     Number.isFinite(game.startMs) &&
-    game.startMs > Date.now() &&
-    game.startMs - Date.now() < SOON_MS;
+    game.startMs > now &&
+    game.startMs - now < SOON_MS;
   if (soon)
     return (
       <span className={`${STATE} normal-case tracking-[0.04em]`}>

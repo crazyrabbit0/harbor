@@ -42,7 +42,11 @@ export function DownloadSetupStatus({
 }
 
 export function useInstallerClock(job?: SetupJob, active = true) {
-  const [tick, refresh] = useState(0);
+  const [now, setNow] = useState(Date.now);
+  // A job event also re-reads the clock.
+  useEffect(() => {
+    setNow(Date.now());
+  }, [job?.id, job?.status, job?.startedAt, job?.progress?.observedAt]);
   useEffect(() => {
     if (!active || job?.status !== "running") return;
     // Job events drive updates. At most two one-shot deadlines cover startup and
@@ -54,7 +58,7 @@ export function useInstallerClock(job?: SetupJob, active = true) {
     ]
       .map((at) => at - now)
       .filter((delay) => Number.isFinite(delay) && delay > 0 && delay <= 11_001);
-    const update = () => refresh((value) => value + 1);
+    const update = () => setNow(Date.now());
     const visible = () => {
       if (document.visibilityState !== "hidden") update();
     };
@@ -64,8 +68,8 @@ export function useInstallerClock(job?: SetupJob, active = true) {
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [active, job?.id, job?.status, job?.startedAt, job?.progress?.observedAt, tick]);
-  return Date.now();
+  }, [active, job?.id, job?.status, job?.startedAt, job?.progress?.observedAt, now]);
+  return now;
 }
 
 export function DownloadSetupProgress({

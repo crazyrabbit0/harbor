@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { CR_CATEGORY_SHORT, shortCategory } from "@/lib/anime-award-labels";
 import { findTopAward, parseAwardYear, type AwardWin } from "@/lib/anime-awards";
 import { useAwardMasterVersion } from "@/lib/anime-awards-source";
@@ -101,11 +101,11 @@ export function BpCardMarks({ meta }: { meta: Meta }) {
   const bookmark = useInWatchlist(wantBookmark ? meta.id : undefined, altIds);
 
   const marks = settings.showCardBadges;
+  const [thisYear] = useState(() => String(new Date().getFullYear()));
   const cinema = isInCinema(meta);
   const rerun = marks && cinema && isRerun(meta);
   const showCinema = marks && cinema && !rerun;
-  const isNew =
-    marks && !cinema && !!meta.releaseInfo && meta.releaseInfo === String(new Date().getFullYear());
+  const isNew = marks && !cinema && !!meta.releaseInfo && meta.releaseInfo === thisYear;
 
   const animeWin =
     marks && isAnime ? readAtVersion(awardMasterVer, () => bpAnimeAward(meta)) : null;

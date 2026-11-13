@@ -1,4 +1,4 @@
-import { useMemo, type CSSProperties } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { AwardLogo } from "@/components/icons/award-logo";
 import { Laurel } from "@/components/icons/laurel";
 import { AWARD_CATALOG } from "@/lib/awards-catalog";
@@ -29,6 +29,7 @@ export function AwardHero({
 }) {
   const t = useT();
   const meta = AWARD_CATALOG[type];
+  const [thisYear] = useState(() => new Date().getFullYear());
 
   const tiles = useMemo(() => {
     const imgs: string[] = [];
@@ -124,9 +125,7 @@ export function AwardHero({
             <p className="text-[13.5px] font-medium tabular-nums text-ink-muted">
               {t("Founded {year}", { year: meta.founded })}
               <span className="mx-3 opacity-40">·</span>
-              <span style={{ color: tint }}>
-                {t("{n} years", { n: new Date().getFullYear() - meta.founded })}
-              </span>
+              <span style={{ color: tint }}>{t("{n} years", { n: thisYear - meta.founded })}</span>
             </p>
           )}
         </div>

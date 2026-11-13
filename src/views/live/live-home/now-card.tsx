@@ -3,6 +3,7 @@ import { Tv } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import type { IptvChannel } from "@/lib/iptv/types";
 import { channelNumber, fmtLeft } from "./now-format";
 import type { NowItem } from "./use-live-home";
@@ -24,7 +25,8 @@ export function NowCard({
   const art = backdrop && !artErr ? backdrop : null;
   const logo = channel.logo && !logoErr ? channel.logo : null;
   const chno = channelNumber(channel.attrs);
-  const left = current ? fmtLeft(current.endMs, Date.now(), t) : null;
+  const now = useNow(60_000, !!current);
+  const left = current ? fmtLeft(current.endMs, now, t) : null;
 
   return (
     <button

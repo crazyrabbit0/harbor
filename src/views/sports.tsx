@@ -2,6 +2,7 @@ import { SportsSelect } from "./sports/sports-select";
 import { SportsHotEventsSkeleton, SportsRailSkeleton } from "./sports/sports-skeletons";
 import { LeagueLogo } from "./sports/league-logo";
 import { lazy, Suspense, useMemo, useRef, useState, useEffect } from "react";
+import { useNow } from "@/lib/use-now";
 import { ArrowUp, ArrowRight, CalendarDays, Star } from "lucide-react";
 import { SportsRefreshButton } from "./sports/refresh-button";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -204,6 +205,7 @@ function SportsHubView({ active = false }: { active?: boolean }) {
       [boardFeed.games, leagues, tab],
     ),
   };
+  const now = useNow(60_000, active);
   const upcomingLeagues = useMemo(
     () => (browsing ? leagues.slice(0, 16) : leagues),
     [leagues, browsing],
@@ -233,8 +235,8 @@ function SportsHubView({ active = false }: { active?: boolean }) {
   const liveNow = useMemo(() => currentLiveGames(board.games), [board.games]);
   useEffect(() => syncSportsReminders(all), [all]);
   const next = useMemo(
-    () => eventCards(all.filter((g) => g.state === "pre" && g.startMs >= Date.now())),
-    [all],
+    () => eventCards(all.filter((g) => g.state === "pre" && g.startMs >= now)),
+    [all, now],
   );
   const filtered = group === "all" ? all : all.filter((g) => hubLeague(g.league)?.group === group);
   const live = board.games.filter((g) => g.state === "in");

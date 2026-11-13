@@ -1,4 +1,5 @@
 import { Fragment, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useNow } from "@/lib/use-now";
 import { RefreshCw, Search, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -79,7 +80,8 @@ export function GameReleaseCalendar({
       setExpandedDay(null);
     }
   }, [active, calendar.days, cells, expandedDay]);
-  const today = new Date(),
+  const nowMs = useNow(15 * 60_000, active),
+    today = new Date(nowMs),
     todayISO = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
   const dateLabel = (iso: string) =>
     new Date(`${iso}T12:00:00Z`).toLocaleDateString(language, {

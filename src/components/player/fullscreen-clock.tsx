@@ -147,7 +147,8 @@ export function FullscreenClock({
     ? variant === "preview"
       ? new Date(now.getTime() + 47 * 60_000)
       : typeof durationSec === "number"
-        ? estimatePlaybackEndTime(new Date(), durationSec, positionSec, playbackRate)
+        ? // oxlint-disable-next-line react/purity -- the end time follows each position update, so it reads the clock then
+          estimatePlaybackEndTime(new Date(), durationSec, positionSec, playbackRate)
         : null
     : null;
 

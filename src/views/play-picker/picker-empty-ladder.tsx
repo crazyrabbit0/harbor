@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { EmptyState, FilteredOutState, NoSourcesState, TheatresEmptyState } from "./empty-states";
@@ -41,6 +41,7 @@ export function PickerEmptyLadder({
   onSearchWider: () => void;
 }) {
   const t = useT();
+  const [openedAt] = useState(Date.now);
   const isStillInTheatres = useMemo(() => {
     if (!result || meta.type !== "movie") return false;
     if (allCount > 0) return false;
@@ -49,7 +50,7 @@ export function PickerEmptyLadder({
       if (meta.releaseDate) {
         const d = new Date(meta.releaseDate);
         if (!Number.isNaN(d.getTime())) {
-          const days = (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
+          const days = (openedAt - d.getTime()) / (1000 * 60 * 60 * 24);
           return days >= -30 && days < 90;
         }
       }

@@ -25,13 +25,14 @@ export function HandleClaimCard({ author }: { author: Author }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<AccountErrorMessage | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  const [openedAt] = useState(Date.now);
 
   const status = useHandleAvailability(value, value.length > 0);
   const hasCustom = !!author.handle && author.handleAuto === false;
   const availableAt = author.handleChangeAvailableAt
     ? Date.parse(author.handleChangeAvailableAt)
     : 0;
-  const onCooldown = hasCustom && availableAt > Date.now();
+  const onCooldown = hasCustom && availableAt > openedAt;
   const canClaim = status.state === "available" && !busy && !onCooldown;
 
   const doClaim = async (handle: string) => {

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useUiLanguage } from "@/lib/i18n";
 import { SFX } from "@/lib/sfx";
 import { dayStamp } from "@/lib/sports/hub-data";
@@ -33,11 +33,12 @@ export function BpSportsDateBand({
   const trackRef = useRef<HTMLDivElement | null>(null);
   const activeRef = useRef<HTMLButtonElement | null>(null);
 
+  const [openedAt] = useState(() => new Date());
   const days = useMemo(() => {
     const parsed = new Date(+today.slice(0, 4), +today.slice(4, 6) - 1, +today.slice(6, 8));
-    const anchor = Number.isFinite(parsed.getTime()) ? parsed : new Date();
+    const anchor = Number.isFinite(parsed.getTime()) ? parsed : openedAt;
     return buildDays(anchor).map((cell) => ({ key: dayStamp(cell.date), date: cell.date }));
-  }, [today]);
+  }, [today, openedAt]);
 
   useEffect(() => {
     const track = trackRef.current;

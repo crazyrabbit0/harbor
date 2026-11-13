@@ -1353,6 +1353,7 @@ export function HarborReader({
     const run = ++narrationRun.current;
     const requestId =
       globalThis.crypto?.randomUUID?.() ??
+      // oxlint-disable-next-line react/purity -- runs when narration starts, not during render
       `reader-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     narrationRequestId.current = requestId;
     const ready = narrationAhead.current;

@@ -174,10 +174,7 @@ export function GameActivePlayers({
     return () => clearInterval(timer);
   }, [active, near, steam]);
   const observation = (id?: number) =>
-    id &&
-    chart &&
-    now >= chart.observedAt &&
-    Math.max(now, Date.now()) - chart.observedAt < PLAYER_COUNT_TTL
+    id && chart && now >= chart.observedAt && now - chart.observedAt < PLAYER_COUNT_TTL
       ? chart.games.find((game) => game.steamId === id)
       : undefined;
   const format = new Intl.NumberFormat(language);

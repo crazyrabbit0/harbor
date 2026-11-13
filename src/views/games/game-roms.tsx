@@ -216,7 +216,8 @@ function RomShelf({
     [near, setNear] = useState(false),
     [page, setPage] = useState(0),
     [slots, setSlots] = useState(6),
-    [year, setYear] = useState<number>();
+    [year, setYear] = useState<number>(),
+    [thisYear] = useState(() => new Date().getUTCFullYear());
   useEffect(() => {
     const node = root.current;
     if (!node) return;
@@ -266,9 +267,9 @@ function RomShelf({
               onChange={(value) => setYear(value === "all" ? undefined : Number(value))}
               options={[
                 { value: "all", label: t("games.roms.allYears") },
-                ...Array.from({ length: new Date().getUTCFullYear() - 1969 }, (_, i) => ({
-                  value: String(new Date().getUTCFullYear() - i),
-                  label: String(new Date().getUTCFullYear() - i),
+                ...Array.from({ length: thisYear - 1969 }, (_, i) => ({
+                  value: String(thisYear - i),
+                  label: String(thisYear - i),
                 })),
               ]}
             />

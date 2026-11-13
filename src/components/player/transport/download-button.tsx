@@ -154,7 +154,8 @@ function useDownloadSpeed(status: DownloadStatus): {
   etaSec: number | null;
 } {
   const [speed, setSpeed] = useState({ bytesPerSec: 0, etaSec: null as number | null });
-  const ref = useRef({ bytes: 0, at: Date.now() });
+  const [mountedAt] = useState(Date.now);
+  const ref = useRef({ bytes: 0, at: mountedAt });
 
   useEffect(() => {
     if (status.kind !== "downloading") {

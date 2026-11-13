@@ -40,7 +40,8 @@ export function RecentSourceCard({
       const held = readRecentSourceArt(item.release, item.source);
       return held ? (held.art ?? null) : undefined;
     }),
-    [opening, setOpening] = useState<HTMLElement>();
+    [opening, setOpening] = useState<HTMLElement>(),
+    [shownAt] = useState(() => new Date());
   const t = useT(),
     language = useUiLanguage(),
     availability = useGameAvailabilityIndex(),
@@ -175,7 +176,7 @@ export function RecentSourceCard({
               </span>
             )}
             {art === undefined && <span className="games-recent-art-pending" aria-hidden="true" />}
-            {Date.now() - item.addedAt < 7 * 86_400_000 && (
+            {shownAt.getTime() - item.addedAt < 7 * 86_400_000 && (
               <span className="games-recent-new">{t("games.recent.new")}</span>
             )}
             <GameAvailabilityBadge status={status} />
@@ -195,7 +196,7 @@ export function RecentSourceCard({
             {new Date(item.addedAt).toLocaleDateString(language, {
               month: "short",
               day: "numeric",
-              ...(new Date(item.addedAt).getUTCFullYear() !== new Date().getUTCFullYear()
+              ...(new Date(item.addedAt).getUTCFullYear() !== shownAt.getUTCFullYear()
                 ? { year: "numeric" as const }
                 : {}),
               timeZone: "UTC",

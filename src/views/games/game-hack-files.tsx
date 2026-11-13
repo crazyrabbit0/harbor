@@ -41,6 +41,7 @@ export function GameHackFiles({
     release?: HackRelease;
   }>();
   const key = `${game.id}:${knownRelease?.page ?? ""}`;
+  const [openedAt] = useState(Date.now);
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
@@ -91,7 +92,7 @@ export function GameHackFiles({
     enabled: true,
     entries: [entry],
     skipped: 0,
-    checkedAt: Date.now(),
+    checkedAt: openedAt,
   };
   return (
     <section className={`games-hack-files${compact ? " is-compact" : " games-inset"}`}>

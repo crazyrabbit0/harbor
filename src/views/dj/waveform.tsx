@@ -44,7 +44,8 @@ export function DeckWaveform({
   const rails = useRef<{ left: number; width: number } | null>(null);
   const [hauling, setHauling] = useState(false);
   const scroll = useRef(createScroll());
-  const ticked = useRef(performance.now());
+  const [mountedAt] = useState(() => performance.now());
+  const ticked = useRef(mountedAt);
   const rolling = useRef(playing);
   useLayoutEffect(() => {
     rolling.current = playing;

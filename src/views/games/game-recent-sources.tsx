@@ -21,7 +21,6 @@ import { GameSourceFailures } from "./game-source-failures";
 import { GameSourceIcon } from "./game-source-icon";
 import { RecentSourceDialog } from "./game-recent-dialog";
 import { RecentSourceCard } from "./game-recent-card";
-import { readAtVersion } from "@/lib/read-at-version";
 import "./game-recent-sources.css";
 import "./game-rails.css";
 
@@ -90,7 +89,10 @@ export function GameRecentSources({
       art: SourceGameArtwork | null | undefined;
     }>(),
     [detailError, setDetailError] = useState(false);
-  const now = useMemo(() => readAtVersion(sources.sources, () => Date.now()), [sources.sources]);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    setNow(Date.now());
+  }, [sources.sources]);
   const enabled = useMemo(
     () => sources.sources.filter((source) => source.enabled),
     [sources.sources],

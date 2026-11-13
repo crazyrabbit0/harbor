@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Trash2, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useSectionBack } from "@/lib/section-back";
@@ -18,7 +18,7 @@ export function GameSteamShortcutActivity({
     root = useRef<HTMLDivElement>(null),
     { closing, close } = useModalExit(onClose);
   const language = useUiLanguage(),
-    today = new Date().toDateString();
+    [today] = useState(() => new Date().toDateString());
   const dates = useMemo(
     () => ({
       time: new Intl.DateTimeFormat(language, {

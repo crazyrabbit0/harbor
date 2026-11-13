@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useNow } from "@/lib/use-now";
 import { ArrowUpRight, Check } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
@@ -24,12 +25,13 @@ export function GameWowWeekly({
   const t = useT(),
     language = useUiLanguage();
   const [week, setWeek] = useState<"current" | "previous">("current");
+  const now = useNow(60_000, !!reset);
   const progress = wowWeeklyProgress(
       character,
       checkedAt,
       season,
       region,
-      reset ? { ...reset, now: Date.now() } : null,
+      reset ? { ...reset, now } : null,
     ),
     selected = progress?.[week];
   const date = (value: number) =>
