@@ -21,15 +21,23 @@ export function HistoryEpisodeCard({
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { open: openContextMenu } = useContextMenu();
   const cardRef = useRef<HTMLButtonElement>(null);
-  const [still, setStill] = useState<string | undefined>();
-  const [epTitle, setEpTitle] = useState<string | null>(null);
-  const [imgIdx, setImgIdx] = useState(0);
-
   const isEpisode = entry.meta.type === "series" && !!entry.season && !!entry.episode;
+  const episodeKey = `${entry.meta.id}\n${entry.meta.name}\n${entry.season}\n${entry.episode}\n${isEpisode}\n${settings.tmdbKey}`;
+  const [episodeInfo, setEpisodeInfo] = useState<{
+    key: string;
+    still: string | undefined;
+    title: string | null;
+  } | null>(null);
+  const still = episodeInfo?.key === episodeKey ? episodeInfo.still : undefined;
+  const epTitle = episodeInfo?.key === episodeKey ? episodeInfo.title : null;
+  const [imgIdx, setImgIdx] = useState(0);
+  const [imgIdxFor, setImgIdxFor] = useState(still);
+  if (imgIdxFor !== still) {
+    setImgIdxFor(still);
+    setImgIdx(0);
+  }
 
   useEffect(() => {
-    setStill(undefined);
-    setEpTitle(null);
     if (!isEpisode) return;
     const el = cardRef.current;
     if (!el) return;
@@ -43,8 +51,11 @@ export function HistoryEpisodeCard({
         .then((eps) => {
           if (cancelled) return;
           const found = eps.find((e) => e.episode === entry.episode);
-          if (found?.still) setStill(found.still);
-          if (found?.name) setEpTitle(found.name);
+          setEpisodeInfo({
+            key: episodeKey,
+            still: found?.still || undefined,
+            title: found?.name || null,
+          });
         })
         .catch(() => {});
     };
@@ -62,9 +73,15 @@ export function HistoryEpisodeCard({
       cancelled = true;
       io.disconnect();
     };
-  }, [entry.meta.id, entry.meta.name, entry.season, entry.episode, isEpisode, settings.tmdbKey]);
-
-  useEffect(() => setImgIdx(0), [still]);
+  }, [
+    entry.meta.id,
+    entry.meta.name,
+    entry.season,
+    entry.episode,
+    isEpisode,
+    settings.tmdbKey,
+    episodeKey,
+  ]);
 
   const candidates = useMemo(() => {
     const seen = new Set<string>();

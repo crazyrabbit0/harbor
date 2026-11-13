@@ -35,17 +35,23 @@ export function MalTab() {
   const [type, setType] = useState<TypeKey>("all");
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState<Set<number>>(() => new Set());
+  const [loadedFor, setLoadedFor] = useState(isConnected);
+  if (loadedFor !== isConnected) {
+    setLoadedFor(isConnected);
+    if (isConnected) {
+      const cached = readCachedMalList();
+      if (cached) {
+        setEntries(cached.flatMap((g) => g.entries));
+        setStatus("ready");
+      } else {
+        setStatus("loading");
+      }
+    }
+  }
 
   useEffect(() => {
     if (!isConnected) return;
     let cancelled = false;
-    const cached = readCachedMalList();
-    if (cached) {
-      setEntries(cached.flatMap((g) => g.entries));
-      setStatus("ready");
-    } else {
-      setStatus("loading");
-    }
     fetchMalList()
       .then((groups) => {
         if (cancelled) return;

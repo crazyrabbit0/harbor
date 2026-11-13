@@ -29,17 +29,23 @@ export function AnilistTab() {
   const [type, setType] = useState<TypeKey>("all");
   const [query, setQuery] = useState("");
   const [busy, setBusy] = useState<Set<number>>(() => new Set());
+  const [loadedFor, setLoadedFor] = useState(userId);
+  if (loadedFor !== userId) {
+    setLoadedFor(userId);
+    if (userId != null) {
+      const cached = readCachedCollection(userId);
+      if (cached) {
+        setEntries(cached.flatMap((g) => g.entries));
+        setStatus("ready");
+      } else {
+        setStatus("loading");
+      }
+    }
+  }
 
   useEffect(() => {
     if (userId == null) return;
     let cancelled = false;
-    const cached = readCachedCollection(userId);
-    if (cached) {
-      setEntries(cached.flatMap((g) => g.entries));
-      setStatus("ready");
-    } else {
-      setStatus("loading");
-    }
     fetchMediaListCollection(userId)
       .then((groups) => {
         if (cancelled) return;

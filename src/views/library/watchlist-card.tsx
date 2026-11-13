@@ -14,25 +14,23 @@ export function WatchlistCard({ meta, onRemove }: { meta: Meta; onRemove?: () =>
   const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey, tmdbKey: s.tmdbKey }));
   const inList = useInWatchlist(meta.id);
   const cardRef = useRef<HTMLDivElement>(null);
-  const [hydrated, setHydrated] = useState<Meta | null>(null);
+  const [hydratedState, setHydrated] = useState<Meta | null>(null);
   const [posterFailed, setPosterFailed] = useState(false);
-  const [confirm, setConfirm] = useState(false);
-  const posterFailedOnceRef = useRef(false);
-  useEffect(() => {
-    posterFailedOnceRef.current = false;
+  const [posterFailedFor, setPosterFailedFor] = useState(meta.id);
+  if (posterFailedFor !== meta.id) {
+    setPosterFailedFor(meta.id);
     setPosterFailed(false);
-  }, [meta.id]);
+  }
+  const [confirm, setConfirm] = useState(false);
+  const needsAddonHydration = !!meta.addonOrigin && !hasEmbeddedStreams(meta.videos);
+  const hydrationSkipped = !!meta.poster && !!meta.name && !posterFailed && !needsAddonHydration;
+  if (hydrationSkipped && hydratedState !== null) setHydrated(null);
+  const hydrated = hydrationSkipped ? null : hydratedState;
   const onPosterError = useCallback(() => {
-    if (posterFailedOnceRef.current) return;
-    posterFailedOnceRef.current = true;
     setPosterFailed(true);
   }, []);
   useEffect(() => {
-    const needsAddonHydration = !!meta.addonOrigin && !hasEmbeddedStreams(meta.videos);
-    if (meta.poster && meta.name && !posterFailed && !needsAddonHydration) {
-      setHydrated(null);
-      return;
-    }
+    if (hydrationSkipped) return;
     const el = cardRef.current;
     if (!el) return;
     let cancelled = false;
@@ -64,6 +62,7 @@ export function WatchlistCard({ meta, onRemove }: { meta: Meta; onRemove?: () =>
       io.disconnect();
     };
   }, [
+    hydrationSkipped,
     meta.id,
     meta.type,
     meta.poster,

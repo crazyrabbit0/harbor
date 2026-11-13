@@ -29,32 +29,32 @@ export function AddTitleSearch({
   const t = useT();
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResults | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState<{
+    q: string;
+    tmdbKey: typeof settings.tmdbKey;
+    results: SearchResults | null;
+  } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const memberIds = new Set(list.items.map((it) => it.id));
   const atMax = list.items.length >= MAX_ITEMS;
+  const trimmed = query.trim();
+  if (!trimmed && search !== null) setSearch(null);
+  const results = trimmed ? (search?.results ?? null) : null;
+  const loading = !!trimmed && !(search?.q === trimmed && search.tmdbKey === settings.tmdbKey);
 
   useEffect(() => {
     const q = query.trim();
-    if (!q) {
-      setResults(null);
-      setLoading(false);
-      return;
-    }
+    if (!q) return;
     let cancelled = false;
-    setLoading(true);
+    const tmdbKey = settings.tmdbKey;
     const timer = window.setTimeout(() => {
-      searchAll(settings.tmdbKey ?? "", q)
+      searchAll(tmdbKey ?? "", q)
         .then((r) => {
-          if (!cancelled) {
-            setResults(r);
-            setLoading(false);
-          }
+          if (!cancelled) setSearch({ q, tmdbKey, results: r });
         })
         .catch(() => {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) setSearch((prev) => ({ q, tmdbKey, results: prev?.results ?? null }));
         });
     }, 260);
     return () => {

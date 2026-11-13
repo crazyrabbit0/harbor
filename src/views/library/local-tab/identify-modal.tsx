@@ -52,6 +52,8 @@ async function resolveImdb(key: string, kind: "movie" | "tv", id: number): Promi
   }
 }
 
+const EMPTY_CANDIDATES: Candidate[] = [];
+
 function seedQuery(title: string): string {
   return (
     title
@@ -77,17 +79,35 @@ export function IdentifyModal({
   const head = target && target.length ? target[0] : null;
   const [kind, setKind] = useState<"movie" | "tv">("movie");
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Candidate[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [search, setSearch] = useState<{
+    headId: string;
+    key: string;
+    kind: "movie" | "tv";
+    q: string;
+    results: Candidate[];
+  } | null>(null);
   const [picking, setPicking] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!head) return;
-    const inferred = parseFilename(head.filename);
-    setKind(inferred.type === "show" || head.type === "show" ? "tv" : "movie");
-    setQuery(seedQuery(inferred.type === "show" ? inferred.title : (head.title ?? "")));
-    setResults([]);
-  }, [head?.id]);
+  const headId = head?.id;
+  const [seededFor, setSeededFor] = useState<string | undefined>(undefined);
+  if (seededFor !== headId) {
+    setSeededFor(headId);
+    if (head) {
+      const inferred = parseFilename(head.filename);
+      setKind(inferred.type === "show" || head.type === "show" ? "tv" : "movie");
+      setQuery(seedQuery(inferred.type === "show" ? inferred.title : (head.title ?? "")));
+      setSearch(null);
+    }
+  }
+  const trimmed = query.trim();
+  if (head && key && !trimmed && search !== null) setSearch(null);
+  const searchCurrent =
+    search !== null &&
+    search.headId === headId &&
+    search.key === key &&
+    search.kind === kind &&
+    search.q === trimmed;
+  const results = search?.results ?? EMPTY_CANDIDATES;
+  const loading = !!head && !!key && !!trimmed && !searchCurrent;
 
   useEffect(() => {
     if (!head) return;
@@ -101,19 +121,23 @@ export function IdentifyModal({
   useEffect(() => {
     if (!head || !key) return;
     const q = query.trim();
-    if (!q) {
-      setResults([]);
-      return;
-    }
+    if (!q) return;
     let alive = true;
-    setLoading(true);
+    const searchHeadId = head.id;
     const timer = window.setTimeout(() => {
       void searchTmdb(key, kind, q)
         .then((r) => {
-          if (alive) setResults(r);
+          if (alive) setSearch({ headId: searchHeadId, key, kind, q, results: r });
         })
-        .finally(() => {
-          if (alive) setLoading(false);
+        .catch(() => {
+          if (alive)
+            setSearch((prev) => ({
+              headId: searchHeadId,
+              key,
+              kind,
+              q,
+              results: prev?.results ?? EMPTY_CANDIDATES,
+            }));
         });
     }, 300);
     return () => {

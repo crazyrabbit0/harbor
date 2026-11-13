@@ -14,10 +14,11 @@ function artSrc(value: string): string {
 export function useLocalPoster(entry: LocalEntry) {
   const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey, tmdbKey: s.tmdbKey }));
   const localPoster = entry.localArt?.poster ? artSrc(entry.localArt.poster) : undefined;
-  const [localized, setLocalized] = useState<string | undefined>(undefined);
+  const posterKey = `${entry.tmdbId}\n${entry.type}\n${settings.tmdbKey}\n${localPoster}`;
+  const [found, setFound] = useState<{ key: string; src: string } | null>(null);
+  const localized = found?.key === posterKey ? found.src : undefined;
 
   useEffect(() => {
-    setLocalized(undefined);
     if (localPoster || entry.tmdbId == null || !settings.tmdbKey) return;
     let alive = true;
     const kind = entry.type === "show" ? "tv" : "movie";
@@ -31,12 +32,12 @@ export function useLocalPoster(entry: LocalEntry) {
         .map((p) => ({ p, i: rankOf(p.iso_639_1) }))
         .filter((x) => x.i !== -1)
         .sort((a, b) => a.i - b.i || (b.p.vote_average ?? 0) - (a.p.vote_average ?? 0))[0]?.p;
-      if (best?.file_path) setLocalized(`${IMG}/w342${best.file_path}`);
+      if (best?.file_path) setFound({ key: posterKey, src: `${IMG}/w342${best.file_path}` });
     });
     return () => {
       alive = false;
     };
-  }, [entry.tmdbId, entry.type, settings.tmdbKey, localPoster]);
+  }, [entry.tmdbId, entry.type, settings.tmdbKey, localPoster, posterKey]);
 
   return usePosterChain(
     settings.rpdbKey,
