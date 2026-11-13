@@ -95,10 +95,8 @@ export function AddonDetail({
     }
   })();
 
-  useEffect(() => {
-    if (optimisticInstalled === null) return;
-    if (resolved.installed === optimisticInstalled) setOptimisticInstalled(null);
-  }, [resolved.installed, optimisticInstalled]);
+  if (optimisticInstalled !== null && resolved.installed === optimisticInstalled)
+    setOptimisticInstalled(null);
 
   useEffect(() => {
     const addonName = nameOf(resolved);

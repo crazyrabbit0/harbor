@@ -13,19 +13,19 @@ export function useBrandArt(
   brand: BrowseKind,
 ): CompanyArt {
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
-  const [art, setArt] = useState<CompanyArt>(EMPTY);
+  const [result, setResult] = useState<{ key: string; art: CompanyArt } | null>(null);
+  const requestKey = `${settings.tmdbKey}|${id}|${mediaType}|${brand}`;
   useEffect(() => {
-    setArt(EMPTY);
     if (!settings.tmdbKey || !id) return;
     let alive = true;
     void tmdbCompanyArt(settings.tmdbKey, id, mediaType, brand).then((a) => {
-      if (alive) setArt(a);
+      if (alive) setResult({ key: requestKey, art: a });
     });
     return () => {
       alive = false;
     };
   }, [settings.tmdbKey, id, mediaType, brand]);
-  return art;
+  return result?.key === requestKey ? result.art : EMPTY;
 }
 
 export function BrandHero({

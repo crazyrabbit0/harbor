@@ -35,12 +35,15 @@ export function MediaPicker({
     inputRef.current?.focus();
   }, []);
 
+  const [seenQ, setSeenQ] = useState(q);
+  if (seenQ !== q) {
+    setSeenQ(q);
+    if (q.trim().length < 2) setHits([]);
+  }
+
   useEffect(() => {
     const term = q.trim();
-    if (term.length < 2) {
-      setHits([]);
-      return;
-    }
+    if (term.length < 2) return;
     const ctrl = new AbortController();
     const timer = window.setTimeout(() => {
       setBusy(true);

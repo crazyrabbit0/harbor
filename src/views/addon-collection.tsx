@@ -53,15 +53,19 @@ export function AddonCollectionView({ meta }: { meta: Meta }) {
   const [loading, setLoading] = useState(true);
   const [heroBg, setHeroBg] = useState<string | undefined>(meta.background);
   const [heroDesc, setHeroDesc] = useState<string | undefined>(meta.description);
+  const [seenMeta, setSeenMeta] = useState(meta);
+  if (seenMeta !== meta) {
+    setSeenMeta(meta);
+    setMembers([]);
+    setLoading(true);
+    setHeroBg(meta.background);
+    setHeroDesc(meta.description);
+  }
   const scrollRef = useRef<HTMLDivElement>(null);
   useScrollMemory(`addon-collection-${meta.id}`, scrollRef);
 
   useEffect(() => {
     let cancelled = false;
-    setMembers([]);
-    setLoading(true);
-    setHeroBg(meta.background);
-    setHeroDesc(meta.description);
     const fallback = narrowMediaType(meta.type);
     const fromVideos = (m: Meta | null): Meta[] =>
       (m?.videos ?? []).map((v) => videoToMeta(v, fallback)).filter((x): x is Meta => x != null);

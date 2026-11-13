@@ -42,15 +42,17 @@ export function PeopleField({
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchPerson[]>([]);
   const [busy, setBusy] = useState(false);
+  const [seenSearch, setSeenSearch] = useState({ query, tmdbKey });
+  if (seenSearch.query !== query || seenSearch.tmdbKey !== tmdbKey) {
+    setSeenSearch({ query, tmdbKey });
+    if (!query.trim() || !tmdbKey) setResults([]);
+    else setBusy(true);
+  }
 
   useEffect(() => {
     const q = query.trim();
-    if (!q || !tmdbKey) {
-      setResults([]);
-      return;
-    }
+    if (!q || !tmdbKey) return;
     let cancelled = false;
-    setBusy(true);
     const handle = window.setTimeout(async () => {
       await new Promise<Awaited<ReturnType<typeof searchAll>>>((resolve) =>
         resolve(searchAll(tmdbKey, q)),

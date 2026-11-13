@@ -16,16 +16,17 @@ export function HarborAccountPanel() {
   const [reveal, setReveal] = useState<string | null>(null);
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<"register" | "signin">("register");
+  const [seenAuthor, setSeenAuthor] = useState(author);
+  if (seenAuthor !== author) {
+    setSeenAuthor(author);
+    if (author) setAuthOpen(false);
+  }
 
   useEffect(() => subscribeAuthor(() => setAuthor(currentAuthor())), []);
 
   useEffect(() => {
     if (author) void fetchMe();
   }, [author?.id]);
-
-  useEffect(() => {
-    if (author) setAuthOpen(false);
-  }, [author]);
 
   if (!author) {
     return (

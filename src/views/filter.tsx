@@ -31,10 +31,14 @@ export function FilterView({ filter }: { filter: MetaFilter }) {
   );
   const [doneSpotlights, setDoneSpotlights] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
-  useEffect(() => {
-    seenRef.current = new Map();
+  const [seenFilter, setSeenFilter] = useState(filter);
+  if (seenFilter !== filter) {
+    setSeenFilter(filter);
     setDoneSpotlights(0);
     setTimedOut(false);
+  }
+  useEffect(() => {
+    seenRef.current = new Map();
     const t = window.setTimeout(() => setTimedOut(true), SPOTLIGHT_TIMEOUT_MS);
     return () => window.clearTimeout(t);
   }, [filter]);

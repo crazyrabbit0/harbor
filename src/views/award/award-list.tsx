@@ -1,6 +1,6 @@
 import { ArrowUpRight, X } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { AWARD_CATALOG } from "@/lib/awards-catalog";
 import { readAwardHistory, type CategoryHistory } from "@/lib/awards-history";
 import { useBundledAwardsVersion } from "@/lib/use-bundled-awards";
@@ -22,11 +22,12 @@ export function AwardList({ awardType, tint }: { awardType: AwardType; tint: str
   );
   const [decade, setDecade] = useState<number | null>(null);
   const [query, setQuery] = useState("");
-
-  useEffect(() => {
+  const [seenAwardType, setSeenAwardType] = useState(awardType);
+  if (seenAwardType !== awardType) {
+    setSeenAwardType(awardType);
     setDecade(null);
     setQuery("");
-  }, [awardType]);
+  }
 
   const decades = useMemo(() => {
     const set = new Set<number>();

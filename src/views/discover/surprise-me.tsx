@@ -1,5 +1,5 @@
 import { Dices } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { usePosterChain } from "@/components/poster";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
@@ -22,9 +22,7 @@ export function SurpriseMe({ pool }: { pool: Meta[] }) {
   const lastRef = useRef<string | null>(null);
   const [tiles, setTiles] = useState<Meta[]>([]);
 
-  useEffect(() => {
-    if (tiles.length === 0 && pool.length > 0) setTiles(shuffle(pool).slice(0, 18));
-  }, [pool, tiles.length]);
+  if (tiles.length === 0 && pool.length > 0) setTiles(shuffle(pool).slice(0, 18));
 
   const surprise = () => {
     if (!pool.length) return;

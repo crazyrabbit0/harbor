@@ -30,10 +30,14 @@ export function useGroup(id: string, onGone: () => void): GroupState {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [seenKey, setSeenKey] = useState({ id, tick });
+  if (seenKey.id !== id || seenKey.tick !== tick) {
+    setSeenKey({ id, tick });
+    setPhase("loading");
+  }
 
   useEffect(() => {
     const ctrl = new AbortController();
-    setPhase("loading");
     fetchGroup(id, ctrl.signal)
       .then((g) => {
         if (ctrl.signal.aborted) return;

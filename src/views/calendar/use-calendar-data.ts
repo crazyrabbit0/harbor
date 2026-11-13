@@ -111,10 +111,47 @@ export function useCalendarData({
     setProgress(null);
   }
 
-  useEffect(() => {
-    let cancelled = false;
+  const fetchDeps = [
+    source,
+    authKey,
+    traktConnected,
+    simklConnected,
+    settings.tmdbKey,
+    settings.region,
+    custom.trackedPeople,
+    custom.genres,
+    custom.watchProviders,
+    custom.originCountries,
+    custom.mediaTypes,
+    custom.includeTraktAnticipated,
+    custom.includeTraktWatchlist,
+    year,
+    month,
+    animeDub,
+  ];
+  const [seenFetchDeps, setSeenFetchDeps] = useState<unknown[] | null>(null);
+  if (!seenFetchDeps || fetchDeps.some((dep, i) => dep !== seenFetchDeps[i])) {
+    setSeenFetchDeps(fetchDeps);
     setError(null);
     setProgress(null);
+    const stopped =
+      source === "games" ||
+      (source === "library"
+        ? !authKey
+        : source === "trakt"
+          ? !traktConnected
+          : source === "simkl"
+            ? !simklConnected
+            : source !== "simkl-anticipated" &&
+              source !== "anime" &&
+              source !== "anticipated" &&
+              !settings.tmdbKey);
+    if (stopped) setItems([]);
+    setLoading(!stopped);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
     const onProgress = (rows: CalendarItem[]) => {
       if (!cancelled && rows.length > 0) setItems(rows);
     };
@@ -122,7 +159,6 @@ export function useCalendarData({
       if (!cancelled && total > 0) setProgress({ done, total });
     };
     const run = (p: Promise<CalendarItem[]>) => {
-      setLoading(true);
       p.then((rows) => {
         if (cancelled) return;
         setItems(rows);
@@ -135,15 +171,11 @@ export function useCalendarData({
           if (!cancelled) setLoading(false);
         });
     };
-    const stop = () => {
-      setItems([]);
-      setLoading(false);
-    };
 
     const dispatch = () => {
-      if (source === "games") return stop();
+      if (source === "games") return;
       if (source === "library") {
-        if (!authKey) return stop();
+        if (!authKey) return;
         return run(
           fetchLibraryCalendar(authKey, year, month, {
             tmdbKey: settings.tmdbKey,
@@ -154,11 +186,11 @@ export function useCalendarData({
         );
       }
       if (source === "trakt") {
-        if (!traktConnected) return stop();
+        if (!traktConnected) return;
         return run(fetchTraktCalendar(year, month, { onProgress }));
       }
       if (source === "simkl") {
-        if (!simklConnected) return stop();
+        if (!simklConnected) return;
         return run(
           fetchSimklCalendar(year, month, { tmdbKey: settings.tmdbKey, onProgress, onCount }),
         );
@@ -175,7 +207,7 @@ export function useCalendarData({
         return run(fetchAnticipatedCalendar(year, month, { onProgress }));
       }
       if (source === "custom") {
-        if (!settings.tmdbKey) return stop();
+        if (!settings.tmdbKey) return;
         const { start, end } = monthRangeISO(year, month);
         const extras: Promise<CalendarItem[]>[] = [];
         if (settings.customCalendar.includeTraktAnticipated) {
@@ -202,7 +234,7 @@ export function useCalendarData({
           }),
         );
       }
-      if (!settings.tmdbKey) return stop();
+      if (!settings.tmdbKey) return;
       const { start, end } = monthRangeISO(year, month);
       return run(fetchCalendarRange(settings.tmdbKey, start, end, settings.region, onProgress));
     };

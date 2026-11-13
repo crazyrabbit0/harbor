@@ -103,15 +103,21 @@ export function CommunityCollectionEditor({
     setOrder(itemIds ? itemIds.split(",") : []);
   }, [itemIds]);
 
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) {
+  const [seenSearch, setSeenSearch] = useState({ query, tmdbKey: settings.tmdbKey });
+  if (seenSearch.query !== query || seenSearch.tmdbKey !== settings.tmdbKey) {
+    setSeenSearch({ query, tmdbKey: settings.tmdbKey });
+    if (query.trim().length < 2) {
       setHits([]);
       setSearching(false);
-      return;
+    } else {
+      setSearching(true);
     }
+  }
+
+  useEffect(() => {
+    const q = query.trim();
+    if (q.length < 2) return;
     let alive = true;
-    setSearching(true);
     const timer = window.setTimeout(async () => {
       // Source-backed manga search needs a configured Suwayomi/Mangayomi/local/plugin
       // source; the tracker searches below are source-free metadata databases, so

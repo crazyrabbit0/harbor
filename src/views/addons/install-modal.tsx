@@ -61,10 +61,7 @@ export function AddonInstallModal({
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
-  const tryResolve = async (rawUrl: string) => {
-    setLoading(true);
-    setError(null);
-    setResolved(null);
+  const resolveUrl = async (rawUrl: string) => {
     const work = async () => {
       const parsed = parseAddonUrl(rawUrl);
       if (parsed.kind === "error") throw new Error(parsed.message);
@@ -100,12 +97,25 @@ export function AddonInstallModal({
         setLoading(false);
       });
   };
+  const tryResolve = (rawUrl: string) => {
+    setLoading(true);
+    setError(null);
+    setResolved(null);
+    return resolveUrl(rawUrl);
+  };
 
-  useEffect(() => {
+  const [seenMode, setSeenMode] = useState<Mode | null>(null);
+  const [autoUrl, setAutoUrl] = useState<{ url: string } | null>(null);
+  if (seenMode !== mode) {
+    setSeenMode(mode);
     if (mode.kind === "install" && mode.url && !resolved && !loading && !error) {
-      void tryResolve(mode.url);
+      setLoading(true);
+      setAutoUrl({ url: mode.url });
     }
-  }, [mode]);
+  }
+  useEffect(() => {
+    if (autoUrl) void resolveUrl(autoUrl.url);
+  }, [autoUrl]);
 
   const onSubmit = async () => {
     if (!resolved) {

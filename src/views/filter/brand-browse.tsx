@@ -81,11 +81,13 @@ export function BrandBrowse({ filter }: { filter: Browsed }) {
     return p;
   }, [key, browseId, sort, genre, decade, mediaType]);
 
-  useEffect(() => {
+  const [seenParams, setSeenParams] = useState({ params, mediaType });
+  if (seenParams.params !== params || seenParams.mediaType !== mediaType) {
+    setSeenParams({ params, mediaType });
     setItems(null);
     setPage(1);
     setDone(false);
-  }, [params, mediaType]);
+  }
 
   const load = useCallback(
     (next: number) => {

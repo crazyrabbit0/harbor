@@ -48,15 +48,21 @@ export function MangaMatchPicker({
     return () => window.clearTimeout(timer);
   }, [query]);
 
-  useEffect(() => {
-    const q = debounced.trim();
-    if (q.length < 2 || !hasSource) {
+  const [seenDebounced, setSeenDebounced] = useState<string | null>(null);
+  if (seenDebounced !== debounced) {
+    setSeenDebounced(debounced);
+    if (debounced.trim().length < 2 || !hasSource) {
       setHits([]);
       setBusy(false);
-      return;
+    } else {
+      setBusy(true);
     }
+  }
+
+  useEffect(() => {
+    const q = debounced.trim();
+    if (q.length < 2 || !hasSource) return;
     let alive = true;
-    setBusy(true);
     (async () => {
       const tags = await (activeMangaProvider()
         .tags?.()

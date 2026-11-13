@@ -145,20 +145,28 @@ export function Discover({ active = true }: { active?: boolean }) {
   const [tasteVersion, setTasteVersion] = useState(0);
   const [rails, setRails] = useState<Record<string, Meta[]>>({});
   const [letterboxdRows, setLetterboxdRows] = useState<HomeRow[]>([]);
+  const letterboxdDeps = [
+    letterboxd.isActive,
+    letterboxd.mode,
+    letterboxd.configSegment,
+    letterboxd.selectedCatalogs,
+    letterboxd.hiddenCatalogs,
+    letterboxd.catalogOrder,
+    letterboxd.session,
+    letterboxd.listRefs,
+  ];
+  const letterboxdOff =
+    !letterboxd.isActive ||
+    (letterboxd.mode === "full" && !letterboxd.session) ||
+    (letterboxd.mode === "public" && !letterboxd.configSegment);
+  const [seenLetterboxdDeps, setSeenLetterboxdDeps] = useState<unknown[] | null>(null);
+  if (!seenLetterboxdDeps || letterboxdDeps.some((dep, i) => dep !== seenLetterboxdDeps[i])) {
+    setSeenLetterboxdDeps(letterboxdDeps);
+    if (letterboxdOff) setLetterboxdRows([]);
+  }
 
   useEffect(() => {
-    if (!letterboxd.isActive) {
-      setLetterboxdRows([]);
-      return;
-    }
-    if (letterboxd.mode === "full" && !letterboxd.session) {
-      setLetterboxdRows([]);
-      return;
-    }
-    if (letterboxd.mode === "public" && !letterboxd.configSegment) {
-      setLetterboxdRows([]);
-      return;
-    }
+    if (letterboxdOff) return;
     let cancelled = false;
     buildLetterboxdHomeRows({
       configSegment: letterboxd.configSegment,
@@ -222,11 +230,23 @@ export function Discover({ active = true }: { active?: boolean }) {
   );
   const rowSig = useMemo(() => dailyRows.map((r) => r.id).join("|"), [dailyRows]);
 
+  const featDeps = [
+    settings.tmdbKey,
+    settings.tmdbLanguage,
+    settings.region,
+    settings.feedLocaleBias,
+    settings.preferredLanguages,
+  ];
+  const [seenFeatDeps, setSeenFeatDeps] = useState(featDeps);
+  if (featDeps.some((dep, i) => dep !== seenFeatDeps[i])) {
+    setSeenFeatDeps(featDeps);
+    setFeatReady(false);
+    setFeat({ featured: [], reserve: [], pool: [] });
+  }
+
   useEffect(() => {
     let cancelled = false;
     let full = false;
-    setFeatReady(false);
-    setFeat({ featured: [], reserve: [], pool: [] });
     const fastDone = buildFeaturedFast(settings.tmdbKey, settings)
       .then((r) => {
         if (!cancelled && !full) setFeat(rescoreFeatured(r.pool));

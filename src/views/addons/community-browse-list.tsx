@@ -89,16 +89,24 @@ function ApiSortedList({
   const seenRef = useRef<Set<string>>(new Set());
   const rising = useRising();
 
-  useEffect(() => {
-    seenRef.current = new Set();
+  const [seenFilters, setSeenFilters] = useState({ mode, category, search, allowAdult });
+  if (
+    seenFilters.mode !== mode ||
+    seenFilters.category !== category ||
+    seenFilters.search !== search ||
+    seenFilters.allowAdult !== allowAdult
+  ) {
+    setSeenFilters({ mode, category, search, allowAdult });
     setItems([]);
     setPage(1);
     setExhausted(false);
+  }
+
+  useEffect(() => {
+    seenRef.current = new Set();
   }, [mode, category, search, allowAdult]);
 
-  const loadMore = useCallback(async () => {
-    if (loading || exhausted) return;
-    setLoading(true);
+  const fetchPage = useCallback(async () => {
     const work = async () => {
       const res = await listAddons({
         page,
@@ -125,11 +133,22 @@ function ApiSortedList({
       .finally(() => {
         setLoading(false);
       });
-  }, [mode, page, loading, exhausted, category, search, allowAdult]);
+  }, [mode, page, category, search, allowAdult]);
 
+  const loadMore = useCallback(async () => {
+    if (loading || exhausted) return;
+    setLoading(true);
+    await fetchPage();
+  }, [loading, exhausted, fetchPage]);
+
+  const [autoLoads, setAutoLoads] = useState(0);
+  if (items.length === 0 && !loading && !exhausted) {
+    setLoading(true);
+    setAutoLoads(autoLoads + 1);
+  }
   useEffect(() => {
-    if (items.length === 0 && !loading && !exhausted) void loadMore();
-  }, [items.length, loading, exhausted, loadMore]);
+    if (autoLoads) void fetchPage();
+  }, [autoLoads]);
 
   const loadMoreRef = useRef(loadMore);
   useLayoutEffect(() => {

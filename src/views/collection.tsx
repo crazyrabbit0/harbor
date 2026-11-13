@@ -10,27 +10,22 @@ import { useT } from "@/lib/i18n";
 export function CollectionView({ collectionId }: { collectionId: number }) {
   const t = useT();
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
-  const [data, setData] = useState<TmdbCollection | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [result, setResult] = useState<{ key: string; data: TmdbCollection | null } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   useScrollMemory(`collection-${collectionId}`, scrollRef);
+  const requestKey = `${settings.tmdbKey}|${collectionId}`;
+  const data = result?.key === requestKey ? result.data : null;
+  const loading = !!settings.tmdbKey && result?.key !== requestKey;
 
   useEffect(() => {
-    if (!settings.tmdbKey) {
-      setLoading(false);
-      return;
-    }
+    if (!settings.tmdbKey) return;
     let cancelled = false;
-    setLoading(true);
-    setData(null);
     tmdbCollection(settings.tmdbKey, collectionId)
       .then((c) => {
-        if (cancelled) return;
-        setData(c);
-        setLoading(false);
+        if (!cancelled) setResult({ key: requestKey, data: c });
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setResult({ key: requestKey, data: null });
       });
     return () => {
       cancelled = true;

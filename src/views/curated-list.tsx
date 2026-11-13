@@ -15,13 +15,17 @@ export function CuratedListView({ listId }: { listId: string }) {
   const scrollRef = useRef<HTMLElement>(null);
   const [items, setItems] = useState<readonly CuratedListItem[]>(list?.head ?? []);
   const [settled, setSettled] = useState(false);
+  const [seenListId, setSeenListId] = useState(listId);
+  if (seenListId !== listId) {
+    setSeenListId(listId);
+    setItems(list?.head ?? []);
+    setSettled(false);
+  }
 
   useScrollMemory(`curated-list:${listId}`, scrollRef);
 
   useEffect(() => {
     let cancelled = false;
-    setItems(curatedList(listId)?.head ?? []);
-    setSettled(false);
     void loadListItems(listId).then((full) => {
       if (cancelled) return;
       if (full.length > 0) setItems(full);

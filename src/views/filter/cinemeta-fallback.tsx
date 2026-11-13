@@ -20,16 +20,20 @@ export function CinemetaFallback({ filter }: { filter: MetaFilter }) {
   const genre = filter.kind === "genre" ? filter.name : null;
   const mediaType = filter.mediaType;
 
+  const [seenFilter, setSeenFilter] = useState({ genre, mediaType });
+  if (seenFilter.genre !== genre || seenFilter.mediaType !== mediaType) {
+    setSeenFilter({ genre, mediaType });
+    setItems([]);
+    setExhausted(false);
+  }
+
   useEffect(() => {
     seenRef.current = new Set();
     skipRef.current = 0;
-    setItems([]);
-    setExhausted(false);
   }, [genre, mediaType]);
 
-  const loadMore = useCallback(async () => {
-    if (loading || exhausted || !genre) return;
-    setLoading(true);
+  const fetchBatch = useCallback(async () => {
+    if (!genre) return;
     const fetcher = mediaType === "tv" ? topSeries : topMovies;
     await new Promise<Meta[]>((resolve) => resolve(fetcher(genre, skipRef.current)))
       .then((batch) => {
@@ -52,17 +56,24 @@ export function CinemetaFallback({ filter }: { filter: MetaFilter }) {
       .finally(() => {
         setLoading(false);
       });
-  }, [exhausted, genre, loading, mediaType]);
+  }, [genre, mediaType]);
 
-  useEffect(() => {
-    if (items.length >= MAX_ITEMS) setExhausted(true);
-  }, [items.length]);
+  const loadMore = useCallback(async () => {
+    if (loading || exhausted || !genre) return;
+    setLoading(true);
+    await fetchBatch();
+  }, [exhausted, genre, loading, fetchBatch]);
 
+  if (items.length >= MAX_ITEMS && !exhausted) setExhausted(true);
+
+  const [autoLoads, setAutoLoads] = useState(0);
+  if (items.length === 0 && !loading && !exhausted && genre) {
+    setLoading(true);
+    setAutoLoads(autoLoads + 1);
+  }
   useEffect(() => {
-    if (items.length === 0 && !loading && !exhausted && genre) {
-      void loadMore();
-    }
-  }, [items.length, loading, exhausted, genre, loadMore]);
+    if (autoLoads) void fetchBatch();
+  }, [autoLoads]);
 
   useEffect(() => {
     const el = sentinelRef.current;

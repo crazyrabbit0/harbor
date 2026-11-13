@@ -7,11 +7,12 @@ export function AddonDescription({ text }: { text: string }) {
   const [expanded, setExpanded] = useState(false);
   const [showToggle, setShowToggle] = useState(false);
   const ref = useRef<HTMLParagraphElement>(null);
-
-  useEffect(() => {
+  const [seenText, setSeenText] = useState(text);
+  if (seenText !== text) {
+    setSeenText(text);
     setExpanded(false);
     setShowToggle(false);
-  }, [text]);
+  }
 
   useEffect(() => {
     if (expanded) return;

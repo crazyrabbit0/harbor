@@ -59,9 +59,7 @@ export function CaptionsApp() {
     };
   }, []);
 
-  useEffect(() => {
-    if (cue.text) setLast(cue.text);
-  }, [cue.text]);
+  if (cue.text && cue.text !== last) setLast(cue.text);
 
   useEffect(() => {
     const el = scrollRef.current;

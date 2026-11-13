@@ -34,7 +34,7 @@ export function CollectionsView() {
 
   const [hits, setHits] = useState<CollectionHit[]>([]);
   const [page, setPage] = useState(0);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState(!remoteQuery);
   const [loading, setLoading] = useState(false);
   const loadingRef = useRef(false);
   const queryEpoch = useRef(0);
@@ -63,12 +63,17 @@ export function CollectionsView() {
     stripSuffix,
   });
 
-  useEffect(() => {
-    queryEpoch.current += 1;
+  const [seenQuery, setSeenQuery] = useState(remoteQuery);
+  if (seenQuery !== remoteQuery) {
+    setSeenQuery(remoteQuery);
     setHits([]);
     setPage(0);
     setDone(!remoteQuery);
     setLoading(false);
+  }
+
+  useEffect(() => {
+    queryEpoch.current += 1;
     loadingRef.current = false;
   }, [remoteQuery]);
 

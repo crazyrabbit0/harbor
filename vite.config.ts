@@ -27,7 +27,44 @@ const REACT_COMPILER_RULES = [
 // Default react-plugin warnings left off: too many existing call sites (check:react-compiler covers memo deps).
 const REACT_COMPILER_RULES_OFF = ["incompatible-library", "set-state-in-effect"];
 // Folders already free of setState in effect bodies, where `vp check` enforces set-state-in-effect.
-const SET_STATE_IN_EFFECT_DIRS = ["/src/chrome/", "/src/views/profile/"];
+const SET_STATE_IN_EFFECT_DIRS = [
+  "/src/chrome/",
+  "/src/views/account/",
+  "/src/views/addon-collection.tsx",
+  "/src/views/addons.tsx",
+  "/src/views/addons/",
+  "/src/views/anime-award.tsx",
+  "/src/views/anime.tsx",
+  "/src/views/anime/",
+  "/src/views/award.tsx",
+  "/src/views/award/",
+  "/src/views/brands.tsx",
+  "/src/views/calendar.tsx",
+  "/src/views/calendar/",
+  "/src/views/captions-app.tsx",
+  "/src/views/catalogs.tsx",
+  "/src/views/catalogs/",
+  "/src/views/collection.tsx",
+  "/src/views/collections.tsx",
+  "/src/views/collections/",
+  "/src/views/curated-list.tsx",
+  "/src/views/curated-list/",
+  "/src/views/discover.tsx",
+  "/src/views/discover/",
+  "/src/views/dj/",
+  "/src/views/downloads.tsx",
+  "/src/views/downloads/",
+  "/src/views/episode-detail.tsx",
+  "/src/views/feed.tsx",
+  "/src/views/feed/",
+  "/src/views/filter.tsx",
+  "/src/views/filter/",
+  "/src/views/group.tsx",
+  "/src/views/group/",
+  "/src/views/groups.tsx",
+  "/src/views/groups/",
+  "/src/views/profile/",
+];
 // Babel runs only on these folders; every other file skips it and goes straight to esbuild.
 const compilesReact = (id: string) =>
   REACT_COMPILER_DIRS.some((dir) => id.replace(/\\/g, "/").includes(dir));

@@ -29,6 +29,11 @@ export function useDeckFx({
   const [fx, remember] = useState<MusicFx>(FX_OFF);
   const [running, setRunning] = useState<ReleaseKind | null>(null);
   const [ready, setReady] = useState(false);
+  const [seenPrime, setSeenPrime] = useState({ armed, trackKey });
+  if (seenPrime.armed !== armed || seenPrime.trackKey !== trackKey) {
+    setSeenPrime({ armed, trackKey });
+    setReady(false);
+  }
   const rig = useRef<ReleaseFx | null>(null);
   const timer = useRef(0);
   const pending = useRef<MusicFx | null>(null);
@@ -65,7 +70,6 @@ export function useDeckFx({
   useEffect(() => {
     const fxRig = engine();
     fxRig.reset(trackKey);
-    setReady(false);
     if (!armed || !trackKey) return;
     let alive = true;
     const tick = () => {

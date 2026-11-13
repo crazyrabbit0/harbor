@@ -20,10 +20,17 @@ export function TopicSection({ topic, mediaType }: { topic: Topic; mediaType: "m
   const [exhausted, setExhausted] = useState(false);
   const [keywordIds, setKeywordIds] = useState<number[] | null>(null);
   const loadingRef = useRef(false);
+  const [seenKeywords, setSeenKeywords] = useState({
+    tmdbKey: settings.tmdbKey,
+    keywords: topic.keywords,
+  });
+  if (seenKeywords.tmdbKey !== settings.tmdbKey || seenKeywords.keywords !== topic.keywords) {
+    setSeenKeywords({ tmdbKey: settings.tmdbKey, keywords: topic.keywords });
+    setKeywordIds(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setKeywordIds(null);
     if (!settings.tmdbKey) return;
     tmdbResolveKeywordIds(settings.tmdbKey, topic.keywords)
       .then((ids) => {
@@ -53,21 +60,20 @@ export function TopicSection({ topic, mediaType }: { topic: Topic; mediaType: "m
     return p;
   }, [topic.genreIds, topic.voteCount, keywordIds]);
 
-  useEffect(() => {
-    let cancelled = false;
-    setItems(null);
+  const loadDeps = [settings.tmdbKey, mediaType, baseParams, dedup, gate.ready, keywordIds];
+  const [seenDeps, setSeenDeps] = useState<unknown[] | null>(null);
+  if (!seenDeps || loadDeps.some((dep, i) => dep !== seenDeps[i])) {
+    setSeenDeps(loadDeps);
+    const empty =
+      !settings.tmdbKey || (gate.ready && keywordIds !== null && keywordIds.length === 0);
+    setItems(empty ? [] : null);
     setPage(1);
     setExhausted(false);
-    if (!settings.tmdbKey) {
-      setItems([]);
-      return;
-    }
-    if (!gate.ready) return;
-    if (keywordIds === null) return;
-    if (keywordIds.length === 0) {
-      setItems([]);
-      return;
-    }
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!settings.tmdbKey || !gate.ready || !keywordIds?.length) return;
     (async () => {
       loadingRef.current = true;
       let collected: Meta[] = [];

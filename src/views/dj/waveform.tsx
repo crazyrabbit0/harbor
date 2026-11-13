@@ -93,15 +93,20 @@ export function DeckWaveform({
     notify.current = onGrid;
   }, [onGrid]);
 
+  const [seenTrack, setSeenTrack] = useState({ trackKey, duration });
+  if (seenTrack.trackKey !== trackKey || seenTrack.duration !== duration) {
+    setSeenTrack({ trackKey, duration });
+    setView(null);
+    setAnchored(false);
+    setHauling(false);
+  }
+
   useEffect(() => {
     held.current = null;
-    setView(null);
     mark.current = null;
     reported.current = undefined;
-    setAnchored(false);
     haul.current = null;
     rails.current = null;
-    setHauling(false);
     resetScroll(scroll.current);
     tile.current.stamp = -1;
     sheet.current.stamp = -1;

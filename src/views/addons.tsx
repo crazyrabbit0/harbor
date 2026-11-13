@@ -31,7 +31,7 @@ import { AddByUrlBar } from "./addons/add-by-url-bar";
 import { AddonDetail } from "./addons/addon-detail";
 import { AddonInstallModal } from "./addons/install-modal";
 import { OrganizeAddonsPage } from "./addons/organize/page";
-import { consumeAddonsTab, type Tab, type ToastInfo } from "./addons/addons-types";
+import { consumeAddonsTab, peekAddonsTab, type Tab, type ToastInfo } from "./addons/addons-types";
 import { BrowsePane } from "./addons/browse-pane";
 import { DiscoverPane } from "./addons/discover-pane";
 import { ScrollToTop } from "./addons/scroll-to-top";
@@ -95,19 +95,21 @@ export function AddonsView({ active = true }: { active?: boolean }) {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0, behavior: "auto" });
   }, [tab, categoryFilter]);
-  useEffect(() => {
-    if (!settings.showAdultAddons && categoryFilter === "nsfw") setCategoryFilter(null);
-  }, [settings.showAdultAddons, categoryFilter]);
+  if (!settings.showAdultAddons && categoryFilter === "nsfw") setCategoryFilter(null);
   const [query, setQuery] = useState("");
+  const [seenActive, setSeenActive] = useState(active);
+  if (seenActive !== active) {
+    setSeenActive(active);
+    const requested = active ? peekAddonsTab() : null;
+    // Settings can reopen this mounted page; Manage shows the full collection, not the last search.
+    if (requested) {
+      setTab(requested);
+      setQuery("");
+      setCategoryFilter(null);
+    }
+  }
   useEffect(() => {
-    if (!active) return;
-    const requested = consumeAddonsTab();
-    if (!requested) return;
-    // Settings can reopen this still-mounted page. Explicit Manage navigation
-    // should show the full collection rather than a previous catalog search.
-    setTab(requested);
-    setQuery("");
-    setCategoryFilter(null);
+    if (active) consumeAddonsTab();
   }, [active]);
   const goToCategory = (cat: string) => {
     setCategoryFilter(cat);
@@ -183,9 +185,7 @@ export function AddonsView({ active = true }: { active?: boolean }) {
     );
   }, [installedAddons]);
   const trimmedQuery = query.trim();
-  useEffect(() => {
-    if (trimmedQuery.length > 0 && tab !== "installed") setTab("browse");
-  }, [trimmedQuery, tab]);
+  if (trimmedQuery.length > 0 && tab !== "installed" && tab !== "browse") setTab("browse");
 
   const onInstall = async (r: ResolvedAddon) => {
     const install = async () => {
@@ -614,12 +614,22 @@ function RemoteOrLocalDetail({
 }) {
   const [remote, setRemote] = useState<ResolvedAddon | null>(null);
   const [failed, setFailed] = useState(false);
+  const [seenTarget, setSeenTarget] = useState({ addonDetailId, local, installedIds });
+  if (
+    seenTarget.addonDetailId !== addonDetailId ||
+    seenTarget.local !== local ||
+    seenTarget.installedIds !== installedIds
+  ) {
+    setSeenTarget({ addonDetailId, local, installedIds });
+    if (!local) {
+      setRemote(null);
+      setFailed(false);
+    }
+  }
 
   useEffect(() => {
     if (local) return;
     let cancelled = false;
-    setRemote(null);
-    setFailed(false);
     (async () => {
       const { recallPendingAddon } = await loadPendingDetail();
       const carried = recallPendingAddon(addonDetailId);

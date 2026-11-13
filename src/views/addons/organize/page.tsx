@@ -56,19 +56,24 @@ export function OrganizeAddonsPage({
     [backupsKey],
   );
 
-  const load = useCallback(async () => {
+  const applyLocal = () => {
+    const device = loadInstalled();
+    setBaselineCloud([]);
+    setWorkingCloud([]);
+    setBaselineDevice(device);
+    setWorkingDevice(device);
+    setPhase({ kind: "ready" });
+  };
+
+  const [loadedFor, setLoadedFor] = useState<{ authKey: string | null } | null>(null);
+  if (!loadedFor || loadedFor.authKey !== authKey) {
+    setLoadedFor({ authKey });
     setPhase({ kind: "loading" });
     setNotice(null);
-    if (!authKey) {
-      const device = loadInstalled();
-      setBaselineCloud([]);
-      setWorkingCloud([]);
-      setBaselineDevice(device);
-      setWorkingDevice(device);
-      setPhase({ kind: "ready" });
-      return;
-    }
-    const cloud = await getUserAddonsRaw(authKey);
+    if (!authKey) applyLocal();
+  }
+
+  const applyCloud = useCallback((cloud: Addon[] | null) => {
     if (cloud == null) {
       setPhase({ kind: "loadError" });
       return;
@@ -80,11 +85,21 @@ export function OrganizeAddonsPage({
     setBaselineDevice(device);
     setWorkingDevice(device);
     setPhase({ kind: "ready" });
-  }, [authKey]);
+  }, []);
+
+  const load = async () => {
+    setPhase({ kind: "loading" });
+    setNotice(null);
+    if (!authKey) {
+      applyLocal();
+      return;
+    }
+    await getUserAddonsRaw(authKey).then(applyCloud);
+  };
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (authKey) void getUserAddonsRaw(authKey).then(applyCloud);
+  }, [authKey, applyCloud]);
 
   useEffect(() => pushOverlayPin(), []);
 

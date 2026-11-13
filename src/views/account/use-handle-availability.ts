@@ -12,27 +12,27 @@ export type HandleStatus =
   | { state: "error" }
   | HandleCheck;
 
+type RemoteResult = { handle: string; status: HandleStatus };
+
 export function useHandleAvailability(raw: string, enabled: boolean): HandleStatus {
-  const [status, setStatus] = useState<HandleStatus>({ state: "idle" });
+  const [remote, setRemote] = useState<RemoteResult | null>(null);
   const handle = normalizeHandle(raw);
+  const [seen, setSeen] = useState({ handle, enabled });
+  if (seen.handle !== handle || seen.enabled !== enabled) {
+    setSeen({ handle, enabled });
+    setRemote(null);
+  }
+  const active = enabled && handle.length > 0;
+  const local = active ? localHandleCheck(handle) : null;
 
   useEffect(() => {
-    if (!enabled || handle.length === 0) {
-      setStatus({ state: "idle" });
-      return;
-    }
-    const local = localHandleCheck(handle);
-    if (local) {
-      setStatus(local);
-      return;
-    }
-    setStatus({ state: "checking" });
+    if (!active || local) return;
     const ac = new AbortController();
     const timer = window.setTimeout(() => {
       handleAvailable(handle, ac.signal)
-        .then((res) => setStatus(res))
+        .then((res) => setRemote({ handle, status: res }))
         .catch(() => {
-          if (!ac.signal.aborted) setStatus({ state: "error" });
+          if (!ac.signal.aborted) setRemote({ handle, status: { state: "error" } });
         });
     }, 400);
     return () => {
@@ -41,5 +41,7 @@ export function useHandleAvailability(raw: string, enabled: boolean): HandleStat
     };
   }, [handle, enabled]);
 
-  return status;
+  if (!active) return { state: "idle" };
+  if (local) return local;
+  return remote?.handle === handle ? remote.status : { state: "checking" };
 }
