@@ -5,6 +5,8 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { componentHarness, findElement } from "./helpers/component-harness.ts";
+import { flushPromises } from "./helpers/hook-harness.ts";
+import { all, named, ofType, treeHarness } from "./helpers/tree-render.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const root = "src/views/settings/theme-panel/custom-themes-section";
@@ -62,10 +64,67 @@ test("all new community author surfaces share the profile button", () => {
   }
 });
 
-test("clickable theme cards use a sibling overlay instead of nesting author buttons", () => {
-  for (const path of [`${root}/community-browser.tsx`]) {
-    const source = read(path);
-    assert.match(source, /aria-label=\{tr\("Open \{name\}", \{ name: (?:t|theme)\.name \}\)\}/);
-    assert.match(source, /className="absolute inset-0 z-0/);
-  }
+/** Renders the community browser with one theme listed, its card included. */
+async function communityBrowser(theme: Record<string, unknown>) {
+  const opened: string[] = [];
+  const h = treeHarness(
+    `${root}/community-browser.tsx`,
+    {
+      "../../icons": named,
+      "@/components/icons/search-icon": named,
+      "@/lib/theme-store": {
+        browseThemes: async () => [theme],
+        downloadTheme: async () => {},
+        rateTheme: async () => theme,
+      },
+      "@/lib/i18n": {
+        useT: () => (key: string, vars?: Record<string, unknown>) =>
+          key.replace(/\{(\w+)\}/g, (_, name) => String(vars?.[name] ?? "")),
+      },
+      "./community-detail": {
+        CommunityDetail: (props: { theme: { id: string } }) => (opened.push(props.theme.id), null),
+      },
+      "./theme-author-button": { ThemeAuthorButton: "ThemeAuthorButton" },
+      "./theme-upload-flow": { ThemeUploadFlow: "ThemeUploadFlow" },
+    },
+    { globals: { setTimeout: () => 1, clearTimeout() {}, window: { setTimeout: () => 1 } } },
+  );
+  const render = () => h.render({ type: h.exports.CommunityPane, props: {} });
+  render();
+  await flushPromises();
+  return { render, opened };
+}
+
+const storeTheme = {
+  id: "th1",
+  name: "Dusk",
+  author: "Ada",
+  authorHandle: "ada",
+  cover: null,
+  screenshots: [],
+  swatch: ["#000"],
+  ratingAvg: 4,
+  downloads: 3,
+};
+
+test("clickable theme cards use a sibling overlay instead of nesting author buttons", async () => {
+  const browser = await communityBrowser(storeTheme);
+  const tree = browser.render();
+  const overlay = all(tree).find((el) => el.props["aria-label"] === "Open Dusk")!;
+  assert.equal(overlay.type, "button");
+  assert.match(overlay.props.className, /absolute inset-0 z-0/);
+  assert.deepEqual(ofType(overlay, "ThemeAuthorButton"), [], "the author button is not inside it");
+  const author = ofType(tree, "ThemeAuthorButton");
+  assert.deepEqual(
+    author.map((el) => [el.props.handle, el.props.name]),
+    [["ada", "Ada"]],
+  );
+  overlay.props.onClick();
+  browser.render();
+  assert.deepEqual(browser.opened, ["th1"], "the overlay opens the theme");
+});
+
+test("a theme without an author handle shows the name as plain text", async () => {
+  const tree = (await communityBrowser({ ...storeTheme, authorHandle: null })).render();
+  assert.deepEqual(ofType(tree, "ThemeAuthorButton"), []);
 });

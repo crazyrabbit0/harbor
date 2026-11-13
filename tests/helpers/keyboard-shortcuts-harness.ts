@@ -1,10 +1,10 @@
 import { emptySnapshot } from "../../src/lib/player/bridge.ts";
-import { effectiveBinding, eventToBinding } from "../../src/lib/hotkeys.ts";
+import { digitFromEvent, effectiveBinding, eventToBinding } from "../../src/lib/hotkeys.ts";
 import { hookHarness } from "./hook-harness.ts";
 
 type Handler = (e: Record<string, unknown>) => void;
 
-/** Runs use-keyboard-shortcuts; `calls` records "mute", "toggle", "seek <delta>" and "sub-delay <sec>". */
+/** Runs use-keyboard-shortcuts; `calls` records "mute", "toggle", "seek <delta>", "seek-to <sec>", "flash-marks" and "sub-delay <sec>". */
 export function keyboardShortcutsHarness(
   settings: Record<string, unknown> = {},
   snap: Record<string, unknown> = {},
@@ -19,7 +19,7 @@ export function keyboardShortcutsHarness(
     "@/lib/player-prefs": { writePlayerPrefs: noop },
     "@/lib/player-volume": { writePlayerVolume: noop },
     "@/lib/hotkeys": {
-      digitFromEvent: () => null,
+      digitFromEvent,
       effectiveBinding,
       eventToBinding,
       isTypingTarget: () => false,
@@ -37,7 +37,7 @@ export function keyboardShortcutsHarness(
     "@/lib/big-picture": { isBigPictureActive: () => false },
     "@/lib/player/leave-confirm": { getLeaveConfirm: () => null, openLeaveConfirm: noop },
     "@/lib/player/interaction-lock": { isPlayerInteractionLocked: () => locked },
-    "@/lib/player/jump-marks": { flashJumpMarks: noop },
+    "@/lib/player/jump-marks": { flashJumpMarks: () => calls.push("flash-marks") },
     "../player-utils": { round2: (n: number) => Math.round(n * 100) / 100 },
     "@/components/player/speed-indicator": { SPEED_MAX: 4, SPEED_MIN: 0.25 },
     "@/lib/sfx": { SFX: { volumeChange: noop } },
@@ -81,7 +81,7 @@ export function keyboardShortcutsHarness(
     closePlayer: noop,
     playPauseToggle: () => calls.push("toggle"),
     seekStep: (d: number) => calls.push(`seek ${d}`),
-    seekTo: noop,
+    seekTo: (sec: number) => calls.push(`seek-to ${sec}`),
     toggleFullscreen: noop,
     fullscreen: false,
     cycleSubtitles: noop,
