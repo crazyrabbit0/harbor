@@ -21,6 +21,11 @@ export function fakeRoot() {
 export function musicDockHarness() {
   const root = fakeRoot();
   const tracker = { installs: 0, removals: 0 };
+  // Each render's `useModalExit(onClose, open)` calls, in order; a test can mark one as closing.
+  const exits: { onClose: () => void; open: boolean; closing: boolean; closed: number }[] = [];
+  let exitCursor = 0;
+  let closingExit = -1;
+  let topKind = "home";
   const track = { id: "t1", connectorId: "youtube", title: "Song", artist: "Artist" };
   const player = {
     current: track,
@@ -47,7 +52,12 @@ export function musicDockHarness() {
       "@/lib/music/liked": { isMusicLiked: () => false },
       "@/lib/back-intercept": { pushBackHandler: () => noop },
       "@/components/modal-shell": {
-        useModalExit: (onClose: () => void) => ({ closing: false, close: onClose }),
+        useModalExit: (onClose: () => void, open: boolean) => {
+          const index = exitCursor++;
+          const exit = { onClose, open, closing: index === closingExit, closed: 0 };
+          exits[index] = exit;
+          return { closing: exit.closing, close: () => (exit.closed++, onClose()) };
+        },
       },
       "@/lib/music/search-artists": { artistCreditParts: (name: string) => [name] },
       "./music-artist-link": stubModule(),
@@ -81,7 +91,7 @@ export function musicDockHarness() {
       },
       "@/lib/view": {
         useViewActions: () => ({ setView: noop }),
-        useViewSelector: (select: (v: unknown) => unknown) => select({ topKind: "home" }),
+        useViewSelector: (select: (v: unknown) => unknown) => select({ topKind }),
       },
       "@/lib/settings": {
         useSettingsSelector: (select: (s: unknown) => unknown) =>
@@ -138,11 +148,24 @@ export function musicDockHarness() {
   return {
     properties: root.properties,
     tracker,
-    render: () => harness.render(),
+    exits,
+    /** How many `useModalExit` calls the last render made. */
+    exitCalls: () => exitCursor,
+    render: () => ((exitCursor = 0), harness.render()),
+    /** Renders with the given exit (by call order) reporting `closing`. */
+    renderClosing: (index: number) => {
+      closingExit = index;
+      exitCursor = 0;
+      return harness.render();
+    },
+    /** The top view; "player" and "picker" hide the dock. */
+    setTopKind: (kind: string) => void (topKind = kind),
     /** Presses the dock's hide button and renders the collapsed tab. */
     collapse() {
+      exitCursor = 0;
       const tree = harness.render();
       findElement(tree, (el) => "data-music-dock-hide" in el.props)!.props.onClick();
+      exitCursor = 0;
       return harness.render();
     },
     unmount: () => harness.unmount(),

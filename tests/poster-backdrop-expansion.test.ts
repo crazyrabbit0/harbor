@@ -8,6 +8,7 @@ import "./_localstorage-stub.ts";
 import * as expansion from "../src/lib/poster-backdrop-expansion.ts";
 import { DEFAULT } from "../src/lib/settings/defaults.ts";
 import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness.ts";
+import { componentHarness, elements, stubModule } from "./helpers/component-harness.ts";
 import { tvNavigationHarness } from "./helpers/tv-navigation-harness.ts";
 
 const {
@@ -147,12 +148,62 @@ test("Focused Card, Expanding Cards, and Poster Dock remain independent settings
     [true, false, true],
     "stored settings go through the same normalizer",
   );
-  const panel = read("src/views/settings/theme-panel/display/poster-card-section.tsx");
-  assert.match(panel, /onChange=\{\(posterFocusedCard\) => update\(\{ posterFocusedCard \}\)\}/);
-  assert.match(
-    panel,
-    /onChange=\{\(posterBackdropExpansion\) => update\(\{ posterBackdropExpansion \}\)\}/,
+  const patches: unknown[] = [];
+  const panel = componentHarness(
+    "src/views/settings/theme-panel/display/poster-card-section.tsx",
+    "PosterCardSection",
+    {
+      "@/components/slider": { fillStyle: () => ({}) },
+      react: { useEffect() {}, useRef: () => ({ current: null }) },
+      "@/lib/sample-artwork": {
+        useSettingsSamples: () => [],
+        useSettingsSampleMeta: () => ({ name: "Sample" }),
+        useSampleArtwork: () => ({ poster: "p.jpg", logo: null }),
+      },
+      "@/components/tv-card": stubModule(),
+      "@/lib/settings": {
+        useSettings: () => ({
+          settings: {
+            ...DEFAULT,
+            posterFocusedCard: true,
+            posterBackdropExpansion: false,
+            posterDockMagnification: false,
+          },
+          update: (patch: unknown) => patches.push(patch),
+        }),
+      },
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/poster-dock": stubModule(),
+      "../../shared": { Section: "Section", Segmented: "Segmented", ToggleRow: "ToggleRow" },
+      "../../kit": { SettingRow: "SettingRow" },
+      "../../ui": { SButton: "SButton" },
+      "./poster-options": {
+        POSTER_RADII: [],
+        POSTER_SIZES: [{ value: "m", label: "Medium", scale: 1 }],
+        posterSizeKey: () => "m",
+        radiusKey: () => "classic",
+      },
+      "../../preview-image": { PreviewImage: "PreviewImage" },
+    },
   );
+  const toggles = [...elements(panel.render())].filter((el) => el.type === "ToggleRow");
+  const toggle = (label: string) => toggles.find((el) => el.props.label === label)!;
+  assert.deepEqual(
+    toggles.map((el) => [el.props.label, el.props.value]),
+    [
+      ["Focused Card", true],
+      ["Expanding Cards", false],
+      ["Poster dock magnification", false],
+    ],
+  );
+  toggle("Focused Card").props.onChange(false);
+  toggle("Expanding Cards").props.onChange(true);
+  toggle("Poster dock magnification").props.onChange(true);
+  assert.deepEqual(patches, [
+    { posterFocusedCard: false },
+    { posterBackdropExpansion: true },
+    { posterDockMagnification: true },
+  ]);
   assert.match(
     read("src/components/row.tsx"),
     /const dockEnabled = effShape === "portrait" && settings\.posterDockMagnification;/,
