@@ -3,28 +3,30 @@ import { fetchSummary, ProfileNotFound } from "@/lib/social/profile-api";
 
 export type UrlStatus = "idle" | "checking" | "available" | "taken" | "invalid" | "mine";
 
+function localStatus(v: string, ownHandle: string, ownCurrent: string): UrlStatus | null {
+  if (!v) return "idle";
+  if (!/^[a-z0-9-]{3,24}$/.test(v)) return "invalid";
+  if (v === ownHandle.toLowerCase() || v === ownCurrent.toLowerCase()) return "mine";
+  return null;
+}
+
 export function useCustomUrlAvailability(
   value: string,
   ownHandle: string,
   ownCurrent: string,
 ): UrlStatus {
-  const [status, setStatus] = useState<UrlStatus>("idle");
+  const v = value.trim().toLowerCase();
+  const local = localStatus(v, ownHandle, ownCurrent);
+  const checkKey = `${value}|${ownHandle}|${ownCurrent}`;
+  const [status, setStatus] = useState<UrlStatus>(local ?? "checking");
+  const [seenCheckKey, setSeenCheckKey] = useState(checkKey);
+  if (seenCheckKey !== checkKey) {
+    setSeenCheckKey(checkKey);
+    setStatus(local ?? "checking");
+  }
 
   useEffect(() => {
-    const v = value.trim().toLowerCase();
-    if (!v) {
-      setStatus("idle");
-      return;
-    }
-    if (!/^[a-z0-9-]{3,24}$/.test(v)) {
-      setStatus("invalid");
-      return;
-    }
-    if (v === ownHandle.toLowerCase() || v === ownCurrent.toLowerCase()) {
-      setStatus("mine");
-      return;
-    }
-    setStatus("checking");
+    if (local) return;
     const ac = new AbortController();
     const timer = window.setTimeout(() => {
       fetchSummary(v, ac.signal)

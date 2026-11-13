@@ -148,7 +148,7 @@ export function useFavorites(handle: string, initial?: FavoriteLists | null): Fa
   const [entries, setEntries] = useState<FavoriteLists>(() =>
     initial ? cloneLists(initial) : emptyLists(),
   );
-  const [loaded, setLoaded] = useState(hasSeed);
+  const [loaded, setLoaded] = useState(hasSeed || !handle);
   const [loadFailed, setLoadFailed] = useState(false);
   const [saving, setSaving] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -157,20 +157,18 @@ export function useFavorites(handle: string, initial?: FavoriteLists | null): Fa
     entriesRef.current = entries;
   }, [entries]);
 
-  useEffect(() => {
-    if (attempt === 0 && hasSeed) {
-      setLoaded(true);
-      setLoadFailed(false);
-      return;
-    }
-    if (!handle) {
-      setLoaded(true);
-      setLoadFailed(false);
-      return;
-    }
-    const ac = new AbortController();
-    setLoaded(false);
+  const skipFetch = (attempt === 0 && hasSeed) || !handle;
+  const loadKey = `${handle}|${hasSeed}|${attempt}`;
+  const [seenLoadKey, setSeenLoadKey] = useState(loadKey);
+  if (seenLoadKey !== loadKey) {
+    setSeenLoadKey(loadKey);
+    setLoaded(skipFetch);
     setLoadFailed(false);
+  }
+
+  useEffect(() => {
+    if (skipFetch) return;
+    const ac = new AbortController();
     fetchFavorites(handle, ac.signal)
       .then((next) => {
         if (ac.signal.aborted) return;
@@ -233,13 +231,16 @@ export function useFavoriteSearch(
     return () => window.clearTimeout(id);
   }, [query, debounced]);
 
+  const searchKey = `${kind}|${debounced}|${attempt}`;
+  const [seenSearchKey, setSeenSearchKey] = useState(searchKey);
+  if (seenSearchKey !== searchKey) {
+    setSeenSearchKey(searchKey);
+    setView({ status: debounced.length < MIN_QUERY ? "idle" : "searching" });
+  }
+
   useEffect(() => {
-    if (debounced.length < MIN_QUERY) {
-      setView({ status: "idle" });
-      return;
-    }
+    if (debounced.length < MIN_QUERY) return;
     const ac = new AbortController();
-    setView({ status: "searching" });
     searchFavorites(kind, debounced, { signal: ac.signal })
       .then((result) => {
         if (!ac.signal.aborted) setView(result);

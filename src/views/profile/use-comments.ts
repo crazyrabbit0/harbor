@@ -32,13 +32,20 @@ export function useComments(handle: string): CommentsController {
   const [hasMore, setHasMore] = useState(false);
   const [sending, setSending] = useState(false);
   const lastSentAt = useRef(0);
+  const loadKey = `${handle}|${authKey ?? ""}`;
+  const [seenLoadKey, setSeenLoadKey] = useState(loadKey);
+  if (seenLoadKey !== loadKey) {
+    setSeenLoadKey(loadKey);
+    if (handle) {
+      setState("loading");
+      setComments([]);
+      setCursor(undefined);
+    }
+  }
 
   useEffect(() => {
     if (!handle) return;
     const ac = new AbortController();
-    setState("loading");
-    setComments([]);
-    setCursor(undefined);
     fetchComments(handle, undefined, ac.signal)
       .then((page) => {
         if (ac.signal.aborted) return;

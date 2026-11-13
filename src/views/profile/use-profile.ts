@@ -73,14 +73,22 @@ export function useProfile(handle: string): ProfileBundle {
 
   useEffect(() => subscribeAuthor(() => setAuthorId(currentAuthor()?.id ?? "")), []);
 
+  const loadKey = `${handle}|${authKey ?? ""}|${authorId}|${nonce}`;
+  const [seenLoadKey, setSeenLoadKey] = useState(loadKey);
+  if (seenLoadKey !== loadKey) {
+    setSeenLoadKey(loadKey);
+    if (handle) {
+      setState("loading");
+      setSummary(null);
+      setFriends([]);
+      setBadges([]);
+      setActivity([]);
+    }
+  }
+
   useEffect(() => {
     if (!handle) return;
     const ac = new AbortController();
-    setState("loading");
-    setSummary(null);
-    setFriends([]);
-    setBadges([]);
-    setActivity([]);
     fetchSummary(handle, ac.signal)
       .then((s) => {
         if (ac.signal.aborted) return;

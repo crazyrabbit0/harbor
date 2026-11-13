@@ -78,12 +78,14 @@ function SongTimes({ url, onChange }: { url: string; onChange: (u: string) => vo
     const p = audioTimes(url);
     return p.endSec != null ? formatClock(p.endSec) : "";
   });
-  useEffect(() => {
+  // Resync only when the song itself changes, not on every start/end keystroke.
+  const [timesFor, setTimesFor] = useState(songKey);
+  if (timesFor !== songKey) {
+    setTimesFor(songKey);
     const p = audioTimes(url);
     setStart(p.startSec != null ? formatClock(p.startSec) : "");
     setEnd(p.endSec != null ? formatClock(p.endSec) : "");
-    // Resync only when the song itself changes, not on every start/end keystroke.
-  }, [songKey]);
+  }
   if (parsed?.provider !== "youtube") return null;
   const commit = (s: string, e: string) =>
     onChange(setAudioTimes(url, parseClockToSec(s), parseClockToSec(e)));

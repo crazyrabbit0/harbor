@@ -22,6 +22,10 @@ export function requestEditProfile(handle: string): void {
   requestOpenProfile(h);
 }
 
+export function hasProfileEditIntent(handle: string): boolean {
+  return !!pendingEditHandle && pendingEditHandle === handle.trim().toLowerCase();
+}
+
 export function consumeProfileEditIntent(handle: string): boolean {
   const h = handle.trim().toLowerCase();
   if (pendingEditHandle && pendingEditHandle === h) {

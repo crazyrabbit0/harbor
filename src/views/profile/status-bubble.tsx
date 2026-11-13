@@ -37,10 +37,11 @@ export function StatusBubble({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
   const ref = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
+  const [valueFor, setValueFor] = useState(slogan);
+  if (valueFor !== slogan) {
+    setValueFor(slogan);
     setValue(slogan ?? "");
-  }, [slogan]);
+  }
 
   useEffect(() => {
     if (editing) ref.current?.focus();

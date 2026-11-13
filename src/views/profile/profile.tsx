@@ -24,7 +24,7 @@ import { useCustomLists } from "@/lib/custom-lists";
 import { currentAuthor } from "@/lib/theme-auth";
 import { useScrollMemory, useViewActions } from "@/lib/view";
 import { pushBackHandler } from "@/lib/back-intercept";
-import { consumeProfileEditIntent } from "@/lib/social/open-profile";
+import { consumeProfileEditIntent, hasProfileEditIntent } from "@/lib/social/open-profile";
 import { BadgesRow } from "./badges-row";
 import { CommentsSection } from "./comments-section";
 import { FriendsPanel } from "./friends-panel";
@@ -127,8 +127,14 @@ export function ProfileView({
     watchedBreakdown,
   ]);
 
+  const intentKey = isOwner ? handle : null;
+  const [intentFor, setIntentFor] = useState<string | null>(null);
+  if (intentFor !== intentKey) {
+    setIntentFor(intentKey);
+    if (intentKey !== null && hasProfileEditIntent(intentKey)) setEditing(true);
+  }
   useEffect(() => {
-    if (isOwner && consumeProfileEditIntent(handle)) setEditing(true);
+    if (isOwner) consumeProfileEditIntent(handle);
   }, [isOwner, handle]);
 
   useEffect(() => {

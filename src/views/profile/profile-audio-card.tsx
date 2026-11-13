@@ -48,11 +48,27 @@ export function ProfileAudioCard({ audioUrl }: { audioUrl?: string }) {
     ? parseProfileAudio(audioUrl, { autoplay: true, muted: mountMuted })
     : null;
 
-  useEffect(() => {
+  const [seenUrl, setSeenUrl] = useState(audioUrl);
+  if (seenUrl !== audioUrl) {
+    setSeenUrl(audioUrl);
     setStarted(false);
     setPlaying(false);
     setMuted(false);
     setMeta(null);
+  }
+
+  const autoKey = `${audioUrl ?? ""}|${mode}`;
+  const [seenAutoKey, setSeenAutoKey] = useState<string | null>(null);
+  if (seenAutoKey !== autoKey) {
+    setSeenAutoKey(autoKey);
+    if (audio && mode === "auto") {
+      setMountMuted(muted);
+      setStarted(true);
+      setPlaying(true);
+    }
+  }
+
+  useEffect(() => {
     if (!audio) return;
     const ctrl = new AbortController();
     void fetchAudioMeta(audio, ctrl.signal).then((m) => {
@@ -66,14 +82,6 @@ export function ProfileAudioCard({ audioUrl }: { audioUrl?: string }) {
     setStarted(true);
     setPlaying(true);
   };
-
-  useEffect(() => {
-    if (audio && mode === "auto") {
-      setMountMuted(muted);
-      setStarted(true);
-      setPlaying(true);
-    }
-  }, [audioUrl, mode]);
 
   // Real pause/resume against the mounted embed, so the song keeps its position
   // instead of the iframe being torn down and rebuilt from the start.

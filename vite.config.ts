@@ -27,7 +27,7 @@ const REACT_COMPILER_RULES = [
 // Default react-plugin warnings left off: too many existing call sites (check:react-compiler covers memo deps).
 const REACT_COMPILER_RULES_OFF = ["incompatible-library", "set-state-in-effect"];
 // Folders already free of setState in effect bodies, where `vp check` enforces set-state-in-effect.
-const SET_STATE_IN_EFFECT_DIRS = ["/src/chrome/"];
+const SET_STATE_IN_EFFECT_DIRS = ["/src/chrome/", "/src/views/profile/"];
 // Babel runs only on these folders; every other file skips it and goes straight to esbuild.
 const compilesReact = (id: string) =>
   REACT_COMPILER_DIRS.some((dir) => id.replace(/\\/g, "/").includes(dir));
