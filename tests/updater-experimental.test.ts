@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import ts from "typescript";
+import { componentHarness, elements } from "./helpers/component-harness.ts";
 import * as experimental from "../src/lib/updater/experimental.ts";
 import ar from "../src/lib/i18n/locales/ar/experimental-updates.ts";
 import pt from "../src/lib/i18n/locales/pt/experimental-updates.ts";
@@ -1030,17 +1031,55 @@ test("experimental copy has matching translation keys and interpolation tokens",
   }
 });
 
+function updatesPanel(options: { access: boolean; installed: boolean; inApp?: boolean }) {
+  const h = componentHarness(
+    "src/views/settings/updates-panel.tsx",
+    "UpdatesPanel",
+    {
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/components/update/experimental-changelog": { ExperimentalChangelog: "Changelog" },
+      "@/lib/updater/in-app-updates": { useInAppUpdatesSupported: () => options.inApp ?? true },
+      "./shared": { Section: "Section" },
+      "./advanced-panel": { UpdatesRow: "UpdatesRow" },
+      "./rollback-row": { RollbackRow: "RollbackRow" },
+      "./build-feedback": { BuildFeedback: "BuildFeedback" },
+      "./backup-row": { BackupRow: "BackupRow" },
+      "./settings-recover-row": { SettingsRecoverRow: "SettingsRecoverRow" },
+      "./experimental-builds-section": { ExperimentalBuildsSection: "ExperimentalBuilds" },
+      "@/lib/updater/beta-return": {
+        readBetaReturnContext: () => (options.installed ? { version: "0.9.122" } : null),
+      },
+      "@/lib/updater/experimental-access": { useExperimentalAccess: () => options.access },
+    },
+    { __APP_VERSION__: "0.9.123" },
+  );
+  return [...elements(h.render())].map((el) =>
+    el.type === "Section" ? `Section:${el.props.title}` : String(el.type),
+  );
+}
+
 test("experimental settings live between updates and backup, with search pointing to that page", () => {
   const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-  const updates = source("src/views/settings/updates-panel.tsx");
   const advanced = source("src/views/settings/advanced-panel/system-tab.tsx");
   const navigation = source("src/views/settings/nav.tsx");
   const experimentalSection = source("src/views/settings/experimental-builds-section.tsx");
-  const placement = updates.indexOf("<ExperimentalBuildsSection />");
 
-  assert.equal(updates.match(/<ExperimentalBuildsSection\s*\/>/g)?.length, 1);
-  assert.ok(updates.indexOf('title={t("Updates")}') < placement);
-  assert.ok(placement < updates.indexOf('title={t("Backup & restore")}'));
+  for (const [access, installed] of [
+    [true, false],
+    [false, true],
+  ]) {
+    const order = updatesPanel({ access, installed });
+    const placement = order.indexOf("ExperimentalBuilds");
+    assert.equal(order.filter((name) => name === "ExperimentalBuilds").length, 1);
+    assert.ok(order.indexOf("Section:Updates") < placement);
+    assert.ok(placement < order.indexOf("Section:Backup & restore"));
+  }
+  assert.equal(
+    updatesPanel({ access: false, installed: false }).includes("ExperimentalBuilds"),
+    false,
+  );
+  assert.ok(updatesPanel({ access: false, installed: false }).includes("RollbackRow"));
+  assert.equal(updatesPanel({ access: true, installed: true }).includes("RollbackRow"), false);
   assert.ok(!advanced.includes("ExperimentalBuildsSection"));
   assert.match(
     navigation,

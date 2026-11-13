@@ -2,11 +2,17 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { hookHarness } from "./helpers/hook-harness.ts";
+import { findElement } from "./helpers/component-harness.ts";
+import { musicDockHarness } from "./helpers/music-dock-harness.ts";
 import { all, nowPlaying } from "./helpers/music-now-playing-harness.ts";
 
-// music-dock.tsx is too large to load, so its wiring is checked line by line.
-const dock = readFileSync("src/components/music/music-dock.tsx", "utf8");
 const css = readFileSync("src/components/music/music-now-playing.css", "utf8");
+
+/** The now-playing sheet in a rendered dock tree, if it is mounted. */
+const sheetIn = (tree: unknown) =>
+  findElement(tree, (el) => typeof el.props.onExplore === "function");
+const expandButton = (tree: unknown) =>
+  findElement(tree, (el) => "data-music-dock-art" in el.props)!;
 
 function modalExit(reduce = false) {
   const timers: { fn: () => void; ms: number }[] = [];
@@ -41,16 +47,35 @@ test("closing the pull-out runs an exit before it unmounts", () => {
   assert.equal(exit.timers.length, 1);
   exit.timers[0].fn();
   assert.deepEqual(exit.closes, [1], "the unmount runs after the exit delay");
-  assert.match(dock, /^\s*const nowExit = useModalExit\(closeExpanded, expanded\);$/m);
-  assert.match(dock, /^\s*onClose=\{nowExit\.close\}$/m);
-  assert.match(dock, /^\s*closing=\{nowExit\.closing\}$/m);
 });
 
-test("the exit hook sits above the dock's early return, or the app white-screens", () => {
-  const hook = dock.indexOf("useModalExit(closeExpanded");
-  const guard = dock.indexOf("if (!visible || !current");
-  assert.ok(hook > 0 && guard > 0, "anchors not found");
-  assert.ok(hook < guard, "a hook below the early return throws Rendered fewer hooks");
+test("the dock routes the pull-out's close through its exit hook", () => {
+  const dock = musicDockHarness();
+  assert.equal(sheetIn(dock.render()), undefined);
+  assert.equal(dock.exits[0].open, false, "the sheet's exit starts closed");
+  expandButton(dock.render()).props.onClick();
+  const open = dock.render();
+  assert.equal(dock.exits[0].open, true, "expanding opens the sheet's exit");
+  assert.equal(sheetIn(open)!.props.closing, false);
+  sheetIn(open)!.props.onClose();
+  assert.equal(dock.exits[0].closed, 1, "Close goes through the exit, not straight to unmount");
+  assert.equal(sheetIn(dock.render()), undefined, "the exit's close collapses the sheet");
+  expandButton(dock.render()).props.onClick();
+  assert.equal(sheetIn(dock.renderClosing(0))!.props.closing, true, "closing reaches the sheet");
+});
+
+test("the exit hooks run even when the dock returns early, or the app white-screens", () => {
+  const dock = musicDockHarness();
+  dock.render();
+  const hooks = dock.exitCalls();
+  assert.ok(hooks >= 1);
+  dock.setTopKind("player");
+  assert.equal(dock.render(), null, "the dock hides behind the player");
+  assert.equal(
+    dock.exitCalls(),
+    hooks,
+    "a hook below the early return throws Rendered fewer hooks",
+  );
 });
 
 test("the sheet reflects the closing state in the DOM", async () => {
