@@ -41,6 +41,7 @@ function addonsHarness(response) {
     "./auth": {},
     "./addons": {},
     "./addons-store/reorder": {},
+    "@/lib/durable-store": { durableSetItem: (key, value) => localStorage.setItem(key, value) },
   });
   const streams = load(
     "src/lib/streams/addons.ts",

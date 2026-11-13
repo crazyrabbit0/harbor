@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import {
   createContext,
   useCallback,
@@ -103,7 +104,7 @@ export function FavoritesProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(items.values())));
+      durableSetItem(STORAGE_KEY, JSON.stringify(Array.from(items.values())));
     } catch {}
   }, [items]);
 

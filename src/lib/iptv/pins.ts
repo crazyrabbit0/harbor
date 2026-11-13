@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { useSyncExternalStore } from "react";
 
 const KEY = "harbor.iptv.pins.v1";
@@ -20,7 +21,7 @@ function load(): string[] {
 function persist(next: string[]) {
   cache = next;
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    durableSetItem(KEY, JSON.stringify(next));
   } catch {}
   for (const l of listeners) l();
 }

@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 export type LearnCard = {
   title: string;
   text: string;
@@ -39,7 +40,7 @@ export function saveStars(topicId: string, stars: number): Progress {
   const cur = loadStars();
   const next = { ...cur, [topicId]: Math.max(cur[topicId] ?? 0, stars) };
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(next));
+    durableSetItem(STORE_KEY, JSON.stringify(next));
   } catch {
     /* noop */
   }

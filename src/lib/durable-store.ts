@@ -39,6 +39,37 @@ export const DURABLE_PREFIXES = [
   "harbor.ebook.read-later.v1",
   // Saved games, keyed harbor.games.saved.v1:<profile>.
   "harbor.games.saved.v1",
+  // Games library choices per profile: collections, Steam imports, pins and covers, custom games and notes.
+  "harbor.games.collections.v1",
+  "harbor.games.steam-imports.v1",
+  "harbor.games.presentation.v1",
+  "harbor.games.custom.v1",
+  "harbor.games.notes.v1",
+  // Installed addons (manifests slimmed, no inline images), the disabled set and the display order.
+  "harbor.installed-addons",
+  "harbor.addons.disabled",
+  "harbor.addonOrder",
+  // Live TV favorites, pinned channels and per-playlist group and country choices.
+  "harbor.iptv.favorites.v2",
+  "harbor.iptv.pins.v1",
+  "harbor.iptv.groupPrefs.v1",
+  "harbor.iptv.countryPrefs.v1",
+  // Sports reminders and streams attached to leagues or games.
+  "harbor.sports.reminders.v1",
+  "harbor.sports.sources.v1",
+  // Discovery queue saves and blocks (not the 14-day snoozes).
+  "harbor.feed.saved",
+  "harbor.feed.blocked",
+  // Layout and presets the user built: pinned catalogs, detail sections, subtitle presets, hover styles, music EQ.
+  "harbor.pinnedcatalogs.v1",
+  "harbor.detailLayout",
+  "harbor.sub.presets.v1",
+  "harbor.custom-hover.v1",
+  "harbor.music.listening-profiles.v1",
+  // Home-server connections (tokens live in secrets.json), auto-download series and kids' quiz stars.
+  "harbor.media-server.connections.v1",
+  "harbor.auto-download.v1",
+  "harbor.kids.learn.v1",
 ];
 
 // Set once this WebView profile has been reconciled with user-data.json; without it the file's keys are restored.

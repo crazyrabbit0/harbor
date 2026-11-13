@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 const KEY = "harbor.custom-hover.v1";
 
 export type CustomHoverConfig = {
@@ -51,7 +52,7 @@ function write(list: CustomHoverConfig[]): void {
   cache = list;
   version += 1;
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    durableSetItem(KEY, JSON.stringify(list));
   } catch {
     /* noop */
   }

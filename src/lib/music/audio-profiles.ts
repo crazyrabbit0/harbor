@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { normalizeMusicAudio, type MusicAudioSettingsValue } from "./audio-settings";
 
 export type ListeningProfile = { id: string; name: string; settings: MusicAudioSettingsValue };
@@ -37,7 +38,7 @@ export function readListeningProfiles(): ListeningProfile[] {
 
 export function writeListeningProfiles(profiles: ListeningProfile[]): void {
   // Do not report a saved equipment profile if persistent storage rejected it.
-  localStorage.setItem(KEY, JSON.stringify(profiles.slice(0, MAX_LISTENING_PROFILES)));
+  durableSetItem(KEY, JSON.stringify(profiles.slice(0, MAX_LISTENING_PROFILES)));
 }
 
 export function loadListeningProfile(

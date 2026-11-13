@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 export type DetailCustomization = {
   order: string[];
   hidden: string[];
@@ -22,7 +23,7 @@ export function loadDetailCustomization(): DetailCustomization {
 
 export function saveDetailCustomization(c: DetailCustomization): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(c));
+    durableSetItem(KEY, JSON.stringify(c));
   } catch {
     void 0;
   }

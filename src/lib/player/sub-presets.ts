@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { useSyncExternalStore } from "react";
 import type { Settings } from "@/lib/settings";
 
@@ -97,7 +98,7 @@ export function loadSubPresets(): SubPreset[] {
 
 export function saveSubPresets(list: SubPreset[]): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(list.slice(0, 12)));
+    durableSetItem(KEY, JSON.stringify(list.slice(0, 12)));
   } catch {}
 }
 

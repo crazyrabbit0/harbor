@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 const KEY = "harbor.feed.saved";
 
 type Entry = { id: string; savedAt: number };
@@ -15,7 +16,7 @@ function read(): Entry[] {
 
 function write(list: Entry[]) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(list));
+    durableSetItem(KEY, JSON.stringify(list));
   } catch {
     /* ignore */
   }

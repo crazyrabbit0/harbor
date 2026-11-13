@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { sourceOrigin } from "./source-origin";
 import { parseCollectionRules, type CollectionRules } from "./collection-rules";
 import type { GameSummary } from "./types";
@@ -339,7 +340,7 @@ export function changePersonalCollections(
       raw = JSON.stringify(next);
     if (new TextEncoder().encode(raw).length > MAX_BYTES) throw Error("collections_limit");
     const checked = parsePersonalCollections(raw);
-    localStorage.setItem(key, raw);
+    durableSetItem(key, raw);
     return checked;
   };
   const pending = (writes.get(key) ?? Promise.resolve())

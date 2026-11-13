@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { useSyncExternalStore } from "react";
 import type { Meta } from "@/lib/cinemeta";
 
@@ -68,7 +69,7 @@ function load(): AutoDlSeries[] {
 
 function persist(): void {
   try {
-    localStorage.setItem(KEY, JSON.stringify(items));
+    durableSetItem(KEY, JSON.stringify(items));
   } catch {}
   listeners.forEach((l) => l());
 }
