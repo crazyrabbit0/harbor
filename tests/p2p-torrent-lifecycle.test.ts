@@ -11,6 +11,7 @@ import { skipsPreflight } from "../src/lib/streams/link-readiness.ts";
 import { emptySnapshot } from "../src/lib/player/bridge.ts";
 import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness.ts";
 import { pickHandlerHarness } from "./helpers/pick-handler-harness.ts";
+import { componentHarness, findElement, stubModule } from "./helpers/component-harness.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 const engine = read("src-tauri/src/torrent_engine.rs");
@@ -754,11 +755,111 @@ test("slow P2P discovery reports its real phase and a recoverable failure", () =
   assert.ok([cancel.props.children].flat().includes("Choose another source"));
 });
 
-test("closing magnet setup removes a newly-created torrent before player handoff", () => {
-  const magnetCard = read("src/components/search/magnet-card.tsx");
-  assert.match(magnetCard, /scheduleAbandonedTorrentRemoval\(infoHash, 0\)/);
-  assert.match(magnetCard, /if \(added\.already_managed !== true\) pendingEngineRef\.current/);
-  assert.match(magnetCard, /pendingEngineRef\.current = null;\s*onClose\(\);\s*openPlayer\(src\)/);
+/** Runs the real `MagnetCard` against a scripted local engine. */
+function magnetCard(added: Record<string, unknown> | null) {
+  const removals: Array<[string, number]> = [];
+  const events: string[] = [];
+  const opened: Array<{ url: string }> = [];
+  const h = componentHarness(
+    "src/components/search/magnet-card.tsx",
+    "MagnetCard",
+    {
+      "lucide-react": stubModule(),
+      "@/components/icons/play-filled": stubModule(),
+      "parse-torrent-title": { parse: () => ({ title: "" }) },
+      "@/lib/stremio-server": {
+        awaitCastServerReady: async () => true,
+        remoteStreamServerUrl: () => null,
+      },
+      "@/lib/torrent/magnet": {
+        parseMagnet: () => ({ infoHash: HASH, trackers: [], name: "Movie.2020.mkv" }),
+      },
+      "@/lib/torrent/stremio-stream": {
+        buildTorrentStreamUrl: () => "unused",
+        createAndListFiles: async () => null,
+        isVideoFile: (f: { name: string }) => f.name.endsWith(".mkv"),
+      },
+      "@/lib/torrent/local-engine": {
+        lastEngineAddError: () => null,
+        scheduleAbandonedTorrentRemoval: (hash: string, ms: number) => removals.push([hash, ms]),
+        torrentEngineAdd: async () => added,
+        torrentEngineSelect: async () => void events.push("select"),
+      },
+      "@/lib/search": { searchCinemeta: async () => ({ movies: [], series: [] }) },
+      "@/lib/cinemeta": { meta: async () => null },
+      "./result-poster": stubModule(),
+      "@/lib/view": {
+        useViewActions: () => ({
+          openPlayer: (src: { url: string }) => (events.push("open"), opened.push(src)),
+        }),
+      },
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/release-info": { releaseYear: () => NaN },
+    },
+    { window: { __TAURI_INTERNALS__: {} } },
+  );
+  const tree = h.render({
+    raw: `magnet:?xt=urn:btih:${HASH}`,
+    onClose: () => events.push("close"),
+  });
+  const play = findElement(tree, (el) => el.type === "button")!;
+  return {
+    play: async () => (play.props.onClick(), await flushPromises()),
+    h,
+    removals,
+    events,
+    opened,
+  };
+}
+
+const engineFiles = (...names: string[]) =>
+  names.map((name, idx) => ({ idx, name, length: 1000 - idx }));
+
+test("closing magnet setup removes a newly-created torrent before player handoff", async () => {
+  const fresh = magnetCard({
+    info_hash: OTHER,
+    stream_base: "http://127.0.0.1:11470",
+    files: engineFiles("a.mkv", "b.mkv"),
+  });
+  await fresh.play();
+  assert.deepEqual(fresh.removals, [], "nothing is removed while the file list is open");
+  fresh.h.unmount();
+  assert.deepEqual(fresh.removals, [[OTHER, 0]], "closing the picker removes the torrent it added");
+
+  const owned = magnetCard({
+    info_hash: OTHER,
+    stream_base: "http://127.0.0.1:11470",
+    files: engineFiles("a.mkv", "b.mkv"),
+    already_managed: true,
+  });
+  await owned.play();
+  owned.h.unmount();
+  assert.deepEqual(owned.removals, [], "a torrent another owner manages is left alone");
+
+  const single = magnetCard({
+    info_hash: OTHER,
+    stream_base: "http://127.0.0.1:11470",
+    files: engineFiles("movie.mkv", "sample.txt"),
+  });
+  await single.play();
+  assert.deepEqual(
+    single.events,
+    ["select", "close", "open"],
+    "the card closes before the player opens",
+  );
+  assert.equal(single.opened[0].url, `http://127.0.0.1:11470/${OTHER}/0`);
+  single.h.unmount();
+  assert.deepEqual(single.removals, [], "the player owns the torrent once it opens");
+
+  const empty = magnetCard({
+    info_hash: OTHER,
+    stream_base: "http://127.0.0.1:11470",
+    files: engineFiles("readme.txt"),
+  });
+  await empty.play();
+  assert.deepEqual(empty.removals, [[OTHER, 0]], "a torrent with no video is removed at once");
+  empty.h.unmount();
+  assert.equal(empty.removals.length, 1);
 });
 
 test("failed P2P preparation is discarded in the native engine", () => {
