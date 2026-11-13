@@ -41,10 +41,16 @@ export function Cell({
   const retryTimer = useRef<number | null>(null);
   const attemptsUsed = useRef(0);
 
-  useEffect(() => {
-    attemptsUsed.current = 0;
+  const channelUrl = channel?.url;
+  const [statusFor, setStatusFor] = useState(channelUrl);
+  if (statusFor !== channelUrl) {
+    setStatusFor(channelUrl);
     setAttempt(0);
     setStatus("loading");
+  }
+
+  useEffect(() => {
+    attemptsUsed.current = 0;
     if (retryTimer.current != null) {
       window.clearTimeout(retryTimer.current);
       retryTimer.current = null;

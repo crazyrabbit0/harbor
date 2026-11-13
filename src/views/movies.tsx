@@ -57,19 +57,13 @@ export function Movies({ active = true }: { active?: boolean }) {
 
   useScrollMemory("movies", scrollRef, active);
 
+  const letterboxdRowsEnabled =
+    letterboxd.isActive &&
+    !(letterboxd.mode === "full" && !letterboxd.session) &&
+    !(letterboxd.mode === "public" && !letterboxd.configSegment);
+  if (!letterboxdRowsEnabled && letterboxdRows.length > 0) setLetterboxdRows([]);
   useEffect(() => {
-    if (!letterboxd.isActive) {
-      setLetterboxdRows([]);
-      return;
-    }
-    if (letterboxd.mode === "full" && !letterboxd.session) {
-      setLetterboxdRows([]);
-      return;
-    }
-    if (letterboxd.mode === "public" && !letterboxd.configSegment) {
-      setLetterboxdRows([]);
-      return;
-    }
+    if (!letterboxdRowsEnabled) return;
     let cancelled = false;
     buildLetterboxdHomeRows({
       configSegment: letterboxd.configSegment,
@@ -87,6 +81,7 @@ export function Movies({ active = true }: { active?: boolean }) {
       cancelled = true;
     };
   }, [
+    letterboxdRowsEnabled,
     letterboxd.isActive,
     letterboxd.mode,
     letterboxd.configSegment,
@@ -102,10 +97,16 @@ export function Movies({ active = true }: { active?: boolean }) {
     setScrollEl(el);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
+  const catalogKey = `${settings.tmdbKey}\n${settings.region}`;
+  const [catalogFor, setCatalogFor] = useState(catalogKey);
+  if (catalogFor !== catalogKey) {
+    setCatalogFor(catalogKey);
     setHero([]);
     setRows([]);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
     (async () => {
       const seen = recentlyPlayed();
       if (settings.tmdbKey) {

@@ -80,16 +80,18 @@ export function PersonView({ personId }: { personId: number }) {
   );
   useScrollMemory(`person:${personId}`, scrollRef);
 
-  useEffect(() => {
-    let cancelled = false;
+  const personKey = `${personId}\n${settings.tmdbKey}`;
+  const [personFor, setPersonFor] = useState(personKey);
+  if (personFor !== personKey) {
+    setPersonFor(personKey);
     const cached = tmdbPersonCached(personId);
-    if (cached) {
-      setPerson(cached);
-      setLoading(false);
-      return;
-    }
-    setPerson(null);
-    setLoading(true);
+    setPerson(cached ?? null);
+    setLoading(!cached);
+  }
+
+  useEffect(() => {
+    if (!loading) return;
+    let cancelled = false;
     tmdbPerson(settings.tmdbKey, personId).then((p) => {
       if (cancelled) return;
       setPerson(p);
@@ -98,7 +100,7 @@ export function PersonView({ personId }: { personId: number }) {
     return () => {
       cancelled = true;
     };
-  }, [personId, settings.tmdbKey]);
+  }, [loading, personId, settings.tmdbKey]);
 
   const sortedCast = useMemo(
     () => (person ? dedupe(person.cast).sort((a, b) => b.popularity - a.popularity) : []),

@@ -26,9 +26,14 @@ export const VodCard = memo(function VodCard({
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [poster, setPoster] = useState<string | null>(logo);
   const ref = useRef<HTMLButtonElement>(null);
+  const posterKey = `${settings.tmdbKey}\n${kind}\n${title}\n${year}\n${logo}`;
+  const [posterFor, setPosterFor] = useState(posterKey);
+  if (posterFor !== posterKey) {
+    setPosterFor(posterKey);
+    setPoster(logo);
+  }
 
   useEffect(() => {
-    setPoster(logo);
     if (!settings.tmdbKey) return;
     const el = ref.current;
     if (!el) return;

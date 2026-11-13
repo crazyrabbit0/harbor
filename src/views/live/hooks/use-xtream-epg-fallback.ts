@@ -22,11 +22,11 @@ export function useXtreamEpgFallback(
   const baseEmpty = !base || base.byChannel.size === 0;
   const subset = useMemo(() => channels.slice(0, MAX_CHANNELS), [channels]);
 
+  const fallbackActive = !!creds && baseEmpty && subset.length > 0;
+  if (!fallbackActive && augmented !== null) setAugmented(null);
+
   useEffect(() => {
-    if (!creds || !baseEmpty || subset.length === 0) {
-      setAugmented(null);
-      return;
-    }
+    if (!creds || !fallbackActive) return;
     let cancelled = false;
     hydrateShortEpg(creds, subset, base)
       .then((idx) => {
@@ -36,7 +36,7 @@ export function useXtreamEpgFallback(
     return () => {
       cancelled = true;
     };
-  }, [creds, baseEmpty, subset, base]);
+  }, [creds, fallbackActive, baseEmpty, subset, base]);
 
   return augmented && baseEmpty ? augmented : base;
 }

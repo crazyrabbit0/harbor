@@ -38,10 +38,15 @@ export function useCollaborators(person: PersonDetail | null): Collaborator[] {
     () => (personId ? readCollaborators(personId) : null) ?? [],
   );
 
+  const [seen, setSeen] = useState({ personId, sample, key: settings.tmdbKey });
+  if (seen.personId !== personId || seen.sample !== sample || seen.key !== settings.tmdbKey) {
+    setSeen({ personId, sample, key: settings.tmdbKey });
+    if (personId) setPeople(readCollaborators(personId) ?? []);
+  }
+
   useEffect(() => {
     if (!personId) return;
     const cached = readCollaborators(personId);
-    setPeople(cached ?? []);
     const key = settings.tmdbKey;
     if (cached || !key || sample.length === 0) return;
     let cancelled = false;

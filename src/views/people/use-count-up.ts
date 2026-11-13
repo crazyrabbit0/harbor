@@ -12,11 +12,11 @@ export function useCountUp(target: number, ms = 480): number {
   const reduced = prefersReducedMotion();
   const [value, setValue] = useState(() => (reduced ? target : 0));
   const fromRef = useRef(reduced ? target : 0);
+  if (reduced && value !== target) setValue(target);
 
   useEffect(() => {
     if (reduced) {
       fromRef.current = target;
-      setValue(target);
       return;
     }
     const from = fromRef.current;

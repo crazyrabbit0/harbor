@@ -160,9 +160,15 @@ export function PluginHero({
     catalogsRef.current = catalogs;
   }, [catalogs]);
 
+  const slidesKey = `${key}\n${tmdbKey}`;
+  const [slidesFor, setSlidesFor] = useState(slidesKey);
+  if (slidesFor !== slidesKey) {
+    setSlidesFor(slidesKey);
+    setSlides([]);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setSlides([]);
     const rows = rowsAcrossPlugins(catalogsRef.current, HERO_ROWS);
     if (!rows.length) return;
     void (async () => {

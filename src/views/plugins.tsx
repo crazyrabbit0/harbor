@@ -55,6 +55,12 @@ export function Plugins({ active = true }: { active?: boolean }) {
   const searchGen = useRef(0);
   void active;
 
+  const [loadingFor, setLoadingFor] = useState(authKey);
+  if (loadingFor !== authKey) {
+    setLoadingFor(authKey);
+    setLoading(true);
+  }
+
   const load = useCallback(() => {
     const gen = ++genRef.current;
     // The Plugins page is where a plugin's rows belong, so it asks for them whatever the setting
@@ -78,7 +84,6 @@ export function Plugins({ active = true }: { active?: boolean }) {
     // when it was last opened.
     const stop = subscribeBrowseCatalogs(() => void load());
     const stopPlugins = subscribeStreamPlugins(() => void load());
-    setLoading(true);
     void load();
     return () => {
       genRef.current += 1;
@@ -114,10 +119,13 @@ export function Plugins({ active = true }: { active?: boolean }) {
   // A remembered plugin can be uninstalled between visits, and a name no row answers to would
   // leave the tab showing nothing at all. Only checked once the plugins are known, so an empty
   // first render cannot wipe the choice.
-  useEffect(() => {
-    if (loading || !pluginFilter || !catalogs.length) return;
-    if (!catalogs.some((c) => c.addonName === pluginFilter)) setPluginFilter(ALL_PLUGINS);
-  }, [catalogs, loading, pluginFilter]);
+  if (
+    !loading &&
+    pluginFilter &&
+    catalogs.length > 0 &&
+    !catalogs.some((c) => c.addonName === pluginFilter)
+  )
+    setPluginFilter(ALL_PLUGINS);
 
   // The picker and the hero read the same selection, so a chosen plugin's rows are what the tab
   // lists and what the hero is made of.
@@ -141,9 +149,14 @@ export function Plugins({ active = true }: { active?: boolean }) {
   // whole search. The generation is checked on every preview too, or a slow search's early answers
   // would overwrite a newer search's. The results are dropped on the way in: the last title's rows
   // are not an answer to this one.
+  const askKey = `${askRun}\n${asked}`;
+  const [resultsFor, setResultsFor] = useState(askKey);
+  if (resultsFor !== askKey) {
+    setResultsFor(askKey);
+    setResults(null);
+  }
   useEffect(() => {
     const gen = ++searchGen.current;
-    setResults(null);
     if (!asked) return;
     void searchPlugins(asked, (partial) => {
       if (gen === searchGen.current) setResults(partial);

@@ -21,27 +21,28 @@ export function KidsDetailView({
   const t = useT();
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openPicker } = useViewActions();
-  const [base, setBase] = useState<Meta | null>(null);
-  const [detail, setDetail] = useState<TmdbDetail | null>(null);
+  const loadKey = `${meta.type}:${meta.id}:${settings.tmdbKey}`;
+  const [baseResult, setBaseResult] = useState<{ key: string; value: Meta } | null>(null);
+  const [detailResult, setDetailResult] = useState<{ key: string; value: TmdbDetail } | null>(null);
+  const base = baseResult?.key === loadKey ? baseResult.value : null;
+  const detail = detailResult?.key === loadKey ? detailResult.value : null;
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setBase(null);
-    setDetail(null);
     scrollRef.current?.scrollTo({ top: 0 });
     fetchMeta(narrowMediaType(meta.type), meta.id)
-      .then((full) => !cancelled && full && setBase(full))
+      .then((full) => !cancelled && full && setBaseResult({ key: loadKey, value: full }))
       .catch(() => {});
     if (settings.tmdbKey) {
       tmdbDetails(settings.tmdbKey, meta)
-        .then((d) => !cancelled && d && setDetail(d))
+        .then((d) => !cancelled && d && setDetailResult({ key: loadKey, value: d }))
         .catch(() => {});
     }
     return () => {
       cancelled = true;
     };
-  }, [meta.id, meta.type, settings.tmdbKey]);
+  }, [loadKey, meta.id, meta.type, settings.tmdbKey]);
 
   const backdrop = detail?.backdrop || base?.background || meta.background || meta.poster;
   const logo = detail?.logo || base?.logo || meta.logo;

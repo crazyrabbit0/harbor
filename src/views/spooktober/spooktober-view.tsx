@@ -71,9 +71,11 @@ function SpooktoberContent({ active, onBack, playlistRequest, entryToken }: Spoo
     visibility.current = isVisible;
   }, [isVisible]);
   const [shadowRoot, setShadowRoot] = useState<ShadowRoot | null>(null);
-  useEffect(() => {
+  const [seenRequest, setSeenRequest] = useState(playlistRequest);
+  if (seenRequest !== playlistRequest) {
+    setSeenRequest(playlistRequest);
     if (playlistRequest) setPlaylist(playlistRequest.id);
-  }, [playlistRequest]);
+  }
   const back = useCallback(() => {
     if (playlist) {
       const origin = playlistReturnFocus.current;

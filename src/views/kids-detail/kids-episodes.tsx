@@ -23,23 +23,24 @@ export function KidsEpisodes({
   const { openPicker } = useViewActions();
   const [season, setSeason] = useState(seasons[0]?.seasonNumber ?? 1);
   const [eps, setEps] = useState<Episode[]>([]);
-  const [loading, setLoading] = useState(true);
+  const loadKey = `${settings.tmdbKey}:${tvId}:${season}`;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const loading = loadedKey !== loadKey;
 
   useEffect(() => {
     if (!settings.tmdbKey) return;
     let cancelled = false;
-    setLoading(true);
     tmdbSeasonEpisodes(settings.tmdbKey, tvId, season)
       .then((e) => {
         if (cancelled) return;
         setEps(e);
-        setLoading(false);
+        setLoadedKey(loadKey);
       })
-      .catch(() => !cancelled && setLoading(false));
+      .catch(() => !cancelled && setLoadedKey(loadKey));
     return () => {
       cancelled = true;
     };
-  }, [tvId, season, settings.tmdbKey]);
+  }, [loadKey, tvId, season, settings.tmdbKey]);
 
   const play = (ep: Episode) =>
     openPicker(

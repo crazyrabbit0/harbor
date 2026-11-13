@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { getCachedEpg, loadEpg, subscribeEpg } from "@/lib/iptv/epg-store";
 import { deriveEpgUrls } from "@/lib/iptv/m3u";
 import { findCurrent } from "@/lib/iptv/xmltv";
@@ -15,38 +15,38 @@ export function useEpg(
   const [index, setIndex] = useState<EpgIndex | null>(() =>
     source ? getCachedEpg(source.id) : null,
   );
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const extraKey = JSON.stringify(extraUrls);
   const sourceId = source?.id;
   const sourceUrl = source?.url;
   const sourceEpgUrl = source?.epgUrl;
-
-  useEffect(() => {
-    if (sourceId === undefined || sourceUrl === undefined) {
-      setIndex(null);
-      return;
-    }
+  const urlsKey = useMemo(() => {
+    if (sourceId === undefined || sourceUrl === undefined) return null;
     const own = sourceEpgUrl ? [sourceEpgUrl] : deriveEpgUrls(sourceUrl);
     const extras: string[] = JSON.parse(extraKey);
     const urls = [...new Set([...own, ...extras.filter(Boolean)])];
-    if (urls.length === 0) {
-      setIndex(null);
-      return;
-    }
+    return urls.length === 0 ? null : JSON.stringify(urls);
+  }, [sourceId, sourceUrl, sourceEpgUrl, extraKey]);
+  const requestKey =
+    urlsKey === null ? null : `${sourceId}\n${sourceUrl}\n${sourceEpgUrl}\n${extraKey}`;
+  const [settled, setSettled] = useState<{ key: string; error: string | null } | null>(null);
+  if (requestKey === null && settled !== null) setSettled(null);
+  const loading = requestKey !== null && settled?.key !== requestKey;
+  const error = requestKey !== null && settled?.key === requestKey ? settled.error : null;
+  if (requestKey === null && index !== null) setIndex(null);
+
+  useEffect(() => {
+    if (sourceId === undefined || urlsKey === null || requestKey === null) return;
+    const urls: string[] = JSON.parse(urlsKey);
     let cancelled = false;
-    setError(null);
-    setLoading(true);
     loadEpg({ playlistId: sourceId, urls })
       .then((idx) => {
         if (cancelled) return;
         setIndex(idx);
-        setLoading(false);
+        setSettled({ key: requestKey, error: null });
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(e instanceof Error ? e.message : String(e));
-        setLoading(false);
+        setSettled({ key: requestKey, error: e instanceof Error ? e.message : String(e) });
       });
     const unsub = subscribeEpg(() => {
       if (cancelled) return;
@@ -57,7 +57,7 @@ export function useEpg(
       cancelled = true;
       unsub();
     };
-  }, [sourceId, sourceUrl, sourceEpgUrl, extraKey]);
+  }, [sourceId, urlsKey, requestKey]);
 
   return { index, loading, error };
 }

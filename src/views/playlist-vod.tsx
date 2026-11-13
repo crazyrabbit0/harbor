@@ -78,14 +78,17 @@ export function PlaylistVodView({ active }: { active: boolean }) {
     : null;
   const tabItemCount = tab === "movies" ? library.movies.length : library.series.length;
 
-  useEffect(() => {
+  const [selectedFor, setSelectedFor] = useState(activeId);
+  if (selectedFor !== activeId) {
+    setSelectedFor(activeId);
     setSelected(null);
+  }
+  const pageKey = `${activeId}\n${tab}\n${query}`;
+  const [pageFor, setPageFor] = useState(pageKey);
+  if (pageFor !== pageKey) {
+    setPageFor(pageKey);
     setVisibleCount(PAGE_SIZE);
-  }, [activeId]);
-
-  useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [query, tab]);
+  }
 
   useEffect(
     () => () => {

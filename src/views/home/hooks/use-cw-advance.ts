@@ -271,13 +271,14 @@ export function useCwAdvance(
     airTick,
   ]);
 
+  if (!enabled && (advanced.size > 0 || extra.length > 0 || removed.size > 0)) {
+    setAdvanced(new Map());
+    setExtra([]);
+    setRemoved(new Set());
+  }
+
   useEffect(() => {
-    if (!enabled) {
-      setAdvanced((prev) => (prev.size === 0 ? prev : new Map()));
-      setExtra((prev) => (prev.length === 0 ? prev : []));
-      setRemoved((prev) => (prev.size === 0 ? prev : new Set()));
-      return;
-    }
+    if (!enabled) return;
     let cancelled = false;
     void (async () => {
       // Parent maps may still belong to the outgoing account during a profile

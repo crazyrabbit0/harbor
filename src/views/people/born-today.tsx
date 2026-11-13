@@ -14,12 +14,10 @@ export function BornToday({
   const t = useT();
   const [people, setPeople] = useState<FeaturedPerson[]>([]);
   const file = manifest?.featured?.find((f) => f.key === "born-today")?.file;
+  if (!file && people.length > 0) setPeople([]);
 
   useEffect(() => {
-    if (!file) {
-      setPeople([]);
-      return;
-    }
+    if (!file) return;
     let cancelled = false;
     fetchFeaturedPeople(file).then((list) => {
       if (!cancelled) setPeople(list.filter((p) => !p.deathday).slice(0, MAX_NAMES));

@@ -57,13 +57,17 @@ export function RowControls({
   const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
+  const [draftFor, setDraftFor] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const draftKey = editing ? name : null;
+  if (draftFor !== draftKey) {
+    setDraftFor(draftKey);
+    if (draftKey !== null) setDraft(draftKey);
+  }
+
   useEffect(() => {
-    if (editing) {
-      setDraft(name);
-      requestAnimationFrame(() => inputRef.current?.select());
-    }
+    if (editing) requestAnimationFrame(() => inputRef.current?.select());
   }, [editing, name]);
 
   const commit = () => {

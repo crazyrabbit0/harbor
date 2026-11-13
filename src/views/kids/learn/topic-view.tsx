@@ -11,9 +11,13 @@ export function TopicView({ topic, onDone }: { topic: LearnTopic; onDone: () => 
   const [imgFailed, setImgFailed] = useState(false);
   const card = topic.cards[idx];
   const last = idx === topic.cards.length - 1;
+  const [seenCard, setSeenCard] = useState(card);
+  if (seenCard !== card) {
+    setSeenCard(card);
+    setImgFailed(false);
+  }
 
   useEffect(() => {
-    setImgFailed(false);
     const next = topic.cards[idx + 1];
     if (next?.img) {
       const pre = new Image();

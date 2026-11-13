@@ -266,12 +266,11 @@ export function clearXtreamVodLibraryCache(id?: string) {
 
 export function useXtreamVodLibrary(source: IptvPlaylistSource | null) {
   const [snapshot, setSnapshot] = useState<Snapshot>(() => getSnapshot(source?.id));
+  const xtreamSource = !!source && source.kind === "xtream";
+  if (!xtreamSource && snapshot !== EMPTY) setSnapshot(EMPTY);
 
   useEffect(() => {
-    if (!source || source.kind !== "xtream") {
-      setSnapshot(EMPTY);
-      return;
-    }
+    if (!source || source.kind !== "xtream") return;
     const sync = () => setSnapshot(getSnapshot(source.id));
     listeners.add(sync);
     sync();
