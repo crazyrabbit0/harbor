@@ -59,7 +59,7 @@ async function pickImageFile(): Promise<File | null> {
     if (typeof picked !== "string") return null;
     const { readFile } = await import("@tauri-apps/plugin-fs");
     const bytes = await readFile(picked);
-    const name = picked.replace(/^.*[\/]/, "");
+    const name = picked.replace(/^.*[/]/, "");
     return new File([bytes as BlobPart], name, { type: mimeFor(name) });
   }
 

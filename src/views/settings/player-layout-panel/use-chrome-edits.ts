@@ -70,7 +70,7 @@ export function useChromeEdits(
     const baseline = THEME_BASELINES[theme].controls.find((c) => c.id === selectedId);
     if (!baseline) return;
     setDraft((cur) => {
-      const nextIcons = { ...(cur.customIcons ?? {}) };
+      const nextIcons = { ...cur.customIcons };
       for (const k of Object.keys(nextIcons)) {
         if (k === selectedId || k.startsWith(`${selectedId}:`)) delete nextIcons[k];
       }
@@ -85,7 +85,7 @@ export function useChromeEdits(
   const setCustomIcon = useCallback(
     (id: PlayerControlId, dataUrl: string | null, state?: string) => {
       setDraft((cur) => {
-        const nextIcons = { ...(cur.customIcons ?? {}) };
+        const nextIcons = { ...cur.customIcons };
         const k = state ? `${id}:${state}` : id;
         if (dataUrl == null) delete nextIcons[k];
         else nextIcons[k] = dataUrl;
@@ -114,7 +114,7 @@ export function useChromeEdits(
   const setPanelCorner = useCallback(
     (id: PanelId, corner: PanelCorner) => {
       setDraft((cur) => {
-        const panels = { ...(cur.panels ?? {}) };
+        const panels = { ...cur.panels };
         const prev = panels[id];
         panels[id] = { corner, hidden: prev?.hidden ?? false };
         return { ...cur, panels };
@@ -126,7 +126,7 @@ export function useChromeEdits(
   const togglePanelHidden = useCallback(
     (id: PanelId) => {
       setDraft((cur) => {
-        const panels = { ...(cur.panels ?? {}) };
+        const panels = { ...cur.panels };
         const prev = panels[id];
         panels[id] = {
           corner: prev?.corner ?? PANEL_META[id].defaultCorner,

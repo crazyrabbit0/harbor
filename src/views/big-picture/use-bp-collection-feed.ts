@@ -64,7 +64,7 @@ export function useBpCuratedRow(limit: number): {
     let alive = true;
     setSettled(false);
     const slice = COLLECTIONS_CATALOG.slice(0, limit).map((c, i) => ({ c, i }));
-    const found = new Array<BpCollectionEntry | null>(slice.length).fill(null);
+    const found = Array.from({ length: slice.length }, (): BpCollectionEntry | null => null);
     void bpMapLimit(slice, HYDRATE_LANES, async ({ c, i }) => {
       const hit = await resolveBpCollection(key, c.id, c.name);
       if (!alive || !hit) return;

@@ -81,7 +81,7 @@ export function useBpIntro(active: boolean, contentReady: boolean): BpIntroPhase
     // asked for. It is replayed once the fade is over.
     function skip(e: Event) {
       const key = e instanceof KeyboardEvent ? e.key : "";
-      if (/^Arrow/.test(key)) pendingKey = key;
+      if (key.startsWith("Arrow")) pendingKey = key;
       window.clearTimeout(cap);
       window.clearTimeout(leaveTimer);
       beginLeave();

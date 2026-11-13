@@ -21,7 +21,7 @@ function observer(): IntersectionObserver {
         if (!e.isIntersecting) continue;
         const subs = seen.get(e.target);
         if (!subs) continue;
-        for (const fn of [...subs]) fn();
+        for (const fn of Array.from(subs)) fn();
       }
     },
     { rootMargin: "150px" },

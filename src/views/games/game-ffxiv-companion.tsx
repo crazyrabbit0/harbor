@@ -386,7 +386,7 @@ function XivItemMarket({
               </div>
               <p className="games-ffxiv-note">{label("listingScope")}</p>
               {market.data.partial && <p>{label("partial")}</p>}
-              {!!market.data.listings.length ? (
+              {market.data.listings.length > 0 ? (
                 <div className="games-ffxiv-table">
                   <table>
                     <thead>

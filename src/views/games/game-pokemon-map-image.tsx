@@ -27,7 +27,7 @@ export function PokemonMapImage({ src, alt = "" }: { src: string; alt?: string }
     const controller = new AbortController();
     let blob = "";
     const load = async () => {
-      if (!/^https:\/\/archives\.bulbagarden\.net\/media\//.test(src)) return;
+      if (!src.startsWith("https://archives.bulbagarden.net/media/")) return;
       const headers = new Headers({ Accept: "image/png,image/jpeg,image/gif,image/webp" });
       if ("__TAURI_INTERNALS__" in window)
         headers.set("User-Agent", `Harbor/${APP_VERSION} (+https://harbor.site)`);

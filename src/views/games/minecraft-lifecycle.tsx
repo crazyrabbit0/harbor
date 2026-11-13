@@ -244,8 +244,8 @@ export function MinecraftLifecycle({
       destination = await save({
         title: t(k("export")),
         defaultPath: `${
-          instance.name
-            .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
+          Array.from(instance.name, (c) => (c < " " || '<>:"/\\|?*'.includes(c) ? "_" : c))
+            .join("")
             .replace(/[. ]+$/, "")
             .slice(0, 120) || "Minecraft"
         }.mrpack`,

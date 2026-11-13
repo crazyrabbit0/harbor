@@ -76,7 +76,7 @@ export function GameLibraryTitles({
       mounted.current = false;
       cancelAnimationFrame(focusFrame);
       document.removeEventListener("keydown", trap);
-      previous?.isConnected && previous.focus({ preventScroll: true });
+      if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
