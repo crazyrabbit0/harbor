@@ -13,7 +13,7 @@ import { useState } from "react";
 import type { ChromeConfig, ChromeNavId } from "@/lib/theme";
 import { useT } from "@/lib/i18n";
 import { NAV_CATALOG, NAV_LABELS } from "./chrome-config";
-import { iconComponent } from "./chrome-icons";
+import { CHROME_ICON_BY_ID } from "./chrome-icons";
 import { IconPicker } from "./icon-picker";
 
 export function CustomChromeBuilder({
@@ -181,7 +181,7 @@ function MenuItemRow({
   const t = useT();
   const [picking, setPicking] = useState(false);
   const isImage = !!iconId?.startsWith("data:");
-  const CurrentIcon = iconId && !isImage ? iconComponent(iconId) : undefined;
+  const CurrentIcon = iconId && !isImage ? CHROME_ICON_BY_ID[iconId] : undefined;
   const hasIcon = isImage || !!CurrentIcon;
 
   return (

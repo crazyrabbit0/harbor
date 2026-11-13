@@ -9,6 +9,7 @@ import {
   UserPlus,
   Users,
   X,
+  type LucideIcon,
 } from "lucide-react";
 import { CoverImg } from "@/components/cover-img";
 import { useState } from "react";
@@ -36,17 +37,17 @@ function fullDate(ms: number): string {
   return new Date(ms).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
 }
 
-function iconFor(kind: string) {
-  if (kind === "game-source-available") return ArrowDownToLine;
-  if (kind === "downloads") return ArrowDownToLine;
-  if (kind === "stars") return Star;
-  if (kind === "mention") return AtSign;
-  if (kind === "friend-request") return UserPlus;
-  if (kind === "group-added" || kind === "group-post") return Users;
-  if (kind === "badge-received") return Award;
-  if (kind === "diagnostics-request") return LifeBuoy;
-  return MessageSquare;
-}
+const KIND_ICONS: Record<string, LucideIcon> = {
+  "game-source-available": ArrowDownToLine,
+  downloads: ArrowDownToLine,
+  stars: Star,
+  mention: AtSign,
+  "friend-request": UserPlus,
+  "group-added": Users,
+  "group-post": Users,
+  "badge-received": Award,
+  "diagnostics-request": LifeBuoy,
+};
 
 function iconTint(kind: string): string {
   if (kind === "badge-received" || kind === "stars" || kind === "downloads" || kind === "mention")
@@ -190,7 +191,7 @@ export function FeedRow({
 }) {
   const [removing, setRemoving] = useState(false);
   const t = useT();
-  const Icon = iconFor(notif.kind);
+  const Icon = KIND_ICONS[notif.kind] ?? MessageSquare;
   const dismiss = () => {
     if (removing) return;
     setRemoving(true);
@@ -271,7 +272,7 @@ export function NotificationDetail({
   ownHandle?: string | null;
 }) {
   const t = useT();
-  const Icon = iconFor(notif.kind);
+  const Icon = KIND_ICONS[notif.kind] ?? MessageSquare;
   const action = detailAction(notif, onBack, onOpenProfile, ownHandle, t);
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-5 p-5">
