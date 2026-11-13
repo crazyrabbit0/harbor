@@ -274,6 +274,7 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
     );
     await reload();
   };
+  const [openedAt] = useState(Date.now);
   const localTarget = reviewing
     ? ([
         {
@@ -283,7 +284,7 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
           title: reviewing.fallbackTitle,
           year: reviewing.year ?? null,
           type: reviewing.kind === "series" ? ("show" as const) : ("movie" as const),
-          addedAt: reviewing.addedAt ?? Date.now(),
+          addedAt: reviewing.addedAt ?? openedAt,
         },
       ] satisfies LocalEntry[])
     : null;

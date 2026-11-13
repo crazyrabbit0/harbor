@@ -26,6 +26,7 @@ import { useAthletePortrait } from "@/views/sports/use-athlete-portrait";
 import { useBoxingEvent } from "@/views/sports/use-boxing-event";
 import { useMatchDetail } from "@/views/sports/use-match-detail";
 import { useBpT } from "../bp-i18n";
+import { useNow } from "@/lib/use-now";
 import type { BpDetailAction } from "../use-bp-detail-actions";
 
 const INDIVIDUAL = new Set(["tennis", "combat", "golf", "motorsport"]);
@@ -133,6 +134,7 @@ function favouriteOf(side: SportsSide, leagueKey: string, group: string): Favour
 export function useBpSportsEventActions(data: BpSportsEventData): BpDetailAction[] {
   const t = useBpT();
   const { game, league, group } = data;
+  const now = useNow(60_000, game.state === "pre");
   const { settings } = useSettings();
   const { openSettings } = useViewActions();
   const favourites = useFavourites();
@@ -176,7 +178,7 @@ export function useBpSportsEventActions(data: BpSportsEventData): BpDetailAction
       game.dateOnly === undefined &&
       game.state === "pre" &&
       Number.isFinite(game.startMs) &&
-      game.startMs > Date.now();
+      game.startMs > now;
     if (remindable) {
       out.push({
         key: "reminder",
@@ -217,5 +219,5 @@ export function useBpSportsEventActions(data: BpSportsEventData): BpDetailAction
       });
     }
     return out;
-  }, [t, game, reminded, channels.length, toggleReminder, group, leagueKey, favourites]);
+  }, [t, game, reminded, channels.length, toggleReminder, group, leagueKey, favourites, now]);
 }

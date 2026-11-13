@@ -135,6 +135,7 @@ function MadeForYouRow({
           id: mix.id,
           name: mixName(mix, t),
           artwork: mix.artwork,
+          // oxlint-disable-next-line react/purity -- runs when a mix is opened, not during render
           at: Date.now(),
           seed: mix.seeds[0],
         },

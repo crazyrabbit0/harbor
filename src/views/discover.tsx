@@ -431,6 +431,7 @@ export function Discover({ active = true }: { active?: boolean }) {
 
   const featuredIds = useMemo(() => new Set(featured.map((m) => m.id)), [featured]);
 
+  const [openedAt] = useState(() => new Date());
   const criticsPick = useMemo(() => {
     const candidates = criticsPickList.filter(
       (m) => !featuredIds.has(m.id) && m.background && m.description,
@@ -439,10 +440,10 @@ export function Discover({ active = true }: { active?: boolean }) {
       return criticsPickList.find((m) => !featuredIds.has(m.id)) ?? null;
     }
     const dayOfYear = Math.floor(
-      (Date.now() - new Date(new Date().getUTCFullYear(), 0, 0).getTime()) / 86_400_000,
+      (openedAt.getTime() - new Date(openedAt.getUTCFullYear(), 0, 0).getTime()) / 86_400_000,
     );
     return candidates[dayOfYear % candidates.length];
-  }, [criticsPickList, featuredIds]);
+  }, [criticsPickList, featuredIds, openedAt]);
 
   const order = useMemo(() => dailyRows.map((r) => r.id), [dailyRows]);
   const deduped = useDedupedRows(rails, order, featuredIds, criticsPick?.id, DEDUP_PRIORITY);

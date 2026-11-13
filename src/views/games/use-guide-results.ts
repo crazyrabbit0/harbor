@@ -38,6 +38,7 @@ type Result = {
   partial: boolean;
 };
 const empty = (): Result => ({ items: [], page: 0, more: true, limit: 24, at: 0, partial: false });
+const liveFresh = (held: Result) => Date.now() - held.at < 60_000;
 export function useGuideResults(
   game: GuideGame,
   active: boolean,
@@ -74,11 +75,11 @@ export function useGuideResults(
       held &&
       !refresh.current &&
       held.limit >= wanted.current &&
-      (tab !== "live" || Date.now() - held.at < 60_000)
+      (tab !== "live" || liveFresh(held))
     )
       return;
     const controller = new AbortController(),
-      reset = refresh.current || (!!held && tab === "live" && Date.now() - held.at >= 60_000);
+      reset = refresh.current || (!!held && tab === "live" && !liveFresh(held));
     refresh.current = false;
     const target = held && !reset ? Math.max(24, wanted.current) : 24;
     wanted.current = 24;

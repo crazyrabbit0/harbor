@@ -15,6 +15,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { confirmDialog } from "@/lib/dialog";
 import { useT } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { trackReposition } from "@/lib/reposition";
 import type { IptvPlaylistSource } from "@/lib/iptv/types";
 import { EMPTY_FORM, PlaylistForm, type PlaylistFormValue } from "./source-picker/playlist-form";
@@ -88,7 +89,8 @@ export function SourcePicker({
 
   const editing = editingId ? (sources.find((s) => s.id === editingId) ?? null) : null;
   const active = sources.find((s) => s.id === activeId);
-  const ago = fetchedAt ? formatAgo(Date.now() - fetchedAt, t) : null;
+  const now = useNow(60_000, !!fetchedAt);
+  const ago = fetchedAt ? formatAgo(now - fetchedAt, t) : null;
 
   const copyUrl = async (url: string, id: string) => {
     try {

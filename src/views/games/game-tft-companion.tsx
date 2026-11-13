@@ -162,6 +162,7 @@ export function GameTftCompanion({ active, profile }: { active: boolean; profile
                 try {
                   const decoded = decodeTftTeam(code, catalog);
                   setSelected(decoded.set.id);
+                  // oxlint-disable-next-line react/purity -- runs in the submit handler
                   setIncoming({ set: decoded.set.id, units: decoded.units, revision: Date.now() });
                   setCode("");
                   setImportFailed(false);

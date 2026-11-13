@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
+import { shuffle } from "@/lib/feed/tags";
 import { useT } from "@/lib/i18n";
 import { tmdbLogo } from "@/lib/providers/tmdb";
 import { useSettingsSelector } from "@/lib/settings";
@@ -9,15 +10,11 @@ export function KidsHero({ featured }: { featured: Meta[] }) {
   const t = useT();
   const { openMeta } = useViewActions();
 
+  const [seed] = useState(() => Math.floor(Math.random() * 0x7fffffff));
   const cards = useMemo(() => {
     const usable = featured.filter((m) => m.background || m.poster);
-    const arr = usable.slice();
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr.slice(0, 5);
-  }, [featured]);
+    return shuffle(usable.slice(), seed).slice(0, 5);
+  }, [featured, seed]);
 
   return (
     <section className="harbor-bleed-stremio relative h-[72vh] min-h-[620px] overflow-hidden bg-canvas">

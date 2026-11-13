@@ -4,6 +4,7 @@ import { useMobileRemote } from "../mobile-remote";
 import { useRegisterSheet } from "../mobile-sheet-lock";
 import { SHEET_EXIT_CSS, useSheetDrag, useSheetPresence } from "../remote-extras";
 import { useT } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 
 export function BookmarksSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -15,6 +16,7 @@ export function BookmarksSheet({ open, onClose }: { open: boolean; onClose: () =
   const { handleProps, panelStyle } = useSheetDrag(onClose);
   useRegisterSheet(open);
   const [saved, setSaved] = useState(false);
+  const now = useNow(60_000, open);
 
   useEffect(() => {
     if (!open) setSaved(false);
@@ -26,7 +28,7 @@ export function BookmarksSheet({ open, onClose }: { open: boolean; onClose: () =
   );
 
   const timeAgo = (ts: number): string => {
-    const seconds = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    const seconds = Math.max(0, Math.round((now - ts) / 1000));
     if (seconds < 60) return t("just now");
     const minutes = Math.round(seconds / 60);
     if (minutes < 60) return t("{n}m ago", { n: minutes });

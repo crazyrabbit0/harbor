@@ -7,6 +7,7 @@ import { findCurrent } from "@/lib/iptv/xmltv";
 import type { EpgIndex, IptvChannel, IptvPlaylist, IptvPlaylistSource } from "@/lib/iptv/types";
 import type { SlotChannel } from "@/lib/multiview/store";
 import { useT } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { ChannelCard } from "@/views/live/channel-card";
 
 const ALL = "__ALL__";
@@ -39,7 +40,7 @@ export function ChannelPicker({
   const [groupKey, setGroupKey] = useState<string>(ALL);
   const [playlistId, setPlaylistId] = useState<string>(ALL_PLAYLISTS);
   const [manual, setManual] = useState("");
-  const now = Date.now();
+  const now = useNow(60_000);
 
   const scopedChannels = useMemo<IptvChannel[]>(() => {
     if (playlistId === ALL_PLAYLISTS) return channels;

@@ -65,7 +65,7 @@ export function CalendarView({
   const { authKey, user } = useAuth();
   const [showAuth, setShowAuth] = useState(false);
   const { openSettings, openMeta } = useViewActions();
-  const today = useMemo(() => new Date(), []);
+  const [today] = useState(() => new Date());
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
   const [filter, setFilter] = useState<CalendarFilter>("all");

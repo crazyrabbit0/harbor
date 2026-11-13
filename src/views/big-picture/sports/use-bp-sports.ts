@@ -3,6 +3,7 @@ import { pushBigPicture } from "@/lib/big-picture";
 import { useUiLanguage } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
 import { readAtVersion } from "@/lib/read-at-version";
+import { useNow } from "@/lib/use-now";
 import { getGroupLabel, type SportsGame } from "@/lib/sports/espn";
 import { involvesTeam, useFavourites } from "@/lib/sports/favourites";
 import { HOT_EVENT_LEAGUES, hotEvents } from "@/lib/sports/hot-events";
@@ -164,16 +165,15 @@ export function useBpSports(active: boolean): BpSportsState {
     [fav.leagues],
   );
   const hotFeed = useSportsHub(hotLeagues, today, active && mode === "hot", refresh, "upcoming");
+  const now = useNow(60_000, active);
   const hot = useMemo(() => {
     if (mode !== "hot") return [];
     const pool = mergeSlices([
       { at: 1, games: all },
       { at: 2, games: hotFeed.games },
     ]);
-    return hotEvents(pool, Date.now(), (game) =>
-      fav.teams.some((team) => involvesTeam(game, team)),
-    );
-  }, [mode, all, hotFeed.games, fav.teams]);
+    return hotEvents(pool, now, (game) => fav.teams.some((team) => involvesTeam(game, team)));
+  }, [mode, all, hotFeed.games, fav.teams, now]);
 
   const live = useMemo(() => boardGames.filter((game) => game.state === "in"), [boardGames]);
   const liveDays = useMemo(
@@ -181,8 +181,8 @@ export function useBpSports(active: boolean): BpSportsState {
     [live],
   );
   const next = useMemo(
-    () => eventCards(all.filter((game) => game.state === "pre" && game.startMs >= Date.now())),
-    [all],
+    () => eventCards(all.filter((game) => game.state === "pre" && game.startMs >= now)),
+    [all, now],
   );
   const filtered = useMemo(
     () => (group === "all" ? all : all.filter((game) => hubLeague(game.league)?.group === group)),

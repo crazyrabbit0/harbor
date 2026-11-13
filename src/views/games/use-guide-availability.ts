@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { GuideAvailability } from "@/lib/games/guide-availability";
+import { useNow } from "@/lib/use-now";
 
 const loadAvailability = () => import("@/lib/games/guide-availability");
 const loadGuidesFetch = () => import("@/lib/games/guides-fetch");
@@ -16,8 +17,9 @@ export function useGuideAvailability(
 ) {
   const key = JSON.stringify([steamId ?? null, name, writtenOnly]);
   const [, render] = useState(0);
+  const now = useNow(60_000, active);
   const held = cache.get(key),
-    fresh = !!held && Date.now() - held.at < 600_000;
+    fresh = !!held && now - held.at < 600_000;
   useEffect(() => {
     if (!active || fresh) return;
     const request = new AbortController();

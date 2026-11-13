@@ -50,10 +50,11 @@ export function SidePanel({
 
   const fallbackBackdrop = meta.background ?? meta.poster;
 
+  const [seed] = useState(Date.now);
   const tiles = useMemo(() => {
-    const sample = stills.length > 4 ? pickRandom(stills, 4, Date.now() ^ stills.length) : stills;
+    const sample = stills.length > 4 ? pickRandom(stills, 4, seed ^ stills.length) : stills;
     return Array.from({ length: 4 }, (_, i) => sample[i] ?? fallbackBackdrop);
-  }, [stills, fallbackBackdrop]);
+  }, [stills, fallbackBackdrop, seed]);
 
   const lightboxImages = stills.length > 0 ? stills : fallbackBackdrop ? [fallbackBackdrop] : [];
 

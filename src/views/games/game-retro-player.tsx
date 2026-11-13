@@ -81,7 +81,7 @@ export function GameRetroPlayer({
     controlsTrigger = useRef<HTMLButtonElement>(null),
     returnToControls = useRef(false);
   const [chrome, setChrome] = useState(true),
-    activity = useRef(Date.now()),
+    activity = useRef(0),
     chromeHeld = useRef(false);
   const wake = () => {
     activity.current = Date.now();

@@ -116,7 +116,8 @@ function PeerConnections() {
 
 function DownloadGraph({ samples }: { samples: DownloadSample[] }) {
   const t = useT(),
-    end = samples.at(-1)?.time ?? Date.now(),
+    [openedAt] = useState(Date.now),
+    end = samples.at(-1)?.time ?? openedAt,
     start = end - (DOWNLOAD_HISTORY_SECONDS - 1) * 1000;
   const maximum = Math.max(1, ...samples.map((point) => point.network));
   const seedMaximum = Math.max(1, ...samples.map((point) => point.seeders ?? 0));

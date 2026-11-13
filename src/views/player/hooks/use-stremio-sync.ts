@@ -75,7 +75,7 @@ export function useStremioSync(params: {
       recordAnimeCwId(resolvedImdbId, src.meta.id);
     }
   }, [resolvedImdbId, resolvedImdbVerified, src.meta.id]);
-  const sessionStartRef = useRef<number>(Date.now());
+  const sessionStartRef = useRef(0);
   const lastSyncedRef = useRef(0);
   const baseItemRef = useRef<LibraryItem | null>(null);
   const fetchedRef = useRef<string | null>(null);

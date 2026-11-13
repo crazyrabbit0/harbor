@@ -1,5 +1,6 @@
 import { ArrowRight, Loader2, Puzzle, X } from "../icons";
 import { useEffect, useRef, useState } from "react";
+import { useNow } from "@/lib/use-now";
 import { AddonLogo, AddonLogoStack, resolveAddonLogo } from "@/components/addon-logo";
 import { AnchoredMenu } from "@/components/anchored-menu";
 import type { Addon } from "@/lib/addons";
@@ -23,6 +24,7 @@ export function SyncedAddonsCard() {
   const [busy, setBusy] = useState(false);
   const [lastSynced, setLastSynced] = useState<number | null>(null);
   const { setView } = useViewActions();
+  const now = useNow(1000, lastSynced != null);
 
   const sync = async () => {
     if (!authKey || busy) return;
@@ -61,7 +63,7 @@ export function SyncedAddonsCard() {
       label={t("Your collection")}
       desc={
         lastSynced
-          ? t("Last synced {n}s ago.", { n: Math.round((Date.now() - lastSynced) / 1000) })
+          ? t("Last synced {n}s ago.", { n: Math.round((now - lastSynced) / 1000) })
           : t("Pulled from your Stremio account.")
       }
     >

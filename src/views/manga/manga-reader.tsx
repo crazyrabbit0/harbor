@@ -670,6 +670,7 @@ export function MangaReader({
         chapterLabel: bm.chapterLabel,
         page: bm.page,
         totalPages: bm.totalPages,
+        // oxlint-disable-next-line react/purity -- runs when a bookmark is opened, not during render
         updatedAt: Date.now(),
       });
     didSeek.current = false;
@@ -777,6 +778,7 @@ export function MangaReader({
       return;
     }
     const s = scroll != null && Number.isFinite(scroll) ? Math.max(0, Math.min(1, scroll)) : 0;
+    // oxlint-disable-next-line react/purity -- runs on a remote page command, not during render
     const now = performance.now();
     const rRoot = root.getBoundingClientRect();
     const rEl = el.getBoundingClientRect();

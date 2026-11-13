@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { useAuth } from "@/lib/auth";
 import { downloadText } from "@/lib/download-text";
 import { getCuesAnySource } from "@/lib/subtitles/extract";
@@ -100,7 +100,8 @@ export function usePlayerMedia(params: {
     }
   }, [src.url, snap.firstFrameReady, snap.positionSec, snap.durationSec]);
 
-  const torrentOwnerRef = useRef(`player:${Math.random().toString(36).slice(2)}`);
+  const [torrentOwner] = useState(() => `player:${Math.random().toString(36).slice(2)}`);
+  const torrentOwnerRef = useRef(torrentOwner);
   useEffect(() => {
     const engineRef = localEngineStreamRef(src.url);
     if (!engineRef) return;

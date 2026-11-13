@@ -15,6 +15,7 @@ import { getAnimeCwId } from "@/lib/anime-cw-ids";
 import type { Meta } from "@/lib/cinemeta";
 import { peekCachedLogo, resolveLogo } from "@/lib/logo";
 import { useHasNewEpisode } from "@/lib/new-episodes";
+import { useNow } from "@/lib/use-now";
 import { animeKitsuMeta } from "@/lib/providers/anime-kitsu-addon";
 import { useProfiles, type Profile } from "@/lib/profiles";
 import { useProxiedImageSrc } from "@/lib/remote-image-proxy";
@@ -129,8 +130,9 @@ function useCwWatcher(mediaId: string, activeId: string | undefined): Profile | 
 
 function useAirCountdown(at: string | undefined): string {
   const t = useBpT();
+  const now = useNow(60_000, !!at);
   if (!at) return "";
-  const diff = Date.parse(at) - Date.now();
+  const diff = Date.parse(at) - now;
   if (!Number.isFinite(diff)) return "";
   if (diff <= 0) return t("Airing now");
   const days = Math.floor(diff / 86400000);

@@ -116,7 +116,7 @@ function TournamentList({
   onOpen: (t: TennisTournament) => void;
 }) {
   const t = useT();
-  const now = Date.now();
+  const [now] = useState(Date.now);
   const running = (x: TennisTournament) =>
     x.state === "in" || (x.startMs <= now && (!x.endMs || x.endMs >= now) && x.state !== "post");
   const live = list.filter(running);

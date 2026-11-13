@@ -155,7 +155,8 @@ function DriverRecord({
 
 export function F1Hub({ game }: { game?: SportsGame }) {
   const t = useT();
-  const year = game ? new Date(game.startMs).getFullYear() : new Date().getFullYear();
+  const [openedAt] = useState(Date.now);
+  const year = new Date(game ? game.startMs : openedAt).getFullYear();
   const [tab, setTab] = useState("drivers");
   const [driver, setDriver] = useState<F1Standing | null>(null);
   const drivers = useF1(`${year}/driverstandings/?limit=100`);
@@ -171,7 +172,7 @@ export function F1Hub({ game }: { game?: SportsGame }) {
           Math.abs(Date.parse(`${item.date}T${item.time || "12:00:00Z"}`) - game.startMs) <
           36 * 3600_000,
       )
-    : races.find((item) => Date.parse(item.date) >= Date.now() - 86400_000);
+    : races.find((item) => Date.parse(item.date) >= openedAt - 86400_000);
   const [circuitId, setCircuitId] = useState("");
   const selectedRace = races.find((item) => item.Circuit.circuitId === circuitId) ?? race;
   if (driver)

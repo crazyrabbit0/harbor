@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 export function useLiveRefresh(active: boolean, every?: number) {
   const interval = every === undefined ? 16 * 60_000 : every;
   const [revision, setRevision] = useState(0);
-  const last = useRef(Date.now());
+  const [mountedAt] = useState(Date.now);
+  const last = useRef(mountedAt);
   useEffect(() => {
     if (!active) return;
     const refresh = () => {

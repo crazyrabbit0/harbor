@@ -56,7 +56,8 @@ export function MobileAnime() {
   const [reloadKey, setReloadKey] = useState(0);
   const [detailMeta, setDetailMeta] = useState<Meta | null>(null);
   const heroBuiltRef = useRef(false);
-  const seedRef = useRef(Math.floor(Math.random() * 0x7fffffff));
+  const [seed] = useState(() => Math.floor(Math.random() * 0x7fffffff));
+  const seedRef = useRef(seed);
 
   useEffect(() => {
     let cancelled = false;

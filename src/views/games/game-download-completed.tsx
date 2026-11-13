@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { downloadCompletedAt } from "@/lib/games/download-history";
 import type { DownloadItem } from "@/lib/games/download-presentation";
@@ -5,7 +6,8 @@ import type { DownloadItem } from "@/lib/games/download-presentation";
 export function DownloadCompletedDate({ item }: { item: DownloadItem }) {
   const t = useT(),
     language = useUiLanguage(),
-    at = downloadCompletedAt(item);
+    at = downloadCompletedAt(item),
+    [thisYear] = useState(() => new Date().getFullYear());
   if (!at) return null;
   const date = new Date(at),
     formatted = date.toLocaleString(language, {
@@ -13,7 +15,7 @@ export function DownloadCompletedDate({ item }: { item: DownloadItem }) {
       day: "numeric",
       hour: "numeric",
       minute: "2-digit",
-      ...(date.getFullYear() !== new Date().getFullYear() ? { year: "numeric" as const } : {}),
+      ...(date.getFullYear() !== thisYear ? { year: "numeric" as const } : {}),
     });
   return (
     <time

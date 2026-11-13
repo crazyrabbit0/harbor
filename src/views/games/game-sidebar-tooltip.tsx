@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { gameSize } from "@/lib/games/installed";
 import { customLaunchHealth, type CustomLaunchHealthMap } from "@/lib/games/custom-launch-health";
@@ -74,6 +75,7 @@ export function GameSidebarTooltipDetails({
   const t = useT(),
     language = useUiLanguage(),
     status = sidebarStatus(game, running);
+  const [shownAt] = useState(Date.now);
   const observed = game.source === "custom" ? customLaunchHealth(game.custom, health) : undefined;
   const issue =
     game.source === "custom" && !game.ready && !running
@@ -88,7 +90,7 @@ export function GameSidebarTooltipDetails({
         : gameSize(total)
       : "";
   const lastPlayed =
-    game.lastPlayed > 0 && game.lastPlayed <= Date.now()
+    game.lastPlayed > 0 && game.lastPlayed <= shownAt
       ? new Intl.DateTimeFormat(language, { dateStyle: "medium" }).format(game.lastPlayed)
       : "";
   const detail =
