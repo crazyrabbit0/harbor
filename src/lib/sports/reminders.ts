@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { useSyncExternalStore } from "react";
 import type { SportsGame } from "./espn-types";
 import type { SportsReminder } from "./reminder-state";
@@ -46,7 +47,7 @@ export function saveSportsReminder(entry: SportsReminder | null, id = entry?.id)
   const next = read().filter((item) => item.id !== id);
   if (entry) next.push(entry);
   try {
-    localStorage.setItem(KEY, JSON.stringify(next.slice(-200)));
+    durableSetItem(KEY, JSON.stringify(next.slice(-200)));
     cache = next.slice(-200);
     emit();
     return true;

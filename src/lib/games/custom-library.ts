@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { parseImportedArtwork } from "./imported-artwork";
 import { parseHydraOrigin, type HydraOrigin } from "./hydra-import-records";
 import type { GameSummary } from "./types";
@@ -394,7 +395,7 @@ export function changeCustomLibrary(
       if (new TextEncoder().encode(raw).length > 5 * 1024 * 1024) throw Error("launch_limit");
       const checked = parseCustomLibrary(raw);
       try {
-        localStorage.setItem(key, raw);
+        durableSetItem(key, raw);
       } catch {
         throw Error("launch_store_write");
       }

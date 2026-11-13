@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 export type GameNote = {
   id: string;
   title: string;
@@ -143,7 +144,7 @@ export async function saveNotebook(
     );
     const saved = JSON.stringify(next);
     try {
-      localStorage.setItem(key, saved);
+      durableSetItem(key, saved);
     } catch {
       throw Error("games.notes.saveError");
     }

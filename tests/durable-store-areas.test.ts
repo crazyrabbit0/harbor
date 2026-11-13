@@ -526,6 +526,62 @@ test("saved games reach user-data.json under their colon-separated profile key",
   assert.equal(store.isDurableKey("harbor.games.saved.v1x"), false);
 });
 
+test("Live TV pins, queue saves, detail layout and sports reminders reach user-data.json", async () => {
+  localStorage.clear();
+  const pins = await import("../src/lib/iptv/pins.ts");
+  const saved = await import("../src/lib/feed/saved.ts");
+  const skipped = await import("../src/lib/feed/skipped.ts");
+  const detail = await import("../src/lib/detail-customization.ts");
+  const reminders = await import("../src/lib/sports/reminders.ts");
+  // Each write runs alone: any scheduled write snapshots every durable key, which would hide a missing trigger.
+  const writeAlone = async (write: () => void) => {
+    await store.flushDurableStore();
+    mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() + 60_000 });
+    try {
+      write();
+      mock.timers.tick(10_000);
+    } finally {
+      mock.timers.reset();
+    }
+    await settle();
+    return fileKeys();
+  };
+  const afterPin = await writeAlone(() => pins.togglePin("src1::bbc"));
+  assert.equal(afterPin["harbor.iptv.pins.v1"], '["src1::bbc"]');
+  const afterSave = await writeAlone(() => saved.toggleSaved("tt77"));
+  assert.match(afterSave["harbor.feed.saved"] ?? "", /"tt77"/);
+  const afterBlock = await writeAlone(() => skipped.blockQueueItem("tt78"));
+  assert.equal(afterBlock["harbor.feed.blocked"], '["tt78"]');
+  const afterLayout = await writeAlone(() =>
+    detail.saveDetailCustomization({ order: ["cast"], hidden: ["trailers"] }),
+  );
+  assert.equal(afterLayout["harbor.detailLayout"], '{"order":["cast"],"hidden":["trailers"]}');
+  const afterReminder = await writeAlone(() =>
+    reminders.saveSportsReminder({
+      id: "espn:nba:1",
+      name: "Finals",
+      league: "nba",
+      startMs: Date.now() + 86_400_000,
+      leadMinutes: 15,
+      channels: ["discord"],
+      sent: {},
+      attempted: {},
+      failed: [],
+    }),
+  );
+  assert.match(afterReminder["harbor.sports.reminders.v1"] ?? "", /"Finals"/);
+  for (const key of [
+    "harbor.installed-addons.p1",
+    "harbor.games.collections.v1:p1",
+    "harbor.games.notes.v1:p1:g1",
+  ]) {
+    assert.equal(store.isDurableKey(key), true, key);
+    assert.equal(recovery.isPrunable(key), false, key);
+  }
+  assert.equal(store.isDurableKey("harbor.feed.skipped"), false, "14-day snoozes stay local");
+  assert.equal(store.isDurableKey("harbor.iptv.hydration.v2"), false);
+});
+
 test("a backup carries the eBook covers its lists reference, and restoring brings them back", async () => {
   localStorage.clear();
   const { loadModule } = await import("./helpers/hook-harness.ts");

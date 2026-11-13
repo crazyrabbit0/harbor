@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { parseLibraryArtwork, type LibraryArtwork } from "./igdb-artwork";
 import { isSourceListingId } from "./source-listing";
 import { isLauncherGameId } from "./launchers";
@@ -164,7 +165,7 @@ function writeLibraryPreferences(
       const next = transform(readLibraryPreferences(profile)),
         raw = JSON.stringify(next);
       if (new TextEncoder().encode(raw).length > MAX_BYTES) throw Error("library_prefs_limit");
-      localStorage.setItem(key, raw);
+      durableSetItem(key, raw);
       if (typeof window !== "undefined")
         window.dispatchEvent(new CustomEvent(LIBRARY_PREFERENCES_CHANGED, { detail: profile }));
       return next;

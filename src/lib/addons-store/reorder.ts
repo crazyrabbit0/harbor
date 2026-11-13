@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { getUserAddonsRaw, setUserAddonsRaw, type Addon } from "@/lib/addons";
 
 const BACKUP_KEY = "harbor.addonOrderBackups";
@@ -180,7 +181,7 @@ export function pushBackup(items: Addon[]): void {
 
 export function saveDisplayOrder(urls: string[]): void {
   try {
-    localStorage.setItem(ORDER_KEY, JSON.stringify(urls));
+    durableSetItem(ORDER_KEY, JSON.stringify(urls));
   } catch (e) {
     console.warn("[addons] couldn't persist addon display order", e);
   }

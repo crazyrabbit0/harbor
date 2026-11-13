@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { activeProfileId } from "@/lib/active-profile-id";
 import { getSecret, setSecret } from "@/lib/secret-store";
 import type { MediaServerConnection } from "./types";
@@ -21,7 +22,7 @@ function all(): MediaServerConnection[] {
   }
 }
 function write(value: MediaServerConnection[]) {
-  localStorage.setItem(KEY, JSON.stringify(value));
+  durableSetItem(KEY, JSON.stringify(value));
   listeners.forEach((fn) => fn());
 }
 export function mediaServerConnections(profileId = activeProfileId()) {

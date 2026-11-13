@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { stremioDataProfileId, primaryOrStremioProfileId } from "@/lib/profile-roster";
 import { safeFetch as fetch, safeFetchLocal } from "@/lib/safe-fetch";
 import { isLocalNetworkUrl } from "@/lib/local-network";
@@ -204,7 +205,7 @@ export function loadInstalled(): InstalledAddon[] {
 function saveInstalled(list: InstalledAddon[]) {
   const slim = list.map((a) => ({ ...a, manifest: slimManifest(a.manifest) }));
   try {
-    localStorage.setItem(storeKey("installed"), JSON.stringify(slim));
+    durableSetItem(storeKey("installed"), JSON.stringify(slim));
   } catch (e) {
     if (e instanceof DOMException && (e.name === "QuotaExceededError" || e.code === 22)) {
       const stripped = list.map((a) => ({
@@ -213,7 +214,7 @@ function saveInstalled(list: InstalledAddon[]) {
         installedAt: a.installedAt,
       }));
       try {
-        localStorage.setItem(storeKey("installed"), JSON.stringify(stripped));
+        durableSetItem(storeKey("installed"), JSON.stringify(stripped));
       } catch (e2) {
         console.warn("[addons] localStorage still full after stripping manifests", e2);
       }
@@ -253,7 +254,7 @@ export function loadDisabledAddons(): Set<string> {
 
 function saveDisabledAddons(set: Set<string>): void {
   try {
-    localStorage.setItem(storeKey("disabled"), JSON.stringify([...set]));
+    durableSetItem(storeKey("disabled"), JSON.stringify([...set]));
   } catch (e) {
     console.warn("[addons] couldn't persist disabled addons", e);
   }

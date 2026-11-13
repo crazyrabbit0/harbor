@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { useSyncExternalStore } from "react";
 
 export type CountryPrefs = { selected: string[] };
@@ -23,7 +24,7 @@ function load(): Record<string, CountryPrefs> {
 function persist(next: Record<string, CountryPrefs>) {
   cache = next;
   try {
-    localStorage.setItem(KEY, JSON.stringify(next));
+    durableSetItem(KEY, JSON.stringify(next));
   } catch {}
   for (const l of listeners) l();
 }

@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { useSyncExternalStore } from "react";
 
 const KEY = "harbor.pinnedcatalogs.v1";
@@ -83,7 +84,7 @@ function load(): PinnedCatalog[] {
 function commit(next: PinnedCatalog[]) {
   cache = next.slice(0, CAP);
   try {
-    localStorage.setItem(KEY, JSON.stringify(cache));
+    durableSetItem(KEY, JSON.stringify(cache));
   } catch {}
   for (const s of subs) s();
 }

@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { STEAM_IMPORT_LIMIT, steamImportSummary, validSteamImportId } from "./steam-import";
 import type { GameSummary } from "./types";
 
@@ -108,7 +109,7 @@ export function changeSteamImports(
       raw = JSON.stringify(data);
     if (new TextEncoder().encode(raw).length > MAX_BYTES) throw Error("steam_import_limit");
     signal?.throwIfAborted();
-    localStorage.setItem(key, raw);
+    durableSetItem(key, raw);
     if (typeof window !== "undefined")
       window.dispatchEvent(new CustomEvent(STEAM_IMPORTS_CHANGED, { detail: profile }));
     return { data, added };

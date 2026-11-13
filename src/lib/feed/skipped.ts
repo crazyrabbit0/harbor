@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 const SNOOZE_KEY = "harbor.feed.skipped";
 const BLOCK_KEY = "harbor.feed.blocked";
 const SNOOZE_MS = 14 * 24 * 60 * 60 * 1000;
@@ -42,7 +43,7 @@ function readBlocked(): Set<string> {
 
 function writeBlocked(set: Set<string>) {
   try {
-    localStorage.setItem(BLOCK_KEY, JSON.stringify([...set]));
+    durableSetItem(BLOCK_KEY, JSON.stringify([...set]));
   } catch {
     /* ignore */
   }

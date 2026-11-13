@@ -1,3 +1,4 @@
+import { durableSetItem } from "@/lib/durable-store";
 import { useSyncExternalStore } from "react";
 
 const STORE_KEY = "harbor.sports.sources.v1";
@@ -39,7 +40,7 @@ function read(): Attachments {
 function write(next: Attachments): void {
   cache = next;
   try {
-    localStorage.setItem(STORE_KEY, JSON.stringify(next));
+    durableSetItem(STORE_KEY, JSON.stringify(next));
   } catch {}
   for (const fn of subs) fn();
 }
