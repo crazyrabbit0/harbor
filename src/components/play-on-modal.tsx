@@ -108,12 +108,9 @@ function PlayOnPanel({ request, themeId }: { request: PlayOnRequest; themeId: st
   const pairing = usePairFlowTarget();
   const pairingUp = useRef(false);
 
-  const scan = useCallback(() => {
+  const startSweep = useCallback(() => {
     sweep.current?.cancel();
     probed.current.clear();
-    setReach({});
-    setSettled(false);
-    setScanning(true);
     sweep.current = sweepHarborInstances((found, done) => {
       if (!alive.current) return;
       setPeers(found);
@@ -122,17 +119,25 @@ function PlayOnPanel({ request, themeId }: { request: PlayOnRequest; themeId: st
     });
   }, []);
 
+  const scan = () => {
+    setReach({});
+    setSettled(false);
+    setScanning(true);
+    startSweep();
+  };
+
   useEffect(() => {
     alive.current = true;
     void harborIdentity().then((id) => {
       if (alive.current) setIdentity(id);
     });
-    scan();
+    // The initial state already holds the reset values scan() sets.
+    startSweep();
     return () => {
       alive.current = false;
       sweep.current?.cancel();
     };
-  }, [scan]);
+  }, [startSweep]);
 
   useEffect(() => {
     for (const peer of peers) {

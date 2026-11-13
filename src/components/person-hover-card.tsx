@@ -31,11 +31,15 @@ export function PersonHoverCard({
     () => tmdbPersonCached(personId) ?? null,
   );
 
+  const [seen, setSeen] = useState({ personId, tmdbKey: settings.tmdbKey });
+  if (seen.personId !== personId || seen.tmdbKey !== settings.tmdbKey) {
+    setSeen({ personId, tmdbKey: settings.tmdbKey });
+    const cached = tmdbPersonCached(personId);
+    if (cached) setPerson(cached);
+  }
+
   useEffect(() => {
-    if (tmdbPersonCached(personId)) {
-      setPerson(tmdbPersonCached(personId)!);
-      return;
-    }
+    if (tmdbPersonCached(personId)) return;
     let cancelled = false;
     tmdbPerson(settings.tmdbKey, personId)
       .then((p) => !cancelled && setPerson(p))

@@ -107,13 +107,14 @@ export function HoverTooltip({
     };
   }, [tracking]);
 
+  if (disabled && (tracking || open || placed !== null)) {
+    setTracking(false);
+    setOpen(false);
+    setPlaced(null);
+  }
+
   useEffect(() => {
-    if (disabled) {
-      cancel();
-      setTracking(false);
-      setOpen(false);
-      setPlaced(null);
-    }
+    if (disabled) cancel();
   }, [disabled]);
 
   useLayoutEffect(() => {

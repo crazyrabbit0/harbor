@@ -99,9 +99,7 @@ export function HeroCarousel({
     billboard,
   ]);
 
-  useEffect(() => {
-    if (active >= slides.length) setActive(0);
-  }, [slides.length, active]);
+  if (active !== 0 && active >= slides.length) setActive(0);
 
   const safeActive = slides.length > 0 ? Math.min(Math.max(active, 0), slides.length - 1) : 0;
 

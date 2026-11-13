@@ -28,10 +28,12 @@ export function ThumbsDock({ meta }: { meta: Meta }) {
   const [vote, setVoteState] = useState<FeedVote | null>(() => getVote(metaId));
   const { isDismissed, dismiss } = useOnboarding();
   const showHint = !isDismissed("featured-thumbs");
-  useEffect(() => {
+  const [voteFor, setVoteFor] = useState(metaId);
+  if (voteFor !== metaId) {
+    setVoteFor(metaId);
     setVoteState(getVote(metaId));
-    return subscribePrefs(() => setVoteState(getVote(metaId)));
-  }, [metaId]);
+  }
+  useEffect(() => subscribePrefs(() => setVoteState(getVote(metaId))), [metaId]);
   const cast = (v: FeedVote) => {
     const next = vote === v ? null : v;
     setVote(metaId, next, next ? { name: meta.name, type: meta.type } : undefined);

@@ -19,16 +19,19 @@ export function AnimeRelations({ anime, onClose }: { anime: AnimeHit; onClose: (
   const t = useT();
   const { openMeta } = useViewActions();
   const settings = useSettingsSelector((s) => ({ rpdbKey: s.rpdbKey }));
-  const [entries, setEntries] = useState<AnimeRelation[] | null>(null);
+  const [result, setResult] = useState<{
+    anime: AnimeHit;
+    list: AnimeRelation[] | null;
+  } | null>(null);
+  const entries = result?.anime === anime ? result.list : null;
 
   useEffect(() => {
     let cancelled = false;
-    setEntries(null);
     void resolveAnilistId(anime)
       .then((id) => (id == null ? null : animeRelations(id)))
       .catch(() => null)
       .then((list) => {
-        if (!cancelled) setEntries(list);
+        if (!cancelled) setResult({ anime, list });
       });
     return () => {
       cancelled = true;

@@ -20,12 +20,18 @@ export function EditFolderImagesModal({
   const [cover, setCover] = useState(initialCover || "");
   const [gif, setGif] = useState(initialGif || "");
 
-  useEffect(() => {
+  const [seen, setSeen] = useState({ isOpen, initialCover, initialGif });
+  if (
+    seen.isOpen !== isOpen ||
+    seen.initialCover !== initialCover ||
+    seen.initialGif !== initialGif
+  ) {
+    setSeen({ isOpen, initialCover, initialGif });
     if (isOpen) {
       setCover(initialCover || "");
       setGif(initialGif || "");
     }
-  }, [isOpen, initialCover, initialGif]);
+  }
 
   useEffect(() => {
     if (!isOpen) return;

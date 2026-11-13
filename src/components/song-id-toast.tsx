@@ -33,12 +33,14 @@ export function SongIdToast() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!msg) {
-      setEnter(false);
-      return;
-    }
+  const [msgSeen, setMsgSeen] = useState(msg);
+  if (msgSeen !== msg) {
+    setMsgSeen(msg);
     setEnter(false);
+  }
+
+  useEffect(() => {
+    if (!msg) return;
     const id = requestAnimationFrame(() => setEnter(true));
     return () => cancelAnimationFrame(id);
   }, [msg]);

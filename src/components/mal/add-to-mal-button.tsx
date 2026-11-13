@@ -39,9 +39,11 @@ export function AddToMalButton({ harborId, title }: { harborId: string; title: s
   const [attempt, setAttempt] = useState(0);
   const btnRef = useRef<HTMLButtonElement>(null);
 
-  useEffect(() => {
+  const [idSeen, setIdSeen] = useState(harborId);
+  if (idSeen !== harborId) {
+    setIdSeen(harborId);
     setAttempt(0);
-  }, [harborId]);
+  }
 
   useEffect(() => {
     if (!isConnected) return;

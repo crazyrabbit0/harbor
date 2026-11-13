@@ -34,20 +34,18 @@ export function usePortCredits(meta: Meta | null, key: string): PortCredits | nu
   const id = meta?.id ?? "";
   const type = meta?.type === "series" ? "series" : "movie";
   const [out, setOut] = useState<PortCredits | null | undefined>(() =>
-    !key || !id ? null : held.get(id),
+    !id || !key || !id.startsWith("tt") ? null : held.get(id),
   );
 
+  const [seen, setSeen] = useState({ id, key, type });
+  if (seen.id !== id || seen.key !== key || seen.type !== type) {
+    setSeen({ id, key, type });
+    setOut(!id || !key || !id.startsWith("tt") ? null : held.get(id));
+  }
+
   useEffect(() => {
-    if (!id || !key || !id.startsWith("tt")) {
-      setOut(null);
-      return;
-    }
-    const known = held.get(id);
-    if (known !== undefined) {
-      setOut(known);
-      return;
-    }
-    setOut(undefined);
+    if (!id || !key || !id.startsWith("tt")) return;
+    if (held.get(id) !== undefined) return;
     let live = true;
     (async () => {
       const ref = parseTmdbRef(await tmdbIdFromImdb(key, id, type));

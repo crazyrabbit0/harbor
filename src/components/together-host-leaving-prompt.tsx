@@ -26,10 +26,11 @@ export function TogetherHostLeavingPrompt() {
 
   const inPlayback = topKind === "player" || topKind === "picker";
 
+  if (!incomingHostLeaving && remember) setRemember(false);
+
   useEffect(() => {
     if (!incomingHostLeaving) {
       triggeredRef.current = null;
-      setRemember(false);
       return;
     }
     if (triggeredRef.current === incomingHostLeaving.at) return;

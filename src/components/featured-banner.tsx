@@ -33,9 +33,7 @@ export function FeaturedBanner({ items }: { items: Meta[] }) {
     return () => clearInterval(id);
   }, [paused, lightbox, inView, visible, items.length]);
 
-  useEffect(() => {
-    if (active >= items.length && items.length > 0) setActive(items.length - 1);
-  }, [items.length, active]);
+  if (active >= items.length && items.length > 0) setActive(items.length - 1);
 
   if (items.length === 0) {
     if (hasLoaded) return null;

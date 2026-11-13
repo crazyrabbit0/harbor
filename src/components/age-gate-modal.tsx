@@ -500,6 +500,12 @@ export function AgeGateModal({
   onClose: () => void;
   onPass: () => void;
 }) {
+  // Each opening mounts a fresh dialog, so every round starts with new questions.
+  if (!open) return null;
+  return <AgeGateDialog onClose={onClose} onPass={onPass} />;
+}
+
+function AgeGateDialog({ onClose, onPass }: { onClose: () => void; onPass: () => void }) {
   const t = useT();
   const isAr = useUiLanguage() === "ar";
   const [seed, setSeed] = useState(() => Date.now() % 1_000_000);
@@ -512,23 +518,12 @@ export function AgeGateModal({
   const [verified, setVerified] = useState(false);
 
   useEffect(() => {
-    if (!open) return;
-    setPicks([null, null, null]);
-    setSubmitted(false);
-    setVerified(false);
-    setSeed(Date.now() % 1_000_000);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  if (!open) return null;
+  }, [onClose]);
 
   const allAnswered = picks.every((p) => p != null);
   const allCorrect = questions.every((q, i) => picks[i] === q.correct);

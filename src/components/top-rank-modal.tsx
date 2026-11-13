@@ -41,10 +41,17 @@ export function TopRankModal() {
     return () => window.removeEventListener("keydown", onKey);
   }, [openDept, close]);
 
+  const [deptSeen, setDeptSeen] = useState(openDept);
+  if (deptSeen !== openDept) {
+    setDeptSeen(openDept);
+    if (openDept) {
+      setQuery("");
+      setShowTop(false);
+    }
+  }
+
   useEffect(() => {
     if (!openDept) return;
-    setQuery("");
-    setShowTop(false);
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {

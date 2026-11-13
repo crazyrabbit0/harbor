@@ -18,9 +18,11 @@ export function CurfewGuard() {
     profileId ? loadCurfew(profileId) : { date: "", seconds: 0, unlocked: false },
   );
 
-  useEffect(() => {
+  const [recFor, setRecFor] = useState(profileId);
+  if (recFor !== profileId) {
+    setRecFor(profileId);
     if (profileId) setRec(loadCurfew(profileId));
-  }, [profileId]);
+  }
 
   const locked = !!limit && !rec.unlocked && rec.seconds >= limit * 60;
 

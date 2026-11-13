@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 export function Avatar({
   name,
@@ -13,7 +13,11 @@ export function Avatar({
 }) {
   const initial = (name.trim()[0] || "?").toUpperCase();
   const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [src]);
+  const [srcSeen, setSrcSeen] = useState(src);
+  if (srcSeen !== src) {
+    setSrcSeen(src);
+    setFailed(false);
+  }
   const hue = useMemo(() => {
     let h = 0;
     for (const c of name) h = (h * 31 + c.charCodeAt(0)) % 360;

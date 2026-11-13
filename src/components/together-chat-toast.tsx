@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTogether, type ChatMessage } from "@/lib/together/provider";
 import { useViewSelector } from "@/lib/view";
 
@@ -8,23 +8,18 @@ const MAX_TOASTS = 3;
 export function TogetherChatToast() {
   const { chat, modalOpen, clientId, snapshot } = useTogether();
   const { player } = useViewSelector((v) => ({ player: !!v.player }));
-  const [mountedAt] = useState(Date.now);
-  const seenAtRef = useRef(mountedAt);
+  const [seenAt, setSeenAt] = useState(Date.now);
   const [toasts, setToasts] = useState<ChatMessage[]>([]);
 
-  useEffect(() => {
-    if (chat.length === 0) return;
-    const latest = chat[chat.length - 1];
-    if (latest.at <= seenAtRef.current) return;
-    seenAtRef.current = latest.at;
-    if (modalOpen || player) return;
-    if (latest.from === clientId) return;
-    setToasts((cur) => [...cur, latest].slice(-MAX_TOASTS));
-  }, [chat, modalOpen, clientId, player]);
+  const latest = chat.length > 0 ? chat[chat.length - 1] : null;
+  if (latest && latest.at > seenAt) {
+    setSeenAt(latest.at);
+    if (!modalOpen && !player && latest.from !== clientId) {
+      setToasts([...toasts, latest].slice(-MAX_TOASTS));
+    }
+  }
 
-  useEffect(() => {
-    if (modalOpen || player) setToasts([]);
-  }, [modalOpen, player]);
+  if ((modalOpen || player) && toasts.length > 0) setToasts([]);
 
   const expire = useCallback((id: string) => {
     setToasts((cur) => cur.filter((m) => `${m.from}-${m.at}` !== id));

@@ -22,14 +22,14 @@ function useLogo(meta: Meta): string | undefined {
   const [logo, setLogo] = useState<string | undefined>(() =>
     peekCachedLogo(settings.tmdbKey, meta),
   );
+  const [seen, setSeen] = useState({ meta, tmdbKey: settings.tmdbKey });
+  if (seen.meta !== meta || seen.tmdbKey !== settings.tmdbKey) {
+    setSeen({ meta, tmdbKey: settings.tmdbKey });
+    setLogo(peekCachedLogo(settings.tmdbKey, meta));
+  }
   useEffect(() => {
     let cancelled = false;
-    const cached = peekCachedLogo(settings.tmdbKey, meta);
-    if (cached) {
-      setLogo(cached);
-      return;
-    }
-    setLogo(undefined);
+    if (peekCachedLogo(settings.tmdbKey, meta)) return;
     resolveLogo(settings.tmdbKey, meta)
       .then((url) => {
         if (!cancelled) setLogo(url);

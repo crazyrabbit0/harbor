@@ -27,16 +27,36 @@ export function useLocalizedPoster(metaId: string): {
     tmdbLanguage: s.tmdbLanguage,
     tmdbImageLangs: s.tmdbImageLangs,
   }));
-  const [url, setUrl] = useState<string | undefined>(undefined);
-  const [localizing, setLocalizing] = useState<boolean>(() => {
+  const isActive = () => {
     const canResolve = metaId.startsWith("tmdb:") || metaId.startsWith("tt");
     return !!settings.tmdbKey && canResolve && shouldLocalizePosters();
+  };
+  const [url, setUrl] = useState<string | undefined>(undefined);
+  const [localizing, setLocalizing] = useState<boolean>(isActive);
+  const [seen, setSeen] = useState({
+    metaId,
+    tmdbKey: settings.tmdbKey,
+    tmdbLanguage: settings.tmdbLanguage,
+    tmdbImageLangs: settings.tmdbImageLangs,
   });
-  useEffect(() => {
+  if (
+    seen.metaId !== metaId ||
+    seen.tmdbKey !== settings.tmdbKey ||
+    seen.tmdbLanguage !== settings.tmdbLanguage ||
+    seen.tmdbImageLangs !== settings.tmdbImageLangs
+  ) {
+    setSeen({
+      metaId,
+      tmdbKey: settings.tmdbKey,
+      tmdbLanguage: settings.tmdbLanguage,
+      tmdbImageLangs: settings.tmdbImageLangs,
+    });
     setUrl(undefined);
+    setLocalizing(isActive());
+  }
+  useEffect(() => {
     const canResolve = metaId.startsWith("tmdb:") || metaId.startsWith("tt");
     const active = !!settings.tmdbKey && canResolve && shouldLocalizePosters();
-    setLocalizing(active);
     if (!active) return;
     let alive = true;
     void (async () => {
@@ -90,10 +110,12 @@ function useAnimeRpdbIds(
   const [animeImdb, setAnimeImdb] = useState<string>();
   const [animeTvdb, setAnimeTvdb] = useState<string>();
   const isAnime = /^(kitsu|mal|anilist|anidb):/.test(metaId);
-  useEffect(() => {
+  const [idsFor, setIdsFor] = useState(metaId);
+  if (idsFor !== metaId) {
+    setIdsFor(metaId);
     setAnimeImdb(undefined);
     setAnimeTvdb(undefined);
-  }, [metaId]);
+  }
   useEffect(() => {
     if (!isAnime || (!rpdbKey && !settings.posterBaseUrl)) return;
     const m = metaId.match(/^(kitsu|mal|anilist|anidb):(\d+)/);
@@ -283,12 +305,16 @@ function PosterBody({
   useLayoutEffect(() => {
     onErrorRef.current = onError;
   }, [onError]);
-  useEffect(() => {
+  const [sigSeen, setSigSeen] = useState(sig);
+  if (sigSeen !== sig) {
+    setSigSeen(sig);
     setIdx(0);
     setLoaded(false);
     setRetry(0);
-    failedRef.current = new Set();
     setFailedSet(NO_FAILED_URLS);
+  }
+  useEffect(() => {
+    failedRef.current = new Set();
     firedRef.current = false;
   }, [sig]);
 

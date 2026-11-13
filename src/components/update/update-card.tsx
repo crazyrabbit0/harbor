@@ -32,25 +32,29 @@ export function UpdateCard() {
   const t = useT();
   const u = useUpdate();
   const [shown, setShown] = useState(false);
-  const [rich, setRich] = useState<ReleaseNote | null>(null);
   useEffect(() => {
     const id = requestAnimationFrame(() => setShown(true));
     return () => cancelAnimationFrame(id);
   }, []);
+  const noteRun = JSON.stringify([u.status, u.version, u.channel, u.notes]);
+  const [fetched, setFetched] = useState<{ run: string; note: ReleaseNote } | null>(null);
+  const rich: ReleaseNote | null =
+    u.channel === "experimental"
+      ? experimentalReleaseNote(u.version)
+      : fetched?.run === noteRun
+        ? fetched.note
+        : u.version
+          ? noteFromMarkdown(u.notes)
+          : null;
   useEffect(() => {
     let ok = true;
-    if (u.channel === "experimental") {
-      setRich(experimentalReleaseNote(u.version));
-    } else if (u.version) {
-      setRich(noteFromMarkdown(u.notes));
-      releaseNote(u.version).then((n) => ok && n && setRich(n));
-    } else {
-      setRich(null);
+    if (u.channel !== "experimental" && u.version) {
+      releaseNote(u.version).then((n) => ok && n && setFetched({ run: noteRun, note: n }));
     }
     return () => {
       ok = false;
     };
-  }, [u.status, u.version, u.channel, u.notes]);
+  }, [noteRun, u.version, u.channel]);
 
   const pct = Math.round(u.progress * 100);
   const determinate = u.totalBytes > 0;

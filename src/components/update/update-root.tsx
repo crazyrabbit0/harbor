@@ -41,9 +41,11 @@ export function UpdateRoot() {
     void inAppUpdatesSupported().then((ok) => ok && startUpdateWatcher());
   }, []);
 
-  useEffect(() => {
+  const [versionSeen, setVersionSeen] = useState(u.version);
+  if (versionSeen !== u.version) {
+    setVersionSeen(u.version);
     setAutoHidden(null);
-  }, [u.version]);
+  }
 
   const pillVisible =
     !u.panelOpen &&

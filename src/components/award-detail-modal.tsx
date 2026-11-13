@@ -27,9 +27,6 @@ export function AwardDetailModal({
   const t = useT();
   const { openMeta } = useViewActions();
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number; place: "below" | "above" } | null>(
-    null,
-  );
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -55,8 +52,8 @@ export function AwardDetailModal({
     };
   }, [onClose]);
 
-  useLayoutEffect(() => {
-    if (!anchor) return;
+  const pos = useMemo(() => {
+    if (!anchor) return null;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const spaceBelow = vh - anchor.bottom;
@@ -70,7 +67,7 @@ export function AwardDetailModal({
     const top = place === "below" ? anchor.bottom + GAP : anchor.top - GAP - desiredHeight;
     let left = anchor.left + anchor.width / 2 - TOOLTIP_WIDTH / 2;
     left = Math.max(12, Math.min(left, vw - TOOLTIP_WIDTH - 12));
-    setPos({ top, left, place });
+    return { top, left, place };
   }, [anchor]);
 
   const groups = useMemo(() => groupEntries(entries), [entries]);
@@ -375,15 +372,15 @@ function useWorkMeta(entry: WorkLike, preferSeries: boolean): Meta | null {
     entryRef.current = entry;
   }, [entry]);
   const [v, setV] = useState<Meta | null>(() => workCache.get(key) ?? null);
+  const [keySeen, setKeySeen] = useState(key);
+  if (keySeen !== key) {
+    setKeySeen(key);
+    if (workCache.has(key)) setV(workCache.get(key) ?? null);
+    else if (!entry.workImdb && !entry.workTitle) setV(null);
+  }
   useEffect(() => {
-    if (workCache.has(key)) {
-      setV(workCache.get(key) ?? null);
-      return;
-    }
-    if (!entryRef.current.workImdb && !entryRef.current.workTitle) {
-      setV(null);
-      return;
-    }
+    if (workCache.has(key)) return;
+    if (!entryRef.current.workImdb && !entryRef.current.workTitle) return;
     let cancelled = false;
     let p = workInflight.get(key);
     if (!p) {

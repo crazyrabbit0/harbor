@@ -28,11 +28,10 @@ export function SidePanel({
   const description = useLocalizedOverview(meta);
   const live = useLiveImdbRating(meta);
 
+  if (!settings.tmdbKey && stills.length > 0) setStills([]);
+
   useEffect(() => {
-    if (!settings.tmdbKey) {
-      setStills([]);
-      return;
-    }
+    if (!settings.tmdbKey) return;
     let cancelled = false;
     tmdbMovieImages(settings.tmdbKey, meta.id)
       .then((urls) => {

@@ -272,10 +272,12 @@ export function BigCardStack({
 function TitlePlate({ title, logo }: { title: string; logo?: string }) {
   const [logoLoaded, setLogoLoaded] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
-  useEffect(() => {
+  const [logoSeen, setLogoSeen] = useState(logo);
+  if (logoSeen !== logo) {
+    setLogoSeen(logo);
     setLogoLoaded(false);
     setLogoFailed(false);
-  }, [logo]);
+  }
   const showLogo = !!logo && !logoFailed;
   return (
     <div className="relative flex min-h-[64px] flex-col justify-end">

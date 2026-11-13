@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { CatAvatar } from "@/components/icons/cat-avatar";
 
 export function AvatarImage({ src, className }: { src?: string | null; className?: string }) {
   const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
+  const [seenSrc, setSeenSrc] = useState(src);
+  if (seenSrc !== src) {
+    setSeenSrc(src);
     setFailed(false);
-  }, [src]);
+  }
 
   if (!src || failed) return <CatAvatar className={className} />;
 

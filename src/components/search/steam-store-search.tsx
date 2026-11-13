@@ -96,8 +96,8 @@ export function SteamStoreSearch({
       setSettings({ profile, value: { country: "auto", showLibrary: true }, ready: true });
     }
   };
+  if (!ready) read();
   useEffect(() => {
-    read();
     const storage = (event: StorageEvent) => {
         if (event.key === null || event.key === steamStorePreferencesKey(profile)) read();
       },
@@ -129,17 +129,19 @@ export function SteamStoreSearch({
       ),
     ];
   }, [language, automatic]);
-  useEffect(() => {
-    controller.current?.abort();
+  const searchRun = JSON.stringify([key, active, ready, retry]);
+  const [searchSeen, setSearchSeen] = useState<string | null>(null);
+  if (searchSeen !== searchRun) {
+    setSearchSeen(searchRun);
     setOpenError(false);
     setOpening(null);
-    if (!active || !ready || !term) {
-      setState({ key, page: null, busy: false, error: false });
-      return;
-    }
+    setState({ key, page: null, busy: active && ready && !!term, error: false });
+  }
+  useEffect(() => {
+    controller.current?.abort();
+    if (!active || !ready || !term) return;
     const abort = new AbortController();
     controller.current = abort;
-    setState({ key, page: null, busy: true, error: false });
     const timer = setTimeout(() => {
       void loadSteamStoreSearch(term, prefs.country, 0, abort.signal, retry > 0).then(
         (value) => {

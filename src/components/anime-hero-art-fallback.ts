@@ -20,10 +20,12 @@ export function useArtFallback(sources: (string | undefined)[]): {
     indexRef.current = index;
   }, [index]);
 
-  useEffect(() => {
+  const [keySeen, setKeySeen] = useState(key);
+  if (keySeen !== key) {
+    setKeySeen(key);
     setIndex(0);
     setDone(false);
-  }, [key]);
+  }
 
   useEffect(() => {
     if (done || index >= list.length) return;

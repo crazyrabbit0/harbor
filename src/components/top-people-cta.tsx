@@ -7,14 +7,15 @@ import { useViewActions } from "@/lib/view";
 export function TopPeopleCta({ title }: { title?: string }) {
   const { openPeople } = useViewActions();
   const t = useT();
-  const [people, setPeople] = useState<HarborRankExplanation[]>([]);
+  const [people, setPeople] = useState<HarborRankExplanation[]>(() => {
+    const snap = peekRankSnapshot("harbor", "Acting", null);
+    return snap && snap.source === "harbor"
+      ? snap.list.filter((p) => p.profilePath).slice(0, 6)
+      : [];
+  });
 
   useEffect(() => {
     let cancelled = false;
-    const snap = peekRankSnapshot("harbor", "Acting", null);
-    if (snap && snap.source === "harbor") {
-      setPeople(snap.list.filter((p) => p.profilePath).slice(0, 6));
-    }
     fetchRankList("harbor", "Acting", null).then((r) => {
       if (cancelled || !r || r.source !== "harbor") return;
       setPeople(r.list.filter((p) => p.profilePath).slice(0, 6));

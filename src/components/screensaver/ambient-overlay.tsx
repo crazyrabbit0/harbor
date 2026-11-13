@@ -84,9 +84,7 @@ export function AmbientOverlay({
     return () => window.clearTimeout(id);
   }, [layers]);
 
-  useEffect(() => {
-    if (deep) setLayers([]);
-  }, [deep]);
+  if (deep && layers.length > 0) setLayers([]);
 
   const current = layers.length ? layers[layers.length - 1].item : items[0];
 

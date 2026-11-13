@@ -20,12 +20,17 @@ export function useAiSuggest(query: string, runSignal = 0) {
   const [ranQuery, setRanQuery] = useState("");
   const reqRef = useRef(0);
 
-  useEffect(() => {
-    reqRef.current += 1;
+  const [querySeen, setQuerySeen] = useState(query);
+  if (querySeen !== query) {
+    setQuerySeen(query);
     setStatus("idle");
     setResults([]);
     setError(null);
     setRanQuery("");
+  }
+
+  useEffect(() => {
+    reqRef.current += 1;
   }, [query]);
 
   const activeKey = aiKey(settings);

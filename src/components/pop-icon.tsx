@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 function prefersReducedMotion(): boolean {
   return (
@@ -16,15 +16,12 @@ export function PopIcon({
   activeIcon: ReactNode;
   inactiveIcon: ReactNode;
 }) {
-  const mounted = useRef(false);
   const [pop, setPop] = useState(0);
-  useEffect(() => {
-    if (!mounted.current) {
-      mounted.current = true;
-      return;
-    }
-    if (active && !prefersReducedMotion()) setPop((n) => n + 1);
-  }, [active]);
+  const [activeSeen, setActiveSeen] = useState(active);
+  if (activeSeen !== active) {
+    setActiveSeen(active);
+    if (active && !prefersReducedMotion()) setPop(pop + 1);
+  }
   return (
     <span
       key={active ? `on-${pop}` : "off"}

@@ -60,16 +60,12 @@ export function LazyMount({
   minHeight?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
-  const [shown, setShown] = useState(false);
+  const [shown, setShown] = useState(() => typeof IntersectionObserver === "undefined");
 
   useEffect(() => {
     if (shown) return;
     const el = ref.current;
     if (!el) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setShown(true);
-      return;
-    }
     const inViewport = (r: DOMRect) => {
       const vh = window.innerHeight || 800;
       return r.bottom > -vh * 0.5 && r.top < vh * 1.5;

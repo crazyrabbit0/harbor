@@ -74,9 +74,7 @@ export function AnimeHero({
     return () => clearInterval(id);
   }, [paused, inView, visible, slides.length]);
 
-  useEffect(() => {
-    if (active >= slides.length && slides.length > 0) setActive(0);
-  }, [slides.length, active]);
+  if (active >= slides.length && slides.length > 0) setActive(0);
 
   const malRating = useMalRating(slides[active]);
   const pinnedLogo = useTitleLogo(slides[active]?.id);
@@ -295,9 +293,11 @@ export function AnimeHeroSkeleton() {
 
 function HeroLogo({ title, logo }: { title: string; logo?: string }) {
   const [failed, setFailed] = useState(false);
-  useEffect(() => {
+  const [logoSeen, setLogoSeen] = useState(logo);
+  if (logoSeen !== logo) {
+    setLogoSeen(logo);
     setFailed(false);
-  }, [logo]);
+  }
   if (logo && !failed) {
     return <HeroLogoImage logo={logo} title={title} onFail={() => setFailed(true)} />;
   }

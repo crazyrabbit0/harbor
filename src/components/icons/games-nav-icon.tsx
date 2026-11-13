@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useSettingsSelector } from "@/lib/settings";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
 import { GamesIcon } from "./games-icon";
@@ -8,13 +8,14 @@ export function GamesNavIcon({ hovered = false }: { hovered?: boolean }) {
   const settings = useSettingsSelector((s) => ({ navIconAnimations: s.navIconAnimations }));
   const reducedMotion = useReducedMotion();
   const enabled = settings.navIconAnimations && !reducedMotion;
-  const [pressing, setPressing] = useState(false);
-
-  useEffect(() => {
+  const [pressing, setPressing] = useState(enabled && hovered);
+  const [seen, setSeen] = useState({ enabled, hovered });
+  if (seen.enabled !== enabled || seen.hovered !== hovered) {
+    setSeen({ enabled, hovered });
     if (!enabled) setPressing(false);
     else if (hovered) setPressing(true);
     // Finish the release when the pointer leaves, like the Sports icon's landing.
-  }, [enabled, hovered]);
+  }
 
   return (
     <span
