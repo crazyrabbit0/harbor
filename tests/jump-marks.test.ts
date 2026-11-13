@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 import { named, ofType, treeHarness } from "./helpers/tree-render.ts";
+import { keyboardShortcutsHarness } from "./helpers/keyboard-shortcuts-harness.ts";
 
 const at = (p: string) => new URL(`../${p}`, import.meta.url);
 const read = (p: string) => readFileSync(at(p), "utf8");
@@ -111,12 +112,74 @@ test("the jump grid shows the prefetched frames and fills in when a prefetch lan
   assert.equal(cells(j.render()).length, 0, "choosing a frame closes the grid");
 });
 
-test("the jump key flashes the marks and the seek bar follows them", () => {
-  assert.match(
-    read("src/views/player/hooks/use-keyboard-shortcuts.ts"),
-    /if \(digit != null\) \{\s*e\.preventDefault\(\);\s*flashJumpMarks\(\);/,
+test("the jump key flashes the marks and jumps to that tenth of the video", () => {
+  const k = keyboardShortcutsHarness({}, { durationSec: 1000 });
+  const digit = (d: number) => k.key("keydown", { key: String(d), code: `Digit${d}` });
+  assert.equal(digit(5), true, "the digit is consumed");
+  assert.deepEqual(k.calls, ["flash-marks", "seek-to 500"]);
+  assert.equal(digit(0), true);
+  assert.deepEqual(k.calls.slice(2), ["flash-marks", "seek-to 0"]);
+  const unknown = keyboardShortcutsHarness({}, { durationSec: 0 });
+  unknown.key("keydown", { key: "7", code: "Digit7" });
+  assert.deepEqual(unknown.calls, ["flash-marks"], "no jump before the length is known");
+  const off = keyboardShortcutsHarness(
+    { hotkeys: { playerJumpDigits: "off" } },
+    { durationSec: 1000 },
   );
-  assert.match(read("src/components/player/transport/seek-bar.tsx"), /useJumpMarksVisible\(\)/);
+  assert.equal(off.key("keydown", { key: "5", code: "Digit5" }), false);
+  assert.deepEqual(off.calls, [], "a disabled digit group leaves the key alone");
+});
+
+/** Renders the seek bar with jump marks shown or hidden, at a given playback position. */
+function seekBar(marksShown: boolean, position: number) {
+  const gated: boolean[] = [];
+  const h = treeHarness(
+    "src/components/player/transport/seek-bar.tsx",
+    {
+      "@/lib/settings": { useSettings: () => ({ settings: {} }) },
+      "@/lib/player/playback-clock": {
+        usePlaybackPositionGated: (on: boolean) => (gated.push(on), position),
+        usePlaybackBufferedGated: () => 0,
+        usePlaybackDownloadedGated: () => 0,
+        setSeekHovering() {},
+      },
+      "@/lib/trickplay": { useTrickplayState: () => ({ active: false, bufferedOnly: false }) },
+      "@/lib/player/jump-marks": { useJumpMarksVisible: () => marksShown },
+      "@/lib/skip-intro/segment-store": { useSkipSegmentsView: () => [] },
+      "@/components/player/thumb-preview": { ThumbPreview: "ThumbPreview" },
+      "./seek-bar-visual": { SeekBarVisual: "SeekBarVisual" },
+      "./transport-utils": { fmtTime: String },
+    },
+    {
+      globals: {
+        window: { addEventListener() {}, removeEventListener() {} },
+        document: { addEventListener() {}, removeEventListener() {} },
+      },
+    },
+  );
+  const tree = h.render({
+    type: h.exports.SeekBar,
+    props: { durationSec: 1000, onSeek() {}, active: false },
+  });
+  return { marks: ofType(tree, "kbd"), gated };
+}
+
+test("the seek bar shows the ten jump marks and follows playback while they are up", () => {
+  const shown = seekBar(true, 310);
+  assert.deepEqual(
+    shown.marks.map((el) => el.props.children),
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+  );
+  const lit = shown.marks.filter((el) => el.props.className.includes("bg-accent"));
+  assert.deepEqual(
+    lit.map((el) => el.props.children),
+    [3],
+    "the mark nearest the position is lit",
+  );
+  assert.deepEqual(shown.gated, [true], "an idle bar still tracks the position for the marks");
+  const hidden = seekBar(false, 310);
+  assert.equal(hidden.marks.length, 0);
+  assert.deepEqual(hidden.gated, [false]);
 });
 
 test("the player chrome stays up while the jump marks show", () => {
