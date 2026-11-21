@@ -200,10 +200,16 @@ export function useChromeVisibility(params: {
   }, [wakeChrome, setChromeHidden]);
 
   const [anyMenuOpen, setAnyMenuOpen] = useState(false);
+  const [prevAnyMenuOpen, setPrevAnyMenuOpen] = useState(anyMenuOpen);
+  const menuOpened = anyMenuOpen !== prevAnyMenuOpen;
+  if (menuOpened) {
+    setPrevAnyMenuOpen(anyMenuOpen);
+    if (anyMenuOpen) setChromeVisible(true);
+  }
+  const effectiveChromeVisible = chromeVisible || (menuOpened && anyMenuOpen);
   useEffect(() => {
     anyMenuOpenRef.current = anyMenuOpen;
     if (anyMenuOpen) {
-      setChromeVisible(true);
       if (hideTimer.current) window.clearTimeout(hideTimer.current);
     } else {
       wakeChromeRef.current();
@@ -214,14 +220,14 @@ export function useChromeVisibility(params: {
     () =>
       drawMode
         ? { cursor: "none" }
-        : !chromeVisible && playing
+        : !effectiveChromeVisible && playing
           ? { cursor: "none" }
           : { cursor: "default" },
-    [drawMode, chromeVisible, playing],
+    [drawMode, effectiveChromeVisible, playing],
   );
 
   return {
-    chromeVisible,
+    chromeVisible: effectiveChromeVisible,
     wakeChrome,
     hideForResume,
     anyMenuOpen,

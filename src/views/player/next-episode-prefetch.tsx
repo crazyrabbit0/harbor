@@ -7,6 +7,7 @@ import {
   buildPickerConfigHash,
   getPickerCache,
   keepPrefetchedPickerCache,
+  peekPickerCache,
   setPickerCache,
 } from "@/lib/picker-cache";
 import { getPlaybackPosition, usePlaybackFlag } from "@/lib/player/playback-clock";
@@ -73,16 +74,23 @@ export function NextEpisodePrefetch({
     [allAddons, debrids, filterDisabled, strictMode],
   );
 
-  const [ready, setReady] = useState<RankedPicker | null>(null);
+  const readyKey = `${meta.id}|${episode.season}:${episode.episode}|${pickerConfigHash}`;
+  const peeked =
+    streamIds && addons !== null && allAddons !== null ? peekPickerCache(meta, episode) : null;
+  const cachedPicker =
+    peeked && peeked.configHash === pickerConfigHash && peeked.complete
+      ? peeked.result.picker
+      : null;
+  const [fetchedReady, setFetchedReady] = useState<{ key: string; picker: RankedPicker } | null>(
+    null,
+  );
+  const ready = cachedPicker ?? (fetchedReady?.key === readyKey ? fetchedReady.picker : null);
 
   useEffect(() => {
     if (!streamIds || addons === null || allAddons === null) return;
     keepPrefetchedPickerCache(meta, episode);
     const cached = getPickerCache(meta, episode, pickerConfigHash);
-    if (cached?.complete) {
-      setReady(cached.result.picker);
-      return;
-    }
+    if (cached?.complete) return;
     const ac = new AbortController();
     const s = settingsRef.current;
     const everyAddon = addons.length === allAddons.length;
@@ -107,7 +115,7 @@ export function NextEpisodePrefetch({
         stampAddonOrder(r.picker.all, r.raw.addon);
         // Without the plugins it is only a head start: the picker still asks them, so it is stored as incomplete.
         setPickerCache(meta, episode, r, pickerConfigHash, everyAddon);
-        setReady(r.picker);
+        setFetchedReady({ key: readyKey, picker: r.picker });
       })
       .catch(() => {});
     return () => ac.abort();
@@ -123,6 +131,7 @@ export function NextEpisodePrefetch({
     animeTitles,
     imdb.id,
     pickerConfigHash,
+    readyKey,
   ]);
 
   // Opening a debrid link creates the transfer as pressing Play would, so it follows the same opt-in setting.

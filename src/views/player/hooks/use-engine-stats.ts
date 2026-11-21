@@ -33,8 +33,17 @@ export function useEngineStats(args: {
 }): { stats: EngineStats | null; genuineFailure: boolean } {
   const { url, infoHash, fileIdx, active } = args;
   const enabled = active && (isBundledEngineUrl(url) || isLocalEngineUrl(url)) && !!infoHash;
-  const [stats, setStats] = useState<EngineStats | null>(null);
-  const [genuineFailure, setGenuineFailure] = useState(false);
+  const statsKey = enabled && infoHash != null ? `${url}|${infoHash}|${fileIdx ?? ""}` : "";
+  const [statsState, setStatsState] = useState<{
+    key: string;
+    stats: EngineStats | null;
+    genuineFailure: boolean;
+  }>({ key: statsKey, stats: null, genuineFailure: false });
+  if (statsState.key !== statsKey) {
+    setStatsState({ key: statsKey, stats: null, genuineFailure: false });
+  }
+  const stats = statsState.key === statsKey ? statsState.stats : null;
+  const genuineFailure = statsState.key === statsKey ? statsState.genuineFailure : false;
   const prevRef = useRef<EngineStats | null>(null);
   const lastGrowthRef = useRef(0);
   const lastGrowthAtRef = useRef(0);
@@ -43,8 +52,6 @@ export function useEngineStats(args: {
   const downStrikesRef = useRef(0);
 
   useEffect(() => {
-    setStats(null);
-    setGenuineFailure(false);
     prevRef.current = null;
     lastGrowthRef.current = 0;
     lastGrowthAtRef.current = 0;
@@ -55,6 +62,12 @@ export function useEngineStats(args: {
     const idx = fileIdx == null || fileIdx < 0 ? -1 : fileIdx;
     const ac = new AbortController();
     let cancelled = false;
+    const setFailure = (value: boolean) =>
+      setStatsState((cur) =>
+        cur.key === statsKey && cur.genuineFailure !== value
+          ? { ...cur, genuineFailure: value }
+          : cur,
+      );
 
     const tick = async () => {
       const res = await fetchEngineStats(infoHash, idx, prevRef.current, ac.signal, url);
@@ -64,19 +77,23 @@ export function useEngineStats(args: {
       if (res.kind === "down") {
         downStrikesRef.current += 1;
         if (downStrikesRef.current >= ENGINE_DOWN_STRIKES && !prevRef.current?.sawData) {
-          setGenuineFailure(true);
+          setFailure(true);
         }
         return;
       }
       downStrikesRef.current = 0;
       if (res.kind === "empty") {
-        setGenuineFailure(false);
+        setFailure(false);
         return;
       }
 
       const next = res.stats;
       prevRef.current = next;
-      setStats((current) => (current && sameStats(current, next) ? current : next));
+      setStatsState((cur) =>
+        cur.key === statsKey && (!cur.stats || !sameStats(cur.stats, next))
+          ? { ...cur, stats: next }
+          : cur,
+      );
 
       if ((next.peers > 0 || next.unchoked > 0) && firstPeerSeenAtRef.current == null) {
         firstPeerSeenAtRef.current = now;
@@ -84,13 +101,13 @@ export function useEngineStats(args: {
       if (next.downloaded > lastGrowthRef.current + GROWTH_THRESHOLD) {
         lastGrowthRef.current = next.downloaded;
         lastGrowthAtRef.current = now;
-        setGenuineFailure(false);
+        setFailure(false);
         return;
       }
 
       const moving = next.unchoked > 0 || next.downloadSpeed > 0 || next.peerSearchRunning;
       if (moving) {
-        setGenuineFailure(false);
+        setFailure(false);
         return;
       }
 
@@ -98,14 +115,14 @@ export function useEngineStats(args: {
 
       if (firstPeerSeenAtRef.current == null) {
         if (next.peers === 0 && now - startedAtRef.current > COLD_CONNECT_DEADLINE_MS) {
-          setGenuineFailure(true);
+          setFailure(true);
         }
         return;
       }
 
       const anchor = Math.max(firstPeerSeenAtRef.current, lastGrowthAtRef.current);
       if (next.peers === 0 && now - anchor > GENUINE_FAILURE_WINDOW_MS) {
-        setGenuineFailure(true);
+        setFailure(true);
       }
     };
 
@@ -126,7 +143,7 @@ export function useEngineStats(args: {
       if (id !== null) window.clearInterval(id);
       document.removeEventListener("visibilitychange", sync);
     };
-  }, [enabled, url, infoHash, fileIdx]);
+  }, [enabled, url, infoHash, fileIdx, statsKey]);
 
   return { stats, genuineFailure };
 }

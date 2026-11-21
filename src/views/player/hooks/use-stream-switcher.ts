@@ -32,41 +32,70 @@ export function useStreamSwitcher(params: {
     srcRef.current = src;
   });
 
-  const checkShownRef = useRef(false);
-  const [streamCheckOpen, setStreamCheckOpen] = useState(false);
+  const [streamCheckState, setStreamCheckState] = useState<{
+    url: string;
+    open: boolean;
+    shown: boolean;
+  }>(() => ({ url: src.url, open: false, shown: checkShownThisSession }));
+  if (streamCheckState.url !== src.url) {
+    setStreamCheckState({ url: src.url, open: false, shown: streamCheckState.shown });
+  }
   const isLive = src.meta.id?.startsWith("iptv:") ?? false;
   const startedEnough = usePlaybackFlag(() => getPlaybackPosition() >= 1.5);
+  const baseCheckShown = streamCheckState.shown;
+  const shouldOpenCheck = !baseCheckShown && !isLive && snap.status === "playing" && startedEnough;
+  if (shouldOpenCheck) {
+    setStreamCheckState({ url: src.url, open: true, shown: true });
+  }
+  const streamCheckOpen =
+    (streamCheckState.url === src.url && streamCheckState.open) || shouldOpenCheck;
+  const setStreamCheckOpen = useCallback((next: boolean | ((cur: boolean) => boolean)) => {
+    setStreamCheckState((cur) => {
+      const open = typeof next === "function" ? next(cur.open) : next;
+      return cur.open === open ? cur : { ...cur, open };
+    });
+  }, []);
   useEffect(() => {
-    checkShownRef.current = false;
-    setStreamCheckOpen(false);
-  }, [src.url]);
-  useEffect(() => {
-    if (checkShownRef.current) return;
-    if (checkShownThisSession) return;
-    if (isLive) return;
-    if (snap.status !== "playing" || !startedEnough) return;
-    checkShownRef.current = true;
-    checkShownThisSession = true;
-    setStreamCheckOpen(true);
-  }, [snap.status, startedEnough, src.url, isLive]);
+    if (streamCheckState.shown) checkShownThisSession = true;
+  }, [streamCheckState.shown]);
   useEffect(() => {
     if (!streamCheckOpen) return;
     const t = window.setTimeout(() => setStreamCheckOpen(false), 5500);
     return () => window.clearTimeout(t);
-  }, [streamCheckOpen]);
+  }, [streamCheckOpen, setStreamCheckOpen]);
 
   const [switcherOpen, setSwitcherOpen] = useState(false);
-  const [swapResolvingKey, setSwapResolvingKey] = useState<string | null>(null);
-  const [liveUrl, setLiveUrl] = useState(src.url);
-  const [liveHistoryUrl, setLiveHistoryUrl] = useState(src.historyUrl ?? src.url);
-  const [liveStreamRef, setLiveStreamRef] = useState(src.streamRef);
+  const [liveState, setLiveState] = useState(() => ({
+    srcUrl: src.url,
+    srcHistoryUrl: src.historyUrl,
+    srcStreamRef: src.streamRef,
+    liveUrl: src.url,
+    liveHistoryUrl: src.historyUrl ?? src.url,
+    liveStreamRef: src.streamRef,
+    swapResolvingKey: null as string | null,
+  }));
+  const srcChanged =
+    liveState.srcUrl !== src.url ||
+    liveState.srcHistoryUrl !== src.historyUrl ||
+    liveState.srcStreamRef !== src.streamRef;
+  if (srcChanged) {
+    setLiveState({
+      srcUrl: src.url,
+      srcHistoryUrl: src.historyUrl,
+      srcStreamRef: src.streamRef,
+      liveUrl: src.url,
+      liveHistoryUrl: src.historyUrl ?? src.url,
+      liveStreamRef: src.streamRef,
+      swapResolvingKey: null,
+    });
+  }
+  const liveUrl = srcChanged ? src.url : liveState.liveUrl;
+  const liveHistoryUrl = srcChanged ? (src.historyUrl ?? src.url) : liveState.liveHistoryUrl;
+  const liveStreamRef = srcChanged ? src.streamRef : liveState.liveStreamRef;
+  const swapResolvingKey = srcChanged ? null : liveState.swapResolvingKey;
   const swapAcRef = useRef<AbortController | null>(null);
   useEffect(() => {
-    setLiveUrl(src.url);
-    setLiveHistoryUrl(src.historyUrl ?? src.url);
-    setLiveStreamRef(src.streamRef);
     swapAcRef.current?.abort();
-    setSwapResolvingKey(null);
   }, [src.url, src.historyUrl, src.streamRef]);
 
   const switchProxySessionRef = useRef<string | null>(null);
@@ -91,7 +120,7 @@ export function useStreamSwitcher(params: {
     async (stream: ScoredStream) => {
       const src = srcRef.current;
       const key = stream.infoHash ?? stream.url ?? `${stream.addonId}:${stream.title ?? ""}`;
-      setSwapResolvingKey(key);
+      setLiveState((cur) => ({ ...cur, swapResolvingKey: key }));
       swapAcRef.current?.abort();
       const ac = new AbortController();
       swapAcRef.current = ac;
@@ -100,12 +129,16 @@ export function useStreamSwitcher(params: {
         : undefined;
       const r = await resolveStream(stream, debrids, ac.signal, true, false, hint);
       if (ac.signal.aborted) {
-        if (swapAcRef.current === ac) setSwapResolvingKey(null);
+        if (swapAcRef.current === ac) {
+          setLiveState((cur) =>
+            cur.swapResolvingKey === null ? cur : { ...cur, swapResolvingKey: null },
+          );
+        }
         return;
       }
       if (!r.ok) {
         console.warn(`[player] stream swap failed: ${r.code}`);
-        setSwapResolvingKey(null);
+        setLiveState((cur) => ({ ...cur, swapResolvingKey: null }));
         return;
       }
       let playUrl = r.data.url;
@@ -116,7 +149,11 @@ export function useStreamSwitcher(params: {
           signal: ac.signal,
         });
         if (ac.signal.aborted) {
-          if (swapAcRef.current === ac) setSwapResolvingKey(null);
+          if (swapAcRef.current === ac) {
+            setLiveState((cur) =>
+              cur.swapResolvingKey === null ? cur : { ...cur, swapResolvingKey: null },
+            );
+          }
           return;
         }
       }
@@ -128,14 +165,14 @@ export function useStreamSwitcher(params: {
           playUrl = proxied.url;
           nextProxySessionId = proxied.sessionId;
         } catch {
-          setSwapResolvingKey(null);
+          setLiveState((cur) => ({ ...cur, swapResolvingKey: null }));
           return;
         }
       }
       const b = bridgeRef.current;
       if (!b) {
         if (nextProxySessionId) void unregisterStreamProxy(nextProxySessionId).catch(() => {});
-        setSwapResolvingKey(null);
+        setLiveState((cur) => ({ ...cur, swapResolvingKey: null }));
         return;
       }
       const swapIn = async () => {
@@ -159,7 +196,7 @@ export function useStreamSwitcher(params: {
         (e) => {
           if (nextProxySessionId) void unregisterStreamProxy(nextProxySessionId).catch(() => {});
           console.warn("[player] stream swap failed", e);
-          setSwapResolvingKey(null);
+          setLiveState((cur) => ({ ...cur, swapResolvingKey: null }));
           return false;
         },
       );
@@ -169,28 +206,32 @@ export function useStreamSwitcher(params: {
       if (previousProxySessionId) {
         void unregisterStreamProxy(previousProxySessionId).catch(() => {});
       }
-      setLiveUrl(playUrl);
-      setLiveHistoryUrl(r.data.url);
-      setLiveStreamRef({
-        resolvedFilename:
-          r.data.filename ??
-          stream.behaviorHints?.filename ??
-          stream.behaviorHints?.fileName ??
-          null,
-        infoHash: stream.infoHash ?? null,
-        fileIdx: r.data.fileIdx ?? stream.fileIdx ?? null,
-        addonId: stream.addonId ?? null,
-        title: stream.title ?? null,
-        parsedTitle: stream.parsedTitle ?? null,
-        resolution: stream.resolution ?? null,
-        releaseGroup: stream.releaseGroupNormalized ?? null,
-        source: stream.source ?? null,
-        size: stream.size ?? null,
-        bingeGroup: stream.behaviorHints?.bingeGroup ?? null,
-        cachedSlugs: Object.entries(stream.cached ?? {})
-          .filter(([, v]) => v === true)
-          .map(([k]) => k),
-      });
+      setLiveState((cur) => ({
+        ...cur,
+        liveUrl: playUrl,
+        liveHistoryUrl: r.data.url,
+        liveStreamRef: {
+          resolvedFilename:
+            r.data.filename ??
+            stream.behaviorHints?.filename ??
+            stream.behaviorHints?.fileName ??
+            null,
+          infoHash: stream.infoHash ?? null,
+          fileIdx: r.data.fileIdx ?? stream.fileIdx ?? null,
+          addonId: stream.addonId ?? null,
+          title: stream.title ?? null,
+          parsedTitle: stream.parsedTitle ?? null,
+          resolution: stream.resolution ?? null,
+          releaseGroup: stream.releaseGroupNormalized ?? null,
+          source: stream.source ?? null,
+          size: stream.size ?? null,
+          bingeGroup: stream.behaviorHints?.bingeGroup ?? null,
+          cachedSlugs: Object.entries(stream.cached ?? {})
+            .filter(([, v]) => v === true)
+            .map(([k]) => k),
+        },
+        swapResolvingKey: null,
+      }));
       if (src.meta.id && !src.meta.id.startsWith("iptv:")) {
         savePlayback(
           src.meta.id,
@@ -214,12 +255,10 @@ export function useStreamSwitcher(params: {
           src.episode?.episode,
         );
       }
-      setSwapResolvingKey(null);
       setSwitcherOpen(false);
-      checkShownRef.current = false;
       setStreamCheckOpen(false);
     },
-    [debrids, bridgeRef],
+    [debrids, bridgeRef, setStreamCheckOpen],
   );
 
   useEffect(

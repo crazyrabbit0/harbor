@@ -146,8 +146,16 @@ export function useCastSession(
   const [pendingCastDevice, setPendingCastDevice] = useState<CastDeviceInfo | null>(null);
   const [castError, setCastError] = useState<string | null>(null);
   const [castErrorInfo, setCastErrorInfo] = useState<CastErrorInfo | null>(null);
-  const [castPlaying, setCastPlaying] = useState<boolean>(true);
-  const [castPositionSec, setCastPositionSec] = useState<number>(0);
+  const [castState, setCastState] = useState<{
+    device: CastDeviceInfo | null;
+    playing: boolean;
+    positionSec: number;
+  }>({ device: null, playing: true, positionSec: 0 });
+  if (castState.device !== castDevice) {
+    setCastState({ device: castDevice, playing: true, positionSec: 0 });
+  }
+  const castPlaying = castDevice && castState.device === castDevice ? castState.playing : true;
+  const castPositionSec = castDevice && castState.device === castDevice ? castState.positionSec : 0;
   const [burnSubsOnTv, setBurnSubsOnTv] = useState<boolean>(true);
   const lastCastPositionRef = useRef<number>(0);
   const castStartTargetRef = useRef<number>(0);
@@ -283,11 +291,7 @@ export function useCastSession(
   );
 
   useEffect(() => {
-    if (!castDevice) {
-      setCastPlaying(true);
-      setCastPositionSec(0);
-      return;
-    }
+    if (!castDevice) return;
     let cancelled = false;
     const tick = async () => {
       const lease = leaseRef.current;
@@ -296,26 +300,41 @@ export function useCastSession(
         return null;
       });
       if (cancelled || !s || !ownsCastSession(lease)) return;
+      let nextPlaying: boolean | null = null;
       if (s.player_state === "PLAYING") {
         castPlayingRef.current = true;
-        setCastPlaying(true);
+        nextPlaying = true;
       } else if (s.player_state === "PAUSED") {
         castPlayingRef.current = false;
-        setCastPlaying(false);
+        nextPlaying = false;
       } else if (s.player_state === "BUFFERING") {
         castPlayingRef.current = true;
-        setCastPlaying(true);
+        nextPlaying = true;
       }
       if (!castSeekConfirmedRef.current) {
         if (s.position_sec >= castStartTargetRef.current - 5) {
           castSeekConfirmedRef.current = true;
         } else {
+          if (nextPlaying !== null) {
+            setCastState((cur) =>
+              cur.device === castDevice && cur.playing !== nextPlaying
+                ? { ...cur, playing: nextPlaying }
+                : cur,
+            );
+          }
           return;
         }
       }
-      if (s.position_sec > 0) {
-        lastCastPositionRef.current = s.position_sec;
-        setCastPositionSec(s.position_sec);
+      const nextPos = s.position_sec > 0 ? s.position_sec : null;
+      if (nextPos !== null) lastCastPositionRef.current = nextPos;
+      if (nextPlaying !== null || nextPos !== null) {
+        setCastState((cur) => {
+          if (cur.device !== castDevice) return cur;
+          const playing = nextPlaying ?? cur.playing;
+          const positionSec = nextPos ?? cur.positionSec;
+          if (playing === cur.playing && positionSec === cur.positionSec) return cur;
+          return { ...cur, playing, positionSec };
+        });
       }
     };
     void tick();
@@ -362,11 +381,11 @@ export function useCastSession(
       if (castPlayingRef.current) {
         await owned(castPause);
         castPlayingRef.current = false;
-        setCastPlaying(false);
+        setCastState((cur) => ({ ...cur, playing: false }));
       } else {
         await owned(castPlay);
         castPlayingRef.current = true;
-        setCastPlaying(true);
+        setCastState((cur) => ({ ...cur, playing: true }));
       }
     } catch (error) {
       setCastError(String(error));
@@ -377,14 +396,14 @@ export function useCastSession(
     if (audio.getSnapshot().device) return audio.play();
     await owned(castPlay);
     castPlayingRef.current = true;
-    setCastPlaying(true);
+    setCastState((cur) => ({ ...cur, playing: true }));
   }, [audio, owned]);
 
   const pauseCast = useCallback(async () => {
     if (audio.getSnapshot().device) return audio.pause();
     await owned(castPause);
     castPlayingRef.current = false;
-    setCastPlaying(false);
+    setCastState((cur) => ({ ...cur, playing: false }));
   }, [audio, owned]);
 
   const getCastPosition = useCallback(

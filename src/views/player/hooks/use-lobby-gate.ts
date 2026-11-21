@@ -3,6 +3,8 @@ import type { PlayerBridge } from "@/lib/player/bridge";
 import type { RoomSnapshot } from "@/lib/together/client";
 import { GUEST_ESCAPE_MS, READY_STALE_MS } from "../player-utils";
 
+const EMPTY_STALE_IDS = new Set<string>();
+
 function sameSet(a: Set<string>, b: Set<string>): boolean {
   if (a.size !== b.size) return false;
   for (const v of a) if (!b.has(v)) return false;
@@ -57,30 +59,40 @@ export function useLobbyGate(params: {
     bridgeRef.current?.play().catch(() => {});
   }, [initialSyncDoneRef, setHasStarted, bridgeRef]);
 
-  const [guestEscapeReady, setGuestEscapeReady] = useState(false);
+  const escapeKey = inRoom && !isHost && !hasStarted ? mediaKey : null;
+  const [escapeReadyFor, setEscapeReadyFor] = useState<string | null>(null);
+  if (escapeReadyFor !== null && escapeReadyFor !== escapeKey) {
+    setEscapeReadyFor(null);
+  }
+  const guestEscapeReady = escapeKey !== null && escapeReadyFor === escapeKey;
   useEffect(() => {
-    if (!inRoom || isHost || hasStarted) {
-      setGuestEscapeReady(false);
-      return;
-    }
-    const t = window.setTimeout(() => setGuestEscapeReady(true), GUEST_ESCAPE_MS);
+    if (escapeKey === null) return;
+    const t = window.setTimeout(() => setEscapeReadyFor(escapeKey), GUEST_ESCAPE_MS);
     return () => {
       window.clearTimeout(t);
-      setGuestEscapeReady(false);
     };
-  }, [inRoom, isHost, hasStarted, mediaKey]);
+  }, [escapeKey]);
 
   const firstSeenRef = useRef<Map<string, number>>(new Map());
-  const [staleIds, setStaleIds] = useState<Set<string>>(new Set());
+  const staleActive = inRoom && isHost && !hasStarted;
+  const [staleState, setStaleState] = useState<{
+    key: string;
+    active: boolean;
+    ids: Set<string>;
+  }>({ key: mediaKey, active: staleActive, ids: EMPTY_STALE_IDS });
+  if (staleState.key !== mediaKey || staleState.active !== staleActive) {
+    setStaleState({
+      key: mediaKey,
+      active: staleActive,
+      ids: staleState.key === mediaKey && staleActive ? staleState.ids : EMPTY_STALE_IDS,
+    });
+  }
+  const staleIds = staleActive && staleState.key === mediaKey ? staleState.ids : EMPTY_STALE_IDS;
   useEffect(() => {
     firstSeenRef.current = new Map();
-    setStaleIds(new Set());
   }, [mediaKey]);
   useEffect(() => {
-    if (!inRoom || !isHost || hasStarted) {
-      setStaleIds((prev) => (prev.size > 0 ? new Set<string>() : prev));
-      return;
-    }
+    if (!staleActive) return;
     const tick = () => {
       const now = Date.now();
       const seen = firstSeenRef.current;
@@ -91,12 +103,16 @@ export function useLobbyGate(params: {
       for (const p of roomSnapshot.participants) {
         if (!p.ready && now - (seen.get(p.id) ?? now) > READY_STALE_MS) next.add(p.id);
       }
-      setStaleIds((prev) => (sameSet(prev, next) ? prev : next));
+      setStaleState((prev) =>
+        prev.key === mediaKey && prev.active && !sameSet(prev.ids, next)
+          ? { ...prev, ids: next }
+          : prev,
+      );
     };
     tick();
     const id = window.setInterval(tick, 2000);
     return () => window.clearInterval(id);
-  }, [inRoom, isHost, hasStarted, roomSnapshot.participants]);
+  }, [staleActive, mediaKey, roomSnapshot.participants]);
 
   return { startHost, playWithoutSync, guestEscapeReady, staleIds };
 }

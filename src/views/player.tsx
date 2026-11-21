@@ -430,10 +430,15 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     [inRoom, isHost, claimHost, sendInvite, src.meta],
   );
 
-  const [autoNextCancelled, setAutoNextCancelled] = useState(false);
-  useEffect(() => {
-    setAutoNextCancelled(false);
-  }, [src.url]);
+  const [autoNextCancelledFor, setAutoNextCancelledFor] = useState<string | null>(null);
+  if (autoNextCancelledFor !== null && autoNextCancelledFor !== src.url) {
+    setAutoNextCancelledFor(null);
+  }
+  const autoNextCancelled = autoNextCancelledFor === src.url;
+  const setAutoNextCancelled = useCallback(
+    (cancelled: boolean) => setAutoNextCancelledFor(cancelled ? src.url : null),
+    [src.url],
+  );
 
   const startedNearEndRef = useStartedNearEnd(src.url, snap.status, snap.durationSec);
 
@@ -767,10 +772,11 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   });
   const isSeriesPlayback = !!src.episode && src.meta.type === "series";
   // Searched once the current episode has started, so the lookup never competes with its startup.
-  const [startedUrl, setStartedUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (snap.firstFrameReady) setStartedUrl(src.url);
-  }, [snap.firstFrameReady, src.url]);
+  const [startedUrlState, setStartedUrlState] = useState<string | null>(null);
+  const startedUrl = snap.firstFrameReady ? src.url : startedUrlState === src.url ? src.url : null;
+  if (startedUrl !== startedUrlState) {
+    setStartedUrlState(startedUrl);
+  }
   const prefetchNextEp =
     airedNext &&
     canChangeEpisode &&
@@ -787,10 +793,11 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     src.notWebReady === true &&
     engine === "html5" &&
     (snap.status === "error" || snap.status === "loading");
-  const [noAudioDismissed, setNoAudioDismissed] = useState(false);
-  useEffect(() => {
-    setNoAudioDismissed(false);
-  }, [src.url]);
+  const [noAudioDismissedFor, setNoAudioDismissedFor] = useState<string | null>(null);
+  if (noAudioDismissedFor !== null && noAudioDismissedFor !== src.url) {
+    setNoAudioDismissedFor(null);
+  }
+  const noAudioDismissed = noAudioDismissedFor === src.url;
   const showNoAudioWarning =
     engine === "html5" &&
     snap.noAudio === true &&
@@ -1724,7 +1731,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     showHeaderWarning: showHeaderWarning && !streamPillVariant,
     showNoAudioWarning,
     onUseMpv: () => update({ playerEngine: "mpv" }),
-    onDismissNoAudio: () => setNoAudioDismissed(true),
+    onDismissNoAudio: () => setNoAudioDismissedFor(src.url),
     // Text-sync props (preserved from fork)
     onEnterSync: handleEnterSync,
     syncMode: textSync.syncMode,

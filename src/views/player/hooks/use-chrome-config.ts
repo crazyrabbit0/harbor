@@ -8,12 +8,21 @@ import {
 } from "@/lib/player-chrome";
 
 export function useChromeConfig(chromeTheme: "stremio" | "default") {
-  const [chromeConfig, setChromeConfig] = useState<PlayerChromeConfig>(() =>
-    readPlayerChromeConfig(chromeTheme),
-  );
+  const [state, setState] = useState<{
+    theme: "stremio" | "default";
+    config: PlayerChromeConfig;
+  }>(() => ({
+    theme: chromeTheme,
+    config: readPlayerChromeConfig(chromeTheme),
+  }));
+  const chromeConfig =
+    state.theme === chromeTheme ? state.config : readPlayerChromeConfig(chromeTheme);
+  if (state.theme !== chromeTheme) {
+    setState({ theme: chromeTheme, config: chromeConfig });
+  }
   useEffect(() => {
-    setChromeConfig(readPlayerChromeConfig(chromeTheme));
-    const refresh = () => setChromeConfig(readPlayerChromeConfig(chromeTheme));
+    const refresh = () =>
+      setState({ theme: chromeTheme, config: readPlayerChromeConfig(chromeTheme) });
     const onStorage = (e: StorageEvent) => {
       if (e.key === "harbor.player.chrome.profiles.v1") refresh();
     };

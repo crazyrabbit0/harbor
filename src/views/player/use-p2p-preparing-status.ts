@@ -25,17 +25,25 @@ export function useP2pPreparingStatus(params: {
   const { url, infoHash, fileIdx, active } = params;
   const enabled = active && !!infoHash && isLocalEngineUrl(url);
   const [nonce, setNonce] = useState(0);
-  const [phase, setPhase] = useState<P2pPreparingPhase>("searching");
-  const [peers, setPeers] = useState(0);
-  const [downloadSpeed, setDownloadSpeed] = useState(0);
+  const [status, setStatus] = useState<{
+    enabled: boolean;
+    phase: P2pPreparingPhase;
+    peers: number;
+    downloadSpeed: number;
+  }>({ enabled, phase: "searching", peers: 0, downloadSpeed: 0 });
+  if (!enabled && status.enabled) {
+    setStatus({ enabled: false, phase: "searching", peers: 0, downloadSpeed: 0 });
+  } else if (enabled && !status.enabled) {
+    setStatus((cur) => ({ ...cur, enabled: true }));
+  }
+  const phase = enabled ? status.phase : "searching";
+  const peers = enabled ? status.peers : 0;
+  const downloadSpeed = enabled ? status.downloadSpeed : 0;
   const failedRef = useRef(false);
   const sawDataRef = useRef(false);
 
   useEffect(() => {
     if (!enabled || !infoHash) {
-      setPhase("searching");
-      setPeers(0);
-      setDownloadSpeed(0);
       failedRef.current = false;
       sawDataRef.current = false;
       return;
@@ -50,24 +58,22 @@ export function useP2pPreparingStatus(params: {
       const speed = s?.downloadSpeed ?? 0;
       const progress = s?.streamProgress ?? 0;
       if (speed > 0 || progress > 0) sawDataRef.current = true;
-      setPeers(p);
-      setDownloadSpeed(speed);
+      let nextPhase: P2pPreparingPhase;
       if (failedRef.current) {
-        setPhase("no-peers");
-        return;
+        nextPhase = "no-peers";
+      } else {
+        const idle = !sawDataRef.current && speed === 0 && progress === 0;
+        const elapsed = Date.now() - startAt;
+        if (idle && p === 0 && elapsed >= NO_PEERS_MS) {
+          failedRef.current = true;
+          nextPhase = "no-peers";
+        } else if (idle && p > 0 && elapsed >= SLOW_MS) {
+          nextPhase = "slow";
+        } else {
+          nextPhase = p > 0 ? "connected" : "searching";
+        }
       }
-      const idle = !sawDataRef.current && speed === 0 && progress === 0;
-      const elapsed = Date.now() - startAt;
-      if (idle && p === 0 && elapsed >= NO_PEERS_MS) {
-        failedRef.current = true;
-        setPhase("no-peers");
-        return;
-      }
-      if (idle && p > 0 && elapsed >= SLOW_MS) {
-        setPhase("slow");
-        return;
-      }
-      setPhase(p > 0 ? "connected" : "searching");
+      setStatus({ enabled: true, phase: nextPhase, peers: p, downloadSpeed: speed });
     };
     const stop = startStatsPoll(tick);
     return () => {
@@ -84,7 +90,7 @@ export function useP2pPreparingStatus(params: {
     retry: () => {
       failedRef.current = false;
       sawDataRef.current = false;
-      setPhase("searching");
+      setStatus((cur) => ({ ...cur, phase: "searching" }));
       setNonce((n) => n + 1);
     },
   };

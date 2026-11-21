@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import { langScore, pickBestTrack, normalizeLang } from "@/lib/subtitles/language";
@@ -39,6 +39,30 @@ import {
   subtitleMediaKey,
 } from "@/lib/subtitles/subtitle-memory";
 
+const EMPTY_GENERATED: GeneratedSubtitleGroup[] = [];
+
+type SearchUiState = {
+  url: string;
+  refreshReady: boolean;
+  lastAdded: number | null;
+  refreshing: boolean;
+  initialSearches: number;
+  generated: GeneratedSubtitleGroup[];
+  preflightSettled: boolean;
+};
+
+function initialSearchUi(url: string): SearchUiState {
+  return {
+    url,
+    refreshReady: false,
+    lastAdded: null,
+    refreshing: false,
+    initialSearches: 0,
+    generated: EMPTY_GENERATED,
+    preflightSettled: false,
+  };
+}
+
 export function useTrackAutoload(params: {
   bridgeRef: RefObject<PlayerBridge | null>;
   src: PlayerSrc;
@@ -69,45 +93,51 @@ export function useTrackAutoload(params: {
     }
   });
 
-  const [resolvedImdbId, setResolvedImdbId] = useState<string | null>(null);
-  const [resolvedImdbVerified, setResolvedImdbVerified] = useState(false);
-  const [resolutionSettled, setResolutionSettled] = useState(false);
+  const rawMetaId = src.meta.id ?? "";
+  const imdbLookupKey =
+    !src.imdbId && !rawMetaId.startsWith("tt") && settings.tmdbKey
+      ? `${settings.tmdbKey}|${rawMetaId}`
+      : null;
+  const [lookedUpImdb, setLookedUpImdb] = useState<{
+    key: string;
+    id: string | null;
+    verified: boolean;
+  } | null>(null);
+  if (lookedUpImdb && lookedUpImdb.key !== imdbLookupKey) {
+    setLookedUpImdb(null);
+  }
   useEffect(() => {
-    setResolvedImdbId(null);
-    setResolvedImdbVerified(false);
-    setResolutionSettled(false);
-    if (src.imdbId) {
-      setResolvedImdbId(src.imdbId);
-      setResolvedImdbVerified(src.imdbIdVerified === true);
-      setResolutionSettled(true);
-      return;
-    }
-    const raw = src.meta.id ?? "";
-    if (raw.startsWith("tt")) {
-      setResolvedImdbId(raw);
-      setResolvedImdbVerified(true);
-      setResolutionSettled(true);
-      return;
-    }
-    if (!settings.tmdbKey) {
-      setResolutionSettled(true);
-      return;
-    }
+    if (!imdbLookupKey) return;
     let cancelled = false;
-    tmdbImdbId(settings.tmdbKey, raw)
+    tmdbImdbId(settings.tmdbKey, rawMetaId)
       .then((id) => {
-        if (cancelled) return;
-        setResolvedImdbId(id);
-        setResolvedImdbVerified(!!id);
-        setResolutionSettled(true);
+        if (!cancelled) setLookedUpImdb({ key: imdbLookupKey, id, verified: !!id });
       })
       .catch(() => {
-        if (!cancelled) setResolutionSettled(true);
+        if (!cancelled) setLookedUpImdb({ key: imdbLookupKey, id: null, verified: false });
       });
     return () => {
       cancelled = true;
     };
-  }, [src.imdbId, src.imdbIdVerified, src.meta.id, settings.tmdbKey]);
+  }, [imdbLookupKey, settings.tmdbKey, rawMetaId]);
+
+  let resolvedImdbId: string | null = null;
+  let resolvedImdbVerified = false;
+  let resolutionSettled = true;
+  if (src.imdbId) {
+    resolvedImdbId = src.imdbId;
+    resolvedImdbVerified = src.imdbIdVerified === true;
+  } else if (rawMetaId.startsWith("tt")) {
+    resolvedImdbId = rawMetaId;
+    resolvedImdbVerified = true;
+  } else if (imdbLookupKey) {
+    if (lookedUpImdb?.key === imdbLookupKey) {
+      resolvedImdbId = lookedUpImdb.id;
+      resolvedImdbVerified = lookedUpImdb.verified;
+    } else {
+      resolutionSettled = false;
+    }
+  }
 
   const [originalAudio, setOriginalAudio] = useState<{ metaId: string; lang: string | null }>({
     metaId: "",
@@ -162,15 +192,16 @@ export function useTrackAutoload(params: {
   }, [authKey]);
 
   const refetchRef = useRef<(() => Promise<number>) | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
-  const [initialSearches, setInitialSearches] = useState(0);
-  const [initialPreflight, setInitialPreflight] = useState({
-    mediaUrl: src.url,
-    settled: false,
-  });
-  const [refreshReady, setRefreshReady] = useState(false);
-  const [lastAdded, setLastAdded] = useState<number | null>(null);
-  const [generated, setGenerated] = useState<GeneratedSubtitleGroup[]>([]);
+  const [searchUi, setSearchUi] = useState<SearchUiState>(() => initialSearchUi(src.url));
+  if (searchUi.url !== src.url) {
+    setSearchUi(initialSearchUi(src.url));
+  }
+  const activeSearchUi = searchUi.url === src.url;
+  const refreshReady = activeSearchUi && searchUi.refreshReady;
+  const refreshing = activeSearchUi && searchUi.refreshing;
+  const initialSearches = activeSearchUi ? searchUi.initialSearches : 0;
+  const lastAdded = activeSearchUi ? searchUi.lastAdded : null;
+  const generated = activeSearchUi ? searchUi.generated : EMPTY_GENERATED;
   const lastAddedTimer = useRef<number | null>(null);
   const clearLastAddedTimer = () => {
     if (lastAddedTimer.current != null) {
@@ -180,12 +211,6 @@ export function useTrackAutoload(params: {
   };
   useEffect(() => {
     refetchRef.current = null;
-    setRefreshReady(false);
-    setLastAdded(null);
-    setRefreshing(false);
-    setInitialSearches(0);
-    setGenerated([]);
-    setInitialPreflight({ mediaUrl: src.url, settled: false });
     clearLastAddedTimer();
   }, [src.url]);
 
@@ -194,6 +219,7 @@ export function useTrackAutoload(params: {
       publishSubtitleSearch(null);
       return;
     }
+    const mediaUrl = src.url;
     publishSubtitleSearch({
       status: refreshing || initialSearches > 0 ? "searching" : "idle",
       lastAdded,
@@ -201,22 +227,31 @@ export function useTrackAutoload(params: {
       generated,
       refresh: () => {
         if (!refetchRef.current || refreshing) return;
-        setRefreshing(true);
-        setLastAdded(null);
+        setSearchUi((cur) =>
+          cur.url === mediaUrl ? { ...cur, refreshing: true, lastAdded: null } : cur,
+        );
         clearLastAddedTimer();
         void refetchRef
           .current()
-          .then((n) => setLastAdded(n))
-          .catch(() => setLastAdded(0))
+          .then((n) =>
+            setSearchUi((cur) => (cur.url === mediaUrl ? { ...cur, lastAdded: n } : cur)),
+          )
+          .catch(() =>
+            setSearchUi((cur) => (cur.url === mediaUrl ? { ...cur, lastAdded: 0 } : cur)),
+          )
           .finally(() => {
-            setRefreshing(false);
+            setSearchUi((cur) => (cur.url === mediaUrl ? { ...cur, refreshing: false } : cur));
             clearLastAddedTimer();
-            lastAddedTimer.current = window.setTimeout(() => setLastAdded(null), 5000);
+            lastAddedTimer.current = window.setTimeout(
+              () =>
+                setSearchUi((cur) => (cur.url === mediaUrl ? { ...cur, lastAdded: null } : cur)),
+              5000,
+            );
           });
       },
       dismiss: () => {
         clearLastAddedTimer();
-        setLastAdded(null);
+        setSearchUi((cur) => (cur.url === mediaUrl ? { ...cur, lastAdded: null } : cur));
       },
     });
     return () => publishSubtitleSearch(null);
@@ -238,6 +273,17 @@ export function useTrackAutoload(params: {
     return () => publishSubtitleContext(null);
   }, [resolutionSettled, resolvedImdbId, resolvedImdbVerified, src]);
 
+  const mediaReady = snap.durationSec > 0;
+  const subProvidersEnabled = settings.subProvidersEnabled ?? {};
+  const readyAddons = subProvidersEnabled.addons === false ? [] : userAddons;
+  const searchImdbId = subtitleSearchImdbId(resolvedImdbId, resolvedImdbVerified);
+  const contentId = searchImdbId ?? src.meta.id;
+  const preflightSkipped =
+    resolutionSettled &&
+    readyAddons != null &&
+    mediaReady &&
+    !canStartSubtitleAutoload({ imdbId: contentId, mediaReady });
+
   const autoSubLoadKeyRef = useRef<string | null>(null);
   const autoSubStagesRef = useRef(new Set<string>());
   const autoSubRunRef = useRef(new SubtitleAutoloadRunCoordinator());
@@ -252,19 +298,12 @@ export function useTrackAutoload(params: {
   }, [src.url]);
   useEffect(() => {
     if (!resolutionSettled) return;
+    if (readyAddons == null) return;
     // The identity preflight needs a real duration. Audio tracks often appear first,
     // while duration is still zero; starting then permanently records an unmeasurable run.
-    const mediaReady = snap.durationSec > 0;
-    const enabled = settings.subProvidersEnabled ?? {};
-    const readyAddons = enabled.addons === false ? [] : userAddons;
-    if (readyAddons == null) return;
-    const searchImdbId = subtitleSearchImdbId(resolvedImdbId, resolvedImdbVerified);
-    const contentId = searchImdbId ?? src.meta.id;
-    if (!canStartSubtitleAutoload({ imdbId: contentId, mediaReady })) {
-      if (mediaReady) setInitialPreflight({ mediaUrl: src.url, settled: true });
-      return;
-    }
+    if (!canStartSubtitleAutoload({ imdbId: contentId, mediaReady })) return;
     const key = `${contentId}|${src.episode?.season ?? ""}|${src.episode?.episode ?? ""}|${src.url}`;
+    const mediaUrl = src.url;
     const addonSignature = readyAddons
       .map((addon) => addon.transportUrl)
       .sort()
@@ -289,7 +328,6 @@ export function useTrackAutoload(params: {
     const runLease = autoSubRunRef.current.begin(key);
     const isActive = () =>
       autoSubLoadKeyRef.current === key && autoSubRunRef.current.isCurrent(runLease, key);
-    setInitialPreflight({ mediaUrl: src.url, settled: false });
     void (async () => {
       const coords = await resolveAnimeSearchCoords({
         isAnime: subIsAnime,
@@ -299,6 +337,9 @@ export function useTrackAutoload(params: {
         episode: src.episode,
       });
       if (!isActive()) return;
+      setSearchUi((cur) =>
+        cur.url === mediaUrl && cur.preflightSettled ? { ...cur, preflightSettled: false } : cur,
+      );
       const animeIds = candidateIds.some((i) => i.startsWith("kitsu:") || i.startsWith("mal:"));
       const imdbEpAligned =
         !animeIds ||
@@ -425,11 +466,14 @@ export function useTrackAutoload(params: {
           isActive,
         });
         console.info(`[subs/refresh] found ${r.found}, added ${r.added} new tracks`);
-        setGenerated(r.generated);
+        setSearchUi((cur) => (cur.url === mediaUrl ? { ...cur, generated: r.generated } : cur));
         return r.added;
       };
-      setRefreshReady(true);
-      setInitialSearches((count) => count + 1);
+      setSearchUi((cur) =>
+        cur.url === mediaUrl
+          ? { ...cur, refreshReady: true, initialSearches: cur.initialSearches + 1 }
+          : cur,
+      );
       const unifiedStage = async () => {
         const res = await fetchSubtitlesIntoPlayer({
           ...base,
@@ -438,13 +482,22 @@ export function useTrackAutoload(params: {
           isActive,
         });
         if (isActive() && res.selected) autoSubSourceRef.current = res.selected.url;
-        if (isActive()) setGenerated(res.generated);
+        if (isActive()) {
+          setSearchUi((cur) => (cur.url === mediaUrl ? { ...cur, generated: res.generated } : cur));
+        }
         console.info(`[subs/autoload] unified stage found ${res.found}, added ${res.added} tracks`);
       };
       await unifiedStage().finally(() => {
         if (autoSubLoadKeyRef.current === key) {
-          setInitialSearches((count) => Math.max(0, count - 1));
-          setInitialPreflight({ mediaUrl: src.url, settled: true });
+          setSearchUi((cur) =>
+            cur.url === mediaUrl
+              ? {
+                  ...cur,
+                  initialSearches: Math.max(0, cur.initialSearches - 1),
+                  preflightSettled: true,
+                }
+              : cur,
+          );
         }
       });
 
@@ -463,7 +516,9 @@ export function useTrackAutoload(params: {
                 .map((track) => track.url ?? "")
                 .filter(Boolean),
             );
-            setInitialSearches((count) => count + 1);
+            setSearchUi((cur) =>
+              cur.url === mediaUrl ? { ...cur, initialSearches: cur.initialSearches + 1 } : cur,
+            );
             const hashStage = async () => {
               const result = await fetchSubtitlesIntoPlayer({
                 ...base,
@@ -489,7 +544,11 @@ export function useTrackAutoload(params: {
             };
             await hashStage().finally(() => {
               if (autoSubLoadKeyRef.current === key) {
-                setInitialSearches((count) => Math.max(0, count - 1));
+                setSearchUi((cur) =>
+                  cur.url === mediaUrl
+                    ? { ...cur, initialSearches: Math.max(0, cur.initialSearches - 1) }
+                    : cur,
+                );
               }
             });
           })
@@ -503,7 +562,9 @@ export function useTrackAutoload(params: {
       console.warn("[subs/autoload] unified stage failed", {
         error: error instanceof Error ? error.name : "unknown",
       });
-      if (isActive()) setInitialPreflight({ mediaUrl: src.url, settled: true });
+      if (isActive()) {
+        setSearchUi((cur) => (cur.url === mediaUrl ? { ...cur, preflightSettled: true } : cur));
+      }
     });
   }, [
     resolvedImdbId,
@@ -515,6 +576,10 @@ export function useTrackAutoload(params: {
     userAddons,
     settings,
     bridgeRef,
+    readyAddons,
+    contentId,
+    mediaReady,
+    searchImdbId,
   ]);
 
   const autoTrackKeyRef = useRef<string | null>(null);
@@ -561,7 +626,16 @@ export function useTrackAutoload(params: {
   } | null>(null);
   const subRestoreAddRef = useRef<{ key: string; pending: boolean } | null>(null);
   const subRestoreTimerRef = useRef<{ id: number; dueAt: number } | null>(null);
-  const [subRestoreTick, setSubRestoreTick] = useState(0);
+  const [subRestoreState, setSubRestoreState] = useState({ url: src.url, tick: 0 });
+  if (subRestoreState.url !== src.url) {
+    setSubRestoreState({ url: src.url, tick: 0 });
+  }
+  const subRestoreTick = subRestoreState.url === src.url ? subRestoreState.tick : 0;
+  const setSubRestoreTick = useCallback(
+    (update: (tick: number) => number) =>
+      setSubRestoreState((cur) => ({ url: cur.url, tick: update(cur.tick) })),
+    [],
+  );
   const embeddedRestoreRef = useRef<string | null>(null);
   useEffect(() => {
     subRestoreWaitRef.current = null;
@@ -572,7 +646,6 @@ export function useTrackAutoload(params: {
       window.clearTimeout(subRestoreTimerRef.current.id);
       subRestoreTimerRef.current = null;
     }
-    setSubRestoreTick(0);
     return () => {
       if (subRestoreTimerRef.current != null) {
         window.clearTimeout(subRestoreTimerRef.current.id);
@@ -934,7 +1007,7 @@ export function useTrackAutoload(params: {
     resolvedImdbVerified,
     resolutionSettled,
     subtitleSearchActive: refreshing || initialSearches > 0,
-    subtitlePreflightSettled: initialPreflight.mediaUrl === src.url && initialPreflight.settled,
+    subtitlePreflightSettled: preflightSkipped || (activeSearchUi && searchUi.preflightSettled),
   };
 }
 

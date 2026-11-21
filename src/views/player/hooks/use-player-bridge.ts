@@ -106,28 +106,33 @@ export function usePlayerBridge(params: {
   const isAnimeSrc = metaIsAnime(src.meta) || !!src.isAnime;
   const anime4kOn = settings.playerAnime4k && (!settings.playerAnime4kAnimeOnly || isAnimeSrc);
   const svpRequested = isSvpActiveForMedia(settings, src.meta);
-  const [svpRuntimeReady, setSvpRuntimeReady] = useState<boolean | null>(
-    isLinuxDesktop() && svpRequested ? null : true,
-  );
+  const needsSvpProbe = svpRequested && isLinuxDesktop();
+  const svpProbeKey = needsSvpProbe ? (settings.svpVpyPath ?? "") : null;
+  const [svpProbe, setSvpProbe] = useState<{ key: string; ready: boolean } | null>(null);
+  if (svpProbe && svpProbe.key !== svpProbeKey) {
+    setSvpProbe(null);
+  }
   useEffect(() => {
-    if (!svpRequested || !isLinuxDesktop()) {
-      setSvpRuntimeReady(true);
-      return;
-    }
+    if (svpProbeKey === null) return;
     let active = true;
-    setSvpRuntimeReady(null);
     void svpStatus()
       .then((status) => {
-        if (active)
-          setSvpRuntimeReady(status.supported && status.ready && status.loadable !== false);
+        if (active) {
+          setSvpProbe({
+            key: svpProbeKey,
+            ready: status.supported && status.ready && status.loadable !== false,
+          });
+        }
       })
       .catch(() => {
-        if (active) setSvpRuntimeReady(false);
+        if (active) setSvpProbe({ key: svpProbeKey, ready: false });
       });
     return () => {
       active = false;
     };
-  }, [svpRequested, settings.svpVpyPath]);
+  }, [svpProbeKey]);
+  const svpRuntimeReady =
+    svpProbeKey === null ? true : svpProbe?.key === svpProbeKey ? svpProbe.ready : null;
   const svpPending = svpRequested && svpRuntimeReady === null;
   const svpOn = svpRequested && svpRuntimeReady === true;
   useEffect(() => {

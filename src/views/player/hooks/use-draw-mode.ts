@@ -26,12 +26,23 @@ export function useDrawMode(params: {
   const [drawMode, setDrawMode] = useState(false);
   const [hideOthersDrawings, setHideOthersDrawings] = useState(false);
   const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [strokesPath, setStrokesPath] = useState(topPath);
 
-  useEffect(() => {
-    if (drawMode && (!inRoom || participantCount <= 1)) {
-      setDrawMode(false);
-    }
-  }, [drawMode, inRoom, participantCount]);
+  const canDraw = inRoom && participantCount > 1;
+  if (!canDraw && drawMode) {
+    setDrawMode(false);
+  }
+  const effectiveDrawMode = canDraw && drawMode;
+
+  if (strokesPath !== topPath) {
+    setStrokesPath(topPath);
+    setStrokes((prev) => {
+      const live = prev.filter((s) => s.path === topPath);
+      return live.length === prev.length ? prev : live;
+    });
+  }
+  const visibleStrokes =
+    strokesPath === topPath ? strokes : strokes.filter((s) => s.path === topPath);
 
   const onDrawStart = (s: Stroke) => {
     setStrokes((prev) => [...prev, { ...s, path: topPath }]);
@@ -103,19 +114,12 @@ export function useDrawMode(params: {
     return () => window.clearInterval(id);
   }, [strokes.length]);
 
-  useEffect(() => {
-    setStrokes((prev) => {
-      const live = prev.filter((s) => s.path === topPath);
-      return live.length === prev.length ? prev : live;
-    });
-  }, [topPath]);
-
   return {
-    drawMode,
+    drawMode: effectiveDrawMode,
     setDrawMode,
     hideOthersDrawings,
     setHideOthersDrawings,
-    strokes,
+    strokes: visibleStrokes,
     onDrawStart,
     onDrawPoint,
     onDrawEnd,

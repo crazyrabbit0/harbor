@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PlayInvite } from "@/lib/together/protocol";
 import type { PlayerSrc, PlayEpisode } from "@/lib/view";
 import { isAddonNativeMeta, type Meta } from "@/lib/cinemeta";
@@ -66,6 +66,11 @@ function addonVideoAdjacent(
   };
 }
 
+const EMPTY_ADJACENT: { prev: PlayEpisode | null; next: PlayEpisode | null } = {
+  prev: null,
+  next: null,
+};
+
 export function useEpisodeNavigation(params: {
   src: PlayerSrc;
   settings: Settings;
@@ -80,10 +85,19 @@ export function useEpisodeNavigation(params: {
 }) {
   const { src, settings, inRoom, isHost, openPicker, replacePlayerSrc } = params;
 
-  const [adjacent, setAdjacent] = useState<{ prev: PlayEpisode | null; next: PlayEpisode | null }>({
-    prev: null,
-    next: null,
-  });
+  const isSeries = src.meta.type === "series" && !!src.episode;
+  const [seriesAdjacent, setSeriesAdjacent] = useState<{
+    prev: PlayEpisode | null;
+    next: PlayEpisode | null;
+  }>(EMPTY_ADJACENT);
+  const nonSeriesAdjacent = useMemo(
+    () =>
+      isSeries
+        ? EMPTY_ADJACENT
+        : ((src.episode ? addonVideoAdjacent(src.meta, src.episode) : null) ?? EMPTY_ADJACENT),
+    [isSeries, src.meta, src.episode],
+  );
+  const adjacent = isSeries ? seriesAdjacent : nonSeriesAdjacent;
 
   const localShowKey = isLocalUrl(src.url)
     ? {
@@ -93,11 +107,7 @@ export function useEpisodeNavigation(params: {
     : null;
 
   useEffect(() => {
-    if (src.meta.type !== "series" || !src.episode) {
-      const fromVideos = src.episode ? addonVideoAdjacent(src.meta, src.episode) : null;
-      setAdjacent(fromVideos ?? { prev: null, next: null });
-      return;
-    }
+    if (!isSeries || !src.episode) return;
     let cancelled = false;
     const cur = { season: src.episode.season, episode: src.episodeEnd ?? src.episode.episode };
     fetchAdjacentEpisodes(src.meta, cur, {
@@ -111,7 +121,7 @@ export function useEpisodeNavigation(params: {
         const i = eps.findIndex((e) => e.season === cur.season && e.episode === cur.episode);
         const localPrev = i > 0 ? eps[i - 1] : null;
         const localNext = i >= 0 && i < eps.length - 1 ? eps[i + 1] : null;
-        setAdjacent({
+        setSeriesAdjacent({
           prev:
             r.prev ??
             (localPrev
@@ -125,12 +135,13 @@ export function useEpisodeNavigation(params: {
         });
         return;
       }
-      setAdjacent(r);
+      setSeriesAdjacent(r);
     });
     return () => {
       cancelled = true;
     };
   }, [
+    isSeries,
     src.meta.id,
     src.meta.type,
     src.meta.videos,
