@@ -113,9 +113,11 @@ export function useSubtitleChoices(src: PlayerSrc) {
     subsourceApiKey: s.subsourceApiKey,
   }));
   const { authKey } = useAuth();
-  const [results, setResults] = useState<SubResult[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [settled, setSettled] = useState<{
+    key: string;
+    results: SubResult[] | null;
+    error: boolean;
+  } | null>(null);
 
   const srcIsAnime = isAnimeSrc(src);
   const preferredLangs = useMemo(() => {
@@ -126,11 +128,22 @@ export function useSubtitleChoices(src: PlayerSrc) {
     return srcIsAnime ? base : base.filter((l) => !isJapanese(l));
   }, [settings.preferredSubLangs, settings.preferredLanguages, srcIsAnime]);
 
+  const enabledFlags = settings.subProvidersEnabled ?? {};
+  const requestKey = [
+    src.url,
+    authKey ?? "",
+    preferredLangs.join("\0"),
+    enabledFlags.wyzie === true ? 1 : 0,
+    enabledFlags.addons !== false ? 1 : 0,
+    enabledFlags.opensubtitles !== false ? 1 : 0,
+    enabledFlags.subdl === true ? 1 : 0,
+    enabledFlags.subsource === true ? 1 : 0,
+    settings.subdlApiKey,
+    settings.subsourceApiKey,
+  ].join("|");
+
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(false);
-    setResults(null);
     void (async () => {
       let addons: Addon[] = [];
       try {
@@ -162,27 +175,23 @@ export function useSubtitleChoices(src: PlayerSrc) {
           subsourceApiKey: settings.subsourceApiKey,
         });
         if (!cancelled) {
-          setResults(r);
-          setLoading(false);
+          setSettled({ key: requestKey, results: r, error: false });
         }
       } catch {
         if (!cancelled) {
-          setError(true);
-          setLoading(false);
+          setSettled({ key: requestKey, results: null, error: true });
         }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [
-    src.url,
-    authKey,
-    preferredLangs,
-    settings.subProvidersEnabled,
-    settings.subdlApiKey,
-    settings.subsourceApiKey,
-  ]);
+  }, [requestKey]);
+
+  const matches = settled?.key === requestKey;
+  const loading = !matches;
+  const error = matches ? settled.error : false;
+  const results = matches ? settled.results : null;
 
   const groups = useMemo<SubtitleLangGroup[]>(() => {
     if (!results) return [];

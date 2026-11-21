@@ -69,10 +69,19 @@ export function markStreamDead(s: StreamLike, reason: string, ttlMs?: number): v
   save(m);
 }
 
-let lastStubEvent: { at: number; reason: string } | null = null;
+let nextStubEventId = 1;
+let lastStubEvent: { id: number; at: number; reason: string } | null = null;
 
 export function recordStubEvent(reason: string): void {
-  lastStubEvent = { at: Date.now(), reason };
+  lastStubEvent = { id: nextStubEventId++, at: Date.now(), reason };
+}
+
+export function peekRecentStubEvent(
+  maxAgeMs: number,
+): { id: number; at: number; reason: string } | null {
+  if (!lastStubEvent) return null;
+  if (Date.now() - lastStubEvent.at > maxAgeMs) return null;
+  return { id: lastStubEvent.id, at: lastStubEvent.at, reason: lastStubEvent.reason };
 }
 
 export function consumeRecentStubEvent(maxAgeMs: number): { reason: string } | null {

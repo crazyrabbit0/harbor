@@ -72,6 +72,9 @@ export function StremioLayout({
     () => (filter === "all" ? streams : streams.filter((s) => addonInstanceKey(s) === filter)),
     [streams, filter],
   );
+  if (filter !== "all" && addonFiltered.length === 0 && streams.length > 0) {
+    setFilter("all");
+  }
   const facetData = useMemo(
     () =>
       FACET_DIMS.map((dim) => {
@@ -85,16 +88,16 @@ export function StremioLayout({
       }),
     [addonFiltered, facet],
   );
-  useEffect(() => {
-    for (const f of facetData) {
-      if (f.value !== "all" && !f.options.some((o) => o.key === f.value)) {
-        setFacet((prev) => ({ ...prev, [f.dim.key]: "all" }));
-      }
-    }
-  }, [facetData]);
-  useEffect(() => {
-    if (filter !== "all" && addonFiltered.length === 0 && streams.length > 0) setFilter("all");
-  }, [filter, addonFiltered.length, streams.length]);
+  const invalidFacetKeys = facetData
+    .filter((f) => f.value !== "all" && !f.options.some((o) => o.key === f.value))
+    .map((f) => f.dim.key);
+  if (invalidFacetKeys.length > 0) {
+    setFacet((prev) => {
+      const next = { ...prev };
+      for (const k of invalidFacetKeys) next[k] = "all";
+      return next;
+    });
+  }
   const visibleStreams = useMemo(() => {
     const filtered = addonFiltered.filter((s) => matchesFacets(s, facet));
     if (filter !== "all") return filtered;

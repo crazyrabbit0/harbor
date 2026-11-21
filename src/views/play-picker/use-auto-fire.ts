@@ -108,8 +108,27 @@ export function useAutoFire(args: {
     addonQuorum,
   );
   const [preferredWaitElapsed, setPreferredWaitElapsed] = useState(false);
-  useEffect(() => {
+  const [prevPreferredWaitDeps, setPrevPreferredWaitDeps] = useState({
+    autoActive,
+    pipelineStartedAt,
+    preferredAddonPending,
+    preferredSourceEntry,
+  });
+  if (
+    prevPreferredWaitDeps.autoActive !== autoActive ||
+    prevPreferredWaitDeps.pipelineStartedAt !== pipelineStartedAt ||
+    prevPreferredWaitDeps.preferredAddonPending !== preferredAddonPending ||
+    prevPreferredWaitDeps.preferredSourceEntry !== preferredSourceEntry
+  ) {
+    setPrevPreferredWaitDeps({
+      autoActive,
+      pipelineStartedAt,
+      preferredAddonPending,
+      preferredSourceEntry,
+    });
     setPreferredWaitElapsed(false);
+  }
+  useEffect(() => {
     if (!autoActive || !preferredAddonPending) return;
     const elapsed = pipelineStartedAt == null ? 0 : performance.now() - pipelineStartedAt;
     const t = window.setTimeout(
