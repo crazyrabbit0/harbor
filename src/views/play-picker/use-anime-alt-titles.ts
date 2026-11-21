@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { externalToKitsu } from "@/lib/providers/anime-mapping";
 import { kitsuAnime, parseKitsuId } from "@/lib/providers/kitsu";
@@ -36,17 +36,16 @@ function dedupeTitles(name: string, extra: string[]): string[] {
 export function useAnimeAltTitles(meta: Meta): string[] | null {
   const metaId = meta.id;
   const metaName = meta.name;
-  const [titles, setTitles] = useState<string[] | null>(() =>
-    ANIME_ID_RX.test(metaId) ? dedupeTitles(metaName, []) : null,
+  const requestKey = `${metaId}\0${metaName}`;
+  const [resolved, setResolved] = useState<{ key: string; titles: string[] } | null>(null);
+  const baseTitles = useMemo(
+    () => (ANIME_ID_RX.test(metaId) ? dedupeTitles(metaName, []) : null),
+    [metaId, metaName],
   );
   useEffect(() => {
     const m = ANIME_ID_RX.exec(metaId);
-    if (!m) {
-      setTitles(null);
-      return;
-    }
+    if (!m) return;
     let cancelled = false;
-    setTitles(dedupeTitles(metaName, []));
     const source = m[1];
     const id = Number(m[2]);
     void (async () => {
@@ -54,11 +53,12 @@ export function useAnimeAltTitles(meta: Meta): string[] | null {
       if (cancelled || kid == null) return;
       const detail = await kitsuAnime(kid).catch(() => null);
       if (cancelled || !detail) return;
-      setTitles(dedupeTitles(metaName, detail.altTitles));
+      setResolved({ key: requestKey, titles: dedupeTitles(metaName, detail.altTitles) });
     })();
     return () => {
       cancelled = true;
     };
-  }, [metaId, metaName]);
-  return titles;
+  }, [metaId, metaName, requestKey]);
+  if (!baseTitles) return null;
+  return resolved?.key === requestKey ? resolved.titles : baseTitles;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Captions, CaptionsOff, Check, Languages, Loader2 } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { Flag } from "@/components/flag";
@@ -32,21 +32,14 @@ export function SubtitleSelectStep({
   const t = useT();
   const fs = useWindowFullscreen();
   const { loading, error, results, groups, bestId } = useSubtitleChoices(src);
-  const [selected, setSelected] = useState<Selection>(null);
-  const [activeLang, setActiveLang] = useState<string>("all");
-  const inited = useRef(false);
-
-  useEffect(() => {
-    if (loading || inited.current) return;
-    inited.current = true;
-    if (bestId) {
-      setSelected(bestId);
-      const g = groups.find((gr) => gr.items.some((it) => it.id === bestId));
-      setActiveLang(g?.langKey ?? "all");
-    } else {
-      setSelected("off");
-    }
-  }, [loading, bestId, groups]);
+  const [pickedSelected, setSelected] = useState<Selection>(null);
+  const [pickedLang, setActiveLang] = useState<string | null>(null);
+  const defaultLang =
+    !loading && bestId
+      ? (groups.find((gr) => gr.items.some((it) => it.id === bestId))?.langKey ?? "all")
+      : "all";
+  const selected = pickedSelected ?? (loading ? null : (bestId ?? "off"));
+  const activeLang = pickedLang ?? defaultLang;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

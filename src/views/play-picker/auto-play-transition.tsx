@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { HarborLoader } from "@/components/harbor-loader";
 import type { Meta } from "@/lib/cinemeta";
-import { consumeRecentStubEvent } from "@/lib/dead-streams";
+import { consumeRecentStubEvent, peekRecentStubEvent } from "@/lib/dead-streams";
 import { useActiveKid } from "@/lib/profiles";
 import { type PlayEpisode } from "@/lib/view";
 import { parseKitsuId } from "@/lib/providers/kitsu";
@@ -32,17 +32,24 @@ export function AutoPlayTransition({
   const kid = useActiveKid();
   const t = useT();
   const backdrop = episode?.still || meta.background || meta.poster;
-  const [stubNotice, setStubNotice] = useState<string | null>(null);
+  const [initialStub] = useState(
+    () => typeof peekRecentStubEvent === "function" && peekRecentStubEvent(8000) !== null,
+  );
+  const [stubDismissed, setStubDismissed] = useState(false);
   const [p2pStage, setP2pStage] = useState<0 | 1 | 2>(0);
-  useEffect(() => {
-    const ev = consumeRecentStubEvent(8000);
-    if (!ev) return;
-    setStubNotice(t("Last source wasn't actually cached on your debrid yet. Trying another."));
-    const timer = window.setTimeout(() => setStubNotice(null), 6000);
-    return () => window.clearTimeout(timer);
-  }, [t]);
-  useEffect(() => {
+  const p2pKey = `${attemptIdx ?? ""}|${p2p}|${resolving}`;
+  const [prevP2pKey, setPrevP2pKey] = useState(p2pKey);
+  if (prevP2pKey !== p2pKey) {
+    setPrevP2pKey(p2pKey);
     setP2pStage(0);
+  }
+  useEffect(() => {
+    if (!initialStub) return;
+    consumeRecentStubEvent(8000);
+    const timer = window.setTimeout(() => setStubDismissed(true), 6000);
+    return () => window.clearTimeout(timer);
+  }, [initialStub]);
+  useEffect(() => {
     if (!resolving || !p2p) return;
     const searchingTimer = window.setTimeout(() => setP2pStage(1), P2P_SEARCHING_DELAY_MS);
     const slowTimer = window.setTimeout(() => setP2pStage(2), P2P_SLOW_DELAY_MS);
@@ -51,6 +58,10 @@ export function AutoPlayTransition({
       window.clearTimeout(slowTimer);
     };
   }, [attemptIdx, p2p, resolving]);
+  const stubNotice =
+    initialStub && !stubDismissed
+      ? t("Last source wasn't actually cached on your debrid yet. Trying another.")
+      : null;
 
   const caption = download
     ? t("Preparing download")

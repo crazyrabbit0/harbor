@@ -26,7 +26,7 @@ import { HostSourceBanner } from "@/components/host-source-banner";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { StreamModeToggle } from "@/components/stream-mode-toggle";
 import { filterStreamsByMode } from "@/lib/streams/mode";
-import { consumeRecentStubEvent } from "@/lib/dead-streams";
+import { consumeRecentStubEvent, peekRecentStubEvent } from "@/lib/dead-streams";
 import { peekCachedLogo, resolveLogo } from "@/lib/logo";
 import {
   readPlayback,
@@ -181,22 +181,27 @@ export function PlayPicker({
       ? findLocalEpisodeVersions(episode.season, episode.episode, tmdbId, imdbId)
       : findLocalMovieVersions(tmdbId, imdbId);
   }, [meta.id, imdbId, episode]);
-  const [downloadMatch, setDownloadMatch] = useState<DownloadItem | null>(null);
+  const downloadKey = isDownload
+    ? null
+    : `${meta.id}|${episode?.season ?? ""}|${episode?.episode ?? ""}`;
+  const [downloadResult, setDownloadResult] = useState<{
+    key: string;
+    item: DownloadItem | null;
+  } | null>(null);
   useEffect(() => {
-    if (isDownload) {
-      setDownloadMatch(null);
-      return;
-    }
+    if (downloadKey === null) return;
     let cancelled = false;
     completedDownloadFor(meta.id, episode?.season ?? null, episode?.episode ?? null)
       .then((item) => {
-        if (!cancelled) setDownloadMatch(item);
+        if (!cancelled) setDownloadResult({ key: downloadKey, item });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [isDownload, meta.id, episode?.season, episode?.episode]);
+  }, [downloadKey, meta.id, episode?.season, episode?.episode]);
+  const downloadMatch =
+    downloadKey !== null && downloadResult?.key === downloadKey ? downloadResult.item : null;
   const downloadEntry = useMemo(
     () => (downloadMatch ? downloadLocalEntry(downloadMatch) : null),
     [downloadMatch],
@@ -206,23 +211,27 @@ export function PlayPicker({
     [downloadEntry, localMatches],
   );
   const { addons } = useAddons(authKey, settings);
-  const [seasonLogo, setSeasonLogo] = useState<string | undefined>(() =>
-    peekCachedLogo(settings.tmdbKey, meta, { preferOwn: true }),
-  );
+  const isAnimeLogo = /^(kitsu|mal|anilist|anidb):/.test(meta.id);
+  const logoKey = `${meta.id}|${settings.tmdbKey}|${meta.logo ?? ""}|${meta.originalLanguage ?? ""}`;
+  const [resolvedSeasonLogo, setResolvedSeasonLogo] = useState<{
+    key: string;
+    url: string;
+  } | null>(null);
   useEffect(() => {
-    if (!/^(kitsu|mal|anilist|anidb):/.test(meta.id)) return;
-    const seed = peekCachedLogo(settings.tmdbKey, meta, { preferOwn: true });
-    if (seed) setSeasonLogo(seed);
+    if (!isAnimeLogo) return;
     let cancelled = false;
     resolveLogo(settings.tmdbKey, meta, { preferOwn: true })
       .then((u) => {
-        if (!cancelled && u) setSeasonLogo(u);
+        if (!cancelled && u) setResolvedSeasonLogo({ key: logoKey, url: u });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [meta, settings.tmdbKey]);
+  }, [isAnimeLogo, logoKey, meta, settings.tmdbKey]);
+  const seasonLogo =
+    (resolvedSeasonLogo?.key === logoKey ? resolvedSeasonLogo.url : undefined) ??
+    peekCachedLogo(settings.tmdbKey, meta, { preferOwn: true });
   const metaForDisplay = useMemo(
     () => (seasonLogo ? { ...meta, logo: seasonLogo } : meta),
     [meta, seasonLogo],
@@ -298,10 +307,13 @@ export function PlayPicker({
       sendInvite,
     });
 
-  useEffect(() => {
+  const filterResetKey = `${meta.id}|${episode?.season ?? ""}|${episode?.episode ?? ""}|${settings.streamFilterLevel}`;
+  const [prevFilterResetKey, setPrevFilterResetKey] = useState(filterResetKey);
+  if (prevFilterResetKey !== filterResetKey) {
+    setPrevFilterResetKey(filterResetKey);
     setStrictMode(settings.streamFilterLevel === "strict");
     setForceShowAll(false);
-  }, [meta.id, episode?.season, episode?.episode, settings.streamFilterLevel]);
+  }
 
   const hostMatch = useMemo(
     () =>
@@ -451,10 +463,9 @@ export function PlayPicker({
     [filteredPicker],
   );
 
-  useEffect(() => {
-    if (!filteredPicker?.primary) return;
-    setSelectedTier((s) => s ?? filteredPicker.primary!.tier);
-  }, [filteredPicker]);
+  if (selectedTier === null && filteredPicker?.primary) {
+    setSelectedTier(filteredPicker.primary.tier);
+  }
 
   const isAnimeMetaId = /^(kitsu|mal|anilist|anidb):/.test(meta.id);
   const previousPlayback = useMemo(
@@ -507,11 +518,13 @@ export function PlayPicker({
   const [autoAttemptIdx, setAutoAttemptIdx] = useState(0);
   const [autoExhausted, setAutoExhausted] = useState(false);
   const [autoCancelled, setAutoCancelled] = useState(false);
+  const effectiveAutoExhausted =
+    autoExhausted || (!!autoPlay && pipelineDone && autoCandidates.length === 0 && !autoCancelled);
   const isLiveLikeContent = isLivePlaybackSrc({ meta });
   const autoActive =
     !!((autoPlay && !isLiveLikeContent) || wasInvitedTo(inviteKey)) &&
     !autoCancelled &&
-    !autoExhausted &&
+    !effectiveAutoExhausted &&
     !isDownload &&
     !roomGuestPick;
   useEffect(() => {
@@ -748,8 +761,12 @@ export function PlayPicker({
   const backdropSrc = episode?.still || meta.background || meta.poster;
 
   const [maxWaitElapsed, setMaxWaitElapsed] = useState(false);
-  useEffect(() => {
+  const [prevStreamIds, setPrevStreamIds] = useState(streamIds);
+  if (prevStreamIds !== streamIds) {
+    setPrevStreamIds(streamIds);
     setMaxWaitElapsed(false);
+  }
+  useEffect(() => {
     const t = window.setTimeout(() => setMaxWaitElapsed(true), 30_000);
     return () => window.clearTimeout(t);
   }, [streamIds]);
@@ -803,26 +820,6 @@ export function PlayPicker({
       setPerEpisodeBusy(false);
     }
   }, [addons, debrids, meta, seasonEpisodes]);
-  const [stubBanner, setStubBanner] = useState(false);
-  useEffect(() => {
-    const ev = consumeRecentStubEvent(8000);
-    if (!ev) return;
-    setStubBanner(true);
-    const t = window.setTimeout(() => setStubBanner(false), 6000);
-    return () => window.clearTimeout(t);
-  }, [streamIds]);
-  useEffect(() => {
-    if (
-      autoPlay &&
-      pipelineDone &&
-      autoCandidates.length === 0 &&
-      !autoExhausted &&
-      !autoCancelled
-    ) {
-      setAutoExhausted(true);
-    }
-  }, [autoPlay, pipelineDone, autoCandidates.length, autoExhausted, autoCancelled]);
-
   const engineWarming = isEngineWarmingError(pickerError);
   const pickerErrorText = pickerError ? translatePickerError(t, pickerError) : null;
   useEffect(() => {
@@ -859,6 +856,27 @@ export function PlayPicker({
       : `picker:${meta.id}${attemptKey}`;
   }, [attempt, episode, meta.id]);
   useScrollMemory(pickerScrollKey, mainRef, !showAutoTransition);
+
+  const [shownStubId, setShownStubId] = useState<number | null>(() =>
+    !showAutoTransition && typeof peekRecentStubEvent === "function"
+      ? (peekRecentStubEvent(8000)?.id ?? null)
+      : null,
+  );
+  const [expiredStubId, setExpiredStubId] = useState<number | null>(null);
+  const pendingStub =
+    !showAutoTransition && typeof peekRecentStubEvent === "function"
+      ? peekRecentStubEvent(8000)
+      : null;
+  if (pendingStub != null && pendingStub.id !== shownStubId && pendingStub.id !== expiredStubId) {
+    setShownStubId(pendingStub.id);
+  }
+  const stubBanner = shownStubId !== null && expiredStubId !== shownStubId;
+  useEffect(() => {
+    if (shownStubId == null || expiredStubId === shownStubId) return;
+    consumeRecentStubEvent(8000);
+    const t = window.setTimeout(() => setExpiredStubId(shownStubId), 6000);
+    return () => window.clearTimeout(t);
+  }, [shownStubId, expiredStubId]);
 
   const noSourcesConfigured = addons !== null && addons.length === 0 && debrids.length === 0;
 
@@ -918,7 +936,7 @@ export function PlayPicker({
     );
   }
 
-  if (autoExhausted) {
+  if (effectiveAutoExhausted) {
     return (
       <AutoExhaustedModal
         meta={meta}

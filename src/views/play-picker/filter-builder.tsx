@@ -1,5 +1,5 @@
 import { Trash2 } from "../settings/icons";
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { FormatBadge, type BadgeKind } from "@/components/format-badge";
 import { useT } from "@/lib/i18n";
 import {
@@ -220,15 +220,20 @@ export function FilterBuilder({
   const [sizeGb, setSizeGb] = useState(String(initial?.maxSizeGb ?? ""));
   const [seedersBadInput, setSeedersBadInput] = useState(false);
   const [sizeBadInput, setSizeBadInput] = useState(false);
+  const [prevOpen, setPrevOpen] = useState(open);
+  const [prevInitial, setPrevInitial] = useState(initial);
 
-  useEffect(() => {
-    if (!open) return;
-    setDraft(initial ?? newCustomFilter(""));
-    setSeeders(String(initial?.minSeeders ?? ""));
-    setSizeGb(String(initial?.maxSizeGb ?? ""));
-    setSeedersBadInput(false);
-    setSizeBadInput(false);
-  }, [open, initial]);
+  if (open !== prevOpen || initial !== prevInitial) {
+    setPrevOpen(open);
+    setPrevInitial(initial);
+    if (open) {
+      setDraft(initial ?? newCustomFilter(""));
+      setSeeders(String(initial?.minSeeders ?? ""));
+      setSizeGb(String(initial?.maxSizeGb ?? ""));
+      setSeedersBadInput(false);
+      setSizeBadInput(false);
+    }
+  }
 
   const minSeeders = seeders.trim() === "" ? null : Number(seeders);
   const maxSizeGb = sizeGb.trim() === "" ? null : Number(sizeGb);
