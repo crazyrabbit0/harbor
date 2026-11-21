@@ -2,8 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 
 export function useDockAudio(bridge: PlayerBridge | null, snap: PlayerSnapshot) {
+  const [draftFor, setDraftFor] = useState(bridge);
   const [volumeDraft, setVolumeDraft] = useState<number | null>(null);
   const [muteDraft, setMuteDraft] = useState<boolean | null>(null);
+  if (draftFor !== bridge) {
+    setDraftFor(bridge);
+    setVolumeDraft(null);
+    setMuteDraft(null);
+  }
   const muteIntent = useRef<boolean | null>(null);
   const volumeIntent = useRef<number | null>(null);
   const volumeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -12,8 +18,6 @@ export function useDockAudio(bridge: PlayerBridge | null, snap: PlayerSnapshot) 
 
   // Keep the latest gesture visible while delayed native acknowledgements settle.
   useEffect(() => {
-    setVolumeDraft(null);
-    setMuteDraft(null);
     muteIntent.current = null;
     return () => {
       if (volumeTimer.current) clearTimeout(volumeTimer.current);

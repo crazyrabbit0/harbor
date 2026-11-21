@@ -81,11 +81,8 @@ export function HubCarousel({
 
   const currentKey = game ? gameKey(game) : "loading";
 
-  useLayoutEffect(() => {
-    // Pin the first visible event as feeds arrive, rather than following a changing index 0.
-
-    if (game && selected !== currentKey) setSelected(currentKey);
-  }, [currentKey, selected]);
+  // Pin the first visible event as feeds arrive, rather than following a changing index 0.
+  if (game && selected !== currentKey) setSelected(currentKey);
 
   const previous = useRef(game);
 

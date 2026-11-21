@@ -86,8 +86,10 @@ function AddonSources({ game, onAvailable }: AddonSourcesProps) {
     game.context?.name,
     game.broadcasts,
   ]);
-  useEffect(() => {
-    const controller = new AbortController();
+  const fetchKey = `${authKey}:${activeId}:${identity}:${refresh}`;
+  const [resetFor, setResetFor] = useState(fetchKey);
+  if (resetFor !== fetchKey) {
+    setResetFor(fetchKey);
     setRows([]);
     setPicked(null);
     setStreams([]);
@@ -97,6 +99,9 @@ function AddonSources({ game, onAvailable }: AddonSourcesProps) {
     setPending(false);
     setPlaying(null);
     setError("");
+  }
+  useEffect(() => {
+    const controller = new AbortController();
     run.current?.abort();
     void (async () => {
       const gathered = await gatherCatalogAddons(authKey);

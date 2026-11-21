@@ -10,17 +10,10 @@ import {
 
 export function useAthleteRecord(athleteId: string | undefined, enabled: boolean): string {
   const id = isEspnAthleteId(athleteId) ? athleteId : "";
-  const [record, setRecord] = useState(() => (id ? (cachedAthleteRecord(id) ?? "") : ""));
+  const [fetched, setFetched] = useState<{ id: string; record: string } | null>(null);
+  const cached = id && enabled ? cachedAthleteRecord(id) : undefined;
   useEffect(() => {
-    if (!id || !enabled) {
-      setRecord("");
-      return;
-    }
-    const held = cachedAthleteRecord(id);
-    if (held !== undefined) {
-      setRecord(held);
-      return;
-    }
+    if (!id || !enabled || cachedAthleteRecord(id) !== undefined) return;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -30,12 +23,14 @@ export function useAthleteRecord(athleteId: string | undefined, enabled: boolean
         if (!response.ok) return;
         const parsed = parseAthleteRecord(await response.json());
         rememberAthleteRecord(id, parsed);
-        if (!controller.signal.aborted) setRecord(parsed);
+        if (!controller.signal.aborted) setFetched({ id, record: parsed });
       } catch {
         /* A missing record just leaves the name standing on its own. */
       }
     })();
     return () => controller.abort();
   }, [id, enabled]);
-  return record;
+  if (!id || !enabled) return "";
+  if (cached !== undefined) return cached;
+  return fetched?.id === id ? fetched.record : "";
 }

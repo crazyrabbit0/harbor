@@ -8,15 +8,22 @@ const loadMapBlueprints = () => import("@/lib/sports/map-blueprints");
 
 export function MapBlueprint({ map }: { map: EsportsMapDef }) {
   const t = useT();
-  const [images, setImages] = useState<{ name: string; url: string }[]>([]);
-  const [selected, setSelected] = useState(0);
-  const [failed, setFailed] = useState(false);
+  const [result, setResult] = useState<{
+    key: string | undefined;
+    images: { name: string; url: string }[];
+    failed: boolean;
+  } | null>(null);
+  const [selection, setSelection] = useState<{ key: string | undefined; index: number }>({
+    key: map.blueprint,
+    index: 0,
+  });
+  const currentResult = result !== null && result.key === map.blueprint ? result : null;
+  const images = currentResult ? currentResult.images : [];
+  const failed = currentResult ? currentResult.failed : false;
+  const selected = selection.key === map.blueprint ? selection.index : 0;
   useEffect(() => {
     const controller = new AbortController();
     const urls: string[] = [];
-    setImages([]);
-    setFailed(false);
-    setSelected(0);
     void loadMapBlueprints()
       .then(({ readMapBlueprints }) => readMapBlueprints(map.blueprint!, controller.signal))
       .then((items) => {
@@ -30,10 +37,10 @@ export function MapBlueprint({ map }: { map: EsportsMapDef }) {
           urls.push(url);
           return { name: item.name, url };
         });
-        setImages(next);
+        setResult({ key: map.blueprint, images: next, failed: false });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (!controller.signal.aborted) setResult({ key: map.blueprint, images: [], failed: true });
       });
     return () => {
       controller.abort();
@@ -72,7 +79,7 @@ export function MapBlueprint({ map }: { map: EsportsMapDef }) {
           <button
             key={item.name}
             aria-pressed={index === selected}
-            onClick={() => setSelected(index)}
+            onClick={() => setSelection({ key: map.blueprint, index })}
           >
             {t("Layout {n}", { n: index + 1 })}
           </button>

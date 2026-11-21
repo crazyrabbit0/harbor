@@ -91,12 +91,17 @@ export function AthleteVideos({
     observer.observe(section.current);
     return () => observer.disconnect();
   }, []);
-  useEffect(() => {
-    if (!visible) return;
-    const controller = new AbortController();
+  const fetchKey = visible ? `${name}:${sport}:${league}:${retry}` : "";
+  const [resetFor, setResetFor] = useState(fetchKey);
+  if (resetFor !== fetchKey) {
+    setResetFor(fetchKey);
     setStatus("loading");
     setVideos([]);
     setSelected(null);
+  }
+  useEffect(() => {
+    if (!visible) return;
+    const controller = new AbortController();
     const clips: Video[] = [];
     const publish = (next: Video[]) => {
       if (controller.signal.aborted) return;

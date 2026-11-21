@@ -317,46 +317,50 @@ export function MatchPanel({
 }) {
   const t = useT();
   const locale = useUiLanguage() === "ar" ? "ar-SA" : "en-US";
-  const [loaded, setLoaded] = useState<SportsMatchDetail | null>(detail ?? null);
-  const [loading, setLoading] = useState(!detail);
-  const [h2h, setH2h] = useState<H2HResult | null>(null);
+  const gameKeyId = `${game.league}:${game.id}:${game.source ?? ""}`;
+  const [fetched, setFetched] = useState<{
+    key: string;
+    detail: SportsMatchDetail | null;
+  } | null>(null);
+  const h2hKey = `${game.league}:${game.home.id}:${game.away.id}`;
+  const [h2hState, setH2hState] = useState<{
+    key: string;
+    result: H2HResult | null;
+  } | null>(null);
 
   useEffect(() => {
-    if (detail) {
-      setLoaded(detail);
-      setLoading(false);
-      return;
-    }
+    if (detail) return;
     let alive = true;
-    setLoading(true);
     fetchGameSummary(game)
       .then((result) => {
-        if (!alive) return;
-        setLoaded(result);
-        setLoading(false);
+        if (alive) setFetched({ key: gameKeyId, detail: result });
       })
       .catch(() => {
-        if (alive) setLoading(false);
+        if (alive) setFetched({ key: gameKeyId, detail: null });
       });
     return () => {
       alive = false;
     };
-  }, [game.league, game.id, game.source, detail]);
+  }, [game.league, game.id, game.source, detail, gameKeyId]);
 
   useEffect(() => {
     let alive = true;
-    setH2h(null);
     fetchHeadToHead(game.league, game.home.id, game.away.id)
       .then((result) => {
-        if (alive) setH2h(result && result.played > 0 ? result : null);
+        if (alive)
+          setH2hState({ key: h2hKey, result: result && result.played > 0 ? result : null });
       })
       .catch(() => {
-        if (alive) setH2h(null);
+        if (alive) setH2hState({ key: h2hKey, result: null });
       });
     return () => {
       alive = false;
     };
-  }, [game.league, game.home.id, game.away.id]);
+  }, [game.league, game.home.id, game.away.id, h2hKey]);
+
+  const loaded = detail ?? (fetched?.key === gameKeyId ? fetched.detail : null);
+  const loading = !detail && fetched?.key !== gameKeyId;
+  const h2h = h2hState?.key === h2hKey ? h2hState.result : null;
 
   if (loading) {
     return (

@@ -403,20 +403,18 @@ function ScheduleLeague({
   const body = useRef<HTMLDivElement>(null);
   const visible = useInViewport(root, false);
   const [focused, setFocused] = useState(false);
-  const [height, setHeight] = useState(count * 80);
+  const [measured, setMeasured] = useState<{ count: number; height: number } | null>(null);
+  const height = measured?.count === count ? measured.height : count * 80;
   const mounted = !closed && (visible || focused);
-  useEffect(() => {
-    setHeight(count * 80);
-  }, [count]);
   useEffect(() => {
     if (!mounted || !body.current) return;
     const observer = new ResizeObserver((entries) => {
       const next = entries[0]?.contentRect.height;
-      if (next > 0) setHeight(next);
+      if (next > 0) setMeasured({ count, height: next });
     });
     observer.observe(body.current);
     return () => observer.disconnect();
-  }, [mounted]);
+  }, [mounted, count]);
   return (
     <section
       ref={root}

@@ -30,16 +30,15 @@ export function useMatchDetail(game: SportsGame, enabled = true) {
   const [refresh, setRefresh] = useState(0);
   const [state, setState] = useState<{
     key: string;
+    refresh: number;
     detail: SportsMatchDetail | null;
     loading: boolean;
     failed: boolean;
-  }>({ key: "", detail: null, loading: false, failed: false });
+  }>({ key: "", refresh: 0, detail: null, loading: false, failed: false });
   useEffect(() => {
     if (!enabled) return;
     let active = true;
     let busy = false;
-    const hit = cache.get(key);
-    setState({ key, detail: hit?.detail ?? null, loading: !hit, failed: false });
     const run = async () => {
       if (busy || document.visibilityState !== "visible") return;
       busy = true;
@@ -48,14 +47,22 @@ export function useMatchDetail(game: SportsGame, enabled = true) {
         if (active)
           setState((prior) => ({
             key,
-            detail: detail ?? prior.detail,
+            refresh,
+            detail: detail ?? (prior.key === key ? prior.detail : null),
             loading: false,
             failed: !detail,
           }));
       };
       await work()
         .catch(() => {
-          if (active) setState((prior) => ({ ...prior, loading: false, failed: true }));
+          if (active)
+            setState((prior) => ({
+              key,
+              refresh,
+              detail: prior.key === key ? prior.detail : null,
+              loading: false,
+              failed: true,
+            }));
         })
         .finally(() => {
           busy = false;
@@ -70,8 +77,17 @@ export function useMatchDetail(game: SportsGame, enabled = true) {
       clearInterval(timer);
     };
   }, [key, enabled, refresh]);
+  const hit = enabled ? cache.get(key) : undefined;
+  const current =
+    enabled && state.key === key && state.refresh === refresh
+      ? state
+      : {
+          detail: hit?.detail ?? (enabled && state.key === key ? state.detail : null),
+          loading: enabled && !hit,
+          failed: false,
+        };
   return {
-    ...(state.key === key ? state : { detail: null, loading: enabled, failed: false }),
+    ...current,
     retry: () => {
       cache.delete(key);
       setRefresh((n) => n + 1);

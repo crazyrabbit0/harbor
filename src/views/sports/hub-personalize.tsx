@@ -32,12 +32,15 @@ export function HubPersonalize({ selected, onClose }: { selected: string[]; onCl
   const [chosenGroups, setChosenGroups] = useState<string[]>([]);
   const [teams, setTeams] = useState<FavouriteTeam[]>(fav.teams);
   const [league, setLeague] = useState(selected[0] || "NFL");
-  const [available, setAvailable] = useState<SportsTeam[]>([]);
-  const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState("");
-  const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [saveError, setSaveError] = useState(false);
+  const [teamResult, setTeamResult] = useState<{
+    key: string;
+    league: string;
+    teams: SportsTeam[];
+    error: boolean;
+  } | null>(null);
   const trigger = useRef(document.activeElement as HTMLElement | null);
   useEffect(
     () => () => {
@@ -50,31 +53,38 @@ export function HubPersonalize({ selected, onClose }: { selected: string[]; onCl
       leagues.includes(l.key) &&
       !["combat", "boxing", "esports", "motorsport", "golf", "tennis"].includes(l.group),
   );
+  const activeTeamLeague = step === 2 && teamLeagues.some((l) => l.key === league);
+  const fetchKey = activeTeamLeague ? `${league}:${retry}` : "";
+  const cached = activeTeamLeague ? cachedLeagueTeams(league) : [];
   useEffect(() => {
-    if (step !== 2 || !teamLeagues.some((l) => l.key === league)) return;
+    if (!fetchKey) return;
     let alive = true;
-    const cached = cachedLeagueTeams(league);
-    setAvailable(cached);
-    setLoading(cached.length === 0);
-    setError(false);
+    const currentCached = cachedLeagueTeams(league);
     fetchLeagueTeams(league, { force: retry > 0 })
       .then((next) => {
         if (alive) {
-          setAvailable(next);
-          setLoading(false);
-          setError(next.length === 0);
+          setTeamResult({ key: fetchKey, league, teams: next, error: next.length === 0 });
         }
       })
       .catch(() => {
         if (alive) {
-          setLoading(false);
-          setError(cached.length === 0);
+          setTeamResult({
+            key: fetchKey,
+            league,
+            teams: currentCached,
+            error: currentCached.length === 0,
+          });
         }
       });
     return () => {
       alive = false;
     };
-  }, [step, league, retry]);
+  }, [fetchKey, league, retry]);
+  const available =
+    teamResult?.league === league && teamResult.teams.length ? teamResult.teams : cached;
+  const settled = !!fetchKey && teamResult?.key === fetchKey;
+  const loading = !!fetchKey && !settled && cached.length === 0;
+  const error = !!fetchKey && settled && teamResult.error;
   function toggle(key: string) {
     setLeagues((prev) => (prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]));
   }
@@ -113,7 +123,6 @@ export function HubPersonalize({ selected, onClose }: { selected: string[]; onCl
     if (step === 1) setLeague(teamLeagues[0]?.key || "");
     setStep(step + 1);
     setQuery("");
-    setError(false);
   };
   return (
     <ModalShell closing={false} onDismiss={onClose} width={800} labelledBy="sports-setup-title">
@@ -324,17 +333,7 @@ export function HubPersonalize({ selected, onClose }: { selected: string[]; onCl
         )}
       </div>
       <div className="sh-setup-foot">
-        <button
-          className="sh-button"
-          onClick={
-            step > 0
-              ? () => {
-                  setStep(step - 1);
-                  setError(false);
-                }
-              : onClose
-          }
-        >
+        <button className="sh-button" onClick={step > 0 ? () => setStep(step - 1) : onClose}>
           {step > 0 && <ChevronLeft size={16} />} {t(step > 0 ? "Back" : "Cancel")}
         </button>
         <span>{t("{n} leagues selected", { n: leagues.length })}</span>

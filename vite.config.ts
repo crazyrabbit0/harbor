@@ -149,6 +149,8 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/shows.tsx",
   "/src/views/shows/",
   "/src/views/spooktober/",
+  "/src/views/sports.tsx",
+  "/src/views/sports/",
   "/src/views/video-pip.tsx",
 ];
 // Babel runs only on these folders; every other file skips it and goes straight to esbuild.

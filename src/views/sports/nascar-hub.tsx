@@ -200,27 +200,27 @@ export function NascarHub({
   const t = useT();
   const date = useEventDate();
   const [race, setRace] = useState<NascarRaceData | null>(null);
-  const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(0);
   const [tab, setTab] = useState("Results");
   const [standings, setStandings] = useState<NascarStandings | null>(null);
-  const [standingsState, setStandingsState] = useState("idle");
   const [driver, setDriver] = useState<NascarDriver | null>(null);
   const trigger = useRef<HTMLElement | null>(null);
   const series = nascarSeriesForLeague(game.league);
+  const raceKey = `${game.id}:${game.startMs}:${game.state}:${series ?? ""}:${retry}`;
+  const [raceSettledKey, setRaceSettledKey] = useState<string | null>(null);
+  const loading = raceSettledKey !== raceKey;
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
     void loadNascarRace(game, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted) setRace(result);
       })
       .catch(() => {})
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) setRaceSettledKey(raceKey);
       });
     return () => controller.abort();
-  }, [game.id, game.startMs, game.state, series, retry]);
+  }, [game.id, game.startMs, game.state, series, retry, raceKey]);
   useEffect(() => {
     if (game.state !== "in") return;
     const timer = window.setInterval(() => {
@@ -228,22 +228,31 @@ export function NascarHub({
     }, 30_000);
     return () => window.clearInterval(timer);
   }, [game.state]);
+  const standingsKey = tab === "Standings" && race ? `${race.season}:${race.series}:${retry}` : "";
+  const [standingsOutcome, setStandingsOutcome] = useState<{
+    key: string;
+    state: "ready" | "error";
+  } | null>(null);
+  const standingsState = !standingsKey
+    ? "idle"
+    : standingsOutcome?.key === standingsKey
+      ? standingsOutcome.state
+      : "loading";
   useEffect(() => {
-    if (tab !== "Standings" || !race) return;
+    if (!standingsKey || !race) return;
     const controller = new AbortController();
-    setStandingsState("loading");
     void loadNascarStandings(race.season, race.series, controller.signal)
       .then((result) => {
         if (!controller.signal.aborted) {
           setStandings(result);
-          setStandingsState("ready");
+          setStandingsOutcome({ key: standingsKey, state: "ready" });
         }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setStandingsState("error");
+        if (!controller.signal.aborted) setStandingsOutcome({ key: standingsKey, state: "error" });
       });
     return () => controller.abort();
-  }, [tab, race?.season, race?.series, retry]);
+  }, [tab, race?.season, race?.series, retry, standingsKey]);
   const choose = (person: NascarDriver, element: HTMLElement) => {
     trigger.current = element;
     setDriver(person);

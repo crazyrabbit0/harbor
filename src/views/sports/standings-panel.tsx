@@ -226,19 +226,25 @@ export function StandingsPanel({
   title?: string;
 }) {
   const t = useT();
-  const [table, setTable] = useState<StandingsTable | null>(null);
-  const [groupId, setGroupId] = useState("");
+  const [tableState, setTableState] = useState<{
+    leagueTag: string;
+    table: StandingsTable | null;
+  } | null>(null);
+  const [groupSelection, setGroupSelection] = useState<{
+    leagueTag: string;
+    id: string;
+  }>({ leagueTag, id: "" });
+  const table = tableState?.leagueTag === leagueTag ? tableState.table : null;
+  const groupId = groupSelection.leagueTag === leagueTag ? groupSelection.id : "";
 
   useEffect(() => {
     let alive = true;
-    setTable(null);
-    setGroupId("");
     fetchStandings(leagueTag)
       .then((next) => {
-        if (alive) setTable(next);
+        if (alive) setTableState({ leagueTag, table: next });
       })
       .catch(() => {
-        if (alive) setTable(null);
+        if (alive) setTableState({ leagueTag, table: null });
       });
     return () => {
       alive = false;
@@ -264,7 +270,11 @@ export function StandingsPanel({
   return (
     <MatchDisclosure title={title ?? t("Standings")} icon={ListOrdered} scroll={false}>
       {table.groups.length > 1 && (
-        <GroupTabs groups={table.groups} selected={group.id} onSelect={setGroupId} />
+        <GroupTabs
+          groups={table.groups}
+          selected={group.id}
+          onSelect={(id) => setGroupSelection({ leagueTag, id })}
+        />
       )}
       <Table
         leagueTag={leagueTag}

@@ -39,11 +39,7 @@ export function EsportsTeamDialog({
 }) {
   const t = useT();
   const [rankings, setRankings] = useState<EsportsRankings | null>(null);
-  const [detail, setDetail] = useState<CsMatchDetail | null>(null);
-  const [loading, setLoading] = useState(selection.game === "cs2");
-  const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [profile, setProfile] = useState<TeamProfileData | null>(null);
   const league = esportsTeamLeague(
     selection.game,
     matches.filter((match) => match.teams.some((team) => team.id === selection.team.id)),
@@ -52,23 +48,51 @@ export function EsportsTeamDialog({
     (match) =>
       match.game === selection.game && match.teams.some((team) => team.id === selection.team.id),
   );
+  const profileBaseKey = league ? `${league}:${selection.team.id}:${selection.team.name}` : "";
+  const profileKey = profileBaseKey ? `${profileBaseKey}:${retry}` : "";
+  const [profileState, setProfileState] = useState<{
+    baseKey: string;
+    key: string;
+    data: TeamProfileData | null;
+    done: boolean;
+    failed: boolean;
+  } | null>(null);
+  const csBaseKey =
+    selection.game === "cs2" ? `${selection.team.id}:${sourceMatch?.sourceUrl ?? ""}` : "";
+  const csKey = csBaseKey ? `${csBaseKey}:${retry}` : "";
+  const [csState, setCsState] = useState<{
+    baseKey: string;
+    key: string;
+    detail: CsMatchDetail | null;
+    done: boolean;
+    failed: boolean;
+  } | null>(null);
   useEffect(() => {
     if (!league) return;
     const controller = new AbortController();
-    setLoading(true);
-    setFailed(false);
     fetchTeamProfile({ ...selection.team, league, source: "esports" }, controller.signal)
       .then((value) => {
-        if (!controller.signal.aborted) setProfile(value);
+        if (!controller.signal.aborted)
+          setProfileState({
+            baseKey: profileBaseKey,
+            key: profileKey,
+            data: value,
+            done: true,
+            failed: false,
+          });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted)
+          setProfileState((prior) => ({
+            baseKey: profileBaseKey,
+            key: profileKey,
+            data: prior?.baseKey === profileBaseKey ? prior.data : null,
+            done: true,
+            failed: true,
+          }));
       });
     return () => controller.abort();
-  }, [league, selection.team.id, selection.team.name, retry]);
+  }, [league, selection.team.id, selection.team.name, retry, profileBaseKey, profileKey]);
   useEffect(() => {
     const trap = (event: KeyboardEvent) => {
       if (event.key !== "Tab") return;
@@ -96,32 +120,47 @@ export function EsportsTeamDialog({
   useEffect(() => {
     if (selection.game !== "cs2") return;
     const controller = new AbortController();
-    setLoading(true);
-    setFailed(false);
     void (async () => {
       let ranked = false;
+      let nextDetail: CsMatchDetail | null = null;
+      let hasError = false;
       try {
         const value = await fetchEsportsRankings(controller.signal, retry > 0);
         if (controller.signal.aborted) return;
         setRankings(value);
         ranked = value.teams.some((team) => team.id === selection.team.id);
       } catch {
-        if (!controller.signal.aborted) setFailed(true);
+        hasError = true;
       }
       if (!ranked && sourceMatch) {
         const slug = bo3MatchSlug(sourceMatch.sourceUrl);
         if (slug)
           try {
-            const value = await fetchCsMatchDetail(slug, controller.signal);
-            if (!controller.signal.aborted) setDetail(value);
+            nextDetail = await fetchCsMatchDetail(slug, controller.signal);
           } catch {
-            if (!controller.signal.aborted) setFailed(true);
+            hasError = true;
           }
       }
-      if (!controller.signal.aborted) setLoading(false);
+      if (!controller.signal.aborted) {
+        setCsState((prior) => ({
+          baseKey: csBaseKey,
+          key: csKey,
+          detail: nextDetail ?? (prior?.baseKey === csBaseKey ? prior.detail : null),
+          done: true,
+          failed: hasError,
+        }));
+      }
     })();
     return () => controller.abort();
-  }, [selection.game, selection.team.id, sourceMatch?.sourceUrl, retry]);
+  }, [selection.game, selection.team.id, sourceMatch?.sourceUrl, retry, csBaseKey, csKey]);
+  const profile = profileState?.baseKey === profileBaseKey ? profileState.data : null;
+  const detail = csState?.baseKey === csBaseKey ? csState.detail : null;
+  const profileLoading = !!profileKey && profileState?.key !== profileKey;
+  const csLoading = !!csKey && csState?.key !== csKey;
+  const loading = profileLoading || csLoading;
+  const failed =
+    (!!profileKey && profileState?.key === profileKey && profileState.failed) ||
+    (!!csKey && csState?.key === csKey && csState.failed);
   const entry = useMemo<EsportsTeamEntry>(
     () =>
       esportsTeamDirectory(matches, rankings?.teams).find(

@@ -80,24 +80,25 @@ export function useEsportsEventDetail(
   event: EsportsEventSummary,
   series?: SeriesDef,
 ): EsportsEventDetail {
-  const [detail, setDetail] = useState<EsportsEventDetail>(EMPTY);
+  const wiki = LIQUIPEDIA_WIKI[event.game];
+  const base: EsportsEventDetail = LIQUIPEDIA_INLINE_BRACKETS.has(wiki)
+    ? EMPTY
+    : { ...EMPTY, bracketGap: "unsupported-wiki" };
+  const [state, setState] = useState<{
+    event: EsportsEventSummary;
+    series: SeriesDef | undefined;
+    detail: EsportsEventDetail;
+  } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
     const signal = controller.signal;
-    const wiki = LIQUIPEDIA_WIKI[event.game];
     const options = { signal, ttlMs: liquipediaTtl(event.status) };
-    // Three of the five wikis moved their match rows into LPDB, so the absence is known about the
-    // title before anything is fetched and the page can say so from the first paint.
-    const base: EsportsEventDetail = LIQUIPEDIA_INLINE_BRACKETS.has(wiki)
-      ? EMPTY
-      : { ...EMPTY, bracketGap: "unsupported-wiki" };
-    let state = base;
+    let current = base;
     const publish = (patch: Partial<EsportsEventDetail>) => {
       if (signal.aborted) return;
-      state = { ...state, ...patch };
-      setDetail(state);
+      current = { ...current, ...patch };
+      setState({ event, series, detail: current });
     };
-    setDetail(base);
 
     const readLiquipedia = async () => {
       for (const page of pageCandidates(event, series)) {
@@ -153,5 +154,5 @@ export function useEsportsEventDetail(
     })();
     return () => controller.abort();
   }, [event, series]);
-  return detail;
+  return state && state.event === event && state.series === series ? state.detail : base;
 }

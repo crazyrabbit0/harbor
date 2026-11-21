@@ -48,14 +48,18 @@ export function TeamPicker({
   const settings = useSettingsSelector((s) => ({ sportsLeagues: s.sportsLeagues }));
   const fav = useFavourites();
   const [query, setQuery] = useState("");
-  const [byLeague, setByLeague] = useState<Record<string, SportsTeam[]>>({});
-  const [loading, setLoading] = useState(true);
+  const [fetchedByLeague, setFetchedByLeague] = useState<{
+    sig: string;
+    map: Record<string, SportsTeam[]>;
+  }>({ sig: "", map: {} });
+  const [settledSig, setSettledSig] = useState<string | null>(null);
   const [cols, setCols] = useState(6);
   const bodyRef = useRef<HTMLDivElement>(null);
 
   const chosen = settings.sportsLeagues?.length ? settings.sportsLeagues : DEFAULT_SPORTS_LEAGUES;
   const keySig = (leagueKeys?.length ? leagueKeys : chosen).join(",");
   const keys = useMemo(() => keySig.split(",").filter(Boolean), [keySig]);
+  const loading = settledSig !== keySig;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -67,8 +71,6 @@ export function TeamPicker({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setByLeague(Object.fromEntries(keys.map((key) => [key, cachedLeagueTeams(key)])));
     const queue = [...keys];
     const worker = async () => {
       while (queue.length && !cancelled) {
@@ -76,7 +78,13 @@ export function TeamPicker({
         const work = async () => {
           const teams = await fetchLeagueTeams(key);
           if (!cancelled && teams.length)
-            setByLeague((previous) => ({ ...previous, [key]: teams }));
+            setFetchedByLeague((previous) => ({
+              sig: keySig,
+              map: {
+                ...(previous.sig === keySig ? previous.map : {}),
+                [key]: teams,
+              },
+            }));
         };
         await work().catch(() => {
           /* Other leagues can still finish. */
@@ -84,12 +92,12 @@ export function TeamPicker({
       }
     };
     void Promise.all(Array.from({ length: Math.min(3, keys.length) }, worker)).finally(() => {
-      if (!cancelled) setLoading(false);
+      if (!cancelled) setSettledSig(keySig);
     });
     return () => {
       cancelled = true;
     };
-  }, [keys]);
+  }, [keys, keySig]);
 
   useEffect(() => {
     const el = bodyRef.current;
@@ -104,12 +112,15 @@ export function TeamPicker({
     () =>
       keys
         .map((key) => {
-          const all = byLeague[key] ?? [];
+          const all =
+            fetchedByLeague.sig === keySig && key in fetchedByLeague.map
+              ? fetchedByLeague.map[key]
+              : cachedLeagueTeams(key);
           const teams = needle ? all.filter((team) => matchesTeamSearch(team, needle)) : all;
           return { key, teams };
         })
         .filter((s) => s.teams.length > 0),
-    [keys, byLeague, needle],
+    [keys, keySig, fetchedByLeague, needle],
   );
 
   return createPortal(

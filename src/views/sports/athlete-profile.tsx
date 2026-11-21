@@ -39,6 +39,12 @@ type Profile = {
   recordUrl?: string;
 };
 const cache = new Map<string, { at: number; data: Profile }>();
+function readCachedProfile(key: string): Profile | undefined {
+  const hit = cache.get(key);
+  if (!hit) return undefined;
+  const ttl = hit.data.statsFailed ? 60_000 : 3_600_000;
+  return Date.now() - hit.at < ttl ? hit.data : undefined;
+}
 export function AthleteProfileLink({
   athlete,
   league,
@@ -93,10 +99,15 @@ export function AthleteProfile({
   const provider = athlete.source ?? "espn";
   const key = `${provider}:${def?.path || path}:${athlete.id}`;
   const [profile, setProfile] = useState<{ key: string; data: Profile } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [retry, setRetry] = useState(0);
+  const fetchKey = `${key}:${retry}`;
+  const [resetFor, setResetFor] = useState(fetchKey);
   const [broken, setBroken] = useState<Set<string>>(() => new Set());
-  const [failed, setFailed] = useState(false);
+  if (resetFor !== fetchKey) {
+    setResetFor(fetchKey);
+    setBroken(new Set());
+  }
+  const [outcome, setOutcome] = useState<{ key: string; failed: boolean } | null>(null);
   const backButton = useRef<HTMLButtonElement>(null);
   const resolved = useAthletePortrait(
     {
@@ -108,20 +119,16 @@ export function AthleteProfile({
     },
     true,
   );
+  const canFetch =
+    provider === "thesportsdb" ||
+    (provider === "espn" && /^\d+$/.test(athlete.id) && path.includes("/"));
+  const cached = canFetch ? readCachedProfile(key) : undefined;
   useEffect(() => {
     backButton.current?.focus({ preventScroll: true });
   }, []);
   useEffect(() => {
+    if (!canFetch || readCachedProfile(key)) return;
     const controller = new AbortController();
-    setLoading(true);
-    setFailed(false);
-    setBroken(new Set());
-    const hit = cache.get(key);
-    if (hit && Date.now() - hit.at < (hit.data.statsFailed ? 60_000 : 3_600_000)) {
-      setProfile({ key, data: hit.data });
-      setLoading(false);
-      return;
-    }
     if (provider === "thesportsdb") {
       void fetchSportsDbAthleteBio(athlete.id, def?.group || "", controller.signal)
         .then((bio) => {
@@ -138,18 +145,12 @@ export function AthleteProfile({
             while (cache.size > 30) cache.delete(cache.keys().next().value!);
             setProfile({ key, data });
           }
+          setOutcome({ key: fetchKey, failed: false });
         })
         .catch(() => {
-          if (!controller.signal.aborted) setFailed(true);
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
+          if (!controller.signal.aborted) setOutcome({ key: fetchKey, failed: true });
         });
       return () => controller.abort();
-    }
-    if (provider !== "espn" || !/^\d+$/.test(athlete.id) || !path.includes("/")) {
-      setLoading(false);
-      return;
     }
     const base = `https://site.web.api.espn.com/apis/common/v3/sports/${path}/athletes/${athlete.id}`;
     const json = async (url: string) => {
@@ -175,8 +176,10 @@ export function AthleteProfile({
       const person = bio.status === "fulfilled" ? bio.value?.athlete : undefined;
       const data = stats.status === "fulfilled" ? stats.value : undefined;
       if (!person && !data) {
-        setFailed(bio.status === "rejected" || stats.status === "rejected");
-        setLoading(false);
+        setOutcome({
+          key: fetchKey,
+          failed: bio.status === "rejected" || stats.status === "rejected",
+        });
         return;
       }
       const summary = (person?.statsSummary?.statistics ?? []).slice(0, 12).map((stat: any) => ({
@@ -215,11 +218,14 @@ export function AthleteProfile({
       cache.set(key, { at: Date.now(), data: result });
       while (cache.size > 30) cache.delete(cache.keys().next().value!);
       setProfile({ key, data: result });
-      setLoading(false);
+      setOutcome({ key: fetchKey, failed: false });
     });
     return () => controller.abort();
-  }, [key, retry]);
-  const current = profile?.key === key ? profile.data : null;
+  }, [key, retry, fetchKey, canFetch]);
+  const settled = outcome?.key === fetchKey;
+  const loading = canFetch && !cached && !settled;
+  const failed = canFetch && !cached && settled && outcome.failed;
+  const current = profile?.key === key ? profile.data : (cached ?? null);
   const portrait =
     athleteImageUrl(current?.image) ||
     athleteImageUrl(athlete.image) ||
@@ -441,9 +447,9 @@ export function AthleteProfile({
 }
 
 function AthleteTeamLogo({ src }: { src?: string }) {
-  const [broken, setBroken] = useState(false);
-  useEffect(() => setBroken(false), [src]);
+  const [brokenFor, setBrokenFor] = useState<string | undefined>(undefined);
+  const broken = !!src && brokenFor === src;
   return src && !broken ? (
-    <img src={src} alt="" loading="lazy" onError={() => setBroken(true)} />
+    <img src={src} alt="" loading="lazy" onError={() => setBrokenFor(src)} />
   ) : null;
 }

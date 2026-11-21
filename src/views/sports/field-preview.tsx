@@ -48,22 +48,20 @@ export function FieldPreview({
   const [team, setTeam] = useState<"home" | "away">("home");
   const [unit, setUnit] = useState<"offense" | "defense">("offense");
   const [depth, setDepth] = useState<{ key: string; data: Depth } | null>(null);
-  const [pending, setPending] = useState(false);
+  const [settledKey, setSettledKey] = useState<string | null>(null);
   const [selected, setSelected] = useState<FieldPlayer | null>(null);
   const side = game[team];
   const year = new Date(game.startMs).getFullYear();
   const path = sportsLeagueByTag(game.league)?.path;
   const key = `${path}:${side.id}:${year}`;
+  const shouldFetch = open && !basketball && !!path?.startsWith("football/");
+  const cached = shouldFetch ? depthCache.get(key) : undefined;
+  const pending = shouldFetch && !cached && settledKey !== key;
   useEffect(() => {
     if (!open || basketball || !path?.startsWith("football/")) return;
+    const cachedEntry = depthCache.get(key);
+    if (cachedEntry && Date.now() - cachedEntry.at < 3600000) return;
     const controller = new AbortController();
-    const cached = depthCache.get(key);
-    setPending(!cached);
-    if (cached && Date.now() - cached.at < 3600000) {
-      setDepth({ key, data: cached.data });
-      setPending(false);
-      return;
-    }
     void (async () => {
       const work = async () => {
         const response = await safeFetch(
@@ -97,11 +95,12 @@ export function FieldPreview({
       await work()
         .catch(() => {})
         .finally(() => {
-          if (!controller.signal.aborted) setPending(false);
+          if (!controller.signal.aborted) setSettledKey(key);
         });
     })();
     return () => controller.abort();
   }, [open, basketball, key, side.id, game.league, path]);
+  const activeDepth = depth?.key === key ? depth.data : cached?.data;
   const home = basketballFive(detail?.homeRoster ?? []);
   const away = basketballFive(detail?.awayRoster ?? []).map((item) => ({
     ...item,
@@ -112,16 +111,20 @@ export function FieldPreview({
         ...home.map((item) => ({ ...item, side: "home" })),
         ...away.map((item) => ({ ...item, side: "away" })),
       ]
-    : (depth?.key === key && depth.data[unit].length
-        ? depth.data[unit]
-        : footballPositions(unit)
-      ).map((item) => ({
+    : (activeDepth?.[unit].length ? activeDepth[unit] : footballPositions(unit)).map((item) => ({
         ...item,
         side: team,
       }));
   const live = game.state === "in" && !failed && game.savedAt === undefined;
   return (
-    <details className="sh-field-preview" onToggle={(event) => setOpen(event.currentTarget.open)}>
+    <details
+      className="sh-field-preview"
+      onToggle={(event) => {
+        const nextOpen = event.currentTarget.open;
+        setOpen(nextOpen);
+        if (!nextOpen) setSettledKey(null);
+      }}
+    >
       <summary tabIndex={0}>
         <SportIcon name={basketball ? "basketball" : "football"} size={24} />
         <span>
@@ -284,14 +287,14 @@ export function FieldPreview({
                       : "Lineup data is unavailable.",
                   )}
           </p>
-          {!basketball && depth?.key === key && !!depth.data.squad?.length && (
+          {!basketball && !!activeDepth?.squad?.length && (
             <section className="sh-field-squad">
               <h3>{t("Team roster")}</h3>
               <p className="sh-muted">
                 {t("Current team roster. The starting lineup has not been confirmed.")}
               </p>
               <div>
-                {depth.data.squad.map((player) => (
+                {activeDepth.squad.map((player) => (
                   <div key={player.id}>
                     <Portrait item={{ slot: player.position, x: 0, y: 0, player }} />
                     <AthleteProfileLink athlete={player} league={game.league} label={player.name} />

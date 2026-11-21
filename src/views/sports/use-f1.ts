@@ -4,32 +4,50 @@ export function useF1(path: string) {
   const [retry, setRetry] = useState(0);
   const [state, setState] = useState<{
     path: string;
+    retry: number;
     data?: F1Response;
     loading: boolean;
     failed: boolean;
     at: number;
-  }>({ path: "", loading: true, failed: false, at: 0 });
+  }>({ path: "", retry: 0, loading: true, failed: false, at: 0 });
   useEffect(() => {
     if (!path) return;
     let active = true;
-    const hit = readF1(path);
-    setState({ path, data: hit?.data, at: hit?.at || 0, loading: !hit, failed: false });
     void fetchF1(path, retry > 0)
       .then((entry) => {
         if (active)
-          setState({ path, data: entry.data, at: entry.at, loading: false, failed: false });
+          setState({ path, retry, data: entry.data, at: entry.at, loading: false, failed: false });
       })
       .catch(() => {
-        if (active) setState((prior) => ({ ...prior, loading: false, failed: true }));
+        if (active)
+          setState((prior) => {
+            const cached = readF1(path);
+            return {
+              path,
+              retry,
+              data: prior.path === path ? (prior.data ?? cached?.data) : cached?.data,
+              at: prior.path === path ? prior.at || cached?.at || 0 : cached?.at || 0,
+              loading: false,
+              failed: true,
+            };
+          });
       });
     return () => {
       active = false;
     };
   }, [path, retry]);
-  return {
-    ...(state.path === path
+  const hit = path ? readF1(path) : undefined;
+  const current =
+    state.path === path && state.retry === retry
       ? state
-      : { data: readF1(path)?.data, at: 0, loading: !!path, failed: false }),
+      : {
+          data: hit?.data ?? (state.path === path ? state.data : undefined),
+          at: hit?.at || (state.path === path ? state.at : 0),
+          loading: !!path && !hit,
+          failed: false,
+        };
+  return {
+    ...current,
     retry: () => setRetry((n) => n + 1),
   };
 }
