@@ -132,21 +132,28 @@ export function usePlayerInteractionLock() {
     else lock();
   }, [lock, locked, unlock]);
 
+  const effectiveLocked = enabled && locked;
+  const effectiveControlsVisible = enabled && controlsVisible;
+  if (!enabled && (locked || controlsVisible)) {
+    setControlsVisible(false);
+    setLocked(false);
+  }
+
   usePlayerInteractionBlocker({
     enabled,
-    locked,
+    locked: effectiveLocked,
     binding,
     onToggle: toggle,
     onLockedActivity: wakeControls,
   });
 
   useEffect(() => {
-    if (!enabled && locked) unlock();
-  }, [enabled, locked, unlock]);
+    if (!enabled) clearIdleTimer();
+  }, [enabled, clearIdleTimer]);
 
   useEffect(() => {
-    setPlayerInteractionLocked(enabled && locked);
-  }, [enabled, locked]);
+    setPlayerInteractionLocked(effectiveLocked);
+  }, [effectiveLocked]);
   useEffect(
     () => () => {
       clearIdleTimer();
@@ -155,5 +162,13 @@ export function usePlayerInteractionLock() {
     [clearIdleTimer],
   );
 
-  return { enabled, locked, controlsVisible, binding, lock, unlock, wakeControls };
+  return {
+    enabled,
+    locked: effectiveLocked,
+    controlsVisible: effectiveControlsVisible,
+    binding,
+    lock,
+    unlock,
+    wakeControls,
+  };
 }

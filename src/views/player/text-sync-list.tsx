@@ -35,7 +35,14 @@ export function TextSyncList({
   const t = useT();
   const containerRef = useRef<HTMLDivElement>(null);
   const rowRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selection, setSelection] = useState<{ sectionMode: boolean; index: number | null }>({
+    sectionMode,
+    index: null,
+  });
+  if (selection.sectionMode !== sectionMode) {
+    setSelection({ sectionMode, index: null });
+  }
+  const selected = selection.sectionMode === sectionMode ? selection.index : null;
   const [following, setFollowing] = useState(true);
   const didInit = useRef(false);
   const programmatic = useRef(false);
@@ -43,6 +50,10 @@ export function TextSyncList({
 
   const q = query.trim().toLowerCase();
   const searching = q.length > 0;
+  if (searching && following) {
+    setFollowing(false);
+  }
+  const effectiveFollowing = !searching && following;
 
   const inSegment = useMemo(() => {
     const s = new Set<number>();
@@ -87,7 +98,6 @@ export function TextSyncList({
 
   useEffect(() => {
     if (!searching) return;
-    setFollowing(false);
     if (firstMatch >= 0) scrollToIndex(firstMatch, "smooth");
   }, [searching, firstMatch, scrollToIndex]);
 
@@ -98,7 +108,7 @@ export function TextSyncList({
       didInit.current = true;
       return;
     }
-    if (!following) return;
+    if (!effectiveFollowing) return;
     const el = rowRefs.current[activeIndex];
     const c = containerRef.current;
     if (!el || !c) return;
@@ -108,11 +118,7 @@ export function TextSyncList({
     if (er.top < cr.top + margin || er.bottom > cr.bottom - margin) {
       scrollToIndex(activeIndex, "smooth");
     }
-  }, [activeIndex, following, searching, scrollToIndex]);
-
-  useEffect(() => {
-    setSelected(null);
-  }, [sectionMode]);
+  }, [activeIndex, effectiveFollowing, searching, scrollToIndex]);
 
   const jumpToNow = () => {
     if (activeIndex == null) return;
@@ -124,10 +130,17 @@ export function TextSyncList({
     if (sectionMode) {
       if (rangeStart == null) onRangeStart(i);
       else if (rangeEnd == null) onRangeEnd(i);
-      else setSelected((prev) => (prev === i ? null : i));
+      else
+        setSelection((prev) => ({
+          sectionMode,
+          index: prev.sectionMode === sectionMode && prev.index === i ? null : i,
+        }));
       return;
     }
-    setSelected((prev) => (prev === i ? null : i));
+    setSelection((prev) => ({
+      sectionMode,
+      index: prev.sectionMode === sectionMode && prev.index === i ? null : i,
+    }));
   };
 
   return (
@@ -201,7 +214,7 @@ export function TextSyncList({
                     type="button"
                     onClick={() => {
                       onSyncHere(i);
-                      setSelected(null);
+                      setSelection({ sectionMode, index: null });
                     }}
                     className="flex items-center gap-2 rounded-xl bg-accent px-4 py-2 text-[13.5px] font-semibold text-canvas transition-transform active:scale-95"
                   >
@@ -222,7 +235,7 @@ export function TextSyncList({
           );
         })}
       </div>
-      {!following && !searching && activeIndex != null && (
+      {!effectiveFollowing && !searching && activeIndex != null && (
         <button
           type="button"
           onClick={jumpToNow}

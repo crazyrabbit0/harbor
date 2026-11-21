@@ -61,36 +61,28 @@ export function useAssNormalize(params: {
   targetFontSize: number;
 }): number | undefined {
   const { enabled, sourceUrl, headers, track, tracks, targetFontSize } = params;
-  const cacheRef = useRef<Map<string, number | null>>(new Map());
   const liveRef = useRef({ sourceUrl, track, tracks, headers });
   useLayoutEffect(() => {
     liveRef.current = { sourceUrl, track, tracks, headers };
   });
-  const [factor, setFactor] = useState<number | null>(null);
+  const [results, setResults] = useState<Record<string, number | null>>({});
   const key =
     enabled && sourceUrl && track ? `${sourceUrl}|${track.id}|${track.external ? 1 : 0}` : "";
 
   useEffect(() => {
-    if (!key) {
-      setFactor(null);
-      return;
-    }
-    const cached = cacheRef.current.get(key);
-    if (cached !== undefined) {
-      setFactor(cached);
-      return;
-    }
-    setFactor(null);
+    if (!key || Object.hasOwn(results, key)) return;
     let cancelled = false;
     void (async () => {
       const result = await baseFactorFor(liveRef.current);
-      cacheRef.current.set(key, result);
-      if (!cancelled) setFactor(result);
+      if (!cancelled) {
+        setResults((cur) => (Object.hasOwn(cur, key) ? cur : { ...cur, [key]: result }));
+      }
     })();
     return () => {
       cancelled = true;
     };
-  }, [key]);
+  }, [key, results]);
 
+  const factor = key && Object.hasOwn(results, key) ? results[key] : null;
   return factor == null ? undefined : assScaleFromFactor(factor, targetFontSize);
 }

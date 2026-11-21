@@ -138,6 +138,8 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/person/",
   "/src/views/play-picker.tsx",
   "/src/views/play-picker/",
+  "/src/views/player.tsx",
+  "/src/views/player/",
   "/src/views/playlist-vod.tsx",
   "/src/views/playlist-vod/",
   "/src/views/plugins.tsx",

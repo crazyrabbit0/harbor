@@ -103,15 +103,18 @@ export function useAutoRetry(params: {
     () => getPlaybackPosition() > 0.5 || getPlaybackBuffered() > 0.5,
   );
   const startedPlaying = usePlaybackFlag(() => getPlaybackPosition() > 0.5);
-  const [slowLoad, setSlowLoad] = useState(false);
+  const hasMeaningful = hasProgress || snap.firstFrameReady;
+  const slowLoadKey = !isLocal && !hasMeaningful ? src.url : null;
+  const [slowLoadFor, setSlowLoadFor] = useState<string | null>(null);
+  if (slowLoadFor !== null && slowLoadFor !== slowLoadKey) {
+    setSlowLoadFor(null);
+  }
+  const slowLoad = slowLoadKey !== null && slowLoadFor === slowLoadKey;
   useEffect(() => {
-    setSlowLoad(false);
-    if (isLocal) return;
-    const hasMeaningful = hasProgress || snap.firstFrameReady;
-    if (hasMeaningful) return;
-    const t = window.setTimeout(() => setSlowLoad(true), SLOW_LOAD_MS);
+    if (slowLoadKey === null) return;
+    const t = window.setTimeout(() => setSlowLoadFor(slowLoadKey), SLOW_LOAD_MS);
     return () => window.clearTimeout(t);
-  }, [src.url, snap.firstFrameReady, hasProgress, isLocal]);
+  }, [slowLoadKey]);
 
   const autoRetriedRef = useRef(false);
   const transcodedTriedRef = useRef(false);
@@ -125,10 +128,50 @@ export function useAutoRetry(params: {
   const livePlayedRef = useRef(false);
   const truncatedReloadedRef = useRef(false);
   const resumedAfterTruncatedRef = useRef(false);
-  const [transcodedUrl, setTranscodedUrl] = useState<string | null>(null);
-  const [sourceError, setSourceError] = useState<SourceError | null>(null);
+  const [recoveryState, setRecoveryState] = useState<{
+    url: string;
+    transcodedUrl: string | null;
+    sourceError: SourceError | null;
+  }>({ url: src.url, transcodedUrl: null, sourceError: null });
+  if (recoveryState.url !== src.url) {
+    setRecoveryState({ url: src.url, transcodedUrl: null, sourceError: null });
+  }
+  const [prevStartedPlaying, setPrevStartedPlaying] = useState(startedPlaying);
+  const startedJustNow = startedPlaying && !prevStartedPlaying;
+  if (startedPlaying !== prevStartedPlaying) {
+    setPrevStartedPlaying(startedPlaying);
+    if (startedPlaying && (recoveryState.url !== src.url || recoveryState.sourceError !== null)) {
+      setRecoveryState((cur) => ({
+        url: src.url,
+        transcodedUrl: cur.url === src.url ? cur.transcodedUrl : null,
+        sourceError: null,
+      }));
+    }
+  }
+  const transcodedUrl = recoveryState.url === src.url ? recoveryState.transcodedUrl : null;
+  const sourceError =
+    recoveryState.url === src.url && !startedJustNow ? recoveryState.sourceError : null;
+  const setTranscodedUrl = useCallback(
+    (url: string | null) =>
+      setRecoveryState((cur) => (cur.url === src.url ? { ...cur, transcodedUrl: url } : cur)),
+    [src.url],
+  );
+  const setSourceError = useCallback(
+    (updater: SourceError | null | ((prev: SourceError | null) => SourceError | null)) =>
+      setRecoveryState((cur) => {
+        const base = cur.url === src.url ? cur.sourceError : null;
+        const next = typeof updater === "function" ? updater(base) : updater;
+        return cur.url === src.url && next === cur.sourceError
+          ? cur
+          : {
+              url: src.url,
+              transcodedUrl: cur.url === src.url ? cur.transcodedUrl : null,
+              sourceError: next,
+            };
+      }),
+    [src.url],
+  );
   useEffect(() => {
-    setSourceError(null);
     autoRetriedRef.current = false;
     transcodedTriedRef.current = false;
     sameUrlRetriedRef.current = false;
@@ -142,7 +185,6 @@ export function useAutoRetry(params: {
     truncatedReloadedRef.current = false;
     resumedAfterTruncatedRef.current = false;
     dlRef.current = { bytes: 0, at: Date.now() };
-    setTranscodedUrl(null);
   }, [src.url]);
 
   useEffect(() => {
@@ -231,6 +273,7 @@ export function useAutoRetry(params: {
       isP2pEngine,
       src.url,
       bridgeRef,
+      setSourceError,
     ],
   );
 
@@ -494,23 +537,22 @@ export function useAutoRetry(params: {
       noVideoSinceRef.current = null;
       return;
     }
-    if (snap.status !== "playing") {
+    if (snap.status !== "playing" || videoSeenRef.current) {
       noVideoSinceRef.current = null;
       return;
     }
-    if (videoSeenRef.current) return;
     if (noVideoSinceRef.current == null) {
       noVideoSinceRef.current = Date.now();
-      return;
     }
+    if (isP2pEngine && !engineFailure) return;
     const graceMs = isP2pEngine
       ? Math.max(BLACK_SCREEN_GRACE_MS, ENGINE_FIRST_FRAME_GRACE_MS)
       : BLACK_SCREEN_GRACE_MS;
-    if (Date.now() - noVideoSinceRef.current > graceMs) {
-      if (!isP2pEngine || engineFailure) {
-        triggerAutoRetry("audio plays but no video frames (black screen)");
-      }
-    }
+    const remaining = Math.max(0, graceMs - (Date.now() - noVideoSinceRef.current));
+    const t = window.setTimeout(() => {
+      triggerAutoRetry("audio plays but no video frames (black screen)");
+    }, remaining);
+    return () => window.clearTimeout(t);
   }, [
     snap.status,
     snap.videoWidth,
@@ -557,11 +599,7 @@ export function useAutoRetry(params: {
       Math.max(0, remaining),
     );
     return () => window.clearTimeout(t);
-  }, [src.url, isLive, isLocal, inRoom, isP2pEngine]);
-
-  useEffect(() => {
-    if (startedPlaying) setSourceError(null);
-  }, [startedPlaying]);
+  }, [src.url, isLive, isLocal, inRoom, isP2pEngine, setSourceError]);
 
   useEffect(() => {
     if (!inRoom || isLocal || isLive) return;

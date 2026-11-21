@@ -47,20 +47,33 @@ export function CinematicPlayerLoader({
   const kid = useActiveKid();
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const pinnedLogo = useTitleLogo(src.meta.id);
-  const [localizedLogo, setLocalizedLogo] = useState<string | undefined>();
+  const [resolvedLogo, setResolvedLogo] = useState<{
+    tmdbKey: string;
+    meta: PlayerSrc["meta"];
+    logo: string | undefined;
+  } | null>(null);
+  if (pinnedLogo && resolvedLogo !== null) {
+    setResolvedLogo(null);
+  }
   useEffect(() => {
-    let cancelled = false;
-    setLocalizedLogo(undefined);
     if (pinnedLogo) return;
+    let cancelled = false;
     void resolveLogo(settings.tmdbKey, src.meta)
       .then((logo) => {
-        if (!cancelled) setLocalizedLogo(logo);
+        if (!cancelled) setResolvedLogo({ tmdbKey: settings.tmdbKey, meta: src.meta, logo });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [pinnedLogo, settings.tmdbKey, src.meta]);
+  const localizedLogo =
+    !pinnedLogo &&
+    resolvedLogo &&
+    resolvedLogo.tmdbKey === settings.tmdbKey &&
+    resolvedLogo.meta === src.meta
+      ? resolvedLogo.logo
+      : undefined;
   const isLocal = isLocalUrl(src.url);
   const isInfoHash =
     (isBundledEngineUrl(src.url) || isLocalEngineUrl(src.url)) && !src.url.includes("/hlsv2/");
@@ -88,17 +101,16 @@ export function CinematicPlayerLoader({
   // While showing, the clock keeps re-rendering so a session reset cannot stick.
   usePlaybackPositionGated(showing);
   const done = !showing && snap.errorCode == null;
-  const [mounted, setMounted] = useState(showing);
+  const [mountedState, setMountedState] = useState(showing);
+  if (showing && !mountedState) setMountedState(true);
+  const mounted = showing || mountedState;
   useEffect(() => {
     onShowingChange?.(showing);
   }, [showing, onShowingChange]);
   useEffect(() => () => onShowingChange?.(false), [onShowingChange]);
   useEffect(() => {
-    if (showing) {
-      setMounted(true);
-      return;
-    }
-    const timer = window.setTimeout(() => setMounted(false), 320);
+    if (showing) return;
+    const timer = window.setTimeout(() => setMountedState(false), 320);
     return () => window.clearTimeout(timer);
   }, [showing]);
   const reducedMotion = useMedia("(prefers-reduced-motion: reduce)");

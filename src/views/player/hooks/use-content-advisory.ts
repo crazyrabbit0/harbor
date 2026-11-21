@@ -1,10 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { isAdvisoryIgnored } from "@/lib/player/content-advisory-ignore";
 import {
   harborImdbMpaRating,
   harborImdbParental,
   type ParentalCategory,
 } from "@/lib/providers/harbor-imdb";
+
+const EMPTY_CATEGORIES: ParentalCategory[] = [];
 
 export function useContentAdvisory(
   enabled: boolean,
@@ -17,40 +19,47 @@ export function useContentAdvisory(
   imdbId: string | null;
   mpaRating: string | null;
 } {
-  const [categories, setCategories] = useState<ParentalCategory[]>([]);
-  const [mpaRating, setMpaRating] = useState<string | null>(null);
-  const [playKey, setPlayKey] = useState("");
-  const startedRef = useRef("");
+  const fetchKey = enabled && imdbId ? imdbId : null;
+  const [fetched, setFetched] = useState<{
+    imdbId: string;
+    categories: ParentalCategory[];
+    mpaRating: string | null;
+  } | null>(null);
+  if (fetched && fetched.imdbId !== fetchKey) {
+    setFetched(null);
+  }
+
+  const [playState, setPlayState] = useState({ srcKey, playKey: "" });
+  const playKey =
+    (playState.srcKey === srcKey ? playState.playKey : "") || (enabled && playing ? srcKey : "");
+  if (playState.srcKey !== srcKey || playState.playKey !== playKey) {
+    setPlayState({ srcKey, playKey });
+  }
 
   useEffect(() => {
-    setPlayKey("");
-    startedRef.current = "";
-  }, [srcKey]);
-
-  useEffect(() => {
-    setCategories([]);
-    setMpaRating(null);
-    if (!enabled || !imdbId || isAdvisoryIgnored(imdbId)) return;
+    if (!fetchKey || isAdvisoryIgnored(fetchKey)) return;
     let cancelled = false;
-    harborImdbParental(imdbId)
+    harborImdbParental(fetchKey)
       .then((c) => {
         if (!cancelled) {
-          setCategories(c);
-          setMpaRating(harborImdbMpaRating(imdbId));
+          setFetched({
+            imdbId: fetchKey,
+            categories: c,
+            mpaRating: harborImdbMpaRating(fetchKey),
+          });
         }
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [enabled, imdbId]);
+  }, [fetchKey]);
 
-  useEffect(() => {
-    if (!enabled || !playing) return;
-    if (startedRef.current === srcKey) return;
-    startedRef.current = srcKey;
-    setPlayKey(srcKey);
-  }, [enabled, playing, srcKey]);
-
-  return { categories, playKey, imdbId, mpaRating };
+  const activeFetched = fetchKey && fetched?.imdbId === fetchKey ? fetched : null;
+  return {
+    categories: activeFetched?.categories ?? EMPTY_CATEGORIES,
+    playKey,
+    imdbId,
+    mpaRating: activeFetched?.mpaRating ?? null,
+  };
 }

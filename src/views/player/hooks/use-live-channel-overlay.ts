@@ -18,6 +18,22 @@ export function useLiveChannelOverlay(params: {
 
   const isLive = src.meta.id?.startsWith("iptv:") ?? false;
   const [overrideSourceId, setOverrideSourceId] = useState<string | null>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (!isLive && open) {
+    setOpen(false);
+  }
+  const effectiveOpen = isLive && open;
+  if (effectiveOpen !== prevOpen) {
+    setPrevOpen(effectiveOpen);
+    if (!effectiveOpen) {
+      setOverrideSourceId(null);
+      setGroup(null);
+      setQuery("");
+    }
+  }
+  const activeOverrideSourceId = effectiveOpen ? overrideSourceId : null;
+  const activeGroup = effectiveOpen ? group : null;
+  const activeQuery = effectiveOpen ? query : "";
 
   const playingSource: IptvPlaylistSource | null = useMemo(() => {
     if (!isLive) return null;
@@ -30,11 +46,11 @@ export function useLiveChannelOverlay(params: {
   }, [isLive, src.meta.id, playlists]);
 
   const activeSource: IptvPlaylistSource | null = useMemo(() => {
-    if (!overrideSourceId) return playingSource;
-    const found = playlists.find((p) => p.id === overrideSourceId);
+    if (!activeOverrideSourceId) return playingSource;
+    const found = playlists.find((p) => p.id === activeOverrideSourceId);
     if (!found) return playingSource;
     return { id: found.id, name: found.name, url: found.url, epgUrl: found.epgUrl };
-  }, [overrideSourceId, playingSource, playlists]);
+  }, [activeOverrideSourceId, playingSource, playlists]);
 
   const availableSources: IptvPlaylistSource[] = useMemo(
     () =>
@@ -54,24 +70,13 @@ export function useLiveChannelOverlay(params: {
   }, []);
 
   useEffect(() => {
-    if (!isLive) setOpen(false);
-  }, [isLive]);
-
-  useEffect(() => {
-    if (open) return;
-    setOverrideSourceId(null);
-    setGroup(null);
-    setQuery("");
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
+    if (!effectiveOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open]);
+  }, [effectiveOpen]);
 
   const currentChannelId = useMemo(() => {
     if (!isLive) return null;
@@ -130,7 +135,7 @@ export function useLiveChannelOverlay(params: {
   );
 
   return {
-    open,
+    open: effectiveOpen,
     setOpen,
     isLive,
     activeSource,
@@ -139,9 +144,9 @@ export function useLiveChannelOverlay(params: {
     currentChannelId,
     switchChannel,
     goPrevChannel,
-    group,
+    group: activeGroup,
     setGroup,
-    query,
+    query: activeQuery,
     setQuery,
   };
 }

@@ -1,10 +1,9 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 export function StreamLoadingBar({ ready, done }: { ready: number; done: boolean }) {
-  const [pct, setPct] = useState(0);
-  useEffect(() => {
-    setPct((cur) => (done ? 100 : Math.max(cur, ready)));
-  }, [ready, done]);
+  const [peak, setPeak] = useState(0);
+  const pct = done ? 100 : Number.isFinite(ready) ? Math.max(peak, ready) : peak;
+  if (pct !== peak) setPeak(pct);
   const indeterminate = pct < 1 && !done;
 
   return (

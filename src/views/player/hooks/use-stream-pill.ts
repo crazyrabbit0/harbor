@@ -43,15 +43,29 @@ export function useStreamPill(params: {
 }): { variant: StreamPillVariant | null; dismiss: () => void } {
   const { srcUrl, snap, pipMode, showWaiting, isLocalSrc, slowLoad, inRoom, streamCheckOpen } =
     params;
-  const [pillSuppressed, setPillSuppressed] = useState(true);
-  const [dismissed, setDismissed] = useState(false);
+  const [pillState, setPillState] = useState({
+    srcUrl,
+    pillSuppressed: true,
+    dismissed: false,
+  });
+  if (pillState.srcUrl !== srcUrl) {
+    setPillState({ srcUrl, pillSuppressed: true, dismissed: false });
+  }
+  const pillSuppressed = pillState.srcUrl === srcUrl ? pillState.pillSuppressed : true;
+  const dismissed = pillState.srcUrl === srcUrl ? pillState.dismissed : false;
+
   useEffect(() => {
-    setPillSuppressed(true);
-    setDismissed(false);
-    const t = window.setTimeout(() => setPillSuppressed(false), 2500);
+    const t = window.setTimeout(
+      () =>
+        setPillState((cur) => (cur.srcUrl === srcUrl ? { ...cur, pillSuppressed: false } : cur)),
+      2500,
+    );
     return () => window.clearTimeout(t);
   }, [srcUrl]);
-  const dismiss = useCallback(() => setDismissed(true), []);
+  const dismiss = useCallback(
+    () => setPillState((cur) => (cur.srcUrl === srcUrl ? { ...cur, dismissed: true } : cur)),
+    [srcUrl],
+  );
 
   const variant = resolveStreamPillVariant({
     snap,

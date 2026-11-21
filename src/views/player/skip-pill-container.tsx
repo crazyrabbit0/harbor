@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePlaybackPosition } from "@/lib/player/playback-clock";
 import { SkipPill } from "@/components/player/skip-pill";
 import { BpSkipPill } from "@/views/big-picture/player/bp-skip-pill";
@@ -10,6 +10,7 @@ import type { SpoilerMask } from "@/lib/spoilers";
 import type { PlayEpisode } from "@/lib/view";
 
 const UNDO_SKIP_MS = 4000;
+const EMPTY_DISMISSED = new Set<string>();
 
 const segmentKey = (s: SkipSegment) =>
   `${s.kind}:${Math.round(s.startSec)}:${Math.round(s.endSec)}`;
@@ -72,19 +73,31 @@ export function SkipPillContainer({
   }, [realActiveSkip, hasNextEpisode, durationSec, positionSec, skipSegments, leadSec]);
   const remainingSec = Math.max(0, durationSec - positionSec);
 
-  const [undo, setUndo] = useState<{ fromSec: number; key: string } | null>(null);
+  const [undoState, setUndoState] = useState<{
+    segments: SkipSegment[];
+    undo: { fromSec: number; key: string } | null;
+  }>({ segments: skipSegments, undo: null });
+  if (undoState.segments !== skipSegments) {
+    setUndoState({ segments: skipSegments, undo: null });
+  }
+  const undo = undoState.segments === skipSegments ? undoState.undo : null;
+  const setUndo = useCallback(
+    (next: { fromSec: number; key: string } | null) => {
+      setUndoState({ segments: skipSegments, undo: next });
+    },
+    [skipSegments],
+  );
   const skipActionRef = useRef<() => void>(() => {});
   const undoActionRef = useRef<() => void>(() => {});
   useEffect(() => {
     if (!undo) return;
     const id = setTimeout(() => setUndo(null), UNDO_SKIP_MS);
     return () => clearTimeout(id);
-  }, [undo]);
+  }, [undo, setUndo]);
 
   const autoSkippedRef = useRef<SkipSegment | null>(null);
   useEffect(() => {
     autoSkippedRef.current = null;
-    setUndo(null);
   }, [skipSegments]);
   useEffect(() => {
     if (!allowAutoSkip || positionSec <= 0 || !realActiveSkip) return;
@@ -107,38 +120,53 @@ export function SkipPillContainer({
     positionSec,
     realActiveSkip,
     onSkip,
+    setUndo,
   ]);
 
-  const [autoHiddenKey, setAutoHiddenKey] = useState<string | null>(null);
-  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(() => new Set());
+  const [hideState, setHideState] = useState<{
+    segments: SkipSegment[];
+    autoHiddenKey: string | null;
+    dismissedKeys: Set<string>;
+  }>({ segments: skipSegments, autoHiddenKey: null, dismissedKeys: EMPTY_DISMISSED });
+  if (hideState.segments !== skipSegments) {
+    setHideState({ segments: skipSegments, autoHiddenKey: null, dismissedKeys: EMPTY_DISMISSED });
+  }
+  const autoHiddenKey = hideState.segments === skipSegments ? hideState.autoHiddenKey : null;
+  const dismissedKeys =
+    hideState.segments === skipSegments ? hideState.dismissedKeys : EMPTY_DISMISSED;
   const prevSkipKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    setAutoHiddenKey(null);
-    setDismissedKeys(new Set());
     prevSkipKeyRef.current = null;
   }, [skipSegments]);
   const buttonKey = realActiveSkip && settings.showSkipButton ? segmentKey(realActiveSkip) : null;
   useEffect(() => {
     if (!buttonKey || settings.skipButtonHideSec <= 0) return;
     const id = window.setTimeout(
-      () => setAutoHiddenKey(buttonKey),
+      () =>
+        setHideState((cur) =>
+          cur.segments === skipSegments ? { ...cur, autoHiddenKey: buttonKey } : cur,
+        ),
       settings.skipButtonHideSec * 1000,
     );
     return () => window.clearTimeout(id);
-  }, [buttonKey, settings.skipButtonHideSec]);
+  }, [buttonKey, settings.skipButtonHideSec, skipSegments]);
   useEffect(() => {
     if (prevSkipKeyRef.current && prevSkipKeyRef.current !== buttonKey) {
       const previousKey = prevSkipKeyRef.current;
-      setAutoHiddenKey((prev) => (prev === previousKey ? null : prev));
-      setDismissedKeys((prev) => {
-        if (!prev.has(previousKey)) return prev;
-        const next = new Set(prev);
-        next.delete(previousKey);
-        return next;
+      setHideState((cur) => {
+        if (cur.segments !== skipSegments) return cur;
+        const nextAuto = cur.autoHiddenKey === previousKey ? null : cur.autoHiddenKey;
+        let nextDismissed = cur.dismissedKeys;
+        if (cur.dismissedKeys.has(previousKey)) {
+          nextDismissed = new Set(cur.dismissedKeys);
+          nextDismissed.delete(previousKey);
+        }
+        if (nextAuto === cur.autoHiddenKey && nextDismissed === cur.dismissedKeys) return cur;
+        return { ...cur, autoHiddenKey: nextAuto, dismissedKeys: nextDismissed };
       });
     }
     prevSkipKeyRef.current = buttonKey;
-  }, [buttonKey]);
+  }, [buttonKey, skipSegments]);
   const skipHidden =
     buttonKey != null && (buttonKey === autoHiddenKey || dismissedKeys.has(buttonKey));
   const displaySkip = settings.showSkipButton && !skipHidden ? realActiveSkip : null;
@@ -163,19 +191,33 @@ export function SkipPillContainer({
     onCancelAutoNext,
     onDismiss:
       displaySkip && buttonKey
-        ? () => setDismissedKeys((prev) => new Set(prev).add(buttonKey))
+        ? () =>
+            setHideState((cur) => {
+              const base = cur.segments === skipSegments ? cur.dismissedKeys : EMPTY_DISMISSED;
+              const next = new Set(base);
+              next.add(buttonKey);
+              return {
+                segments: skipSegments,
+                autoHiddenKey: cur.segments === skipSegments ? cur.autoHiddenKey : null,
+                dismissedKeys: next,
+              };
+            })
         : undefined,
   };
 
   // Undo brings the segment's Skip button back even if it had timed out or been dismissed.
   const undoSkip = undo
     ? () => {
-        setAutoHiddenKey((prev) => (prev === undo.key ? null : prev));
-        setDismissedKeys((prev) => {
-          if (!prev.has(undo.key)) return prev;
-          const next = new Set(prev);
-          next.delete(undo.key);
-          return next;
+        setHideState((cur) => {
+          if (cur.segments !== skipSegments) return cur;
+          const nextAuto = cur.autoHiddenKey === undo.key ? null : cur.autoHiddenKey;
+          let nextDismissed = cur.dismissedKeys;
+          if (cur.dismissedKeys.has(undo.key)) {
+            nextDismissed = new Set(cur.dismissedKeys);
+            nextDismissed.delete(undo.key);
+          }
+          if (nextAuto === cur.autoHiddenKey && nextDismissed === cur.dismissedKeys) return cur;
+          return { ...cur, autoHiddenKey: nextAuto, dismissedKeys: nextDismissed };
         });
         setUndo(null);
         onSkip(undo.fromSec);

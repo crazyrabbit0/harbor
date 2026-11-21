@@ -17,8 +17,16 @@ export function useAbLoop(params: {
   resetKey: string;
 }): AbLoopState {
   const { bridgeRef, durationSec, resetKey } = params;
-  const [a, setAState] = useState<number | null>(null);
-  const [b, setBState] = useState<number | null>(null);
+  const [loop, setLoop] = useState<{ resetKey: string; a: number | null; b: number | null }>({
+    resetKey,
+    a: null,
+    b: null,
+  });
+  if (loop.resetKey !== resetKey) {
+    setLoop({ resetKey, a: null, b: null });
+  }
+  const a = loop.resetKey === resetKey ? loop.a : null;
+  const b = loop.resetKey === resetKey ? loop.b : null;
   const positionRef = useRef(getPlaybackPosition());
 
   useEffect(
@@ -30,8 +38,6 @@ export function useAbLoop(params: {
   );
 
   useEffect(() => {
-    setAState(null);
-    setBState(null);
     bridgeRef.current?.setAbLoop(null, null);
   }, [resetKey, bridgeRef]);
 
@@ -48,22 +54,23 @@ export function useAbLoop(params: {
 
   const setA = useCallback(() => {
     const t = Math.max(0, positionRef.current);
-    setAState(t);
-    setBState((cur) => (cur != null && cur <= t ? null : cur));
+    setLoop((cur) => ({
+      resetKey: cur.resetKey,
+      a: t,
+      b: cur.b != null && cur.b <= t ? null : cur.b,
+    }));
   }, []);
 
   const setB = useCallback(() => {
     const t = Math.max(0, positionRef.current);
-    setBState((cur) => {
-      if (a == null) return cur;
-      if (t <= a) return cur;
-      return t;
+    setLoop((cur) => {
+      if (cur.a == null || t <= cur.a) return cur;
+      return { resetKey: cur.resetKey, a: cur.a, b: t };
     });
-  }, [a]);
+  }, []);
 
   const clear = useCallback(() => {
-    setAState(null);
-    setBState(null);
+    setLoop((cur) => ({ resetKey: cur.resetKey, a: null, b: null }));
   }, []);
 
   void durationSec;

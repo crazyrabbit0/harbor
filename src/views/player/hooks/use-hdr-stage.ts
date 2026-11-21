@@ -39,16 +39,18 @@ export function useHdrStage(params: {
 }): HdrStageState {
   const { sourceKey, engine, embedActive, hdrGamma, playerHdrStage, playerHdrToSdr, onFallback } =
     params;
-  const [want, setWant] = useState(false);
-  const [requested, setRequested] = useState(false);
+  const [probedWant, setProbedWant] = useState(false);
   const [confirmed, setConfirmed] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const resetKey = `${sourceKey}|${playerHdrStage}|${playerHdrToSdr}`;
+  const [failedState, setFailedState] = useState({ key: resetKey, failed: false });
+  if (failedState.key !== resetKey) {
+    setFailedState({ key: resetKey, failed: false });
+  }
+  const failed = failedState.key === resetKey && failedState.failed;
   const onFallbackRef = useRef(onFallback);
   useLayoutEffect(() => {
     onFallbackRef.current = onFallback;
   });
-
-  useEffect(() => setFailed(false), [sourceKey, playerHdrStage, playerHdrToSdr]);
 
   const eligible =
     isWindowsDesktop() &&
@@ -58,25 +60,24 @@ export function useHdrStage(params: {
     !playerHdrToSdr &&
     !failed &&
     HDR_GAMMAS.has(hdrGamma);
+  if (!eligible && probedWant) {
+    setProbedWant(false);
+  }
+  const want = eligible && (playerHdrStage === "always" || probedWant);
+  const isTauri =
+    typeof window !== "undefined" && ("__TAURI__" in window || "__TAURI_INTERNALS__" in window);
+  const requested = want && isTauri;
 
   useEffect(() => {
-    if (!eligible) {
-      setWant(false);
-      return;
-    }
-    if (playerHdrStage === "always") {
-      setWant(true);
-      return;
-    }
-    const isTauri = "__TAURI__" in window || "__TAURI_INTERNALS__" in window;
-    if (!isTauri) return;
+    if (!eligible || playerHdrStage === "always") return;
+    if (!("__TAURI__" in window || "__TAURI_INTERNALS__" in window)) return;
     let cancelled = false;
     let unMoved: (() => void) | null = null;
     let unFlip: (() => void) | null = null;
     let timer: number | null = null;
     const recheck = async () => {
       const w = await displayHdrActive();
-      if (!cancelled) setWant(w);
+      if (!cancelled) setProbedWant(w);
     };
     void recheck();
     void (async () => {
@@ -109,9 +110,7 @@ export function useHdrStage(params: {
 
   useEffect(() => {
     if (!want) return;
-    const isTauri = "__TAURI__" in window || "__TAURI_INTERNALS__" in window;
-    if (!isTauri) return;
-    setRequested(true);
+    if (!("__TAURI__" in window || "__TAURI_INTERNALS__" in window)) return;
     const stop = startHdrStageSession({
       id: () => crypto.randomUUID(),
       open: hdrOverlayOpen,
@@ -128,7 +127,7 @@ export function useHdrStage(params: {
       },
       fallback: () => {
         onFallbackRef.current?.();
-        setFailed(true);
+        setFailedState({ key: resetKey, failed: true });
       },
       schedule: (callback, ms) => {
         const timer = window.setTimeout(callback, ms);
@@ -137,23 +136,23 @@ export function useHdrStage(params: {
     });
     return () => {
       stop();
-      setRequested(false);
     };
-  }, [want, sourceKey]);
+  }, [want, sourceKey, resetKey]);
 
   useEffect(() => {
     if (!failed) return;
-    const isTauri = "__TAURI__" in window || "__TAURI_INTERNALS__" in window;
-    if (!isTauri) return;
+    if (!("__TAURI__" in window || "__TAURI_INTERNALS__" in window)) return;
     let prevHdr = true;
     const id = window.setInterval(() => {
       void displayHdrActive().then((hdr) => {
-        if (hdr && !prevHdr) setFailed(false);
+        if (hdr && !prevHdr) {
+          setFailedState((cur) => (cur.key === resetKey ? { ...cur, failed: false } : cur));
+        }
         prevHdr = hdr;
       });
     }, RECOVERY_POLL_MS);
     return () => window.clearInterval(id);
-  }, [failed]);
+  }, [failed, resetKey]);
 
   return { requested, confirmed };
 }
