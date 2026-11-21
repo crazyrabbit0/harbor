@@ -51,9 +51,9 @@ export function EsportsHero({
   const match = slides[index];
   const game = ESPORTS_GAMES.find((game) => game.id === match?.game);
   // Keep the selected event stable as other providers finish loading.
-  useEffect(() => {
-    if (match && !slides.some((item) => item.id === selected)) setSelected(match.id);
-  }, [match?.id, selected]);
+  if (match && selected !== match.id && !slides.some((item) => item.id === selected)) {
+    setSelected(match.id);
+  }
   const next = (direction: number) =>
     setSelected(slides[(index + direction + slides.length) % slides.length]?.id || "");
   const signature = slides.map((match) => match.id).join("|");

@@ -47,33 +47,38 @@ export function useSportsChannelIndex(): SportsChannelIndex & {
 } {
   const sources = usePlaylists();
   const playlists = useAllPlaylists(sources, true);
-  const [fetching, setFetching] = useState(true);
+  const [fetchingFor, setFetchingFor] = useState<typeof sources | null>(null);
   useEffect(() => {
     let active = true;
-    setFetching(true);
     void Promise.allSettled(
       sources.filter((source) => source.kind !== "epg").map((source) => loadPlaylist(source)),
     ).then(() => {
-      if (active) setFetching(false);
+      if (active) setFetchingFor(sources);
     });
     return () => {
       active = false;
     };
   }, [sources]);
+  const fetching = fetchingFor !== sources;
   const channels = useMemo(() => flatten(playlists), [playlists]);
-  const [base, setBase] = useState(EMPTY_INDEX);
-  const [loading, setLoading] = useState(true);
+  const [indexState, setIndexState] = useState<{
+    channels: typeof channels;
+    index: SportsChannelIndex;
+  }>({ channels: [], index: EMPTY_INDEX });
+  const [preparedChannels, setPreparedChannels] = useState<typeof channels | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setBase(EMPTY_INDEX);
-    void prepareSportsChannels(channels, controller.signal, setBase)
+    void prepareSportsChannels(channels, controller.signal, (index) =>
+      setIndexState({ channels, index }),
+    )
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) setPreparedChannels(channels);
       })
       .catch(() => {});
     return () => controller.abort();
   }, [channels]);
+  const base = indexState.channels === channels ? indexState.index : EMPTY_INDEX;
+  const loading = preparedChannels !== channels;
   const [epgVersion, setEpgVersion] = useState(0);
   // Reuse Live TV's guide. Opening a match must not download entire XMLTV feeds.
   useEffect(() => {
@@ -162,10 +167,20 @@ function ActiveWatchSources({ game, index, broadcastNames }: WatchSourcesProps) 
   const fixtureLabel = fixtureLabelOf(game);
 
   const [matches, setMatches] = useState<ChannelMatch[]>([]);
-  const [matching, setMatching] = useState(false);
+  const [settledFor, setSettledFor] = useState<{
+    game: SportsGame;
+    active: SportsChannelIndex;
+    attachedIds: string[];
+    broadcastNames: readonly string[] | undefined;
+  } | null>(null);
+  const matching =
+    settledFor === null ||
+    settledFor.game !== game ||
+    settledFor.active !== active ||
+    settledFor.attachedIds !== attachedIds ||
+    settledFor.broadcastNames !== broadcastNames;
   useEffect(() => {
     const controller = new AbortController();
-    setMatching(true);
     void matchChannelsForGameAsync(
       game,
       active,
@@ -181,7 +196,8 @@ function ActiveWatchSources({ game, index, broadcastNames }: WatchSourcesProps) 
       })
       .catch(() => {})
       .finally(() => {
-        if (!controller.signal.aborted) setMatching(false);
+        if (!controller.signal.aborted)
+          setSettledFor({ game, active, attachedIds, broadcastNames });
       });
     return () => controller.abort();
   }, [game, active, attachedIds, broadcastNames]);

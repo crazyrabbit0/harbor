@@ -14,11 +14,7 @@ export function useEsports(
   const [feeds, setFeeds] = useState<Partial<Record<EsportsGameId, EsportsFeed>>>({});
   const [pending, setPending] = useState<string[]>([]);
   const [teams, setTeams] = useState<EsportsTeam[]>([]);
-  const [teamsLoading, setTeamsLoading] = useState(false);
-  const [teamsFailed, setTeamsFailed] = useState(false);
   const [rankings, setRankings] = useState<EsportsRankings | null>(null);
-  const [rankingsLoading, setRankingsLoading] = useState(false);
-  const [rankingsFailed, setRankingsFailed] = useState(false);
   const [now, setNow] = useState(Date.now);
   const signature =
     game === "all"
@@ -26,11 +22,14 @@ export function useEsports(
       : FEEDS.includes(game as EsportsGameId)
         ? game
         : "";
+  const isFeedActive = Boolean(active && signature);
+  const [pendingFor, setPendingFor] = useState(isFeedActive);
+  if (pendingFor !== isFeedActive) {
+    setPendingFor(isFeedActive);
+    if (!isFeedActive) setPending([]);
+  }
   useEffect(() => {
-    if (!active || !signature) {
-      setPending([]);
-      return;
-    }
+    if (!active || !signature) return;
     const controller = new AbortController();
     const keys = signature.split(",") as EsportsGameId[];
     let busy = false;
@@ -79,46 +78,49 @@ export function useEsports(
     (options.teamLogos === true &&
       signature.split(",").includes("dota2") &&
       !!feeds.dota2?.matches.length);
+  const teamsKey =
+    loadTeams && active && (game === "all" || game === "dota2") ? `${game}:${refresh}` : "";
+  const [teamsOutcome, setTeamsOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const teamsLoading = !!teamsKey && teamsOutcome?.key !== teamsKey;
+  const teamsFailed = !!teamsKey && teamsOutcome?.key === teamsKey && teamsOutcome.failed;
   useEffect(() => {
-    if (!loadTeams || !active || (game !== "all" && game !== "dota2")) {
-      setTeamsLoading(false);
-      return;
-    }
+    if (!teamsKey) return;
     const controller = new AbortController();
-    setTeamsLoading(true);
-    setTeamsFailed(false);
     void fetchEsportsTeams(controller.signal)
       .then((result) => {
-        if (!controller.signal.aborted) setTeams(result);
+        if (!controller.signal.aborted) {
+          setTeams(result);
+          setTeamsOutcome({ key: teamsKey, failed: false });
+        }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setTeamsFailed(true);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setTeamsLoading(false);
+        if (!controller.signal.aborted) setTeamsOutcome({ key: teamsKey, failed: true });
       });
     return () => controller.abort();
-  }, [active, game, refresh, loadTeams]);
+  }, [teamsKey]);
+  const rankingsKey =
+    profiles && active && (game === "all" || game === "cs2") ? `${game}:${refresh}` : "";
+  const [rankingsOutcome, setRankingsOutcome] = useState<{ key: string; failed: boolean } | null>(
+    null,
+  );
+  const rankingsLoading = !!rankingsKey && rankingsOutcome?.key !== rankingsKey;
+  const rankingsFailed =
+    !!rankingsKey && rankingsOutcome?.key === rankingsKey && rankingsOutcome.failed;
   useEffect(() => {
-    if (!profiles || !active || (game !== "all" && game !== "cs2")) {
-      setRankingsLoading(false);
-      return;
-    }
+    if (!rankingsKey) return;
     const controller = new AbortController();
-    setRankingsLoading(true);
-    setRankingsFailed(false);
     void fetchEsportsRankings(controller.signal, refresh > 0)
       .then((result) => {
-        if (!controller.signal.aborted) setRankings(result);
+        if (!controller.signal.aborted) {
+          setRankings(result);
+          setRankingsOutcome({ key: rankingsKey, failed: false });
+        }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setRankingsFailed(true);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setRankingsLoading(false);
+        if (!controller.signal.aborted) setRankingsOutcome({ key: rankingsKey, failed: true });
       });
     return () => controller.abort();
-  }, [active, game, refresh, profiles]);
+  }, [rankingsKey, refresh]);
   return {
     feeds,
     pending,

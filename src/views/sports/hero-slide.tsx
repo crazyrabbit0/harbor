@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MapPin, Play } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { getLeagueLabel, type SportsGame, type SportsSide } from "@/lib/sports/espn";
 import { sportsLeagueByTag } from "@/lib/sports/provider";
 import { fmtClock } from "@/views/live/live-home/now-format";
@@ -33,19 +34,9 @@ function fmtCountdown(ms: number, t: Translate): string {
 }
 
 function useCountdown(targetMs: number, enabled: boolean): number {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    if (!enabled) return;
-    setNow(Date.now());
-    const step = () => (targetMs - Date.now() < 3_600_000 ? 1000 : 30_000);
-    let id = 0;
-    const tick = () => {
-      setNow(Date.now());
-      id = window.setTimeout(tick, step());
-    };
-    id = window.setTimeout(tick, step());
-    return () => window.clearTimeout(id);
-  }, [enabled, targetMs]);
+  const coarse = useNow(30_000, enabled);
+  const near = targetMs - coarse < 3_660_000;
+  const now = useNow(near ? 1000 : 30_000, enabled);
   return targetMs - now;
 }
 

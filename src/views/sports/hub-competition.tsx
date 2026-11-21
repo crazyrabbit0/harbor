@@ -37,43 +37,40 @@ function GenericCompetition({ game }: { game: SportsGame }) {
   const date = useEventDate();
   const def = hubLeague(game.league);
   const key = `${game.league}:${game.id}:${game.startMs}`;
+  const [retry, setRetry] = useState(0);
+  const fetchKey = `${key}:${retry}`;
   const [state, setState] = useState<{
     key: string;
+    fetchKey: string;
     detail: CompetitionMetadata;
     status: string;
-  }>(() => ({
-    key,
-    detail: (def && readCompetitionMetadata(game, def)) || competitionSeed(game, def),
-    status: "loading",
-  }));
-  const [retry, setRetry] = useState(0);
-  const detail =
-    state.key === key
-      ? state.detail
-      : (def && readCompetitionMetadata(game, def)) || competitionSeed(game, def);
-  const status = state.key === key ? state.status : "loading";
+  } | null>(null);
+  const seed = (def && readCompetitionMetadata(game, def)) || competitionSeed(game, def);
+  const detail = state?.key === key ? state.detail : seed;
+  const status = state?.fetchKey === fetchKey ? state.status : "loading";
 
   useEffect(() => {
     if (!def) return;
     const controller = new AbortController();
-    // Keep the last event details visible throughout a refresh.
-    setState((prior) => ({
-      key,
-      detail:
-        prior.key === key
-          ? prior.detail
-          : readCompetitionMetadata(game, def) || competitionSeed(game, def),
-      status: "loading",
-    }));
     void loadCompetitionMetadata(game, def, controller.signal, sportsJson, retry > 0)
       .then((result) => {
-        if (!controller.signal.aborted) setState({ key, detail: result, status: "ready" });
+        if (!controller.signal.aborted)
+          setState({ key, fetchKey, detail: result, status: "ready" });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setState((prior) => ({ ...prior, status: "error" }));
+        if (!controller.signal.aborted)
+          setState((prior) => ({
+            key,
+            fetchKey,
+            detail:
+              prior?.key === key
+                ? prior.detail
+                : readCompetitionMetadata(game, def) || competitionSeed(game, def),
+            status: "error",
+          }));
       });
     return () => controller.abort();
-  }, [key, retry]);
+  }, [key, retry, fetchKey]);
 
   const venue = detail.venue;
   const website = detail.website || motorsportOfficialWebsite(game.league);

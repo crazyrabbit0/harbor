@@ -21,24 +21,30 @@ export function EventMetadata({ game, league }: { game: SportsGame; league: Leag
   const [data, setData] = useState<PublishedEvent | undefined>(() =>
     readPublishedEvent(game, league),
   );
-  const [status, setStatus] = useState("loading");
   const [retry, setRetry] = useState(0);
+  const eventKey = `${game.id}:${league.key}:${retry}`;
+  const [resolvedStatus, setResolvedStatus] = useState<{ key: string; status: string } | null>(
+    null,
+  );
   const [failedImage, setFailedImage] = useState("");
   useEffect(() => {
     const controller = new AbortController();
-    setStatus("loading");
     void loadPublishedEvent(game, league, controller.signal, undefined, retry > 0)
       .then((result) => {
         if (controller.signal.aborted) return;
         if (result) setData(result);
-        setStatus(result ? "ready" : "empty");
+        setResolvedStatus({ key: eventKey, status: result ? "ready" : "empty" });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setStatus("error");
+        if (!controller.signal.aborted) setResolvedStatus({ key: eventKey, status: "error" });
       });
     return () => controller.abort();
-  }, [game.id, league.key, retry]);
-  const current = data?.game.id === game.id && data.game.league === game.league ? data : undefined;
+  }, [game.id, league.key, retry, eventKey]);
+  const status = resolvedStatus?.key === eventKey ? resolvedStatus.status : "loading";
+  const current =
+    data?.game.id === game.id && data.game.league === game.league
+      ? data
+      : readPublishedEvent(game, league);
   const event = current?.game || game;
   const artwork = event.artwork || current?.banner || current?.square || event.poster;
   const classification = useMemo(

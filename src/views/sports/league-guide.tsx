@@ -46,8 +46,12 @@ export function LeagueGuide({ league, onClose }: { league: LeagueDef; onClose: (
   const [data, setData] = useState<LeagueMetadata>(
     () => readLeagueMetadata(league) || leagueMetadataSeed(league),
   );
-  const [status, setStatus] = useState("loading");
   const [retry, setRetry] = useState(0);
+  const statusKey = `${league.key}:${retry}`;
+  const [resolvedStatus, setResolvedStatus] = useState<{ key: string; status: string } | null>(
+    null,
+  );
+  const status = resolvedStatus?.key === statusKey ? resolvedStatus.status : "loading";
   const [tab, setTab] = useState("Overview");
   const [group, setGroup] = useState("");
   const [query, setQuery] = useState("");
@@ -58,19 +62,18 @@ export function LeagueGuide({ league, onClose }: { league: LeagueDef; onClose: (
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    setStatus("loading");
     void loadLeagueMetadata(league, controller.signal, retry > 0)
       .then((result) => {
         if (!controller.signal.aborted) {
           setData(result);
-          setStatus(result.partial ? "partial" : "ready");
+          setResolvedStatus({ key: statusKey, status: result.partial ? "partial" : "ready" });
         }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setStatus("error");
+        if (!controller.signal.aborted) setResolvedStatus({ key: statusKey, status: "error" });
       });
     return () => controller.abort();
-  }, [league.key, retry]);
+  }, [league.key, retry, statusKey]);
   const teams = data.teams.filter((team) =>
     normalizeSportsSearch(`${team.name} ${team.shortName || ""} ${team.abbr || ""}`).includes(
       normalizeSportsSearch(query),

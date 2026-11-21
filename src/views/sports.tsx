@@ -166,13 +166,16 @@ function SportsHubView({ active = false }: { active?: boolean }) {
   const esportsLeagues = leagues.filter(
     (key) => HUB_LEAGUES.find((l) => l.key === key)?.group === "esports",
   );
-  useEffect(() => {
+  const leaguesKey = settings.sportsLeagues.join(",");
+  const [resetForLeagues, setResetForLeagues] = useState(leaguesKey);
+  if (resetForLeagues !== leaguesKey) {
+    setResetForLeagues(leaguesKey);
     if (!setup) {
       setGroup("all");
       setLeagueFilter("");
       setBrowsing(false);
     }
-  }, [settings.sportsLeagues]);
+  }
   const boardLeagues = useMemo(() => {
     if (tab === "live") return LIVE_SCOREBOARDS;
     if (scope.leagueFilter) return leagues;

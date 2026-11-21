@@ -78,7 +78,12 @@ function BroadcastPlayer({
   const stage = useRef<HTMLDivElement>(null);
   const [viewport, setViewport] = useState({ width: 534, height: 300, scale: 1 });
   const trigger = useRef(document.activeElement as HTMLElement | null);
+  const [minimizedFor, setMinimizedFor] = useState(stream.url);
   const [minimized, setMinimized] = useState(false);
+  if (minimizedFor !== stream.url) {
+    setMinimizedFor(stream.url);
+    setMinimized(false);
+  }
   const [loaded, setLoaded] = useState("");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [windowFailed, setWindowFailed] = useState(false);
@@ -101,7 +106,6 @@ function BroadcastPlayer({
   const external = esportsExternalUrl(stream.url);
   const chatPopoutUrl = esportsChatPopoutUrl(stream);
   const drag = useDockDrag(root, docked && !detached && !isFullscreen);
-  useEffect(() => setMinimized(false), [stream.url]);
   useEffect(() => {
     const update = () =>
       setIsFullscreen(

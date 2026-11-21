@@ -21,16 +21,16 @@ import {
 import "./esports-profile.css";
 
 function ProfileImage({ src, player = false }: { src?: string; player?: boolean }) {
-  const [failed, setFailed] = useState(false);
+  const [failedFor, setFailedFor] = useState<string | undefined>(undefined);
+  const failed = !!src && failedFor === src;
   const t = useT();
-  useEffect(() => setFailed(false), [src]);
   return (
     <span
       className={`sh-es-profile-image ${player ? "is-player" : ""}`}
       title={player ? t("Account avatar") : undefined}
     >
       {src && !failed ? (
-        <img src={src} alt="" decoding="async" onError={() => setFailed(true)} />
+        <img src={src} alt="" decoding="async" onError={() => setFailedFor(src)} />
       ) : player ? (
         <UserRound aria-hidden size={32} />
       ) : (
@@ -40,32 +40,33 @@ function ProfileImage({ src, player = false }: { src?: string; player?: boolean 
   );
 }
 function useRecord<T>(identity: number, fetcher: (id: number, signal: AbortSignal) => Promise<T>) {
+  const [revision, setRevision] = useState(0);
   const [state, setState] = useState<{
     id: number;
+    revision: number;
     value: T | null;
     busy: boolean;
     error: boolean;
-  }>({ id: identity, value: null, busy: true, error: false });
-  const [revision, setRevision] = useState(0);
+  } | null>(null);
   useEffect(() => {
     const controller = new AbortController();
-    setState({ id: identity, value: null, busy: true, error: false });
     void fetcher(identity, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted)
-          setState({ id: identity, value, busy: false, error: false });
+          setState({ id: identity, revision, value, busy: false, error: false });
       },
       () => {
         if (!controller.signal.aborted)
-          setState({ id: identity, value: null, busy: false, error: true });
+          setState({ id: identity, revision, value: null, busy: false, error: true });
       },
     );
     return () => controller.abort();
   }, [identity, revision, fetcher]);
+  const current = state?.id === identity && state.revision === revision ? state : null;
   return {
-    value: state.id === identity ? state.value : null,
-    busy: state.id !== identity || state.busy,
-    error: state.id === identity && state.error,
+    value: current?.value ?? null,
+    busy: current ? current.busy : true,
+    error: current?.error ?? false,
     retry: () => setRevision((value) => value + 1),
   };
 }
@@ -228,8 +229,14 @@ export function EsportsTeamProfile({ teamId, onClose }: { teamId: number; onClos
     teamId,
     fetchEsportsTeamProfile,
   );
+  const [teamFor, setTeamFor] = useState(teamId);
   const [history, setHistory] = useState(false),
     [person, setPerson] = useState<number | null>(null);
+  if (teamFor !== teamId) {
+    setTeamFor(teamId);
+    setHistory(false);
+    setPerson(null);
+  }
   const closeButton = useRef<HTMLButtonElement>(null),
     opener = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -237,10 +244,6 @@ export function EsportsTeamProfile({ teamId, onClose }: { teamId: number; onClos
     closeButton.current?.focus({ preventScroll: true });
     return () => opener.current?.focus({ preventScroll: true });
   }, []);
-  useEffect(() => {
-    setHistory(false);
-    setPerson(null);
-  }, [teamId]);
   if (person)
     return (
       <EsportsPlayerProfile

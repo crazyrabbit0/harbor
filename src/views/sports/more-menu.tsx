@@ -37,9 +37,7 @@ export function SportsMoreMenu({
     };
   }, [open]);
 
-  useEffect(() => {
-    if (items.length === 0) setOpen(false);
-  }, [items.length]);
+  if (items.length === 0 && open) setOpen(false);
 
   if (items.length === 0) return null;
 

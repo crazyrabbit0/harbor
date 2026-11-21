@@ -16,21 +16,11 @@ export function useAthletePortrait(request: AthletePortraitRequest, enabled = tr
     key: string;
     portrait: AthletePortrait | null;
     loading: boolean;
-  }>(() => ({
-    key,
-    portrait: resolver.peek(request) ?? null,
-    loading: enabled && !primary && resolver.peek(request) === undefined,
-  }));
+  } | null>(null);
   useEffect(() => {
     if (!enabled || primary) return;
+    if (resolver.peek({ path, group, id, name }) !== undefined) return;
     const controller = new AbortController();
-    const hit = resolver.peek({ path, group, id, name });
-    setState((prior) => ({
-      key,
-      portrait: hit ?? (prior.key === key ? prior.portrait : null),
-      loading: hit === undefined,
-    }));
-    if (hit !== undefined) return;
     void resolver
       .resolve({ path, group, id, name }, controller.signal)
       .then((portrait) => {
@@ -42,7 +32,8 @@ export function useAthletePortrait(request: AthletePortraitRequest, enabled = tr
     return () => controller.abort();
   }, [path, group, id, name, key, enabled, primary, resolver]);
   const cached = resolver.peek(request);
-  const current = state.key === key ? state : cached ? { portrait: cached, loading: false } : null;
+  const current =
+    cached !== undefined ? { portrait: cached, loading: false } : state?.key === key ? state : null;
   return {
     image: primary || current?.portrait?.url || "",
     attribution: primary ? null : (current?.portrait ?? null),

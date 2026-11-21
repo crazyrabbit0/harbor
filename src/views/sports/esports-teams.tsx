@@ -85,15 +85,16 @@ export function TeamMatches({
   const trigger = useRef(document.activeElement as HTMLElement | null);
   const game = ESPORTS_GAMES.find((game) => game.id === team.game)!;
   const historyKey = `${team.game}:${team.id}`;
+  const [historyRetry, setHistoryRetry] = useState(0);
+  const fullHistoryKey = `${historyKey}:${historyRetry}`;
   const [history, setHistory] = useState<{
     key: string;
     data?: EsportsTeamHistory;
     failed?: boolean;
-  }>({ key: historyKey });
-  const [historyRetry, setHistoryRetry] = useState(0);
+  }>({ key: "" });
   const historySupported = team.game === "rocketleague";
-  const historyData = history.key === historyKey ? history.data : undefined;
-  const historyFailed = history.key === historyKey && history.failed === true;
+  const historyData = history.key === fullHistoryKey ? history.data : undefined;
+  const historyFailed = history.key === fullHistoryKey && history.failed === true;
   const historyLoading = historySupported && !historyData && !historyFailed;
   const allMatches = useMemo(
     () => mergeEsportsTeamHistory(team.game, team.id, team.matches, historyData?.matches || []),
@@ -104,9 +105,19 @@ export function TeamMatches({
     .sort((a, b) => b.startMs - a.startMs)
     .slice(0, 8);
   const rank = team.ranking;
-  const [stats, setStats] = useState<EsportsRankedTeamStats | null>(null);
-  const [statsFailed, setStatsFailed] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [statsState, setStatsState] = useState<{
+    rank: typeof rank;
+    retry: number;
+    data: EsportsRankedTeamStats | null;
+    failed: boolean;
+  } | null>(null);
+  const currentStats =
+    statsState !== null && statsState.rank === rank && statsState.retry === retry
+      ? statsState
+      : null;
+  const stats = currentStats ? currentStats.data : null;
+  const statsFailed = currentStats ? currentStats.failed : false;
   const neighbors =
     rank && rankings
       ? rankings.teams.filter(
@@ -121,28 +132,25 @@ export function TeamMatches({
   useEffect(() => {
     if (!historySupported) return;
     const controller = new AbortController();
-    setHistory({ key: historyKey });
     fetchEsportsTeamHistory(team.game, team.id, controller.signal, historyRetry > 0).then(
       (data) => {
-        if (!controller.signal.aborted) setHistory({ key: historyKey, data });
+        if (!controller.signal.aborted) setHistory({ key: fullHistoryKey, data });
       },
       () => {
-        if (!controller.signal.aborted) setHistory({ key: historyKey, failed: true });
+        if (!controller.signal.aborted) setHistory({ key: fullHistoryKey, failed: true });
       },
     );
     return () => controller.abort();
-  }, [historySupported, historyKey, team.game, team.id, historyRetry]);
+  }, [historySupported, fullHistoryKey, team.game, team.id, historyRetry]);
   useEffect(() => {
     if (!rank) return;
     const controller = new AbortController();
-    setStats(null);
-    setStatsFailed(false);
     void fetchEsportsRankedTeamStats(rank, controller.signal).then(
       (data) => {
-        if (!controller.signal.aborted) setStats(data);
+        if (!controller.signal.aborted) setStatsState({ rank, retry, data, failed: false });
       },
       () => {
-        if (!controller.signal.aborted) setStatsFailed(true);
+        if (!controller.signal.aborted) setStatsState({ rank, retry, data: null, failed: true });
       },
     );
     return () => controller.abort();
@@ -475,14 +483,16 @@ export function EsportsTeams({
 }) {
   const t = useT();
   const locale = useUiLanguage();
+  const [selectedFor, setSelectedFor] = useState(selected);
   const [search, setSearch] = useState("");
   const [limit, setLimit] = useState(48);
   const [team, setTeam] = useState<TeamEntry | null>(null);
-  useEffect(() => {
+  if (selectedFor !== selected) {
+    setSelectedFor(selected);
     setSearch("");
     setLimit(48);
     setTeam(null);
-  }, [selected]);
+  }
   const entries = useMemo(
     () => esportsTeamDirectory(matches, rankings?.teams),
     [matches, rankings],

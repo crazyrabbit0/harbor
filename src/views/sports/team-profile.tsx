@@ -36,9 +36,11 @@ export function TeamProfile({ team, onClose }: { team: TeamIdentity; onClose: ()
     locale = useUiLanguage(),
     titleId = useId();
   const [data, setData] = useState<TeamProfileData | null>(null);
-  const [loading, setLoading] = useState(true),
-    [failed, setFailed] = useState(false),
-    [retry, setRetry] = useState(0);
+  const [retry, setRetry] = useState(0);
+  const fetchKey = `${team.id}:${team.league}:${team.name}:${team.source ?? ""}:${retry}`;
+  const [outcome, setOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const loading = outcome?.key !== fetchKey;
+  const failed = outcome?.key === fetchKey && outcome.failed;
   const [tab, setTab] = useState("Overview"),
     [query, setQuery] = useState(""),
     [limit, setLimit] = useState(60);
@@ -52,20 +54,18 @@ export function TeamProfile({ team, onClose }: { team: TeamIdentity; onClose: ()
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setFailed(false);
     fetchTeamProfile(team, controller.signal, retry > 0)
       .then((result) => {
-        if (!controller.signal.aborted) setData(result);
+        if (!controller.signal.aborted) {
+          setData(result);
+          setOutcome({ key: fetchKey, failed: false });
+        }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) setOutcome({ key: fetchKey, failed: true });
       });
     return () => controller.abort();
-  }, [team.id, team.league, team.name, team.source, retry]);
+  }, [team.id, team.league, team.name, team.source, retry, fetchKey]);
   const roster = (data?.roster ?? []).filter((player) =>
     `${player.name} ${player.position ?? ""} ${player.jersey ?? ""}`
       .toLocaleLowerCase(locale)

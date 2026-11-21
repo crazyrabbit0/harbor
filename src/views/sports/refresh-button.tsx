@@ -6,8 +6,8 @@ import "./refresh-button.css";
 export function SportsRefreshButton({ busy, onRefresh }: { busy: boolean; onRefresh: () => void }) {
   const t = useT();
   const [turning, setTurning] = useState(busy);
+  if (busy && !turning) setTurning(true);
   useEffect(() => {
-    if (busy) setTurning(true);
     const motion = matchMedia("(prefers-reduced-motion: reduce)");
     let timer: ReturnType<typeof setTimeout> | undefined;
     const settle = () => {

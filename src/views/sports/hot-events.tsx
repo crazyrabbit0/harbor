@@ -1,14 +1,16 @@
 import { useEventVenuePhoto } from "./use-event-venue-photo";
 import { SportsSelect } from "./sports-select";
 import { SportsHeroScenery } from "./sports-hero-scenery";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 import { ArrowRight, CalendarDays, ChevronDown, LoaderCircle } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 
 import { useT, useUiLanguage } from "@/lib/i18n";
 
-import { useInViewport, usePageVisible } from "@/lib/visibility";
+import { useNow } from "@/lib/use-now";
+
+import { useInViewport } from "@/lib/visibility";
 
 import { getGroupLabel, getLeagueLabel, type SportsGame } from "@/lib/sports/espn";
 
@@ -594,19 +596,7 @@ export function HotEvents({
 
   onExplore: () => void;
 }) {
-  const pageVisible = usePageVisible();
-
-  const [now, setNow] = useState(Date.now);
-
-  useEffect(() => {
-    if (!active || !pageVisible) return;
-
-    setNow(Date.now());
-
-    const timer = setInterval(() => setNow(Date.now()), 60000);
-
-    return () => clearInterval(timer);
-  }, [active, pageVisible]);
+  const now = useNow(60_000, active);
 
   const leagues = useMemo(
     () =>
