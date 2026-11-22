@@ -45,26 +45,28 @@ export function useAnimeOrder(
       ),
     [solo, ordering, episodes, t, partSeason, metaId],
   );
-  const [sel, setSel] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
-  const [foreignSeasons, setForeignSeasons] = useState<Set<number> | null>(null);
+  const [selState, setSelState] = useState<{ metaId: string; key: string } | null>(null);
+  const foreignKey = solo ? "" : `${metaId}:${imdbId ?? ""}`;
+  const [foreignState, setForeignState] = useState<{
+    key: string;
+    seasons: Set<number> | null;
+  } | null>(null);
   useEffect(() => {
-    if (solo) {
-      setForeignSeasons(null);
-      return;
-    }
+    if (!foreignKey) return;
     let cancelled = false;
     void foreignAnimeProviderSeasons(metaId, imdbId)
       .then((s) => {
-        if (!cancelled) setForeignSeasons(s);
+        if (!cancelled) setForeignState({ key: foreignKey, seasons: s });
       })
       .catch(() => {
-        if (!cancelled) setForeignSeasons(null);
+        if (!cancelled) setForeignState({ key: foreignKey, seasons: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [metaId, imdbId, solo]);
+  }, [foreignKey, metaId, imdbId]);
+  const foreignSeasons =
+    foreignKey && foreignState?.key === foreignKey ? foreignState.seasons : null;
   const filteredBuilt = useMemo(() => {
     if (!built || !foreignSeasons || foreignSeasons.size === 0) return built;
     const items = built.items.filter(
@@ -75,15 +77,10 @@ export function useAnimeOrder(
     for (const s of foreignSeasons) subsetByKey.delete(String(s));
     return { ...built, items, subsetByKey };
   }, [built, foreignSeasons]);
-  useEffect(() => {
-    setSel(null);
-    setTouched(false);
-  }, [metaId]);
-  const onSelect = useCallback((key: string) => {
-    setSel(key);
-    setTouched(true);
-  }, []);
+  const onSelect = useCallback((key: string) => setSelState({ metaId, key }), [metaId]);
   if (!filteredBuilt) return null;
+  const touched = selState?.metaId === metaId;
+  const sel = touched ? selState.key : null;
   const activeKey =
     touched && filteredBuilt.items.some((i) => i.key === sel)
       ? (sel as string)

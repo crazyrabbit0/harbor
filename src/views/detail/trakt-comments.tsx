@@ -389,14 +389,23 @@ const SORT_LABEL: Record<Sort, string> = {
 };
 
 const COMMENTS_PAGE_SIZE = 20;
+const EMPTY_COMMENTS: TraktComment[] = [];
+
+function readCachedRating(key: string | null): number {
+  if (!key) return 0;
+  const n = Number(localStorage.getItem(key) ?? "0");
+  return Number.isFinite(n) && n > 0 ? n : 0;
+}
 
 export function TraktComments({ resolution }: { resolution: IdResolution | null }) {
   const t = useT();
-  const [comments, setComments] = useState<TraktComment[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [feedState, setFeedState] = useState<{
+    key: string;
+    comments: TraktComment[];
+    page: number;
+    hasMore: boolean;
+  } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [sort, setSort] = useState<Sort>("likes");
   const [showSort, setShowSort] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
@@ -405,7 +414,6 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
   const [postError, setPostError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [spoiler, setSpoiler] = useState(false);
-  const [userRating, setUserRating] = useState(0);
   const [ratinging, setRatinging] = useState(false);
   const [hoverRating, setHoverRating] = useState(0);
   const [blurred, setBlurred] = useState(true);
@@ -438,6 +446,14 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
     return `trakt-comments:${target.kind}:${id}`;
   }, [target]);
 
+  const [userRating, setUserRating] = useState(() => readCachedRating(ratingCacheKey));
+  const [prevRatingKey, setPrevRatingKey] = useState(ratingCacheKey);
+  if (prevRatingKey !== ratingCacheKey) {
+    setPrevRatingKey(ratingCacheKey);
+    const cached = readCachedRating(ratingCacheKey);
+    if (cached > 0) setUserRating(cached);
+  }
+
   useEffect(() => {
     return subscribeSession(() => {
       setSessionState(getSession());
@@ -460,23 +476,10 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
     };
   }, [connected]);
 
-  // Restore cached rating from localStorage
-  useEffect(() => {
-    if (!ratingCacheKey) return;
-    const cached = localStorage.getItem(ratingCacheKey);
-    if (cached) {
-      const n = Number(cached);
-      if (n > 0) setUserRating(n);
-    }
-  }, [ratingCacheKey]);
+  const commentsKey = target ? `${commentsCacheKey ?? ""}:${sort}` : "";
 
   useEffect(() => {
-    if (!target) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setPage(1);
+    if (!commentsKey || !target) return;
     let cancelled = false;
     fetchComments(target, sort, 1, COMMENTS_PAGE_SIZE).then((data) => {
       if (cancelled) return;
@@ -486,28 +489,41 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
         : [];
       const localIds = new Set(local.map((c) => c.id));
       const merged = [...local, ...data.filter((c) => !localIds.has(c.id))];
-      setComments(merged);
-      setHasMore(data.length >= COMMENTS_PAGE_SIZE);
-      setLoading(false);
+      setFeedState({
+        key: commentsKey,
+        comments: merged,
+        page: 1,
+        hasMore: data.length >= COMMENTS_PAGE_SIZE,
+      });
     });
     return () => {
       cancelled = true;
     };
-  }, [target, sort, commentsCacheKey]);
+  }, [commentsKey, target, sort, commentsCacheKey]);
+
+  const feed = commentsKey && feedState?.key === commentsKey ? feedState : null;
+  const comments = feed ? feed.comments : EMPTY_COMMENTS;
+  const page = feed ? feed.page : 1;
+  const hasMore = feed ? feed.hasMore : false;
+  const loading = commentsKey !== "" && feed == null;
 
   const loadMore = useCallback(async () => {
-    if (!target || loadingMore || !hasMore) return;
+    if (!target || !commentsKey || loadingMore || !hasMore) return;
     setLoadingMore(true);
     const next = page + 1;
     const data = await fetchComments(target, sort, next, COMMENTS_PAGE_SIZE);
-    setComments((prev) => {
-      const ids = new Set(prev.map((c) => c.id));
-      return [...prev, ...data.filter((c) => !ids.has(c.id))];
+    setFeedState((prev) => {
+      if (!prev || prev.key !== commentsKey) return prev;
+      const ids = new Set(prev.comments.map((c) => c.id));
+      return {
+        key: commentsKey,
+        comments: [...prev.comments, ...data.filter((c) => !ids.has(c.id))],
+        page: next,
+        hasMore: data.length >= COMMENTS_PAGE_SIZE,
+      };
     });
-    setPage(next);
-    setHasMore(data.length >= COMMENTS_PAGE_SIZE);
     setLoadingMore(false);
-  }, [target, sort, page, hasMore, loadingMore]);
+  }, [target, commentsKey, sort, page, hasMore, loadingMore]);
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -536,13 +552,17 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
   }, [target]);
 
   const handlePost = useCallback(async () => {
-    if (!target || !text.trim() || posting) return;
+    if (!target || !commentsKey || !text.trim() || posting) return;
     setPostError(null);
     setPosting(true);
     try {
       const created = await postComment(target, text.trim(), spoiler);
       setSpoiler(false);
-      setComments((prev) => [created, ...prev]);
+      setFeedState((prev) =>
+        prev && prev.key === commentsKey
+          ? { ...prev, comments: [created, ...prev.comments] }
+          : { key: commentsKey, comments: [created], page: 1, hasMore: false },
+      );
       setText("");
       if (commentsCacheKey) prependCachedComment(commentsCacheKey, created);
     } catch (e) {
@@ -550,11 +570,13 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
       setPostError(postErrorMessage(e, t));
     }
     setPosting(false);
-  }, [target, text, posting, commentsCacheKey, spoiler, t]);
+  }, [target, commentsKey, text, posting, commentsCacheKey, spoiler, t]);
 
   const handleDelete = useCallback(
     (id: number) => {
-      setComments((prev) => prev.filter((c) => c.id !== id));
+      setFeedState((prev) =>
+        prev ? { ...prev, comments: prev.comments.filter((c) => c.id !== id) } : prev,
+      );
       if (commentsCacheKey) {
         const existing = JSON.parse(
           localStorage.getItem(commentsCacheKey) ?? "[]",

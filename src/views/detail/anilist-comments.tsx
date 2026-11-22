@@ -275,6 +275,7 @@ function ThreadRow({
 }
 
 const THREADS_PAGE_SIZE = 20;
+const EMPTY_THREADS: AnilistThread[] = [];
 
 export function AnilistComments({ harborId }: { harborId: string | null }) {
   const t = useT();
@@ -282,14 +283,18 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
   const settings = useSettingsSelector((s) => ({ anilistBlurComments: s.anilistBlurComments }));
   const { session } = useAnilist();
   const [authed, setAuthed] = useState(() => isAuthenticated());
-  const [mediaId, setMediaId] = useState<number | null>(null);
-  const [resolving, setResolving] = useState(true);
+  const [mediaState, setMediaState] = useState<{
+    harborId: string;
+    mediaId: number | null;
+  } | null>(null);
 
-  const [threads, setThreads] = useState<AnilistThread[]>([]);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(false);
+  const [threadsState, setThreadsState] = useState<{
+    key: string;
+    threads: AnilistThread[];
+    page: number;
+    hasMore: boolean;
+  } | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [loading, setLoading] = useState(true);
 
   const [activeThread, setActiveThread] = useState<AnilistThread | null>(null);
   const [comments, setComments] = useState<AnilistThreadComment[]>([]);
@@ -312,72 +317,68 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
   useEffect(() => subscribeSession(() => setAuthed(isAuthenticated())), []);
 
   useEffect(() => {
+    if (!harborId) return;
     let cancelled = false;
-    setResolving(true);
-    setMediaId(null);
-    if (!harborId) {
-      setResolving(false);
-      return;
-    }
     resolveAnilistMediaId(harborId)
       .then((id) => {
-        if (cancelled) return;
-        setMediaId(id);
-        setResolving(false);
+        if (!cancelled) setMediaState({ harborId, mediaId: id });
       })
       .catch(() => {
-        if (cancelled) return;
-        setResolving(false);
+        if (!cancelled) setMediaState({ harborId, mediaId: null });
       });
     return () => {
       cancelled = true;
     };
   }, [harborId]);
 
-  const loadThreads = useCallback(
-    async (p: number) => {
-      if (!mediaId) return;
-      const { threads: data, hasNextPage } = await fetchThreads(mediaId, p, THREADS_PAGE_SIZE);
-      if (p === 1) {
-        setThreads(data);
-      } else {
-        setThreads((prev) => {
-          const ids = new Set(prev.map((x) => x.id));
-          return [...prev, ...data.filter((x) => !ids.has(x.id))];
-        });
-      }
-      setHasMore(hasNextPage);
-      setPage(p);
-    },
-    [mediaId],
-  );
+  const resolving = !!harborId && mediaState?.harborId !== harborId;
+  const mediaId = harborId && mediaState?.harborId === harborId ? mediaState.mediaId : null;
+  const threadsKey = mediaId && authed ? String(mediaId) : "";
 
   useEffect(() => {
-    if (!mediaId || !authed) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setPage(1);
+    if (!threadsKey || !mediaId) return;
     let cancelled = false;
-    loadThreads(1)
-      .catch(() => {})
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+    fetchThreads(mediaId, 1, THREADS_PAGE_SIZE)
+      .then(({ threads: data, hasNextPage }) => {
+        if (!cancelled) {
+          setThreadsState({ key: threadsKey, threads: data, page: 1, hasMore: hasNextPage });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setThreadsState({ key: threadsKey, threads: EMPTY_THREADS, page: 1, hasMore: false });
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [mediaId, authed, loadThreads]);
+  }, [threadsKey, mediaId]);
+
+  const activeThreads = threadsKey && threadsState?.key === threadsKey ? threadsState : null;
+  const threads = activeThreads ? activeThreads.threads : EMPTY_THREADS;
+  const page = activeThreads ? activeThreads.page : 1;
+  const hasMore = activeThreads ? activeThreads.hasMore : false;
+  const loading = threadsKey !== "" && activeThreads == null;
 
   const loadMore = useCallback(async () => {
-    if (loadingMore || !hasMore) return;
+    if (!mediaId || !threadsKey || loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
-      await loadThreads(page + 1);
+      const next = page + 1;
+      const { threads: data, hasNextPage } = await fetchThreads(mediaId, next, THREADS_PAGE_SIZE);
+      setThreadsState((prev) => {
+        if (!prev || prev.key !== threadsKey) return prev;
+        const ids = new Set(prev.threads.map((x) => x.id));
+        return {
+          key: threadsKey,
+          threads: [...prev.threads, ...data.filter((x) => !ids.has(x.id))],
+          page: next,
+          hasMore: hasNextPage,
+        };
+      });
     } catch {}
     setLoadingMore(false);
-  }, [loadingMore, hasMore, page, loadThreads]);
+  }, [mediaId, threadsKey, loadingMore, hasMore, page]);
 
   const openThread = useCallback((thread: AnilistThread) => {
     scrollYRef.current = window.scrollY;
@@ -429,12 +430,16 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
   }, []);
 
   const handleCreateThread = useCallback(async () => {
-    if (!mediaId || !threadTitle.trim() || creatingThread) return;
+    if (!mediaId || !threadsKey || !threadTitle.trim() || creatingThread) return;
     setThreadError(null);
     setCreatingThread(true);
     try {
       const created = await createThread(threadTitle.trim(), threadBody.trim(), mediaId);
-      setThreads((prev) => [created, ...prev]);
+      setThreadsState((prev) =>
+        prev && prev.key === threadsKey
+          ? { ...prev, threads: [created, ...prev.threads] }
+          : { key: threadsKey, threads: [created], page: 1, hasMore: false },
+      );
       setThreadTitle("");
       setThreadBody("");
       setShowNewThread(false);
@@ -446,7 +451,7 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
       }
     }
     setCreatingThread(false);
-  }, [mediaId, threadTitle, threadBody, creatingThread, t]);
+  }, [mediaId, threadsKey, threadTitle, threadBody, creatingThread, t]);
 
   if (!harborId || resolving) {
     return null;

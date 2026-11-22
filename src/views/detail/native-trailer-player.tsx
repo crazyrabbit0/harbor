@@ -55,7 +55,7 @@ export function NativeTrailerPlayer({
   const [speed, setSpeed] = useState<number>(1);
   const [showRemaining, setShowRemaining] = useState(false);
   const [pipActive, setPipActive] = useState(false);
-  const [pipSupported, setPipSupported] = useState(false);
+  const pipSupported = typeof document !== "undefined" && document.pictureInPictureEnabled === true;
   const hideTimer = useRef<number | null>(null);
 
   const wake = useCallback(() => {
@@ -73,10 +73,6 @@ export function NativeTrailerPlayer({
     },
     [],
   );
-
-  useEffect(() => {
-    setPipSupported(typeof document !== "undefined" && document.pictureInPictureEnabled === true);
-  }, []);
 
   useEffect(
     () => () => {

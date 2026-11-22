@@ -24,8 +24,11 @@ export function DetailHeroTrailer({
     detailTrailerAudio: s.detailTrailerAudio,
     trailerQuality: s.trailerQuality,
   }));
-  const [info, setInfo] = useState<TrailerInfo | null>(null);
-  const [muted, setMuted] = useState(!settings.detailTrailerAudio);
+  const fetchKey = candidateId ? `${candidateId}:${settings.trailerQuality}` : "";
+  const [loaded, setLoaded] = useState<{ key: string; info: TrailerInfo | null } | null>(null);
+  const [muteState, setMuteState] = useState<{ key: string; muted: boolean } | null>(null);
+  const info = fetchKey && loaded?.key === fetchKey ? loaded.info : null;
+  const muted = muteState?.key === fetchKey ? muteState.muted : !settings.detailTrailerAudio;
   const pageVisible = usePageVisible();
   const wantsPlayback = !!info && !paused && pageVisible;
   const { slot, video, ready } = useTrailerVideo({
@@ -36,17 +39,15 @@ export function DetailHeroTrailer({
   });
 
   useEffect(() => {
-    setInfo(null);
-    setMuted(!settings.detailTrailerAudio);
     if (!candidateId) return;
     let cancelled = false;
     fetchTrailer(candidateId, resolveTrailerQuality(settings.trailerQuality)).then((i) => {
-      if (!cancelled) setInfo(i);
+      if (!cancelled) setLoaded({ key: fetchKey, info: i });
     });
     return () => {
       cancelled = true;
     };
-  }, [candidateId, settings.trailerQuality]);
+  }, [fetchKey, candidateId, settings.trailerQuality]);
 
   useEffect(() => {
     const v = video.current;
@@ -60,14 +61,14 @@ export function DetailHeroTrailer({
       v.play().catch(() => {
         if (!v.muted) {
           setVideoMuted(v, true);
-          setMuted(true);
+          setMuteState({ key: fetchKey, muted: true });
           v.play().catch(() => {});
         }
       });
     } else if (!wantsPlayback) {
       v.pause();
     }
-  }, [wantsPlayback, ready, video]);
+  }, [wantsPlayback, ready, video, fetchKey]);
 
   return (
     <>
@@ -80,7 +81,7 @@ export function DetailHeroTrailer({
       {wantsPlayback && ready && (
         <button
           type="button"
-          onClick={() => setMuted((m) => !m)}
+          onClick={() => setMuteState({ key: fetchKey, muted: !muted })}
           aria-label={muted ? t("Unmute trailer") : t("Mute trailer")}
           title={muted ? t("Unmute trailer") : t("Mute trailer")}
           className="absolute bottom-8 end-8 z-30 flex h-10 w-10 items-center justify-center rounded-full bg-black/55 text-white backdrop-blur-md transition-colors hover:bg-black/75"

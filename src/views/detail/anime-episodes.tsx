@@ -60,6 +60,7 @@ import { parseKitsuId } from "@/lib/providers/kitsu";
 import { aiIsGroq, aiKey, providerForModel } from "@/lib/ai-models";
 
 const WINDOW_STEP = 60;
+const EMPTY_SET = new Set<string>();
 
 export function AnimeEpisodes({
   meta,
@@ -96,23 +97,21 @@ export function AnimeEpisodes({
 }) {
   const t = useT();
   const { isConnected: traktConnected } = useTrakt();
-  const [traktWatched, setTraktWatched] = useState<Set<string>>(() => new Set());
+  const [traktLoaded, setTraktLoaded] = useState<Set<string>>(EMPTY_SET);
 
   useEffect(() => {
-    if (!traktConnected) {
-      setTraktWatched(new Set());
-      return;
-    }
+    if (!traktConnected) return;
     let cancelled = false;
     fetchWatchedKeySet()
       .then((set) => {
-        if (!cancelled) setTraktWatched(set);
+        if (!cancelled) setTraktLoaded(set);
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [traktConnected]);
+  const traktWatched = traktConnected ? traktLoaded : EMPTY_SET;
 
   const { watchedKeys: anilistWatched, completed: anilistCompleted } = useAnilistWatched(
     trackId ?? meta.id,
@@ -124,22 +123,23 @@ export function AnimeEpisodes({
   );
   // Split-franchise sequels (TYBW, Stone Wars, …) render standalone: only the
   // opened entry's episodes, no sibling pooling, no whole-series TVDB buckets.
-  const [rootEntryId, setRootEntryId] = useState<string | null>(() => franchiseRootSync(meta.id));
+  const syncRootEntryId = franchiseRootSync(meta.id);
+  const [rootState, setRootState] = useState<{ metaId: string; root: string } | null>(null);
   useEffect(() => {
+    if (syncRootEntryId != null) return;
     let cancelled = false;
-    setRootEntryId(franchiseRootSync(meta.id));
-    if (rootEntryId != null) return;
     franchiseRoot(meta.id)
       .then((r) => {
-        if (!cancelled) setRootEntryId(r);
+        if (!cancelled) setRootState({ metaId: meta.id, root: r });
       })
       .catch(() => {
-        if (!cancelled) setRootEntryId(meta.id);
+        if (!cancelled) setRootState({ metaId: meta.id, root: meta.id });
       });
     return () => {
       cancelled = true;
     };
-  }, [meta.id]);
+  }, [meta.id, syncRootEntryId]);
+  const rootEntryId = syncRootEntryId ?? (rootState?.metaId === meta.id ? rootState.root : null);
   const openedKitsu = parseKitsuId(meta.id);
   const isFranchiseRoot =
     rootEntryId == null ||
@@ -212,15 +212,14 @@ export function AnimeEpisodes({
   const routing = useAnimeWatchedRouting(meta, franchise, trackId, imdbId);
   const effectiveOrder = order;
   const { openMeta } = useViewActions();
-  const [activeEntryId, setActiveEntryId] = useState(currentId);
-  useEffect(() => {
-    setActiveEntryId(currentId);
-  }, [currentId, meta.id]);
+  const entryScope = `${meta.id}:${currentId}`;
+  const [entryState, setEntryState] = useState<{ scope: string; id: string } | null>(null);
+  const activeEntryId = entryState?.scope === entryScope ? entryState.id : currentId;
   const activeIsAnchor = activeEntryId === currentId;
   const onSelectEntry = useCallback(
     (entryId: string) => {
       if (entryId === currentId) {
-        setActiveEntryId(currentId);
+        setEntryState({ scope: entryScope, id: currentId });
         return;
       }
       const entry = franchise.find((f) => f.meta.id === entryId);
@@ -228,10 +227,10 @@ export function AnimeEpisodes({
       const inPool =
         parseKitsuId(entry.meta.id) != null &&
         franchiseEpisodes.some((ep) => ep.sourceMetaId === entryId);
-      if (inPool) setActiveEntryId(entryId);
+      if (inPool) setEntryState({ scope: entryScope, id: entryId });
       else openMeta(entry.meta, { exact: true });
     },
-    [currentId, franchise, franchiseEpisodes, openMeta],
+    [entryScope, currentId, franchise, franchiseEpisodes, openMeta],
   );
   const entryEpisodes = useMemo(
     () =>
@@ -346,18 +345,22 @@ export function AnimeEpisodes({
     activeEntryId,
     onSelectEntry,
   );
-  // Track explicit picker selections so renderCount only resets when the user
-  // changes season, not when async ordering resolves to a new activeKey.
-  const pickedKeyRef = useRef<string | null>(null);
-  useEffect(() => {
-    pickedKeyRef.current = null;
-  }, [meta.id]);
+  const windowKey = `${meta.id}:${settings.episodeLayout}:${settings.episodeSort}:${activeEntryId}`;
+  const [renderState, setRenderState] = useState<{ key: string; count: number }>({
+    key: windowKey,
+    count: WINDOW_STEP,
+  });
+  const renderCount = renderState.key === windowKey ? renderState.count : WINDOW_STEP;
+  const orderActiveKey = order?.activeKey;
+  // Reset renderCount only on explicit season switches, never when async ordering picks an initial key.
   const onPickerSelect = useCallback(
     (key: string) => {
-      pickedKeyRef.current = key;
+      if (!key.startsWith("nav:") && key !== orderActiveKey) {
+        setRenderState({ key: windowKey, count: WINDOW_STEP });
+      }
       selectPickerItem(key);
     },
-    [selectPickerItem],
+    [selectPickerItem, windowKey, orderActiveKey],
   );
   const [watchedMenu, setWatchedMenu] = useState<WatchedMenuTarget | null>(null);
   const openWatchedMenu = (
@@ -423,31 +426,30 @@ export function AnimeEpisodes({
     [displayEpisodes, settings.episodeSort],
   );
   const windowed = settings.episodeLayout === "list" || settings.episodeLayout === "strip";
-  const [renderCount, setRenderCount] = useState(WINDOW_STEP);
-  useEffect(() => {
-    setRenderCount(WINDOW_STEP);
-  }, [meta.id, settings.episodeLayout, settings.episodeSort, activeEntryId]);
-  useEffect(() => {
-    if (pickedKeyRef.current == null) return;
-    if (order?.activeKey !== pickedKeyRef.current) return;
-    pickedKeyRef.current = null;
-    setRenderCount(WINDOW_STEP);
-  }, [order?.activeKey]);
   const grow = useCallback(
     () =>
-      setRenderCount((c) =>
-        c >= orderedEpisodes.length ? c : Math.min(orderedEpisodes.length, c + WINDOW_STEP),
-      ),
-    [orderedEpisodes.length],
+      setRenderState((s) => {
+        const cur = s.key === windowKey ? s.count : WINDOW_STEP;
+        const next =
+          cur >= orderedEpisodes.length ? cur : Math.min(orderedEpisodes.length, cur + WINDOW_STEP);
+        return { key: windowKey, count: next };
+      }),
+    [orderedEpisodes.length, windowKey],
   );
   const reveal = useCallback(
     (n: number, epId?: number | null) => {
       const byId = epId != null ? orderedEpisodes.findIndex((e) => e.id === epId) : -1;
       const idx = byId >= 0 ? byId : orderedEpisodes.findIndex((e) => e.number === n);
       const target = idx >= 0 ? idx : n;
-      setRenderCount((c) => Math.max(c, Math.min(orderedEpisodes.length, target + 20)));
+      setRenderState((s) => {
+        const cur = s.key === windowKey ? s.count : WINDOW_STEP;
+        return {
+          key: windowKey,
+          count: Math.max(cur, Math.min(orderedEpisodes.length, target + 20)),
+        };
+      });
     },
-    [orderedEpisodes],
+    [orderedEpisodes, windowKey],
   );
   const sentinelRef = useRef<HTMLDivElement>(null);
   const listEpisodes = windowed ? orderedEpisodes.slice(0, renderCount) : orderedEpisodes;

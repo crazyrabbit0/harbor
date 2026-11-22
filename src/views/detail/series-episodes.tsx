@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { EpisodeJumper } from "@/components/episode-jumper";
 import { providerForModel } from "@/lib/ai-models";
@@ -94,6 +94,8 @@ function orderedOverview(
   );
 }
 
+const EMPTY_EPISODES: Episode[] = [];
+
 function rememberSeason(m: Map<number, Episode[]>, season: number, eps: Episode[]) {
   m.delete(season);
   m.set(season, eps);
@@ -175,8 +177,17 @@ export function SeriesEpisodes({
   const [active, setActive] = useState<number>(() =>
     resumeDefaultSeason(meta.id, seasons, stremioWatched, resumeSeason),
   );
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [loading, setLoading] = useState(true);
+  // Two most recent TMDB seasons; a plain Map held for the component's life, filled by the loader.
+  const [cache] = useState(() => new Map<number, Episode[]>());
+  const loadKey = `${tvId}:${active}:${settings.tmdbKey}`;
+  const cached = cache.get(active);
+  const [loadedSeason, setLoadedSeason] = useState<{
+    key: string;
+    episodes: Episode[];
+  } | null>(null);
+  const episodes =
+    cached ?? (loadedSeason?.key === loadKey ? loadedSeason.episodes : EMPTY_EPISODES);
+  const loading = !cached && loadedSeason?.key !== loadKey;
   const { traktWatched, simklWatched } = useWatchedSets({
     traktConnected,
     simklConnected,
@@ -207,9 +218,6 @@ export function SeriesEpisodes({
       }),
     [stremioWatched, simklWatched, traktWatched, meta.id, imdbId, mwVersion],
   );
-  // Two most recent TMDB seasons; a plain Map held for the component's life, filled by the loader.
-  const [cache] = useState(() => new Map<number, Episode[]>());
-
   const traktKey = imdbId ?? meta.id;
 
   useEffect(() => {
@@ -298,10 +306,15 @@ export function SeriesEpisodes({
     settings.tmdbKey && orderTypes.length > 0
       ? [...orderTypes, { value: "tmdb", label: "TMDB" }]
       : orderTypes;
-  const [orderSeason, setOrderSeason] = useState<number>(-1);
-  useEffect(() => {
-    setOrderSeason(-1);
-  }, [meta.id]);
+  const [orderSeasonState, setOrderSeasonState] = useState<{ metaId: string; season: number }>({
+    metaId: meta.id,
+    season: -1,
+  });
+  const orderSeason = orderSeasonState.metaId === meta.id ? orderSeasonState.season : -1;
+  const setOrderSeason = useCallback(
+    (season: number) => setOrderSeasonState({ metaId: meta.id, season }),
+    [meta.id],
+  );
   const orderActive = !arcActive && ordering != null;
   const panelActive = tvdbPanelEnabled(settings) && (orderActive || orderTypes.length > 0);
   const altActive = arcActive || orderActive;
@@ -332,16 +345,9 @@ export function SeriesEpisodes({
         rememberSeason(cache, season, eps);
         return eps;
       });
-    const cached = cache.get(active);
-    if (cached) {
-      setEpisodes(cached);
-      setLoading(false);
-    } else {
-      setLoading(true);
+    if (!cache.has(active)) {
       void load(active).then((eps) => {
-        if (cancelled) return;
-        setEpisodes(eps);
-        setLoading(false);
+        if (!cancelled) setLoadedSeason({ key: loadKey, episodes: eps });
       });
     }
     if (orderActive && orderSeasonEff !== active && !cache.has(orderSeasonEff)) {
@@ -350,7 +356,7 @@ export function SeriesEpisodes({
     return () => {
       cancelled = true;
     };
-  }, [tvId, active, settings.tmdbKey, orderActive, orderSeasonEff]);
+  }, [loadKey, tvId, active, settings.tmdbKey, orderActive, orderSeasonEff, cache]);
   const orderedEpsRaw: OrderedEpisode[] = arcActive
     ? arc.episodes
     : ordering

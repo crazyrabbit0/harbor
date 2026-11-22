@@ -1,7 +1,7 @@
 import { Check, Eye } from "lucide-react";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { EpisodeRatingBadge } from "./episode-rating-badge";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { DragStrip } from "@/components/drag-strip";
 import { Poster } from "@/components/poster";
 import type { Meta } from "@/lib/cinemeta";
@@ -168,10 +168,11 @@ function EpisodeStripCard({
   const ratingIsImdb = ep.imdbRating != null;
   const absolute = distinctAbsolute(ep.absoluteNumber, ep.episodeNumber);
 
-  const [imgIdx, setImgIdx] = useState(0);
-  useEffect(() => {
-    setImgIdx(0);
-  }, [ep.id]);
+  const [imgState, setImgState] = useState<{ epId: number; idx: number }>({
+    epId: ep.id,
+    idx: 0,
+  });
+  const imgIdx = imgState.epId === ep.id ? imgState.idx : 0;
 
   const still = useMemo(() => {
     const tmdbSize = settings.hdEpisodeImages ? "original" : "w300";
@@ -223,7 +224,9 @@ function EpisodeStripCard({
             ratio="landscape"
             className=""
             lazy
-            onError={() => setImgIdx((i) => i + 1)}
+            onError={() =>
+              setImgState((s) => ({ epId: ep.id, idx: (s.epId === ep.id ? s.idx : 0) + 1 }))
+            }
           />
         </div>
 

@@ -12,6 +12,8 @@ function byFranchiseOrder(a: KitsuEpisode, b: KitsuEpisode): number {
   );
 }
 
+const EMPTY_EPISODES: KitsuEpisode[] = [];
+
 export function useFranchiseEpisodes(
   franchise: FranchiseEntry[],
   currentId: string,
@@ -33,22 +35,21 @@ export function useFranchiseEpisodes(
   }, [enabled, franchise, currentId]);
 
   const sig = otherIds.join(",");
-  const [extra, setExtra] = useState<KitsuEpisode[]>([]);
+  const [loaded, setLoaded] = useState<{ sig: string; items: KitsuEpisode[] } | null>(null);
   useEffect(() => {
-    if (otherIds.length === 0) {
-      setExtra([]);
-      return;
-    }
+    if (otherIds.length === 0) return;
     let cancelled = false;
     void Promise.all(
       otherIds.map((id) => fetchEntryEpisodes(id, settings).catch(() => [] as KitsuEpisode[])),
     ).then((lists) => {
-      if (!cancelled) setExtra(lists.flat());
+      if (!cancelled) setLoaded({ sig, items: lists.flat() });
     });
     return () => {
       cancelled = true;
     };
   }, [sig]);
+
+  const extra = sig && loaded?.sig === sig ? loaded.items : EMPTY_EPISODES;
 
   return useMemo(() => {
     if (!enabled || otherIds.length === 0 || extra.length === 0) return currentEpisodes;

@@ -16,21 +16,18 @@ export function SimklRatingPicker({
   simklConnected: boolean;
 }) {
   const t = useT();
-  const [target, setTarget] = useState<SimklTarget | null>(null);
-  const [currentRating, setCurrentRating] = useState<number | null>(null);
+  const fetchKey = simklConnected ? `${harborId}:${type}` : "";
+  const [loaded, setLoaded] = useState<{
+    key: string;
+    target: SimklTarget;
+    rating: number | null;
+  } | null>(null);
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [loading, setLoading] = useState(false);
-  const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    if (!simklConnected) {
-      setTarget(null);
-      setCurrentRating(null);
-      setReady(false);
-      return;
-    }
+    if (!fetchKey) return;
     let cancelled = false;
-    setReady(false);
     void (async () => {
       let tgt: SimklTarget | null = null;
       const resolution = stremioIdToSimklTarget(harborId);
@@ -41,26 +38,25 @@ export function SimklRatingPicker({
         const mal = Number.isFinite(n) ? await kitsuToMal(n).catch(() => null) : null;
         if (mal != null) tgt = { kind: "show", ids: { mal } };
       }
-      if (cancelled) return;
-      if (!tgt) {
-        setTarget(null);
-        return;
-      }
+      if (cancelled || !tgt) return;
       if (type === "series" && tgt.kind === "movie") tgt = { kind: "show", ids: tgt.ids };
       if (type === "movie" && (tgt.kind === "show" || tgt.kind === "anime")) {
         tgt = { kind: "movie", ids: tgt.ids };
       }
 
-      setTarget(tgt);
-      setCurrentRating(getCachedRatingByTarget(tgt));
-      setReady(true);
+      setLoaded({ key: fetchKey, target: tgt, rating: getCachedRatingByTarget(tgt) });
     })();
     return () => {
       cancelled = true;
     };
-  }, [harborId, type, simklConnected]);
+  }, [fetchKey, harborId, type]);
 
-  if (!simklConnected || !target || !ready) return null;
+  const active = fetchKey && loaded?.key === fetchKey ? loaded : null;
+  if (!active) return null;
+
+  const { target, rating: currentRating } = active;
+  const setCurrentRating = (rating: number | null) =>
+    setLoaded((prev) => (prev && prev.key === fetchKey ? { ...prev, rating } : prev));
 
   const handleRatingClick = async (val: number) => {
     if (loading) return;

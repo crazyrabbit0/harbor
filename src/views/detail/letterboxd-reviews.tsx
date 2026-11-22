@@ -1,4 +1,4 @@
-import { Component, useCallback, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
+import { Component, useEffect, useState, type ErrorInfo, type ReactNode } from "react";
 import { ExternalLink, Heart, Loader2, MessageCircle, RefreshCw, Users } from "lucide-react";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import type { Meta } from "@/lib/cinemeta";
@@ -46,55 +46,73 @@ export function LetterboxdReviews({ meta, imdbId }: { meta: Meta; imdbId: string
 function LetterboxdReviewsInner({ meta, imdbId }: { meta: Meta; imdbId: string | null }) {
   const t = useT();
   const lb = useLetterboxd();
-  const [reviews, setReviews] = useState<LetterboxdReview[]>([]);
-  const [friendsReviews, setFriendsReviews] = useState<LetterboxdReview[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [loadingFriends, setLoadingFriends] = useState(false);
+  const [refreshTick, setRefreshTick] = useState(0);
+  const [reviewsState, setReviewsState] = useState<{
+    key: string;
+    reviews: LetterboxdReview[];
+    filmSlug: string | null;
+  } | null>(null);
+  const [friendsState, setFriendsState] = useState<{
+    key: string;
+    reviews: LetterboxdReview[];
+  } | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
-  const [filmSlug, setFilmSlug] = useState<string | null>(null);
-  const [tried, setTried] = useState(false);
-  const [showAll, setShowAll] = useState(false); // "Load more" toggle
+  const [showAllFor, setShowAllFor] = useState<string | null>(null); // "Load more" toggle
   const settings = useSettingsSelector((s) => ({ blurComments: s.blurComments }));
   const [blurred, setBlurred] = useState(true);
 
   const effectiveImdbId = imdbId ?? (meta.id.startsWith("tt") ? meta.id : null);
-
-  const fetchReviews = useCallback(async () => {
-    if (!effectiveImdbId) {
-      setTried(true);
-      return;
-    }
-    setLoading(true);
-    setReviews([]);
-    setShowAll(false);
-    try {
-      const result = await fetchLetterboxdReviewsDirect(effectiveImdbId);
-      setReviews(result.reviews);
-      const slug = filmSlugOf(result.reviews);
-      if (slug) setFilmSlug(slug);
-    } catch (e) {
-      console.error("[Letterboxd Reviews] fetch error:", e);
-    }
-    setLoading(false);
-    setTried(true);
-
-    // Also fetch friends reviews in parallel (if full mode connected)
-    if (lb.isFullConnected && lb.username) {
-      setLoadingFriends(true);
-      setFriendsReviews([]);
-      try {
-        const friends = await fetchLetterboxdFriendsReviews(lb.username, effectiveImdbId);
-        setFriendsReviews(friends);
-      } catch (e) {
-        console.error("[Letterboxd Reviews] friends fetch error:", e);
-      }
-      setLoadingFriends(false);
-    }
-  }, [effectiveImdbId, lb.isFullConnected, lb.username]);
+  const fetchKey = effectiveImdbId
+    ? `${effectiveImdbId}:${lb.isFullConnected ? (lb.username ?? "") : ""}:${refreshTick}`
+    : "";
 
   useEffect(() => {
-    fetchReviews();
-  }, [fetchReviews]);
+    if (!fetchKey || !effectiveImdbId) return;
+    let cancelled = false;
+    void (async () => {
+      let nextReviews: LetterboxdReview[] = [];
+      let nextSlug: string | null = null;
+      try {
+        const result = await fetchLetterboxdReviewsDirect(effectiveImdbId);
+        nextReviews = result.reviews;
+        nextSlug = filmSlugOf(result.reviews);
+      } catch (e) {
+        console.error("[Letterboxd Reviews] fetch error:", e);
+      }
+      if (cancelled) return;
+      setReviewsState({ key: fetchKey, reviews: nextReviews, filmSlug: nextSlug });
+
+      // Also fetch friends reviews in parallel (if full mode connected)
+      if (lb.isFullConnected && lb.username) {
+        let friends: LetterboxdReview[] = [];
+        try {
+          friends = await fetchLetterboxdFriendsReviews(lb.username, effectiveImdbId);
+        } catch (e) {
+          console.error("[Letterboxd Reviews] friends fetch error:", e);
+        }
+        if (!cancelled) setFriendsState({ key: fetchKey, reviews: friends });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchKey, effectiveImdbId, lb.isFullConnected, lb.username]);
+
+  const reviews = fetchKey && reviewsState?.key === fetchKey ? reviewsState.reviews : [];
+  const filmSlug = fetchKey && reviewsState?.key === fetchKey ? reviewsState.filmSlug : null;
+  const loading = fetchKey !== "" && reviewsState?.key !== fetchKey;
+  const tried = !effectiveImdbId || (fetchKey !== "" && reviewsState?.key === fetchKey);
+  const friendsReviews =
+    fetchKey && lb.isFullConnected && lb.username && friendsState?.key === fetchKey
+      ? friendsState.reviews
+      : [];
+  const loadingFriends =
+    fetchKey !== "" &&
+    lb.isFullConnected &&
+    !!lb.username &&
+    !loading &&
+    friendsState?.key !== fetchKey;
+  const showAll = showAllFor === fetchKey;
 
   if (!lb.isActive || meta.type === "series") return null;
   if (!effectiveImdbId) return null;
@@ -177,7 +195,7 @@ function LetterboxdReviewsInner({ meta, imdbId }: { meta: Meta; imdbId: string |
               active={filter === "all"}
               onClick={() => {
                 setFilter("all");
-                setShowAll(false);
+                setShowAllFor(null);
               }}
               icon={<MessageCircle size={12} />}
               label={t("All")}
@@ -188,7 +206,7 @@ function LetterboxdReviewsInner({ meta, imdbId }: { meta: Meta; imdbId: string |
                 active={filter === "friends"}
                 onClick={() => {
                   setFilter("friends");
-                  setShowAll(false);
+                  setShowAllFor(null);
                 }}
                 icon={<Users size={12} />}
                 label={t("Friends")}
@@ -200,7 +218,7 @@ function LetterboxdReviewsInner({ meta, imdbId }: { meta: Meta; imdbId: string |
           {/* Refresh */}
           <HoverTooltip label={t("Refresh")} align="center" className="shrink-0">
             <button
-              onClick={() => fetchReviews()}
+              onClick={() => setRefreshTick((n) => n + 1)}
               disabled={loading}
               aria-label={t("Refresh")}
               className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/[0.06] text-ink-muted transition-colors hover:bg-white/[0.10] hover:text-ink disabled:opacity-50"
@@ -315,7 +333,7 @@ function LetterboxdReviewsInner({ meta, imdbId }: { meta: Meta; imdbId: string |
             {/* Load more button */}
             {hiddenCount > 0 && (
               <button
-                onClick={() => setShowAll(true)}
+                onClick={() => setShowAllFor(fetchKey)}
                 className="mt-1 flex h-10 items-center justify-center gap-2 rounded-xl bg-white/[0.06] text-[13px] font-semibold text-ink-muted transition-colors hover:bg-white/[0.10] hover:text-ink"
               >
                 <Heart size={14} />

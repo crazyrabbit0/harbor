@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useSettingsSelector } from "@/lib/settings";
 import type { SpoilerMask } from "@/lib/spoilers";
@@ -37,9 +37,12 @@ export function EpisodeGrid({
     () => (sort === "newest" ? episodes.slice().reverse() : episodes),
     [episodes, sort],
   );
-  const [page, setPage] = useState(0);
   const resetKey = `${sort}:${displayed.length}:${displayed[0]?.key ?? ""}:${displayed[displayed.length - 1]?.key ?? ""}`;
-  useEffect(() => setPage(0), [resetKey]);
+  const [pageState, setPageState] = useState<{ key: string; page: number }>({
+    key: resetKey,
+    page: 0,
+  });
+  const page = pageState.key === resetKey ? pageState.page : 0;
 
   const pageCount = Math.max(1, Math.ceil(displayed.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
@@ -50,7 +53,7 @@ export function EpisodeGrid({
   );
 
   const change = (p: number) => {
-    setPage(p);
+    setPageState({ key: resetKey, page: p });
     requestAnimationFrame(() =>
       wrapRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
     );

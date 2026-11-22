@@ -1,7 +1,7 @@
 import { Check, Eye } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { HoverTooltip } from "@/components/hover-tooltip";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { EpisodeRatingBadge } from "./episode-rating-badge";
 import { Poster } from "@/components/poster";
 import type { Meta } from "@/lib/cinemeta";
@@ -64,10 +64,11 @@ export function EpisodeRow({
     }
     return out;
   }, [tmdbStill, cinemetaThumbnail]);
-  const [imgIdx, setImgIdx] = useState(0);
-  useEffect(() => {
-    setImgIdx(0);
-  }, [ep.id]);
+  const [imgState, setImgState] = useState<{ epId: number; idx: number }>({
+    epId: ep.id,
+    idx: 0,
+  });
+  const imgIdx = imgState.epId === ep.id ? imgState.idx : 0;
   const still = candidates[imgIdx];
   const watchedAgo = progress.startedAt > 0 ? formatRelativeWatched(progress.startedAt) : "";
   const absolute = distinctAbsolute(ep.absoluteNumber, ep.episodeNumber);
@@ -119,7 +120,9 @@ export function EpisodeRow({
               seed={String(ep.id)}
               ratio="landscape"
               lazy
-              onError={() => setImgIdx((i) => i + 1)}
+              onError={() =>
+                setImgState((s) => ({ epId: ep.id, idx: (s.epId === ep.id ? s.idx : 0) + 1 }))
+              }
             />
           </div>
           <div className="absolute inset-0 flex items-center justify-center bg-canvas/40 opacity-0 transition-opacity group-hover:opacity-100">

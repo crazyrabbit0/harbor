@@ -102,6 +102,8 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/collections/",
   "/src/views/curated-list.tsx",
   "/src/views/curated-list/",
+  "/src/views/detail.tsx",
+  "/src/views/detail/",
   "/src/views/discover.tsx",
   "/src/views/discover/",
   "/src/views/dj/",
