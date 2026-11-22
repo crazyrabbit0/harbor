@@ -57,9 +57,15 @@ function repoHost(url: string): string {
 
 export function RepoCard({ url, onRemove }: { url: string; onRemove: () => void }) {
   const t = useT();
-  const [repo, setRepo] = useState<PluginRepo | null>(null);
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [attempt, setAttempt] = useState(0);
+  const fetchKey = `${url}\0${attempt}`;
+  const [result, setResult] = useState<{
+    key: string;
+    state: "ready" | "error";
+    repo: PluginRepo | null;
+  } | null>(null);
+  const state = result?.key === fetchKey ? result.state : "loading";
+  const repo = result?.key === fetchKey ? result.repo : null;
   const [removing, setRemoving] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
   const [updateProgress, setUpdateProgress] = useState<{ done: number; total: number } | null>(
@@ -69,20 +75,17 @@ export function RepoCard({ url, onRemove }: { url: string; onRemove: () => void 
 
   useEffect(() => {
     let cancelled = false;
-    setState("loading");
     browseRepo(url)
       .then((r) => {
-        if (cancelled) return;
-        setRepo(r);
-        setState("ready");
+        if (!cancelled) setResult({ key: fetchKey, state: "ready", repo: r });
       })
       .catch(() => {
-        if (!cancelled) setState("error");
+        if (!cancelled) setResult({ key: fetchKey, state: "error", repo: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [url, attempt]);
+  }, [url, fetchKey]);
 
   const installed = installedPluginsSync();
   void tick;

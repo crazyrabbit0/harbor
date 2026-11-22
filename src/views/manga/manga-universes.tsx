@@ -68,9 +68,7 @@ function BannerLayer({
   active: boolean;
 }) {
   const [seen, setSeen] = useState(active);
-  useEffect(() => {
-    if (active) setSeen(true);
-  }, [active]);
+  if (active && !seen) setSeen(true);
   const banner = useBackdrop(seen ? name : "", backdrop);
   if (!banner) return null;
   return (
@@ -87,9 +85,7 @@ function BannerLayer({
 
 function CharLayer({ name, active }: { name: string; active: boolean }) {
   const [seen, setSeen] = useState(active);
-  useEffect(() => {
-    if (active) setSeen(true);
-  }, [active]);
+  if (active && !seen) setSeen(true);
   const img = useTopCharacter(seen ? name : "");
   if (!img) return null;
   return (

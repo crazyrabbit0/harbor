@@ -48,13 +48,20 @@ export function useSourceFeed(
   const pageRef = useRef(1);
   const reqRef = useRef(0);
 
-  useEffect(() => {
-    const token = ++reqRef.current;
-    pageRef.current = 1;
+  const reqKey = `${config.baseUrl}\0${config.auth?.username ?? ""}\0${config.auth?.password ?? ""}\0${sourceId}\0${mode}\0${query}\0${reload}`;
+  const [prevReqKey, setPrevReqKey] = useState(reqKey);
+  if (prevReqKey !== reqKey) {
+    setPrevReqKey(reqKey);
     setState("loading");
     setItems([]);
     setHasNext(false);
     setLoadMoreFailed(false);
+    setLoadingMore(false);
+  }
+
+  useEffect(() => {
+    const token = ++reqRef.current;
+    pageRef.current = 1;
     fetchPage(config, sourceId, mode, query, 1)
       .then((res) => {
         if (token !== reqRef.current) return;

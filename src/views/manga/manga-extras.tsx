@@ -45,15 +45,16 @@ export function MangaAdaptationCard({
   const { openMeta } = useViewActions();
   const t = useT();
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
-  const [adaptation, setAdaptation] = useState<MangaAdaptation | null>(null);
-  const [logo, setLogo] = useState<string | null>(null);
-  const [malScore, setMalScore] = useState<string | null>(null);
+  const [adaptationState, setAdaptationState] = useState<{
+    title: string;
+    value: MangaAdaptation | null;
+  } | null>(null);
+  const adaptation = adaptationState?.title === title ? adaptationState.value : null;
 
   useEffect(() => {
     let cancelled = false;
-    setAdaptation(null);
     void mangaAdaptation(title).then((a) => {
-      if (!cancelled) setAdaptation(a);
+      if (!cancelled) setAdaptationState({ title, value: a });
     });
     return () => {
       cancelled = true;
@@ -61,14 +62,19 @@ export function MangaAdaptationCard({
   }, [title]);
 
   const adaptationMalId = adaptation?.malId ?? null;
+  const [malScoreState, setMalScoreState] = useState<{
+    malId: NonNullable<MangaAdaptation["malId"]>;
+    score: string;
+  } | null>(null);
+  const malScore =
+    adaptationMalId && malScoreState?.malId === adaptationMalId ? malScoreState.score : null;
 
   useEffect(() => {
-    let cancelled = false;
-    setMalScore(null);
     if (!adaptationMalId) return;
+    let cancelled = false;
     void jikanScore(adaptationMalId)
       .then((s) => {
-        if (!cancelled && s) setMalScore(s);
+        if (!cancelled && s) setMalScoreState({ malId: adaptationMalId, score: s });
       })
       .catch(() => {});
     return () => {
@@ -81,24 +87,29 @@ export function MangaAdaptationCard({
   const adaptationKind = adaptation?.format === "MOVIE" ? "movie" : "series";
   const adaptationPoster = adaptation?.cover;
   const tmdbKey = settings.tmdbKey ?? "";
+  const logoKey =
+    adaptationId && adaptationName
+      ? `${adaptationId}\0${adaptationName}\0${adaptationKind}\0${adaptationPoster ?? ""}\0${tmdbKey}`
+      : null;
+  const [logoState, setLogoState] = useState<{ key: string; url: string | null } | null>(null);
+  const logo = logoKey && logoState?.key === logoKey ? logoState.url : null;
 
   useEffect(() => {
+    if (!logoKey || !adaptationId || !adaptationName) return;
     let cancelled = false;
-    setLogo(null);
-    if (!adaptationId || !adaptationName) return;
     void resolveLogo(
       tmdbKey,
       { id: adaptationId, type: adaptationKind, name: adaptationName, poster: adaptationPoster },
       { preferOwn: true },
     )
       .then((url) => {
-        if (!cancelled && url) setLogo(url);
+        if (!cancelled && url) setLogoState({ key: logoKey, url });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [adaptationId, adaptationName, adaptationKind, adaptationPoster, tmdbKey]);
+  }, [logoKey, adaptationId, adaptationName, adaptationKind, adaptationPoster, tmdbKey]);
 
   const coverage = info && chapters ? coverageOf(info, chapters) : null;
   if (!adaptation && !coverage) return null;
@@ -164,7 +175,7 @@ export function MangaAdaptationCard({
                     src={logo}
                     alt={adaptation.title}
                     draggable={false}
-                    onError={() => setLogo(null)}
+                    onError={() => setLogoState(logoKey ? { key: logoKey, url: null } : null)}
                     className="max-h-[54px] w-auto max-w-[260px] object-contain object-left drop-shadow-[0_3px_14px_rgba(0,0,0,0.55)]"
                   />
                 ) : (
@@ -227,13 +238,16 @@ export function MangaRecommendedRail({
   onOpen: (mangaId: string) => void;
 }) {
   const t = useT();
-  const [items, setItems] = useState<MangaSummary[] | null>(null);
+  const [itemsState, setItemsState] = useState<{
+    title: string;
+    items: MangaSummary[];
+  } | null>(null);
+  const items = itemsState?.title === title ? itemsState.items : null;
 
   useEffect(() => {
     let cancelled = false;
-    setItems(null);
     void similarManga(title).then((list) => {
-      if (!cancelled) setItems(list);
+      if (!cancelled) setItemsState({ title, items: list });
     });
     return () => {
       cancelled = true;

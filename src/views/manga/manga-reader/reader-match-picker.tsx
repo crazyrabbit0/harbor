@@ -35,7 +35,8 @@ export function ReaderMatchPicker({
   const [query, setQuery] = useState(title);
   const [debounced, setDebounced] = useState(title);
   const [hits, setHits] = useState<MangaCandidate[] | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [manualBusy, setManualBusy] = useState(false);
+  const [resolvedEffectKey, setResolvedEffectKey] = useState<string | null>(null);
   const [linkingId, setLinkingId] = useState<string | null>(null);
   const confirmedRef = useRef(false);
   const activeRef = useRef(active);
@@ -44,6 +45,9 @@ export function ReaderMatchPicker({
   }, [active]);
   const [done, setDone] = useState<ReadonlySet<MangaTracker>>(() => new Set());
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const effectKey = `${searchTracker}\0${debounced}`;
+  const busy = manualBusy || resolvedEffectKey !== effectKey;
 
   useEffect(() => {
     inputRef.current?.focus();
@@ -57,6 +61,7 @@ export function ReaderMatchPicker({
       setQuery(title);
       setDebounced(title);
       setHits(null);
+      setManualBusy(false);
       setLinkingId(null);
       confirmedRef.current = false;
     },
@@ -80,7 +85,7 @@ export function ReaderMatchPicker({
 
   const load = useCallback(async (q: string) => {
     const tracker = activeRef.current;
-    setBusy(true);
+    setManualBusy(true);
     const work = async () => {
       const res = await searchCandidates(tracker, q);
       if (activeRef.current === tracker) setHits(res);
@@ -90,7 +95,7 @@ export function ReaderMatchPicker({
         if (activeRef.current === tracker) setHits([]);
       })
       .finally(() => {
-        if (activeRef.current === tracker) setBusy(false);
+        if (activeRef.current === tracker) setManualBusy(false);
       });
   }, []);
 
@@ -100,8 +105,21 @@ export function ReaderMatchPicker({
   }, [query, title]);
 
   useEffect(() => {
-    void load(debounced);
-  }, [debounced, load, searchTracker]);
+    let alive = true;
+    searchCandidates(searchTracker, debounced)
+      .then((res) => {
+        if (alive && activeRef.current === searchTracker) setHits(res);
+      })
+      .catch(() => {
+        if (alive && activeRef.current === searchTracker) setHits([]);
+      })
+      .finally(() => {
+        if (alive) setResolvedEffectKey(effectKey);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [debounced, searchTracker, effectKey]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

@@ -20,6 +20,11 @@ export function ReaderPageJump({
   const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
+  const [prevPage, setPrevPage] = useState(currentPage);
+  if (prevPage !== currentPage) {
+    setPrevPage(currentPage);
+    if (editing) setDraft(String(currentPage + 1));
+  }
   const [mounted, setMounted] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const committed = useRef(false);
@@ -32,7 +37,6 @@ export function ReaderPageJump({
   useEffect(() => {
     if (!editing) return;
     committed.current = false;
-    setDraft(String(currentPage + 1));
     const id = requestAnimationFrame(() => inputRef.current?.select());
     return () => cancelAnimationFrame(id);
   }, [editing, currentPage]);
@@ -93,7 +97,10 @@ export function ReaderPageJump({
         ) : (
           <button
             type="button"
-            onClick={() => setEditing(true)}
+            onClick={() => {
+              setDraft(String(currentPage + 1));
+              setEditing(true);
+            }}
             aria-label={t("Page {page} of {count}, tap to jump", {
               page: currentPage + 1,
               count: totalPages,

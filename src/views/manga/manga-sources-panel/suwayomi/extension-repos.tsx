@@ -42,13 +42,15 @@ export function ExtensionRepos({
   onChanged: () => void;
 }) {
   const t = useT();
-  const [supported, setSupported] = useState<boolean | null>(null);
+  const key = `${config.baseUrl}|${config.auth?.username ?? ""}`;
+  const [supportState, setSupportState] = useState<{ key: string; supported: boolean } | null>(
+    null,
+  );
+  const supported = supportState?.key === key ? supportState.supported : null;
   const [repos, setRepos] = useState<ExtensionRepo[]>([]);
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const key = `${config.baseUrl}|${config.auth?.username ?? ""}`;
 
   const refresh = () => {
     listExtensionRepos(config)
@@ -64,17 +66,18 @@ export function ExtensionRepos({
   useEffect(() => {
     let cancelled = false;
     const config = configRef.current;
-    setSupported(null);
     reposSupported(config)
       .then((ok) => {
         if (cancelled) return;
-        setSupported(ok);
+        setSupportState({ key, supported: ok });
         if (ok)
           listExtensionRepos(config)
             .then(setRepos)
             .catch(() => setRepos([]));
       })
-      .catch(() => !cancelled && setSupported(false));
+      .catch(() => {
+        if (!cancelled) setSupportState({ key, supported: false });
+      });
     return () => {
       cancelled = true;
     };

@@ -173,8 +173,13 @@ export function AllExtensionsView({
   const t = useT();
   const { items: favs } = useMangaFavorites();
   const config = useMemo<ServerConfig>(() => ({ baseUrl: activeMangaSource()?.baseUrl ?? "" }), []);
-  const [sources, setSources] = useState<SuwayomiSource[] | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [result, setResult] = useState<{
+    key: ServerConfig;
+    sources: SuwayomiSource[] | null;
+    failed: boolean;
+  } | null>(null);
+  const sources = result?.key === config ? result.sources : null;
+  const failed = result?.key === config ? result.failed : false;
   const [langFilter, setLangFilter] = useState<string[]>(() => loadMangaLangFilter(config.baseUrl));
 
   useEffect(
@@ -187,23 +192,21 @@ export function AllExtensionsView({
 
   useEffect(() => {
     let alive = true;
-    setFailed(false);
-    setSources(null);
     cachedSuwayomiSources(config)
       .then((list) => {
-        if (alive) setSources(list);
+        if (alive) setResult({ key: config, sources: list, failed: false });
       })
       .catch(() => {
-        if (alive) setFailed(true);
+        if (alive) setResult({ key: config, sources: null, failed: true });
       });
     const unsub = subscribeSuwayomiSourcesChanged(() => {
       invalidateSuwayomiSources(config.baseUrl);
       cachedSuwayomiSources(config)
         .then((list) => {
-          if (alive) setSources(list);
+          if (alive) setResult({ key: config, sources: list, failed: false });
         })
         .catch(() => {
-          if (alive) setFailed(true);
+          if (alive) setResult({ key: config, sources: null, failed: true });
         });
     });
     return () => {

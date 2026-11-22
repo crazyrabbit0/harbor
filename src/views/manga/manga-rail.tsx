@@ -31,16 +31,12 @@ export function MangaRail({
 }) {
   const [loaded, setLoaded] = useState<MangaSummary[] | null>(null);
   const items = preloaded ?? loaded;
-  const [seen, setSeen] = useState(false);
+  const [seen, setSeen] = useState(() => typeof IntersectionObserver === "undefined");
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
     const el = sectionRef.current;
     if (!el || seen) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setSeen(true);
-      return;
-    }
     const obs = new IntersectionObserver(
       (entries) => {
         if (entries[0]?.isIntersecting) setSeen(true);

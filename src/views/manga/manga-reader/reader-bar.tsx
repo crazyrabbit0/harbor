@@ -171,14 +171,12 @@ function ChapterMenu({
   const t = useT();
   const [open, setOpen] = useState(false);
   const [shown, setShown] = useState(false);
+  if (!open && shown) setShown(false);
   const ref = useRef<HTMLDivElement>(null);
   const activeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!open) {
-      setShown(false);
-      return;
-    }
+    if (!open) return;
     const raf = requestAnimationFrame(() => {
       setShown(true);
       activeRef.current?.scrollIntoView({ block: "center" });

@@ -74,21 +74,22 @@ export function enrichManga(detail: MangaSummary | null, info: MangaUpdatesInfo 
 }
 
 export function useMangaUpdates(title?: string): MangaUpdatesInfo | null {
-  const [info, setInfo] = useState<MangaUpdatesInfo | null>(null);
+  const [state, setState] = useState<{ title: string; info: MangaUpdatesInfo | null } | null>(null);
   useEffect(() => {
-    setInfo(null);
     if (!title) return;
     let cancelled = false;
     void mangaUpdatesFor(title)
       .then((res) => {
-        if (!cancelled) setInfo(res);
+        if (!cancelled) setState({ title, info: res });
       })
-      .catch(() => setInfo(null));
+      .catch(() => {
+        if (!cancelled) setState({ title, info: null });
+      });
     return () => {
       cancelled = true;
     };
   }, [title]);
-  return info;
+  return title && state?.title === title ? state.info : null;
 }
 
 export function MangaUpdatesRank({ rank, onClick }: { rank: number; onClick: () => void }) {

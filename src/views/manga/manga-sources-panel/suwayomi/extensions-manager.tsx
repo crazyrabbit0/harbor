@@ -13,7 +13,7 @@ import { CARD, INPUT } from "../shared";
 import { ExtensionRow } from "./extension-row";
 import { ExtensionRepos } from "./extension-repos";
 
-type Load = { state: "loading" | "ready" | "error"; items: SuwayomiExtension[] };
+type Load = { key: string; state: "ready" | "error"; items: SuwayomiExtension[] };
 
 // Updates every extension in turn; one the server refuses must not stop the rest of the batch.
 async function updateEach(
@@ -118,9 +118,11 @@ function Group({
 
 export function ExtensionsManager({ config }: { config: ServerConfig }) {
   const t = useT();
-  const [load, setLoad] = useState<Load>({ state: "loading", items: [] });
   const [query, setQuery] = useState("");
   const [reload, setReload] = useState(0);
+  const reqKey = `${config.baseUrl}\0${config.auth?.username ?? ""}\0${config.auth?.password ?? ""}\0${reload}`;
+  const [load, setLoad] = useState<Load>({ key: "", state: "ready", items: [] });
+  const loadState = load.key === reqKey ? load.state : "loading";
   const [availableExpanded, setAvailableExpanded] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [updatedCount, setUpdatedCount] = useState(0);
@@ -132,18 +134,17 @@ export function ExtensionsManager({ config }: { config: ServerConfig }) {
 
   useEffect(() => {
     let cancelled = false;
-    setLoad((prev) => ({ state: "loading", items: prev.items }));
     listExtensions(config)
       .then((items) => {
-        if (!cancelled) setLoad({ state: "ready", items });
+        if (!cancelled) setLoad({ key: reqKey, state: "ready", items });
       })
       .catch(() => {
-        if (!cancelled) setLoad((prev) => ({ state: "error", items: prev.items }));
+        if (!cancelled) setLoad((prev) => ({ key: reqKey, state: "error", items: prev.items }));
       });
     return () => {
       cancelled = true;
     };
-  }, [config.baseUrl, config.auth?.username, config.auth?.password, reload]);
+  }, [config.baseUrl, config.auth?.username, config.auth?.password, reload, reqKey]);
 
   const filtered = useMemo(
     () => load.items.filter((e) => matches(e, query.trim())),
@@ -182,7 +183,7 @@ export function ExtensionsManager({ config }: { config: ServerConfig }) {
           aria-label={t("Refresh extensions")}
           className="grid h-8 w-8 place-items-center rounded-lg bg-raised text-ink-subtle ring-1 ring-edge-soft transition-all hover:text-ink active:scale-95 motion-reduce:active:scale-100"
         >
-          <RefreshCw size={15} className={load.state === "loading" ? "animate-spin" : ""} />
+          <RefreshCw size={15} className={loadState === "loading" ? "animate-spin" : ""} />
         </button>
       </div>
 
@@ -204,12 +205,12 @@ export function ExtensionsManager({ config }: { config: ServerConfig }) {
         />
       </div>
 
-      {load.state === "error" && load.items.length === 0 ? (
+      {loadState === "error" && load.items.length === 0 ? (
         <div className={`flex items-center justify-center gap-2 py-10 text-ink-muted ${CARD}`}>
           <AlertCircle size={16} className="text-danger" />
           <span className="text-[13.5px]">{t("Could not reach this server")}</span>
         </div>
-      ) : load.state === "loading" && load.items.length === 0 ? (
+      ) : loadState === "loading" && load.items.length === 0 ? (
         <div className={`flex items-center justify-center gap-2.5 py-10 text-ink-subtle ${CARD}`}>
           <Loader2 size={17} className="animate-spin" />
           <span className="text-[13.5px]">{t("Loading extensions...")}</span>
