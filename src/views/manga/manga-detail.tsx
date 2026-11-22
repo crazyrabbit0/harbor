@@ -196,7 +196,23 @@ export function MangaDetail({
   const [backdrop, setBackdrop] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [topMangaOpen, setTopMangaOpen] = useState(false);
-  const [extInfo, setExtInfo] = useState<{ name: string; icon?: string } | null>(null);
+  const [extState, setExtState] = useState<{
+    mangaId: string;
+    info: { name: string; icon?: string } | null;
+  } | null>(null);
+  const extInfo = extState?.mangaId === mangaId ? extState.info : null;
+
+  const loadKey = `${mangaId}\0${retryTick}`;
+  const [loadedKey, setLoadedKey] = useState(loadKey);
+  if (loadedKey !== loadKey) {
+    setLoadedKey(loadKey);
+    setDetail(null);
+    setChapters([]);
+    setDetailPending(true);
+    setChaptersPending(true);
+    setBackdrop(null);
+    setExpanded(false);
+  }
 
   const favorites = useMangaFavorites();
   const isFavorite = useIsMangaFavorite(mangaId);
@@ -204,7 +220,6 @@ export function MangaDetail({
 
   useEffect(() => {
     let alive = true;
-    setExtInfo(null);
     const parsed = decodeMangaId(mangaId);
     if (!parsed) return;
     const base = suwayomiBaseForSource(parsed.sourceId);
@@ -213,7 +228,8 @@ export function MangaDetail({
       .then((list) => {
         if (!alive) return;
         const source = list.find((s) => s.id === parsed.sourceId);
-        if (source) setExtInfo({ name: sourceDisplayName(source), icon: source.iconUrl });
+        if (source)
+          setExtState({ mangaId, info: { name: sourceDisplayName(source), icon: source.iconUrl } });
       })
       .catch(() => {});
     return () => {
@@ -223,12 +239,6 @@ export function MangaDetail({
 
   useEffect(() => {
     let cancelled = false;
-    setDetail(null);
-    setChapters([]);
-    setDetailPending(true);
-    setChaptersPending(true);
-    setBackdrop(null);
-    setExpanded(false);
     langInitRef.current = false;
 
     mangaDetail(mangaId)

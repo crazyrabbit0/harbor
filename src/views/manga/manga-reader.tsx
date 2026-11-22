@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BookOpen, Bookmark, Download, EyeOff } from "lucide-react";
 import { chapterPages, type MangaChapter } from "@/lib/manga/api";
@@ -88,12 +88,14 @@ export function MangaReader({
 }) {
   const chapter = chapters[index];
   const t = useT();
-  const [pages, setPages] = useState<MangaPage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
+  const [pages, setPages] = useState<MangaPage[]>(() => pagesOverride ?? []);
+  const [loading, setLoading] = useState(() => !pagesOverride);
+  const [failed, setFailed] = useState(() => (pagesOverride ? !pagesOverride.length : false));
   const [reloadTick, setReloadTick] = useState(0);
   const [prefs, setPrefs] = useState<ReaderPrefs>(() => loadPrefs(prefsKey));
-  const [currentPage, setCurrentPage] = useState(0);
+  const [currentPage, setCurrentPage] = useState(() =>
+    pagesOverride ? Math.max(0, Math.min(pagesOverride.length - 1, startPage ?? 0)) : 0,
+  );
   const [pagesHidden, setPagesHidden] = useState(false);
   const [exitLocalSeq, setExitLocalSeq] = useState(0);
   const [bookSpread, setBookSpread] = useState("");
@@ -101,18 +103,22 @@ export function MangaReader({
   const [manualHide, setManualHide] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
-  const [matchQueue, setMatchQueue] = useState<MangaMatchRequest[]>([]);
-  const [hintDismissed, setHintDismissed] = useState(false);
-  useEffect(() => setHintDismissed(false), [index]);
+  const [dismissedForIndex, setDismissedForIndex] = useState<number | null>(null);
+  const hintDismissed = dismissedForIndex === index;
   const [pickBookmark, setPickBookmark] = useState(false);
   const [autoLong, setAutoLong] = useState(false);
   const fullscreen = useWindowFullscreen();
   const [edge, setEdge] = useState({ top: false, bottom: false });
+  const [prevFocusMode, setPrevFocusMode] = useState(prefs.focusMode);
+  const [prevChapterId, setPrevChapterId] = useState(chapter.id);
+  const [prevPagesOverride, setPrevPagesOverride] = useState(pagesOverride);
+  const [prevReloadTick, setPrevReloadTick] = useState(reloadTick);
+  const [prevStartPage, setPrevStartPage] = useState(startPage);
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageEls = useRef<Array<HTMLDivElement | null>>([]);
   const hideTimer = useRef<number | undefined>(undefined);
-  const didSeek = useRef(false);
-  const settled = useRef(false);
+  const didSeek = useRef(!!pagesOverride);
+  const settled = useRef(!!pagesOverride);
   const bookApi = useRef<BookApi | null>(null);
   const pendingBookPage = useRef<number | null>(null);
   const { activeId } = useProfiles();
@@ -122,32 +128,55 @@ export function MangaReader({
   const fullscreenBinding = effectiveBinding("mangaFullscreen", settings.hotkeys);
 
   const titleKey = manga.title ? normalizeMatchTitle(manga.title) : "";
-  const hasStoredDecision = useCallback(
-    (tracker: MangaTracker) => {
-      return getMangaMatchEntry(pid, tracker, titleKey) != null;
-    },
-    [pid, titleKey],
-  );
-  const enqueueMatchWith = useCallback(
-    (trackers: MangaTracker[]) => {
-      setMatchQueue((q) => {
-        const next = [...q];
-        for (const tracker of trackers) {
-          if (!next.some((r) => r.tracker === tracker)) {
-            next.push({ tracker, title: manga.title, chapter: 0 });
-          }
+  const matchKey = `${manga.id}\0${pid}\0${titleKey}`;
+  const [matchState, setMatchState] = useState<{
+    key: string;
+    queue: MangaMatchRequest[];
+  }>(() => ({ key: matchKey, queue: pendingMatchesFor(pid, manga.title, titleKey) }));
+  const matchQueue =
+    matchState.key === matchKey ? matchState.queue : pendingMatchesFor(pid, manga.title, titleKey);
+
+  if (prevFocusMode !== prefs.focusMode) {
+    setPrevFocusMode(prefs.focusMode);
+    if (!prefs.focusMode) setEdge({ top: false, bottom: false });
+  }
+  if (
+    prevChapterId !== chapter.id ||
+    prevPagesOverride !== pagesOverride ||
+    prevReloadTick !== reloadTick ||
+    prevStartPage !== startPage
+  ) {
+    setPrevChapterId(chapter.id);
+    setPrevPagesOverride(pagesOverride);
+    setPrevReloadTick(reloadTick);
+    setPrevStartPage(startPage);
+    setBookSpread("");
+    setAutoLong(false);
+    if (pagesOverride) {
+      setPages(pagesOverride);
+      setFailed(!pagesOverride.length);
+      setLoading(false);
+      setCurrentPage(Math.max(0, Math.min(pagesOverride.length - 1, startPage ?? 0)));
+    } else {
+      setLoading(true);
+      setFailed(false);
+      setPages([]);
+      setCurrentPage(0);
+    }
+  }
+  const enqueueMatchWith = (trackers: MangaTracker[]) => {
+    setMatchState((prev) => {
+      const base =
+        prev.key === matchKey ? prev.queue : pendingMatchesFor(pid, manga.title, titleKey);
+      const next = [...base];
+      for (const tracker of trackers) {
+        if (!next.some((r) => r.tracker === tracker)) {
+          next.push({ tracker, title: manga.title, chapter: 0 });
         }
-        return next;
-      });
-    },
-    [manga.title],
-  );
-  const enqueueMatch = useCallback(
-    (trackers: MangaTracker[]) => {
-      enqueueMatchWith(trackers.filter((tr) => !hasStoredDecision(tr)));
-    },
-    [enqueueMatchWith, hasStoredDecision],
-  );
+      }
+      return { key: matchKey, queue: next };
+    });
+  };
 
   const total = pages.length;
   const pageUrls = useMemo(() => pages.map((p) => p.url), [pages]);
@@ -243,24 +272,14 @@ export function MangaReader({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setFailed(false);
-    setPages([]);
-    setCurrentPage(0);
-    setBookSpread("");
-    setAutoLong(false);
-    settled.current = false;
     pageEls.current = [];
     scrollRef.current?.scrollTo({ top: 0, left: 0 });
     if (pagesOverride) {
-      setPages(pagesOverride);
-      setFailed(!pagesOverride.length);
-      setLoading(false);
-      setCurrentPage(Math.max(0, Math.min(pagesOverride.length - 1, startPage ?? 0)));
       didSeek.current = true;
       settled.current = true;
       return;
     }
+    settled.current = false;
     downloadedPages(chapter.id)
       .then((local) => local ?? chapterPages(chapter.id))
       .then((urls) => {
@@ -349,10 +368,7 @@ export function MangaReader({
   }, []);
 
   useEffect(() => {
-    if (!prefs.focusMode) {
-      setEdge({ top: false, bottom: false });
-      return;
-    }
+    if (!prefs.focusMode) return;
     const onMove = (e: MouseEvent) => {
       const h = window.innerHeight;
       setEdge({ top: e.clientY <= 56, bottom: e.clientY >= h - 64 });
@@ -540,10 +556,6 @@ export function MangaReader({
       enqueueMatchWith([req.tracker]);
     });
   }, [manga.title]);
-
-  useEffect(() => {
-    enqueueMatch(connectedTrackers());
-  }, [manga.id, enqueueMatch]);
 
   const pStyle = pageStyle(prefs.fit, prefs.zoom);
   const longStyle = { width: "100%", maxWidth: `${Math.round(880 * prefs.zoom)}px` };
@@ -1101,7 +1113,7 @@ export function MangaReader({
           atLastChapter={atLastChapter}
           nextLabel={nextIndex != null ? chapterLabel(chapters[nextIndex]) : undefined}
           onNext={() => nextIndex != null && onChangeIndex(nextIndex)}
-          onDismiss={() => setHintDismissed(true)}
+          onDismiss={() => setDismissedForIndex(index)}
         />
       )}
 
@@ -1182,7 +1194,7 @@ export function MangaReader({
           pid={pid}
           trackers={matchQueue.map((r) => r.tracker)}
           shortcut={formatBindingForDisplay(matchBinding)}
-          onClose={() => setMatchQueue([])}
+          onClose={() => setMatchState({ key: matchKey, queue: [] })}
         />
       )}
 
@@ -1245,4 +1257,10 @@ function connectedTrackers(): MangaTracker[] {
   if (anilistMangaAuthed()) out.push("anilist");
   if (malMangaAuthed()) out.push("mal");
   return out;
+}
+
+function pendingMatchesFor(pid: string, title: string, titleKey: string): MangaMatchRequest[] {
+  return connectedTrackers()
+    .filter((tr) => getMangaMatchEntry(pid, tr, titleKey) == null)
+    .map((tracker) => ({ tracker, title, chapter: 0 }));
 }

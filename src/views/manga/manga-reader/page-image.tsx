@@ -30,9 +30,11 @@ export function PageImage({
   const [nativeFallback, setNativeFallback] = useState(false);
   const autoRetried = useRef(false);
   const [prevUrl, setPrevUrl] = useState(url);
+  const [prevHeaders, setPrevHeaders] = useState(headers);
 
   const wantHeaderFetch = isTauri && !!headers && Object.keys(headers).length > 0 && !headerFailed;
   const nativeFetch = wantHeaderFetch || (isTauri && nativeFallback);
+  const [prevNativeFetch, setPrevNativeFetch] = useState(nativeFetch);
 
   const failHeaders = () => {
     setBlobUrl(null);
@@ -46,6 +48,14 @@ export function PageImage({
     setBlobUrl(null);
     setHeaderFailed(false);
     setNativeFallback(false);
+  }
+  if (prevHeaders !== headers) {
+    setPrevHeaders(headers);
+    if (nativeFetch) setStatus("loading");
+  }
+  if (prevNativeFetch !== nativeFetch) {
+    setPrevNativeFetch(nativeFetch);
+    if (nativeFetch) setStatus("loading");
   }
 
   // A new url starts a fresh auto-retry budget.
@@ -67,7 +77,6 @@ export function PageImage({
     if (!nativeFetch) return;
     let alive = true;
     let created: string | null = null;
-    setStatus("loading");
     fetchImageObjectUrl(url, wantHeaderFetch && headers ? headers : IMAGE_FALLBACK_HEADERS)
       .then((obj) => {
         if (!alive) {

@@ -74,9 +74,7 @@ export function MangaBrowse({
   const { items: favItems } = useMangaFavorites();
   const [items, setItems] = useState<MangaSummary[]>([]);
   const [searchGroups, setSearchGroups] = useState<SearchResultGroup[]>([]);
-  const [status, setStatus] = useState<Status>("loading");
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const [reloadTick, setReloadTick] = useState(0);
   const [orderedIds, setOrderedIds] = useState<string[]>(() =>
     loadSuwayomiSourceOrder(activeMangaSource()?.baseUrl ?? ""),
@@ -124,6 +122,27 @@ export function MangaBrowse({
   const activeSource = activeMangaSource();
   const allExtensionsMode = tagId === "" && !query.trim() && activeSource?.kind === "suwayomi";
   const extensionsSearchMode = !!query.trim() && tagId === "" && activeSource?.kind === "suwayomi";
+  const immediateReady = tagId === FAVORITES || allExtensionsMode;
+  const [status, setStatus] = useState<Status>(() => (immediateReady ? "ready" : "loading"));
+  const [hasMore, setHasMore] = useState(() => !immediateReady && !extensionsSearchMode);
+  const fetchKey = `${query}\0${tagId}\0${reloadTick}\0${allExtensionsMode ? 1 : 0}\0${extensionsSearchMode ? 1 : 0}`;
+  const [prevFetchKey, setPrevFetchKey] = useState(fetchKey);
+  if (prevFetchKey !== fetchKey) {
+    setPrevFetchKey(fetchKey);
+    setItems([]);
+    setLoadingMore(false);
+    if (immediateReady) {
+      setHasMore(false);
+      setStatus("ready");
+    } else if (extensionsSearchMode) {
+      setStatus("loading");
+      setSearchGroups([]);
+      setHasMore(false);
+    } else {
+      setStatus("loading");
+      setHasMore(true);
+    }
+  }
 
   useEffect(
     () =>
@@ -159,27 +178,10 @@ export function MangaBrowse({
 
   useEffect(() => {
     const id = ++reqRef.current;
-    if (tagId === FAVORITES) {
-      setItems([]);
-      offsetRef.current = 0;
-      setHasMore(false);
-      setStatus("ready");
-      return;
-    }
-    if (allExtensionsMode) {
-      setItems([]);
-      offsetRef.current = 0;
-      setHasMore(false);
-      setStatus("ready");
-      return;
-    }
+    offsetRef.current = 0;
+    if (tagId === FAVORITES || allExtensionsMode) return;
+    seenRef.current = new Set();
     if (extensionsSearchMode) {
-      setStatus("loading");
-      setItems([]);
-      setSearchGroups([]);
-      offsetRef.current = 0;
-      seenRef.current = new Set();
-      setHasMore(false);
       const timer = window.setTimeout(() => {
         const config = { baseUrl: activeMangaSource()?.baseUrl ?? "" };
         void cachedSuwayomiSources(config)
@@ -232,11 +234,6 @@ export function MangaBrowse({
       }, 350);
       return () => window.clearTimeout(timer);
     }
-    setStatus("loading");
-    setItems([]);
-    offsetRef.current = 0;
-    seenRef.current = new Set();
-    setHasMore(true);
     const timer = window.setTimeout(
       () => {
         let any = false;

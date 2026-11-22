@@ -6,6 +6,10 @@ export function setMangaReadIntent(entry: MangaProgressEntry): void {
   pending = entry;
 }
 
+export function peekMangaReadIntent(mangaId: string): MangaProgressEntry | null {
+  return pending && pending.id === mangaId ? pending : null;
+}
+
 export function takeMangaReadIntent(mangaId: string): MangaProgressEntry | null {
   const p = pending;
   pending = null;

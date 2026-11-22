@@ -128,6 +128,8 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/library/",
   "/src/views/live.tsx",
   "/src/views/live/",
+  "/src/views/manga.tsx",
+  "/src/views/manga/",
   "/src/views/movies.tsx",
   "/src/views/movies/",
   "/src/views/multiview.tsx",

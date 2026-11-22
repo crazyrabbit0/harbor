@@ -28,7 +28,7 @@ import {
 import { listMangaProgress, type MangaProgressEntry } from "@/lib/manga-progress";
 import { chapterNumberKey } from "@/lib/manga/chapter-identity";
 import { useProfiles } from "@/lib/profiles";
-import { takeMangaReadIntent } from "@/lib/manga/read-intent";
+import { peekMangaReadIntent, takeMangaReadIntent } from "@/lib/manga/read-intent";
 import { MangaHero } from "./manga/manga-hero";
 import { MangaBootstrap, MangaBootstrapError } from "./manga/manga-boot";
 import { MangaBrowse } from "./manga/manga-browse";
@@ -110,6 +110,13 @@ export function MangaView() {
   const [mode, setMode] = useState<Mode>(
     mangaId ? { screen: "detail", mangaId } : { screen: "browse" },
   );
+  const [handledMangaId, setHandledMangaId] = useState(mangaId);
+  if (handledMangaId !== mangaId) {
+    setHandledMangaId(mangaId);
+    if (mangaId && !peekMangaReadIntent(mangaId)) {
+      setMode({ screen: "detail", mangaId });
+    }
+  }
   const [featured, setFeatured] = useState<MangaSummary[]>([]);
   const [sourceTick, setSourceTick] = useState(0);
   const downloadsCount = useMangaDownloadsCount();
@@ -188,7 +195,6 @@ export function MangaView() {
     if (!mangaId) return;
     const intent = takeMangaReadIntent(mangaId);
     if (intent) resumeRef.current(intent);
-    else setMode({ screen: "detail", mangaId });
   }, [mangaId]);
 
   useEffect(() => {

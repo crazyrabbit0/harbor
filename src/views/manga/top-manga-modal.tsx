@@ -103,12 +103,20 @@ export function TopMangaModal({
     [collection],
   );
 
+  const loadKey = open ? `${collection.id}\0${reloadNonce}` : "";
+  const [prevLoadKey, setPrevLoadKey] = useState(loadKey);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
+    if (open) {
+      setItems([]);
+      setDone(false);
+      setError(false);
+    }
+  }
+
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    setItems([]);
-    setDone(false);
-    setError(false);
     streamCollection(collection, (chunk) => {
       if (cancelled || chunk.length === 0) return;
       setItems((prev) => {

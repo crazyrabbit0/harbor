@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Check, ChevronDown, Languages } from "lucide-react";
 import { useT } from "@/lib/i18n";
+import { readAtVersion } from "@/lib/read-at-version";
 import { activeMangaSource } from "@/lib/manga/sources";
 import { languageName } from "@/lib/manga/types";
 import {
@@ -8,6 +9,7 @@ import {
   cachedSuwayomiSources,
   isAgnosticLang,
   loadMangaLangFilter,
+  mangaLangFilterRevision,
   saveMangaLangFilter,
   subscribeMangaLangFilter,
 } from "./langs";
@@ -23,19 +25,13 @@ export function LanguageDropdown() {
   const t = useT();
   const [open, setOpen] = useState(false);
   const serverBase = activeMangaSource()?.baseUrl;
-  const [filter, setFilter] = useState<string[]>(() => loadMangaLangFilter(serverBase));
+  const rev = useSyncExternalStore(subscribeMangaLangFilter, mangaLangFilterRevision);
+  const filter = useMemo(
+    () => readAtVersion(rev, () => loadMangaLangFilter(serverBase)),
+    [serverBase, rev],
+  );
   const [langs, setLangs] = useState<string[] | null>(null);
   const ref = useOutsideClose(open, () => setOpen(false));
-
-  useEffect(() => setFilter(loadMangaLangFilter(serverBase)), [serverBase]);
-
-  useEffect(
-    () =>
-      subscribeMangaLangFilter(() => {
-        setFilter(loadMangaLangFilter(serverBase));
-      }),
-    [serverBase],
-  );
 
   useEffect(() => {
     if (!open) return;

@@ -33,29 +33,32 @@ export function SourcePicker({
   onPick: (source: SuwayomiSource) => void;
 }) {
   const t = useT();
-  const [state, setState] = useState<"loading" | "ready" | "error">("loading");
-  const [sources, setSources] = useState<SuwayomiSource[]>([]);
   const [query, setQuery] = useState("");
   const [reload, setReload] = useState(0);
+  const reqKey = `${config.baseUrl}\0${config.auth?.username ?? ""}\0${config.auth?.password ?? ""}\0${reload}`;
+  const [load, setLoad] = useState<{
+    key: string;
+    state: "ready" | "error";
+    sources: SuwayomiSource[];
+  }>({ key: "", state: "ready", sources: [] });
+  const state = load.key === reqKey ? load.state : "loading";
+  const sources = load.sources;
 
   useEffect(() => subscribeSuwayomiSourcesChanged(() => setReload((n) => n + 1)), []);
 
   useEffect(() => {
     let cancelled = false;
-    setState("loading");
     listSources(config)
       .then((list) => {
-        if (cancelled) return;
-        setSources(list);
-        setState("ready");
+        if (!cancelled) setLoad({ key: reqKey, state: "ready", sources: list });
       })
       .catch(() => {
-        if (!cancelled) setState("error");
+        if (!cancelled) setLoad((prev) => ({ key: reqKey, state: "error", sources: prev.sources }));
       });
     return () => {
       cancelled = true;
     };
-  }, [config.baseUrl, config.auth?.username, config.auth?.password, reload]);
+  }, [config.baseUrl, config.auth?.username, config.auth?.password, reload, reqKey]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

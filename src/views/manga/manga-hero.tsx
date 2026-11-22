@@ -32,10 +32,13 @@ export function MangaHero({
   const t = useT();
   const [active, setActive] = useState(0);
   const [shown, setShown] = useState(0);
-  const [visible, setVisible] = useState(true);
   const [paused, setPaused] = useState(false);
   const { toggle } = useMangaFavorites();
   const { open: openContextMenu } = useContextMenu();
+
+  if (active > 0 && active >= featured.length) setActive(0);
+  const safeActive = active < featured.length ? active : 0;
+  const visible = safeActive === shown;
 
   const pageVisible = usePageVisible();
   useEffect(() => {
@@ -45,18 +48,12 @@ export function MangaHero({
   }, [paused, featured.length, pageVisible]);
 
   useEffect(() => {
-    if (active >= featured.length) setActive(0);
-  }, [featured.length, active]);
-
-  useEffect(() => {
-    if (active === shown) return;
-    setVisible(false);
+    if (safeActive === shown) return;
     const timer = window.setTimeout(() => {
-      setShown(active);
-      setVisible(true);
+      setShown(safeActive);
     }, 280);
     return () => window.clearTimeout(timer);
-  }, [active, shown]);
+  }, [safeActive, shown]);
 
   const current = featured[shown];
   const fav = useIsMangaFavorite(current?.id);
@@ -226,7 +223,7 @@ export function MangaHero({
                 onClick={() => setActive(i)}
                 aria-label={t("Slide {n}", { n: i + 1 })}
                 className={`h-1.5 rounded-full transition-all duration-200 ${
-                  i === active ? "w-8 bg-accent" : "w-4 bg-ink-subtle/40 hover:bg-ink-subtle/70"
+                  i === safeActive ? "w-8 bg-accent" : "w-4 bg-ink-subtle/40 hover:bg-ink-subtle/70"
                 }`}
               />
             ))}
