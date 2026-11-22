@@ -45,8 +45,11 @@ export function EpisodeGridCard({
     showEpisodeRating: s.showEpisodeRating,
   }));
   const cardMeta = g.meta ?? meta;
-  const [imgIdx, setImgIdx] = useState(0);
-  useEffect(() => setImgIdx(0), [g.key]);
+  const [imgState, setImgState] = useState<{ key: string; idx: number }>({
+    key: g.key,
+    idx: 0,
+  });
+  const imgIdx = imgState.key === g.key ? imgState.idx : 0;
   const [preview, setPreview] = useState(false);
   const timer = useRef<number | undefined>(undefined);
   useEffect(() => () => window.clearTimeout(timer.current), []);
@@ -99,7 +102,9 @@ export function EpisodeGridCard({
               seed={g.key}
               ratio="landscape"
               lazy
-              onError={() => setImgIdx((i) => i + 1)}
+              onError={() =>
+                setImgState((s) => ({ key: g.key, idx: (s.key === g.key ? s.idx : 0) + 1 }))
+              }
             />
           </div>
           <span className="absolute start-2 top-2 rounded-md bg-canvas/95 px-1.5 py-0.5 text-[11px] font-semibold text-ink">

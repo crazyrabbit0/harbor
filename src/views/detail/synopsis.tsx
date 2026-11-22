@@ -1,27 +1,26 @@
 import { ChevronDown } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 
 export function Synopsis({ text }: { text: string }) {
   const t = useT();
-  const [expanded, setExpanded] = useState(false);
-  const [showToggle, setShowToggle] = useState(false);
+  const [expandedFor, setExpandedFor] = useState<string | null>(null);
+  const [toggleFor, setToggleFor] = useState<string | null>(null);
+  const expanded = expandedFor === text;
+  const showToggle = toggleFor === text;
   const ref = useRef<HTMLParagraphElement>(null);
 
-  useEffect(() => {
-    setExpanded(false);
-    setShowToggle(false);
-  }, [text]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (expanded) return;
     const el = ref.current;
     if (!el) return;
-    const check = () => {
-      if (el.scrollHeight > el.clientHeight + 1) setShowToggle(true);
-    };
-    check();
-    const ro = new ResizeObserver(check);
+    if (el.scrollHeight > el.clientHeight + 1) {
+      // oxlint-disable-next-line react/set-state-in-effect -- measures clamped text overflow from DOM geometry
+      setToggleFor(text);
+    }
+    const ro = new ResizeObserver(() => {
+      if (el.scrollHeight > el.clientHeight + 1) setToggleFor(text);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, [text, expanded]);
@@ -38,7 +37,7 @@ export function Synopsis({ text }: { text: string }) {
       {showToggle && (
         <button
           type="button"
-          onClick={() => setExpanded((e) => !e)}
+          onClick={() => setExpandedFor((cur) => (cur === text ? null : text))}
           className="mt-3 inline-flex items-center gap-1 text-[13px] font-medium text-ink-muted transition-colors hover:text-ink"
         >
           {expanded ? t("Show less") : t("Show more")}

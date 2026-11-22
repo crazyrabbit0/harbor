@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 function LogoLayer({
   url,
@@ -43,25 +43,26 @@ export function TitlePlate({
   const [failed, setFailed] = useState<Set<string>>(() => new Set());
   const active = logo && !failed.has(logo) ? logo : undefined;
   const [layers, setLayers] = useState<{ id: number; url: string }[]>([]);
-  const nextId = useRef(0);
-  const [settled, setSettled] = useState(false);
+  const [prevActive, setPrevActive] = useState<string | undefined>(undefined);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active) {
+      if (layers.length > 0) setLayers([]);
+    } else {
+      setLayers((prev) =>
+        prev[prev.length - 1]?.url === active
+          ? prev
+          : [...prev, { id: (prev[prev.length - 1]?.id ?? 0) + 1, url: active }],
+      );
+    }
+  }
+  const [settledFor, setSettledFor] = useState<string | null>(null);
+  const settled = settledFor === title;
 
   useEffect(() => {
-    setSettled(false);
-    const timer = setTimeout(() => setSettled(true), 700);
+    const timer = setTimeout(() => setSettledFor(title), 700);
     return () => clearTimeout(timer);
   }, [title]);
-
-  useEffect(() => {
-    if (!active) {
-      setLayers((prev) => (prev.length === 0 ? prev : []));
-      return;
-    }
-    const id = nextId.current++;
-    setLayers((prev) =>
-      prev[prev.length - 1]?.url === active ? prev : [...prev, { id, url: active }],
-    );
-  }, [active]);
 
   const settle = (id: number) =>
     setLayers((prev) => {

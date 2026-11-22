@@ -19,6 +19,8 @@ import {
   type TvdbEpisode,
 } from "@/lib/providers/tvdb";
 
+const EMPTY_PREF_VIDEOS = new Map<string, PreferredVideo>();
+
 export function useEpisodeEnrich({
   episodes,
   active,
@@ -45,21 +47,26 @@ export function useEpisodeEnrich({
   );
   const [omdbBySeason, setOmdbBySeason] = useState<Map<number, Map<number, number>>>(new Map());
   const [harborImdb, setHarborImdb] = useState<Map<string, number>>(new Map());
-  const [preferredVideos, setPreferredVideos] = useState<Map<string, PreferredVideo>>(new Map());
+  const prefKey = preferCustomMeta && metaId ? metaId : "";
+  const [prefState, setPrefState] = useState<{
+    key: string;
+    map: Map<string, PreferredVideo>;
+  } | null>(null);
 
   useEffect(() => {
-    setPreferredVideos((prev) => (prev.size === 0 ? prev : new Map<string, PreferredVideo>()));
-    if (!preferCustomMeta || !metaId) return;
+    if (!prefKey) return;
     let cancelled = false;
-    void preferredMeta("series", metaId).then((full) => {
+    void preferredMeta("series", prefKey).then((full) => {
       if (cancelled) return;
       const map = preferredVideoMap(full?.videos);
-      if (map.size > 0) setPreferredVideos(map);
+      if (map.size > 0) setPrefState({ key: prefKey, map });
     });
     return () => {
       cancelled = true;
     };
-  }, [metaId, preferCustomMeta]);
+  }, [prefKey]);
+
+  const preferredVideos = prefKey && prefState?.key === prefKey ? prefState.map : EMPTY_PREF_VIDEOS;
 
   useEffect(() => {
     if (!tvdbKey || !imdbId) return;

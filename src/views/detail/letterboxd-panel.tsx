@@ -103,47 +103,48 @@ function HalfStar({ size, className, dim }: { size: number; className?: string; 
 function LetterboxdPanelInner({ meta, imdbId }: { meta: Meta; imdbId: string | null }) {
   const t = useT();
   const lb = useLetterboxd();
-  const [info, setInfo] = useState<LetterboxdStreamInfo | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [unavailable, setUnavailable] = useState(false);
+  const [loaded, setLoaded] = useState<{
+    key: string;
+    info: LetterboxdStreamInfo | null;
+    unavailable: boolean;
+  } | null>(null);
   const [actionBusy, setActionBusy] = useState<string | null>(null);
   const [tick] = useState(0);
   const [showRater, setShowRater] = useState(false);
   const [pendingRating, setPendingRating] = useState<number | null>(null);
 
   const fallbackUrl = letterboxdFilmUrl(meta);
+  const id = imdbId ?? (meta.id.startsWith("tt") ? meta.id : null);
+  const fetchKey =
+    lb.isActive && meta.type !== "series" && id && lb.isFullConnected && lb.session
+      ? `${lb.session.userId}:${id}:${tick}`
+      : "";
 
   useEffect(() => {
-    if (!lb.isActive || meta.type === "series") return;
-    const id = imdbId ?? (meta.id.startsWith("tt") ? meta.id : null);
-    if (!id) return;
-    if (!lb.isFullConnected || !lb.session) return;
-
+    if (!fetchKey || !lb.session || !id) return;
     let cancelled = false;
-    setLoading(true);
-    setInfo(null);
-    setUnavailable(false);
 
     fetchLetterboxdStreams(lb.session.userId, id)
       .then((result) => {
         if (cancelled) return;
-        setInfo(result);
-        if (!result) setUnavailable(true);
+        setLoaded({ key: fetchKey, info: result, unavailable: !result });
       })
       .catch(() => {
-        if (!cancelled) setUnavailable(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoaded({ key: fetchKey, info: null, unavailable: true });
       });
 
     return () => {
       cancelled = true;
     };
-  }, [lb.isActive, lb.isFullConnected, lb.session, imdbId, meta.id, meta.type, tick]);
+  }, [fetchKey, lb.session, id]);
 
   if (!lb.isActive || meta.type === "series") return null;
   if (!lb.isFullConnected) return null;
+
+  const settled = fetchKey !== "" && loaded?.key === fetchKey;
+  const loading = fetchKey !== "" && !settled;
+  const info = settled ? loaded.info : null;
+  const unavailable = settled && loaded.unavailable;
 
   const filmUrl = info?.letterboxdUrl ?? fallbackUrl;
 
@@ -161,7 +162,11 @@ function LetterboxdPanelInner({ meta, imdbId }: { meta: Meta; imdbId: string | n
 
   // Optimistic update: immediately reflect the new state in local info
   const optimisticUpdate = (patch: Partial<LetterboxdStreamInfo>) => {
-    setInfo((prev) => (prev ? { ...prev, ...patch } : prev));
+    setLoaded((prev) =>
+      prev && prev.key === fetchKey && prev.info
+        ? { ...prev, info: { ...prev.info, ...patch } }
+        : prev,
+    );
   };
 
   const performToggle = async (key: "watched" | "liked" | "inWatchlist", url: string | null) => {

@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { loadSimklWatchedMap, simklWatchedForId } from "@/lib/simkl/list-status";
 import { fetchWatchedKeySet } from "@/lib/trakt/history";
 
+const EMPTY_SET = new Set<string>();
+
 export function useWatchedSets({
   traktConnected,
   simklConnected,
@@ -13,18 +15,16 @@ export function useWatchedSets({
   imdbId: string | null;
   metaId: string;
 }): { traktWatched: Set<string>; simklWatched: Set<string> } {
-  const [traktWatched, setTraktWatched] = useState<Set<string>>(() => new Set());
-  const [simklWatched, setSimklWatched] = useState<Set<string>>(() => new Set());
+  const [traktLoaded, setTraktLoaded] = useState<Set<string>>(EMPTY_SET);
+  const simklKey = simklConnected ? `${imdbId ?? ""}|${metaId}` : "";
+  const [simklState, setSimklState] = useState<{ key: string; set: Set<string> } | null>(null);
 
   useEffect(() => {
-    if (!traktConnected) {
-      setTraktWatched(new Set());
-      return;
-    }
+    if (!traktConnected) return;
     let cancelled = false;
     fetchWatchedKeySet()
       .then((set) => {
-        if (!cancelled) setTraktWatched(set);
+        if (!cancelled) setTraktLoaded(set);
       })
       .catch(() => {});
     return () => {
@@ -33,20 +33,21 @@ export function useWatchedSets({
   }, [traktConnected]);
 
   useEffect(() => {
-    if (!simklConnected) {
-      setSimklWatched(new Set());
-      return;
-    }
+    if (!simklKey) return;
     let cancelled = false;
     loadSimklWatchedMap()
       .then((map) => {
-        if (!cancelled) setSimklWatched(simklWatchedForId(map, imdbId, metaId));
+        if (!cancelled)
+          setSimklState({ key: simklKey, set: simklWatchedForId(map, imdbId, metaId) });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [simklConnected, imdbId, metaId]);
+  }, [simklKey, imdbId, metaId]);
 
-  return { traktWatched, simklWatched };
+  return {
+    traktWatched: traktConnected ? traktLoaded : EMPTY_SET,
+    simklWatched: simklKey && simklState?.key === simklKey ? simklState.set : EMPTY_SET,
+  };
 }

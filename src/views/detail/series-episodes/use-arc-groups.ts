@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   tmdbEpisodeGroup,
   tmdbEpisodeGroups,
@@ -16,6 +16,9 @@ export type ArcGroupsState = {
   loading: boolean;
 };
 
+const EMPTY_ARCS: StoryArc[] = [];
+const EMPTY_EPISODES: Episode[] = [];
+
 export function useArcGroups({
   tvId,
   tmdbKey,
@@ -25,40 +28,48 @@ export function useArcGroups({
   tmdbKey: string;
   enabled: boolean;
 }): ArcGroupsState {
-  const [arcs, setArcs] = useState<StoryArc[]>([]);
-  const [activeArcId, setActiveArcId] = useState<string | null>(null);
-  const [episodes, setEpisodes] = useState<Episode[]>([]);
-  const [loading, setLoading] = useState(false);
+  const groupKey = enabled && tvId && tmdbKey ? `${tvId}:${tmdbKey}` : "";
+  const [groupState, setGroupState] = useState<{ key: string; arcs: StoryArc[] } | null>(null);
+  const [selectedArc, setSelectedArc] = useState<{ key: string; id: string } | null>(null);
+  const [epState, setEpState] = useState<{ key: string; episodes: Episode[] } | null>(null);
+
+  const arcs = groupKey && groupState?.key === groupKey ? groupState.arcs : EMPTY_ARCS;
+  const activeArcId =
+    arcs.length === 0
+      ? null
+      : selectedArc?.key === groupKey && arcs.some((a) => a.id === selectedArc.id)
+        ? selectedArc.id
+        : arcs[0].id;
+  const setActiveArcId = useCallback(
+    (id: string) => {
+      if (groupKey) setSelectedArc({ key: groupKey, id });
+    },
+    [groupKey],
+  );
 
   useEffect(() => {
-    if (!enabled || !tvId || !tmdbKey) {
-      setArcs([]);
-      setActiveArcId(null);
-      setEpisodes([]);
-      return;
-    }
+    if (!groupKey) return;
     let cancelled = false;
     void (async () => {
       const group = await tmdbEpisodeGroups(tmdbKey, tvId);
       if (cancelled || !group) return;
       const list = await tmdbEpisodeGroup(tmdbKey, group.id);
       if (cancelled || list.length === 0) return;
-      setArcs(list);
-      setActiveArcId((prev) => (prev && list.some((a) => a.id === prev) ? prev : list[0].id));
+      setGroupState({ key: groupKey, arcs: list });
     })();
     return () => {
       cancelled = true;
     };
-  }, [enabled, tvId, tmdbKey]);
+  }, [groupKey, tvId, tmdbKey]);
+
+  const epKey = groupKey && activeArcId ? `${groupKey}:${activeArcId}` : "";
+  const activeArc = activeArcId ? arcs.find((a) => a.id === activeArcId) : undefined;
 
   useEffect(() => {
-    if (!enabled || !tmdbKey || !activeArcId) return;
-    const arc = arcs.find((a) => a.id === activeArcId);
-    if (!arc) return;
+    if (!epKey || !activeArc) return;
     let cancelled = false;
-    setLoading(true);
     void (async () => {
-      const seasonsNeeded = [...new Set(arc.episodes.map((e) => e.season))];
+      const seasonsNeeded = [...new Set(activeArc.episodes.map((e) => e.season))];
       const bySeason = new Map<number, Map<number, Episode>>();
       await Promise.all(
         seasonsNeeded.map(async (s) => {
@@ -70,24 +81,23 @@ export function useArcGroups({
       );
       if (cancelled) return;
       const ordered: Episode[] = [];
-      for (const ref of arc.episodes) {
+      for (const ref of activeArc.episodes) {
         const ep = bySeason.get(ref.season)?.get(ref.episode);
         if (ep) ordered.push(ep);
       }
-      setEpisodes(ordered);
-      setLoading(false);
+      setEpState({ key: epKey, episodes: ordered });
     })();
     return () => {
       cancelled = true;
     };
-  }, [enabled, tmdbKey, tvId, activeArcId, arcs]);
+  }, [epKey, tmdbKey, tvId, activeArc]);
 
   return {
     arcs,
     activeArcId,
     setActiveArcId,
     hasArcs: enabled && arcs.length > 0,
-    episodes,
-    loading,
+    episodes: epKey && epState?.key === epKey ? epState.episodes : EMPTY_EPISODES,
+    loading: epKey !== "" && epState?.key !== epKey,
   };
 }

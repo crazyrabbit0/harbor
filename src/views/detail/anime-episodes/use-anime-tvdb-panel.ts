@@ -75,6 +75,8 @@ function tvdbSynopsis(e: TvdbText, current: KitsuEpisode | undefined, lang: stri
   return pickLocalizedText(candidates, { lang }) ?? e.overview;
 }
 
+const EMPTY_ORDER_TYPES: TvdbSeasonTypeOption[] = [];
+
 export function useAnimeTvdbPanel(
   kitsuId: number | null,
   imdbId: string | null,
@@ -89,52 +91,43 @@ export function useAnimeTvdbPanel(
   metaId?: string | null,
 ): AnimeTvdbPanelState {
   const t = useT();
-  const [seriesId, setSeriesId] = useState<number | null>(null);
-  const [ordering, setOrdering] = useState<TvdbOrder | null>(null);
-  const [orderTypes, setOrderTypes] = useState<TvdbSeasonTypeOption[]>([]);
-  const [activeType, setActiveType] = useState<TvdbOrderType>("aired");
-  const [sel, setSel] = useState<string | null>(null);
-  const [touched, setTouched] = useState(false);
-  const [resolved, setResolved] = useState<"pending" | "has" | "none">("pending");
+  const selScope = `${kitsuId ?? ""}:${imdbId ?? ""}`;
+  const [selState, setSelState] = useState<{ scope: string; key: string } | null>(null);
+  const seriesKey = enabled ? `${tvdbKey}:${kitsuId ?? ""}:${imdbId ?? ""}` : "";
+  const [seriesState, setSeriesState] = useState<{
+    key: string;
+    seriesId: number | null;
+  } | null>(null);
+  const [orderState, setOrderState] = useState<{
+    key: string;
+    ordering: TvdbOrder | null;
+    orderTypes: TvdbSeasonTypeOption[];
+    activeType: TvdbOrderType;
+  } | null>(null);
+
+  const onSelect = useCallback((key: string) => setSelState({ scope: selScope, key }), [selScope]);
 
   useEffect(() => {
-    setSel(null);
-    setTouched(false);
-  }, [kitsuId, imdbId]);
-
-  const onSelect = useCallback((key: string) => {
-    setSel(key);
-    setTouched(true);
-  }, []);
-
-  useEffect(() => {
-    if (!enabled) {
-      setSeriesId(null);
-      setResolved("none");
-      return;
-    }
-    setResolved("pending");
+    if (!seriesKey) return;
     let cancelled = false;
     void (async () => {
       let sid = kitsuId != null ? await kitsuToTvdb(kitsuId).catch(() => null) : null;
       if (sid == null && imdbId?.startsWith("tt")) {
         sid = await tvdbSeriesByRemote(tvdbKey, imdbId).catch(() => null);
       }
-      if (cancelled) return;
-      setSeriesId(sid);
-      if (sid == null) setResolved("none");
+      if (!cancelled) setSeriesState({ key: seriesKey, seriesId: sid });
     })();
     return () => {
       cancelled = true;
     };
-  }, [enabled, tvdbKey, kitsuId, imdbId]);
+  }, [seriesKey, tvdbKey, kitsuId, imdbId]);
+
+  const seriesResolved = seriesKey !== "" && seriesState?.key === seriesKey;
+  const seriesId = seriesResolved ? seriesState.seriesId : null;
+  const orderKey = seriesKey && seriesId != null ? `${seriesKey}:${seriesId}:${seasonType}` : "";
 
   useEffect(() => {
-    if (!enabled || seriesId == null) {
-      setOrdering(null);
-      setOrderTypes([]);
-      return;
-    }
+    if (!orderKey || seriesId == null) return;
     let cancelled = false;
     void (async () => {
       const base = await tvdbSeasonTypes(tvdbKey, seriesId);
@@ -147,16 +140,17 @@ export function useAnimeTvdbPanel(
       if (cancelled) return;
       const nonEmpty = candidates.filter((_, i) => checks[i]);
       if (nonEmpty.length === 0) {
-        setOrderTypes([]);
-        setOrdering(null);
-        setResolved("none");
+        setOrderState({
+          key: orderKey,
+          ordering: null,
+          orderTypes: EMPTY_ORDER_TYPES,
+          activeType: "aired",
+        });
         return;
       }
       const norm = (seasonType === "official" ? "aired" : seasonType) as TvdbOrderType;
       const values = new Set(nonEmpty.map((c) => c.value));
       const effective = values.has(norm) ? norm : values.has("aired") ? "aired" : nonEmpty[0].value;
-      setOrderTypes(nonEmpty);
-      setActiveType(effective);
       const o = await fetchTvdbOrderBySeriesId(
         tvdbKey,
         seriesId,
@@ -164,34 +158,46 @@ export function useAnimeTvdbPanel(
         tvdbLangFromIso1(tmdbLanguageIso()),
       );
       if (cancelled) return;
-      setOrdering(o);
-      if (!o) setResolved("none");
+      setOrderState({
+        key: orderKey,
+        ordering: o,
+        orderTypes: nonEmpty,
+        activeType: effective,
+      });
     })();
     return () => {
       cancelled = true;
     };
-  }, [enabled, tvdbKey, seriesId, seasonType]);
+  }, [orderKey, tvdbKey, seriesId, seasonType]);
 
-  const [foreignSeasons, setForeignSeasons] = useState<Set<number> | null>(null);
+  const orderResolved = orderKey !== "" && orderState?.key === orderKey;
+  const ordering = orderResolved ? orderState.ordering : null;
+  const orderTypes = orderResolved ? orderState.orderTypes : EMPTY_ORDER_TYPES;
+  const activeType = orderResolved ? orderState.activeType : "aired";
+
+  // metaId first: tt-opened titles carry no kitsu id here.
+  const identitySource = metaId?.trim() || (kitsuId != null ? `kitsu:${kitsuId}` : null);
+  const foreignKey = identitySource ? `${identitySource}:${imdbId ?? ""}` : "";
+  const [foreignState, setForeignState] = useState<{
+    key: string;
+    seasons: Set<number> | null;
+  } | null>(null);
   useEffect(() => {
+    if (!foreignKey || !identitySource) return;
     let cancelled = false;
-    // metaId first: tt-opened titles carry no kitsu id here.
-    const identitySource = metaId?.trim() || (kitsuId != null ? `kitsu:${kitsuId}` : null);
-    if (!identitySource) {
-      setForeignSeasons(null);
-      return;
-    }
     void foreignAnimeProviderSeasons(identitySource, imdbId)
       .then((s) => {
-        if (!cancelled) setForeignSeasons(s);
+        if (!cancelled) setForeignState({ key: foreignKey, seasons: s });
       })
       .catch(() => {
-        if (!cancelled) setForeignSeasons(null);
+        if (!cancelled) setForeignState({ key: foreignKey, seasons: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [kitsuId, imdbId, metaId]);
+  }, [foreignKey, identitySource, imdbId]);
+  const foreignSeasons =
+    foreignKey && foreignState?.key === foreignKey ? foreignState.seasons : null;
 
   const extrasLabel = t("Extras");
   const built = useMemo(() => {
@@ -359,13 +365,22 @@ export function useAnimeTvdbPanel(
     return { items, subset, pool };
   }, [ordering, episodes, franchiseEpisodes, extrasLabel, franchise, foreignSeasons, imdbId]);
 
-  useEffect(() => {
-    if (!ordering) return;
-    setResolved(built ? "has" : "none");
-  }, [ordering, built]);
+  const resolved: "pending" | "has" | "none" = !enabled
+    ? "none"
+    : !seriesResolved
+      ? "pending"
+      : seriesId == null
+        ? "none"
+        : !orderResolved
+          ? "pending"
+          : !ordering || !built
+            ? "none"
+            : "has";
 
   const active = enabled && resolved !== "none";
   if (!enabled || !built) return { panel: null, active };
+  const touched = selState?.scope === selScope;
+  const sel = touched ? selState.key : null;
   const activeKey =
     touched && built.items.some((i) => i.key === sel)
       ? (sel as string)

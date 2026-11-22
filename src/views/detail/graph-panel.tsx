@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -8,6 +8,17 @@ import { ratingPosterSrc } from "@/lib/ratings/poster";
 const PANEL_WIDTH = 360;
 const PANEL_MAX_HEIGHT = 420;
 const GAP = 10;
+
+function computePanelPos(anchor: DOMRect): { top: number; left: number } {
+  const spaceBelow = window.innerHeight - anchor.bottom;
+  const spaceAbove = anchor.top;
+  const below = spaceBelow >= 240 || spaceBelow >= spaceAbove;
+  const height = Math.min(PANEL_MAX_HEIGHT, (below ? spaceBelow : spaceAbove) - GAP - 12);
+  const top = below ? anchor.bottom + GAP : anchor.top - GAP - height;
+  const start = document.dir === "rtl" ? anchor.right - PANEL_WIDTH : anchor.left;
+  const left = Math.max(12, Math.min(start, window.innerWidth - PANEL_WIDTH - 12));
+  return { top, left };
+}
 
 export function GraphPanel({
   title,
@@ -26,7 +37,7 @@ export function GraphPanel({
 }) {
   const t = useT();
   const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const pos = anchor ? computePanelPos(anchor) : null;
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -50,18 +61,6 @@ export function GraphPanel({
       window.removeEventListener("resize", onClose);
     };
   }, [onClose]);
-
-  useLayoutEffect(() => {
-    if (!anchor) return;
-    const spaceBelow = window.innerHeight - anchor.bottom;
-    const spaceAbove = anchor.top;
-    const below = spaceBelow >= 240 || spaceBelow >= spaceAbove;
-    const height = Math.min(PANEL_MAX_HEIGHT, (below ? spaceBelow : spaceAbove) - GAP - 12);
-    const top = below ? anchor.bottom + GAP : anchor.top - GAP - height;
-    const start = document.dir === "rtl" ? anchor.right - PANEL_WIDTH : anchor.left;
-    const left = Math.max(12, Math.min(start, window.innerWidth - PANEL_WIDTH - 12));
-    setPos({ top, left });
-  }, [anchor]);
 
   if (!pos) return null;
 

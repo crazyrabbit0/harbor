@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import {
   fetchProductionFacts,
   productionCached,
@@ -15,23 +15,18 @@ export function useProductionFacts(request: ProductionRequest | null): Productio
   const year = request?.year ?? "";
   const imdbId = request?.imdbId ?? "";
 
-  const [facts, setFacts] = useState<ProductionFacts | null>(() =>
+  const facts = useSyncExternalStore(subscribeProduction, () =>
     key ? productionCached(key) : null,
   );
 
   useEffect(() => {
-    if (!key) {
-      setFacts(null);
-      return;
-    }
-    setFacts(productionCached(key));
+    if (!key) return;
     void fetchProductionFacts({
       title,
       originalTitle: originalTitle || undefined,
       year: year || undefined,
       imdbId: imdbId || null,
     });
-    return subscribeProduction(() => setFacts(productionCached(key)));
   }, [key, title, originalTitle, year, imdbId]);
 
   return facts;

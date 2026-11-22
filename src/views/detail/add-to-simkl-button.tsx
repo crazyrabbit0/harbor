@@ -54,29 +54,23 @@ export function AddToSimklButton({
   const settings = useSettingsSelector((s) => ({
     simklEnableUserRatings: s.simklEnableUserRatings,
   }));
-  const [target, setTarget] = useState<SimklTarget | null>(null);
-  const [status, setStatus] = useState<WatchlistStatus | null>(null);
-  const [ready, setReady] = useState(false);
+  const fetchKey = isConnected ? `${harborId}:${type}` : "";
+  const [loaded, setLoaded] = useState<{
+    key: string;
+    target: SimklTarget;
+    status: WatchlistStatus | null;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const btnRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!isConnected) {
-      setTarget(null);
-      return;
-    }
+    if (!fetchKey) return;
     let cancelled = false;
-    setReady(false);
     void (async () => {
       const tgt = await resolveSimklTarget(harborId, type);
-      if (cancelled) return;
-      if (!tgt) {
-        setTarget(null);
-        return;
-      }
-      setTarget(tgt);
+      if (cancelled || !tgt) return;
       const malKey =
         tgt.kind === "movie" || tgt.kind === "show" || tgt.kind === "anime"
           ? tgt.ids.mal != null
@@ -86,20 +80,24 @@ export function AddToSimklButton({
       try {
         const map = await loadSimklStatusMap();
         if (cancelled) return;
-        setStatus(statusForTarget(map, harborId, malKey));
-        setReady(true);
+        setLoaded({ key: fetchKey, target: tgt, status: statusForTarget(map, harborId, malKey) });
       } catch {
-        if (!cancelled) setReady(true);
+        if (!cancelled) setLoaded({ key: fetchKey, target: tgt, status: null });
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [harborId, isConnected, type]);
+  }, [fetchKey, harborId, type]);
 
-  if (!isConnected || !target || !ready) return null;
+  const active = fetchKey && loaded?.key === fetchKey ? loaded : null;
+  if (!active) return null;
 
+  const { target, status } = active;
   const order = target.kind === "movie" ? MOVIE_STATUS_ORDER : SHOW_STATUS_ORDER;
+
+  const updateStatus = (next: WatchlistStatus | null) =>
+    setLoaded((prev) => (prev && prev.key === fetchKey ? { ...prev, status: next } : prev));
 
   const flash = (msg: string) => {
     setError(msg);
@@ -110,13 +108,13 @@ export function AddToSimklButton({
     setBusy(true);
     setError(null);
     const prev = status;
-    setStatus(next);
+    updateStatus(next);
     setMenuOpen(false);
     try {
       const saved = await setSimklStatus(target, next);
-      setStatus(saved);
+      updateStatus(saved);
     } catch (e) {
-      setStatus(prev);
+      updateStatus(prev);
       flash(errMsg(t, e));
     }
     setBusy(false);
@@ -126,12 +124,12 @@ export function AddToSimklButton({
     setBusy(true);
     setError(null);
     const prev = status;
-    setStatus(null);
+    updateStatus(null);
     setMenuOpen(false);
     try {
       await clearSimklStatus(target);
     } catch (e) {
-      setStatus(prev);
+      updateStatus(prev);
       flash(errMsg(t, e));
     }
     setBusy(false);

@@ -64,10 +64,12 @@ export function TvdbOrderPanel({
   const open = menu != null;
   const current = items.find((i) => i.key === activeKey) ?? items[0];
   const activeIsExtra = current?.extra ?? false;
-  const [showExtras, setShowExtras] = useState(false);
-  useEffect(() => {
+  const [showExtras, setShowExtras] = useState(activeIsExtra);
+  const [prevActiveIsExtra, setPrevActiveIsExtra] = useState(activeIsExtra);
+  if (prevActiveIsExtra !== activeIsExtra) {
+    setPrevActiveIsExtra(activeIsExtra);
     if (activeIsExtra) setShowExtras(true);
-  }, [activeIsExtra]);
+  }
 
   useEffect(() => {
     if (!menu) return;

@@ -19,23 +19,30 @@ export function CollectionRow({
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const { openCollection } = useViewActions();
   const kid = useActiveKid();
-  const [parts, setParts] = useState<Meta[]>([]);
+  const fetchKey = settings.tmdbKey
+    ? `${settings.tmdbKey}:${collection.id}:${currentId}:${kid ? 1 : 0}`
+    : "";
+  const [loaded, setLoaded] = useState<{ key: string; parts: Meta[] } | null>(null);
 
   useEffect(() => {
-    if (!settings.tmdbKey) return;
+    if (!fetchKey) return;
     let cancelled = false;
-    setParts([]);
     tmdbCollection(settings.tmdbKey, collection.id)
       .then((c) => {
-        if (cancelled || !c) return;
-        const rest = c.parts.filter((p) => p.id !== currentId);
-        setParts(kid ? dropUnsafeGenres(dropUnreleased(rest)) : rest);
+        if (cancelled) return;
+        const rest = c ? c.parts.filter((p) => p.id !== currentId) : [];
+        setLoaded({
+          key: fetchKey,
+          parts: kid ? dropUnsafeGenres(dropUnreleased(rest)) : rest,
+        });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [settings.tmdbKey, collection.id, currentId, kid]);
+  }, [fetchKey, settings.tmdbKey, collection.id, currentId, kid]);
+
+  const parts = fetchKey && loaded?.key === fetchKey ? loaded.parts : [];
 
   if (parts.length === 0) return null;
 

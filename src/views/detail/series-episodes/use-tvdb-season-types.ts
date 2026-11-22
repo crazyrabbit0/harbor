@@ -7,13 +7,14 @@ import {
   type TvdbSeasonTypeOption,
 } from "@/lib/providers/tvdb";
 
+const EMPTY_TYPES: TvdbSeasonTypeOption[] = [];
+
 export function useTvdbSeasonTypes(
   imdbId: string | null,
   metaId: string,
   tvdbKey: string,
   enabled: boolean,
 ): TvdbSeasonTypeOption[] {
-  const [types, setTypes] = useState<TvdbSeasonTypeOption[]>([]);
   const remoteId =
     imdbId && imdbId.startsWith("tt")
       ? imdbId
@@ -21,12 +22,12 @@ export function useTvdbSeasonTypes(
         ? metaId.slice(8)
         : null;
   const kitsuId = /^(kitsu|mal|anilist|anidb):/.test(metaId) ? parseKitsuId(metaId) : null;
+  const fetchKey =
+    enabled && (remoteId || kitsuId != null) ? `${tvdbKey}:${remoteId ?? ""}:${kitsuId ?? ""}` : "";
+  const [loaded, setLoaded] = useState<{ key: string; types: TvdbSeasonTypeOption[] } | null>(null);
 
   useEffect(() => {
-    if (!enabled || (!remoteId && kitsuId == null)) {
-      setTypes([]);
-      return;
-    }
+    if (!fetchKey) return;
     let cancelled = false;
     void (async () => {
       let seriesId = kitsuId != null ? await kitsuToTvdb(kitsuId).catch(() => null) : null;
@@ -34,13 +35,13 @@ export function useTvdbSeasonTypes(
         seriesId = await tvdbSeriesByRemote(tvdbKey, remoteId).catch(() => null);
       }
       if (cancelled || !seriesId) return;
-      const t = await tvdbSeasonTypes(tvdbKey, seriesId).catch(() => []);
-      if (!cancelled) setTypes(t);
+      const types = await tvdbSeasonTypes(tvdbKey, seriesId).catch(() => EMPTY_TYPES);
+      if (!cancelled) setLoaded({ key: fetchKey, types });
     })();
     return () => {
       cancelled = true;
     };
-  }, [enabled, tvdbKey, remoteId, kitsuId]);
+  }, [fetchKey, tvdbKey, remoteId, kitsuId]);
 
-  return types;
+  return fetchKey && loaded?.key === fetchKey ? loaded.types : EMPTY_TYPES;
 }

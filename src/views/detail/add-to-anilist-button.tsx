@@ -30,17 +30,20 @@ const STATUS_ORDER: MediaListStatus[] = [
 export function AddToAnilistButton({ harborId, title }: { harborId: string; title: string }) {
   const t = useT();
   const { isConnected } = useAnilist();
-  const [mediaId, setMediaId] = useState<number | null>(null);
-  const [entryId, setEntryId] = useState<number | null>(null);
-  const [status, setStatus] = useState<MediaListStatus | null>(null);
+  const [resolved, setResolved] = useState<{
+    harborId: string;
+    mediaId: number;
+    entryId: number | null;
+    status: MediaListStatus | null;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const [attempt, setAttempt] = useState(0);
+  const [attemptState, setAttemptState] = useState<{ harborId: string; count: number }>({
+    harborId,
+    count: 0,
+  });
   const btnRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    setAttempt(0);
-  }, [harborId]);
+  const attempt = attemptState.harborId === harborId ? attemptState.count : 0;
 
   useEffect(() => {
     if (!isConnected) return;
@@ -50,14 +53,31 @@ export function AddToAnilistButton({ harborId, title }: { harborId: string; titl
       const id = await resolveAnilistMediaId(harborId).catch(() => null);
       if (cancelled) return;
       if (id == null) {
-        if (attempt < 2) timer = window.setTimeout(() => setAttempt((a) => a + 1), 15000);
+        if (attempt < 2) {
+          timer = window.setTimeout(
+            () =>
+              setAttemptState((a) => ({
+                harborId,
+                count: (a.harborId === harborId ? a.count : 0) + 1,
+              })),
+            15000,
+          );
+        }
         return;
       }
-      setMediaId(id);
+      setResolved((prev) =>
+        prev?.harborId === harborId && prev.mediaId === id
+          ? prev
+          : { harborId, mediaId: id, entryId: null, status: null },
+      );
       const info = await fetchListEntry(id).catch(() => null);
       if (cancelled) return;
-      setEntryId(info?.entry?.id ?? null);
-      setStatus(info?.entry?.status ?? null);
+      setResolved({
+        harborId,
+        mediaId: id,
+        entryId: info?.entry?.id ?? null,
+        status: info?.entry?.status ?? null,
+      });
     })();
     return () => {
       cancelled = true;
@@ -65,19 +85,23 @@ export function AddToAnilistButton({ harborId, title }: { harborId: string; titl
     };
   }, [harborId, isConnected, attempt]);
 
-  if (!isConnected || mediaId == null) return null;
+  const active = resolved?.harborId === harborId ? resolved : null;
+  if (!isConnected || active == null) return null;
+
+  const { mediaId, entryId, status } = active;
 
   const setTo = async (next: MediaListStatus) => {
     setBusy(true);
     const prev = status;
-    setStatus(next);
+    setResolved((cur) => (cur?.harborId === harborId ? { ...cur, status: next } : cur));
     setMenuOpen(false);
     try {
       const saved = await saveListEntry({ mediaId, status: next });
-      setEntryId(saved.id);
-      setStatus(saved.status);
+      setResolved((cur) =>
+        cur?.harborId === harborId ? { ...cur, entryId: saved.id, status: saved.status } : cur,
+      );
     } catch {
-      setStatus(prev);
+      setResolved((cur) => (cur?.harborId === harborId ? { ...cur, status: prev } : cur));
     }
     setBusy(false);
   };
@@ -87,14 +111,16 @@ export function AddToAnilistButton({ harborId, title }: { harborId: string; titl
     setBusy(true);
     const prevStatus = status;
     const prevEntry = entryId;
-    setStatus(null);
-    setEntryId(null);
+    setResolved((cur) =>
+      cur?.harborId === harborId ? { ...cur, status: null, entryId: null } : cur,
+    );
     setMenuOpen(false);
     try {
       await deleteListEntry(prevEntry);
     } catch {
-      setStatus(prevStatus);
-      setEntryId(prevEntry);
+      setResolved((cur) =>
+        cur?.harborId === harborId ? { ...cur, status: prevStatus, entryId: prevEntry } : cur,
+      );
     }
     setBusy(false);
   };
