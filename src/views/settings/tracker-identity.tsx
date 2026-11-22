@@ -1,5 +1,5 @@
 import { ExternalLink, LogOut } from "./icons";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
 
@@ -25,10 +25,12 @@ export function TrackerIdentity({
   const t = useT();
   const [broken, setBroken] = useState(false);
   const [ready, setReady] = useState(false);
-  useEffect(() => {
+  const [prevAvatar, setPrevAvatar] = useState(avatar);
+  if (prevAvatar !== avatar) {
+    setPrevAvatar(avatar);
     setBroken(false);
     setReady(false);
-  }, [avatar]);
+  }
   const showAvatar = !!avatar && !broken;
   return (
     <div className="flex flex-wrap items-center gap-x-5 gap-y-4 border-b border-edge-soft pb-6 pt-2">

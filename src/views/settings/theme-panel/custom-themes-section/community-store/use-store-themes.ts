@@ -36,31 +36,38 @@ export function useStoreThemes(): {
   error: string | null;
   reload: () => void;
 } {
-  const [all, setAll] = useState<StoreTheme[] | null>(cache);
-  const [loading, setLoading] = useState(!cache);
-  const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const [result, setResult] = useState<{
+    tick: number;
+    all: StoreTheme[] | null;
+    error: string | null;
+  } | null>(() => (cache ? { tick: 0, all: cache, error: null } : null));
 
   useEffect(() => {
     let cancelled = false;
-    if (!cache) setLoading(true);
-    setError(null);
     browseThemes("top", "")
       .then((list) => {
         if (cancelled) return;
         cache = list;
-        setAll(list);
+        setResult({ tick, all: list, error: null });
       })
-      .catch(
-        (e) =>
-          !cancelled &&
-          setError(e instanceof Error ? e.message : t("Could not reach the theme library.")),
-      )
-      .finally(() => !cancelled && setLoading(false));
+      .catch((e) => {
+        if (cancelled) return;
+        setResult((prev) => ({
+          tick,
+          all: prev?.tick === tick ? prev.all : cache,
+          error: e instanceof Error ? e.message : t("Could not reach the theme library."),
+        }));
+      });
     return () => {
       cancelled = true;
     };
   }, [tick]);
+
+  const active = result?.tick === tick ? result : null;
+  const all = active ? active.all : cache;
+  const loading = !active && !cache;
+  const error = active?.error ?? null;
 
   const data = useMemo<StoreData | null>(() => {
     if (!all) return null;

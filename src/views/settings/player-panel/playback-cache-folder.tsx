@@ -10,22 +10,22 @@ import { SButton } from "../ui";
 export function PlaybackCacheFolder() {
   const { settings, update } = useSettings();
   const t = useT();
-  const [path, setPath] = useState("");
+  const [resolved, setResolved] = useState<{ custom: string; dir: string } | null>(null);
   const [error, setError] = useState("");
   const custom = settings.playbackCacheDir;
   useEffect(() => {
     let active = true;
-    setPath("");
     void (async () => {
       const dir = custom
         ? await join(custom, "harbor-playback-cache")
         : await join(await appCacheDir(), "mpv-cache");
-      if (active) setPath(dir);
+      if (active) setResolved({ custom, dir });
     })().catch(() => {});
     return () => {
       active = false;
     };
   }, [custom]);
+  const path = resolved?.custom === custom ? resolved.dir : "";
 
   const choose = async () => {
     setError("");

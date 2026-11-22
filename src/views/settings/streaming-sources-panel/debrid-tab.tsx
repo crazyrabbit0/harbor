@@ -220,9 +220,11 @@ export function DebridTab({
 
 function useAioStatusHealth(): AioStatusSnapshot | null {
   const { authKey } = useAuth();
-  const [snapshot, setSnapshot] = useState<AioStatusSnapshot | null>(null);
+  const [result, setResult] = useState<{
+    authKey: string;
+    snapshot: AioStatusSnapshot | null;
+  } | null>(null);
   useEffect(() => {
-    setSnapshot(null);
     if (!authKey) return;
     const ac = new AbortController();
     let cancelled = false;
@@ -230,14 +232,14 @@ function useAioStatusHealth(): AioStatusSnapshot | null {
       const list = await userAddons(authKey).catch(() => [] as Addon[]);
       if (cancelled || list.length === 0) return;
       const snap = await fetchAioStatusHealth(list, ac.signal);
-      if (!cancelled) setSnapshot(snap);
+      if (!cancelled) setResult({ authKey, snapshot: snap });
     })();
     return () => {
       cancelled = true;
       ac.abort();
     };
   }, [authKey]);
-  return snapshot;
+  return authKey && result?.authKey === authKey ? result.snapshot : null;
 }
 
 function AioStatusBanner({ snapshot }: { snapshot: AioStatusSnapshot }) {

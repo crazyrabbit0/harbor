@@ -17,7 +17,7 @@ import { BackgroundPicker } from "./theme-panel/background-picker";
 import { ColorThemeBody } from "./theme-panel/color-theme-body";
 import { CustomThemesSection } from "./theme-panel/custom-themes-section";
 import {
-  consumeThemeLibraryRequest,
+  peekThemeLibraryRequest,
   requestThemeLibrary,
   subscribeThemeLibraryRequest,
   useThemeLibraryOpen,
@@ -44,21 +44,18 @@ type Tab =
 
 export function ThemePanel() {
   const t = useT();
-  const [tab, setTab] = useState<Tab>("theme");
+  const [tab, setTab] = useState<Tab>(() => (peekThemeLibraryRequest() ? "library" : "theme"));
   const libraryOpen = useThemeLibraryOpen();
   const [themeCount, setThemeCount] = useState(() => getCustomThemes().length);
   useEffect(() => subscribeCustomThemes(() => setThemeCount(getCustomThemes().length)), []);
 
-  useEffect(() => {
-    const req = consumeThemeLibraryRequest();
-    if (req) {
-      setTab("library");
-      requestThemeLibrary(req);
-    }
-    return subscribeThemeLibraryRequest(() =>
-      setTab((current) => (current === "mylibrary" ? current : "library")),
-    );
-  }, []);
+  useEffect(
+    () =>
+      subscribeThemeLibraryRequest(() =>
+        setTab((current) => (current === "mylibrary" ? current : "library")),
+      ),
+    [],
+  );
 
   const tabs = [
     { id: "theme" as const, label: t("Theme") },

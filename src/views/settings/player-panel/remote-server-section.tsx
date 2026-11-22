@@ -61,14 +61,17 @@ export function RemoteServerSection() {
   const [testing, setTesting] = useState(false);
   const [result, setResult] = useState<TestResult | null>(null);
   const requestRef = useRef(0);
-
-  useEffect(() => setDraft(saved), [saved]);
-
-  useEffect(() => {
-    const requestId = ++requestRef.current;
+  const [prevSaved, setPrevSaved] = useState(saved);
+  if (prevSaved !== saved) {
+    setPrevSaved(saved);
+    setDraft(saved);
     setReach(null);
     setResult(null);
     setTesting(false);
+  }
+
+  useEffect(() => {
+    const requestId = ++requestRef.current;
     if (saved) {
       void probeServer(saved).then((r) => {
         if (requestRef.current === requestId) setReach(r.ok);

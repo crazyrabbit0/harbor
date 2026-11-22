@@ -56,6 +56,11 @@ export function ColorPopover({
   const wrapRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; up: boolean } | null>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setPos(null);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -89,10 +94,7 @@ export function ColorPopover({
   }, [open, placed]);
 
   useEffect(() => {
-    if (!open) {
-      setPos(null);
-      return;
-    }
+    if (!open) return;
     let frame = 0;
     const place = () => {
       const wrap = wrapRef.current;

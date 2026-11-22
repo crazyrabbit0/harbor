@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { tvFocus } from "@/lib/keyboard-navigation";
 import { CENTER_KEYCODES, isBackKey, navOwnsFocus } from "@/lib/keyboard-navigation/geometry";
 import { useT } from "@/lib/i18n";
@@ -30,12 +30,16 @@ export function PxField({
   const t = useT();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(String(value));
+  const [prevValue, setPrevValue] = useState(value);
+  const [prevEditing, setPrevEditing] = useState(editing);
+  if (prevValue !== value || prevEditing !== editing) {
+    setPrevValue(value);
+    setPrevEditing(editing);
+    if (!editing) setDraft(String(value));
+  }
   const btnRef = useRef<HTMLButtonElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const ringRef = useRef(false);
-  useEffect(() => {
-    if (!editing) setDraft(String(value));
-  }, [value, editing]);
   useLayoutEffect(() => {
     if (!ringRef.current) return;
     const el = editing ? inputRef.current : btnRef.current;

@@ -50,13 +50,16 @@ export function useLayoutEditor(theme: ThemeId, onThemeChange: (theme: ThemeId) 
     [theme, profileVersion],
   );
 
-  useEffect(() => {
+  const currentKey = `${theme}:${configVersion}`;
+  const [loadedKey, setLoadedKey] = useState(currentKey);
+  if (loadedKey !== currentKey) {
+    setLoadedKey(currentKey);
     const next = readPlayerChromeConfig(theme);
     setSaved(next);
     setDraft(next);
     setSelectedId(null);
     setSelectedPanelId(null);
-  }, [theme, configVersion]);
+  }
 
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {

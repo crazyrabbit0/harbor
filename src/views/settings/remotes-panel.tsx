@@ -22,6 +22,12 @@ export function RemotesPanel() {
   const aliveRef = useRef(true);
 
   const enabled = settings.serveWebUi || settings.remoteControlEnabled;
+  const checkKey = `${enabled}:${retry}`;
+  const [prevCheckKey, setPrevCheckKey] = useState(checkKey);
+  if (prevCheckKey !== checkKey) {
+    setPrevCheckKey(checkKey);
+    setWebError(false);
+  }
 
   useEffect(() => {
     if (!isTauri) return;
@@ -40,11 +46,7 @@ export function RemotesPanel() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!isTauri || !enabled) {
-      setWebError(false);
-      return;
-    }
-    setWebError(false);
+    if (!isTauri || !enabled) return;
     const timer = window.setTimeout(() => {
       void invoke<boolean>("web_serve_status")
         .then((ok) => {

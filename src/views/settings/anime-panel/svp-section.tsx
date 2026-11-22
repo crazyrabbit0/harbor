@@ -30,7 +30,6 @@ export function SvpSection() {
 
   useEffect(() => {
     let cancelled = false;
-    setStatusFailed(false);
     svpStatus()
       .then((next) => {
         if (!cancelled) setStatus(next);
@@ -166,6 +165,7 @@ export function SvpSection() {
                 type="button"
                 onClick={() => {
                   setStatus(null);
+                  setStatusFailed(false);
                   setCheckAttempt((n) => n + 1);
                 }}
                 className={ROW_ACTION}

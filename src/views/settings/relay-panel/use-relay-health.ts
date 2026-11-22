@@ -56,10 +56,14 @@ export function useRelayHealth(relayUrl: string): {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<RelayTest | null>(null);
   const [passive, setPassive] = useState<PassiveRelayHealth>(null);
-
-  useEffect(() => {
+  const [prevRelayUrl, setPrevRelayUrl] = useState(relayUrl);
+  if (prevRelayUrl !== relayUrl) {
+    setPrevRelayUrl(relayUrl);
     setTestResult(null);
     setPassive(null);
+  }
+
+  useEffect(() => {
     if (!relayUrl) return;
     let cancelled = false;
     const t = window.setTimeout(() => {

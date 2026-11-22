@@ -31,6 +31,7 @@ export function CoverCropper({ onChange }: { onChange: (blob: Blob | null) => vo
   // The frame is re-measured after every render so the display scale tracks its size.
   useLayoutEffect(() => {
     const next = frameSize();
+    // oxlint-disable-next-line react/set-state-in-effect -- measures DOM frame bounds in layout effect
     setFrame((cur) => (cur.w === next.w && cur.h === next.h ? cur : next));
   });
 

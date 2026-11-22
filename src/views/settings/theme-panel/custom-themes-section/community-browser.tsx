@@ -18,9 +18,12 @@ export function CommunityPane() {
   const [sort, setSort] = useState("top");
   const [query, setQuery] = useState("");
   const [debounced, setDebounced] = useState("");
-  const [themes, setThemes] = useState<StoreTheme[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const queryKey = `${sort}\0${debounced}`;
+  const [result, setResult] = useState<{
+    key: string;
+    themes: StoreTheme[];
+    error: string | null;
+  } | null>(null);
   const [selected, setSelected] = useState<StoreTheme | null>(null);
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -31,16 +34,21 @@ export function CommunityPane() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     browseThemes(sort, debounced)
-      .then((list) => !cancelled && setThemes(list))
-      .catch((e) => !cancelled && setError(e.message))
-      .finally(() => !cancelled && setLoading(false));
+      .then((list) => {
+        if (!cancelled) setResult({ key: queryKey, themes: list, error: null });
+      })
+      .catch((e) => {
+        if (!cancelled) setResult({ key: queryKey, themes: [], error: e.message });
+      });
     return () => {
       cancelled = true;
     };
-  }, [sort, debounced]);
+  }, [sort, debounced, queryKey]);
+
+  const loading = result?.key !== queryKey;
+  const themes = loading ? [] : result.themes;
+  const error = loading ? null : result.error;
 
   return (
     <section className="flex flex-col gap-5">
@@ -108,10 +116,13 @@ export function CommunityPane() {
 function CommunityCard({ theme, onOpen }: { theme: StoreTheme; onOpen: () => void }) {
   const tr = useT();
   const [t, setT] = useState(theme);
+  const [prevTheme, setPrevTheme] = useState(theme);
+  if (prevTheme !== theme) {
+    setPrevTheme(theme);
+    setT(theme);
+  }
   const [state, setState] = useState<"idle" | "loading" | "done" | "error">("idle");
   const [myRating, setMyRating] = useState(0);
-
-  useEffect(() => setT(theme), [theme]);
 
   const download = async (e: React.MouseEvent) => {
     e.stopPropagation();

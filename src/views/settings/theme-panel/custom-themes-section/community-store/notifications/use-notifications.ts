@@ -9,8 +9,19 @@ import {
 export function useNotifications() {
   const [items, setItems] = useState<ThemeNotification[]>([]);
   const [unread, setUnread] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => !!currentAuthor());
   const [authed, setAuthed] = useState(!!currentAuthor());
+  const [prevAuthed, setPrevAuthed] = useState(authed);
+  if (prevAuthed !== authed) {
+    setPrevAuthed(authed);
+    if (!authed) {
+      setItems([]);
+      setUnread(0);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }
 
   useEffect(() => subscribeAuthor(() => setAuthed(!!currentAuthor())), []);
 
@@ -31,21 +42,28 @@ export function useNotifications() {
   }, []);
 
   useEffect(() => {
-    if (!authed) {
-      setItems([]);
-      setUnread(0);
-      return;
-    }
-    refresh();
+    if (!authed) return;
+    let cancelled = false;
+    void listNotifications()
+      .then((d) => {
+        if (cancelled) return;
+        setItems(d.notifications);
+        setUnread(d.unread);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
     const iv = window.setInterval(() => {
       if (document.hidden) return;
-      refresh();
+      void refresh();
     }, 60000);
     const onVis = () => {
-      if (!document.hidden) refresh();
+      if (!document.hidden) void refresh();
     };
     document.addEventListener("visibilitychange", onVis);
     return () => {
+      cancelled = true;
       window.clearInterval(iv);
       document.removeEventListener("visibilitychange", onVis);
     };

@@ -10,38 +10,40 @@ export function useStoreBundles(kind: BundleKind): {
   error: string | null;
   reload: () => void;
 } {
-  const [bundles, setBundles] = useState<StoreBundle[] | null>(caches[kind] ?? null);
-  const [loading, setLoading] = useState(!caches[kind]);
-  const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const fetchKey = `${kind}:${tick}`;
+  const [result, setResult] = useState<{
+    key: string;
+    bundles: StoreBundle[] | null;
+    error: string | null;
+  } | null>(() => (caches[kind] ? { key: fetchKey, bundles: caches[kind], error: null } : null));
 
   useEffect(() => {
     let cancelled = false;
-    const cached = caches[kind];
-    if (cached) {
-      setBundles(cached);
-      setLoading(false);
-    } else {
-      setBundles(null);
-      setLoading(true);
-    }
-    setError(null);
     browseBundles(kind, "top", "")
       .then((list) => {
         if (cancelled) return;
         caches[kind] = list;
-        setBundles(list);
+        setResult({ key: fetchKey, bundles: list, error: null });
       })
-      .catch(
-        (e) =>
-          !cancelled &&
-          setError(e instanceof Error ? e.message : t("Could not reach the bundle library.")),
-      )
-      .finally(() => !cancelled && setLoading(false));
+      .catch((e) => {
+        if (cancelled) return;
+        setResult((prev) => ({
+          key: fetchKey,
+          bundles: prev?.key === fetchKey ? prev.bundles : (caches[kind] ?? null),
+          error: e instanceof Error ? e.message : t("Could not reach the bundle library."),
+        }));
+      });
     return () => {
       cancelled = true;
     };
-  }, [kind, tick]);
+  }, [kind, tick, fetchKey]);
+
+  const active = result?.key === fetchKey ? result : null;
+  const cached = caches[kind] ?? null;
+  const bundles = active ? active.bundles : cached;
+  const loading = !active && !cached;
+  const error = active?.error ?? null;
 
   return {
     bundles,

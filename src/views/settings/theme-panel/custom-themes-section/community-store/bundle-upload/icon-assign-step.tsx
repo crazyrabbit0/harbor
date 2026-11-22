@@ -110,20 +110,22 @@ export function IconAssignStep({
   const customInputRef = useRef<HTMLInputElement>(null);
   const addCustomRef = useRef<HTMLButtonElement>(null);
 
+  const [prevKind, setPrevKind] = useState(kind);
+  if (prevKind !== kind) {
+    setPrevKind(kind);
+    setErrors([]);
+    setOptimized(0);
+    setFlattened(0);
+    setCustomKeys([]);
+    setAddingCustom(false);
+  }
+
   useEffect(() => {
     const el = customInputRef.current;
     if (!addingCustom || !el) return;
     if (document.documentElement.dataset.inputModality === "keys") tvFocus(el);
     else el.focus();
   }, [addingCustom]);
-
-  useEffect(() => {
-    setErrors([]);
-    setOptimized(0);
-    setFlattened(0);
-    setCustomKeys([]);
-    setAddingCustom(false);
-  }, [kind]);
 
   const byKey = new Map(icons.filter((i) => i.key).map((i) => [i.key as string, i] as const));
   const groups = iconGroupsFor(kind);

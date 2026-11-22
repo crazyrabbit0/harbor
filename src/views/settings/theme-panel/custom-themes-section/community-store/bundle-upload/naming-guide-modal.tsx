@@ -69,6 +69,11 @@ export function NamingGuideModal({
   const t = useT();
   const { closing, close } = useModalExit(onClose, open);
   const [copied, setCopied] = useState<string | null>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setCopied(null);
+  }
 
   useEffect(() => {
     if (!open) return;
@@ -78,9 +83,6 @@ export function NamingGuideModal({
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open, close]);
-  useEffect(() => {
-    if (!open) setCopied(null);
-  }, [open]);
 
   if (!open) return null;
 

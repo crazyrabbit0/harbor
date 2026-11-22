@@ -343,6 +343,21 @@ function measureTopChrome(shell: HTMLElement): number {
 
 type SavedKey = LibraryKey | DebridKey;
 
+const TRACKER_IDS = ["trakt", "anilist", "mal", "simkl", "letterboxd"];
+
+function resolveNavTarget(
+  id: SectionId | null | undefined,
+  tab?: string,
+): { target: SectionId; wantTab: string | null; isTracker: boolean } {
+  if (!id) return { target: "account", wantTab: tab ?? null, isTracker: false };
+  const isTracker = (TRACKER_IDS as string[]).includes(id);
+  return {
+    target: isTracker ? ("trackers" as SectionId) : id,
+    wantTab: (isTracker ? (tab ?? id) : tab) ?? null,
+    isTracker,
+  };
+}
+
 // useSettingsAnchor holds this ref, so the compiler only allows the write through a module helper.
 function syncTabsRef(ref: { current: SubTabReg }, value: SubTabReg) {
   ref.current = value;
@@ -363,20 +378,22 @@ export function Settings({ visible = true }: { visible?: boolean }) {
   const [dlDraft, setDlDraft] = useState(settings.dlKey);
   const [savedKey, setSavedKey] = useState<SavedKey | null>(null);
   const { settingsSectionRequest, topKind, chromeHidden: viewChromeHidden } = useView();
-  const TRACKER_IDS = ["trakt", "anilist", "mal", "simkl", "letterboxd"];
-  const resolveSection = (id: SectionId | null | undefined): SectionId => {
-    if (!id) return "account";
-    if (TRACKER_IDS.includes(id)) {
-      requestTracker(id);
-      return "trackers";
-    }
-    return id;
-  };
+  const initialSpot = settingsSectionRequest.section ? settingsSectionRequest.spot : undefined;
+  const initialNav = resolveNavTarget(settingsSectionRequest.section, initialSpot?.tab);
   const [landing, setLanding] = useState<string | null>(null);
-  const [active, setActive] = useState<SectionId>(resolveSection(settingsSectionRequest.section));
+  const [active, setActive] = useState<SectionId>(() => {
+    if (initialNav.isTracker && settingsSectionRequest.section) {
+      requestTracker(settingsSectionRequest.section);
+    }
+    return initialNav.target;
+  });
   const [relayMode, setRelayMode] = useState<RelayMode>("panel");
-  const [pendingAnchor, setPendingAnchor] = useState<SettingsAnchorRequest | null>(null);
-  const [pendingPage, setPendingPage] = useState<{ section: SectionId; tab?: string } | null>(null);
+  const [pendingAnchor, setPendingAnchor] = useState<SettingsAnchorRequest | null>(() =>
+    initialSpot?.anchor
+      ? { anchor: settingsAnchor(initialSpot.anchor), tab: initialNav.wantTab ?? undefined }
+      : null,
+  );
+  const [pageFocusTick, setPageFocusTick] = useState(0);
   const [query, setQuery] = useState("");
   const compact = useMediaQuery("(max-width: 899px)");
   const [browseOpen, setBrowseOpen] = useState(false);
@@ -384,10 +401,36 @@ export function Settings({ visible = true }: { visible?: boolean }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const scrollRef = useRef<HTMLElement>(null);
   const shellRef = useRef<HTMLDivElement>(null);
+  const pendingPageRef = useRef<{ section: SectionId; tab?: string } | null>(null);
 
-  useEffect(() => {
+  const [prevCompact, setPrevCompact] = useState(compact);
+  if (prevCompact !== compact) {
+    setPrevCompact(compact);
     if (!compact) setBrowseOpen(false);
-  }, [compact]);
+  }
+
+  const [lastSectionRequest, setLastSectionRequest] = useState(settingsSectionRequest);
+  if (lastSectionRequest !== settingsSectionRequest) {
+    setLastSectionRequest(settingsSectionRequest);
+    const { section, spot } = settingsSectionRequest;
+    if (section) {
+      const next = resolveNavTarget(section, spot?.tab);
+      setLanding(null);
+      setActive(next.target);
+      setPendingAnchor(
+        spot?.anchor
+          ? { anchor: settingsAnchor(spot.anchor), tab: next.wantTab ?? undefined }
+          : null,
+      );
+      if (compact && (spot?.anchor || spot?.tab)) setBrowseOpen(false);
+    }
+  }
+
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active !== "relay") setRelayMode("panel");
+  }
 
   useEffect(() => {
     if (!compact || !browseOpen) return;
@@ -447,31 +490,29 @@ export function Settings({ visible = true }: { visible?: boolean }) {
     viewChromeHidden,
   ]);
 
-  const pendingTab = useRef<string | null>(null);
+  const pendingTab = useRef<string | null>(initialNav.wantTab);
   const handleNav = (id: SectionId, anchor?: string, tab?: string) => {
     closeBrowse();
     setLanding(null);
-    setPendingPage(null);
+    pendingPageRef.current = null;
     // The five trackers are tabs of one panel rather than sections of their own, so a jump
     // to any of them opens Trackers on that tab instead of an id nothing renders.
-    const isTracker = (TRACKER_IDS as string[]).includes(id);
-    const target = isTracker ? ("trackers" as SectionId) : id;
-    const wantTab = isTracker ? (tab ?? id) : tab;
-    pendingTab.current = wantTab ?? null;
-    if (wantTab && target === active) {
-      subRegRef.current?.onChange(wantTab);
+    const next = resolveNavTarget(id, tab);
+    pendingTab.current = next.wantTab;
+    if (next.wantTab && next.target === active) {
+      subRegRef.current?.onChange(next.wantTab);
       pendingTab.current = null;
     }
     startTransition(() => {
-      setActive(target);
-      setPendingAnchor(anchor ? { anchor, tab: wantTab } : null);
+      setActive(next.target);
+      setPendingAnchor(anchor ? { anchor, tab: next.wantTab ?? undefined } : null);
     });
   };
 
   const selectFromRail = (id: SectionId, tab?: string) => {
     if (id === active) {
       closeBrowse();
-      setPendingPage(null);
+      pendingPageRef.current = null;
       if (tab) subRegRef.current?.onChange(tab);
       return;
     }
@@ -481,23 +522,35 @@ export function Settings({ visible = true }: { visible?: boolean }) {
   const openPage = (id: SectionId, tab?: string) => {
     selectFromRail(id, tab);
     setPendingAnchor(null);
-    setPendingPage({ section: id, tab });
+    pendingPageRef.current = { section: id, tab };
+    setPageFocusTick((n) => n + 1);
   };
 
-  useEffect(() => {
-    const { section, spot } = settingsSectionRequest;
-    if (!section) return;
-    if (spot?.anchor || spot?.tab) {
-      handleNav(section, spot.anchor ? settingsAnchor(spot.anchor) : undefined, spot.tab);
-      return;
-    }
-    setLanding(null);
-    setActive(resolveSection(section));
-  }, [settingsSectionRequest]);
+  const appliedRequestRef = useRef(settingsSectionRequest);
+  const activeRef = useRef(active);
+  const compactRef = useRef(compact);
+  useLayoutEffect(() => {
+    activeRef.current = active;
+    compactRef.current = compact;
+  });
 
   useEffect(() => {
-    if (active !== "relay") setRelayMode("panel");
-  }, [active]);
+    if (appliedRequestRef.current === settingsSectionRequest) return;
+    appliedRequestRef.current = settingsSectionRequest;
+    const { section, spot } = settingsSectionRequest;
+    if (!section) return;
+    pendingPageRef.current = null;
+    const next = resolveNavTarget(section, spot?.tab);
+    if (next.isTracker) requestTracker(section);
+    pendingTab.current = next.wantTab;
+    if (next.wantTab && next.target === activeRef.current && subRegRef.current) {
+      subRegRef.current.onChange(next.wantTab);
+      pendingTab.current = null;
+    }
+    if (compactRef.current && (spot?.anchor || spot?.tab)) {
+      requestAnimationFrame(() => titleRef.current?.focus({ preventScroll: true }));
+    }
+  }, [settingsSectionRequest]);
 
   const [pageActions, setPageActions] = useState<PageActionReg>(null);
   const [subRegRaw, setSubReg] = useState<SubTabReg>(null);
@@ -528,12 +581,13 @@ export function Settings({ visible = true }: { visible?: boolean }) {
   }, [subReg]);
 
   useEffect(() => {
-    if (!pendingPage || active !== pendingPage.section) return;
-    if (pendingPage.tab && subReg?.value !== pendingPage.tab) return;
+    const target = pendingPageRef.current;
+    if (!target || active !== target.section) return;
+    if (target.tab && subReg?.value !== target.tab) return;
+    pendingPageRef.current = null;
     scrollRef.current?.scrollTo({ top: 0 });
     titleRef.current?.focus({ preventScroll: true });
-    setPendingPage(null);
-  }, [active, pendingPage, subReg?.value]);
+  }, [active, pageFocusTick, subReg?.value]);
 
   const pendingAnchorRef = useRef<SettingsAnchorRequest | null>(null);
   useLayoutEffect(() => {

@@ -61,12 +61,14 @@ export function ProfilePicker({
   const menuRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [pos, setPos] = useState<{ top: number; end: number; maxH: number } | null>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setPos(null);
+  }
 
   useLayoutEffect(() => {
-    if (!open) {
-      setPos(null);
-      return;
-    }
+    if (!open) return;
     const place = () => {
       const btn = btnRef.current;
       if (!btn) return;

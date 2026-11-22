@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from "./icons";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { AnchoredMenu } from "@/components/anchored-menu";
 import { advanceFocus } from "@/lib/keyboard-navigation";
 import { getDirection, isBackKey } from "@/lib/keyboard-navigation/geometry";
@@ -77,15 +77,16 @@ export function RegionPicker({
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setQuery("");
+  }
   const language = useUiLanguage();
   const btnRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const current = REGIONS.find((r) => r.code === value);
   const currentCode = current?.code ?? value;
-
-  useEffect(() => {
-    if (!open) setQuery("");
-  }, [open]);
 
   const enterMenu = useCallback((el: HTMLDivElement | null) => {
     listRef.current = el;

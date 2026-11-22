@@ -122,13 +122,14 @@ export function TmdbGuideModal({ open, onClose }: { open: boolean; onClose: () =
   const t = useT();
   const { closing, close } = useModalExit(onClose, open);
   const [i, setI] = useState(0);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (open) setI(0);
+  }
   const all = steps(t);
   const step = all[i];
   const last = i === all.length - 1;
-
-  useEffect(() => {
-    if (open) setI(0);
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;

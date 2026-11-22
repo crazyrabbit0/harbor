@@ -153,6 +153,8 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/queue.tsx",
   "/src/views/ratings/",
   "/src/views/remote-app.tsx",
+  "/src/views/settings.tsx",
+  "/src/views/settings/",
   "/src/views/shared-list.tsx",
   "/src/views/shared-list/",
   "/src/views/shows.tsx",

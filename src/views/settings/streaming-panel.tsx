@@ -53,9 +53,15 @@ export function RecommendedAddonCard({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const debrid = pickDebridForAddon(settings);
+  const debridKey = debrid ? `${debrid.service}:${debrid.key}` : "";
+  const stateKey = `${id}:${debridKey}`;
+  const [prevKey, setPrevKey] = useState(stateKey);
+  if (prevKey !== stateKey) {
+    setPrevKey(stateKey);
+    setInstalled(isInstalled(id));
+  }
 
   useEffect(() => {
-    setInstalled(isInstalled(id));
     if (!debrid) return;
     const url = transportUrlFor(id);
     if (!url) return;

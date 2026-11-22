@@ -6,11 +6,16 @@ export function useComments(themeId: string) {
   const [comments, setComments] = useState<ThemeComment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevThemeId, setPrevThemeId] = useState(themeId);
+  if (prevThemeId !== themeId) {
+    setPrevThemeId(themeId);
+    setComments([]);
+    setLoading(true);
+    setError(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(null);
     listComments(themeId)
       .then((c) => !cancelled && setComments(c))
       .catch(

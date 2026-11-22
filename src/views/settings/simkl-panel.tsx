@@ -25,16 +25,19 @@ export function SimklPanel() {
   const { activeProfile, updateProfile } = useProfiles();
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
-  const [simklAvatar, setSimklAvatar] = useState<string | null>(null);
+  const [fetchedAvatar, setFetchedAvatar] = useState<string | null>(null);
+  const [prevConnected, setPrevConnected] = useState(isConnected);
+  if (prevConnected !== isConnected) {
+    setPrevConnected(isConnected);
+    if (!isConnected) setFetchedAvatar(null);
+  }
+  const simklAvatar = isConnected ? fetchedAvatar : null;
 
   useEffect(() => {
-    if (!isConnected) {
-      setSimklAvatar(null);
-      return;
-    }
+    if (!isConnected) return;
     let live = true;
     fetchSimklAvatar().then((url) => {
-      if (live) setSimklAvatar(url);
+      if (live) setFetchedAvatar(url);
     });
     return () => {
       live = false;

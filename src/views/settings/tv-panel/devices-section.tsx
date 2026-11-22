@@ -40,7 +40,7 @@ export function TvDevicesSection() {
   const [me, setMe] = useState<HarborIdentity | null>(null);
   const [peers, setPeers] = useState<HarborInstance[]>([]);
   const [settled, setSettled] = useState(false);
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(true);
   const [reach, setReach] = useState<Record<string, HarborReach>>({});
 
   const alive = useRef(true);
@@ -55,12 +55,9 @@ export function TvDevicesSection() {
     };
   }, []);
 
-  const scan = useCallback(() => {
+  const startSweep = useCallback(() => {
     sweep.current?.cancel();
     probed.current.clear();
-    setReach({});
-    setSettled(false);
-    setScanning(true);
     sweep.current = sweepHarborInstances((found, done) => {
       if (!alive.current) return;
       setPeers(found);
@@ -69,18 +66,24 @@ export function TvDevicesSection() {
     });
   }, []);
 
+  const scan = useCallback(() => {
+    setReach({});
+    setSettled(false);
+    setScanning(true);
+    startSweep();
+  }, [startSweep]);
+
   useEffect(() => {
     void harborIdentity().then((who) => {
       if (alive.current) setMe(who);
     });
-    scan();
-  }, [scan]);
+    startSweep();
+  }, [startSweep]);
 
   useEffect(() => {
     for (const peer of peers) {
       if (!peer.commandable || probed.current.has(peer.id)) continue;
       probed.current.add(peer.id);
-      setReach((prev) => ({ ...prev, [peer.id]: "checking" }));
       void probeInstance(peer).then((ok) => {
         if (!alive.current) return;
         setReach((prev) => ({ ...prev, [peer.id]: ok ? "reachable" : "unreachable" }));
@@ -135,7 +138,7 @@ export function TvDevicesSection() {
           const state = deviceStateOf(
             peer,
             lanTrustOf(peer.id, pairedIds),
-            reach[peer.id] ?? "unknown",
+            reach[peer.id] ?? (peer.commandable ? "checking" : "unknown"),
           );
           const drivable = state !== "remote-off" && state !== "unreachable";
           return (

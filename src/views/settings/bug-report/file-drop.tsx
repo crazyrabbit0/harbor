@@ -1,5 +1,5 @@
 import { AlertTriangle, FileText, ImagePlus, X } from "../icons";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { tvFocus } from "@/lib/keyboard-navigation";
 import { navOwnsFocus } from "@/lib/keyboard-navigation/geometry";
 import { useT } from "@/lib/i18n";
@@ -154,15 +154,40 @@ export function FileDrop({ files, onChange }: { files: File[]; onChange: (next: 
   );
 }
 
+const previewUrls = new WeakMap<File, { url: string; refs: number }>();
+
+function useFilePreviewUrl(file: File, enabled: boolean): string | null {
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      if (!enabled) return () => {};
+      const existing = previewUrls.get(file);
+      if (existing) {
+        existing.refs += 1;
+      } else {
+        previewUrls.set(file, { url: URL.createObjectURL(file), refs: 1 });
+      }
+      onStoreChange();
+      return () => {
+        const entry = previewUrls.get(file);
+        if (!entry) return;
+        entry.refs -= 1;
+        if (entry.refs <= 0) {
+          previewUrls.delete(file);
+          URL.revokeObjectURL(entry.url);
+        }
+      };
+    },
+    [file, enabled],
+  );
+  return useSyncExternalStore(subscribe, () =>
+    enabled ? (previewUrls.get(file)?.url ?? null) : null,
+  );
+}
+
 function FilePreview({ file }: { file: File }) {
-  const [url, setUrl] = useState<string | null>(null);
-  useEffect(() => {
-    if (isLog(file)) return;
-    const next = URL.createObjectURL(file);
-    setUrl(next);
-    return () => URL.revokeObjectURL(next);
-  }, [file]);
-  if (isLog(file)) {
+  const log = isLog(file);
+  const url = useFilePreviewUrl(file, !log);
+  if (log) {
     return (
       <div className="grid aspect-video w-full place-items-center bg-canvas text-ink-muted">
         <FileText size={32} />

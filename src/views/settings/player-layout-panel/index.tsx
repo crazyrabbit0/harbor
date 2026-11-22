@@ -27,18 +27,20 @@ export function PlayerLayoutPanel() {
   const { dismiss } = useOnboarding();
   const appTheme = themeIdFromSettings(settings);
   const [theme, setTheme] = useState<ThemeId>(appTheme);
+  const [prevAppTheme, setPrevAppTheme] = useState(appTheme);
+  if (prevAppTheme !== appTheme) {
+    setPrevAppTheme(appTheme);
+    setTheme(appTheme);
+  }
   const [confirmingReset, setConfirmingReset] = useState(false);
+  const [prevTheme, setPrevTheme] = useState(theme);
+  if (prevTheme !== theme) {
+    setPrevTheme(theme);
+    setConfirmingReset(false);
+  }
   const [editorOpen, setEditorOpen] = useState(false);
   const editor = useLayoutEditor(theme, setTheme);
   const { draft, setDraft, saved, dirty, justSaved, profiles, activeProfileId } = editor;
-
-  useEffect(() => {
-    setConfirmingReset(false);
-  }, [theme]);
-
-  useEffect(() => {
-    setTheme(appTheme);
-  }, [appTheme]);
 
   useEffect(() => {
     return pushActivityHint({

@@ -40,11 +40,15 @@ export function PluginSettingsModal({
   const [values, setValues] = useState<Values>({});
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [prevSource, setPrevSource] = useState({ adapter, id: plugin.id });
+  if (prevSource.adapter !== adapter || prevSource.id !== plugin.id) {
+    setPrevSource({ adapter, id: plugin.id });
+    setFields(null);
+    setError(null);
+  }
 
   useEffect(() => {
     let cancelled = false;
-    setFields(null);
-    setError(null);
     adapter
       .settingsFields?.(plugin.id)
       .then((list) => {

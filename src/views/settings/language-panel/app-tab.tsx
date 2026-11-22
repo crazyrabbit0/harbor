@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { RotateCw } from "../icons";
 import { Dropdown, type DropdownOption } from "@/components/dropdown";
 import { tvFocus } from "@/lib/keyboard-navigation";
@@ -39,13 +39,17 @@ export function AppLanguageTab() {
   const { settings, update } = useSettings();
   const [langDraft, setLangDraft] = useState(settings.tmdbLanguage);
   const [imgLangsDraft, setImgLangsDraft] = useState(settings.tmdbImageLangs);
-  const anchorRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
+  const [prevLang, setPrevLang] = useState(settings.tmdbLanguage);
+  if (prevLang !== settings.tmdbLanguage) {
+    setPrevLang(settings.tmdbLanguage);
     setLangDraft(settings.tmdbLanguage);
-  }, [settings.tmdbLanguage]);
-  useEffect(() => {
+  }
+  const [prevImgLangs, setPrevImgLangs] = useState(settings.tmdbImageLangs);
+  if (prevImgLangs !== settings.tmdbImageLangs) {
+    setPrevImgLangs(settings.tmdbImageLangs);
     setImgLangsDraft(settings.tmdbImageLangs);
-  }, [settings.tmdbImageLangs]);
+  }
+  const anchorRef = useRef<HTMLDivElement>(null);
   const t = useT();
   const savedImgSig = settings.tmdbImageLangs.join(",");
   const draftImgSig = imgLangsDraft.join(",");
