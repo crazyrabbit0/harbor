@@ -61,10 +61,7 @@ export function MobileAnime() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     heroBuiltRef.current = false;
-    setRowsByKey(initRows());
-    setHero({ metas: [], trending: {} });
     (async () => {
       const BATCH = 6;
       let firstDone = false;
@@ -178,7 +175,17 @@ export function MobileAnime() {
 
   if (loading && !anyRowData && hero.metas.length === 0) return <AnimeSkeleton />;
   if (!loading && !anyRowData && anilistTrending.length === 0 && hero.metas.length === 0) {
-    return <FailedState onRetry={() => setReloadKey((k) => k + 1)} />;
+    return (
+      <FailedState
+        onRetry={() => {
+          heroBuiltRef.current = false;
+          setLoading(true);
+          setRowsByKey(initRows());
+          setHero({ metas: [], trending: {} });
+          setReloadKey((k) => k + 1);
+        }}
+      />
+    );
   }
 
   const topSpec = SPECS.find((s) => s.key === TOP_PICKS_KEY);
@@ -242,12 +249,10 @@ function AnimeHeroMobile({
   const pausedUntil = useRef(0);
   const logos = useHeroLogos(slides, settings);
   const shown = useMemo(() => slides.slice(0, 6), [slides]);
-  const current = shown[Math.min(active, Math.max(shown.length - 1, 0))];
+  const safeActive = shown.length > 0 && active >= shown.length ? 0 : active;
+  if (safeActive !== active) setActive(safeActive);
+  const current = shown[Math.min(safeActive, Math.max(shown.length - 1, 0))];
   const inWl = useInWatchlist(current?.id ?? "", []);
-
-  useEffect(() => {
-    if (active >= shown.length && shown.length > 0) setActive(0);
-  }, [shown.length, active]);
 
   useEffect(() => {
     if (REDUCED || shown.length < 2) return;
@@ -271,9 +276,9 @@ function AnimeHeroMobile({
         {shown.map((m, i) => (
           <div
             key={m.id}
-            aria-hidden={i !== active}
+            aria-hidden={i !== safeActive}
             className="absolute inset-0 motion-safe:transition-opacity motion-safe:duration-700 motion-safe:ease-out"
-            style={{ opacity: i === active ? 1 : 0 }}
+            style={{ opacity: i === safeActive ? 1 : 0 }}
           >
             <HeroArt
               meta={m}
@@ -335,7 +340,7 @@ function AnimeHeroMobile({
                   setActive(i);
                   pausedUntil.current = Date.now() + 12000;
                 }}
-                className={`h-1.5 rounded-full transition-all duration-300 ${i === active ? "w-5 bg-accent" : "w-1.5 bg-ink/25"}`}
+                className={`h-1.5 rounded-full transition-all duration-300 ${i === safeActive ? "w-5 bg-accent" : "w-1.5 bg-ink/25"}`}
               />
             ))}
           </div>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { Minus, Plus } from "lucide-react";
 import { useMobileRemote } from "../mobile-remote";
 import { useRegisterSheet } from "../mobile-sheet-lock";
@@ -16,11 +16,15 @@ export function PageJumpSheet({ open, onClose }: { open: boolean; onClose: () =>
   const { render, leaving } = useSheetPresence(open);
   useRegisterSheet(open);
   const total = Math.max(1, manga?.pageCount ?? 1);
-  const [page, setPage] = useState((manga?.pageIndex ?? 0) + 1);
-
-  useEffect(() => {
-    if (open) setPage(clampPage((manga?.pageIndex ?? 0) + 1, total));
-  }, [open]);
+  const resetTarget = clampPage((manga?.pageIndex ?? 0) + 1, total);
+  const [pageState, setPageState] = useState(resetTarget);
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) setPageState(resetTarget);
+  }
+  const page = wasOpen !== open && open ? resetTarget : pageState;
+  const setPage = setPageState;
 
   if (!render || !manga) return null;
 

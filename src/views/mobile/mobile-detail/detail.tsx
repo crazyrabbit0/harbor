@@ -47,14 +47,15 @@ import { readAtVersion } from "@/lib/read-at-version";
 export function MobileDetail({ meta, onClose }: { meta: Meta; onClose: () => void }) {
   const [reduced] = useState(prefersReducedMotion);
   const [closing, setClosing] = useState(false);
+  const [rootId, setRootId] = useState(meta.id);
   const [stack, setStack] = useState<Meta[]>([meta]);
   const scrollRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
+  if (rootId !== meta.id) {
+    setRootId(meta.id);
     setStack([meta]);
-  }, [meta.id]);
-
-  const current = stack[stack.length - 1] ?? meta;
+  }
+  const activeStack = rootId === meta.id ? stack : [meta];
+  const current = activeStack[activeStack.length - 1] ?? meta;
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: 0 });
@@ -66,9 +67,9 @@ export function MobileDetail({ meta, onClose }: { meta: Meta; onClose: () => voi
   }, [reduced, onClose]);
 
   const back = useCallback(() => {
-    if (stack.length > 1) setStack((s) => s.slice(0, -1));
+    if (activeStack.length > 1) setStack((s) => s.slice(0, -1));
     else close();
-  }, [stack.length, close]);
+  }, [activeStack.length, close]);
 
   const openMeta = useCallback((m: Meta) => {
     setStack((s) => (s[s.length - 1]?.id === m.id ? s : [...s, m]));

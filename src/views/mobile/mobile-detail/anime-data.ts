@@ -17,39 +17,49 @@ function syncCanonical(id: string): string | null {
   return null;
 }
 
+type AnimeDetailState = {
+  metaId: string;
+  detail: TmdbDetail | null;
+  resolvedKitsu: string | null;
+  loading: boolean;
+};
+
 export function useAnimeDetail(
   meta: Meta,
   isAnime: boolean,
 ): { detail: TmdbDetail | null; canonicalId: string | null; loading: boolean } {
   const { settings } = useSettings();
-  const [detail, setDetail] = useState<TmdbDetail | null>(null);
-  const [resolvedKitsu, setResolvedKitsu] = useState<string | null>(null);
-  const [loading, setLoading] = useState(isAnime);
+  const [state, setState] = useState<AnimeDetailState | null>(null);
+  const current = isAnime && state?.metaId === meta.id ? state : null;
+  const detail = current?.detail ?? null;
+  const resolvedKitsu = current?.resolvedKitsu ?? null;
+  const loading = isAnime ? (current ? current.loading : true) : false;
 
   useEffect(() => {
-    setDetail(null);
-    setResolvedKitsu(null);
-    if (!isAnime) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!isAnime) return;
     let alive = true;
     animeDetails(settings, meta)
       .then(async (res) => {
         if (!alive || !res) {
-          if (alive) setLoading(false);
+          if (alive) {
+            setState({ metaId: meta.id, detail: null, resolvedKitsu: null, loading: false });
+          }
           return;
         }
-        setResolvedKitsu(`kitsu:${res.kitsuId}`);
-        setDetail(res.detail);
-        setLoading(false);
+        const kitsu = `kitsu:${res.kitsuId}`;
+        setState({ metaId: meta.id, detail: res.detail, resolvedKitsu: kitsu, loading: false });
         const extras = await res.extrasPromise.catch(() => null);
         if (!alive || !extras) return;
-        setDetail((prev) => (prev ? mergeExtras(prev, extras) : prev));
+        setState((prev) =>
+          prev && prev.metaId === meta.id && prev.detail
+            ? { ...prev, detail: mergeExtras(prev.detail, extras) }
+            : prev,
+        );
       })
       .catch(() => {
-        if (alive) setLoading(false);
+        if (alive) {
+          setState({ metaId: meta.id, detail: null, resolvedKitsu: null, loading: false });
+        }
       });
     return () => {
       alive = false;

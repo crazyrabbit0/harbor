@@ -25,6 +25,7 @@ import { OrderStyleSwitch, type OrderOption } from "./order-switch";
 import { readAtVersion } from "@/lib/read-at-version";
 
 type SeasonEntry = SeasonOption & { badge?: string };
+const EMPTY_EPS: Episode[] = [];
 
 const isUpcoming = (date?: string | null): boolean => {
   const d = daysFromTodayLocal(date);
@@ -71,14 +72,13 @@ export function EpisodeSection({
 
   const settingsProvider = effectiveOrderProvider(settings);
   const [override, setOverride] = useState<{
+    metaId: string;
     provider: "default" | "tvdb";
     seasonType: string;
   } | null>(null);
-  useEffect(() => {
-    setOverride(null);
-  }, [meta.id]);
-  const effProvider = override?.provider ?? settingsProvider;
-  const effSeasonType = override?.seasonType ?? settings.tvdbSeasonType;
+  const activeOverride = override?.metaId === meta.id ? override : null;
+  const effProvider = activeOverride?.provider ?? settingsProvider;
+  const effSeasonType = activeOverride?.seasonType ?? settings.tvdbSeasonType;
 
   const ordering = useEpisodeOrder(imdbId, meta.id, effProvider, effSeasonType, tvdbKey);
 
@@ -90,8 +90,8 @@ export function EpisodeSection({
   }, [orderTypes, settings.tmdbKey]);
   const activeOrder = effProvider === "tvdb" && effSeasonType !== "tmdb" ? effSeasonType : "tmdb";
   const pickOrder = (value: string) => {
-    if (value === "tmdb") setOverride({ provider: "default", seasonType: "tmdb" });
-    else setOverride({ provider: "tvdb", seasonType: value });
+    if (value === "tmdb") setOverride({ metaId: meta.id, provider: "default", seasonType: "tmdb" });
+    else setOverride({ metaId: meta.id, provider: "tvdb", seasonType: value });
   };
 
   const seasonOptions = useMemo<SeasonEntry[]>(
@@ -126,45 +126,43 @@ export function EpisodeSection({
       ? v
       : (seasonOptions[0]?.number ?? 1);
   });
-  useEffect(() => {
-    setSeason((s) =>
-      seasonOptions.some((o) => o.number === s) ? s : (seasonOptions[0]?.number ?? 1),
-    );
-  }, [seasonOptions]);
+  const validSeason = seasonOptions.some((o) => o.number === season)
+    ? season
+    : (seasonOptions[0]?.number ?? 1);
+  if (validSeason !== season) setSeason(validSeason);
   const pickSeason = (n: number) => {
     setViewedSeason(meta.id, n);
     setSeason(n);
   };
 
   const tvId = tmdbTvId(meta, detail);
-  const [tmdbEps, setTmdbEps] = useState<Episode[]>([]);
-  const [loadingEps, setLoadingEps] = useState(false);
+  const canFetchTmdb = !ordering && !!tmdbKey && tvId != null;
+  const epKey = canFetchTmdb ? `${tmdbKey}|${tvId}|${validSeason}` : "";
+  const [tmdbEpsResult, setTmdbEpsResult] = useState<{
+    key: string;
+    eps: Episode[];
+  } | null>(null);
   useEffect(() => {
-    setTmdbEps([]);
-    if (ordering) {
-      setLoadingEps(false);
-      return;
-    }
-    if (!tmdbKey || tvId == null) return;
+    if (ordering || !tmdbKey || tvId == null) return;
     let alive = true;
-    setLoadingEps(true);
-    tmdbSeasonEpisodes(tmdbKey, tvId, season)
+    tmdbSeasonEpisodes(tmdbKey, tvId, validSeason)
       .then((eps) => {
-        if (!alive) return;
-        setTmdbEps(eps);
-        setLoadingEps(false);
+        if (alive) setTmdbEpsResult({ key: epKey, eps });
       })
       .catch(() => {
-        if (alive) setLoadingEps(false);
+        if (alive) setTmdbEpsResult({ key: epKey, eps: EMPTY_EPS });
       });
     return () => {
       alive = false;
     };
-  }, [ordering, tmdbKey, tvId, season]);
+  }, [ordering, tmdbKey, tvId, validSeason, epKey]);
+  const epHit = epKey && tmdbEpsResult?.key === epKey ? tmdbEpsResult : null;
+  const tmdbEps = epHit?.eps ?? EMPTY_EPS;
+  const loadingEps = !!epKey && !epHit;
 
   const episodes = useMemo<Ep[]>(() => {
     if (ordering) {
-      return (ordering.bySeason.get(season) ?? []).map((e) => ({
+      return (ordering.bySeason.get(validSeason) ?? []).map((e) => ({
         season: e.seasonNumber,
         episode: e.episodeNumber,
         name: e.name || undefined,
@@ -176,9 +174,9 @@ export function EpisodeSection({
     }
     const byNum = new Map<number, Ep>();
     for (const v of full?.videos ?? []) {
-      if (v.season !== season || typeof v.episode !== "number") continue;
+      if (v.season !== validSeason || typeof v.episode !== "number") continue;
       byNum.set(v.episode, {
-        season,
+        season: validSeason,
         episode: v.episode,
         name: v.name || v.title,
         still: v.thumbnail,
@@ -189,7 +187,7 @@ export function EpisodeSection({
     for (const e of tmdbEps) {
       const prev = byNum.get(e.episodeNumber);
       byNum.set(e.episodeNumber, {
-        season,
+        season: validSeason,
         episode: e.episodeNumber,
         name: prev?.name || e.name || undefined,
         still: prev?.still || stillFrom(e.stillPath, e.stillUrl),
@@ -199,13 +197,13 @@ export function EpisodeSection({
       });
     }
     return [...byNum.values()].sort((a, b) => a.episode - b.episode);
-  }, [ordering, season, full?.videos, tmdbEps]);
+  }, [ordering, validSeason, full?.videos, tmdbEps]);
 
   if (seasonOptions.length === 0) return null;
 
   const activeLabel =
-    seasonOptions.find((o) => o.number === season)?.label ??
-    t("Season {number}", { number: season });
+    seasonOptions.find((o) => o.number === validSeason)?.label ??
+    t("Season {number}", { number: validSeason });
 
   return (
     <section className="flex flex-col gap-4">
@@ -214,7 +212,7 @@ export function EpisodeSection({
         {seasonOptions.length > 1 && (
           <SeasonPicker
             options={seasonOptions}
-            value={season}
+            value={validSeason}
             label={activeLabel}
             onChange={pickSeason}
           />

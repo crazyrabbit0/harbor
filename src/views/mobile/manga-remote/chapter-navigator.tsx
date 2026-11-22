@@ -63,6 +63,8 @@ export function ChapterNavigator({
   useRegisterSheet(open);
 
   const [query, setQuery] = useState("");
+  if (!open && query !== "") setQuery("");
+  const activeQuery = open ? query : "";
   const [desc, setDesc] = useState(loadDesc);
   const [src, setSrc] = useState("all");
 
@@ -72,7 +74,7 @@ export function ChapterNavigator({
   const effSrc = sources.some((s) => s.id === src) ? src : "all";
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = activeQuery.trim().toLowerCase();
     const num = (c: RemoteMangaChapter) => parseFloat(c.chapter ?? "") || 0;
     return chapters
       .filter((c) => effSrc === "all" || c.sourceId === effSrc)
@@ -80,7 +82,7 @@ export function ChapterNavigator({
         (c) => !q || c.label.toLowerCase().includes(q) || (c.title ?? "").toLowerCase().includes(q),
       )
       .sort((a, b) => (desc ? num(b) - num(a) : num(a) - num(b)));
-  }, [chapters, query, desc, effSrc]);
+  }, [chapters, activeQuery, desc, effSrc]);
 
   const activeRow = manga ? rows.findIndex((c) => c.id === manga.chapterId) : -1;
   const {
@@ -95,10 +97,7 @@ export function ChapterNavigator({
   } = useVirtualWindow(rows.length, ROW_H);
 
   useEffect(() => {
-    if (!open) {
-      setQuery("");
-      return;
-    }
+    if (!open) return;
     const raf = requestAnimationFrame(() => {
       if (activeRow >= 0) scrollToRow(activeRow);
     });
@@ -156,7 +155,7 @@ export function ChapterNavigator({
         <div className="flex h-12 items-center gap-2.5 rounded-2xl bg-elevated/70 px-4">
           <Search size={18} strokeWidth={2.2} className="shrink-0 text-ink-subtle" />
           <input
-            value={query}
+            value={activeQuery}
             onChange={(e) => setQuery(e.target.value)}
             inputMode="search"
             enterKeyHint="search"

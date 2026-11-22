@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Bookmark, BookmarkPlus, Check, Trash2 } from "lucide-react";
 import { useMobileRemote } from "../mobile-remote";
 import { useRegisterSheet } from "../mobile-sheet-lock";
@@ -17,10 +17,8 @@ export function BookmarksSheet({ open, onClose }: { open: boolean; onClose: () =
   useRegisterSheet(open);
   const [saved, setSaved] = useState(false);
   const now = useNow(60_000, open);
-
-  useEffect(() => {
-    if (!open) setSaved(false);
-  }, [open]);
+  if (!open && saved) setSaved(false);
+  const showSaved = open && saved;
 
   const chapterIds = useMemo(
     () => new Set((manga?.chapters ?? []).map((c) => c.id)),
@@ -80,7 +78,7 @@ export function BookmarksSheet({ open, onClose }: { open: boolean; onClose: () =
 
         {isSpread ? (
           <div className="mx-4 mb-3 flex flex-col gap-2">
-            {saved ? (
+            {showSaved ? (
               <div className="flex h-12 items-center justify-center gap-2 rounded-2xl bg-accent-soft text-[15px] font-semibold text-accent">
                 <Check size={18} strokeWidth={2.6} /> {t("Saved")}
               </div>
@@ -108,14 +106,14 @@ export function BookmarksSheet({ open, onClose }: { open: boolean; onClose: () =
           <button
             type="button"
             onClick={() => add()}
-            className={`mx-4 mb-3 flex h-12 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold transition-colors ${saved ? "bg-accent-soft text-accent" : "bg-accent text-canvas active:opacity-90"}`}
+            className={`mx-4 mb-3 flex h-12 items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold transition-colors ${showSaved ? "bg-accent-soft text-accent" : "bg-accent text-canvas active:opacity-90"}`}
           >
-            {saved ? (
+            {showSaved ? (
               <Check size={18} strokeWidth={2.6} />
             ) : (
               <BookmarkPlus size={18} strokeWidth={2.2} />
             )}
-            {saved ? t("Saved") : t("Bookmark page {page}", { page: manga.pageIndex + 1 })}
+            {showSaved ? t("Saved") : t("Bookmark page {page}", { page: manga.pageIndex + 1 })}
           </button>
         )}
 

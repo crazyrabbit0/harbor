@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -41,32 +40,30 @@ export function useSheetPresence(open: boolean) {
   const [reduced] = useState(prefersReducedMotion);
   const [render, setRender] = useState(open);
   const [leaving, setLeaving] = useState(false);
-  const renderedRef = useRef(open);
-  useLayoutEffect(() => {
-    renderedRef.current = render;
-  }, [render]);
+
+  if (open) {
+    if (!render) setRender(true);
+    if (leaving) setLeaving(false);
+  } else if (reduced) {
+    if (render) setRender(false);
+    if (leaving) setLeaving(false);
+  } else if (render && !leaving) {
+    setLeaving(true);
+  }
+
+  const effectiveRender = open || (reduced ? false : render);
+  const effectiveLeaving = !open && !reduced && render;
 
   useEffect(() => {
-    if (open) {
-      setRender(true);
-      setLeaving(false);
-      return;
-    }
-    if (!renderedRef.current) return;
-    if (reduced) {
-      setRender(false);
-      setLeaving(false);
-      return;
-    }
-    setLeaving(true);
+    if (open || reduced || !render) return;
     const t = window.setTimeout(() => {
       setRender(false);
       setLeaving(false);
     }, SHEET_EXIT_MS);
     return () => window.clearTimeout(t);
-  }, [open, reduced]);
+  }, [open, reduced, render]);
 
-  return { render, leaving };
+  return { render: effectiveRender, leaving: effectiveLeaving };
 }
 
 export function useSheetDrag(onClose: () => void) {
@@ -110,13 +107,19 @@ export function useSheetDrag(onClose: () => void) {
 export function KeyboardOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useT();
   const { sendCommand, snapshot } = useMobileRemote();
-  const [val, setVal] = useState("");
+  const initialVal = snapshot.textEntry?.value ?? "";
+  const [val, setVal] = useState(() => (open ? initialVal : ""));
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
+    if (open) setVal(initialVal);
+  }
+  const activeVal = wasOpen !== open && open ? initialVal : val;
   const inputRef = useRef<HTMLInputElement>(null);
   const { render, leaving } = useSheetPresence(open);
 
   useEffect(() => {
     if (!open) return;
-    setVal(snapshot.textEntry?.value ?? "");
     inputRef.current?.focus();
     const t = window.setTimeout(() => inputRef.current?.focus(), 40);
     return () => window.clearTimeout(t);
@@ -125,7 +128,7 @@ export function KeyboardOverlay({ open, onClose }: { open: boolean; onClose: () 
   if (!render) return null;
 
   const submit = () => {
-    sendCommand({ action: "submitText", value: val });
+    sendCommand({ action: "submitText", value: activeVal });
     onClose();
   };
 
@@ -153,7 +156,7 @@ export function KeyboardOverlay({ open, onClose }: { open: boolean; onClose: () 
       <input
         ref={inputRef}
         autoFocus
-        value={val}
+        value={activeVal}
         onChange={(e) => {
           setVal(e.target.value);
           sendCommand({ action: "setText", value: e.target.value });

@@ -38,13 +38,18 @@ export function MangaLocalReader({ onExit }: { onExit: () => void }) {
   const [zoomFlash, setZoomFlash] = useState(false);
   const zoomFlashTimer = useRef(0);
   const zoomPct = Math.round(localZoom * 100);
+  const flashKey = `${chromeHidden}:${zoomPct}`;
+  const [seenFlashKey, setSeenFlashKey] = useState(flashKey);
+  if (seenFlashKey !== flashKey) {
+    setSeenFlashKey(flashKey);
+    setZoomFlash(chromeHidden);
+  }
+  const flashing = seenFlashKey === flashKey ? zoomFlash : chromeHidden;
   useEffect(() => {
     if (!chromeHidden) {
-      setZoomFlash(false);
       window.clearTimeout(zoomFlashTimer.current);
       return;
     }
-    setZoomFlash(true);
     window.clearTimeout(zoomFlashTimer.current);
     zoomFlashTimer.current = window.setTimeout(() => setZoomFlash(false), 1500);
     return () => window.clearTimeout(zoomFlashTimer.current);
@@ -212,7 +217,7 @@ export function MangaLocalReader({ onExit }: { onExit: () => void }) {
   const chromeCls = `${reduce ? "" : "transition-opacity duration-200 motion-reduce:transition-none "}${
     chromeVisible ? "opacity-100" : "pointer-events-none opacity-0"
   }`;
-  const zoomBadgeVisible = (chromeVisible && zoomPct !== 100) || zoomFlash;
+  const zoomBadgeVisible = (chromeVisible && zoomPct !== 100) || flashing;
   const waiting = pages.length === 0;
 
   return (

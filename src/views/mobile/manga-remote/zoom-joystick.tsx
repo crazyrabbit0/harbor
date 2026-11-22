@@ -88,9 +88,9 @@ export function ZoomJoystick({
   const [pct, setPct] = useState(() => Math.round(zoom * 100));
 
   const padRef = useRef<HTMLDivElement>(null);
-  const propsRef = useRef({ zoom, min, max, onZoom, onPan });
+  const propsRef = useRef({ zoom, min, max, onZoom, onPan, onEngageChange });
   useLayoutEffect(() => {
-    propsRef.current = { zoom, min, max, onZoom, onPan };
+    propsRef.current = { zoom, min, max, onZoom, onPan, onEngageChange };
   });
 
   const rafRef = useRef(0);
@@ -262,15 +262,16 @@ export function ZoomJoystick({
     if (held <= TAP_MS && moved <= TAP_SLOP) disengage();
   };
 
+  if (!canZoom && engaged) {
+    setEngaged(false);
+    setActive(false);
+    setOffset(ZERO);
+    setShow(false);
+  }
+  if (!engaged && show) setShow(false);
+
   useEffect(() => {
-    if (!engaged) {
-      setShow(false);
-      return;
-    }
-    if (reduce) {
-      setShow(true);
-      return;
-    }
+    if (!engaged || reduce) return;
     const r = requestAnimationFrame(() => setShow(true));
     return () => cancelAnimationFrame(r);
   }, [engaged, reduce]);
@@ -280,8 +281,20 @@ export function ZoomJoystick({
     pushPct(clampZoomTo(zoom, min, max));
   }, [zoom, min, max]);
 
+  const prevCanZoomEngagedRef = useRef(canZoom && engaged);
   useEffect(() => {
-    if (!canZoom && engaged) disengage();
+    const prev = prevCanZoomEngagedRef.current;
+    prevCanZoomEngagedRef.current = canZoom && engaged;
+    if (!canZoom && prev) {
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      rafRef.current = 0;
+      phaseRef.current = "idle";
+      activeRef.current = false;
+      offRef.current = ZERO;
+      panRemXRef.current = 0;
+      panRemYRef.current = 0;
+      propsRef.current.onEngageChange?.(false);
+    }
   }, [canZoom, engaged]);
 
   useEffect(() => {
@@ -301,6 +314,8 @@ export function ZoomJoystick({
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
   }, []);
+
+  const visible = reduce || show;
 
   if (!canZoom) return null;
 
@@ -323,7 +338,7 @@ export function ZoomJoystick({
       {engaged && (
         <div
           className={`relative origin-bottom-right transition-[transform,opacity] duration-200 ease-out motion-reduce:transition-none ${
-            show ? "scale-100 opacity-100" : "scale-90 opacity-0"
+            visible ? "scale-100 opacity-100" : "scale-90 opacity-0"
           }`}
         >
           <button
