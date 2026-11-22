@@ -41,53 +41,47 @@ export type Ep = {
 export type SeasonOption = { number: number; label: string };
 
 export function useCinemetaFull(meta: Meta): Meta | null {
-  const [full, setFull] = useState<Meta | null>(
-    meta.videos && meta.videos.length > 0 ? meta : null,
-  );
+  const key = `${meta.type}|${meta.id}`;
+  const [fetched, setFetched] = useState<{ key: string; meta: Meta } | null>(null);
   useEffect(() => {
-    setFull(meta.videos && meta.videos.length > 0 ? meta : null);
     if (!meta.id.startsWith("tt")) return;
     let alive = true;
     fetchCinemetaMeta(narrowMediaType(meta.type), meta.id)
       .then((m) => {
-        if (alive && m) setFull(m);
+        if (alive && m) setFetched({ key, meta: m });
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [meta.id, meta.type]);
-  return full;
+  }, [key, meta.id, meta.type]);
+  if (fetched?.key === key) return fetched.meta;
+  return meta.videos && meta.videos.length > 0 ? meta : null;
 }
 
 export function useTmdbDetail(
   meta: Meta,
   key: string,
 ): { detail: TmdbDetail | null; loading: boolean } {
-  const [detail, setDetail] = useState<TmdbDetail | null>(null);
-  const [loading, setLoading] = useState(!!key);
+  const reqKey = key ? `${key}|${meta.id}` : "";
+  const [result, setResult] = useState<{ key: string; detail: TmdbDetail | null } | null>(null);
   useEffect(() => {
-    setDetail(null);
-    if (!key) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!key) return;
     let alive = true;
     tmdbDetails(key, meta)
       .then((d) => {
-        if (!alive) return;
-        setDetail(d);
-        setLoading(false);
+        if (alive) setResult({ key: reqKey, detail: d });
       })
       .catch(() => {
-        if (alive) setLoading(false);
+        if (alive) setResult({ key: reqKey, detail: null });
       });
     return () => {
       alive = false;
     };
-  }, [key, meta.id]);
-  return { detail, loading };
+  }, [key, meta.id, reqKey]);
+  if (!key) return { detail: null, loading: false };
+  const hit = result?.key === reqKey ? result : null;
+  return { detail: hit?.detail ?? null, loading: !hit };
 }
 
 export function seasonList(full: Meta | null, detail: TmdbDetail | null): number[] {

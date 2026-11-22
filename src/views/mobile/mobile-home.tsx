@@ -29,16 +29,26 @@ export function MobileHome() {
   const { settings } = useSettings();
   const [hero, setHero] = useState<Meta[]>([]);
   const [rows, setRows] = useState<HomeRow[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [detailMeta, setDetailMeta] = useState<Meta | null>(null);
   const cw = useMobileCw(14);
+  const fetchKey = JSON.stringify([
+    settings.tmdbKey,
+    settings.homeMode,
+    settings.tmdbLanguage,
+    settings.tmdbImageLangs,
+    settings.translateTitles,
+    settings.translateDescriptions,
+    reloadKey,
+  ]);
+  const [status, setStatus] = useState<{ key: string; loading: boolean; failed: boolean } | null>(
+    null,
+  );
+  const loading = status?.key === fetchKey ? status.loading : true;
+  const failed = status?.key === fetchKey ? status.failed : false;
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
-    setFailed(false);
     (async () => {
       const work = async () => {
         const built = settings.tmdbKey ? await buildTmdbRows(settings) : await buildCinemetaRows();
@@ -53,28 +63,26 @@ export function MobileHome() {
         }
         setHero(dedupeMetas(heroPool.filter((m) => m.background)).slice(0, 8));
         setRows(rowList);
-        setFailed(rowList.length === 0);
+        setStatus({ key: fetchKey, loading: false, failed: rowList.length === 0 });
       };
       await work()
         .catch(() => {
-          if (alive) setFailed(true);
+          if (alive) setStatus({ key: fetchKey, loading: false, failed: true });
         })
         .finally(() => {
-          if (alive) setLoading(false);
+          if (alive) {
+            setStatus((prev) =>
+              prev?.key === fetchKey
+                ? { ...prev, loading: false }
+                : { key: fetchKey, loading: false, failed: false },
+            );
+          }
         });
     })();
     return () => {
       alive = false;
     };
-  }, [
-    settings.tmdbKey,
-    settings.homeMode,
-    settings.tmdbLanguage,
-    settings.tmdbImageLangs,
-    settings.translateTitles,
-    settings.translateDescriptions,
-    reloadKey,
-  ]);
+  }, [fetchKey]);
 
   const shownHero = useHideAnimeMetas(hero);
   const shownRows = useHideAnimeRows(rows);

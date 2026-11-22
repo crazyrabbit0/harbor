@@ -64,6 +64,7 @@ const readySubs = new Set<() => void>();
 // here means a remount starts correct instead of starting wrong.
 let cloudCache: LibraryItem[] = [];
 let cloudKey: string | null = null;
+const EMPTY_CW: LibraryItem[] = [];
 
 function markCwReady(): void {
   if (cwReady) return;
@@ -100,9 +101,19 @@ export function useMobileCw(limit = 14): LibraryItem[] {
   const externalCw = useExternalCw(
     !hideSharedCw && (settings.cwSources.trakt || settings.cwSources.simkl),
   );
-  const [items, setItems] = useState<LibraryItem[]>(() =>
-    authKey && cloudKey === authKey ? cloudCache : [],
+  const [cloudResult, setCloudResult] = useState<{ authKey: string; items: LibraryItem[] } | null>(
+    () => (authKey && cloudKey === authKey ? { authKey, items: cloudCache } : null),
   );
+  if (cloudResult !== null && cloudResult.authKey !== (authKey ?? "")) {
+    setCloudResult(null);
+  }
+  const items = !authKey
+    ? EMPTY_CW
+    : cloudResult?.authKey === authKey
+      ? cloudResult.items
+      : cloudKey === authKey
+        ? cloudCache
+        : EMPTY_CW;
   const [localVersion, setLocalVersion] = useState(0);
   const dismissVersion = useCwDismissVersion();
 
@@ -110,18 +121,16 @@ export function useMobileCw(limit = 14): LibraryItem[] {
     if (!authKey) {
       cloudKey = null;
       cloudCache = [];
-      setItems([]);
       markCwReady();
       return;
     }
-    if (cloudKey === authKey) setItems(cloudCache);
-    else resetCwReady();
+    if (cloudKey !== authKey) resetCwReady();
     let cancelled = false;
     library(authKey)
       .then((li) => {
         cloudKey = authKey;
         cloudCache = li;
-        if (!cancelled) setItems(li);
+        if (!cancelled) setCloudResult({ authKey, items: li });
       })
       .catch(() => {})
       .finally(markCwReady);

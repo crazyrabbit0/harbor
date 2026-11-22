@@ -230,14 +230,13 @@ function NowPlayingBar({ onExpand }: { onExpand: () => void }) {
   const { sheetOpen } = useSheetLock();
   const active = connected && !snapshot.idle && !!snapshot.mediaId;
   const [render, setRender] = useState(active);
+  if (active && !render) setRender(true);
+  const effectiveRender = active || render;
   const [lastActive, setLastActive] = useState(snapshot);
   if (active && lastActive !== snapshot) setLastActive(snapshot);
 
   useEffect(() => {
-    if (active) {
-      setRender(true);
-      return;
-    }
+    if (active) return;
     const timer = window.setTimeout(() => setRender(false), 200);
     return () => window.clearTimeout(timer);
   }, [active]);
@@ -247,7 +246,7 @@ function NowPlayingBar({ onExpand }: { onExpand: () => void }) {
     return <MangaNowBar m={manga} hidden={sheetOpen} onExpand={onExpand} />;
   }
 
-  if (!render) return null;
+  if (!effectiveRender) return null;
   const snap = active ? snapshot : lastActive;
   const ep = snap.episode ? `S${snap.episode.season} · E${snap.episode.episode}` : null;
   return (

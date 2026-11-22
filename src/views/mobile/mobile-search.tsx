@@ -498,14 +498,12 @@ function AwardsCard({ onClick }: { onClick: () => void }) {
 const PREVIEW_COLLECTION_IDS = [1241, 328, 10, 119, 263, 87096, 87359, 645];
 
 type CollectionSlide = { backdrop?: string; posters: string[] };
+const EMPTY_SLIDES: CollectionSlide[] = [];
 
 function useCollectionSlides(key: string): CollectionSlide[] {
-  const [slides, setSlides] = useState<CollectionSlide[]>([]);
+  const [state, setState] = useState<{ key: string; slides: CollectionSlide[] } | null>(null);
   useEffect(() => {
-    if (!key) {
-      setSlides([]);
-      return;
-    }
+    if (!key) return;
     let alive = true;
     Promise.all(
       PREVIEW_COLLECTION_IDS.slice(0, 6).map((id) => tmdbCollection(key, id).catch(() => null)),
@@ -525,14 +523,14 @@ function useCollectionSlides(key: string): CollectionSlide[] {
             posters,
           });
         }
-        setSlides(out);
+        setState({ key, slides: out });
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
   }, [key]);
-  return slides;
+  return key && state?.key === key ? state.slides : EMPTY_SLIDES;
 }
 
 const COLL_CSS = `
@@ -806,13 +804,14 @@ function CollectionsBrowser({
 }) {
   const t = useT();
   const { settings } = useSettings();
-  const [list, setList] = useState<Meta[] | null>(null);
+  const listKey = `${authKey ?? ""}|${settings.pluginsOutsideTab ? 1 : 0}`;
+  const [listState, setListState] = useState<{ key: string; metas: Meta[] } | null>(null);
+  const list = listState?.key === listKey ? listState.metas : null;
   const [active, setActive] = useState<Meta | null>(null);
   const [members, setMembers] = useState<Meta[] | null>(null);
 
   useEffect(() => {
     let alive = true;
-    setList(null);
     (async () => {
       const work = async () => {
         const cats = await listBrowseCatalogs(authKey, {
@@ -834,16 +833,16 @@ function CollectionsBrowser({
             merged.push(m);
           }
         }
-        setList(merged);
+        setListState({ key: listKey, metas: merged });
       };
       await work().catch(() => {
-        if (alive) setList([]);
+        if (alive) setListState({ key: listKey, metas: [] });
       });
     })();
     return () => {
       alive = false;
     };
-  }, [authKey, settings.pluginsOutsideTab]);
+  }, [authKey, settings.pluginsOutsideTab, listKey]);
 
   const openCollection = async (meta: Meta) => {
     setActive(meta);

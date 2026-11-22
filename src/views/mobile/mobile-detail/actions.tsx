@@ -31,21 +31,22 @@ export function DetailActions({
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const [sheetOpen, setSheetOpen] = useState(false);
   const [trailerOpen, setTrailerOpen] = useState(false);
-  const [trailer, setTrailer] = useState<string | null>(trailerId);
+  const trailerKey = `${meta.id}|${settings.tmdbKey}`;
+  const [resolvedTrailer, setResolvedTrailer] = useState<{ key: string; id: string } | null>(null);
+  const trailer = trailerId ?? (resolvedTrailer?.key === trailerKey ? resolvedTrailer.id : null);
 
   useEffect(() => {
-    setTrailer(trailerId);
     if (trailerId || !settings.tmdbKey) return;
     let alive = true;
     resolveTrailerId(meta, settings.tmdbKey)
       .then((id) => {
-        if (alive && id) setTrailer(id);
+        if (alive && id) setResolvedTrailer({ key: trailerKey, id });
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [trailerId, meta.id, settings.tmdbKey]);
+  }, [trailerId, trailerKey, meta.id, settings.tmdbKey]);
 
   return (
     <>
@@ -128,15 +129,27 @@ function ActionsSheet({
   const historyBase = inList(library?.history, meta.id, imdbId);
 
   const [favOpt, setFavOpt] = useState<boolean | null>(null);
+  const [prevFavBase, setPrevFavBase] = useState(favBase);
+  if (prevFavBase !== favBase) {
+    setPrevFavBase(favBase);
+    setFavOpt(null);
+  }
   const [watchlistOpt, setWatchlistOpt] = useState<boolean | null>(null);
+  const [prevWatchlistBase, setPrevWatchlistBase] = useState(watchlistBase);
+  if (prevWatchlistBase !== watchlistBase) {
+    setPrevWatchlistBase(watchlistBase);
+    setWatchlistOpt(null);
+  }
   const [historyOpt, setHistoryOpt] = useState<boolean | null>(null);
-  useEffect(() => setFavOpt(null), [favBase]);
-  useEffect(() => setWatchlistOpt(null), [watchlistBase]);
-  useEffect(() => setHistoryOpt(null), [historyBase]);
+  const [prevHistoryBase, setPrevHistoryBase] = useState(historyBase);
+  if (prevHistoryBase !== historyBase) {
+    setPrevHistoryBase(historyBase);
+    setHistoryOpt(null);
+  }
 
-  const isFav = favOpt ?? favBase;
-  const inWatchlist = watchlistOpt ?? watchlistBase;
-  const isWatched = historyOpt ?? historyBase;
+  const isFav = (prevFavBase === favBase ? favOpt : null) ?? favBase;
+  const inWatchlist = (prevWatchlistBase === watchlistBase ? watchlistOpt : null) ?? watchlistBase;
+  const isWatched = (prevHistoryBase === historyBase ? historyOpt : null) ?? historyBase;
 
   const send = (op: RemoteLibraryAction) =>
     sendCommand({

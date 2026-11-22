@@ -51,15 +51,17 @@ export function MobileMovies() {
   const settings = useSettingsSelector((s) => ({ region: s.region, tmdbKey: s.tmdbKey }));
   const [hero, setHero] = useState<Meta[]>([]);
   const [rows, setRows] = useState<RowData[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [detailMeta, setDetailMeta] = useState<Meta | null>(null);
+  const fetchKey = JSON.stringify([settings.tmdbKey, settings.region, reloadKey]);
+  const [status, setStatus] = useState<{ key: string; loading: boolean; failed: boolean } | null>(
+    null,
+  );
+  const loading = status?.key === fetchKey ? status.loading : true;
+  const failed = status?.key === fetchKey ? status.failed : false;
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
-    setFailed(false);
     (async () => {
       const work = async () => {
         const seen = recentlyPlayed();
@@ -103,20 +105,26 @@ export function MobileMovies() {
         }
         setHero(dedupeMetas(heroPool.filter((m) => m.background)).slice(0, 8));
         setRows(rowList);
-        setFailed(rowList.length === 0);
+        setStatus({ key: fetchKey, loading: false, failed: rowList.length === 0 });
       };
       await work()
         .catch(() => {
-          if (alive) setFailed(true);
+          if (alive) setStatus({ key: fetchKey, loading: false, failed: true });
         })
         .finally(() => {
-          if (alive) setLoading(false);
+          if (alive) {
+            setStatus((prev) =>
+              prev?.key === fetchKey
+                ? { ...prev, loading: false }
+                : { key: fetchKey, loading: false, failed: false },
+            );
+          }
         });
     })();
     return () => {
       alive = false;
     };
-  }, [settings.tmdbKey, settings.region, reloadKey]);
+  }, [fetchKey]);
 
   const shownRows = useHideAnimeRows(rows);
   const shownHero = useHideAnimeMetas(hero);

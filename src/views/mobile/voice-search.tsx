@@ -29,6 +29,16 @@ export function getSpeechRecognition(): SpeechRecognitionCtor | null {
   return scope.SpeechRecognition ?? scope.webkitSpeechRecognition ?? null;
 }
 
+function createRecognition(): SpeechRecognitionLike | null {
+  const SR = getSpeechRecognition();
+  if (!SR) return null;
+  try {
+    return new SR();
+  } catch {
+    return null;
+  }
+}
+
 const reducedMotion = () =>
   typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
@@ -83,7 +93,7 @@ export function VoiceSearch({
   onSubmit: (transcript: string) => void;
 }) {
   const t = useT();
-  const [phase, setPhase] = useState<Phase>("listening");
+  const [phase, setPhase] = useState<Phase>(() => (getSpeechRecognition() ? "listening" : "error"));
   const [interim, setInterim] = useState("");
   const [finalText, setFinalText] = useState("");
   const [exiting, setExiting] = useState(false);
@@ -143,51 +153,42 @@ export function VoiceSearch({
   );
 
   useEffect(() => {
-    const SR = getSpeechRecognition();
-    if (!SR) {
-      settle("error", "");
+    const rec = createRecognition();
+    if (!rec) {
+      terminalRef.current = true;
+      timersRef.current.push(window.setTimeout(leave, HOLD_ERROR));
     } else {
-      let rec: SpeechRecognitionLike | null = null;
-      try {
-        rec = new SR();
-      } catch {
-        rec = null;
-      }
-      if (!rec) {
+      rec.lang = navigator.language || "en-US";
+      rec.interimResults = true;
+      rec.continuous = false;
+      rec.onresult = (event) => {
+        let live = "";
+        let done = "";
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i];
+          if (res.isFinal) done += res[0].transcript;
+          else live += res[0].transcript;
+        }
+        const heard = done.trim();
+        if (heard) settle("captured", heard);
+        else setInterim(live);
+      };
+      rec.onerror = (event) => {
+        if (event.error === "aborted") return;
         settle("error", "");
-      } else {
-        rec.lang = navigator.language || "en-US";
-        rec.interimResults = true;
-        rec.continuous = false;
-        rec.onresult = (event) => {
-          let live = "";
-          let done = "";
-          for (let i = event.resultIndex; i < event.results.length; i++) {
-            const res = event.results[i];
-            if (res.isFinal) done += res[0].transcript;
-            else live += res[0].transcript;
-          }
-          const heard = done.trim();
-          if (heard) settle("captured", heard);
-          else setInterim(live);
-        };
-        rec.onerror = (event) => {
-          if (event.error === "aborted") return;
-          settle("error", "");
-        };
-        rec.onend = () => settle("error", "");
-        recRef.current = rec;
-        try {
-          rec.start();
-        } catch {}
-      }
+      };
+      rec.onend = () => settle("error", "");
+      recRef.current = rec;
+      try {
+        rec.start();
+      } catch {}
     }
     return () => {
       stopRec();
       timersRef.current.forEach((t) => window.clearTimeout(t));
       timersRef.current = [];
     };
-  }, [settle, stopRec]);
+  }, [leave, settle, stopRec]);
 
   const words = interim ? interim.trim().split(/\s+/).filter(Boolean) : [];
   const bigType = "font-display leading-tight tracking-tight text-[clamp(1.5rem,6.4vw,2.15rem)]";

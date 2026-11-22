@@ -14,6 +14,16 @@ import { MobileFeatured } from "./mobile-featured";
 type Row = { id: string; title: string; metas: Meta[] };
 
 const ROW_CAP = 18;
+const EMPTY_METAS: Meta[] = [];
+const EMPTY_ROWS: Row[] = [];
+
+type DiscoverState = {
+  key: string;
+  featured: Meta[];
+  rawRows: Row[];
+  loading: boolean;
+  failed: boolean;
+};
 
 function nameKey(m: Meta): string {
   return m.name ? m.name.toLowerCase().replace(/[^a-z0-9]+/g, "") : "";
@@ -45,30 +55,53 @@ function dedupeRows(rows: Row[], featured: Meta[]): Row[] {
 export function MobileDiscover() {
   const t = useT();
   const { settings } = useSettings();
-  const [featured, setFeatured] = useState<Meta[]>([]);
-  const [rawRows, setRawRows] = useState<Row[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [detailMeta, setDetailMeta] = useState<Meta | null>(null);
   const key = settings.tmdbKey;
+  const fetchKey = JSON.stringify([
+    key,
+    settings.region,
+    settings.streaming,
+    settings.preferredLanguages,
+    settings.tmdbLanguage,
+    settings.feedLocaleBias,
+    settings.uiLanguage,
+    reloadKey,
+  ]);
+  const [state, setState] = useState<DiscoverState | null>(null);
+  const current = state?.key === fetchKey ? state : null;
+  const featured = current?.featured ?? EMPTY_METAS;
+  const rawRows = current?.rawRows ?? EMPTY_ROWS;
+  const loading = current ? current.loading : true;
+  const failed = current ? current.failed : false;
 
   useEffect(() => {
     let alive = true;
-    setLoading(true);
-    setFailed(false);
-    setFeatured([]);
-    setRawRows([]);
+    const base = (): DiscoverState => ({
+      key: fetchKey,
+      featured: [],
+      rawRows: [],
+      loading: true,
+      failed: false,
+    });
     if (key) {
       buildFeaturedFast(key, settings)
         .then((r) => {
-          if (alive && r.featured.length) setFeatured((prev) => (prev.length ? prev : r.featured));
+          if (!alive || !r.featured.length) return;
+          setState((prev) => {
+            const cur = prev?.key === fetchKey ? prev : base();
+            return cur.featured.length ? cur : { ...cur, featured: r.featured };
+          });
         })
         .catch(() => {});
     }
     buildFeatured(key, settings)
       .then((r) => {
-        if (alive && r.featured.length) setFeatured(r.featured);
+        if (!alive || !r.featured.length) return;
+        setState((prev) => {
+          const cur = prev?.key === fetchKey ? prev : base();
+          return { ...cur, featured: r.featured };
+        });
       })
       .catch(() => {});
 
@@ -95,31 +128,32 @@ export function MobileDiscover() {
             metas: critics,
           });
         }
-        setRawRows(rows);
-        setFailed(rows.length === 0);
+        setState((prev) => {
+          const cur = prev?.key === fetchKey ? prev : base();
+          return { ...cur, rawRows: rows, failed: rows.length === 0 };
+        });
       };
       await work()
         .catch(() => {
-          if (alive) setFailed(true);
+          if (!alive) return;
+          setState((prev) => {
+            const cur = prev?.key === fetchKey ? prev : base();
+            return { ...cur, failed: true };
+          });
         })
         .finally(() => {
-          if (alive) setLoading(false);
+          if (!alive) return;
+          setState((prev) => {
+            const cur = prev?.key === fetchKey ? prev : base();
+            return { ...cur, loading: false };
+          });
         });
     })();
 
     return () => {
       alive = false;
     };
-  }, [
-    key,
-    settings.region,
-    settings.streaming,
-    settings.preferredLanguages,
-    settings.tmdbLanguage,
-    settings.feedLocaleBias,
-    settings.uiLanguage,
-    reloadKey,
-  ]);
+  }, [fetchKey]);
 
   const rows = useMemo(() => dedupeRows(rawRows, featured), [rawRows, featured]);
   const shownRows = useHideAnimeRows(rows);

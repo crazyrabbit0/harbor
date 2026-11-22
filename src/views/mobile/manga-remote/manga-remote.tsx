@@ -92,13 +92,18 @@ export function MangaRemote({
   const zoomRaf = useRef(0);
   const zoomPending = useRef<number | null>(null);
   const zoomPct = m ? Math.round(m.zoom * 100) : 100;
+  const flashKey = `${chromeHidden}:${zoomPct}`;
+  const [seenFlashKey, setSeenFlashKey] = useState(flashKey);
+  if (seenFlashKey !== flashKey) {
+    setSeenFlashKey(flashKey);
+    setZoomFlash(chromeHidden);
+  }
+  const flashing = seenFlashKey === flashKey ? zoomFlash : chromeHidden;
   useEffect(() => {
     if (!chromeHidden) {
-      setZoomFlash(false);
       window.clearTimeout(zoomFlashTimer.current);
       return;
     }
-    setZoomFlash(true);
     window.clearTimeout(zoomFlashTimer.current);
     zoomFlashTimer.current = window.setTimeout(() => setZoomFlash(false), 1500);
     return () => window.clearTimeout(zoomFlashTimer.current);
@@ -129,12 +134,17 @@ export function MangaRemote({
             : "swipe";
     setLayout(mapped);
   }, [m?.mode, setLayout]);
-  const [feedPage, setFeedPage] = useState<number | null>(null);
+  const chapterId = m?.chapterId;
+  const [feedPageEntry, setFeedPageEntry] = useState<{
+    chapterId: string | undefined;
+    page: number;
+  } | null>(null);
+  const feedPage =
+    feedPageEntry !== null && feedPageEntry.chapterId === chapterId ? feedPageEntry.page : null;
   const feedState = useRef({ page: -1, frac: -1, t: 0, seq: -1 });
   useEffect(() => {
-    setFeedPage(null);
     feedState.current = { page: -1, frac: -1, t: 0, seq: -1 };
-  }, [m?.chapterId]);
+  }, [chapterId]);
 
   useHistoryBackGuard(true);
 
@@ -155,7 +165,7 @@ export function MangaRemote({
     if (feedPage == null || displayPage === feedPage) return;
     if ((m?.seq ?? -1) === feedState.current.seq) return;
     if (performance.now() - feedState.current.t < 500) return;
-    setFeedPage(null);
+    setFeedPageEntry(null);
   }, [displayPage, feedPage, m?.seq]);
 
   if (!m || !m.open) return <MangaRemoteEmpty variant="closed" />;
@@ -179,7 +189,7 @@ export function MangaRemote({
     else flash(t("Reconnecting to your computer"));
   };
   const reportFeedPage = (page: number, scroll?: number, vel?: number) => {
-    setFeedPage(page);
+    setFeedPageEntry({ chapterId, page });
     const last = feedState.current;
     const frac =
       scroll == null
@@ -231,7 +241,7 @@ export function MangaRemote({
   };
   const chromeCls = `${reduce ? "" : "transition-opacity duration-200 "}${chromeHidden ? "pointer-events-none opacity-0" : "opacity-100"}`;
   const chromeVisible = !chromeHidden;
-  const zoomBadgeVisible = (chromeVisible && zoomPct !== 100) || zoomFlash;
+  const zoomBadgeVisible = (chromeVisible && zoomPct !== 100) || flashing;
   const total = Math.max(1, count);
   const spreadNums = (m.spread ?? []).filter((n) => n > 0);
   const isSpread = (m.mode === "book" || m.mode === "double") && spreadNums.length >= 2;

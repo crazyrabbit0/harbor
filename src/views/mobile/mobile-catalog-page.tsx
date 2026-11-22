@@ -23,6 +23,20 @@ export function mergeUnique(prev: Meta[], next: Meta[]): Meta[] {
   return out;
 }
 
+const EMPTY_ITEMS: Meta[] = [];
+
+type GridState = {
+  resetKey: string;
+  enabled: boolean;
+  initialPages: number;
+  retry: number;
+  items: Meta[];
+  nextPage: number;
+  status: "loading" | "ready" | "error";
+  loadingMore: boolean;
+  exhausted: boolean;
+};
+
 export function MobileCatalogGrid({
   fetchPage,
   resetKey,
@@ -38,12 +52,8 @@ export function MobileCatalogGrid({
   onOpenDetail: (m: Meta) => void;
   initialPages?: number;
 }) {
-  const [items, setItems] = useState<Meta[]>([]);
-  const [nextPage, setNextPage] = useState(initialPages + 1);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [exhausted, setExhausted] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [grid, setGrid] = useState<GridState | null>(null);
   const reqRef = useRef(0);
   const loadingRef = useRef(false);
   const fetchRef = useRef(fetchPage);
@@ -51,34 +61,58 @@ export function MobileCatalogGrid({
     fetchRef.current = fetchPage;
   }, [fetchPage]);
 
+  const current =
+    grid &&
+    grid.resetKey === resetKey &&
+    grid.enabled === enabled &&
+    grid.initialPages === initialPages &&
+    grid.retry === retry
+      ? grid
+      : null;
+  const items = current?.items ?? EMPTY_ITEMS;
+  const nextPage = current?.nextPage ?? initialPages + 1;
+  const status = !enabled ? "ready" : (current?.status ?? "loading");
+  const loadingMore = current?.loadingMore ?? false;
+  const exhausted = current?.exhausted ?? false;
+
   useEffect(() => {
     reqRef.current += 1;
     const my = reqRef.current;
     loadingRef.current = false;
-    setItems([]);
-    setStatus("loading");
-    setExhausted(false);
-    setLoadingMore(false);
-    setNextPage(initialPages + 1);
-    if (!enabled) {
-      setStatus("ready");
-      return;
-    }
+    if (!enabled) return;
     const pages = Array.from({ length: initialPages }, (_, i) => i + 1);
     Promise.all(pages.map((p) => fetchRef.current(p)))
       .then((res) => {
         if (reqRef.current !== my) return;
-        setItems(
-          mergeUnique(
+        setGrid({
+          resetKey,
+          enabled,
+          initialPages,
+          retry,
+          items: mergeUnique(
             [],
             res.flatMap((r) => r.metas),
           ),
-        );
-        setExhausted(!res[res.length - 1]?.more);
-        setStatus("ready");
+          nextPage: initialPages + 1,
+          status: "ready",
+          loadingMore: false,
+          exhausted: !res[res.length - 1]?.more,
+        });
       })
       .catch(() => {
-        if (reqRef.current === my) setStatus("error");
+        if (reqRef.current === my) {
+          setGrid({
+            resetKey,
+            enabled,
+            initialPages,
+            retry,
+            items: [],
+            nextPage: initialPages + 1,
+            status: "error",
+            loadingMore: false,
+            exhausted: false,
+          });
+        }
       });
   }, [resetKey, enabled, initialPages, retry]);
 
@@ -86,19 +120,28 @@ export function MobileCatalogGrid({
     if (loadingRef.current || exhausted || status !== "ready" || !enabled) return;
     const my = reqRef.current;
     loadingRef.current = true;
-    setLoadingMore(true);
+    setGrid((prev) => (prev ? { ...prev, loadingMore: true } : prev));
     fetchRef
       .current(nextPage)
       .then((res) => {
         if (reqRef.current !== my) return;
-        setItems((prev) => mergeUnique(prev, res.metas));
-        setNextPage((p) => p + 1);
-        setExhausted(!res.more);
+        setGrid((prev) =>
+          prev
+            ? {
+                ...prev,
+                items: mergeUnique(prev.items, res.metas),
+                nextPage: prev.nextPage + 1,
+                exhausted: !res.more,
+              }
+            : prev,
+        );
       })
       .catch(() => {})
       .finally(() => {
         loadingRef.current = false;
-        if (reqRef.current === my) setLoadingMore(false);
+        if (reqRef.current === my) {
+          setGrid((prev) => (prev ? { ...prev, loadingMore: false } : prev));
+        }
       });
   }, [exhausted, status, enabled, nextPage]);
 

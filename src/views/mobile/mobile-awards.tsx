@@ -47,6 +47,15 @@ function readMode(): Mode {
   }
 }
 
+const EMPTY_FILMS: Meta[] = [];
+
+type AwardState = {
+  key: string;
+  films: Meta[];
+  done: boolean;
+  loadingMore: boolean;
+};
+
 export function MobileAwards({
   onClose,
   onOpenDetail,
@@ -65,10 +74,14 @@ export function MobileAwards({
   const [closing, setClosing] = useState(false);
   const [awardType, setAwardType] = useState<AwardType>("oscar");
   const [mode, setMode] = useState<Mode>(readMode);
-  const [films, setFilms] = useState<Meta[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [done, setDone] = useState(false);
+  const [result, setResult] = useState<AwardState | null>(null);
+
+  const fetchKey = hasKey ? `${awardType}|${key}` : "";
+  const current = hasKey && result?.key === fetchKey ? result : null;
+  const films = current?.films ?? EMPTY_FILMS;
+  const loading = hasKey && !current;
+  const loadingMore = current?.loadingMore ?? false;
+  const done = !hasKey || (current?.done ?? false);
 
   const meta = AWARD_CATALOG[awardType];
   const tint = laurelColorFor(awardType);
@@ -88,45 +101,40 @@ export function MobileAwards({
   }, []);
 
   useEffect(() => {
-    if (!hasKey) {
-      setFilms([]);
-      setLoading(false);
-      setDone(true);
-      return;
-    }
+    if (!hasKey) return;
     let cancelled = false;
-    setFilms([]);
-    setLoading(true);
-    setDone(false);
-    setLoadingMore(false);
     targetRef.current = INITIAL;
     loadAwardFilms(key, awardType, INITIAL)
       .then((res) => {
         if (cancelled) return;
-        setFilms(res.films);
-        setDone(res.done);
-        setLoading(false);
+        setResult({ key: fetchKey, films: res.films, done: res.done, loadingMore: false });
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setResult({ key: fetchKey, films: [], done: false, loadingMore: false });
       });
     return () => {
       cancelled = true;
     };
-  }, [awardType, key, hasKey]);
+  }, [awardType, key, hasKey, fetchKey]);
 
   const loadMore = useCallback(() => {
     if (loadingMore || loading || done || !key) return;
-    setLoadingMore(true);
+    setResult((prev) => (prev && prev.key === fetchKey ? { ...prev, loadingMore: true } : prev));
     targetRef.current += STEP;
     loadAwardFilms(key, awardType, targetRef.current)
       .then((res) => {
-        setFilms(res.films);
-        setDone(res.done);
-        setLoadingMore(false);
+        setResult((prev) =>
+          prev && prev.key === fetchKey
+            ? { key: fetchKey, films: res.films, done: res.done, loadingMore: false }
+            : prev,
+        );
       })
-      .catch(() => setLoadingMore(false));
-  }, [awardType, key, loading, loadingMore, done]);
+      .catch(() => {
+        setResult((prev) =>
+          prev && prev.key === fetchKey ? { ...prev, loadingMore: false } : prev,
+        );
+      });
+  }, [awardType, key, fetchKey, loading, loadingMore, done]);
 
   const node = (
     <div

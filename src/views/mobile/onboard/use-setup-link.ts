@@ -43,7 +43,7 @@ export function useSetupLink(token: string): SetupLink {
   const hc = useHandoffClient(token);
   const [delivery, setDelivery] = useState<Marks>({});
   const [reasons, setReasons] = useState<Reasons>({});
-  const [idleHost, setIdleHost] = useState(false);
+  const [idleHostTimedOut, setIdleHostTimedOut] = useState(false);
 
   const phase = hc.phase;
   const offer = hc.offer;
@@ -54,33 +54,23 @@ export function useSetupLink(token: string): SetupLink {
     deliverRef.current = hc.deliver;
   });
 
+  const waitingIdleHost = !armed && phase === "idleHost";
+  if (!waitingIdleHost && idleHostTimedOut) setIdleHostTimedOut(false);
+  const idleHost = waitingIdleHost && idleHostTimedOut;
+
   useEffect(() => {
-    if (armed || phase !== "idleHost") {
-      setIdleHost(false);
-      return;
-    }
-    const id = window.setTimeout(() => setIdleHost(true), IDLE_HOST_GRACE_MS);
+    if (!waitingIdleHost) return;
+    const id = window.setTimeout(() => setIdleHostTimedOut(true), IDLE_HOST_GRACE_MS);
     return () => window.clearTimeout(id);
-  }, [armed, phase]);
+  }, [waitingIdleHost]);
 
   // The ack is the real confirmation, but a lost ack on a committed step would
   // otherwise strand the phone, so a step appearing in `done` also counts.
   const doneKey = hc.done.join(",");
-  useEffect(() => {
-    if (!doneKey) return;
-    const done = doneKey.split(",") as SetupStepId[];
-    setDelivery((prev) => {
-      let changed = false;
-      const next = { ...prev };
-      for (const step of done) {
-        if (next[step] !== "confirmed") {
-          next[step] = "confirmed";
-          changed = true;
-        }
-      }
-      return changed ? next : prev;
-    });
-  }, [doneKey]);
+  const doneSet = useMemo(
+    () => new Set((doneKey ? doneKey.split(",") : []) as SetupStepId[]),
+    [doneKey],
+  );
 
   const deliver = useCallback((payload: SetupPayload) => {
     const step = payload.step;
@@ -102,16 +92,21 @@ export function useSetupLink(token: string): SetupLink {
     });
   }, []);
 
-  const resetDelivery = useCallback((step: SetupStepId) => {
-    setDelivery((prev) =>
-      prev[step] && prev[step] !== "confirmed" ? { ...prev, [step]: "idle" } : prev,
-    );
-    setReasons((prev) => (prev[step] ? { ...prev, [step]: null } : prev));
-  }, []);
+  const resetDelivery = useCallback(
+    (step: SetupStepId) => {
+      if (doneSet.has(step)) return;
+      setDelivery((prev) =>
+        prev[step] && prev[step] !== "confirmed" ? { ...prev, [step]: "idle" } : prev,
+      );
+      setReasons((prev) => (prev[step] ? { ...prev, [step]: null } : prev));
+    },
+    [doneSet],
+  );
 
   const deliveryOf = useCallback(
-    (step: SetupStepId): DeliveryState => delivery[step] ?? "idle",
-    [delivery],
+    (step: SetupStepId): DeliveryState =>
+      doneSet.has(step) ? "confirmed" : (delivery[step] ?? "idle"),
+    [delivery, doneSet],
   );
   const rejectOf = useCallback(
     (step: SetupStepId): HandoffClientReject | null => reasons[step] ?? null,
