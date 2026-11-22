@@ -14,39 +14,39 @@ export function useThemeUpdates() {
   const [updates, setUpdates] = useState<ThemeUpdate[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 
-  const scan = useCallback(async () => {
+  useEffect(() => {
     const recs = getDownloadRecords();
     const savedIds = Object.keys(recs);
-    if (!savedIds.length) {
-      setUpdates([]);
-      return;
-    }
-    const current = await browseThemes("new", "").catch(() => null);
-    if (!current) return;
-    const byStore = new Map<string, number>(
-      current.map((t) => [t.id, t.versionsCount ?? 0] as [string, number]),
-    );
-    const byStoreId = new Map<string, ThemeUpdate>();
-    for (const savedId of savedIds) {
-      const rec = recs[savedId];
-      const cur = byStore.get(rec.storeId);
-      if (cur == null || cur <= rec.version) continue;
-      const existing = byStoreId.get(rec.storeId);
-      if (existing && existing.from <= rec.version) continue;
-      byStoreId.set(rec.storeId, {
-        savedId,
-        storeId: rec.storeId,
-        name: rec.name,
-        from: rec.version,
-        to: cur,
-      });
-    }
-    setUpdates([...byStoreId.values()]);
+    if (!savedIds.length) return;
+    let cancelled = false;
+    void browseThemes("new", "")
+      .then((current) => {
+        if (cancelled) return;
+        const byStore = new Map<string, number>(
+          current.map((t) => [t.id, t.versionsCount ?? 0] as [string, number]),
+        );
+        const byStoreId = new Map<string, ThemeUpdate>();
+        for (const savedId of savedIds) {
+          const rec = recs[savedId];
+          const cur = byStore.get(rec.storeId);
+          if (cur == null || cur <= rec.version) continue;
+          const existing = byStoreId.get(rec.storeId);
+          if (existing && existing.from <= rec.version) continue;
+          byStoreId.set(rec.storeId, {
+            savedId,
+            storeId: rec.storeId,
+            name: rec.name,
+            from: rec.version,
+            to: cur,
+          });
+        }
+        setUpdates([...byStoreId.values()]);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
-  useEffect(() => {
-    scan();
-  }, [scan]);
 
   const updateOne = useCallback(async (u: ThemeUpdate) => {
     setBusy(u.storeId);

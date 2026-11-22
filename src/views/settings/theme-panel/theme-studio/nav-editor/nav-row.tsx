@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronUp, Eye, EyeOff, GripVertical } from "../../../icons";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { NavItem } from "@/chrome/nav-items";
 import { useT } from "@/lib/i18n";
 import { tvFocus } from "@/lib/keyboard-navigation";
@@ -46,9 +46,13 @@ export function NavRow({
 }) {
   const t = useT();
   const [draft, setDraft] = useState(name);
+  const [prevName, setPrevName] = useState(name);
+  if (prevName !== name) {
+    setPrevName(name);
+    setDraft(name);
+  }
   const upRef = useRef<HTMLButtonElement>(null);
   const downRef = useRef<HTMLButtonElement>(null);
-  useEffect(() => setDraft(name), [name]);
 
   const posFrom = (e: { clientY: number; currentTarget: HTMLElement }): "before" | "after" => {
     const rect = e.currentTarget.getBoundingClientRect();

@@ -36,6 +36,7 @@ export function ThemeUpdateFlow({
   );
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const coverUrlRef = useRef<string | null>(null);
   const [shots, setShots] = useState<{ blob: Blob; url: string }[]>([]);
   const [changelog, setChangelog] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -44,6 +45,20 @@ export function ThemeUpdateFlow({
   const [copied, setCopied] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(
+    () => () => {
+      if (coverUrlRef.current) URL.revokeObjectURL(coverUrlRef.current);
+    },
+    [],
+  );
+
+  const handleCoverChange = (blob: Blob | null) => {
+    setCoverBlob(blob);
+    if (coverUrlRef.current) URL.revokeObjectURL(coverUrlRef.current);
+    const next = blob ? URL.createObjectURL(blob) : null;
+    coverUrlRef.current = next;
+    setCoverUrl(next);
+  };
 
   const stepBack = () => {
     if (!result && step > 0) setStep((s) => s - 1);
@@ -67,13 +82,6 @@ export function ThemeUpdateFlow({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
-
-  useEffect(() => {
-    if (!coverBlob) return setCoverUrl(null);
-    const u = URL.createObjectURL(coverBlob);
-    setCoverUrl(u);
-    return () => URL.revokeObjectURL(u);
-  }, [coverBlob]);
 
   const swatch = theme?.swatch ?? target.swatch;
 
@@ -194,7 +202,7 @@ export function ThemeUpdateFlow({
                     <p className="max-w-[66ch] text-[15.5px] leading-[22px] text-ink-muted">
                       {t("Optional. Skip this step to keep your current cover.")}
                     </p>
-                    <CoverCropper onChange={setCoverBlob} />
+                    <CoverCropper onChange={handleCoverChange} />
                   </div>
                 )}
                 {step === 2 && <ShotsStep shots={shots} onAdd={addShots} onRemove={removeShot} />}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { HarborMark } from "@/components/icons/harbor-mark";
 import uploadGlyph from "@/assets/nav-icons/download.svg?raw";
 import { resizeAvatar } from "./account/avatar-utils";
@@ -241,11 +241,16 @@ export function SettingsSidebar({
   const searching = trimmed.length > 0;
   const activeBand = bands().find((band) => band.sections.includes(active))?.section ?? "SETUP";
   const [openBands, setOpenBands] = useState(() => new Set([activeBand]));
-  useEffect(() => {
-    setOpenBands((current) =>
-      current.has(activeBand) ? current : new Set([...current, activeBand]),
-    );
-  }, [activeBand, active, searching]);
+  const navKey = `${activeBand}:${active}:${searching}`;
+  const [prevNav, setPrevNav] = useState(navKey);
+  if (prevNav !== navKey) {
+    setPrevNav(navKey);
+    if (!openBands.has(activeBand)) {
+      setOpenBands((current) =>
+        current.has(activeBand) ? current : new Set([...current, activeBand]),
+      );
+    }
+  }
   const toggleBand = (band: string) =>
     setOpenBands((current) => {
       const next = new Set(current);

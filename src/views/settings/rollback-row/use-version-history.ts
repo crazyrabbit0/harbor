@@ -9,11 +9,16 @@ type State =
 export function useVersionHistory(enabled: boolean) {
   const [state, setState] = useState<State>({ status: "loading" });
   const [nonce, setNonce] = useState(0);
+  const key = `${enabled}:${nonce}`;
+  const [prevKey, setPrevKey] = useState(key);
+  if (prevKey !== key) {
+    setPrevKey(key);
+    if (enabled) setState({ status: "loading" });
+  }
 
   useEffect(() => {
     if (!enabled) return;
     let cancelled = false;
-    setState({ status: "loading" });
     fetchVersionHistory()
       .then((versions) => !cancelled && setState({ status: "ready", versions }))
       .catch(() => !cancelled && setState({ status: "error" }));

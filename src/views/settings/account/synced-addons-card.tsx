@@ -20,27 +20,51 @@ const CAPTION = "text-[13px] font-bold uppercase leading-[17px] tracking-[0.72px
 export function SyncedAddonsCard() {
   const t = useT();
   const { authKey } = useAuth();
-  const [addons, setAddons] = useState<Addon[] | null>(null);
-  const [busy, setBusy] = useState(false);
-  const [lastSynced, setLastSynced] = useState<number | null>(null);
+  const [autoState, setAutoState] = useState<{
+    key: string;
+    addons: Addon[] | null;
+    syncedAt: number | null;
+  } | null>(null);
+  const [manual, setManual] = useState<{
+    key: string;
+    addons: Addon[] | null;
+    syncedAt: number | null;
+  } | null>(null);
+  const [manualBusy, setManualBusy] = useState(false);
   const { setView } = useViewActions();
+  const activeManual = authKey && manual?.key === authKey ? manual : null;
+  const activeAuto = authKey && autoState?.key === authKey ? autoState : null;
+  const addons = activeManual ? activeManual.addons : (activeAuto?.addons ?? null);
+  const lastSynced = activeManual ? activeManual.syncedAt : (activeAuto?.syncedAt ?? null);
+  const busy = manualBusy || (!!authKey && autoState?.key !== authKey);
   const now = useNow(1000, lastSynced != null);
 
   const sync = async () => {
-    if (!authKey || busy) return;
-    setBusy(true);
+    if (!authKey || manualBusy) return;
+    setManualBusy(true);
     await loadAddons()
       .then((mod) => mod.userAddons(authKey))
       .then((list) => {
-        setAddons(list);
-        setLastSynced(Date.now());
+        setManual({ key: authKey, addons: list, syncedAt: Date.now() });
       })
-      .catch(() => setAddons(null))
-      .finally(() => setBusy(false));
+      .catch(() => setManual({ key: authKey, addons: null, syncedAt: null }))
+      .finally(() => setManualBusy(false));
   };
 
   useEffect(() => {
-    if (authKey && addons == null) void sync();
+    if (!authKey) return;
+    let alive = true;
+    void loadAddons()
+      .then((mod) => mod.userAddons(authKey))
+      .then((list) => {
+        if (alive) setAutoState({ key: authKey, addons: list, syncedAt: Date.now() });
+      })
+      .catch(() => {
+        if (alive) setAutoState({ key: authKey, addons: null, syncedAt: null });
+      });
+    return () => {
+      alive = false;
+    };
   }, [authKey]);
 
   if (!authKey) {

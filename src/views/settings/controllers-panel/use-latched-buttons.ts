@@ -1,59 +1,60 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { GpButton } from "@/lib/gamepad/protocol";
 
 type Buttons = Partial<Record<GpButton, boolean>>;
 
 export function useLatchedButtons(live: Buttons, floorMs: number): Buttons {
-  const [shown, setShown] = useState<Buttons>(live);
-  const pressedAt = useRef<Partial<Record<GpButton, number>>>({});
+  const [prevLive, setPrevLive] = useState<Buttons>(live);
+  const [latched, setLatched] = useState<Buttons>(() => ({ ...live }));
+  const prevEffectLive = useRef<Buttons>({});
   const timers = useRef<Partial<Record<GpButton, number>>>({});
 
-  useEffect(() => {
-    const keys = new Set([...Object.keys(shown), ...Object.keys(live)]) as Set<GpButton>;
-    const next: Buttons = { ...shown };
+  if (prevLive !== live) {
+    setPrevLive(live);
+    const updates: Buttons = {};
     let changed = false;
-
-    for (const k of keys) {
-      const now = !!live[k];
-      const was = !!next[k];
-      if (now === was) continue;
-
-      if (now) {
-        const pending = timers.current[k];
-        if (pending !== undefined) {
-          window.clearTimeout(pending);
-          delete timers.current[k];
-        }
-        pressedAt.current[k] = performance.now();
-        next[k] = true;
+    for (const k of Object.keys(live) as GpButton[]) {
+      if (live[k] && !latched[k]) {
+        updates[k] = true;
         changed = true;
-        continue;
       }
-
-      if (timers.current[k] !== undefined) continue;
-      const wait = floorMs - (performance.now() - (pressedAt.current[k] ?? 0));
-      if (wait <= 0) {
-        next[k] = false;
-        changed = true;
-        continue;
-      }
-      timers.current[k] = window.setTimeout(() => {
-        delete timers.current[k];
-        setShown((prev) => ({ ...prev, [k]: false }));
-      }, wait);
     }
+    if (changed) {
+      setLatched((prev) => ({ ...prev, ...updates }));
+    }
+  }
 
-    if (changed) setShown(next);
-  }, [live, floorMs, shown]);
+  useEffect(() => {
+    const prev = prevEffectLive.current;
+    prevEffectLive.current = live;
+    for (const k of Object.keys(live) as GpButton[]) {
+      if (live[k] && !prev[k]) {
+        const pending = timers.current[k];
+        if (pending !== undefined) window.clearTimeout(pending);
+        timers.current[k] = window.setTimeout(() => {
+          delete timers.current[k];
+          setLatched((cur) => (cur[k] ? { ...cur, [k]: false } : cur));
+        }, floorMs);
+      }
+    }
+  }, [live, floorMs]);
 
   useEffect(
     () => () => {
+      prevEffectLive.current = {};
       for (const id of Object.values(timers.current)) {
         if (id !== undefined) window.clearTimeout(id);
       }
+      timers.current = {};
     },
     [],
   );
 
-  return shown;
+  return useMemo(() => {
+    const out: Buttons = { ...latched };
+    for (const k of Object.keys(live) as GpButton[]) {
+      if (live[k]) out[k] = true;
+    }
+    return out;
+  }, [latched, live]);
 }

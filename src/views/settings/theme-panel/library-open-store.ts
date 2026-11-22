@@ -20,6 +20,10 @@ export function requestThemeLibrary(req: LibraryRequest): void {
   for (const f of reqSubs) f();
 }
 
+export function peekThemeLibraryRequest(): LibraryRequest | null {
+  return pending;
+}
+
 export function consumeThemeLibraryRequest(): LibraryRequest | null {
   const r = pending;
   pending = null;

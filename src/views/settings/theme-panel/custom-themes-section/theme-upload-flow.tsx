@@ -40,12 +40,20 @@ export function ThemeUploadFlow({ onClose }: { onClose: () => void }) {
   const myThemes = useMemo(() => getCustomThemes(), []);
   const [step, setStep] = useState(0);
   const [theme, setTheme] = useState<CustomTheme | null>(myThemes[0] ?? null);
+  const [prevTheme, setPrevTheme] = useState<CustomTheme | null>(theme);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const coverUrlRef = useRef<string | null>(null);
   const [shots, setShots] = useState<{ blob: Blob; url: string }[]>([]);
-  const [name, setName] = useState("");
-  const [author, setAuthor] = useState("");
-  const [blurb, setBlurb] = useState("");
+  const [name, setName] = useState(() => myThemes[0]?.name ?? "");
+  const [blurb, setBlurb] = useState(() => myThemes[0]?.blurb || "");
+  if (prevTheme !== theme) {
+    setPrevTheme(theme);
+    if (theme) {
+      setName(theme.name);
+      setBlurb(theme.blurb || "");
+    }
+  }
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<{ share: string } | null>(null);
@@ -54,6 +62,22 @@ export function ThemeUploadFlow({ onClose }: { onClose: () => void }) {
   const [account, setAccount] = useState<Author | null>(currentAuthor);
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => subscribeAuthor(() => setAccount(currentAuthor())), []);
+  useEffect(
+    () => () => {
+      if (coverUrlRef.current) URL.revokeObjectURL(coverUrlRef.current);
+    },
+    [],
+  );
+
+  const handleCoverChange = (blob: Blob | null) => {
+    setCoverBlob(blob);
+    if (coverUrlRef.current) URL.revokeObjectURL(coverUrlRef.current);
+    const next = blob ? URL.createObjectURL(blob) : null;
+    coverUrlRef.current = next;
+    setCoverUrl(next);
+  };
+
+  const author = account?.username || localStorage.getItem("harbor.theme-author") || "";
 
   const stepBack = () => {
     if (account && !result && step > 0) setStep((s) => s - 1);
@@ -77,22 +101,6 @@ export function ThemeUploadFlow({ onClose }: { onClose: () => void }) {
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
-
-  useEffect(() => {
-    if (theme) {
-      setName(theme.name);
-      setBlurb(theme.blurb || "");
-    }
-  }, [theme]);
-  useEffect(() => {
-    setAuthor(account?.username || localStorage.getItem("harbor.theme-author") || "");
-  }, [account]);
-  useEffect(() => {
-    if (!coverBlob) return setCoverUrl(null);
-    const u = URL.createObjectURL(coverBlob);
-    setCoverUrl(u);
-    return () => URL.revokeObjectURL(u);
-  }, [coverBlob]);
 
   const swatch = theme?.swatch ?? [
     "var(--color-canvas)",
@@ -243,7 +251,7 @@ export function ThemeUploadFlow({ onClose }: { onClose: () => void }) {
                 className="harbor-step min-h-0 overflow-y-auto pe-1 [scrollbar-width:thin]"
               >
                 {step === 0 && <ThemeStep themes={myThemes} selected={theme} onSelect={setTheme} />}
-                {step === 1 && <CoverCropper onChange={setCoverBlob} />}
+                {step === 1 && <CoverCropper onChange={handleCoverChange} />}
                 {step === 2 && <ShotsStep shots={shots} onAdd={addShots} onRemove={removeShot} />}
                 {step === 3 && (
                   <DetailsStep

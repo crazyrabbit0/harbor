@@ -259,19 +259,21 @@ export function CustomColorPanel({
     return rgbToHsv(r, g, b);
   });
   const [hexDraft, setHexDraft] = useState(value);
+  const [prevValue, setPrevValue] = useState(value);
 
-  useEffect(() => {
+  if (prevValue !== value) {
+    setPrevValue(value);
     setHexDraft(value);
     const { r, g, b } = hexToRgb(value);
     const next = rgbToHsv(r, g, b);
-    setHsv((prev) =>
-      Math.abs(prev.h - next.h) < 0.5 &&
-      Math.abs(prev.s - next.s) < 0.005 &&
-      Math.abs(prev.v - next.v) < 0.005
-        ? prev
-        : next,
-    );
-  }, [value]);
+    if (
+      Math.abs(hsv.h - next.h) >= 0.5 ||
+      Math.abs(hsv.s - next.s) >= 0.005 ||
+      Math.abs(hsv.v - next.v) >= 0.005
+    ) {
+      setHsv(next);
+    }
+  }
 
   const slRef = useRef<HTMLDivElement>(null);
   const hueRef = useRef<HTMLDivElement>(null);

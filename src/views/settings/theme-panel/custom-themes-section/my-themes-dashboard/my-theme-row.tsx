@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ChevronDown,
   Eye,
@@ -39,14 +39,17 @@ export function MyThemeRow({
 }) {
   const tr = useT();
   const [t, setT] = useState(theme);
+  const [prevTheme, setPrevTheme] = useState(theme);
+  if (prevTheme !== theme) {
+    setPrevTheme(theme);
+    setT(theme);
+  }
   const [busy, setBusy] = useState<null | "vis" | "del">(null);
   const [confirmDel, setConfirmDel] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
   const [versions, setVersions] = useState<Version[] | null>(null);
   const [versionsBusy, setVersionsBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => setT(theme), [theme]);
 
   const versionsCount = t.versionsCount ?? 0;
   const badge = STATUS[t.status];

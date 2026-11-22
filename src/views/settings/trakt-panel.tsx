@@ -21,16 +21,19 @@ export function TraktPanel() {
   const { activeProfile, updateProfile } = useProfiles();
   const [modalOpen, setModalOpen] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
-  const [traktAvatar, setTraktAvatar] = useState<string | null>(null);
+  const [fetchedAvatar, setFetchedAvatar] = useState<string | null>(null);
+  const [prevConnected, setPrevConnected] = useState(isConnected);
+  if (prevConnected !== isConnected) {
+    setPrevConnected(isConnected);
+    if (!isConnected) setFetchedAvatar(null);
+  }
+  const traktAvatar = isConnected ? fetchedAvatar : null;
 
   useEffect(() => {
-    if (!isConnected) {
-      setTraktAvatar(null);
-      return;
-    }
+    if (!isConnected) return;
     let live = true;
     fetchTraktAvatar().then((url) => {
-      if (live) setTraktAvatar(url);
+      if (live) setFetchedAvatar(url);
     });
     return () => {
       live = false;

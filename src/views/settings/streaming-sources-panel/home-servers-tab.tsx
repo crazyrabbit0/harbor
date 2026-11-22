@@ -378,7 +378,11 @@ function RefreshDaysField({
 }) {
   const t = useT();
   const [draft, setDraft] = useState(String(value));
-  useEffect(() => setDraft(String(value)), [value]);
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
+    setDraft(String(value));
+  }
   const commit = () => {
     const parsed = Number(draft);
     const next =
@@ -639,6 +643,17 @@ function ConnectionEditor({
   const plexAbort = useRef<AbortController | null>(null);
   const connectionAbort = useRef<AbortController | null>(null);
   const profileId = useRef(activeProfileId());
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
+    setProvider(existing?.provider ?? "jellyfin");
+    setOrigin(existing?.origin ?? "");
+    setName(existing?.name ?? "");
+    setUsername("");
+    setPassword("");
+    setToken("");
+    setError("");
+  }
   const close = () => {
     connectionAbort.current?.abort();
     plexAbort.current?.abort();
@@ -651,15 +666,6 @@ function ConnectionEditor({
     },
     [],
   );
-  useEffect(() => {
-    setProvider(existing?.provider ?? "jellyfin");
-    setOrigin(existing?.origin ?? "");
-    setName(existing?.name ?? "");
-    setUsername("");
-    setPassword("");
-    setToken("");
-    setError("");
-  }, [existing, value]);
   const save = async () => {
     if (connectionAbort.current || !origin.trim()) return;
     const abort = new AbortController();

@@ -41,8 +41,8 @@ export function BundleUploadFlow({
   const [icons, setIcons] = useState<AssignedIcon[]>([]);
   const [coverBlob, setCoverBlob] = useState<Blob | null>(null);
   const [coverUrl, setCoverUrl] = useState<string | null>(null);
+  const coverUrlRef = useRef<string | null>(null);
   const [name, setName] = useState("");
-  const [author, setAuthor] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,6 +51,22 @@ export function BundleUploadFlow({
   const [account, setAccount] = useState<Author | null>(currentAuthor);
   const rootRef = useRef<HTMLDivElement>(null);
   useEffect(() => subscribeAuthor(() => setAccount(currentAuthor())), []);
+  useEffect(
+    () => () => {
+      if (coverUrlRef.current) URL.revokeObjectURL(coverUrlRef.current);
+    },
+    [],
+  );
+
+  const handleCoverChange = (blob: Blob | null) => {
+    setCoverBlob(blob);
+    if (coverUrlRef.current) URL.revokeObjectURL(coverUrlRef.current);
+    const next = blob ? URL.createObjectURL(blob) : null;
+    coverUrlRef.current = next;
+    setCoverUrl(next);
+  };
+
+  const author = account?.username || localStorage.getItem(AUTHOR_KEY) || "";
 
   const stepBack = () => {
     if (account && !result && step > 0) setStep((s) => s - 1);
@@ -74,16 +90,6 @@ export function BundleUploadFlow({
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
   }, []);
-
-  useEffect(() => {
-    setAuthor(account?.username || localStorage.getItem(AUTHOR_KEY) || "");
-  }, [account]);
-  useEffect(() => {
-    if (!coverBlob) return setCoverUrl(null);
-    const u = URL.createObjectURL(coverBlob);
-    setCoverUrl(u);
-    return () => URL.revokeObjectURL(u);
-  }, [coverBlob]);
 
   const changeKind = (k: BundleKind) => {
     if (k === kind) return;
@@ -220,7 +226,7 @@ export function BundleUploadFlow({
                     onChange={setIcons}
                   />
                 )}
-                {step === 1 && <CoverCropper onChange={setCoverBlob} />}
+                {step === 1 && <CoverCropper onChange={handleCoverChange} />}
                 {step === 2 && (
                   <BundleDetailsStep
                     name={name}

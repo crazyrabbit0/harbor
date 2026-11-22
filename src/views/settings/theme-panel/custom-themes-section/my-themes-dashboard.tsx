@@ -61,29 +61,37 @@ function computeStats(themes: StoreTheme[]): AuthorStats {
 export function MyThemesDashboard() {
   const t = useT();
   const [author, setAuthor] = useState(currentAuthor);
-  const [themes, setThemes] = useState<StoreTheme[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [reloadTick, setReloadTick] = useState(0);
+  const [result, setResult] = useState<{
+    key: string;
+    themes: StoreTheme[];
+    error: string | null;
+  } | null>(null);
   const [updating, setUpdating] = useState<StoreTheme | null>(null);
 
   useEffect(() => subscribeAuthor(() => setAuthor(currentAuthor())), []);
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    myThemes()
-      .then(setThemes)
-      .catch((e) => setError((e as Error).message))
-      .finally(() => setLoading(false));
-  }, []);
-
+  const loadKey = author ? `${author.username}:${reloadTick}` : "";
   useEffect(() => {
-    if (author) load();
-    else {
-      setThemes([]);
-      setLoading(false);
-    }
-  }, [author, load]);
+    if (!loadKey) return;
+    let cancelled = false;
+    myThemes()
+      .then((list) => {
+        if (!cancelled) setResult({ key: loadKey, themes: list, error: null });
+      })
+      .catch((e) => {
+        if (!cancelled) setResult({ key: loadKey, themes: [], error: (e as Error).message });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [loadKey]);
+
+  const load = useCallback(() => setReloadTick((n) => n + 1), []);
+  const settled = loadKey !== "" && result?.key === loadKey;
+  const themes = settled ? result.themes : [];
+  const loading = loadKey !== "" && !settled;
+  const error = settled ? result.error : null;
 
   const stats = useMemo(() => computeStats(themes), [themes]);
 
