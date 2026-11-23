@@ -56,10 +56,10 @@ async function external(url: string) {
 }
 
 function ModIcon({ src }: { src: string }) {
-  const [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [src]);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const failed = failedSrc === src;
   return src && !failed ? (
-    <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+    <img src={src} alt="" loading="lazy" onError={() => setFailedSrc(src)} />
   ) : (
     <span className="games-mod-fallback">
       <GameMark kind="create" size={31} />
@@ -102,12 +102,47 @@ export function GameMods({
     [page, setPage] = useState(0),
     [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ hits: ModProject[]; total: number } | null>(null),
-    [loading, setLoading] = useState(false),
     [error, setError] = useState(""),
     [busy, setBusy] = useState("");
   const [workspace, setWorkspace] = useState<ModWorkspace | null>(null),
     [selected, setSelected] = useState<ModProject | null>(null),
-    [notice, setNotice] = useState("");
+    [notice, setNotice] = useState(""),
+    [openedRequest, setOpenedRequest] = useState<ModProject | null>(null),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+    else if (selected) setSelected(null);
+  }
+  if (active && requestedProject && game && openedRequest !== requestedProject) {
+    setOpenedRequest(requestedProject);
+    setSelected(requestedProject);
+  } else if (!requestedProject && openedRequest !== null) {
+    setOpenedRequest(null);
+  }
+  const pageKey = `${query}\0${loader}\0${game}\0${sort}`;
+  const [prevPageKey, setPrevPageKey] = useState(pageKey);
+  let effectivePage = page;
+  if (prevPageKey !== pageKey) {
+    setPrevPageKey(pageKey);
+    if (page !== 0) setPage(0);
+    effectivePage = 0;
+  }
+  const browseKey =
+    active && game && mode === "browse"
+      ? `${activeCycle}\0${query}\0${loader}\0${game}\0${effectivePage}\0${sort}\0${retry}`
+      : null;
+  const [settledBrowseKey, setSettledBrowseKey] = useState<string | null>(null),
+    [prevBrowseKey, setPrevBrowseKey] = useState(browseKey);
+  if (prevBrowseKey !== browseKey) {
+    setPrevBrowseKey(browseKey);
+    if (browseKey !== null) {
+      setResult(null);
+      setError("");
+    }
+  }
+  const loading = browseKey !== null && settledBrowseKey !== browseKey;
   useEffect(() => {
     onDialogChange?.(!!selected);
     return () => onDialogChange?.(false);
@@ -124,13 +159,7 @@ export function GameMods({
     };
   }, []);
   useEffect(() => {
-    if (!active) setSelected(null);
-  }, [active]);
-  useEffect(() => {
-    if (active && requestedProject && game) {
-      setSelected(requestedProject);
-      onProjectOpened?.();
-    }
+    if (active && requestedProject && game) onProjectOpened?.();
   }, [active, requestedProject, game, onProjectOpened]);
   useEffect(() => {
     if (!active || bound) return;
@@ -147,29 +176,23 @@ export function GameMods({
     return () => controller.abort();
   }, [active, retry]);
   useEffect(() => {
-    setPage(0);
-  }, [query, loader, game, sort]);
-  useEffect(() => {
-    if (!active || !game || mode !== "browse") return;
+    if (!browseKey) return;
     const controller = new AbortController();
-    setLoading(true);
-    setResult(null);
-    setError("");
     const timer = setTimeout(
       () => {
         void modRequest(
-          { kind: "search", query: query.trim(), loader, game, offset: page * 24, sort },
+          { kind: "search", query: query.trim(), loader, game, offset: effectivePage * 24, sort },
           controller.signal,
         )
           .then(parseModProjects)
           .then((value) => {
             setResult(value);
-            setLoading(false);
+            setSettledBrowseKey(browseKey);
           })
           .catch((reason) => {
             if (!controller.signal.aborted) {
               setError(modError(reason));
-              setLoading(false);
+              setSettledBrowseKey(browseKey);
             }
           });
       },
@@ -179,7 +202,7 @@ export function GameMods({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [active, query, loader, game, page, sort, retry, mode]);
+  }, [browseKey, query, loader, game, effectivePage, sort]);
   const refresh = async (target = path) => {
     const request = ++revision.current;
     if (!available || (!target && !bound)) {
@@ -664,6 +687,13 @@ function ModDialog({
     [done, setDone] = useState(false),
     [attempt, setAttempt] = useState(0);
   const [details, setDetails] = useState(project);
+  const versionsKey = `${project.id}\0${loader}\0${game}\0${attempt}`;
+  const [prevVersionsKey, setPrevVersionsKey] = useState(versionsKey);
+  if (prevVersionsKey !== versionsKey) {
+    setPrevVersionsKey(versionsKey);
+    setBusy("versions");
+    setError("");
+  }
   useEffect(() => {
     const controller = new AbortController();
     void modRequest({ kind: "project", query: project.id }, controller.signal)
@@ -730,8 +760,6 @@ function ModDialog({
   }, [closing]);
   useEffect(() => {
     const controller = new AbortController();
-    setBusy("versions");
-    setError("");
     void modRequest({ kind: "versions", query: project.id, loader, game }, controller.signal)
       .then(parseModVersions)
       .then((value) => {

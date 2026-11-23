@@ -37,7 +37,24 @@ export function GameProConfigs({
     [attempt, setAttempt] = useState(0),
     [next, setNext] = useState<number>(),
     [moreBusy, setMoreBusy] = useState(false),
-    [moreFailed, setMoreFailed] = useState(false);
+    [moreFailed, setMoreFailed] = useState(false),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+  }
+  const fetchKey = active
+    ? `${activeCycle}\0${game}\0${gameName}\0${selected?.id ?? ""}\0${attempt}`
+    : null;
+  const [prevFetchKey, setPrevFetchKey] = useState(fetchKey);
+  if (prevFetchKey !== fetchKey) {
+    setPrevFetchKey(fetchKey);
+    if (fetchKey !== null) {
+      setFailed(false);
+      if (selected) setConfig(null);
+    }
+  }
   const root = useRef<HTMLElement>(null),
     origin = useRef({ id: "", top: 0 }),
     restore = useRef(false),
@@ -72,9 +89,7 @@ export function GameProConfigs({
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
-    setFailed(false);
     if (selected) {
-      setConfig(null);
       void loadProConfig(selected, game, request.signal).then(
         (value) => {
           if (!request.signal.aborted) setConfig(value);

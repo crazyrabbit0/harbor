@@ -31,7 +31,13 @@ export function GameHackFiles({
   const downloads = suppliedDownloads ?? inheritedDownloads;
   const t = useT(),
     knownRelease = hackRelease(game),
-    [attempt, setAttempt] = useState(0);
+    [attempt, setAttempt] = useState(0),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+  }
   const [state, setState] = useState<{
     key: string;
     busy: boolean;
@@ -40,36 +46,36 @@ export function GameHackFiles({
     version: string;
     release?: HackRelease;
   }>();
-  const key = `${game.id}:${knownRelease?.page ?? ""}`;
+  const key = `${game.id}:${knownRelease?.page ?? ""}`,
+    requestKey = `${key}\0${attempt}\0${activeCycle}`;
   const [openedAt] = useState(Date.now);
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
-    setState({ key, busy: true, failed: false, files: [], version: "", release: knownRelease });
     void (async () => {
       const detail =
         !knownRelease && game.igdbId ? await loadAtlasGame(game, request.signal) : null;
       const resolved = detail ?? game,
         release = hackRelease(resolved);
       if (!request.signal.aborted)
-        setState({ key, busy: true, failed: false, files: [], version: "", release });
+        setState({ key: requestKey, busy: true, failed: false, files: [], version: "", release });
       const result = await loadHackFiles(resolved, request.signal);
       if (!request.signal.aborted)
-        setState({ key, busy: false, failed: false, ...result, release });
+        setState({ key: requestKey, busy: false, failed: false, ...result, release });
     })().catch(() => {
       if (!request.signal.aborted)
         setState((previous) => ({
-          key,
+          key: requestKey,
           busy: false,
           failed: true,
           files: [],
           version: "",
-          release: previous?.release ?? knownRelease,
+          release: previous?.key === requestKey ? (previous.release ?? knownRelease) : knownRelease,
         }));
     });
     return () => request.abort();
-  }, [key, active, attempt]);
-  const current = state?.key === key ? state : undefined,
+  }, [requestKey, active]);
+  const current = state?.key === requestKey ? state : undefined,
     release = current?.release ?? knownRelease;
   const entry: SourceRelease = useMemo(
     () => ({

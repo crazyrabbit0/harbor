@@ -89,6 +89,10 @@ export function createRecentSourceArtCache(
     }
   };
   return {
+    peek(key: string, now = Date.now()): CachedArt | undefined {
+      const item = held.get(key);
+      return item && item.value.until > now ? item.value : undefined;
+    },
     get(key: string, now = Date.now()): CachedArt | undefined {
       const item = held.get(key);
       if (!item) return;

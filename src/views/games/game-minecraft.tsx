@@ -54,10 +54,12 @@ export function GameMinecraft({
   }, [requested, active]);
   const catalog = useRef<HTMLDivElement>(null);
   const account = useMinecraftAccount(profile, active),
-    [accountOpen, setAccountOpen] = useState(false);
-  useEffect(() => {
-    if (!active) setAccountOpen(false);
-  }, [active]);
+    [accountOpen, setAccountOpen] = useState(false),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active && accountOpen) setAccountOpen(false);
+  }
   const scrollToStudio = useRef(false);
   useSectionBack(
     () => {

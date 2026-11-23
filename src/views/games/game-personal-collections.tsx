@@ -334,14 +334,30 @@ export function GamePersonalCollections({
         ?.querySelector<HTMLElement>("[data-personal-title]")
         ?.focus({ preventScroll: true }),
     );
-  const previous = useRef<{ id: string; top: number; query: string } | null>(null);
+  const previous = useRef<{ id: string; top: number; query: string } | null>(null),
+    activeSelectionRef = useRef<string | null>(null);
   const selectedCollection = state.data.collections.find((c) => c.id === selected);
-  const back = () => {
-    onQueryChange(previous.current?.query ?? "");
+  if (selected && !selectedCollection && state.ready) {
     setSelected(null);
     setEditing(false);
     setConfirm(false);
     setName("");
+  }
+  const limitKey = `${query}\0${selected ?? ""}\0${sort}`;
+  const [prevLimitKey, setPrevLimitKey] = useState(limitKey);
+  if (prevLimitKey !== limitKey) {
+    setPrevLimitKey(limitKey);
+    if (limit !== 36) setLimit(36);
+  }
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active) {
+      setConfirm(false);
+      setEditing(false);
+    }
+  }
+  const restoreFocus = () =>
     requestAnimationFrame(() => {
       const target = previous.current;
       if (target) {
@@ -351,6 +367,14 @@ export function GamePersonalCollections({
           ?.focus({ preventScroll: true });
       }
     });
+  const back = () => {
+    activeSelectionRef.current = null;
+    onQueryChange(previous.current?.query ?? "");
+    setSelected(null);
+    setEditing(false);
+    setConfirm(false);
+    setName("");
+    restoreFocus();
   };
   const closeEditor = () => {
     setEditing(false);
@@ -364,15 +388,14 @@ export function GamePersonalCollections({
   };
   useSectionBack(() => (editing ? closeEditor() : back()), active && selected !== null);
   useEffect(() => {
-    if (selected && !selectedCollection && state.ready) back();
-  }, [selected, selectedCollection, state.ready]);
-  useEffect(() => setLimit(36), [query, selected, sort]);
-  useEffect(() => {
-    if (!active) {
-      setConfirm(false);
-      setEditing(false);
+    if (selectedCollection) {
+      activeSelectionRef.current = selectedCollection.id;
+    } else if (state.ready && activeSelectionRef.current) {
+      activeSelectionRef.current = null;
+      onQueryChange(previous.current?.query ?? "");
+      restoreFocus();
     }
-  }, [active]);
+  }, [selectedCollection, state.ready]);
   const collections = [...state.data.collections]
     .filter((c) => normalizeLibraryQuery(c.name).includes(normalizeLibraryQuery(query)))
     .sort((a, b) => Number(b.pinned) - Number(a.pinned) || b.updatedAt - a.updatedAt);

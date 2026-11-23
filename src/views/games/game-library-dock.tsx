@@ -141,10 +141,15 @@ export function GameLibraryDock({ visible: pageVisible }: { visible: boolean }) 
     setOptions(false);
     setDockOpen(true);
   };
-  useEffect(() => {
+  const [prevProfile, setPrevProfile] = useState(access.profile);
+  if (prevProfile !== access.profile) {
+    setPrevProfile(access.profile);
     setFilters(defaults);
     setOptions(false);
-  }, [access.profile]);
+  }
+  if (dockOpen && visible && !retained) {
+    setRetained(true);
+  }
   useEffect(() => {
     if (!visible) {
       cancelHover();
@@ -152,10 +157,7 @@ export function GameLibraryDock({ visible: pageVisible }: { visible: boolean }) 
     }
   }, [visible, setDockOpen]);
   useEffect(() => {
-    if (dockOpen && visible) {
-      setRetained(true);
-      return;
-    }
+    if (dockOpen && visible) return;
     const timer = window.setTimeout(() => setRetained(false), 180);
     return () => clearTimeout(timer);
   }, [dockOpen, visible]);

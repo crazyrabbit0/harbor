@@ -66,10 +66,19 @@ function LibraryNews({
     [capacity, setCapacity] = useState(3);
   const [limit, setLimit] = useState(LIBRARY_NEWS_BATCH),
     [feeds, setFeeds] = useState<LibraryNewsFeed[]>([]),
-    [loading, setLoading] = useState(true),
     [attempt, setAttempt] = useState(0),
-    [page, setPage] = useState(0);
+    [page, setPage] = useState(0),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+  }
   const refresh = useLiveRefresh(active && seen && !collapsed, 11 * 60_000);
+  const requestKey =
+    active && seen && !collapsed ? `${activeCycle}\0${limit}\0${attempt}\0${refresh}` : null;
+  const [settledKey, setSettledKey] = useState<string | null>(null);
+  const loading = requestKey === null ? settledKey === null : settledKey !== requestKey;
   useEffect(() => {
     const node = root.current;
     if (!node) return;
@@ -89,14 +98,13 @@ function LibraryNews({
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    if (!active || !seen || collapsed) return;
+    if (!requestKey) return;
     const controller = new AbortController(),
       expansion = lastLimit.current > 0 && limit > lastLimit.current,
       batch = targets.slice(expansion ? lastLimit.current : 0, limit);
     lastLimit.current = limit;
     const force = attempt !== lastAttempt.current;
     lastAttempt.current = attempt;
-    setLoading(true);
     void loadLibraryNews(batch, controller.signal, request, undefined, force)
       .then((results) => {
         if (!controller.signal.aborted) {
@@ -113,11 +121,11 @@ function LibraryNews({
         }
       })
       .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) setSettledKey(requestKey);
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [active, seen, collapsed, limit, attempt, refresh, request]);
+  }, [requestKey, limit, attempt, request]);
   const items = libraryNewsItems(feeds),
     failed = feeds.filter((feed) => feed.unavailable).length;
   const pages = Math.ceil(items.length / capacity),

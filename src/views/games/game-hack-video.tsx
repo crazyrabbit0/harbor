@@ -22,9 +22,11 @@ const Watch = createContext<(video: HackVideo) => void>((video) => {
 export const useHackVideo = () => useContext(Watch);
 export function HackVideoProvider({ active, children }: { active: boolean; children: ReactNode }) {
   const [video, setVideo] = useState<HackVideo | null>(null);
-  useEffect(() => {
-    if (!active) setVideo(null);
-  }, [active]);
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active && video) setVideo(null);
+  }
   const watch = (next: HackVideo) => {
     if (!active) return;
     for (const other of document.querySelectorAll<HTMLMediaElement>(

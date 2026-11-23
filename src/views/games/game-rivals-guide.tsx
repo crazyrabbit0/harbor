@@ -16,14 +16,16 @@ type Observation = Awaited<ReturnType<typeof loadRivalsGuide>>;
 export function GameRivalsGuide({ hero, active }: { hero: RivalsHero; active: boolean }) {
   const t = useT(),
     trigger = useRef<HTMLButtonElement>(null),
-    [open, setOpen] = useState(false);
+    [open, setOpen] = useState(false),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active && open) setOpen(false);
+  }
   const dismiss = useCallback(() => {
     setOpen(false);
     requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
   }, []);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
   if (!hero.guide) return null;
   return (
     <>
@@ -57,33 +59,31 @@ function Guide({
     closeButton = useRef<HTMLButtonElement>(null),
     content = useRef<HTMLElement>(null);
   const [result, setResult] = useState<Observation | null>(null),
-    [busy, setBusy] = useState(true),
-    [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
+  const requestKey = closing ? null : `${guide.name}\0${guide.url}\0${attempt}`;
+  const [outcome, setOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const busy = requestKey !== null && outcome?.key !== requestKey,
+    failed =
+      outcome !== null && (requestKey === null || outcome.key === requestKey) && outcome.failed;
   const [formId, setFormId] = useState<number | null>(null),
     [abilityId, setAbilityId] = useState<string | null>(null);
   useSectionBack(close, true, true);
   useEffect(() => {
-    if (closing) return;
+    if (!requestKey) return;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
     void loadRivalsGuide(guide, controller.signal, attempt > 0).then(
       (value) => {
         if (!controller.signal.aborted) {
           setResult(value);
-          setBusy(false);
+          setOutcome({ key: requestKey, failed: false });
         }
       },
       () => {
-        if (!controller.signal.aborted) {
-          setBusy(false);
-          setFailed(true);
-        }
+        if (!controller.signal.aborted) setOutcome({ key: requestKey, failed: true });
       },
     );
     return () => controller.abort();
-  }, [guide.name, guide.url, attempt, closing]);
+  }, [requestKey, guide.name, guide.url, attempt]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => closeButton.current?.focus({ preventScroll: true }));
     const trap = (event: KeyboardEvent) => {

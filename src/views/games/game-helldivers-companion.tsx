@@ -36,16 +36,26 @@ export function GameHelldiversCompanion({ active, logo }: { active: boolean; log
     label = (key: string) => t(`games.helldivers.${key}`);
   const [visible, setVisible] = useState(false),
     [activated, setActivated] = useState(false),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active),
     [attempt, setAttempt] = useState(0),
     [now, setNow] = useState(Date.now);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) {
+      setActiveCycle((value) => value + 1);
+    } else {
+      setActivated(false);
+      setVisible(false);
+    }
+  }
   const [campaigns, setCampaigns] = useState<CompanionObservation<HelldiversCampaigns> | null>(
       null,
     ),
     [orders, setOrders] = useState<CompanionObservation<HelldiversOrders> | null>(null);
   const [galaxy, setGalaxy] = useState<CompanionObservation<HelldiversGalaxy> | null>(null),
     [galaxyFailed, setGalaxyFailed] = useState(false);
-  const [busy, setBusy] = useState(false),
-    [failed, setFailed] = useState(false),
+  const [failed, setFailed] = useState(false),
     [ordersFailed, setOrdersFailed] = useState(false);
   const [filter, setFilter] = useState("all"),
     [query, setQuery] = useState(""),
@@ -53,13 +63,20 @@ export function GameHelldiversCompanion({ active, logo }: { active: boolean; log
     [selected, setSelected] = useState<number | null>(null);
   const lastAttempt = useRef(0);
   const revision = useLiveRefresh(active && visible, HELLDIVERS_TTL);
-  useEffect(() => {
-    if (!active) {
-      setActivated(false);
-      setVisible(false);
-      return;
+  const requestKey = active && activated ? `${activeCycle}\0${attempt}\0${revision}` : null;
+  const [settledKey, setSettledKey] = useState<string | null>(null),
+    [prevRequestKey, setPrevRequestKey] = useState(requestKey);
+  if (prevRequestKey !== requestKey) {
+    setPrevRequestKey(requestKey);
+    if (requestKey !== null) {
+      setFailed(false);
+      setOrdersFailed(false);
+      setGalaxyFailed(false);
     }
-    if (!root.current) return;
+  }
+  const busy = requestKey !== null && settledKey !== requestKey;
+  useEffect(() => {
+    if (!active || !root.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const shown = entries.some((entry) => entry.isIntersecting);
@@ -72,14 +89,10 @@ export function GameHelldiversCompanion({ active, logo }: { active: boolean; log
     return () => observer.disconnect();
   }, [active]);
   useEffect(() => {
-    if (!active || !activated) return;
+    if (!requestKey) return;
     const force = attempt !== lastAttempt.current;
     lastAttempt.current = attempt;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
-    setOrdersFailed(false);
-    setGalaxyFailed(false);
     void Promise.allSettled([
       loadHelldiversCampaigns(controller.signal, force).then(
         (value) => {
@@ -109,10 +122,10 @@ export function GameHelldiversCompanion({ active, logo }: { active: boolean; log
         },
       ),
     ]).then(() => {
-      if (!controller.signal.aborted) setBusy(false);
+      if (!controller.signal.aborted) setSettledKey(requestKey);
     });
     return () => controller.abort();
-  }, [active, activated, attempt, revision]);
+  }, [requestKey, attempt]);
   useEffect(() => {
     if (!active || !visible) return;
     const timer = setInterval(() => {

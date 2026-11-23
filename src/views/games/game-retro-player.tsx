@@ -114,9 +114,9 @@ export function GameRetroPlayer({
     } else if (action === "play") play();
     else if (loaded.current && phase !== "exiting") send(action);
   });
-  useEffect(() => {
-    if (pads.length && note === "games.retro.disconnected") setNote("");
-  }, [pads.length, note]);
+  if (pads.length && note === "games.retro.disconnected") {
+    setNote("");
+  }
   const exit = () => {
     if (!loaded.current) {
       void fullscreen.restore().then(close);
@@ -359,11 +359,11 @@ export function GameRetroPlayer({
       controlsTrigger.current?.focus({ preventScroll: true });
     }
   }, [controlsOpen]);
+  if (phase !== "playing" && !chrome) {
+    setChrome(true);
+  }
   useEffect(() => {
-    if (phase !== "playing") {
-      setChrome(true);
-      return;
-    }
+    if (phase !== "playing") return;
     activity.current = Date.now();
     const timer = setInterval(() => {
       if (

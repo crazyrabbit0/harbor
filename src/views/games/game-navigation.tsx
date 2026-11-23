@@ -45,7 +45,12 @@ export function GameNavigation({
     id = useId();
   const trigger = useRef<HTMLButtonElement>(null),
     menu = useRef<HTMLDivElement>(null);
-  const [open, setOpen] = useState<"roms" | "mods" | null>(null);
+  const [open, setOpen] = useState<"roms" | "mods" | null>(null),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active && open) setOpen(null);
+  }
   const modsTrigger = useRef<HTMLButtonElement>(null);
   const anchor = open === "mods" ? modsTrigger : trigger;
   useLayoutEffect(() => {
@@ -69,9 +74,6 @@ export function GameNavigation({
     if (restore) anchor.current?.focus({ preventScroll: true });
   };
   useSectionBack(() => close(true), !!open && active, true);
-  useEffect(() => {
-    if (!active) setOpen(null);
-  }, [active]);
   useEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() =>

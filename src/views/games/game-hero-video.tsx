@@ -16,13 +16,17 @@ export function GameHeroVideo({
   const [url, setUrl] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [started, setStarted] = useState(startDelayMs === 0);
+  const playKey = `${appId}\0${playing ? 1 : 0}\0${startDelayMs}`;
+  const [startedFor, setStartedFor] = useState<string | null>(null);
+  if (!playing && startedFor !== null) {
+    setStartedFor(null);
+  }
+  const started = playing && startedFor === playKey;
   useEffect(() => {
-    setStarted(false);
     if (!playing) return;
-    const timer = setTimeout(() => setStarted(true), startDelayMs);
+    const timer = setTimeout(() => setStartedFor(playKey), startDelayMs);
     return () => clearTimeout(timer);
-  }, [appId, playing, startDelayMs]);
+  }, [playKey, playing, startDelayMs]);
   useEffect(() => {
     if (!playing || url || failed) return;
     let current = true;

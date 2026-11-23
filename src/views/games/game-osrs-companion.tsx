@@ -39,6 +39,12 @@ export function GameOsrsCompanion({ active }: { active: boolean }) {
     [membership, setMembership] = useState("all"),
     [selected, setSelected] = useState(4151),
     [count, setCount] = useState(24);
+  const loadKey = active && visible ? String(retry) : null;
+  const [prevLoadKey, setPrevLoadKey] = useState(loadKey);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
+    if (loadKey !== null) setFailed(false);
+  }
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -53,7 +59,6 @@ export function GameOsrsCompanion({ active }: { active: boolean }) {
   useEffect(() => {
     if (!active || !visible) return;
     const request = new AbortController();
-    setFailed(false);
     void loadOsrsItems(request.signal).then(
       (value) => {
         if (!request.signal.aborted) setItems(value.data);
@@ -205,29 +210,33 @@ function OsrsItemMarket({ item, active }: { item: OsrsItem; active: boolean }) {
     date = (at: number) =>
       new Date(at).toLocaleString(language, { dateStyle: "short", timeStyle: "short" });
   const [prices, setPrices] = useState<OsrsLatest | null>(null),
-    [priceFailed, setPriceFailed] = useState(false),
-    [priceBusy, setPriceBusy] = useState(false),
     [attempt, setAttempt] = useState(0),
     [range, setRange] = useState<OsrsRange>("24h");
+  const priceKey = active ? `${item.id}\0${attempt}` : null;
+  const [priceOutcome, setPriceOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const [prevPriceKey, setPrevPriceKey] = useState(priceKey);
+  if (prevPriceKey !== priceKey) {
+    setPrevPriceKey(priceKey);
+    if (priceKey === null) setPriceOutcome(null);
+  }
+  const priceBusy = priceKey !== null && priceOutcome?.key !== priceKey,
+    priceFailed = priceKey !== null && priceOutcome?.key === priceKey && priceOutcome.failed;
   useEffect(() => {
-    if (!active) return;
+    if (!priceKey) return;
     const request = new AbortController();
-    setPriceBusy(true);
-    setPriceFailed(false);
-    void loadOsrsLatest(item.id, request.signal)
-      .then(
-        (value) => {
-          if (!request.signal.aborted) setPrices(value.data);
-        },
-        () => {
-          if (!request.signal.aborted) setPriceFailed(true);
-        },
-      )
-      .finally(() => {
-        if (!request.signal.aborted) setPriceBusy(false);
-      });
+    void loadOsrsLatest(item.id, request.signal).then(
+      (value) => {
+        if (!request.signal.aborted) {
+          setPrices(value.data);
+          setPriceOutcome({ key: priceKey, failed: false });
+        }
+      },
+      () => {
+        if (!request.signal.aborted) setPriceOutcome({ key: priceKey, failed: true });
+      },
+    );
     return () => request.abort();
-  }, [active, item.id, attempt]);
+  }, [priceKey, item.id]);
   return (
     <article>
       <div className="games-osrs-item-heading">
@@ -325,10 +334,15 @@ function OsrsHistory({ item, range, active }: { item: number; range: OsrsRange; 
     [data, setData] = useState<OsrsHistoryData | null>(null),
     [failed, setFailed] = useState(false),
     [retry, setRetry] = useState(0);
+  const historyKey = active ? `${item}\0${range}\0${retry}` : null;
+  const [prevHistoryKey, setPrevHistoryKey] = useState(historyKey);
+  if (prevHistoryKey !== historyKey) {
+    setPrevHistoryKey(historyKey);
+    if (historyKey !== null) setFailed(false);
+  }
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
-    setFailed(false);
     void loadOsrsHistory(item, range, request.signal, retry > 0).then(
       (value) => {
         if (!request.signal.aborted) setData(value.data);

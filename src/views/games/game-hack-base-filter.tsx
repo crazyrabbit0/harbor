@@ -18,10 +18,21 @@ export function GameHackBaseFilter({
     ref = useRef<HTMLDivElement>(null),
     trigger = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false),
+    [prevOpen, setPrevOpen] = useState(false),
     [query, setQuery] = useState(""),
-    [rows, setRows] = useState<GameSummary[]>([]),
-    [busy, setBusy] = useState(false),
-    [failed, setFailed] = useState(false);
+    [result, setResult] = useState<{
+      key: string;
+      rows: GameSummary[];
+      failed: boolean;
+    } | null>(null);
+  if (prevOpen !== open) {
+    setPrevOpen(open);
+    if (!open) setResult(null);
+  }
+  const settled = open && result?.key === query,
+    busy = open && !settled,
+    failed = settled && result.failed,
+    rows = settled ? result.rows : [];
   const close = () => {
     setOpen(false);
     trigger.current?.focus({ preventScroll: true });
@@ -39,9 +50,6 @@ export function GameHackBaseFilter({
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
-    setRows([]);
     const needle = query.trim().slice(0, 120).replace(/["\\]/g, " ");
     const timer = setTimeout(
       () => {
@@ -51,14 +59,16 @@ export function GameHackBaseFilter({
         ).then(
           (results) => {
             if (!controller.signal.aborted) {
-              setRows(results.map(parseAtlasSummary).filter((g): g is GameSummary => !!g));
-              setBusy(false);
+              setResult({
+                key: query,
+                rows: results.map(parseAtlasSummary).filter((g): g is GameSummary => !!g),
+                failed: false,
+              });
             }
           },
           () => {
             if (!controller.signal.aborted) {
-              setBusy(false);
-              setFailed(true);
+              setResult({ key: query, rows: [], failed: true });
             }
           },
         );

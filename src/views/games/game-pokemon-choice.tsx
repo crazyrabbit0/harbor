@@ -59,9 +59,9 @@ export function PokemonChoice({
       window.removeEventListener("keydown", key, true);
     };
   }, [open]);
-  useEffect(() => {
-    if (disabled) setOpen(false);
-  }, [disabled]);
+  if (disabled && open) {
+    setOpen(false);
+  }
   const choose = (id: number) => {
     onChange(id);
     close(true);

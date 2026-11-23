@@ -21,24 +21,24 @@ export function ReviewVerdictMark({ positive, size = 24 }: { positive: boolean; 
 function Reviewer({ review }: { review: GameReview }) {
   const t = useT(),
     language = useUiLanguage();
-  const [author, setAuthor] = useState<GameReviewAuthor | null>(null),
-    [pending, setPending] = useState(true),
-    [broken, setBroken] = useState(false);
+  const [result, setResult] = useState<{
+      authorId: string;
+      author: GameReviewAuthor | null;
+    } | null>(null),
+    [brokenFor, setBrokenFor] = useState<string | null>(null);
+  const pending = result?.authorId !== review.author,
+    author = pending ? null : result.author,
+    broken = brokenFor === review.author;
   useEffect(() => {
     const request = new AbortController();
-    setAuthor(null);
-    setPending(true);
-    setBroken(false);
-    void loadReviewAuthor(review.author, request.signal)
-      .then(
-        (value) => {
-          if (!request.signal.aborted) setAuthor(value);
-        },
-        () => {},
-      )
-      .finally(() => {
-        if (!request.signal.aborted) setPending(false);
-      });
+    void loadReviewAuthor(review.author, request.signal).then(
+      (value) => {
+        if (!request.signal.aborted) setResult({ authorId: review.author, author: value });
+      },
+      () => {
+        if (!request.signal.aborted) setResult({ authorId: review.author, author: null });
+      },
+    );
     return () => request.abort();
   }, [review.author]);
   const url = `https://steamcommunity.com/profiles/${review.author}/`;
@@ -60,7 +60,7 @@ function Reviewer({ review }: { review: GameReview }) {
             alt=""
             loading="lazy"
             decoding="async"
-            onError={() => setBroken(true)}
+            onError={() => setBrokenFor(review.author)}
           />
         ) : (
           <UserRound size={25} />

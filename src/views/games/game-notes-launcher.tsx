@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useId, useRef, useState } from "react";
+import { lazy, Suspense, useId, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { SquarePen, X } from "lucide-react";
 import { ModalShell } from "@/components/modal-shell";
@@ -95,13 +95,18 @@ export function GameNotesButton({
   guide?: NotebookGuide;
 }) {
   const t = useT(),
+    scope = `${profile}:${gameId}:${active ? 1 : 0}`,
     [open, setOpen] = useState(false),
+    [openScope, setOpenScope] = useState(scope),
     trigger = useRef<HTMLButtonElement>(null);
+  if (openScope !== scope) {
+    setOpenScope(scope);
+    if (open) setOpen(false);
+  }
   const close = () => {
     setOpen(false);
     requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
   };
-  useEffect(() => setOpen(false), [profile, gameId, active]);
   return (
     <>
       <button

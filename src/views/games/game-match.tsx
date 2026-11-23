@@ -69,6 +69,14 @@ export function GameMatch({
   const system = platform ?? EMULATION_SYSTEMS.find((s) => s.id === game.system);
   const [thisPlatform, setThisPlatform] = useState(!!system);
   const platformId = thisPlatform ? system?.id : undefined;
+  const searchKey = `${query}\0${attempt}\0${platformId ?? ""}`;
+  const [prevSearchKey, setPrevSearchKey] = useState(searchKey);
+  if (prevSearchKey !== searchKey) {
+    setPrevSearchKey(searchKey);
+    setSelected(null);
+    setSaveError(false);
+    setState({ games: [], loading: true, error: false, next: null });
+  }
   const dismiss = () => {
     if (!saving) close();
   };
@@ -116,9 +124,6 @@ export function GameMatch({
     const controller = new AbortController();
     moreRequest.current?.abort();
     prepared.current = null;
-    setSelected(null);
-    setSaveError(false);
-    setState({ games: [], loading: true, error: false, next: null });
     const timer = setTimeout(() => {
       void loadMetadataMatches(query, platformId, 0, controller.signal).then(
         (page) => {

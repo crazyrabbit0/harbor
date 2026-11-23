@@ -117,18 +117,26 @@ export function GameMajorTournaments({ active }: { active: boolean }) {
     language = useUiLanguage(),
     [filter, setFilter] = useState<EsportsGameId | "all">("all"),
     [selected, setSelected] = useState<MajorTournament>(),
+    [prevActive, setPrevActive] = useState(active),
     [now, setNow] = useState(Date.now);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active) setSelected(undefined);
+  }
   const focus = useRef<HTMLButtonElement | null>(null),
     events = upcomingMajorTournaments(now, filter),
     game = filter !== "all" ? esportsGame(filter) : undefined;
   useEffect(() => {
-    if (!active) {
-      setSelected(undefined);
-      return;
-    }
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-    return () => clearInterval(timer);
+    if (!active) return;
+    const tick = () => {
+      if (!document.hidden) setNow(Date.now());
+    };
+    const timer = setInterval(tick, 60_000);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
+    };
   }, [active]);
   const close = () => {
     setSelected(undefined);

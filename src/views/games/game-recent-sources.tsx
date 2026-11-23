@@ -89,14 +89,15 @@ export function GameRecentSources({
       art: SourceGameArtwork | null | undefined;
     }>(),
     [detailError, setDetailError] = useState(false);
-  const [now, setNow] = useState(Date.now);
-  useEffect(() => {
-    setNow(Date.now());
-  }, [sources.sources]);
+  const [mountedAt] = useState(Date.now);
+  const now = Math.max(mountedAt, ...sources.sources.map((source) => source.checkedAt ?? 0));
   const enabled = useMemo(
     () => sources.sources.filter((source) => source.enabled),
     [sources.sources],
   );
+  if (sourceId !== "all" && !enabled.some((source) => source.id === sourceId)) {
+    setSourceId("all");
+  }
   const filtered = useMemo(
     () => enabled.filter((source) => sourceId === "all" || source.id === sourceId),
     [enabled, sourceId],
@@ -108,9 +109,6 @@ export function GameRecentSources({
   const recent = useRecentSourceBrowse(filtered, filters, active && near && sources.ready);
   const loading = sources.loading || recent.loading,
     entries = recent.entries;
-  useEffect(() => {
-    if (sourceId !== "all" && !enabled.some((source) => source.id === sourceId)) setSourceId("all");
-  }, [enabled, sourceId]);
   const visible = full || !sources.ready || enabled.length > 0;
   useEffect(() => {
     const node = root.current;
@@ -122,10 +120,13 @@ export function GameRecentSources({
     observer.observe(node);
     return () => observer.disconnect();
   }, [visible]);
-  useEffect(() => {
+  const resetKey = `${active ? 1 : 0}\0${sourceId}\0${query}\0${sort}\0${period}`;
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
     if (!active) setSelection(undefined);
     setDetailError(false);
-  }, [active, sourceId, query, sort, period]);
+  }
   useEffect(() => {
     const node = sentinel.current;
     if (!full || !active || !node || loading || recent.failed.length || !recent.hasMore) return;
