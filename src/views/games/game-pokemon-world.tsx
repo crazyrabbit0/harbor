@@ -1,5 +1,5 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight, ArrowUpRight, MapPin, Search } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
@@ -163,12 +163,15 @@ export function PokemonVideos({ game, active }: { game: string; active: boolean 
       return page;
     },
   );
-  useEffect(() => {
-    if (feed.data)
+  const [prevFeedData, setPrevFeedData] = useState(feed.data);
+  if (prevFeedData !== feed.data) {
+    setPrevFeedData(feed.data);
+    if (feed.data) {
       setVideos((previous) => [
         ...new Map([...previous, ...feed.data!.items].map((item) => [item.id, item])).values(),
       ]);
-  }, [feed.data]);
+    }
+  }
   return (
     <>
       <div className="pokemon-section-heading">

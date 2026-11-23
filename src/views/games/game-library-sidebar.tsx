@@ -157,7 +157,12 @@ export function GameLibrarySidebar({
   const [notebook, setNotebook] = useState<{ profile: string; id: string; name: string } | null>(
     null,
   );
-  useEffect(() => setNotebook(null), [access.profile, active]);
+  const notebookScope = `${access.profile}\0${active ? 1 : 0}`;
+  const [prevNotebookScope, setPrevNotebookScope] = useState(notebookScope);
+  if (prevNotebookScope !== notebookScope) {
+    setPrevNotebookScope(notebookScope);
+    if (notebook !== null) setNotebook(null);
+  }
   const [context, setContext] = useState<(LibraryMenuTarget & { profile: string }) | null>(null);
   const contextOrigin = useRef<HTMLElement | null>(null);
   const contextReturnFocus = useRef(true);
@@ -237,21 +242,35 @@ export function GameLibrarySidebar({
     document.addEventListener("pointerdown", outside, true);
     return () => document.removeEventListener("pointerdown", outside, true);
   }, [collapsed, harborNavigationOpen]);
-  useEffect(() => {
+  const [prevActive, setPrevActive] = useState(active),
+    [prevProfile, setPrevProfile] = useState(access.profile);
+  const contextScope = `${access.profile}\0${active ? 1 : 0}\0${collapsed ? 1 : 0}\0${harborNavigationOpen ? 1 : 0}`;
+  const [prevContextScope, setPrevContextScope] = useState(contextScope);
+  if (prevProfile !== access.profile) {
+    setPrevProfile(access.profile);
+    setEditing(false);
+    setOptions(false);
+  }
+  if (prevActive !== active) {
+    setPrevActive(active);
     if (!active) {
       setOptions(false);
       setEditing(false);
     }
-  }, [active]);
+  }
+  if ((collapsed || harborNavigationOpen) && editing) {
+    setEditing(false);
+  }
+  if (!editing && (dragging !== null || dropTarget !== null)) {
+    setDragging(null);
+    setDropTarget(null);
+  }
+  if (prevContextScope !== contextScope) {
+    setPrevContextScope(contextScope);
+    if (context !== null) setContext(null);
+  }
   useEffect(() => {
-    if (collapsed || harborNavigationOpen) setEditing(false);
-  }, [collapsed, harborNavigationOpen]);
-  useEffect(() => {
-    if (!editing) {
-      drag.current = null;
-      setDragging(null);
-      setDropTarget(null);
-    }
+    if (!editing) drag.current = null;
   }, [editing]);
   useEffect(() => {
     const small = matchMedia("(max-width: 1023px)");
@@ -263,13 +282,6 @@ export function GameLibrarySidebar({
     small.addEventListener("change", resize);
     return () => small.removeEventListener("change", resize);
   }, []);
-  useEffect(() => {
-    setEditing(false);
-    setOptions(false);
-  }, [access.profile]);
-  useEffect(() => {
-    setContext(null);
-  }, [access.profile, active, collapsed, harborNavigationOpen]);
   useEffect(() => {
     if (selected)
       list.current

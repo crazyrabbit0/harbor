@@ -110,6 +110,15 @@ export function GameLibrary({
   const [art, setArt] = useState<Record<number, GameArtwork>>({});
   const [feature, setFeature] = useState<GameDetail | null>(null);
   const all = library.scan?.games ?? [];
+  if (drive !== "all" && !library.scan?.libraries.some((item) => item.path === drive)) {
+    setDrive("all");
+  }
+  const limitKey = `${query}\0${state}\0${drive}\0${sort}\0${visibility}`;
+  const [prevLimitKey, setPrevLimitKey] = useState(limitKey);
+  if (prevLimitKey !== limitKey) {
+    setPrevLimitKey(limitKey);
+    if (limit !== 36) setLimit(36);
+  }
   const title = (game: SteamInstall) => preferences.title(`steam:${game.appId}`, game.name);
   const games = filterInstalled(all, "", state, drive, sort)
     .filter((game) => preferences.matchesTitle(`steam:${game.appId}`, game.name, query))
@@ -130,6 +139,12 @@ export function GameLibrary({
       game.lastPlayed > 0 &&
       !preferences.get(`steam:${game.appId}`).hidden,
   );
+  const featureKey = active && recent ? String(recent.appId) : null;
+  const [prevFeatureKey, setPrevFeatureKey] = useState(featureKey);
+  if (prevFeatureKey !== featureKey) {
+    setPrevFeatureKey(featureKey);
+    if (feature !== null) setFeature(null);
+  }
   useEffect(() => {
     if (!active || !artworkIds) return;
     let current = true;
@@ -153,9 +168,7 @@ export function GameLibrary({
       current = false;
     };
   }, [active, artworkIds]);
-  useEffect(() => setLimit(36), [query, state, drive, sort, visibility]);
   useEffect(() => {
-    setFeature(null);
     if (!active || !recent) return;
     let current = true;
     void loadGameDetail(recent.appId).then(
@@ -168,10 +181,6 @@ export function GameLibrary({
       current = false;
     };
   }, [active, recent?.appId]);
-  useEffect(() => {
-    if (drive !== "all" && !library.scan?.libraries.some((item) => item.path === drive))
-      setDrive("all");
-  }, [drive, library.scan]);
   const asSummary = (game: SteamInstall) => ({
     ...installedSummary(game),
     ...art[game.appId],

@@ -32,9 +32,9 @@ export function GameMediaGallery({
     [page, setPage] = useState(0),
     [columns, setColumns] = useState(5);
   const [expanded, setExpanded] = useState(false);
-  useEffect(() => {
-    if (!active || suspended) setExpanded(false);
-  }, [active, suspended]);
+  if ((!active || suspended) && expanded) {
+    setExpanded(false);
+  }
   const selectedRef = useRef(selected),
     columnsRef = useRef(columns);
   useLayoutEffect(() => {

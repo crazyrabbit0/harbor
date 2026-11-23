@@ -72,9 +72,14 @@ export function GameLinks({
   active: boolean;
 }) {
   const t = useT(),
+    scope = `${active ? 1 : 0}\0${game.id}\0${preferences.profile}`,
     [editing, setEditing] = useState(false),
+    [editingScope, setEditingScope] = useState(scope),
     links = knownGameLinks(game.id, game, ...records);
-  useEffect(() => setEditing(false), [active, game.id, preferences.profile]);
+  if (editingScope !== scope) {
+    setEditingScope(scope);
+    if (editing) setEditing(false);
+  }
 
   return (
     <>
@@ -137,7 +142,14 @@ export function GameLibraryLinks({
     [progress, setProgress] = useState(0),
     [error, setError] = useState(false),
     [attempt, setAttempt] = useState(0),
+    [prevAttempt, setPrevAttempt] = useState(0),
     [limit, setLimit] = useState(40);
+  if (prevAttempt !== attempt) {
+    setPrevAttempt(attempt);
+    setLoaded(null);
+    setProgress(0);
+    setError(false);
+  }
   const { closing, close } = useModalExit(onClose),
     dismiss = () => {
       if (!pending.current && !preferences.busy) close();
@@ -177,9 +189,6 @@ export function GameLibraryLinks({
   }, []);
   useEffect(() => {
     const abort = new AbortController();
-    setLoaded(null);
-    setProgress(0);
-    setError(false);
     void readLibraryLinks(source, abort.signal, setProgress)
       .then((items) => {
         if (!abort.signal.aborted) setLoaded(items);

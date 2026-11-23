@@ -62,10 +62,27 @@ export function PublicAchievementsModal({
   const [rewards, setRewards] = useState(false),
     hasRewards = achievementRewards(appId).length > 0;
   const linkedId = account?.status.connected ? account.status.snapshot?.steamId : undefined;
+  const loadKey = `${appId}\0${attempt}`,
+    filterKey = `${appId}\0${profile}\0${linkedId ?? ""}\0${attempt}`,
+    revealKey = `${appId}\0${profile}\0${linkedId ?? ""}`;
+  const [prevLoadKey, setPrevLoadKey] = useState(loadKey),
+    [prevFilterKey, setPrevFilterKey] = useState(filterKey),
+    [prevRevealKey, setPrevRevealKey] = useState(revealKey);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
+    if (failed) setFailed(false);
+  }
+  if (prevFilterKey !== filterKey) {
+    setPrevFilterKey(filterKey);
+    if (filter !== "all") setFilter("all");
+  }
+  if (prevRevealKey !== revealKey) {
+    setPrevRevealKey(revealKey);
+    if (revealed) setRevealed(false);
+  }
   useSectionBack(close, true);
   useEffect(() => {
     const request = new AbortController();
-    setFailed(false);
     void loadPublicAchievements(appId, request.signal).then(
       (value) => {
         if (!request.signal.aborted) setItems(value);
@@ -76,12 +93,6 @@ export function PublicAchievementsModal({
     );
     return () => request.abort();
   }, [appId, attempt]);
-  useEffect(() => {
-    setFilter("all");
-  }, [appId, profile, linkedId, attempt]);
-  useEffect(() => {
-    setRevealed(false);
-  }, [appId, profile, linkedId]);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null;
     root.current?.querySelector<HTMLInputElement>("input")?.focus({ preventScroll: true });

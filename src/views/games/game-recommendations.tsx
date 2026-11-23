@@ -87,13 +87,12 @@ export function GameRecommendations({
   const t = useT(),
     language = useUiLanguage(),
     [preferences, setPreferences] = useState(() => readRecommendationPreferences(profile)),
+    [prevProfile, setPrevProfile] = useState(profile),
     [settings, setSettings] = useState(false),
     [saveError, setSaveError] = useState(false);
   const [groups, setGroups] = useState<
       (RecommendationPool & { seed: RecommendationSeed; page: number })[]
     >([]),
-    [failed, setFailed] = useState(false),
-    [pending, setPending] = useState(true),
     [attempt, setAttempt] = useState(0),
     [near, setNear] = useState(false);
   const [railVersion, setRailVersion] = useState(0),
@@ -107,6 +106,14 @@ export function GameRecommendations({
     kind: "hidden" | "excluded";
     choice: RecommendationChoice;
   } | null>(null);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
+    setPreferences(readRecommendationPreferences(profile));
+    setGroups([]);
+    setRailVersion((value) => value + 1);
+    setNotice(null);
+    setSettings(false);
+  }
   const settingsButton = useRef<HTMLButtonElement>(null),
     undoButton = useRef<HTMLButtonElement>(null),
     retryButton = useRef<HTMLButtonElement>(null),
@@ -131,6 +138,29 @@ export function GameRecommendations({
     [saved, installed, emulation, preferences, library],
   );
   const seedKey = seeds.map((s) => `${s.game.id}:${s.reason}`).join("|");
+  const groupKey = `${profile}\0${seedKey}\0${language}`;
+  const [prevGroupKey, setPrevGroupKey] = useState(groupKey);
+  if (prevGroupKey !== groupKey) {
+    setPrevGroupKey(groupKey);
+    setGroups([]);
+    setVisibleCount(24);
+    setSourcePage(0);
+  }
+  const [prevPlatform, setPrevPlatform] = useState(preferences.platform);
+  if (prevPlatform !== preferences.platform) {
+    setPrevPlatform(preferences.platform);
+    setVisibleCount(24);
+  }
+  const [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+  }
+  const fetchKey = `${activeCycle}\0${seedKey}\0${attempt}\0${profile}\0${language}\0${sourcePage}`;
+  const [settled, setSettled] = useState<{ key: string; failed: boolean } | null>(null);
+  const pending = active && seeds.length > 0 && (!near || settled?.key !== fetchKey);
+  const failed = seeds.length > 0 && settled?.key === fetchKey && settled.failed;
   const known = useMemo(
     () => recommendationExclusions(saved, library, preferences),
     [saved, library, preferences],
@@ -185,24 +215,8 @@ export function GameRecommendations({
     [allPicks, preferences.platform, language],
   );
   useEffect(() => {
-    setPreferences(readRecommendationPreferences(profile));
-    setGroups([]);
-    setRailVersion((value) => value + 1);
-    setNotice(null);
-    setSettings(false);
-  }, [profile]);
-  useEffect(() => {
-    setGroups([]);
-    setVisibleCount(24);
-    setSourcePage(0);
     extending.current = false;
-  }, [profile, seedKey, language]);
-  useEffect(() => {
-    setVisibleCount(24);
-  }, [preferences.platform]);
-  useEffect(() => {
-    extending.current = false;
-  }, [pending, visibleCount]);
+  }, [profile, seedKey, language, pending, visibleCount]);
   const closeSettings = () => {
     setSettings(false);
     settingsButton.current?.focus({ preventScroll: true });
@@ -226,18 +240,8 @@ export function GameRecommendations({
     };
   }, [active, settings]);
   useEffect(() => {
-    if (!active || !seeds.length) {
-      setPending(false);
-      if (!seeds.length) setFailed(false);
-      return;
-    }
-    if (!near) {
-      setPending(true);
-      return;
-    }
+    if (!active || !seeds.length || !near) return;
     const request = new AbortController();
-    setPending(true);
-    setFailed(false);
     // Publish a complete seed batch together so late providers cannot reshuffle cards under focus.
     void Promise.allSettled(
       seeds.map(async (seed) => {
@@ -267,8 +271,10 @@ export function GameRecommendations({
           return held ? [held] : [];
         }),
       ]);
-      setPending(false);
-      setFailed(results.some((result) => result.status === "rejected" || result.value.partial));
+      setSettled({
+        key: fetchKey,
+        failed: results.some((result) => result.status === "rejected" || result.value.partial),
+      });
       if (retryHadFocus)
         requestAnimationFrame(() => {
           if (document.activeElement !== document.body) return;
@@ -280,7 +286,7 @@ export function GameRecommendations({
         });
     });
     return () => request.abort();
-  }, [active, near, seedKey, attempt, profile, loadRelated, language, sourcePage]);
+  }, [active, near, fetchKey, loadRelated, language, sourcePage]);
   useEffect(() => {
     const node = row.current;
     if (!node) return;
@@ -309,7 +315,6 @@ export function GameRecommendations({
     extending.current = true;
     setVisibleCount((value) => value + 24);
     if (matchingPicks.length <= visibleCount) {
-      setPending(true);
       setSourcePage((value) => value + 1);
     }
   };

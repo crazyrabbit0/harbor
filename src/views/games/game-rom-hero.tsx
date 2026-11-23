@@ -62,18 +62,31 @@ export function RomHero({
     { saved, save } = useGameAccess(),
     watch = useHackVideo(),
     root = useRef<HTMLElement>(null);
+  const scope = `${platform ?? ""}:${active ? 1 : 0}`,
+    ids = games.map((game) => game.igdbId).join(",");
   const [index, setIndex] = useState(0),
+    [indexScope, setIndexScope] = useState(scope),
+    [prevIds, setPrevIds] = useState(ids),
     [shown, setShown] = useState<AtlasGame>(),
     [previous, setPrevious] = useState<AtlasGame>();
+  let currentIndex = index;
+  if (indexScope !== scope) {
+    setIndexScope(scope);
+    setPrevIds(ids);
+    if (index !== 0) setIndex(0);
+    currentIndex = 0;
+  } else if (prevIds !== ids) {
+    setPrevIds(ids);
+    const clamped = Math.min(index, Math.max(0, games.length - 1));
+    if (clamped !== index) setIndex(clamped);
+    currentIndex = clamped;
+  }
   const [hover, setHover] = useState(false),
     [focused, setFocused] = useState(false),
     [visible, setVisible] = useState(false);
   const [reduced, setReduced] = useState(false),
     [foreground, setForeground] = useState(!document.hidden);
-  const selection = games[Math.min(index, games.length - 1)],
-    ids = games.map((game) => game.igdbId).join(",");
-  useEffect(() => setIndex(0), [platform, active]);
-  useEffect(() => setIndex((value) => Math.min(value, Math.max(0, games.length - 1))), [ids]);
+  const selection = games[Math.min(currentIndex, games.length - 1)];
   useEffect(() => {
     const media = matchMedia("(prefers-reduced-motion: reduce)"),
       update = () => setReduced(media.matches),
@@ -100,12 +113,12 @@ export function RomHero({
         setShown(selection);
       }
     });
-    const next = games[(index + 1) % games.length];
+    const next = games[(currentIndex + 1) % games.length];
     if (next) void prepare(scene(next));
     return () => {
       current = false;
     };
-  }, [active, selection?.id, index, ids]);
+  }, [active, selection?.id, currentIndex, ids]);
   useEffect(() => {
     if (!previous) return;
     const timer = setTimeout(() => setPrevious(undefined), 800);
@@ -125,7 +138,18 @@ export function RomHero({
       return;
     const timer = setTimeout(() => setIndex((value) => (value + 1) % games.length), 8500);
     return () => clearTimeout(timer);
-  }, [active, visible, foreground, hover, focused, reduced, index, ids, shown?.id, selection?.id]);
+  }, [
+    active,
+    visible,
+    foreground,
+    hover,
+    focused,
+    reduced,
+    currentIndex,
+    ids,
+    shown?.id,
+    selection?.id,
+  ]);
   const game = shown && games.some((item) => item.id === shown.id) ? shown : undefined;
   const artwork = romGameArtwork(game?.igdbId);
   const indicatorStart = Math.min(

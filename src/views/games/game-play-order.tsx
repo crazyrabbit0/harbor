@@ -27,11 +27,13 @@ export function GamePlayOrder({
     id = useId(),
     trigger = useRef<HTMLButtonElement>(null),
     [expanded, setExpanded] = useState(false),
+    [prevActive, setPrevActive] = useState(active),
     [visited, setVisited] = useState(false);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active && expanded) setExpanded(false);
+  }
   const family = playOrderFamily(game);
-  useEffect(() => {
-    if (!active) setExpanded(false);
-  }, [active]);
   if (!family) return null;
   return (
     <>
@@ -150,32 +152,30 @@ function OrderEntries({
 }) {
   const t = useT(),
     [games, setGames] = useState<AtlasGame[]>([]),
-    [pending, setPending] = useState(true),
-    [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
+  const requestKey = `${branch.key}\0${attempt}`;
+  const [outcome, setOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const pending = outcome?.key !== requestKey,
+    failed = outcome?.key === requestKey && outcome.failed;
   useEffect(() => {
     const request = new AbortController(),
       ids = branch.entries.flatMap((entry) => entry.editions.map((edition) => edition.id));
-    setPending(true);
-    setFailed(false);
     void queryIgdb(
       `fields ${ATLAS_SUMMARY_FIELDS}; where id = (${ids.join(",")}); limit 50;`,
       request.signal,
-    )
-      .then(
-        (rows) => {
-          if (!request.signal.aborted)
-            setGames(rows.map(parseAtlasGame).filter((game) => ids.includes(game.igdbId)));
-        },
-        () => {
-          if (!request.signal.aborted) setFailed(true);
-        },
-      )
-      .finally(() => {
-        if (!request.signal.aborted) setPending(false);
-      });
+    ).then(
+      (rows) => {
+        if (!request.signal.aborted) {
+          setGames(rows.map(parseAtlasGame).filter((game) => ids.includes(game.igdbId)));
+          setOutcome({ key: requestKey, failed: false });
+        }
+      },
+      () => {
+        if (!request.signal.aborted) setOutcome({ key: requestKey, failed: true });
+      },
+    );
     return () => request.abort();
-  }, [branch, attempt]);
+  }, [branch, attempt, requestKey]);
   const lookup = (edition: { id: number; name: string }): GameSummary =>
     games.find((game) => game.igdbId === edition.id) ?? {
       id: `igdb:${edition.id}`,

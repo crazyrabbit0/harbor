@@ -442,7 +442,12 @@ function GuideContinuation({
   const t = useT(),
     root = useRef<HTMLDivElement>(null),
     attempted = useRef(-1),
-    [manual, setManual] = useState(false);
+    [manual, setManual] = useState(false),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active && manual) setManual(false);
+  }
   const load = useRef(result.loadMore);
   const loadMore = result.loadMore;
   useLayoutEffect(() => {
@@ -453,14 +458,16 @@ function GuideContinuation({
       container = node?.closest(".games-view");
     if (!active) {
       attempted.current = -1;
-      setManual(false);
       return;
     }
-    if (!node || !active || result.busy || result.error || !result.more) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setManual(true);
+    if (
+      !node ||
+      result.busy ||
+      result.error ||
+      !result.more ||
+      typeof IntersectionObserver === "undefined"
+    )
       return;
-    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
@@ -492,7 +499,11 @@ function GuideContinuation({
         <span role="status">{t("common.loading")}</span>
       ) : result.more ? (
         <button
-          className={manual ? "games-button" : "games-button games-guide-load-fallback"}
+          className={
+            manual || typeof IntersectionObserver === "undefined"
+              ? "games-button"
+              : "games-button games-guide-load-fallback"
+          }
           onClick={result.loadMore}
         >
           {t("games.guides.more")}

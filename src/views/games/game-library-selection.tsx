@@ -50,7 +50,24 @@ export function useLibrarySelection({
   }, [scope]);
   const ids = items.map((item) => item.id),
     key = JSON.stringify(ids),
-    selectedSet = new Set(selected),
+    selectionScope = `${scope}\0${active ? 1 : 0}`;
+  const [prevSelectionScope, setPrevSelectionScope] = useState(selectionScope),
+    [prevIdsKey, setPrevIdsKey] = useState(key);
+  if (prevSelectionScope !== selectionScope) {
+    setPrevSelectionScope(selectionScope);
+    setPrevIdsKey(key);
+    setMode(false);
+    setSelected([]);
+    setNotice(null);
+  } else if (prevIdsKey !== key) {
+    setPrevIdsKey(key);
+    const allowed = new Set(ids);
+    setSelected((previous) => {
+      const filtered = previous.filter((id) => allowed.has(id));
+      return filtered.length === previous.length ? previous : filtered;
+    });
+  }
+  const selectedSet = new Set(selected),
     chosen = items.filter((item) => selectedSet.has(item.id));
   const close = () => {
     if (pending.current) return;
@@ -61,15 +78,8 @@ export function useLibrarySelection({
   };
   useSectionBack(close, active && mode);
   useEffect(() => {
-    setMode(false);
-    setSelected([]);
-    setNotice(null);
     anchor.current = null;
   }, [scope, active]);
-  useEffect(() => {
-    const allowed = new Set(ids);
-    setSelected((previous) => previous.filter((id) => allowed.has(id)));
-  }, [key]);
   const toggle = (id: string, extend = false) => {
     if (pending.current) return;
     setSelected((previous) => toggleLibrarySelection(previous, ids, id, anchor.current, extend));

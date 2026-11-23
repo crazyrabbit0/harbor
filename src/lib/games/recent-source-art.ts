@@ -14,6 +14,9 @@ import { sourceListingId } from "./source-listing";
 import type { GameSummary } from "./types";
 
 const cache = createRecentSourceArtCache();
+export function peekRecentSourceArt(release: SourceRelease, source?: GameSource) {
+  return cache.peek(recentArtworkKey(release, source));
+}
 export function readRecentSourceArt(release: SourceRelease, source?: GameSource) {
   return cache.get(recentArtworkKey(release, source));
 }

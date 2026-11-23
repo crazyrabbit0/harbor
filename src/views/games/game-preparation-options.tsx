@@ -39,9 +39,16 @@ export function GamePreparationOptions({
       t("games.preparation.folder", { name }),
     ),
     option = options.find((item) => item.archive === current.archive);
+  const locationsKey =
+    value.enabled && options.length ? `${current.parent}\0${options.length}` : null;
   const [locations, setLocations] = useState<SetupLocations>(),
+    [prevLocationsKey, setPrevLocationsKey] = useState(locationsKey),
     [browsing, setBrowsing] = useState(false),
     [error, setError] = useState(false);
+  if (prevLocationsKey !== locationsKey) {
+    setPrevLocationsKey(locationsKey);
+    setLocations(undefined);
+  }
   const [supported, setSupported] = useState<boolean>();
   useEffect(() => {
     if (alwaysEnabled || !options.length) return;
@@ -65,10 +72,9 @@ export function GamePreparationOptions({
     };
   }, []);
   useEffect(() => {
-    if (!value.enabled || !options.length) return;
+    if (!locationsKey) return;
     let active = true,
       pending = false;
-    setLocations(undefined);
     const inspect = async () => {
       if (pending) return;
       pending = true;

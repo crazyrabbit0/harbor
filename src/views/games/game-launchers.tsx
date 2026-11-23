@@ -106,10 +106,21 @@ export function GameLaunchers({ active, selected, select, open, installed, libra
     [slots, setSlots] = useState(6),
     [page, setPage] = useState(0);
   const [records, setRecords] = useState<Partial<Record<LauncherDiscoveryId, Discovery>>>({});
-  const [failed, setFailed] = useState<LauncherDiscoveryId | null>(null),
-    [attempt, setAttempt] = useState(0);
-  const [loading, setLoading] = useState<LauncherDiscoveryId | null>(null),
+  const [attempt, setAttempt] = useState(0),
     [featured, setFeatured] = useState<string | null>(null);
+  const needsFetch = active && near && (!records[selected] || attempt > 0);
+  const fetchDeps = `${active ? 1 : 0}\0${near ? 1 : 0}\0${selected}\0${attempt}`;
+  const [outcome, setOutcome] = useState<{
+    deps: string;
+    failed: LauncherDiscoveryId | null;
+  } | null>(null);
+  const [prevFetchDeps, setPrevFetchDeps] = useState(fetchDeps);
+  if (prevFetchDeps !== fetchDeps) {
+    setPrevFetchDeps(fetchDeps);
+    if (needsFetch) setOutcome(null);
+  }
+  const loading = needsFetch && outcome?.deps !== fetchDeps ? selected : null;
+  const failed = outcome?.failed ?? null;
   const selectedRef = useRef(selected);
   useLayoutEffect(() => {
     selectedRef.current = selected;
@@ -145,21 +156,17 @@ export function GameLaunchers({ active, selected, select, open, installed, libra
   useEffect(() => {
     if (!active || !near || (records[selected] && !attempt)) return;
     const controller = new AbortController();
-    setFailed(null);
-    setLoading(selected);
-    void loadLauncherDiscovery(selected, controller.signal)
-      .then(
-        (value) => {
-          if (!controller.signal.aborted)
-            setRecords((previous) => ({ ...previous, [selected]: value }));
-        },
-        () => {
-          if (!controller.signal.aborted) setFailed(selected);
-        },
-      )
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(null);
-      });
+    void loadLauncherDiscovery(selected, controller.signal).then(
+      (value) => {
+        if (!controller.signal.aborted) {
+          setRecords((previous) => ({ ...previous, [selected]: value }));
+          setOutcome({ deps: fetchDeps, failed: null });
+        }
+      },
+      () => {
+        if (!controller.signal.aborted) setOutcome({ deps: fetchDeps, failed: selected });
+      },
+    );
     return () => controller.abort();
   }, [active, near, selected, attempt]);
   const definition =

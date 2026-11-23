@@ -31,8 +31,16 @@ export function GameRivalsCompanion({ active }: { active: boolean }) {
     root = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false),
     [activated, setActivated] = useState(false),
+    [prevActive, setPrevActive] = useState(active),
     [attempt, setAttempt] = useState(0),
     [now, setNow] = useState(Date.now);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active) {
+      setActivated(false);
+      setVisible(false);
+    }
+  }
   const [official, setOfficial] = useState<Feed<RivalsOfficialHero[]>>(empty),
     [stats, setStats] = useState<Feed<RivalsStats>>(empty);
   const [counters, setCounters] = useState<Feed<RivalsPairs>>(empty),
@@ -46,12 +54,7 @@ export function GameRivalsCompanion({ active }: { active: boolean }) {
   const revision = useLiveRefresh(active && visible, RIVALS_TTL),
     label = (key: string) => t(`games.rivals.${key}`);
   useEffect(() => {
-    if (!active) {
-      setActivated(false);
-      setVisible(false);
-      return;
-    }
-    if (!root.current) return;
+    if (!active || !root.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const inView = entries.some((entry) => entry.isIntersecting);
@@ -68,7 +71,6 @@ export function GameRivalsCompanion({ active }: { active: boolean }) {
     // moves it offscreen. Refresh polling still requires current visibility.
     if (!active || !activated) return;
     const controller = new AbortController();
-    setNow(Date.now());
     const read = <T,>(task: Promise<{ data: T }>, update: Dispatch<SetStateAction<Feed<T>>>) => {
       update((previous) => ({ ...previous, busy: true, failed: false }));
       void task.then(

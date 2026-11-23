@@ -72,7 +72,12 @@ export function GameHydraImport({
     [plans, setPlans] = useState<HydraGamePlan[]>([]),
     [selected, setSelected] = useState(new Set<string>()),
     [query, setQuery] = useState(""),
+    [prevQuery, setPrevQuery] = useState(""),
     [limit, setLimit] = useState(60);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    setLimit(60);
+  }
   const [phase, setPhase] = useState<"idle" | "reading" | "checking" | "applying">("idle"),
     [checked, setChecked] = useState(0),
     [total, setTotal] = useState(0),
@@ -173,7 +178,6 @@ export function GameHydraImport({
     (!!row.source && known.has(sourceUrl(row.source.url) || sourceInputUrl(row.source.url) || ""));
   const chosen = rows.filter((row) => selected.has(row.key) && !locked(row));
   useEffect(() => {
-    setLimit(60);
     scroll.current?.scrollTo({ top: 0 });
   }, [query]);
   useEffect(() => {

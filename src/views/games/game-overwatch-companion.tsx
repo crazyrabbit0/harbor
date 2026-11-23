@@ -28,7 +28,6 @@ import { GameArt } from "./game-art";
 import "./game-overwatch-companion.css";
 
 type Feed<T> = { data: T | null; busy: boolean; failed: boolean; at: number };
-const empty = <T,>(): Feed<T> => ({ data: null, busy: false, failed: false, at: 0 });
 function External({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <a
@@ -140,8 +139,26 @@ function Heroes({
   language: string;
 }) {
   const t = useT(),
-    [feed, setFeed] = useState<Feed<OverwatchList<OverwatchHero>>>(empty),
-    [attempt, setAttempt] = useState(0);
+    [list, setList] = useState<{ data: OverwatchList<OverwatchHero> | null; at: number }>({
+      data: null,
+      at: 0,
+    }),
+    [attempt, setAttempt] = useState(0),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+  }
+  const requestKey = active && engaged ? `${activeCycle}\0${language}\0${attempt}` : null;
+  const [settled, setSettled] = useState<{ key: string; failed: boolean } | null>(null);
+  const feed: Feed<OverwatchList<OverwatchHero>> = {
+    data: list.data,
+    busy: requestKey !== null && settled?.key !== requestKey,
+    failed:
+      settled !== null && (requestKey === null || settled.key === requestKey) && settled.failed,
+    at: list.at,
+  };
   const refreshed = useRef(0);
   const [query, setQuery] = useState(""),
     [role, setRole] = useState("all"),
@@ -149,22 +166,23 @@ function Heroes({
     [selection, setSelection] = useState(""),
     [limit, setLimit] = useState(16);
   useEffect(() => {
-    if (!active || !engaged) return;
+    if (!requestKey) return;
     const controller = new AbortController();
-    setFeed((value) => ({ ...value, busy: true, failed: false }));
     const refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
     void loadOverwatchHeroes(language, controller.signal, refresh).then(
       (value) => {
-        if (!controller.signal.aborted) setFeed({ ...value, busy: false, failed: false });
+        if (!controller.signal.aborted) {
+          setList({ data: value.data, at: value.at });
+          setSettled({ key: requestKey, failed: false });
+        }
       },
       () => {
-        if (!controller.signal.aborted)
-          setFeed((value) => ({ ...value, busy: false, failed: true }));
+        if (!controller.signal.aborted) setSettled({ key: requestKey, failed: true });
       },
     );
     return () => controller.abort();
-  }, [active, engaged, language, attempt]);
+  }, [requestKey, language, attempt]);
   const heroes = useMemo(
     () => filterOverwatchHeroes(feed.data?.items ?? [], query, role, stadium),
     [feed.data, query, role, stadium],
@@ -297,27 +315,43 @@ function Hero({
   refreshToken: number;
 }) {
   const t = useT(),
-    [feed, setFeed] = useState<Feed<OverwatchHeroDetail>>(empty),
-    [attempt, setAttempt] = useState(0);
+    [heroDetail, setHeroDetail] = useState<OverwatchHeroDetail | null>(null),
+    [attempt, setAttempt] = useState(0),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+  }
+  const requestKey = active
+    ? `${activeCycle}\0${hero.key}\0${language}\0${attempt}\0${refreshToken}`
+    : null;
+  const [settled, setSettled] = useState<{ key: string; failed: boolean } | null>(null);
+  const feed = {
+    data: heroDetail,
+    failed:
+      settled !== null && (requestKey === null || settled.key === requestKey) && settled.failed,
+  };
   const refreshed = useRef({ attempt: 0, token: refreshToken });
   useEffect(() => {
-    if (!active) return;
+    if (!requestKey) return;
     const controller = new AbortController();
-    setFeed((value) => ({ ...value, busy: true, failed: false }));
     const refresh =
       attempt !== refreshed.current.attempt || refreshToken !== refreshed.current.token;
     refreshed.current = { attempt, token: refreshToken };
     void loadOverwatchHero(hero, language, controller.signal, refresh).then(
       (value) => {
-        if (!controller.signal.aborted) setFeed({ ...value, busy: false, failed: false });
+        if (!controller.signal.aborted) {
+          setHeroDetail(value.data);
+          setSettled({ key: requestKey, failed: false });
+        }
       },
       () => {
-        if (!controller.signal.aborted)
-          setFeed((value) => ({ ...value, busy: false, failed: true }));
+        if (!controller.signal.aborted) setSettled({ key: requestKey, failed: true });
       },
     );
     return () => controller.abort();
-  }, [active, hero.key, hero.name, hero.role, language, attempt, refreshToken]);
+  }, [requestKey, hero.key, hero.name, hero.role, language, attempt, refreshToken]);
   const detail = feed.data;
   return (
     <article className="games-overwatch-hero" aria-label={hero.name}>
@@ -429,12 +463,14 @@ function Hero({
 function Ability({ ability, active }: { ability: OverwatchAbility; active: boolean }) {
   const t = useT(),
     [watch, setWatch] = useState(false),
+    [prevActive, setPrevActive] = useState(active),
     [failed, setFailed] = useState(false),
     video = useRef<HTMLVideoElement>(null),
     trigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!active) setWatch(false);
-  }, [active]);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active && watch) setWatch(false);
+  }
   useEffect(() => {
     const element = video.current;
     if (!watch || !element) return;
@@ -517,40 +553,72 @@ function Ability({ ability, active }: { ability: OverwatchAbility; active: boole
 }
 function Maps({ active, engaged }: { active: boolean; engaged: boolean }) {
   const t = useT(),
-    [feed, setFeed] = useState<Feed<OverwatchList<OverwatchMap>>>(empty),
-    [modes, setModes] = useState<Feed<OverwatchList<OverwatchMode>>>(empty),
-    [attempt, setAttempt] = useState(0);
+    [mapsFeedData, setMapsFeedData] = useState<{
+      data: OverwatchList<OverwatchMap> | null;
+      at: number;
+    }>({ data: null, at: 0 }),
+    [modesData, setModesData] = useState<OverwatchList<OverwatchMode> | null>(null),
+    [attempt, setAttempt] = useState(0),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+  }
+  const requestKey = active && engaged ? `${activeCycle}\0${attempt}` : null;
+  const [mapsOutcome, setMapsOutcome] = useState<{ key: string; failed: boolean } | null>(null),
+    [modesOutcome, setModesOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const feed: Feed<OverwatchList<OverwatchMap>> = {
+    data: mapsFeedData.data,
+    busy: requestKey !== null && mapsOutcome?.key !== requestKey,
+    failed:
+      mapsOutcome !== null &&
+      (requestKey === null || mapsOutcome.key === requestKey) &&
+      mapsOutcome.failed,
+    at: mapsFeedData.at,
+  };
+  const modes: Feed<OverwatchList<OverwatchMode>> = {
+    data: modesData,
+    busy: requestKey !== null && modesOutcome?.key !== requestKey,
+    failed:
+      modesOutcome !== null &&
+      (requestKey === null || modesOutcome.key === requestKey) &&
+      modesOutcome.failed,
+    at: 0,
+  };
   const refreshed = useRef(0);
   const [query, setQuery] = useState(""),
     [mode, setMode] = useState("all"),
     [limit, setLimit] = useState(12);
   useEffect(() => {
-    if (!active || !engaged) return;
+    if (!requestKey) return;
     const controller = new AbortController();
-    setFeed((value) => ({ ...value, busy: true, failed: false }));
-    setModes((value) => ({ ...value, busy: true, failed: false }));
     const refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
     void loadOverwatchMaps(controller.signal, refresh).then(
       (value) => {
-        if (!controller.signal.aborted) setFeed({ ...value, busy: false, failed: false });
+        if (!controller.signal.aborted) {
+          setMapsFeedData({ data: value.data, at: value.at });
+          setMapsOutcome({ key: requestKey, failed: false });
+        }
       },
       () => {
-        if (!controller.signal.aborted)
-          setFeed((value) => ({ ...value, busy: false, failed: true }));
+        if (!controller.signal.aborted) setMapsOutcome({ key: requestKey, failed: true });
       },
     );
     void loadOverwatchModes(controller.signal, refresh).then(
       (value) => {
-        if (!controller.signal.aborted) setModes({ ...value, busy: false, failed: false });
+        if (!controller.signal.aborted) {
+          setModesData(value.data);
+          setModesOutcome({ key: requestKey, failed: false });
+        }
       },
       () => {
-        if (!controller.signal.aborted)
-          setModes((value) => ({ ...value, busy: false, failed: true }));
+        if (!controller.signal.aborted) setModesOutcome({ key: requestKey, failed: true });
       },
     );
     return () => controller.abort();
-  }, [active, engaged, attempt]);
+  }, [requestKey, attempt]);
   const modeName = (key: string) =>
     modes.data?.items.find((value) => value.key === key)?.name ?? key;
   const options = [...new Set(feed.data?.items.flatMap((value) => value.modes) ?? [])];

@@ -67,11 +67,22 @@ export function GameHackHeading({
     [selection, setSelection] = useState(0),
     [hovered, setHovered] = useState(false),
     [focused, setFocused] = useState(false);
-  const baseId = route.baseGame?.igdbId;
+  const baseId = route.baseGame?.igdbId,
+    fetchKey = active ? `${attempt}\0${baseId ?? ""}` : null,
+    selectionScope = `${baseId ?? ""}\0${active ? 1 : 0}`;
+  const [prevFetchKey, setPrevFetchKey] = useState(fetchKey),
+    [prevSelectionScope, setPrevSelectionScope] = useState(selectionScope);
+  if (prevFetchKey !== fetchKey) {
+    setPrevFetchKey(fetchKey);
+    if (fetchKey !== null && failed) setFailed(false);
+  }
+  if (prevSelectionScope !== selectionScope) {
+    setPrevSelectionScope(selectionScope);
+    if (selection !== 0) setSelection(0);
+  }
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
-    setFailed(false);
     void loadHackSpotlights(request.signal, baseId).then(
       (rows) => {
         if (!request.signal.aborted) {
@@ -95,9 +106,6 @@ export function GameHackHeading({
   const featured = choices[selection % Math.max(1, choices.length)];
   const { root, playing } = useHeroMotion(active, !!featured, true);
   const choiceIds = choices.map((game) => game.id).join(",");
-  useEffect(() => {
-    setSelection(0);
-  }, [baseId, active]);
   useEffect(() => {
     if (!playing || hovered || focused || choices.length < 2) return;
     const timer = setTimeout(() => {
@@ -548,10 +556,15 @@ export function GameHackRelations({
   const [result, setResult] = useState<{ id: string; games: AtlasGame[]; cachedAt?: number }>();
   const [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
+  const fetchKey = active && game.gameType !== 5 ? `${game.id}\0${attempt}` : null;
+  const [prevFetchKey, setPrevFetchKey] = useState(fetchKey);
+  if (prevFetchKey !== fetchKey) {
+    setPrevFetchKey(fetchKey);
+    if (fetchKey !== null && failed) setFailed(false);
+  }
   useEffect(() => {
     if (!active || game.gameType === 5) return;
     const request = new AbortController();
-    setFailed(false);
     void loadAtlasPage(hackRoute(game, false), DEFAULT_ATLAS_FILTERS, 0, request.signal).then(
       (page) => {
         if (!request.signal.aborted) setResult({ id: game.id, ...page });

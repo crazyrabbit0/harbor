@@ -28,19 +28,29 @@ export function GameGuildWars2Companion({ active, profile }: { active: boolean; 
     refreshed = useRef(0);
   const [visible, setVisible] = useState(false),
     [activated, setActivated] = useState(false),
+    [prevActive, setPrevActive] = useState(active),
     [attempt, setAttempt] = useState(0);
-  const [data, setData] = useState<Gw2Vault | null>(null),
-    [busy, setBusy] = useState(false),
-    [failed, setFailed] = useState(false),
-    [now, setNow] = useState(Date.now);
-  const revision = useLiveRefresh(active && visible, GW2_VAULT_TTL);
-  useEffect(() => {
+  if (prevActive !== active) {
+    setPrevActive(active);
     if (!active) {
       setVisible(false);
       setActivated(false);
-      return;
     }
-    if (!root.current) return;
+  }
+  const [data, setData] = useState<Gw2Vault | null>(null),
+    [now, setNow] = useState(Date.now);
+  const revision = useLiveRefresh(active && visible, GW2_VAULT_TTL);
+  const requestKey = active && activated ? `${language}\0${attempt}\0${revision}` : null;
+  const [outcome, setOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const [prevRequestKey, setPrevRequestKey] = useState(requestKey);
+  if (prevRequestKey !== requestKey) {
+    setPrevRequestKey(requestKey);
+    if (!requestKey) setOutcome(null);
+  }
+  const busy = !!requestKey && outcome?.key !== requestKey,
+    failed = !!requestKey && outcome?.key === requestKey && outcome.failed;
+  useEffect(() => {
+    if (!active || !root.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const shown = entries.some((entry) => entry.isIntersecting);
@@ -53,29 +63,26 @@ export function GameGuildWars2Companion({ active, profile }: { active: boolean; 
     return () => observer.disconnect();
   }, [active]);
   useEffect(() => {
-    if (!active || !activated) return;
+    if (!requestKey) return;
     const controller = new AbortController(),
       refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
-    setBusy(true);
-    setFailed(false);
     void loadGw2Vault(language, controller.signal, refresh).then(
       (value) => {
         if (!controller.signal.aborted) {
           setData(value);
-          setBusy(false);
+          setOutcome({ key: requestKey, failed: false });
           setNow(Date.now());
         }
       },
       () => {
         if (!controller.signal.aborted) {
-          setFailed(true);
-          setBusy(false);
+          setOutcome({ key: requestKey, failed: true });
         }
       },
     );
     return () => controller.abort();
-  }, [active, activated, language, attempt, revision]);
+  }, [requestKey, language, attempt]);
   useEffect(() => {
     if (!active || !visible) return;
     const tick = () => {

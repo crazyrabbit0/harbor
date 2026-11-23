@@ -2,7 +2,11 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Download } from "lucide-react";
 import { GameAvailabilityBadge, useGameAvailabilityIndex } from "./game-availability";
 import { gameAvailability, releaseAvailability } from "@/lib/games/availability";
-import { loadRecentSourceArt, readRecentSourceArt } from "@/lib/games/recent-source-art";
+import {
+  loadRecentSourceArt,
+  peekRecentSourceArt,
+  readRecentSourceArt,
+} from "@/lib/games/recent-source-art";
 import { GameRequestPool } from "@/lib/games/request-pool";
 import { withSourceOrigin } from "@/lib/games/source-origin";
 import { sourceDownloadTitle } from "@/lib/games/source-title";
@@ -35,13 +39,28 @@ export function RecentSourceCard({
   error: () => void;
 }) {
   const root = useRef<HTMLDivElement>(null),
+    openingTarget = useRef<HTMLElement | undefined>(undefined),
     [near, setNear] = useState(false),
     [art, setArt] = useState<SourceGameArtwork | null | undefined>(() => {
-      const held = readRecentSourceArt(item.release, item.source);
+      const held = peekRecentSourceArt(item.release, item.source);
       return held ? (held.art ?? null) : undefined;
     }),
     [opening, setOpening] = useState<HTMLElement>(),
     [shownAt] = useState(() => new Date());
+  const artKey = `${item.key}\0${item.source.checkedAt ?? ""}\0${item.source.catalog?.version ?? ""}`;
+  const [prevArtKey, setPrevArtKey] = useState(artKey);
+  if (prevArtKey !== artKey) {
+    setPrevArtKey(artKey);
+    const held = peekRecentSourceArt(item.release, item.source);
+    setArt(held ? (held.art ?? null) : undefined);
+    setOpening(undefined);
+  } else if (art === undefined) {
+    const held = peekRecentSourceArt(item.release, item.source);
+    if (held) setArt(held.art ?? null);
+  }
+  if (!active && opening) {
+    setOpening(undefined);
+  }
   const t = useT(),
     language = useUiLanguage(),
     availability = useGameAvailabilityIndex(),
@@ -61,45 +80,57 @@ export function RecentSourceCard({
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
+    if (!active) openingTarget.current = undefined;
+  }, [active, artKey]);
+  useEffect(() => {
     if (!active || !near) return;
-    const held = readRecentSourceArt(item.release, item.source);
+    const held = art !== undefined ? readRecentSourceArt(item.release, item.source) : undefined;
     if (held) {
-      setArt(held.art ?? null);
       callbacks.current.publish(item.key, held.art ?? null);
       return;
     }
     const request = new AbortController();
+    const finish = (resolved: SourceGameArtwork | null) => {
+      setArt(resolved);
+      callbacks.current.publish(item.key, resolved);
+      const pendingOrigin = openingTarget.current;
+      if (pendingOrigin) {
+        openingTarget.current = undefined;
+        setOpening(undefined);
+        if (resolved)
+          callbacks.current.open(
+            withSourceOrigin(resolved.game, item.source, item.release),
+            pendingOrigin,
+          );
+        else callbacks.current.error();
+      }
+    };
     void pool
       .run(() => loadRecentSourceArt(item.release, request.signal, item.source), request.signal)
       .then(
         (value) => {
-          if (!request.signal.aborted) {
-            setArt(value ?? null);
-            callbacks.current.publish(item.key, value ?? null);
-          }
+          if (!request.signal.aborted) finish(value ?? null);
         },
         () => {
-          if (!request.signal.aborted) {
-            setArt(null);
-            callbacks.current.publish(item.key, null);
-          }
+          if (!request.signal.aborted) finish(null);
         },
       );
     return () => request.abort();
   }, [active, near, item.key, item.source.checkedAt, item.source.catalog?.version]);
-  useEffect(() => {
-    if (!active) setOpening(undefined);
-  }, [active]);
-  useEffect(() => {
-    if (!active || !opening || art === undefined) return;
-    setOpening(undefined);
-    if (art) callbacks.current.open(withSourceOrigin(art.game, item.source, item.release), opening);
-    else callbacks.current.error();
-  }, [active, opening, art]);
   const viewGame = (origin: HTMLElement) => {
-    if (art) callbacks.current.open(withSourceOrigin(art.game, item.source, item.release), origin);
-    else if (art === undefined) setOpening(origin);
-    else callbacks.current.error();
+    const currentArt =
+      art !== undefined
+        ? art
+        : (() => {
+            const held = peekRecentSourceArt(item.release, item.source);
+            return held ? (held.art ?? null) : undefined;
+          })();
+    if (currentArt)
+      callbacks.current.open(withSourceOrigin(currentArt.game, item.source, item.release), origin);
+    else if (currentArt === undefined) {
+      openingTarget.current = origin;
+      setOpening(origin);
+    } else callbacks.current.error();
   };
   const match = art,
     game = art?.game,
@@ -211,6 +242,7 @@ export function RecentSourceCard({
           aria-label={t("games.recent.open", { name: name, source: item.source.name })}
           title={t("games.recent.files")}
           onClick={() => {
+            openingTarget.current = undefined;
             setOpening(undefined);
             files(item, art);
           }}

@@ -53,8 +53,25 @@ export function GameKeyPrices({
     root = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false),
     [open, setOpen] = useState(false),
-    [attempt, setAttempt] = useState(0);
-  const [state, setState] = useState<PriceState>({ data: null, pending: true, failed: false });
+    [attempt, setAttempt] = useState(0),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+    else if (open) setOpen(false);
+  }
+  const requestKey = active && visible ? `${activeCycle}\0${appId}\0${attempt}` : null;
+  const [dataEntry, setDataEntry] = useState<{ appId: number; value: GamePriceComparison } | null>(
+      null,
+    ),
+    [outcome, setOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const state: PriceState = {
+    data: dataEntry?.appId === appId ? dataEntry.value : null,
+    pending: requestKey === null ? outcome === null : outcome?.key !== requestKey,
+    failed:
+      outcome !== null && (requestKey === null || outcome.key === requestKey) && outcome.failed,
+  };
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -69,27 +86,25 @@ export function GameKeyPrices({
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
-  useEffect(() => {
     onOpenChange(open);
     return () => onOpenChange(false);
   }, [open, onOpenChange]);
   useEffect(() => {
-    if (!active || !visible) return;
+    if (!requestKey) return;
     const request = new AbortController();
-    setState((previous) => ({ ...previous, pending: true, failed: false }));
     void loadKeyPrices(appId, request.signal, attempt > 0).then(
       (data) => {
-        if (!request.signal.aborted) setState({ data, pending: false, failed: false });
+        if (!request.signal.aborted) {
+          setDataEntry({ appId, value: data });
+          setOutcome({ key: requestKey, failed: false });
+        }
       },
       () => {
-        if (!request.signal.aborted)
-          setState((previous) => ({ ...previous, pending: false, failed: true }));
+        if (!request.signal.aborted) setOutcome({ key: requestKey, failed: true });
       },
     );
     return () => request.abort();
-  }, [appId, active, visible, attempt]);
+  }, [requestKey, appId, attempt]);
   const offers = filterPriceOffers(state.data?.offers ?? [], "all", "steam"),
     best = offers[0];
   return (

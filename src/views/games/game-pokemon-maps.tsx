@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowRight, Search, MapPin, List, LayoutGrid, ZoomIn } from "lucide-react";
 import { NavChevron } from "@/components/nav-arrow";
 import { Dropdown } from "@/components/dropdown";
@@ -32,12 +32,15 @@ function MapBrowser({ edition, active }: { edition: PokemonEdition; active: bool
     active && !!edition.maps,
     (signal) => loadPokemonMaps(edition.maps!, signal, cursor, 500),
   );
-  useEffect(() => {
-    if (feed.data)
+  const [prevFeedData, setPrevFeedData] = useState(feed.data);
+  if (prevFeedData !== feed.data) {
+    setPrevFeedData(feed.data);
+    if (feed.data) {
       setMaps((previous) => [
         ...new Map([...previous, ...feed.data!.maps].map((map) => [map.url, map])).values(),
       ]);
-  }, [feed.data]);
+    }
+  }
   const groups = groupPokemonMaps(maps, query, kind),
     visible = groups.flatMap((group) => group.maps);
   return (

@@ -56,12 +56,21 @@ export function GameNewsFeed({
     root = useRef<HTMLElement>(null),
     [seen, setSeen] = useState(false),
     [items, setItems] = useState<Update[]>([]),
-    [loading, setLoading] = useState(false),
     [loaded, setLoaded] = useState(false),
-    [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0),
-    [page, setPage] = useState(0);
+    [page, setPage] = useState(0),
+    [activeCycle, setActiveCycle] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setActiveCycle((value) => value + 1);
+  }
   const refresh = useLiveRefresh(active && seen, 11 * 60_000);
+  const requestKey = active && seen ? `${activeCycle}\0${attempt}\0${refresh}` : null;
+  const [outcome, setOutcome] = useState<{ key: string; failed: boolean } | null>(null);
+  const loading = requestKey !== null && outcome?.key !== requestKey,
+    failed =
+      outcome !== null && (requestKey === null || outcome.key === requestKey) && outcome.failed;
   useEffect(() => {
     const node = root.current;
     if (!node) return;
@@ -78,10 +87,8 @@ export function GameNewsFeed({
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
-    if (!active || !seen) return;
+    if (!requestKey) return;
     const request = new AbortController();
-    setLoading(true);
-    setFailed(false);
     void loadMostPlayedGames()
       .then(async (chart) => {
         const games = chart.games.slice(0, 10),
@@ -107,15 +114,13 @@ export function GameNewsFeed({
           .sort((a, b) => b.date - a.date);
         setItems(updates);
         setLoaded(true);
+        setOutcome({ key: requestKey, failed: false });
       })
       .catch(() => {
-        if (!request.signal.aborted) setFailed(true);
-      })
-      .finally(() => {
-        if (!request.signal.aborted) setLoading(false);
+        if (!request.signal.aborted) setOutcome({ key: requestKey, failed: true });
       });
     return () => request.abort();
-  }, [active, seen, attempt, refresh]);
+  }, [requestKey]);
   const pages = Math.ceil(items.length / 3),
     current = Math.min(page, Math.max(0, pages - 1));
   const visible = items.slice(current * 3, current * 3 + 3),
