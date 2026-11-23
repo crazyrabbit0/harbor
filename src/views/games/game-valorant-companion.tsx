@@ -59,24 +59,45 @@ function Companion({ active, onGuides }: { active: boolean; onGuides?: () => voi
     root = useRef<HTMLElement>(null);
   const [engaged, setEngaged] = useState(false),
     [tab, setTab] = useState("meta");
-  const [agents, setAgents] = useState<ValorantAgent[] | null>(null),
-    [agentError, setAgentError] = useState(false),
+  const [agentState, setAgentState] = useState<{
+      data: ValorantAgent[] | null;
+      failedAttempt: number | null;
+    }>({ data: null, failedAttempt: null }),
     [agentAttempt, setAgentAttempt] = useState(0);
+  const agents = agentState.data,
+    agentError = !agents && agentState.failedAttempt === agentAttempt;
   const [tier, setTier] = useState(""),
     [map, setMap] = useState(""),
     [role, setRole] = useState(""),
     [query, setQuery] = useState(""),
     [sort, setSort] = useState("win"),
     [selection, setSelection] = useState("");
-  const [meta, setMeta] = useState<{ data: ValorantMeta; at: number; key: string } | null>(null),
-    [metaError, setMetaError] = useState(false),
-    [busy, setBusy] = useState(false),
+  const [metaState, setMetaState] = useState<{
+      data: ValorantMeta | null;
+      at: number;
+      filterKey: string;
+      settledKey: string;
+      failedKey: string | null;
+    }>({ data: null, at: 0, filterKey: "", settledKey: "", failedKey: null }),
     [attempt, setAttempt] = useState(0),
+    [run, setRun] = useState(0),
     [expanded, setExpanded] = useState(false);
   const [options, setOptions] = useState<Pick<ValorantMeta, "ranks" | "maps"> | null>(null),
     refreshed = useRef(0);
   const filterKey = `${tier}:${map}`,
-    current = meta?.key === filterKey ? meta : null;
+    metaEnabled = active && engaged && tab === "meta";
+  const [prevMetaEnabled, setPrevMetaEnabled] = useState(metaEnabled);
+  if (prevMetaEnabled !== metaEnabled) {
+    setPrevMetaEnabled(metaEnabled);
+    if (metaEnabled) setRun((n) => n + 1);
+  }
+  const metaRequestKey = `${filterKey}:${attempt}:${run}`,
+    current =
+      metaState.data && metaState.filterKey === filterKey
+        ? { data: metaState.data, at: metaState.at, key: metaState.filterKey }
+        : null,
+    busy = metaEnabled && metaState.settledKey !== metaRequestKey,
+    metaError = metaState.failedKey === metaRequestKey;
   useEffect(() => {
     if (!active || !root.current || engaged) return;
     const observer = new IntersectionObserver(
@@ -91,41 +112,43 @@ function Companion({ active, onGuides }: { active: boolean; onGuides?: () => voi
   useEffect(() => {
     if (!active || !engaged || agents) return;
     const controller = new AbortController();
-    setAgentError(false);
     void loadValorantAgents(language, controller.signal).then(
       (value) => {
-        if (!controller.signal.aborted) setAgents(value.data);
+        if (!controller.signal.aborted) setAgentState({ data: value.data, failedAttempt: null });
       },
       () => {
-        if (!controller.signal.aborted) setAgentError(true);
+        if (!controller.signal.aborted)
+          setAgentState((s) => ({ ...s, failedAttempt: agentAttempt }));
       },
     );
     return () => controller.abort();
   }, [active, engaged, language, agentAttempt, agents]);
   useEffect(() => {
-    if (!active || !engaged || tab !== "meta") return;
+    if (!metaEnabled) return;
     const controller = new AbortController(),
       refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
-    setBusy(true);
-    setMetaError(false);
     void loadValorantMeta({ tier, map }, controller.signal, refresh).then(
       (value) => {
         if (!controller.signal.aborted) {
           setOptions(value.data);
-          setMeta({ ...value, key: filterKey });
-          setBusy(false);
+          setMetaState({
+            data: value.data,
+            at: value.at,
+            filterKey,
+            settledKey: metaRequestKey,
+            failedKey: null,
+          });
         }
       },
       () => {
         if (!controller.signal.aborted) {
-          setMetaError(true);
-          setBusy(false);
+          setMetaState((s) => ({ ...s, settledKey: metaRequestKey, failedKey: metaRequestKey }));
         }
       },
     );
     return () => controller.abort();
-  }, [active, engaged, tab, tier, map, filterKey, attempt]);
+  }, [metaEnabled, tier, map, filterKey, attempt, metaRequestKey]);
   const ranked = useMemo(
     () => rankValorantAgents(agents ?? [], current?.data ?? null, role, query, sort),
     [agents, current?.data, role, query, sort],
@@ -457,9 +480,7 @@ function AgentAbilities({
     trigger = useRef<HTMLButtonElement>(null);
   const ability = agent.abilities.find((a) => a.slot === slot),
     video = ability && videos?.[ability.slot];
-  useEffect(() => {
-    if (!active) setWatch(false);
-  }, [active]);
+  if (watch && !active) setWatch(false);
   if (!ability) return null;
   return (
     <div className="games-valorant-abilities">

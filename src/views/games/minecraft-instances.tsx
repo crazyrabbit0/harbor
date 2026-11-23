@@ -79,12 +79,50 @@ export function MinecraftInstances({
     available = isTauri(),
     [path, setPath] = useState(() => minecraftInstanceFolder(profile));
   const [library, setLibrary] = useState<MinecraftInstanceLibrary | null>(null),
-    [loading, setLoading] = useState(false),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0);
   const [filter, setFilter] = useState(""),
-    [action, setAction] = useState<PageAction | null>(null),
+    [action, setAction] = useState<PageAction | null>(() =>
+      active && requested
+        ? {
+            kind: "pack",
+            source: requested.version,
+            name: requested.name,
+            icon: requested.icon,
+            remote: true,
+          }
+        : null,
+    ),
     [choosing, setChoosing] = useState(false);
+  const [prevRequested, setPrevRequested] = useState({ active, requested });
+  if (prevRequested.active !== active || prevRequested.requested !== requested) {
+    setPrevRequested({ active, requested });
+    if (active && requested) {
+      setAction({
+        kind: "pack",
+        source: requested.version,
+        name: requested.name,
+        icon: requested.icon,
+        remote: true,
+      });
+    }
+  }
+  if (!active && action !== null) setAction(null);
+  const fetchEnabled = active && available && !!path;
+  const [fetchRun, setFetchRun] = useState(0);
+  const [prevFetchEnabled, setPrevFetchEnabled] = useState(fetchEnabled);
+  if (prevFetchEnabled !== fetchEnabled) {
+    setPrevFetchEnabled(fetchEnabled);
+    if (fetchEnabled) setFetchRun((value) => value + 1);
+  }
+  const fetchKey = `${fetchRun}:${profile}:${path}:${retry}`;
+  const [settledFetchKey, setSettledFetchKey] = useState("");
+  const [prevFetchKey, setPrevFetchKey] = useState(fetchKey);
+  if (prevFetchKey !== fetchKey) {
+    setPrevFetchKey(fetchKey);
+    if (fetchEnabled) setError("");
+  }
+  const loading = fetchEnabled && settledFetchKey !== fetchKey;
   const mounted = useRef(true),
     opener = useRef<HTMLElement | null>(null),
     section = useRef<HTMLElement>(null);
@@ -111,38 +149,28 @@ export function MinecraftInstances({
     };
   }, []);
   useEffect(() => {
-    if (!active) setAction(null);
-  }, [active]);
-  useEffect(() => {
-    if (!active || !requested) return;
-    setAction({
-      kind: "pack",
-      source: requested.version,
-      name: requested.name,
-      icon: requested.icon,
-      remote: true,
-    });
-    consumed();
+    if (active && requested) consumed();
   }, [active, requested]);
   useEffect(() => {
-    if (!active || !available || !path) return;
+    if (!fetchEnabled) return;
     let disposed = false;
-    setLoading(true);
-    setError("");
     void invoke<MinecraftInstanceLibrary>("games_minecraft_instances", { profile, path })
       .then((value) => {
-        if (!disposed) setLibrary(value);
+        if (!disposed) {
+          setLibrary(value);
+          setSettledFetchKey(fetchKey);
+        }
       })
       .catch((reason) => {
-        if (!disposed) setError(minecraftInstanceError(reason));
-      })
-      .finally(() => {
-        if (!disposed) setLoading(false);
+        if (!disposed) {
+          setError(minecraftInstanceError(reason));
+          setSettledFetchKey(fetchKey);
+        }
       });
     return () => {
       disposed = true;
     };
-  }, [active, available, path, profile, retry]);
+  }, [fetchEnabled, fetchKey, profile, path]);
   const chooseFolder = async (suggested?: string) => {
     if (!available || choosing) return;
     setChoosing(true);
@@ -454,12 +482,22 @@ function InstanceDialog({
   const [plan, setPlan] = useState<MinecraftPackPlan | null>(null),
     [optional, setOptional] = useState<Set<string>>(new Set()),
     [progress, setProgress] = useState<MinecraftPackProgress | null>(null),
-    [busy, setBusy] = useState(""),
+    [actionBusy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0),
     [done, setDone] = useState(false),
     [cancelling, setCancelling] = useState(false),
     [fileFilter, setFileFilter] = useState("");
+  const versionsKey = action.kind === "create" ? `${action.kind}:${retry}` : "";
+  const [settledVersionsKey, setSettledVersionsKey] = useState("");
+  const [prevVersionsKey, setPrevVersionsKey] = useState(versionsKey);
+  if (prevVersionsKey !== versionsKey) {
+    setPrevVersionsKey(versionsKey);
+    if (versionsKey) setError("");
+  }
+  const busy =
+    actionBusy ||
+    (action.kind === "create" && settledVersionsKey !== versionsKey ? "versions" : "");
   const [creation, setCreation] = useState<MinecraftCreation>({
       loader: "vanilla",
       version: "",
@@ -537,23 +575,22 @@ function InstanceDialog({
   useEffect(() => {
     if (action.kind !== "create") return;
     const controller = new AbortController();
-    setBusy("versions");
-    setError("");
     void minecraftCatalogRequest({ kind: "games" }, controller.signal)
       .then(parseModGames)
       .then((values) => {
+        if (controller.signal.aborted) return;
         setGames(values);
         setGame((current) => (values.includes(current) ? current : (values[0] ?? "")));
-        setBusy("");
+        setSettledVersionsKey(versionsKey);
       })
       .catch((reason) => {
         if (!controller.signal.aborted) {
           setError(minecraftInstanceError(reason));
-          setBusy("");
+          setSettledVersionsKey(versionsKey);
         }
       });
     return () => controller.abort();
-  }, [action.kind, retry]);
+  }, [action.kind, retry, versionsKey]);
   useEffect(() => {
     if (action.kind !== "pack" || !path) return;
     let disposed = false;

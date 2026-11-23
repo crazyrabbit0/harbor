@@ -1,11 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 /** Fresh on entry, stable during rendering and artwork updates. */
 export function useHeroShuffle<T extends { id: string }>(candidates: T[], active: boolean): T[] {
   const [seed, setSeed] = useState(Math.random);
-  useEffect(() => {
-    if (active) setSeed(Math.random());
-  }, [active]);
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) {
+      setSeed(
+        (prev) =>
+          ((Math.imul(Math.floor(prev * 0xffffffff), 1664525) + 1013904223) >>> 0) / 0x100000000,
+      );
+    }
+  }
   return useMemo(() => {
     // A seeded score keeps the order stable even if metadata objects refresh.
     const score = (id: string) => {

@@ -74,31 +74,47 @@ export function GuideReader({
   const access = useOptionalGameAccess();
   const t = useT(),
     reduced = useReducedMotion(),
-    [article, setArticle] = useState<GuideArticle | null>(null),
-    [failed, setFailed] = useState(false),
-    [attempt, setAttempt] = useState(0);
+    [attempt, setAttempt] = useState(0),
+    [run, setRun] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setRun((n) => n + 1);
+  }
+  const loadKey = `${item.id}:${attempt}:${run}`;
+  const [loadState, setLoadState] = useState<{
+    key: string;
+    article: GuideArticle | null;
+    failed: boolean;
+    retryAt: number;
+  }>({ key: "", article: null, failed: false, retryAt: 0 });
   const root = useRef<HTMLElement>(null),
-    video = item.source === "youtube" || item.source === "kick",
-    [retryAt, setRetryAt] = useState(0);
+    video = item.source === "youtube" || item.source === "kick";
+  const matched = loadState.key === loadKey,
+    article = matched ? loadState.article : null,
+    failed = matched ? loadState.failed : false,
+    retryAt = matched ? loadState.retryAt : 0;
   useEffect(() => {
     if (!active || video) return;
     const request = new AbortController();
-    setFailed(false);
-    setRetryAt(0);
-    setArticle(null);
     void loadGuideArticle(item, game.steamId, request.signal).then(
       (value) => {
-        if (!request.signal.aborted) setArticle(value);
+        if (!request.signal.aborted)
+          setLoadState({ key: loadKey, article: value, failed: false, retryAt: 0 });
       },
       (error) => {
         if (!request.signal.aborted) {
-          setFailed(true);
-          if (error instanceof GuideSourceRateLimit) setRetryAt(error.retryAt);
+          setLoadState({
+            key: loadKey,
+            article: null,
+            failed: true,
+            retryAt: error instanceof GuideSourceRateLimit ? error.retryAt : 0,
+          });
         }
       },
     );
     return () => request.abort();
-  }, [active, item.id, attempt]);
+  }, [active, video, loadKey, item, game.steamId]);
   const outline = useMemo(
     () => (article ? outlineGuide(article) : { sections: [], headings: [], entries: [] }),
     [article],

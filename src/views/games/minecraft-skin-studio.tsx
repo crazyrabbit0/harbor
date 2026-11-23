@@ -128,18 +128,45 @@ export function MinecraftSkinStudio({
       return false;
     }
   };
+  const [prevDraftState, setPrevDraftState] = useState({ snapshot, name, draftId, edited });
+  if (
+    prevDraftState.snapshot !== snapshot ||
+    prevDraftState.name !== name ||
+    prevDraftState.draftId !== draftId ||
+    prevDraftState.edited !== edited
+  ) {
+    setPrevDraftState({ snapshot, name, draftId, edited });
+    if (edited) setSaved(false);
+  }
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setDrafts(skinDrafts(profile));
+  }
+  const cursorKey = `${part}:${face}:${snapshot.model}`;
+  const [prevCursorKey, setPrevCursorKey] = useState(cursorKey);
+  if (prevCursorKey !== cursorKey) {
+    setPrevCursorKey(cursorKey);
+    setCursor([0, 0]);
+  }
+  if (!outer && tool === "erase") setTool("brush");
   useEffect(() => {
     current.current = snapshot;
   }, [snapshot]);
   useEffect(() => {
     if (!edited) return;
-    setSaved(false);
     const timer = setTimeout(persist, 450);
     return () => clearTimeout(timer);
   }, [snapshot, name, draftId, edited]);
   useEffect(() => {
-    if (!active && edited) persist();
-  }, [active]);
+    if (!active && pendingDraft.current) {
+      try {
+        saveSkinDraft(profile, pendingDraft.current);
+      } catch {
+        // The editor reports storage failures on the next active save cycle.
+      }
+    }
+  }, [active, profile]);
   useEffect(
     () => () => {
       loadRevision.current++;
@@ -165,12 +192,6 @@ export function MinecraftSkinStudio({
     },
     [profile],
   );
-  useEffect(() => {
-    setCursor([0, 0]);
-  }, [part, face, snapshot.model]);
-  useEffect(() => {
-    if (!outer && tool === "erase") setTool("brush");
-  }, [outer, tool]);
 
   const replace = (value: Snapshot) => {
     current.current = value;

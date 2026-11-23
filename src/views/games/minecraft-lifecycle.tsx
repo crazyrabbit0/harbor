@@ -73,12 +73,21 @@ export function MinecraftLifecycle({
   const [state, setState] = useState<MinecraftStorageState | null>(null),
     [exportPlan, setExportPlan] = useState<MinecraftExportPlan | null>(null),
     [removePlan, setRemovePlan] = useState<MinecraftRemovePlan | null>(null),
-    [busy, setBusy] = useState(""),
+    [actionBusy, setBusy] = useState(""),
     [error, setError] = useState(""),
     [retry, setRetry] = useState(0),
     [done, setDone] = useState<MinecraftExported | MinecraftRemoved | null>(null),
     [progress, setProgress] = useState<Progress | null>(null),
     [cancelling, setCancelling] = useState(false);
+  const storageKey = action === "storage" ? `${profile}:${path}:${instance.id}:${retry}` : "";
+  const [settledStorageKey, setSettledStorageKey] = useState("");
+  const [prevStorageKey, setPrevStorageKey] = useState(storageKey);
+  if (prevStorageKey !== storageKey) {
+    setPrevStorageKey(storageKey);
+    if (storageKey) setError("");
+  }
+  const busy =
+    actionBusy || (action === "storage" && settledStorageKey !== storageKey ? "loading" : "");
   const mounted = useRef(true),
     pending = useRef(false),
     generation = useRef(0),
@@ -212,26 +221,27 @@ export function MinecraftLifecycle({
   useEffect(() => {
     if (action !== "storage") return;
     let disposed = false;
-    setBusy("loading");
-    setError("");
     void invoke<MinecraftStorageState>("games_minecraft_instance_storage", {
       profile,
       path,
       id: instance.id,
     })
       .then((value) => {
-        if (!disposed) setState(value);
+        if (!disposed) {
+          setState(value);
+          setSettledStorageKey(storageKey);
+        }
       })
       .catch((reason) => {
-        if (!disposed) setError(minecraftLifecycleError(reason));
-      })
-      .finally(() => {
-        if (!disposed) setBusy("");
+        if (!disposed) {
+          setError(minecraftLifecycleError(reason));
+          setSettledStorageKey(storageKey);
+        }
       });
     return () => {
       disposed = true;
     };
-  }, [profile, path, instance.id, action, retry]);
+  }, [profile, path, instance.id, action, retry, storageKey]);
   const save = async () => {
     if (!exportPlan || pending.current) return;
     pending.current = true;

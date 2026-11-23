@@ -2,6 +2,7 @@ import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowUpRight, ChevronDown, RefreshCw } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { isBackKey } from "@/lib/keyboard-navigation/geometry";
 import { openUrl } from "@/lib/window";
 import { loadWowRealms } from "@/lib/games/wow-realms";
@@ -36,11 +37,13 @@ export function GameWowRealmField({
     menu = useRef<HTMLDivElement>(null);
   const [observation, setObservation] = useState<{ data: WowRealm[]; at: number } | null>(null);
   const [failed, setFailed] = useState(false),
-    [busy, setBusy] = useState(false),
-    [attempt, setAttempt] = useState(0);
+    [settledKey, setSettledKey] = useState(""),
+    [attempt, setAttempt] = useState(0),
+    [cycle, setCycle] = useState(0),
+    [loadedAt, setLoadedAt] = useState(0);
   const [open, setOpen] = useState(false),
-    [index, setIndex] = useState(-1),
-    [now, setNow] = useState(Date.now);
+    [index, setIndex] = useState(-1);
+  if (!active && open) setOpen(false);
   const [box, setBox] = useState<{
     left: number;
     top: number;
@@ -49,40 +52,37 @@ export function GameWowRealmField({
   } | null>(null);
   const supported = wowRealmRegion(region),
     revision = useLiveRefresh(active, WOW_REALM_TTL);
+  const canLoad = active && !!supported && !(typeof document !== "undefined" && document.hidden);
+  const [prevCanLoad, setPrevCanLoad] = useState(canLoad);
+  if (prevCanLoad !== canLoad) {
+    setPrevCanLoad(canLoad);
+    if (canLoad) setCycle((n) => n + 1);
+  }
+  const requestKey = `${region}:${revision}:${attempt}:${cycle}`,
+    busy = canLoad && settledKey !== requestKey,
+    clock = useNow(15_000, active),
+    now = Math.max(clock, loadedAt);
   useEffect(() => {
-    if (!active || !wowRealmRegion(region) || document.hidden) {
-      setBusy(false);
-      return;
-    }
+    if (!canLoad) return;
     const controller = new AbortController();
-    setBusy(true);
     void loadWowRealms(region, controller.signal).then(
       (result) => {
         if (!controller.signal.aborted) {
           setObservation(result);
           setFailed(false);
-          setBusy(false);
-          setNow(Date.now());
+          setSettledKey(requestKey);
+          setLoadedAt(Date.now());
         }
       },
       () => {
         if (!controller.signal.aborted) {
           setFailed(true);
-          setBusy(false);
+          setSettledKey(requestKey);
         }
       },
     );
     return () => controller.abort();
-  }, [active, region, revision, attempt]);
-  useEffect(() => {
-    if (!active) {
-      setOpen(false);
-      return;
-    }
-    setNow(Date.now());
-    const timer = setInterval(() => setNow(Date.now()), 15_000);
-    return () => clearInterval(timer);
-  }, [active]);
+  }, [canLoad, region, requestKey]);
   const realms = observation?.data ?? [],
     matches = filterWowRealms(realms, value, language);
   const selected = matchingWowRealm(realms, value);

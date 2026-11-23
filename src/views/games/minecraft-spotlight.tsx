@@ -25,16 +25,25 @@ export function MinecraftSpotlight({
   const t = useT(),
     [projects, setProjects] = useState<MinecraftProject[]>([]),
     [index, setIndex] = useState(0);
-  const [loading, setLoading] = useState(true),
-    [failed, setFailed] = useState(false),
-    [attempt, setAttempt] = useState(0);
+  const [loadState, setLoadState] = useState<{ settledKey: string; failedKey: string | null }>({
+      settledKey: "",
+      failedKey: null,
+    }),
+    [attempt, setAttempt] = useState(0),
+    [run, setRun] = useState(0);
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setRun((value) => value + 1);
+  }
+  const requestKey = `${attempt}:${run}`,
+    loading = loadState.settledKey !== requestKey,
+    failed = loadState.failedKey === requestKey;
   const [original, setOriginal] = useState<{ id: string; art: string } | null>(null);
   const project = projects[index];
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
-    setLoading(true);
-    setFailed(false);
     void minecraftCatalogRequest(
       { kind: "search", type: "modpack", sort: "downloads" },
       controller.signal,
@@ -50,15 +59,15 @@ export function MinecraftSpotlight({
         });
         setProjects(visible);
         setIndex((value) => Math.min(value, Math.max(0, visible.length - 1)));
+        setLoadState({ settledKey: requestKey, failedKey: null });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoadState({ settledKey: requestKey, failedKey: requestKey });
+        }
       });
     return () => controller.abort();
-  }, [active, attempt]);
+  }, [active, requestKey]);
   useEffect(() => {
     if (!active || !project) return;
     const controller = new AbortController();

@@ -1,5 +1,5 @@
 import { ModProviderLogo } from "./mod-identity";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Dropdown } from "@/components/dropdown";
 import { GameSimsCurseForge } from "./game-sims-curseforge";
 import type { SimsMtsProject } from "@/lib/games/sims";
@@ -34,9 +34,11 @@ export function ModsSimsCatalog({
   const t = useT();
   const [controls, setControls] = useState<HTMLSpanElement | null>(null);
   const [source, setSource] = useState("mts");
-  useEffect(() => {
+  const [prevProject, setPrevProject] = useState(project);
+  if (prevProject !== project) {
+    setPrevProject(project);
     if (project) setSource("mts");
-  }, [project]);
+  }
   const requestKey = project ? `${game}:${project.id}` : null;
   const [held, setHeld] = useState(() => ({
     key: requestKey,

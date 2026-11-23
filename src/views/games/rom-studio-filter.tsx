@@ -18,25 +18,39 @@ export function RomStudioFilter({
     root = useRef<HTMLDivElement>(null),
     trigger = useRef<HTMLButtonElement>(null),
     input = useRef<HTMLInputElement>(null);
+  const incoming = games.flatMap((game) => [...game.developers, ...game.publishers]);
+  const key = incoming.map((item) => item.id).join(",");
   const [open, setOpen] = useState(false),
     [query, setQuery] = useState(""),
-    [results, setResults] = useState<GameConnection[]>([]),
-    [known, setKnown] = useState<GameConnection[]>([]),
-    [busy, setBusy] = useState(false),
-    [failed, setFailed] = useState(false),
+    [known, setKnown] = useState<GameConnection[]>(() =>
+      incoming.length ? [...new Map(incoming.map((item) => [item.id, item])).values()] : [],
+    ),
     [attempt, setAttempt] = useState(0);
+  const [prevKey, setPrevKey] = useState(key);
+  if (prevKey !== key) {
+    setPrevKey(key);
+    if (incoming.length) {
+      setKnown((old) => [
+        ...new Map([...old, ...incoming].map((item) => [item.id, item])).values(),
+      ]);
+    }
+  }
+  const activeSearch = open && query.trim().length >= 2;
+  const searchKey = `${open}:${query}:${attempt}`;
+  const [searchState, setSearchState] = useState<{
+    key: string;
+    results: GameConnection[];
+    failed: boolean;
+    done: boolean;
+  }>({ key: "", results: [], failed: false, done: false });
+  const searchMatched = searchState.key === searchKey,
+    results = activeSearch && searchMatched ? searchState.results : [],
+    failed = activeSearch && searchMatched ? searchState.failed : false,
+    busy = activeSearch && !(searchMatched && searchState.done);
   const close = () => {
     setOpen(false);
     trigger.current?.focus({ preventScroll: true });
   };
-  const incoming = games.flatMap((game) => [...game.developers, ...game.publishers]);
-  const key = incoming.map((item) => item.id).join(",");
-  useEffect(() => {
-    if (incoming.length)
-      setKnown((old) => [
-        ...new Map([...old, ...incoming].map((item) => [item.id, item])).values(),
-      ]);
-  }, [key]);
   useEffect(() => {
     if (!open) return;
     input.current?.focus();
@@ -54,40 +68,32 @@ export function RomStudioFilter({
     };
   }, [open]);
   useEffect(() => {
-    setResults([]);
-    setFailed(false);
-    if (!open || query.trim().length < 2) {
-      setBusy(false);
-      return;
-    }
+    if (!activeSearch) return;
     const request = new AbortController();
-    setBusy(true);
     const timer = setTimeout(
       () =>
-        void searchStudios(query, request.signal)
-          .then(
-            (rows) => {
-              if (!request.signal.aborted) {
-                setResults(rows);
-                setKnown((old) => [
-                  ...new Map([...old, ...rows].map((item) => [item.id, item])).values(),
-                ]);
-              }
-            },
-            () => {
-              if (!request.signal.aborted) setFailed(true);
-            },
-          )
-          .finally(() => {
-            if (!request.signal.aborted) setBusy(false);
-          }),
+        void searchStudios(query, request.signal).then(
+          (rows) => {
+            if (!request.signal.aborted) {
+              setSearchState({ key: searchKey, results: rows, failed: false, done: true });
+              setKnown((old) => [
+                ...new Map([...old, ...rows].map((item) => [item.id, item])).values(),
+              ]);
+            }
+          },
+          () => {
+            if (!request.signal.aborted) {
+              setSearchState({ key: searchKey, results: [], failed: true, done: true });
+            }
+          },
+        ),
       300,
     );
     return () => {
       clearTimeout(timer);
       request.abort();
     };
-  }, [open, query, attempt]);
+  }, [activeSearch, query, searchKey]);
   const options = [
     ...new Map(
       [...known, ...results]

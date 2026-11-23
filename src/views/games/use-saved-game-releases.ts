@@ -13,40 +13,51 @@ export function useSavedGameReleases(
   request?: SavedReleaseRequest,
 ) {
   const [results, setResults] = useState<Record<string, SavedReleaseResult>>({});
-  const [loading, setLoading] = useState(false),
-    [limit, setLimit] = useState(BATCH),
+  const [limit, setLimit] = useState(BATCH),
     [attempt, setAttempt] = useState(0);
-  const [pending, setPending] = useState<string[]>([]);
   const refresh = useLiveRefresh(active, 31 * 60_000);
+  const [settledRevision, setSettledRevision] = useState(() => `${attempt}:${refresh}`);
+  const [run, setRun] = useState<{ key: string; doneIds: string[]; finished: boolean } | null>(
+    null,
+  );
   const lastRefresh = useRef(`${attempt}:${refresh}`),
     resultsRef = useRef(results);
   useLayoutEffect(() => {
     resultsRef.current = results;
   }, [results]);
   const membership = games.map((game) => game.id).join("|");
+  const revision = `${attempt}:${refresh}`;
+  const runKey = `${revision}:${membership}:${limit}`;
+  const force = settledRevision !== revision;
+  const batch = active ? games.slice(0, limit).filter((game) => force || !results[game.id]) : [];
+  const currentRun = run?.key === runKey ? run : null;
+  const pending =
+    active && batch.length > 0 && !currentRun?.finished
+      ? batch.map((game) => game.id).filter((id) => !(currentRun?.doneIds.includes(id) ?? false))
+      : [];
+  const loading = active && batch.length > 0 && !currentRun?.finished;
 
   useEffect(() => {
-    if (!active) {
-      setLoading(false);
-      setPending([]);
-      return;
-    }
-    const revision = `${attempt}:${refresh}`,
-      force = lastRefresh.current !== revision;
-    const batch = games.slice(0, limit).filter((game) => force || !resultsRef.current[game.id]);
-    if (!batch.length) {
-      setLoading(false);
-      setPending([]);
-      return;
-    }
+    if (!active) return;
+    const currentRevision = `${attempt}:${refresh}`,
+      currentForce = lastRefresh.current !== currentRevision;
+    const needed = games
+      .slice(0, limit)
+      .filter((game) => currentForce || !resultsRef.current[game.id]);
+    if (!needed.length) return;
     const controller = new AbortController();
-    setLoading(true);
-    setPending(batch.map((game) => game.id));
     void loadSavedReleases(
-      batch,
+      needed,
       controller.signal,
       (id, result) => {
-        setPending((values) => values.filter((value) => value !== id));
+        setRun((prev) =>
+          prev?.key === runKey
+            ? {
+                ...prev,
+                doneIds: prev.doneIds.includes(id) ? prev.doneIds : [...prev.doneIds, id],
+              }
+            : { key: runKey, doneIds: [id], finished: false },
+        );
         setResults((previous) => ({
           ...previous,
           [id]: result.failed ? { ...previous[id], failed: true } : result,
@@ -54,20 +65,26 @@ export function useSavedGameReleases(
       },
       request,
       undefined,
-      force,
+      currentForce,
     )
       .then(() => {
-        if (!controller.signal.aborted) lastRefresh.current = revision;
+        if (!controller.signal.aborted) {
+          lastRefresh.current = currentRevision;
+          setSettledRevision(currentRevision);
+        }
       })
       .catch(() => {})
       .finally(() => {
         if (!controller.signal.aborted) {
-          setLoading(false);
-          setPending([]);
+          setRun((prev) =>
+            prev?.key === runKey
+              ? { ...prev, finished: true }
+              : { key: runKey, doneIds: [], finished: true },
+          );
         }
       });
     return () => controller.abort();
-  }, [active, membership, limit, attempt, refresh, request]);
+  }, [active, membership, limit, attempt, refresh, request, runKey]);
 
   return {
     results,

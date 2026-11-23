@@ -44,18 +44,27 @@ export function GameWarhammerWorld({
   const t = useT(),
     label = (key: string) => t(`games.warhammer.${key}`);
   const [data, setData] = useState<WarhammerConnections | null>(null),
-    [failed, setFailed] = useState(false),
-    [busy, setBusy] = useState(false),
-    [attempt, setAttempt] = useState(0);
+    [run, setRun] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setRun((n) => n + 1);
+  }
+  const [attempt, setAttempt] = useState(0);
   const [faction, setFaction] = useState<WarhammerFaction>("marines"),
     [role, setRole] = useState<"all" | WarhammerRole>("all");
   const revision = useLiveRefresh(active, 31 * 60_000);
+  const requestKey = `${attempt}:${revision}:${run}`;
+  const [status, setStatus] = useState<{ settledKey: string; failedKey: string | null }>({
+    settledKey: "",
+    failedKey: null,
+  });
+  const busy = active && status.settledKey !== requestKey,
+    failed = status.failedKey === requestKey;
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
     let received = false;
-    setBusy(true);
-    setFailed(false);
     void readWarhammerConnections().then((snapshot) => {
       if (snapshot && !received && !request.signal.aborted) setData(snapshot);
     });
@@ -64,18 +73,17 @@ export function GameWarhammerWorld({
         received = true;
         if (!request.signal.aborted) {
           setData(value);
-          setBusy(false);
+          setStatus({ settledKey: requestKey, failedKey: null });
         }
       },
       () => {
         if (!request.signal.aborted) {
-          setFailed(true);
-          setBusy(false);
+          setStatus({ settledKey: requestKey, failedKey: requestKey });
         }
       },
     );
     return () => request.abort();
-  }, [active, attempt, revision]);
+  }, [active, requestKey]);
   const games = data ? warhammerFactionGames(data, faction, role) : [];
   const external = (url: string) => (event: MouseEvent<HTMLAnchorElement>) => {
     event.preventDefault();

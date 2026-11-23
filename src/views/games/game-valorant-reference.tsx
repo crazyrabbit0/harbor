@@ -12,18 +12,18 @@ function useReference<T>(
   load: (language: string, signal: AbortSignal) => Promise<{ data: T[] }>,
 ) {
   const [data, setData] = useState<T[] | null>(null),
-    [failed, setFailed] = useState(false),
+    [failedAttempt, setFailedAttempt] = useState<number | null>(null),
     [attempt, setAttempt] = useState(0);
+  const failed = !data && failedAttempt === attempt;
   useEffect(() => {
     if (!active || data) return;
     const controller = new AbortController();
-    setFailed(false);
     void load(language, controller.signal).then(
       (result) => {
         if (!controller.signal.aborted) setData(result.data);
       },
       () => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (!controller.signal.aborted) setFailedAttempt(attempt);
       },
     );
     return () => controller.abort();

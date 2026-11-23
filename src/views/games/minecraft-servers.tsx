@@ -33,7 +33,11 @@ export function MinecraftServers({ active, query }: { active: boolean; query: st
     [mode, setMode] = useState(""),
     [term, setTerm] = useState(query),
     [sort, setSort] = useState("rank");
-  useEffect(() => setTerm(query), [query]);
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    setTerm(query);
+  }
   const load = useCallback(
     async (url: string, signal: AbortSignal, refresh: boolean) => {
       const { data, at } = await loadMinecraftServers(source, url, signal, refresh);

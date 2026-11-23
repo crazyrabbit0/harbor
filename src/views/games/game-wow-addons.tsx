@@ -28,13 +28,25 @@ export function GameWowAddons({
     root = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false),
     [data, setData] = useState<WowAddonInventory | null>(null),
-    [busy, setBusy] = useState(false),
-    [failed, setFailed] = useState(false);
+    [loadState, setLoadState] = useState<{ settledKey: string; failedKey: string | null }>({
+      settledKey: "",
+      failedKey: null,
+    });
   const [attempt, setAttempt] = useState(0),
+    [run, setRun] = useState(0),
     [query, setQuery] = useState(""),
     [attention, setAttention] = useState(false),
     [limit, setLimit] = useState(12);
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const enabled = active && visible;
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (prevEnabled !== enabled) {
+    setPrevEnabled(enabled);
+    if (enabled) setRun((n) => n + 1);
+  }
+  const loadKey = `${id}:${attempt}:${run}`,
+    busy = enabled && loadState.settledKey !== loadKey,
+    failed = loadState.failedKey === loadKey;
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -50,28 +62,25 @@ export function GameWowAddons({
     return () => observer.disconnect();
   }, [active]);
   useEffect(() => {
-    if (!active || !visible) return;
+    if (!enabled) return;
     let current = true;
-    setBusy(true);
-    setFailed(false);
     void loadWowAddonInventory(id).then(
       (value) => {
         if (current) {
           setData(value);
-          setBusy(false);
+          setLoadState({ settledKey: loadKey, failedKey: null });
         }
       },
       () => {
         if (current) {
-          setFailed(true);
-          setBusy(false);
+          setLoadState({ settledKey: loadKey, failedKey: loadKey });
         }
       },
     );
     return () => {
       current = false;
     };
-  }, [id, active, visible, attempt]);
+  }, [id, enabled, loadKey]);
   const shown = data?.id === id ? data : null,
     matches = filterWowAddons(shown?.addons ?? [], query, attention);
   return (

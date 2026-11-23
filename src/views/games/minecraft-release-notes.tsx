@@ -23,9 +23,16 @@ function Notes({
   ready: () => void;
 }) {
   const t = useT(),
-    [notes, setNotes] = useState<MinecraftReleaseNotes | null>(null),
-    [failed, setFailed] = useState(false),
+    [state, setState] = useState<{
+      key: string;
+      notes: MinecraftReleaseNotes | null;
+      failed: boolean;
+    } | null>(null),
     [retry, setRetry] = useState(0);
+  const requestKey = `${project.id}:${version.id}:${retry}`;
+  const current = state?.key === requestKey ? state : null;
+  const notes = current?.notes ?? null;
+  const failed = current?.failed ?? false;
   const onReady = useRef(ready);
   useLayoutEffect(() => {
     onReady.current = ready;
@@ -35,8 +42,6 @@ function Notes({
   }, [notes]);
   useEffect(() => {
     const controller = new AbortController();
-    setFailed(false);
-    setNotes(null);
     void minecraftCatalogRequest(
       { kind: "version", query: version.id },
       controller.signal,
@@ -44,13 +49,13 @@ function Notes({
     )
       .then((raw) => minecraftReleaseNotes(raw, project.id, version.id))
       .then((value) => {
-        if (!controller.signal.aborted) setNotes(value);
+        if (!controller.signal.aborted) setState({ key: requestKey, notes: value, failed: false });
       })
       .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (!controller.signal.aborted) setState({ key: requestKey, notes: null, failed: true });
       });
     return () => controller.abort();
-  }, [project.id, version.id, retry]);
+  }, [project.id, version.id, retry, requestKey]);
   return (
     <>
       {failed ? (

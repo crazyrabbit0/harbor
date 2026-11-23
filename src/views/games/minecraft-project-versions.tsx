@@ -218,10 +218,14 @@ export function MinecraftProjectVersions({
   capped: boolean;
 }) {
   const t = useT(),
-    [limit, setLimit] = useState(20);
-  useEffect(() => {
+    [limit, setLimit] = useState(() =>
+      Math.max(20, (versions?.findIndex((v) => v.id === selected) ?? -1) + 1),
+    );
+  const [prevVersions, setPrevVersions] = useState(versions);
+  if (prevVersions !== versions) {
+    setPrevVersions(versions);
     setLimit(Math.max(20, (versions?.findIndex((v) => v.id === selected) ?? -1) + 1));
-  }, [versions]);
+  }
   const uniqueGames = [...new Set([game, ...games].filter(Boolean))],
     uniqueLoaders = [...new Set([loader, ...loaders].filter(Boolean))];
   return (
