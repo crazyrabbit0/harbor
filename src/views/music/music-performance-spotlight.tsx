@@ -47,10 +47,9 @@ export function MusicPerformanceSpotlight({
   const [scene, setScene] = useState(() =>
     String(Math.floor(Date.now() / 86_400_000) % MUSIC_PERFORMANCES.length),
   );
-  const [index, setIndex] = useState(0),
-    [retry, setRetry] = useState(0);
+  const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{
-    query: string;
+    key: string;
     tracks: MusicTrack[];
     error: boolean;
   } | null>(null);
@@ -59,23 +58,27 @@ export function MusicPerformanceSpotlight({
     scene === "personal" && seed
       ? `${seed.artist} live performance official`
       : (MUSIC_PERFORMANCES[Number(scene)]?.query ?? MUSIC_PERFORMANCES[0].query);
+  const requestKey = `${query}\0${retry}`;
   useEffect(() => {
     if (!active) return;
     let live = true;
-    setResult(null);
-    setIndex(0);
     searchMusicVideos(query, retry > 0, true, 6, scene === "personal" && seed ? seed.artist : "")
       .then((tracks) => {
-        if (live) setResult({ query, tracks, error: false });
+        if (live) setResult({ key: requestKey, tracks, error: false });
       })
       .catch(() => {
-        if (live) setResult({ query, tracks: [], error: true });
+        if (live) setResult({ key: requestKey, tracks: [], error: true });
       });
     return () => {
       live = false;
     };
-  }, [query, active, retry]);
-  const current = result?.query === query ? result : null;
+  }, [query, active, retry, requestKey]);
+  const current = result?.key === requestKey ? result : null;
+  const [indexState, setIndexState] = useState<{ result: typeof result; value: number }>({
+    result: null,
+    value: 0,
+  });
+  const index = indexState.result === current ? indexState.value : 0;
   const track = current?.tracks[index];
   const sceneName =
     scene === "personal" && seed ? seed.artist : MUSIC_PERFORMANCES[Number(scene)]?.name;
@@ -148,7 +151,7 @@ export function MusicPerformanceSpotlight({
                 type="button"
                 aria-label={t("common.previous")}
                 disabled={index === 0}
-                onClick={() => setIndex((value) => value - 1)}
+                onClick={() => setIndexState({ result: current, value: index - 1 })}
               >
                 <ArrowLeft className="dir-icon" size={18} />
               </button>
@@ -159,7 +162,7 @@ export function MusicPerformanceSpotlight({
                 type="button"
                 aria-label={t("common.next")}
                 disabled={index >= current.tracks.length - 1}
-                onClick={() => setIndex((value) => value + 1)}
+                onClick={() => setIndexState({ result: current, value: index + 1 })}
               >
                 <ArrowRight className="dir-icon" size={18} />
               </button>

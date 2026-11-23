@@ -40,9 +40,8 @@ export function MusicGenreDeep({
   const [artistPage, setArtistPage] = useState(0);
   const [done, setDone] = useState(false);
   const [artistsDone, setArtistsDone] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [settled, setSettled] = useState<{ key: string; failed: boolean } | null>(null);
   const sentinel = useRef<HTMLDivElement>(null);
   const seen = useRef(new Set<string>());
   const seenAlbums = useRef(new Set<string>());
@@ -50,12 +49,15 @@ export function MusicGenreDeep({
 
   const onArtists = lane === "artists";
   const laneDone = onArtists ? artistsDone : done;
+  const tracksKey = `tracks:${genre.id}:${page}:${retry}`;
+  const artistsKey = `artists:${genre.id}:${artistPage}:${retry}`;
+  const activeKey = onArtists ? artistsKey : tracksKey;
+  const busy = active && !laneDone && settled?.key !== activeKey;
+  const failed = settled?.key === activeKey && settled.failed;
 
   useEffect(() => {
     if (done || !active || onArtists) return;
     let live = true;
-    setBusy(true);
-    setFailed(false);
     loadMusicGenreTracksPage(genre.id, page)
       .then((result) => {
         if (!live) return;
@@ -74,23 +76,19 @@ export function MusicGenreDeep({
         if (freshAlbums.length > 0) setAlbums((held) => [...held, ...freshAlbums]);
         if (result.done) setDone(true);
         else if (fresh.length === 0) setPage((value) => value + 1);
+        setSettled({ key: tracksKey, failed: false });
       })
       .catch(() => {
-        if (live) setFailed(true);
-      })
-      .finally(() => {
-        if (live) setBusy(false);
+        if (live) setSettled({ key: tracksKey, failed: true });
       });
     return () => {
       live = false;
     };
-  }, [genre.id, page, active, done, onArtists, retry]);
+  }, [genre.id, page, active, done, onArtists, retry, tracksKey]);
 
   useEffect(() => {
     if (artistsDone || !active || !onArtists) return;
     let live = true;
-    setBusy(true);
-    setFailed(false);
     loadMusicGenreArtistsPage(genre.id, artistPage)
       .then((result) => {
         if (!live) return;
@@ -102,17 +100,15 @@ export function MusicGenreDeep({
         if (fresh.length > 0) setArtists((held) => [...held, ...fresh]);
         if (result.done) setArtistsDone(true);
         else if (fresh.length === 0) setArtistPage((value) => value + 1);
+        setSettled({ key: artistsKey, failed: false });
       })
       .catch(() => {
-        if (live) setFailed(true);
-      })
-      .finally(() => {
-        if (live) setBusy(false);
+        if (live) setSettled({ key: artistsKey, failed: true });
       });
     return () => {
       live = false;
     };
-  }, [genre.id, artistPage, active, artistsDone, onArtists, retry]);
+  }, [genre.id, artistPage, active, artistsDone, onArtists, retry, artistsKey]);
 
   useEffect(() => {
     const node = sentinel.current;

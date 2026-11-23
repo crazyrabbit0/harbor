@@ -137,6 +137,8 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/movies/",
   "/src/views/multiview.tsx",
   "/src/views/multiview/",
+  "/src/views/music.tsx",
+  "/src/views/music/",
   "/src/views/people.tsx",
   "/src/views/people/",
   "/src/views/person.tsx",

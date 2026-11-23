@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { MusicVideoDiscovery } from "@/components/music/music-video-discovery";
 import { useT } from "@/lib/i18n";
 import { genreChannels } from "@/lib/music/genre-channels";
@@ -17,10 +17,11 @@ export function MusicGenreChannels({
 }) {
   const t = useT();
   const channels = genreChannels(genre);
-  const [at, setAt] = useState(0);
-  useEffect(() => {
-    setAt(0);
-  }, [genre.id]);
+  const [selection, setSelection] = useState<{ genreId: number; at: number }>({
+    genreId: genre.id,
+    at: 0,
+  });
+  const at = selection.genreId === genre.id ? selection.at : 0;
   if (!channels.length) return null;
   const chosen = channels[Math.min(at, channels.length - 1)];
 
@@ -42,7 +43,7 @@ export function MusicGenreChannels({
               key={channel.name}
               type="button"
               aria-pressed={index === at}
-              onClick={() => setAt(index)}
+              onClick={() => setSelection({ genreId: genre.id, at: index })}
             >
               {channel.logo ? (
                 <img

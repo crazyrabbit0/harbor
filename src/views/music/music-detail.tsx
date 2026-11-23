@@ -124,7 +124,9 @@ export function MusicDetail({
   const hero = useRef<HTMLElement>(null);
   const view = detail.view ?? DEFAULT_VIEW;
   const { query, sort, section } = view;
-  const [searchOpen, setSearchOpen] = useState(false);
+  const itemKey = `${detail.item.connectorId ?? ""}:${detail.item.id}`;
+  const [searchOpenFor, setSearchOpenFor] = useState<string | null>(null);
+  const searchOpen = searchOpenFor === itemKey;
   const searchInput = useRef<HTMLInputElement>(null);
   const searchTrigger = useRef<HTMLButtonElement>(null);
   const searchId = useId();
@@ -134,21 +136,18 @@ export function MusicDetail({
   const setSection = (section: string) => onViewChange({ ...view, section });
   const closeSearch = () => {
     setQuery("");
-    setSearchOpen(false);
+    setSearchOpenFor(null);
     searchTrigger.current?.focus({ preventScroll: true });
   };
-  useEffect(() => {
-    setSearchOpen(false);
-  }, [detail.item.id, detail.item.connectorId]);
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
   }, [detail.item.id]);
   const language = useUiLanguage();
-  const [artistImage, setArtistImage] = useState<string | null>(null);
-  const [showAllTracks, setShowAllTracks] = useState(false);
-  useEffect(() => {
-    setShowAllTracks(false);
-  }, [detail.item.id, detail.item.connectorId]);
+  const [artistImageState, setArtistImageState] = useState<{ key: string; url: string } | null>(
+    null,
+  );
+  const [showAllFor, setShowAllFor] = useState<string | null>(null);
+  const showAllTracks = showAllFor === itemKey;
   const { item, tracks, loading, error } = detail;
   const queued = useMusicActionReceipt(item.id);
   const artistSaved = useLikedArtist(item.kind === "artist" ? item : null);
@@ -181,19 +180,24 @@ export function MusicDetail({
     }
     playTrack(track, queue);
   };
+  const profileKey = `${item.kind}\0${item.id}\0${artwork ?? ""}\0${language}`;
+  const artistImage =
+    item.kind === "artist" && !artwork && artistImageState?.key === profileKey
+      ? artistImageState.url
+      : null;
   const heroArt = artwork || artistImage;
   const heroTint = useMusicArtworkColor(heroArt ?? undefined, true);
   useEffect(() => {
-    setArtistImage(null);
     if (item.kind !== "artist" || artwork) return;
     const controller = new AbortController();
     void loadArtistProfile(item, language, controller.signal)
       .then((profile) => {
-        if (profile?.artwork && !controller.signal.aborted) setArtistImage(profile.artwork);
+        if (profile?.artwork && !controller.signal.aborted)
+          setArtistImageState({ key: profileKey, url: profile.artwork });
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [item.id, item.kind, artwork, language]);
+  }, [item.id, item.kind, artwork, language, profileKey]);
   const visible = useBlockedArtistFilter(tracks, "show");
   const collection = usePlaylistFilters(item.id, item.kind === "playlist" ? visible : undefined);
   const matched = visible.filter((track) =>
@@ -228,7 +232,7 @@ export function MusicDetail({
         className="music-detail-filter"
         data-expanded={searchExpanded || undefined}
         onBlur={(event) => {
-          if (!query && !event.currentTarget.contains(event.relatedTarget)) setSearchOpen(false);
+          if (!query && !event.currentTarget.contains(event.relatedTarget)) setSearchOpenFor(null);
         }}
       >
         <button
@@ -239,7 +243,7 @@ export function MusicDetail({
           aria-expanded={searchExpanded}
           aria-controls={searchId}
           onClick={() => {
-            setSearchOpen(true);
+            setSearchOpenFor(itemKey);
             requestAnimationFrame(() => searchInput.current?.focus({ preventScroll: true }));
           }}
         >
@@ -611,7 +615,7 @@ export function MusicDetail({
             type="button"
             disabled={detail.loadingMore}
             onClick={() => {
-              setShowAllTracks(true);
+              setShowAllFor(itemKey);
               onLoadMore();
             }}
             className="inline-flex w-fit items-center gap-2 rounded-md bg-elevated px-5 py-3 text-sm text-ink disabled:opacity-50"

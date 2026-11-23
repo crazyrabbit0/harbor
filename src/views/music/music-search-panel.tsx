@@ -86,10 +86,7 @@ export function MusicSearchPanel({
     queryRef.current = query;
   }, [query]);
   useEffect(() => {
-    if (!results) {
-      setSettled(null);
-      return;
-    }
+    if (!results) return;
     let active = true;
     const settle = () => {
       if (active) setSettled({ results });

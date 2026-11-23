@@ -46,20 +46,23 @@ export function MusicHeroMedia({
   const [seeking, setSeeking] = useState(false);
   const [muted, setMuted] = useState(true);
   const [overArt, setOverArt] = useState(false);
-  const [teaching, setTeaching] = useState(false);
+  const [teachDone, setTeachDone] = useState(() => taught);
   const [onScreen, setOnScreen] = useState(true);
   const video = useRef<HTMLVideoElement>(null);
   const audio = useRef<HTMLAudioElement>(null);
   const art = useRef<HTMLDivElement>(null);
   const ducked = useRef(false);
   const key = item?.id ?? "";
-  const artwork = item?.artwork;
-  const layers = useHeroLayers(Array.isArray(artwork) ? artwork[0] : (artwork ?? undefined));
-  useEffect(() => {
+  const [prevKey, setPrevKey] = useState(key);
+  if (prevKey !== key) {
+    setPrevKey(key);
     setPreview(null);
     setReadyUrl(null);
     setMuted(true);
-  }, [key]);
+    setSettled(false);
+  }
+  const artwork = item?.artwork;
+  const layers = useHeroLayers(Array.isArray(artwork) ? artwork[0] : (artwork ?? undefined));
   useEffect(() => {
     if (
       !hovering ||
@@ -98,9 +101,8 @@ export function MusicHeroMedia({
   }, [hovering, key, item?.kind, preview?.key]);
   const live = preview?.key === key ? preview : null;
   const playing = !!live && readyUrl === live.url;
-  useEffect(() => {
-    if (!(hovering && playing)) setSettled(false);
-  }, [hovering, playing]);
+  const activePreview = hovering && playing;
+  if (!activePreview && settled) setSettled(false);
   useEffect(() => {
     const node = art.current;
     if (!node) return;
@@ -161,11 +163,13 @@ export function MusicHeroMedia({
   );
   useEffect(() => {
     if (!(playing && hovering) || taught) return;
-    taught = true;
-    setTeaching(true);
-    const timer = setTimeout(() => setTeaching(false), TEACH_MS);
+    const timer = setTimeout(() => {
+      taught = true;
+      setTeachDone(true);
+    }, TEACH_MS);
     return () => clearTimeout(timer);
   }, [playing, hovering]);
+  const teaching = playing && hovering && !teachDone;
   const loading = hovering && seeking && !playing;
   const state = loading ? "loading" : muted ? "muted" : "live";
   const shown = loading || (playing && hovering && (overArt || teaching));

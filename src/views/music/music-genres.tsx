@@ -80,34 +80,37 @@ export function MusicGenres({
   onOpen: (item: MusicCatalogItem, siblings: MusicCatalogItem[]) => void;
 }) {
   const t = useT();
-  const [chart, setChart] = useState<MusicGenreSelection>(EMPTY);
-  const [loading, setLoading] = useState(true),
-    [error, setError] = useState(false),
-    [retry, setRetry] = useState(0);
+  const [feed, setFeed] = useState<{
+    key: string;
+    chart: MusicGenreSelection;
+    error: boolean;
+    loading: boolean;
+  } | null>(null);
+  const [retry, setRetry] = useState(0);
   const root = useRef<HTMLElement>(null);
   const floatingBack = useFloatingBackShown();
+  const genreId = genre?.id;
+  const requestKey = `${genreId ?? "all"}:${retry}`;
   useEffect(() => {
     let live = true;
-    setLoading(true);
-    setError(false);
-    setChart(EMPTY);
-    (genre
-      ? loadMusicGenreSelection(genre.id)
+    (genreId !== undefined
+      ? loadMusicGenreSelection(genreId)
       : loadMusicDiscoveryChart().then((value) => ({ ...value, playlists: [] }))
     )
       .then((value) => {
-        if (live) setChart(value);
+        if (live) setFeed({ key: requestKey, chart: value, error: false, loading: false });
       })
       .catch(() => {
-        if (live) setError(true);
-      })
-      .finally(() => {
-        if (live) setLoading(false);
+        if (live) setFeed({ key: requestKey, chart: EMPTY, error: true, loading: false });
       });
     return () => {
       live = false;
     };
-  }, [genre?.id, retry]);
+  }, [genreId, retry, requestKey]);
+  const current = feed?.key === requestKey ? feed : null;
+  const chart = current?.chart ?? EMPTY;
+  const loading = current ? current.loading : true;
+  const error = current?.error ?? false;
   useEffect(() => {
     if (genre || loading || !genreOrigin) return;
     const saved = genreOrigin;
