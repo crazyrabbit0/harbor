@@ -38,7 +38,7 @@
  *
  * Extraction tools (documented external dependency):
  *   .tar.xz -> `tar -xJf`  (linux; GNU tar + xz-utils)
- *   .zip    -> macOS: `unzip`   windows: PowerShell Expand-Archive   (both built in)
+ *   .zip    -> macOS: `unzip`   windows: System32 tar.exe (bsdtar)   (both built in)
  *
  * Env overrides (mirrors / air-gapped): HARBOR_YTDLP_URL, HARBOR_FFMPEG_URL,
  * HARBOR_FFPROBE_URL replace the resolved URL for the current platform (on Windows
@@ -183,6 +183,9 @@ function findMember(dir, name) {
   return best;
 }
 
+// Windows' own bsdtar reads zip; Git's GNU tar cannot, and Expand-Archive fails under PowerShell 7 on the runners.
+const windowsTar = () => join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+
 function extractMember(buf, kind, member, dest) {
   const tmp = mkdtempSync(join(tmpdir(), "harbor-bin-"));
   try {
@@ -193,16 +196,7 @@ function extractMember(buf, kind, member, dest) {
     if (kind === "tar.xz") {
       execFileSync("tar", ["-xJf", archive, "-C", outDir], { stdio: "inherit" });
     } else if (process.platform === "win32") {
-      execFileSync(
-        "powershell",
-        [
-          "-NoProfile",
-          "-NonInteractive",
-          "-Command",
-          `Expand-Archive -LiteralPath "${archive}" -DestinationPath "${outDir}" -Force`,
-        ],
-        { stdio: "inherit" },
-      );
+      execFileSync(windowsTar(), ["-xf", archive, "-C", outDir], { stdio: "inherit" });
     } else {
       execFileSync("unzip", ["-oq", archive, "-d", outDir], { stdio: "inherit" });
     }
