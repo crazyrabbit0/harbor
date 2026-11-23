@@ -11,39 +11,39 @@ function isAnimeId(id: string): boolean {
 
 export function useTitleDetail(meta: Meta, tmdbKey: string | null, active: boolean) {
   const { settings } = useSettings();
-  const [detail, setDetail] = useState<TmdbDetail | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ key: string; detail: TmdbDetail | null } | null>(null);
   const anime = isAnimeId(meta.id);
   const usedImdbFallback =
     !anime && !tmdbKey && settings.imdbApiFallback && meta.id.startsWith("tt");
   const canFetch = anime || !!tmdbKey || usedImdbFallback;
+  const fetchKey =
+    active && canFetch
+      ? `${meta.id}\0${tmdbKey ?? ""}\0${anime ? 1 : 0}\0${usedImdbFallback ? 1 : 0}`
+      : null;
 
   useEffect(() => {
-    if (!active) return;
-    if (!canFetch) {
-      setDetail(null);
-      return;
-    }
+    if (!fetchKey) return;
     let cancelled = false;
-    setLoading(true);
-    setDetail(null);
     if (anime) {
       animeDetails(settings, meta)
         .then((res) => {
           if (cancelled) return;
-          setDetail(res?.detail ?? null);
-          setLoading(false);
+          setResult({ key: fetchKey, detail: res?.detail ?? null });
           if (!res) return;
           void res.extrasPromise
             .then((patch) => {
-              if (!cancelled) setDetail((prev) => (prev ? { ...prev, ...patch } : prev));
+              if (!cancelled) {
+                setResult((prev) =>
+                  prev?.key === fetchKey && prev.detail
+                    ? { key: fetchKey, detail: { ...prev.detail, ...patch } }
+                    : prev,
+                );
+              }
             })
             .catch(() => {});
         })
         .catch(() => {
-          if (cancelled) return;
-          setDetail(null);
-          setLoading(false);
+          if (!cancelled) setResult({ key: fetchKey, detail: null });
         });
       return () => {
         cancelled = true;
@@ -54,18 +54,24 @@ export function useTitleDetail(meta: Meta, tmdbKey: string | null, active: boole
       : imdbapiDetails(meta.id);
     req
       .then((d) => {
-        if (!cancelled) setDetail(d);
+        if (!cancelled) setResult({ key: fetchKey, detail: d });
       })
       .catch(() => {
-        if (!cancelled) setDetail(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setResult({ key: fetchKey, detail: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [active, meta, tmdbKey, anime, settings, canFetch]);
+  }, [fetchKey, meta, tmdbKey, anime, settings]);
+
+  const detail = !canFetch
+    ? null
+    : active
+      ? result?.key === fetchKey
+        ? result.detail
+        : null
+      : (result?.detail ?? null);
+  const loading = fetchKey != null && result?.key !== fetchKey;
 
   return { detail, loading, canFetch, needsKey: !canFetch };
 }

@@ -40,24 +40,25 @@ export async function resolveImdbScore(id: string, tmdbKey: string): Promise<num
 
 export function useCardImdb(meta: Meta): { imdb: string | null } {
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
-  const [imdb, setImdb] = useState<string | null>(() => cachedScore(meta.id) ?? null);
+  const known = cachedScore(meta.id);
+  const fetchKey = known === undefined ? `${meta.id}\0${settings.tmdbKey}` : null;
+  const [fetched, setFetched] = useState<{ key: string; score: string | null } | null>(null);
+
   useEffect(() => {
-    const known = cachedScore(meta.id);
-    if (known !== undefined) {
-      setImdb(known);
-      return;
-    }
-    setImdb(null);
+    if (!fetchKey) return;
     let cancelled = false;
     (async () => {
       const tt = await resolveTt(meta.id, settings.tmdbKey);
       if (cancelled || !tt) return;
       const score = await resolveScore(tt);
-      if (!cancelled) setImdb(score);
+      if (!cancelled) setFetched({ key: fetchKey, score });
     })();
     return () => {
       cancelled = true;
     };
-  }, [meta.id, settings.tmdbKey]);
+  }, [fetchKey, meta.id, settings.tmdbKey]);
+
+  const imdb =
+    known !== undefined ? known : fetchKey && fetched?.key === fetchKey ? fetched.score : null;
   return { imdb };
 }

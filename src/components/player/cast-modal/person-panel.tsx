@@ -33,36 +33,37 @@ export function PersonPanel({
   onOpenMusic?: (query: string) => void;
 }) {
   const t = useT();
-  const [person, setPerson] = useState<PersonDetail | null>(
-    () => tmdbPersonCached(personId) ?? null,
+  const cachedPerson = tmdbPersonCached(personId) ?? null;
+  const fetchKey = tmdbKey && !cachedPerson ? `${personId}:${tmdbKey}` : null;
+  const [fetched, setFetched] = useState<{
+    key: string;
+    person: PersonDetail | null;
+  } | null>(null);
+  const person = useMemo(
+    () => cachedPerson ?? (fetchKey && fetched?.key === fetchKey ? fetched.person : null),
+    [cachedPerson, fetchKey, fetched],
   );
-  const [loading, setLoading] = useState(!person);
+  const loading = fetchKey != null && fetched?.key !== fetchKey;
   const [expanded, setExpanded] = useState(false);
   const bioRef = useRef<HTMLParagraphElement>(null);
   const [bioClamped, setBioClamped] = useState(false);
   const [music, setMusic] = useState<MusicSearchHit[]>([]);
 
   useEffect(() => {
-    if (!tmdbKey || person) {
-      setLoading(false);
-      return;
-    }
+    if (!fetchKey || !tmdbKey) return;
     let cancelled = false;
-    setLoading(true);
     tmdbPerson(tmdbKey, personId)
       .then((p) => {
-        if (!cancelled) setPerson(p);
+        if (!cancelled) setFetched({ key: fetchKey, person: p });
       })
       .catch(() => {
         // Keep the person browser usable when TMDB is unavailable.
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setFetched({ key: fetchKey, person: null });
       });
     return () => {
       cancelled = true;
     };
-  }, [tmdbKey, personId, person]);
+  }, [fetchKey, tmdbKey, personId]);
 
   const displayName = person?.name || name;
   // The handler is an inline arrow upstream, so the effect keys off a stable boolean instead.

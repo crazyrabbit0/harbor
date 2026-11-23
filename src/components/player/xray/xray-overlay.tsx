@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { UiIcon } from "@/components/ui-icon";
 import type { Meta } from "@/lib/cinemeta";
 import type { PlayerBridge } from "@/lib/player/bridge";
@@ -48,9 +48,11 @@ export function XrayOverlay({
   const [view, setView] = useState<View>("closed");
   const [trailer, setTrailer] = useState<{ ytId: string; name: string } | null>(null);
   const [person, setPerson] = useState<XrayPerson | null>(null);
-  useEffect(() => {
+  const [personMetaId, setPersonMetaId] = useState(meta.id);
+  if (personMetaId !== meta.id) {
+    setPersonMetaId(meta.id);
     setPerson(null);
-  }, [meta.id]);
+  }
   const resumeRef = useRef(false);
   const active = settings.xrayEnabled && view !== "closed";
   const { cast, details } = useXrayCast(meta, active);

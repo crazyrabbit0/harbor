@@ -1,5 +1,5 @@
 import { CircleCheck, Download, TriangleAlert, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { DownloadStatus } from "@/views/player/hooks/use-video-download";
 import { useT } from "@/lib/i18n";
 import { BigButton } from "./big-button";
@@ -154,27 +154,44 @@ function useDownloadSpeed(status: DownloadStatus): {
   etaSec: number | null;
 } {
   const [speed, setSpeed] = useState({ bytesPerSec: 0, etaSec: null as number | null });
-  const [mountedAt] = useState(Date.now);
-  const ref = useRef({ bytes: 0, at: mountedAt });
+  const latestRef = useRef(status);
+  const sampleRef = useRef({ bytes: 0, at: 0 });
+  const downloading = status.kind === "downloading";
 
-  useEffect(() => {
-    if (status.kind !== "downloading") {
-      ref.current = { bytes: 0, at: Date.now() };
-      setSpeed({ bytesPerSec: 0, etaSec: null });
-      return;
-    }
-    const now = Date.now();
-    const dB = status.receivedBytes - ref.current.bytes;
-    const dT = (now - ref.current.at) / 1000;
-    if (dT < 0.5) return;
-    const bps = dB / dT;
-    const remaining = status.totalBytes ? status.totalBytes - status.receivedBytes : 0;
-    const eta = bps > 0 && remaining > 0 ? Math.round(remaining / bps) : null;
-    setSpeed({ bytesPerSec: bps, etaSec: eta });
-    ref.current = { bytes: status.receivedBytes, at: now };
+  if (!downloading && (speed.bytesPerSec !== 0 || speed.etaSec !== null)) {
+    setSpeed({ bytesPerSec: 0, etaSec: null });
+  }
+
+  useLayoutEffect(() => {
+    latestRef.current = status;
   }, [status]);
 
-  return speed;
+  useEffect(() => {
+    if (!downloading) {
+      sampleRef.current = { bytes: 0, at: 0 };
+      return;
+    }
+    sampleRef.current = {
+      bytes: latestRef.current.kind === "downloading" ? latestRef.current.receivedBytes : 0,
+      at: Date.now(),
+    };
+    const id = window.setInterval(() => {
+      const cur = latestRef.current;
+      if (cur.kind !== "downloading") return;
+      const now = Date.now();
+      const dB = cur.receivedBytes - sampleRef.current.bytes;
+      const dT = (now - sampleRef.current.at) / 1000;
+      if (dT < 0.1) return;
+      const bps = dB / dT;
+      const remaining = cur.totalBytes ? cur.totalBytes - cur.receivedBytes : 0;
+      const eta = bps > 0 && remaining > 0 ? Math.round(remaining / bps) : null;
+      setSpeed({ bytesPerSec: bps, etaSec: eta });
+      sampleRef.current = { bytes: cur.receivedBytes, at: now };
+    }, 500);
+    return () => window.clearInterval(id);
+  }, [downloading]);
+
+  return downloading ? speed : { bytesPerSec: 0, etaSec: null };
 }
 
 function formatTooltip(

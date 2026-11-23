@@ -27,22 +27,20 @@ export function ThumbPreview({
   useLayoutEffect(() => {
     liveBucketRef.current = bucket;
   }, [bucket]);
-  const [fetchedSrc, setFetchedSrc] = useState<string | null>(() => thumbCacheGet(bucket) ?? null);
-  const [loading, setLoading] = useState(false);
+  const cached = thumbCacheGet(bucket) ?? null;
+  const [fetchState, setFetchState] = useState<{
+    bucket: number;
+    src: string | null;
+    done: boolean;
+  } | null>(null);
+  if (fetchState && (!canFetch || fetchState.bucket !== bucket)) {
+    setFetchState(null);
+  }
+  const fetchedSrc = cached ?? (fetchState?.bucket === bucket ? fetchState.src : null);
+  const loading = !cached && canFetch && !(fetchState?.bucket === bucket && fetchState.done);
 
   useEffect(() => {
-    const cached = thumbCacheGet(bucket);
-    if (cached) {
-      setFetchedSrc(cached);
-      setLoading(false);
-      return;
-    }
-    setFetchedSrc(null);
-    if (!canFetch) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (cached || !canFetch) return;
     let cancelled = false;
     let attempts = 0;
     let timer = 0;
@@ -52,13 +50,12 @@ export function ThumbPreview({
       if (cancelled || liveBucketRef.current !== bucket) return;
       if (url) {
         thumbCacheSet(bucket, url);
-        setFetchedSrc(url);
-        setLoading(false);
+        setFetchState({ bucket, src: url, done: true });
         return;
       }
       attempts += 1;
       if (attempts >= MAX_ATTEMPTS) {
-        setLoading(false);
+        setFetchState({ bucket, src: null, done: true });
         return;
       }
       timer = window.setTimeout(attempt, RETRY_MS);
@@ -68,7 +65,7 @@ export function ThumbPreview({
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [bucket, canFetch]);
+  }, [bucket, canFetch, cached]);
 
   const t = useT();
   const segments = useSkipSegmentsView();

@@ -65,6 +65,7 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/components/play-on-device-card.tsx",
   "/src/components/play-on-modal.tsx",
   "/src/components/play-on-pair.tsx",
+  "/src/components/player/",
   "/src/components/pop-icon.tsx",
   "/src/components/poster.tsx",
   "/src/components/profile-picker/",

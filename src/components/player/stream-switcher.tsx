@@ -192,11 +192,9 @@ export function StreamSwitcher({
       badge: QUALITY_BADGE[q],
     }));
   }, [allStreams]);
-  useEffect(() => {
-    if (qualityFilter !== "all" && !qualityOptions.some((o) => o.id === qualityFilter)) {
-      setQualityFilter("all");
-    }
-  }, [qualityOptions, qualityFilter]);
+  if (qualityFilter !== "all" && !qualityOptions.some((o) => o.id === qualityFilter)) {
+    setQualityFilter("all");
+  }
   const sourceOptions = useMemo(() => {
     const counts = new Map<string, number>();
     for (const s of allStreams) {
@@ -209,17 +207,13 @@ export function StreamSwitcher({
       .filter((g) => (counts.get(g) ?? 0) > 0)
       .map((g) => ({ id: g, name: g, count: counts.get(g) ?? 0 }));
   }, [allStreams]);
-  useEffect(() => {
-    if (sourceFilter !== "all" && !sourceOptions.some((o) => o.id === sourceFilter)) {
-      setSourceFilter("all");
-    }
-  }, [sourceOptions, sourceFilter]);
+  if (sourceFilter !== "all" && !sourceOptions.some((o) => o.id === sourceFilter)) {
+    setSourceFilter("all");
+  }
   const addonOptions = useMemo(() => buildAddonOptions(allStreams), [allStreams]);
-  useEffect(() => {
-    if (addonFilter !== "all" && !addonOptions.some((o) => o.id === addonFilter)) {
-      setAddonFilter("all");
-    }
-  }, [addonOptions, addonFilter]);
+  if (addonFilter !== "all" && !addonOptions.some((o) => o.id === addonFilter)) {
+    setAddonFilter("all");
+  }
   const matchScores = useMemo(
     () => (hostSource ? buildMatchScores(allStreams, hostSource) : null),
     [allStreams, hostSource],
@@ -275,10 +269,9 @@ export function StreamSwitcher({
     const curKey = streamKey(currentStream);
     return [currentStream, ...filteredList.filter((s) => streamKey(s) !== curKey)];
   }, [filteredList, currentStream]);
-  const [showCount, setShowCount] = useState(80);
-  useEffect(() => {
-    setShowCount(80);
-  }, [addonFilter, qualityFilter, sourceFilter, filterToPreferred, cachedOnly, list.length]);
+  const showCountKey = `${addonFilter}\0${qualityFilter}\0${sourceFilter}\0${filterToPreferred ? 1 : 0}\0${cachedOnly ? 1 : 0}\0${list.length}`;
+  const [showCountState, setShowCountState] = useState({ key: showCountKey, count: 80 });
+  const showCount = showCountState.key === showCountKey ? showCountState.count : 80;
   const hiddenCount = addonFilteredList.length - matchedStreams.length;
   const uncachedHidden = allStreams.length - cachedStreams.length;
   const filters: SwitcherFilters = {
@@ -407,7 +400,12 @@ export function StreamSwitcher({
             {list.length > showCount && (
               <li className="px-4 pb-3 pt-1.5">
                 <button
-                  onClick={() => setShowCount((n) => n + 80)}
+                  onClick={() =>
+                    setShowCountState((prev) => ({
+                      key: showCountKey,
+                      count: (prev.key === showCountKey ? prev.count : 80) + 80,
+                    }))
+                  }
                   className="flex w-full items-center justify-center gap-2 rounded-md bg-raised px-4 py-2.5 text-[12.5px] font-semibold text-ink-muted transition-colors hover:bg-elevated hover:text-ink"
                 >
                   {t("Load more")}

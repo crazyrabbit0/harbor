@@ -69,28 +69,29 @@ export function AutosyncPopover({ handle }: { handle: AutoSyncHandle }) {
   const t = useT();
   const phase = phaseOf(handle);
   const modelDl = useAsrModelProgress();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(
+    () => phase === "synced" || phase === "offer" || phase === "wrong",
+  );
   const [dismissed, setDismissed] = useState(false);
   const [thumb, setThumb] = useState<Thumb | null>(null);
   const [acting, setActing] = useState<Acting>(null);
   const [held, setHeld] = useState(false);
-  const [correction, setCorrection] = useState("");
-
-  useEffect(() => {
+  const [prevPhase, setPrevPhase] = useState(phase);
+  if (phase !== prevPhase) {
+    setPrevPhase(phase);
     setDismissed(false);
     setThumb(null);
     setActing(null);
     setOpen(phase === "synced" || phase === "offer" || phase === "wrong");
-  }, [phase]);
+  }
 
-  useEffect(() => {
-    if (phase === "analyzing" || phase === null) {
-      setCorrection("");
-      return;
-    }
-    const c = correctionOf(handle.offer);
-    if (c) setCorrection(c);
-  }, [phase, handle.offer]);
+  const nextCorrection = phase === "analyzing" || phase === null ? "" : correctionOf(handle.offer);
+  const [correction, setCorrection] = useState(nextCorrection);
+  if ((phase === "analyzing" || phase === null) && correction !== "") {
+    setCorrection("");
+  } else if (nextCorrection && nextCorrection !== correction) {
+    setCorrection(nextCorrection);
+  }
 
   useEffect(() => {
     if (phase === null) return;

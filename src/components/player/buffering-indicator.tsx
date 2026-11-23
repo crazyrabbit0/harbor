@@ -2,16 +2,14 @@ import { useEffect, useState } from "react";
 
 export function BufferingIndicator({ show }: { show: boolean }) {
   const [visible, setVisible] = useState(false);
+  if (!show && visible) setVisible(false);
   useEffect(() => {
-    if (!show) {
-      setVisible(false);
-      return;
-    }
+    if (!show) return;
     const timer = window.setTimeout(() => setVisible(true), 450);
     return () => window.clearTimeout(timer);
   }, [show]);
 
-  if (!visible) return null;
+  if (!show || !visible) return null;
 
   return (
     <div className="pointer-events-none absolute inset-0 z-[15] flex items-center justify-center motion-safe:animate-in motion-safe:fade-in motion-safe:duration-300">

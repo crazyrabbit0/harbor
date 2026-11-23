@@ -1,5 +1,5 @@
 import { Crown, DoorOpen, Pause, WifiOff } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { nameColor } from "@/lib/together/colors";
 import { useSelfIdentity } from "@/lib/together/use-self-identity";
 import type { PanelCorner } from "@/lib/player-chrome";
@@ -104,8 +104,8 @@ function Avatar({
   const { avatar: selfAvatar, color: selfColor } = useSelfIdentity();
   const initial = (participant.name?.[0] ?? "?").toUpperCase();
   const avatarSrc = isSelf ? selfAvatar : (participant.avatar ?? null);
-  const [avatarFailed, setAvatarFailed] = useState(false);
-  useEffect(() => setAvatarFailed(false), [avatarSrc]);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const avatarFailed = avatarSrc != null && failedSrc === avatarSrc;
   const tint = isSelf
     ? (selfColor ?? nameColor(participant.name))
     : (participant.color ?? nameColor(participant.name));
@@ -138,7 +138,7 @@ function Avatar({
               src={avatarSrc}
               alt=""
               draggable={false}
-              onError={() => setAvatarFailed(true)}
+              onError={() => setFailedSrc(avatarSrc)}
               className="h-full w-full object-cover"
             />
           ) : (

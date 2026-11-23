@@ -1,5 +1,5 @@
 import { Clock } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useT } from "@/lib/i18n";
 import type { AdRange } from "@/lib/ad-report/submit";
 
@@ -88,16 +88,12 @@ function TimeField({
   onUseNow: () => void;
 }) {
   const t = useT();
-  const [text, setText] = useState(() => fmt(value));
+  const [draft, setDraft] = useState(() => fmt(value));
   const [editing, setEditing] = useState(false);
-  useEffect(() => {
-    if (!editing) setText(fmt(value));
-  }, [value, editing]);
 
   const commit = () => {
-    const parsed = parse(text);
+    const parsed = parse(draft);
     if (parsed != null) onCommit(parsed);
-    else setText(fmt(value));
     setEditing(false);
   };
 
@@ -106,9 +102,12 @@ function TimeField({
       <span className="w-16 shrink-0 text-[12px] font-medium text-ink-muted">{label}</span>
       <input
         inputMode="numeric"
-        value={text}
-        onFocus={() => setEditing(true)}
-        onChange={(e) => setText(e.target.value)}
+        value={editing ? draft : fmt(value)}
+        onFocus={() => {
+          setDraft(fmt(value));
+          setEditing(true);
+        }}
+        onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={(e) => {
           if (e.key === "Enter") e.currentTarget.blur();

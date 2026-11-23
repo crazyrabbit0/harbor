@@ -81,9 +81,7 @@ export function SpeedMenu({
   useEffect(() => {
     onOpenChange?.(open);
   }, [open, onOpenChange]);
-  useEffect(() => {
-    if (!open) setEditing(false);
-  }, [open]);
+  if (!open && editing) setEditing(false);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {

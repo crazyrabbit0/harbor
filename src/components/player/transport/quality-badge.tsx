@@ -92,12 +92,9 @@ export function QualityInfo({
   const items = labels.filter((l): l is string => !!l);
   const key = items.join("|");
   const [settledKey, setSettledKey] = useState<string | null>(null);
+  if (!key && settledKey !== null) setSettledKey(null);
   useEffect(() => {
-    if (!key) {
-      setSettledKey(null);
-      return;
-    }
-    if (key === settledKey) return;
+    if (!key || key === settledKey) return;
     const timer = window.setTimeout(() => setSettledKey(key), STABLE_MS);
     return () => window.clearTimeout(timer);
   }, [key, settledKey]);

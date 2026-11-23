@@ -77,14 +77,12 @@ export function SeekStepBtn({
     : sanitizeSeekStep(settings.seekForwardStepLongSec, DEFAULT.seekForwardStepLongSec);
   const stepHotkey: HotkeyId = back ? "playerSeekBack10" : "playerSeekForward10";
   const numberedSrc = `/player-icons/seek-${direction}-${seconds}.png`;
-  const [numberedOk, setNumberedOk] = useState(true);
-  useEffect(() => setNumberedOk(true), [numberedSrc]);
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+  const numberedOk = failedSrc !== numberedSrc;
   const [pickerOpen, setPickerOpen] = useState(false);
   usePlayerChromeHold(pickerOpen);
   const [editing, setEditing] = useState(false);
-  useEffect(() => {
-    if (!pickerOpen) setEditing(false);
-  }, [pickerOpen]);
+  if (!pickerOpen && editing) setEditing(false);
   const wrapRef = useRef<HTMLDivElement>(null);
   const holdTimerRef = useRef<number | null>(null);
   const claimedRef = useRef(false);
@@ -247,7 +245,7 @@ export function SeekStepBtn({
               alt=""
               draggable={false}
               className="select-none"
-              onError={() => setNumberedOk(false)}
+              onError={() => setFailedSrc(numberedSrc)}
             />
           ) : (
             <>

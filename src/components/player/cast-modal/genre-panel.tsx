@@ -15,6 +15,8 @@ import {
 import { GenreToolbar } from "./genre-toolbar";
 import { PosterGrid } from "./rails";
 
+const EMPTY_META: Meta[] = [];
+
 function scrollParent(el: HTMLElement | null): HTMLElement | null {
   let p = el?.parentElement ?? null;
   while (p) {
@@ -47,35 +49,34 @@ export function GenrePanel({
     id: genreIdProp || genreIdFor(genreName, mediaTypeProp),
   }));
   const [filters, setFilters] = useState<GenreFilters>(EMPTY_FILTERS);
-  const [items, setItems] = useState<Meta[]>([]);
   const [page, setPage] = useState(() => initialBrowsePage(EMPTY_FILTERS));
-  const [loading, setLoading] = useState(true);
-  const [done, setDone] = useState(false);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   const params = useMemo(
     () => buildDiscoverParams(genre.id, mediaType, filters),
     [genre.id, mediaType, filters],
   );
+  const canFetch = Boolean(genre.id && tmdbKey);
+  const queryKey = `${genre.id}:${mediaType}:${tmdbKey ?? ""}:${JSON.stringify(filters)}`;
+  const [feed, setFeed] = useState<{
+    queryKey: string;
+    loadedPage: number | null;
+    items: Meta[];
+    done: boolean;
+  }>({ queryKey, loadedPage: null, items: EMPTY_META, done: false });
+
+  const isSameQuery = feed.queryKey === queryKey;
+  const items = canFetch && isSameQuery ? feed.items : EMPTY_META;
+  const done = !canFetch || (isSameQuery && feed.done);
+  const loading = canFetch && (!isSameQuery || feed.loadedPage !== page);
 
   useEffect(() => {
     if (genre.id) onActiveGenre?.(genre.id, mediaType);
   }, [genre.id, mediaType, onActiveGenre]);
 
   useEffect(() => {
-    setItems([]);
-    setDone(false);
-    setPage(initialBrowsePage(filters));
-  }, [params, filters]);
-
-  useEffect(() => {
-    if (!genre.id || !tmdbKey) {
-      setLoading(false);
-      setDone(true);
-      return;
-    }
+    if (!genre.id || !tmdbKey) return;
     let cancelled = false;
-    setLoading(true);
     const minRating = Number(filters.minRating);
     const imdbFilter = !!filters.minRating && Number.isFinite(minRating);
     const load = async () => {
@@ -89,23 +90,31 @@ export function GenrePanel({
         if (cancelled) return;
         passing = scored.filter(([, s]) => s != null && s >= minRating).map(([m]) => m);
       }
-      setItems((prev) => {
-        const seen = new Set(prev.map((m) => m.id));
-        return [...prev, ...passing.filter((m) => !seen.has(m.id))];
+      setFeed((prev) => {
+        const base = prev.queryKey === queryKey ? prev.items : EMPTY_META;
+        const seen = new Set(base.map((m) => m.id));
+        return {
+          queryKey,
+          loadedPage: page,
+          items: [...base, ...passing.filter((m) => !seen.has(m.id))],
+          done: (prev.queryKey === queryKey && prev.done) || r.length < 20 || page >= 500,
+        };
       });
-      if (r.length < 20 || page >= 500) setDone(true);
-      setLoading(false);
     };
     load().catch(() => {
       if (!cancelled) {
-        setLoading(false);
-        setDone(true);
+        setFeed((prev) => ({
+          queryKey,
+          loadedPage: page,
+          items: prev.queryKey === queryKey ? prev.items : EMPTY_META,
+          done: true,
+        }));
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [params, page, mediaType, tmdbKey, genre.id, filters.minRating]);
+  }, [queryKey, params, page, mediaType, tmdbKey, genre.id, filters.minRating]);
 
   useEffect(() => {
     const el = sentinelRef.current;
@@ -124,6 +133,7 @@ export function GenrePanel({
     if (mt === mediaType) return;
     setMediaType(mt);
     setGenre((g) => remapGenre(g.name, g.id, mt));
+    setPage(initialBrowsePage(filters));
   };
 
   const showInitialSkeleton = loading && items.length === 0;
@@ -135,9 +145,19 @@ export function GenrePanel({
         genreName={genre.name}
         filters={filters}
         onMediaType={changeMedia}
-        onGenre={(name) => setGenre({ name, id: genreIdFor(name, mediaType) })}
-        onFilters={(patch) => setFilters((f) => ({ ...f, ...patch }))}
-        onClear={() => setFilters(EMPTY_FILTERS)}
+        onGenre={(name) => {
+          setGenre({ name, id: genreIdFor(name, mediaType) });
+          setPage(initialBrowsePage(filters));
+        }}
+        onFilters={(patch) => {
+          const next = { ...filters, ...patch };
+          setFilters(next);
+          setPage(initialBrowsePage(next));
+        }}
+        onClear={() => {
+          setFilters(EMPTY_FILTERS);
+          setPage(initialBrowsePage(EMPTY_FILTERS));
+        }}
       />
 
       {showInitialSkeleton ? (

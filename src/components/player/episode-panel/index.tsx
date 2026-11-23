@@ -116,13 +116,13 @@ export function EpisodePanel({
   const isSeries = meta.type === "series";
   const followQueue = settings.queueDrivesNav && hasQueue && isSeries;
   const showQueueList = hasQueue && (followQueue || !isSeries);
+  if (!open && (expandedEp !== null || pickingFor !== null || resolvingFor !== null)) {
+    setExpandedEp(null);
+    setPickingFor(null);
+    setResolvingFor(null);
+  }
   useEffect(() => {
-    if (!open) {
-      setExpandedEp(null);
-      setPickingFor(null);
-      resolveAcRef.current?.abort();
-      setResolvingFor(null);
-    }
+    if (!open) resolveAcRef.current?.abort();
   }, [open]);
   const manualMode = !settings.instantPlay;
   const handlePlay = (ep: PlayEpisode) => {

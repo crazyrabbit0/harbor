@@ -398,11 +398,9 @@ function JumpDigits({ ctx }: { ctx: Ctx }) {
   useMenuDismiss(open, wrapRef, () => setOpen(false));
   const menuRef = useRef<HTMLDivElement>(null);
   const [shift, setShift] = useState(0);
+  if (!open && shift !== 0) setShift(0);
   useLayoutEffect(() => {
-    if (!open) {
-      setShift(0);
-      return;
-    }
+    if (!open) return;
     const wrap = wrapRef.current?.getBoundingClientRect();
     const w = menuRef.current?.offsetWidth ?? 0;
     if (!wrap || !w) return;
@@ -499,11 +497,12 @@ function JumpDigits({ ctx }: { ctx: Ctx }) {
 // Frames come from the prefetch started when the source opened; a cell only waits for it to land.
 function JumpFrame({ time }: { time: number }) {
   const bucket = Math.round(time / JUMP_FRAME_BUCKET_SEC);
-  const [src, setSrc] = useState<string | null>(() => thumbCacheGet(bucket) ?? null);
-  useEffect(() => {
-    setSrc(thumbCacheGet(bucket) ?? null);
-    return onTrickplayPrefetched(() => setSrc(thumbCacheGet(bucket) ?? null));
-  }, [bucket]);
+  const [fetched, setFetched] = useState<{ bucket: number; src: string | null } | null>(null);
+  useEffect(
+    () => onTrickplayPrefetched(() => setFetched({ bucket, src: thumbCacheGet(bucket) ?? null })),
+    [bucket],
+  );
+  const src = thumbCacheGet(bucket) ?? (fetched?.bucket === bucket ? fetched.src : null);
   if (!src)
     return (
       <span

@@ -51,12 +51,9 @@ export function CastModal({
 }) {
   const t = useT();
   const queue = useQueue();
-  const initialStack = useCallback(
-    (): StackView[] =>
-      initialPerson ? [{ kind: "person", ...initialPerson }] : [{ kind: "title", meta }],
-    [initialPerson, meta],
+  const [stack, setStack] = useState<StackView[]>(() =>
+    initialPerson ? [{ kind: "person", ...initialPerson }] : [{ kind: "title", meta }],
   );
-  const [stack, setStack] = useState<StackView[]>(initialStack);
   const closeRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -66,14 +63,18 @@ export function CastModal({
     return restore;
   }, [open]);
 
-  useEffect(() => {
-    if (open) setStack(initialStack());
-  }, [open, initialStack]);
-
   const [confirmTarget, setConfirmTarget] = useState<Meta | null>(null);
-  useEffect(() => {
-    if (open) setConfirmTarget(null);
-  }, [open, meta]);
+  const resetKey = open
+    ? `${meta.id}:${initialPerson?.id ?? ""}:${initialPerson?.name ?? ""}`
+    : null;
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey);
+    if (resetKey !== null) {
+      setStack(initialPerson ? [{ kind: "person", ...initialPerson }] : [{ kind: "title", meta }]);
+      setConfirmTarget(null);
+    }
+  }
 
   const [activeGenre, setActiveGenre] = useState<{ id: number; mediaType: "movie" | "tv" } | null>(
     null,

@@ -65,7 +65,11 @@ export function LangGroup({
   const t = useT();
   const [open, setOpen] = useState(defaultOpen);
   const [page, setPage] = useState(0);
-  useEffect(() => setPage(0), [items]);
+  const [prevItems, setPrevItems] = useState(items);
+  if (prevItems !== items) {
+    setPrevItems(items);
+    setPage(0);
+  }
   const pageCount = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
   const clampedPage = Math.min(page, pageCount - 1);
   const pageItems = items.slice(clampedPage * PAGE_SIZE, clampedPage * PAGE_SIZE + PAGE_SIZE);

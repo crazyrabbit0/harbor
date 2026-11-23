@@ -45,12 +45,10 @@ export function MoreMenu({
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
 
+  if (!visible && open) setOpen(false);
   useEffect(() => {
     onOpenChange?.(open);
   }, [open, onOpenChange]);
-  useEffect(() => {
-    if (!visible) setOpen(false);
-  }, [visible]);
   useEffect(() => {
     if (!open) return;
     const close = (e: MouseEvent) => {

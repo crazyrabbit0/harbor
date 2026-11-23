@@ -1,5 +1,5 @@
 import { Check, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { type Settings } from "@/lib/settings";
 import {
@@ -26,7 +26,9 @@ export function LooksCluster({
 }) {
   const t = useT();
   const [list, setList] = useState<SubPreset[]>(() => loadSubPresets());
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => list.find((p) => styleMatches(settings, p))?.id ?? null,
+  );
   const [naming, setNaming] = useState(false);
   const [draft, setDraft] = useState("");
 
@@ -35,11 +37,11 @@ export function LooksCluster({
     saveSubPresets(next);
   };
 
-  useEffect(() => {
-    if (selectedId && list.some((p) => p.id === selectedId)) return;
-    const match = list.find((p) => styleMatches(settings, p));
-    setSelectedId(match ? match.id : null);
-  }, [list, selectedId, settings]);
+  const hasSelected = selectedId != null && list.some((p) => p.id === selectedId);
+  const matchedId = hasSelected ? null : (list.find((p) => styleMatches(settings, p))?.id ?? null);
+  if (!hasSelected && selectedId !== matchedId) {
+    setSelectedId(matchedId);
+  }
 
   const selected = list.find((p) => p.id === selectedId) ?? null;
   const dirty = selected ? !styleMatches(settings, selected) : false;

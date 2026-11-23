@@ -19,17 +19,26 @@ export function ContentAdvisoryPrompt({
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
 
-  useEffect(() => {
-    if (isDismissed(CONTENT_ADVISORY_NUDGE)) return;
-    if (settings.contentAdvisoryToast) {
-      dismiss(CONTENT_ADVISORY_NUDGE);
-      return;
-    }
-    if (!ready) return;
-    // Mark the invitation seen, not accepted: leaving playback must not ask again.
-    dismiss(CONTENT_ADVISORY_NUDGE);
+  const dismissed = isDismissed(CONTENT_ADVISORY_NUDGE);
+  const [prevDismissed, setPrevDismissed] = useState(dismissed);
+  const [invited, setInvited] = useState(false);
+  if (dismissed !== prevDismissed) {
+    setPrevDismissed(dismissed);
+    if (!dismissed) setInvited(false);
+  }
+  const shouldInvite = !dismissed && !settings.contentAdvisoryToast && ready;
+  if (shouldInvite && !invited) {
+    setInvited(true);
     setPhase("visible");
-  }, [ready, settings.contentAdvisoryToast, isDismissed, dismiss]);
+  }
+
+  useEffect(() => {
+    if (dismissed) return;
+    if (settings.contentAdvisoryToast || ready) {
+      // Mark the invitation seen, not accepted: leaving playback must not ask again.
+      dismiss(CONTENT_ADVISORY_NUDGE);
+    }
+  }, [ready, settings.contentAdvisoryToast, dismissed, dismiss]);
 
   useEffect(() => {
     if (phase !== "visible" || hovered || focused) return;
