@@ -119,6 +119,7 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/feed/",
   "/src/views/filter.tsx",
   "/src/views/filter/",
+  "/src/views/games/",
   "/src/views/group.tsx",
   "/src/views/group/",
   "/src/views/groups.tsx",

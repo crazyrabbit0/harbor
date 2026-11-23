@@ -1,5 +1,5 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Box, RotateCcw, RotateCw } from "lucide-react";
 import type { SkinViewer } from "skinview3d";
 import { useT } from "@/lib/i18n";
@@ -38,6 +38,17 @@ export function MinecraftSkinViewer({
     [failed, setFailed] = useState(false),
     [rotate, setRotate] = useState(false),
     [animate, setAnimate] = useState(false);
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setFailed(false);
+  }
+  const showFailed = failed || pixels.length !== 64 * 64 * 4;
+  const latestSkin = useRef({ pixels, model });
+  useLayoutEffect(() => {
+    latestSkin.current = { pixels, model };
+  }, [pixels, model]);
+  const uploadedSkin = useRef<{ pixels: Uint8ClampedArray; model: SkinModel } | null>(null);
   const [reduced, setReduced] = useState(
     () => matchMedia("(prefers-reduced-motion: reduce)").matches,
   );
@@ -51,7 +62,12 @@ export function MinecraftSkinViewer({
     if (!active || !canvas.current || !host.current) return;
     let disposed = false;
     let observer: ResizeObserver | undefined;
-    setFailed(false);
+    const canvasEl = canvas.current;
+    const onLost = (event: Event) => {
+      event.preventDefault();
+      setFailed(true);
+    };
+    canvasEl.addEventListener("webglcontextlost", onLost);
     void loadSkinview()
       .then(({ SkinViewer }) => {
         if (disposed || !canvas.current || !host.current) return;
@@ -72,6 +88,13 @@ export function MinecraftSkinViewer({
         instance.globalLight.intensity = 2;
         instance.cameraLight.intensity = 0.6;
         instance.controls.addEventListener("change", () => instance.render());
+        const initial = latestSkin.current;
+        if (initial.pixels.length === 64 * 64 * 4) {
+          const source = skinCanvas(initial.pixels);
+          instance.loadSkin(source, { model: initial.model === "classic" ? "default" : "slim" });
+          instance.render();
+          uploadedSkin.current = initial;
+        }
         observer = new ResizeObserver(() => {
           if (host.current) {
             instance.setSize(host.current.clientWidth, host.current.clientHeight);
@@ -86,21 +109,25 @@ export function MinecraftSkinViewer({
       });
     return () => {
       disposed = true;
+      canvasEl.removeEventListener("webglcontextlost", onLost);
       observer?.disconnect();
       viewer.current?.dispose();
       viewer.current = null;
+      uploadedSkin.current = null;
     };
   }, [active]);
   useEffect(() => {
     const instance = viewer.current;
-    if (!instance) return;
+    if (!instance || pixels.length !== 64 * 64 * 4) return;
+    if (uploadedSkin.current?.pixels === pixels && uploadedSkin.current?.model === model) return;
+    uploadedSkin.current = { pixels, model };
     const skinModel = model === "classic" ? "default" : "slim";
     try {
       const source = skinCanvas(pixels);
       instance.loadSkin(source, { model: skinModel });
       instance.render();
     } catch {
-      setFailed(true);
+      // Initial setup and webglcontextlost report context or canvas failures asynchronously.
     }
   }, [pixels, model, ready]);
   useEffect(() => {
@@ -182,7 +209,7 @@ export function MinecraftSkinViewer({
             v.render();
           }}
         />
-        {failed && (
+        {showFailed && (
           <div className="mc-skin-webgl" role="status">
             <Box size={32} />
             <p>{t("games.minecraft.webgl")}</p>
@@ -195,7 +222,7 @@ export function MinecraftSkinViewer({
           title={t("games.minecraft.rotate")}
           aria-label={t("games.minecraft.rotate")}
           aria-pressed={rotate}
-          disabled={failed || reduced}
+          disabled={showFailed || reduced}
           onClick={() => setRotate((v) => !v)}
         >
           <RotateCw size={18} />
@@ -205,7 +232,7 @@ export function MinecraftSkinViewer({
           title={t("games.minecraft.animate")}
           aria-label={t("games.minecraft.animate")}
           aria-pressed={animate}
-          disabled={failed || reduced}
+          disabled={showFailed || reduced}
           onClick={() => setAnimate((v) => !v)}
         >
           <Play size={18} />
@@ -214,7 +241,7 @@ export function MinecraftSkinViewer({
           type="button"
           title={t("games.minecraft.resetView")}
           aria-label={t("games.minecraft.resetView")}
-          disabled={failed}
+          disabled={showFailed}
           onClick={() => {
             const v = viewer.current;
             if (v) {

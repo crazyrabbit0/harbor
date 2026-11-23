@@ -92,9 +92,11 @@ export function GameTorrentDialog({
     t("games.preparation.folder", { name }),
   );
   const invalidPreparation = preparation.enabled && (!options.length || !unpack);
-  useEffect(() => {
+  const [hasOptions, setHasOptions] = useState(options.length > 0);
+  if (hasOptions !== options.length > 0) {
+    setHasOptions(options.length > 0);
     if (!options.length) setPreparation({ enabled: false });
-  }, [options.length]);
+  }
   const live = useRef(true),
     pending = useRef(false),
     operation = useRef(""),

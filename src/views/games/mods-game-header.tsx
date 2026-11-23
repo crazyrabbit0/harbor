@@ -22,14 +22,12 @@ export function ModsGameHeader({
     menu = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false),
     game = MOD_GAMES.find((value) => value.id === selected)!;
+  if (open && !active) setOpen(false);
   const close = (restore = false) => {
     setOpen(false);
     if (restore) trigger.current?.focus({ preventScroll: true });
   };
   useSectionBack(() => close(true), active && open, true);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
   useEffect(() => {
     if (!open) return;
     const frame = requestAnimationFrame(() =>

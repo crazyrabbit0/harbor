@@ -65,9 +65,14 @@ export function MinecraftPackUpdates({
   const [versions, setVersions] = useState<MinecraftVersion[]>([]),
     [version, setVersion] = useState(""),
     [history, setHistory] = useState<MinecraftPackHistory | null>(null),
-    [catalogBusy, setCatalogBusy] = useState(false),
-    [catalogError, setCatalogError] = useState(""),
     [retry, setRetry] = useState(0);
+  const catalogKey = `${profile}:${path}:${instance.id}:${retry}`;
+  const [catalogState, setCatalogState] = useState<{ settledKey: string; error: string }>({
+    settledKey: "",
+    error: "",
+  });
+  const catalogBusy = catalogState.settledKey !== catalogKey;
+  const catalogError = catalogState.settledKey === catalogKey ? catalogState.error : "";
   const [plan, setPlan] = useState<MinecraftPackUpdate | null>(null),
     [busy, setBusy] = useState(""),
     [error, setError] = useState(""),
@@ -157,8 +162,6 @@ export function MinecraftPackUpdates({
   useEffect(() => {
     const controller = new AbortController();
     let disposed = false;
-    setCatalogError("");
-    setCatalogBusy(true);
     queueMicrotask(() => {
       if (disposed) return;
       const project = instance.pack?.project;
@@ -175,34 +178,31 @@ export function MinecraftPackUpdates({
           path,
           id: instance.id,
         }),
-      ])
-        .then(([items, state]) => {
-          if (disposed) return;
-          if (items.status === "fulfilled") {
-            const releases = items.value.filter((v) => v.filename.endsWith(".mrpack"));
-            setVersions(releases);
-            setVersion((current) =>
-              releases.some((v) => v.id === current)
-                ? current
-                : ((
-                    releases.find(
-                      (v) => v.id !== instance.pack?.versionId && v.type === "release",
-                    ) ?? releases.find((v) => v.id !== instance.pack?.versionId)
-                  )?.id ?? ""),
-            );
-          } else setCatalogError(minecraftPackUpdateError(items.reason));
-          if (state.status === "fulfilled") setHistory(state.value);
-          else setCatalogError(minecraftPackUpdateError(state.reason));
-        })
-        .finally(() => {
-          if (!disposed) setCatalogBusy(false);
-        });
+      ]).then(([items, state]) => {
+        if (disposed) return;
+        let nextError = "";
+        if (items.status === "fulfilled") {
+          const releases = items.value.filter((v) => v.filename.endsWith(".mrpack"));
+          setVersions(releases);
+          setVersion((current) =>
+            releases.some((v) => v.id === current)
+              ? current
+              : ((
+                  releases.find((v) => v.id !== instance.pack?.versionId && v.type === "release") ??
+                  releases.find((v) => v.id !== instance.pack?.versionId)
+                )?.id ?? ""),
+          );
+        } else nextError = minecraftPackUpdateError(items.reason);
+        if (state.status === "fulfilled") setHistory(state.value);
+        else nextError = minecraftPackUpdateError(state.reason);
+        setCatalogState({ settledKey: catalogKey, error: nextError });
+      });
     });
     return () => {
       disposed = true;
       controller.abort();
     };
-  }, [profile, path, instance.id, retry]);
+  }, [profile, path, instance.id, retry, catalogKey]);
   const run = async (command: string, args: Record<string, unknown>, phase: string) => {
     if (pending.current || closingRef.current) return;
     pending.current = true;

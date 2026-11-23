@@ -57,13 +57,41 @@ export function MinecraftAccountDialog({
   const player = account.status?.account,
     current = player?.skins.find((s) => s.active),
     activeCape = player?.capes.find((c) => c.active)?.id ?? null;
-  const [pixels, setPixels] = useState<Uint8ClampedArray | null>(null),
-    [capeId, setCapeId] = useState<string | null>(activeCape),
-    [capeTexture, setCapeTexture] = useState<string>();
-  const [textureFailed, setTextureFailed] = useState(false),
+  const [capeId, setCapeId] = useState<string | null>(activeCape),
     [copied, setCopied] = useState(false),
     [linkError, setLinkError] = useState(false);
   const [textureRevision, setTextureRevision] = useState(0);
+  const flow = account.challenge?.flow;
+  const [prevFlow, setPrevFlow] = useState(flow);
+  if (prevFlow !== flow) {
+    setPrevFlow(flow);
+    setCopied(false);
+    setLinkError(false);
+  }
+  const [prevCapeSource, setPrevCapeSource] = useState({ activeCape, playerId: player?.id });
+  if (prevCapeSource.activeCape !== activeCape || prevCapeSource.playerId !== player?.id) {
+    setPrevCapeSource({ activeCape, playerId: player?.id });
+    setCapeId(activeCape);
+  }
+  const skinKey = current
+    ? `${player?.id ?? ""}:${current.id}:${current.url}:${textureRevision}`
+    : "";
+  const [skinState, setSkinState] = useState<{
+    key: string;
+    pixels: Uint8ClampedArray | null;
+    failed: boolean;
+  } | null>(null);
+  const pixels = skinKey && skinState?.key === skinKey ? skinState.pixels : null;
+  const skinFailed = !!skinKey && skinState?.key === skinKey && skinState.failed;
+  const capeTexKey = capeId ? `${player?.id ?? ""}:${capeId}:${textureRevision}` : "";
+  const [capeState, setCapeState] = useState<{
+    key: string;
+    texture: string | undefined;
+    failed: boolean;
+  } | null>(null);
+  const capeTexture = capeTexKey && capeState?.key === capeTexKey ? capeState.texture : undefined;
+  const capeFailed = !!capeTexKey && capeState?.key === capeTexKey && capeState.failed;
+  const textureFailed = skinFailed || capeFailed;
   useSectionBack(close, true);
   useEffect(() => {
     const previous = document.activeElement as HTMLElement;
@@ -93,46 +121,36 @@ export function MinecraftAccountDialog({
     if (closing) account.cancel();
   }, [closing]);
   useEffect(() => {
-    setCopied(false);
-    setLinkError(false);
-  }, [account.challenge?.flow]);
-  useEffect(() => {
-    setCapeId(activeCape);
-  }, [activeCape, player?.id]);
-  useEffect(() => {
+    if (!current || !skinKey) return;
     let cancelled = false;
-    setPixels(null);
-    setTextureFailed(false);
-    if (current)
-      void account
-        .texture("skin", current.id)
-        .then(readSkinPng)
-        .then((value) => {
-          if (!cancelled) setPixels(value);
-        })
-        .catch(() => {
-          if (!cancelled) setTextureFailed(true);
-        });
+    void account
+      .texture("skin", current.id)
+      .then(readSkinPng)
+      .then((value) => {
+        if (!cancelled) setSkinState({ key: skinKey, pixels: value, failed: false });
+      })
+      .catch(() => {
+        if (!cancelled) setSkinState({ key: skinKey, pixels: null, failed: true });
+      });
     return () => {
       cancelled = true;
     };
-  }, [current?.id, current?.url, player?.id, textureRevision]);
+  }, [skinKey]);
   useEffect(() => {
+    if (!capeId || !capeTexKey) return;
     let cancelled = false;
-    setCapeTexture(undefined);
-    if (capeId)
-      void account
-        .texture("cape", capeId)
-        .then((value) => {
-          if (!cancelled) setCapeTexture(value);
-        })
-        .catch(() => {
-          if (!cancelled) setTextureFailed(true);
-        });
+    void account
+      .texture("cape", capeId)
+      .then((value) => {
+        if (!cancelled) setCapeState({ key: capeTexKey, texture: value, failed: false });
+      })
+      .catch(() => {
+        if (!cancelled) setCapeState({ key: capeTexKey, texture: undefined, failed: true });
+      });
     return () => {
       cancelled = true;
     };
-  }, [capeId, player?.id, textureRevision]);
+  }, [capeTexKey]);
   const openMicrosoft = async () => {
     setLinkError(false);
     try {
@@ -234,10 +252,7 @@ export function MinecraftAccountDialog({
                     <p role="status">{t("games.minecraft.account.network")}</p>
                     <button
                       className="games-button"
-                      onClick={() => {
-                        setTextureFailed(false);
-                        setTextureRevision((v) => v + 1);
-                      }}
+                      onClick={() => setTextureRevision((v) => v + 1)}
                     >
                       {t("common.retry")}
                     </button>

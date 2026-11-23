@@ -36,11 +36,19 @@ export function MinecraftLoaderChoice({
   disabled: boolean;
 }) {
   const t = useT(),
-    [releases, setReleases] = useState<Release[]>([]),
-    [loading, setLoading] = useState(false),
-    [error, setError] = useState(""),
+    [loadState, setLoadState] = useState<{
+      key: string;
+      releases: Release[];
+      error: string;
+    } | null>(null),
     [retry, setRetry] = useState(0),
     [failedArt, setFailedArt] = useState<Record<string, boolean>>({});
+  const requestKey = `${game}:${value.loader}:${retry}`;
+  const activeFetch = value.loader !== "vanilla" && !!game;
+  const currentLoad = loadState?.key === requestKey ? loadState : null;
+  const releases = currentLoad?.releases ?? [];
+  const error = currentLoad?.error ?? "";
+  const loading = activeFetch && !currentLoad;
   const loaderName = loaders[value.loader].name;
   const update = useRef(change);
   useLayoutEffect(() => {
@@ -54,15 +62,9 @@ export function MinecraftLoaderChoice({
       return;
     }
     const loader = value.loader;
-    setReleases([]);
-    setError("");
-    setLoading(true);
     update.current({ loader, version: "", ready: false, game });
     queueMicrotask(() => {
-      if (disposed || !game) {
-        if (!disposed) setLoading(false);
-        return;
-      }
+      if (disposed || !game) return;
       void versionsPool
         .run(
           () => invoke<Release[]>("games_minecraft_loader_versions", { game, loader }),
@@ -70,22 +72,21 @@ export function MinecraftLoaderChoice({
         )
         .then((items) => {
           if (disposed) return;
-          setReleases(items);
+          setLoadState({ key: requestKey, releases: items, error: "" });
           const selected = items.find((v) => v.stable) ?? items[0];
           update.current({ loader, version: selected?.version ?? "", ready: !!selected, game });
         })
         .catch((reason) => {
-          if (!disposed) setError(minecraftRuntimeError(reason));
-        })
-        .finally(() => {
-          if (!disposed) setLoading(false);
+          if (!disposed) {
+            setLoadState({ key: requestKey, releases: [], error: minecraftRuntimeError(reason) });
+          }
         });
     });
     return () => {
       disposed = true;
       controller.abort();
     };
-  }, [game, value.loader, retry]);
+  }, [game, value.loader, retry, requestKey]);
   const choose = (loader: MinecraftCreation["loader"]) => {
     if (loader !== value.loader)
       change({ loader, version: "", ready: loader === "vanilla" && !!game, game });

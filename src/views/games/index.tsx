@@ -168,7 +168,6 @@ function GamesViewContent({
   } = access;
   const externalReturn = useRef(false);
   const mediaReturn = useRef<ReturnFocus | null>(null);
-  const [leavingExternal, setLeavingExternal] = useState(false);
   const settings = useSettingsSelector((s) => ({ gamesOpenInLibrary: s.gamesOpenInLibrary }));
   const gamesHomeTab = settings.gamesOpenInLibrary ? "library" : "explore";
   const [tab, setTab] = useState<GameDestination>(gamesHomeTab);
@@ -212,24 +211,13 @@ function GamesViewContent({
   const [collectGame, setCollectGame] = useState<
     PersonalCollectionGame | PersonalCollectionGame[] | null
   >(null);
-  useEffect(() => {
-    setCollectGame(null);
-  }, [profileId]);
-  useEffect(() => {
-    if (!active) setCollectGame(null);
-  }, [active]);
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const [startedDownload, setStartedDownload] = useState<string>();
-  useEffect(() => {
-    if (!active) setSourcesOpen(false);
-  }, [active]);
-  useEffect(() => setSourcesOpen(false), [profileId]);
   const [modsRoute, setModsRoute] = useState<ModsRoute>({ game: null });
   const [libraryMode, setLibraryMode] = useState<LibraryDestination>("all");
   const [emulationSystem, setEmulationSystem] = useState(0);
   const [data, setData] = useState<GameDiscovery | null>(null);
   const [artwork, setArtwork] = useState<Record<number, GameArtwork>>({});
-  const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState("");
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -262,14 +250,23 @@ function GamesViewContent({
   const [favoritesFilter, setFavoritesFilter] = useState<GameFavoriteFilter>("all");
   const [favoriteReviews, setFavoriteReviews] =
     useState<FavoriteReviewFilters>(DEFAULT_FAVORITE_REVIEWS);
-  useEffect(() => setFavoritesFilter("all"), [profileId]);
   const [guidesOpen, setGuidesOpen] = useState(false);
   const [selected, setSelected] = useState<GameSummary | null>(null);
   const [collection, setCollection] = useState<GameCollection | null>(null);
   const [recentOpen, setRecentOpen] = useState(false);
   const [atlasRoute, setAtlasRoute] = useState<AtlasRoute | null>(null);
   const [atlasFilters, setAtlasFilters] = useState<AtlasFilters>(DEFAULT_ATLAS_FILTERS);
+  const [prevProfileScope, setPrevProfileScope] = useState(profileId);
+  if (prevProfileScope !== profileId) {
+    setPrevProfileScope(profileId);
+    setCollectGame(null);
+    setSourcesOpen(false);
+    setFavoritesFilter("all");
+  }
+  if (!active && collectGame !== null) setCollectGame(null);
+  if (!active && sourcesOpen) setSourcesOpen(false);
   const scroll = useRef<HTMLElement>(null);
+  const lastScrollTop = useRef(0);
   const workspace = useRef<HTMLDivElement>(null);
   const libraryContext = tab === "library" && !collection && !atlasRoute && !recentOpen;
   const [sidebarQuery, setSidebarQuery] = useState("");
@@ -357,6 +354,15 @@ function GamesViewContent({
     previousActive.current = active;
   }, [active, homeActive, profileId, exploreVisit.profile]);
   const discoveryRefresh = useLiveRefresh(homeActive);
+  const [discoveryRun, setDiscoveryRun] = useState(0);
+  const [prevHomeActive, setPrevHomeActive] = useState(homeActive);
+  if (prevHomeActive !== homeActive) {
+    setPrevHomeActive(homeActive);
+    if (homeActive) setDiscoveryRun((value) => value + 1);
+  }
+  const discoveryKey = `${discoveryRun}:${attempt}:${discoveryRefresh}`;
+  const [failedDiscoveryKey, setFailedDiscoveryKey] = useState<string | null>(null);
+  const failed = failedDiscoveryKey === discoveryKey;
 
   const previousProfile = useRef(profileId);
   useEffect(() => {
@@ -375,23 +381,25 @@ function GamesViewContent({
     if (!homeActive) return;
     let current = true,
       received = false;
-    setFailed(false);
     void readGameDiscoverySnapshot().then((value) => {
       if (current && !received && value) setData((previous) => previous ?? value);
     });
     void loadGameDiscovery().then(
       (value) => {
         received = true;
-        if (current) setData(value);
+        if (current) {
+          setData(value);
+          setFailedDiscoveryKey(null);
+        }
       },
       () => {
-        if (current) setFailed(true);
+        if (current) setFailedDiscoveryKey(discoveryKey);
       },
     );
     return () => {
       current = false;
     };
-  }, [homeActive, attempt, discoveryRefresh]);
+  }, [homeActive, discoveryKey]);
   useEffect(() => {
     if (!active || !data || data.enriched) return;
     let current = true;
@@ -453,20 +461,32 @@ function GamesViewContent({
     access.setActivity({ custom: active && tab === "library", retro: active && tab === "library" });
     return () => access.setActivity({ custom: false, retro: false });
   }, [active, tab, libraryMode, access.setActivity]);
-  useLayoutEffect(() => {
+  const [handledIntentId, setHandledIntentId] = useState(0);
+  const [pendingIntent, setPendingIntent] = useState<{
+    intent: NonNullable<typeof access.intent>;
+    snapshot: Omit<(typeof returnStack.current)[number], "top" | "element" | "gameId" | "label">;
+  } | null>(null);
+  if (active && access.intent && handledIntentId !== access.intent.id) {
     const intent = access.intent;
-    if (!active || !intent || access.consumed.current === intent.id) return;
-    markConsumed(access.consumed, intent.id);
-    if (intent.external) {
-      returnStack.current = [];
-      setHasReturn(false);
-      externalReturn.current = true;
-    } else
-      remember(
-        intent.origin && scroll.current?.contains(intent.origin)
-          ? intent.origin
-          : (scroll.current?.querySelector<HTMLElement>(".games-mast button") ?? undefined),
-      );
+    setHandledIntentId(intent.id);
+    setPendingIntent({
+      intent,
+      snapshot: {
+        selected,
+        collection,
+        tab,
+        modsRoute,
+        libraryMode,
+        query,
+        catalogOpen,
+        aiSearch,
+        catalogFilters,
+        atlasRoute,
+        atlasFilters,
+        recentOpen,
+      },
+    });
+    setHasReturn(!intent.external);
     setCollection(null);
     setAtlasRoute(null);
     setRecentOpen(false);
@@ -478,6 +498,30 @@ function GamesViewContent({
       if (intent.target.library === "mods") setModsRoute({ game: "minecraft" });
       setQuery("");
     }
+  }
+  const appliedIntentId = useRef(0);
+  useLayoutEffect(() => {
+    if (!pendingIntent || appliedIntentId.current === pendingIntent.intent.id) return;
+    const { intent, snapshot } = pendingIntent;
+    appliedIntentId.current = intent.id;
+    markConsumed(access.consumed, intent.id);
+    if (intent.external) {
+      returnStack.current = [];
+      externalReturn.current = true;
+    } else {
+      const origin =
+        intent.origin && scroll.current?.contains(intent.origin)
+          ? intent.origin
+          : (scroll.current?.querySelector<HTMLElement>(".games-mast button") ?? null);
+      returnStack.current.push({
+        top: lastScrollTop.current,
+        element: origin,
+        gameId: origin?.dataset.game,
+        label: origin?.getAttribute("aria-label") || origin?.textContent?.trim(),
+        ...snapshot,
+      });
+    }
+    lastScrollTop.current = 0;
     scroll.current?.scrollTo({ top: 0, behavior: "instant" });
     requestAnimationFrame(() =>
       workspace.current
@@ -486,7 +530,7 @@ function GamesViewContent({
         )
         ?.focus({ preventScroll: true }),
     );
-  }, [active, access.intent]);
+  }, [pendingIntent, access.consumed]);
   const browseRecent = () => {
     remember();
     setSelected(null);
@@ -555,7 +599,7 @@ function GamesViewContent({
     if (!previous && externalReturn.current && access.leave) {
       externalReturn.current = false;
       setSelected(null);
-      setLeavingExternal(true);
+      access.leave();
       return;
     }
     setRecentOpen(previous?.recentOpen ?? false);
@@ -575,7 +619,6 @@ function GamesViewContent({
   useSectionBack(
     back,
     active &&
-      !leavingExternal &&
       !guidesOpen &&
       (selected !== null ||
         collection !== null ||
@@ -584,11 +627,6 @@ function GamesViewContent({
         (tab === "explore" && (catalogOpen || searchMode)) ||
         ((tab === "library" || tab === "downloads" || tab === "mods") && hasReturn)),
   );
-  useEffect(() => {
-    if (!leavingExternal) return;
-    setLeavingExternal(false);
-    access.leave?.();
-  }, [leavingExternal, access.leave]);
   useLayoutEffect(() => {
     const restore = pendingRestore.current;
     pendingHeading.current = null;
@@ -894,7 +932,14 @@ function GamesViewContent({
             home={libraryHome}
             explore={exploreHome}
           />
-          <main className="games-view" ref={scroll} aria-label={t("nav.games")}>
+          <main
+            className="games-view"
+            ref={scroll}
+            aria-label={t("nav.games")}
+            onScroll={(event) => {
+              lastScrollTop.current = event.currentTarget.scrollTop;
+            }}
+          >
             {/* Keep each browse layer mounted so Back restores its exact card and scroll position. */}
             <div
               key={"games-browser-v2:" + profileId}

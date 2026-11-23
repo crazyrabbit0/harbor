@@ -60,14 +60,41 @@ export function GameWowAddonManager({
     [page, setPage] = useState(0);
   const [catalog, setCatalog] = useState<WowAddonList | null>(null),
     [categories, setCategories] = useState<WowAddonCategories | null>(null),
-    [catalogError, setCatalogError] = useState(false),
-    [categoryError, setCategoryError] = useState(false),
-    [retry, setRetry] = useState(0);
-  const [workspace, setWorkspace] = useState<WowAddonWorkspace | null>(null),
-    [workspaceError, setWorkspaceError] = useState(""),
+    [catalogErrorKey, setCatalogErrorKey] = useState<string | null>(null),
+    [categoryErrorKey, setCategoryErrorKey] = useState<string | null>(null),
+    [retry, setRetry] = useState(0),
+    [browseRun, setBrowseRun] = useState(0);
+  const [workspaceState, setWorkspaceState] = useState<{
+      data: WowAddonWorkspace | null;
+      settledKey: string;
+      error: string;
+    }>({ data: null, settledKey: "", error: "" }),
     [refresh, setRefresh] = useState(0),
-    [loading, setLoading] = useState(false),
+    [workspaceRun, setWorkspaceRun] = useState(0),
     [selected, setSelected] = useState<Selection | null>(null);
+  if (!active && (open || selected)) {
+    setOpen(false);
+    setSelected(null);
+  }
+  const workspaceEnabled = open && active;
+  const [prevWorkspaceEnabled, setPrevWorkspaceEnabled] = useState(workspaceEnabled);
+  if (prevWorkspaceEnabled !== workspaceEnabled) {
+    setPrevWorkspaceEnabled(workspaceEnabled);
+    if (workspaceEnabled) setWorkspaceRun((n) => n + 1);
+  }
+  const workspaceKey = `${id}:${profile}:${refresh}:${workspaceRun}`,
+    workspace = workspaceState.data,
+    loading = workspaceEnabled && workspaceState.settledKey !== workspaceKey,
+    workspaceError = workspaceState.settledKey === workspaceKey ? workspaceState.error : "";
+  const browseEnabled = open && active && mode === "browse";
+  const [prevBrowseEnabled, setPrevBrowseEnabled] = useState(browseEnabled);
+  if (prevBrowseEnabled !== browseEnabled) {
+    setPrevBrowseEnabled(browseEnabled);
+    if (browseEnabled) setBrowseRun((n) => n + 1);
+  }
+  const browseKey = `${retry}:${browseRun}`,
+    catalogError = catalogErrorKey === browseKey,
+    categoryError = categoryErrorKey === browseKey;
   const close = () => {
     returnFocus.current = true;
     setOpen(false);
@@ -88,58 +115,51 @@ export function GameWowAddonManager({
     return () => cancelAnimationFrame(frame);
   }, [open, active]);
   useEffect(() => {
-    if (!active) {
-      setOpen(false);
-      setSelected(null);
-    }
-  }, [active]);
-  useEffect(() => {
-    if (!open || !active) return;
+    if (!workspaceEnabled) return;
     let current = true;
-    setLoading(true);
-    setWorkspaceError("");
     void loadWowAddonWorkspace(id).then(
       (value) => {
         if (current) {
-          setWorkspace(value);
-          setLoading(false);
+          setWorkspaceState({ data: value, settledKey: workspaceKey, error: "" });
         }
       },
       (reason) => {
         if (current) {
-          setWorkspace(null);
-          setWorkspaceError(wowAddonError(reason));
-          setLoading(false);
+          setWorkspaceState({ data: null, settledKey: workspaceKey, error: wowAddonError(reason) });
         }
       },
     );
     return () => {
       current = false;
     };
-  }, [open, active, id, profile, refresh]);
+  }, [workspaceEnabled, id, workspaceKey]);
   useEffect(() => {
-    if (!open || !active || mode !== "browse") return;
+    if (!browseEnabled) return;
     const controller = new AbortController();
-    setCatalogError(false);
-    setCategoryError(false);
     void loadWowAddonCatalog(controller.signal).then(
       (value) => {
-        if (!controller.signal.aborted) setCatalog(value.data);
+        if (!controller.signal.aborted) {
+          setCatalog(value.data);
+          setCatalogErrorKey(null);
+        }
       },
       () => {
-        if (!controller.signal.aborted) setCatalogError(true);
+        if (!controller.signal.aborted) setCatalogErrorKey(browseKey);
       },
     );
     void loadWowAddonCategories(controller.signal).then(
       (value) => {
-        if (!controller.signal.aborted) setCategories(value.data);
+        if (!controller.signal.aborted) {
+          setCategories(value.data);
+          setCategoryErrorKey(null);
+        }
       },
       () => {
-        if (!controller.signal.aborted) setCategoryError(true);
+        if (!controller.signal.aborted) setCategoryErrorKey(browseKey);
       },
     );
     return () => controller.abort();
-  }, [open, active, mode, retry]);
+  }, [browseEnabled, browseKey]);
   const result = useMemo(
     () =>
       selectWowAddonCatalog(
@@ -179,8 +199,7 @@ export function GameWowAddonManager({
     return [...candidates.values()];
   }, [id, inventory, workspace]);
   const applied = (value: WowAddonWorkspace) => {
-    setWorkspace(value);
-    setWorkspaceError("");
+    setWorkspaceState((previous) => ({ ...previous, data: value, error: "" }));
     changed();
   };
   return (

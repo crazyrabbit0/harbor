@@ -122,24 +122,22 @@ export function ModsHome({
   const current = featured[slide % Math.max(featured.length, 1)];
   const [heroArt, setHeroArt] = useState<Record<string, string>>({});
   useEffect(() => {
-    if (!active || term || !current || current.id in heroArt) return;
+    const project = current?.route.game === "minecraft" ? current.route.project : undefined;
+    if (!active || term || !current || current.id in heroArt || !project) return;
     const controller = new AbortController();
-    const project = current.route.game === "minecraft" ? current.route.project : null;
-    if (project)
-      void minecraftCatalogRequest({ kind: "project", query: project.id }, controller.signal)
-        .then(minecraftProject)
-        .then((value) => {
-          if (!controller.signal.aborted)
-            setHeroArt((previous) => ({
-              ...previous,
-              [current.id]: value.gallery[0]?.url || value.art || current.image,
-            }));
-        })
-        .catch(() => {
-          if (!controller.signal.aborted)
-            setHeroArt((previous) => ({ ...previous, [current.id]: current.image }));
-        });
-    else setHeroArt((previous) => ({ ...previous, [current.id]: current.image }));
+    void minecraftCatalogRequest({ kind: "project", query: project.id }, controller.signal)
+      .then(minecraftProject)
+      .then((value) => {
+        if (!controller.signal.aborted)
+          setHeroArt((previous) => ({
+            ...previous,
+            [current.id]: value.gallery[0]?.url || value.art || current.image,
+          }));
+      })
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setHeroArt((previous) => ({ ...previous, [current.id]: current.image }));
+      });
     return () => controller.abort();
   }, [active, current?.id, term]);
   useEffect(() => {

@@ -10,26 +10,34 @@ import { GameWowAddonNotes } from "./game-wow-addon-notes";
 export function GameWowAddonMedia({ id, active }: { id: number; active: boolean }) {
   const t = useT();
   const [data, setData] = useState<WowAddonMedia | null>(null),
-    [failed, setFailed] = useState(false),
+    [failedKey, setFailedKey] = useState<string | null>(null),
     [attempt, setAttempt] = useState(0),
+    [run, setRun] = useState(0),
+    [prevActive, setPrevActive] = useState(active),
     [selected, setSelected] = useState(0);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setRun((n) => n + 1);
+  }
+  const mediaKey = `${id}:${attempt}:${run}`,
+    failed = failedKey === mediaKey;
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
-    setFailed(false);
     void loadWowAddonMedia(id, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) {
           setData(value.data);
           setSelected(0);
+          setFailedKey(null);
         }
       },
       () => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (!controller.signal.aborted) setFailedKey(mediaKey);
       },
     );
     return () => controller.abort();
-  }, [id, active, attempt]);
+  }, [id, active, mediaKey]);
   const shown = data?.id === id ? data : null,
     item = shown?.images[selected];
   if (

@@ -79,11 +79,10 @@ export function MinecraftCatalog({
   const [categories, setCategories] = useState<ReturnType<typeof minecraftCategories>>([]),
     [games, setGames] = useState<string[]>([]),
     [result, setResult] = useState<ReturnType<typeof minecraftProjects> | null>(null);
-  const [loading, setLoading] = useState(false),
-    [error, setError] = useState(""),
-    [metaError, setMetaError] = useState(false),
-    [retry, setRetry] = useState(0),
-    [selected, setSelected] = useState<MinecraftProject | null>(null);
+  const [retry, setRetry] = useState(0),
+    [selected, setSelected] = useState<MinecraftProject | null>(() =>
+      active && requested ? requested : null,
+    );
   const [view, setView] = useModCatalogView("minecraft", "grid");
   const [curseForge, setCurseForge] = useState(false);
   const modrinthButton = useRef<HTMLButtonElement>(null);
@@ -96,27 +95,68 @@ export function MinecraftCatalog({
       if (node.scrollHeight > node.clientHeight)
         savedScroll.current.push({ node, top: node.scrollTop });
   };
-  const [fromSpotlight, setFromSpotlight] = useState(false);
-  useEffect(() => {
+  const [fromSpotlight, setFromSpotlight] = useState(() => !!(active && requested));
+  const [prevRequested, setPrevRequested] = useState({ active, requested });
+  if (prevRequested.active !== active || prevRequested.requested !== requested) {
+    setPrevRequested({ active, requested });
+    if (active && requested) {
+      setCurseForge(false);
+      setFromSpotlight(true);
+      setSelected(requested);
+    }
+  }
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    setTerm(query);
+    setPage(0);
+  }
+  const [prevContentType, setPrevContentType] = useState(contentType);
+  if (prevContentType !== contentType) {
+    setPrevContentType(contentType);
+    if (contentType) {
+      setType(contentType);
+      setLoader("");
+      setCategory("");
+      setPage(0);
+      setResult(null);
+      setSelected(null);
+    }
+  }
+  const [prevBrowseRevision, setPrevBrowseRevision] = useState(browseRevision);
+  if (prevBrowseRevision !== browseRevision) {
+    setPrevBrowseRevision(browseRevision);
+    setSelected(null);
+  }
+  if (!active && selected !== null) setSelected(null);
+  const searchEnabled = active && !curseForge;
+  const [searchRun, setSearchRun] = useState(0);
+  const [prevSearchEnabled, setPrevSearchEnabled] = useState(searchEnabled);
+  if (prevSearchEnabled !== searchEnabled) {
+    setPrevSearchEnabled(searchEnabled);
+    if (searchEnabled) setSearchRun((value) => value + 1);
+  }
+  const metaKey = `${searchRun}:${retry}`;
+  const [metaFailedKey, setMetaFailedKey] = useState<string | null>(null);
+  const metaError = metaFailedKey === metaKey;
+  const searchKey = `${searchRun}:${type}:${term}:${loader}:${game}:${category}:${page}:${sort}:${retry}`;
+  const [searchState, setSearchState] = useState<{ settledKey: string; error: string }>({
+    settledKey: "",
+    error: "",
+  });
+  const loading = searchEnabled && searchState.settledKey !== searchKey;
+  const error = searchState.settledKey === searchKey ? searchState.error : "";
+  useLayoutEffect(() => {
     if (!active || !requested) return;
     trigger.current = document.activeElement as HTMLElement;
     rememberScroll(trigger.current);
-    setCurseForge(false);
-    setFromSpotlight(true);
-    setSelected(requested);
-    consumed?.();
   }, [active, requested]);
   useEffect(() => {
-    setTerm(query);
-    setPage(0);
-  }, [query]);
+    if (active && requested) consumed?.();
+  }, [active, requested]);
   useEffect(() => {
-    if (!active) setSelected(null);
-  }, [active]);
-  useEffect(() => {
-    if (!active || curseForge) return;
+    if (!searchEnabled) return;
     const controller = new AbortController();
-    setMetaError(false);
     void Promise.allSettled([
       minecraftCatalogRequest({ kind: "categories" }, controller.signal)
         .then(minecraftCategories)
@@ -125,15 +165,14 @@ export function MinecraftCatalog({
         .then(parseModGames)
         .then(setGames),
     ]).then((values) => {
-      if (!controller.signal.aborted) setMetaError(values.some((v) => v.status === "rejected"));
+      if (!controller.signal.aborted)
+        setMetaFailedKey(values.some((v) => v.status === "rejected") ? metaKey : null);
     });
     return () => controller.abort();
-  }, [active, retry, curseForge]);
+  }, [searchEnabled, metaKey]);
   useEffect(() => {
-    if (!active || curseForge) return;
+    if (!searchEnabled) return;
     const controller = new AbortController();
-    setLoading(true);
-    setError("");
     const timer = setTimeout(
       () => {
         void minecraftCatalogRequest(
@@ -152,13 +191,14 @@ export function MinecraftCatalog({
         )
           .then(minecraftProjects)
           .then((value) => {
-            setResult(value);
-            setLoading(false);
+            if (!controller.signal.aborted) {
+              setResult(value);
+              setSearchState({ settledKey: searchKey, error: "" });
+            }
           })
           .catch((reason) => {
             if (!controller.signal.aborted) {
-              setError(catalogError(reason));
-              setLoading(false);
+              setSearchState({ settledKey: searchKey, error: catalogError(reason) });
             }
           });
       },
@@ -168,20 +208,7 @@ export function MinecraftCatalog({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [active, type, term, loader, game, category, page, sort, retry, curseForge]);
-  useEffect(() => {
-    if (contentType) {
-      setType(contentType);
-      setLoader("");
-      setCategory("");
-      setPage(0);
-      setResult(null);
-      setSelected(null);
-    }
-  }, [contentType]);
-  useEffect(() => {
-    setSelected(null);
-  }, [browseRevision]);
+  }, [searchEnabled, searchKey]);
   const change = (action: () => void) => {
     action();
     setPage(0);
@@ -489,7 +516,9 @@ export function MinecraftProjectDialog({
   const [detail, setDetail] = useState<MinecraftProjectDetail | null>(null),
     [versions, setVersions] = useState<MinecraftVersion[] | null>(null),
     [retry, setRetry] = useState(0),
-    [error, setError] = useState("");
+    [detailError, setDetailError] = useState<{ key: string; message: string } | null>(null);
+  const detailKey = `${project.id}:${retry}`;
+  const error = detailError?.key === detailKey ? detailError.message : "";
   const [tab, setTab] = useState<ProjectTab>("about"),
     [photo, setPhoto] = useState(0),
     [expanded, setExpanded] = useState(false);
@@ -514,10 +543,15 @@ export function MinecraftProjectDialog({
   const [versionGame, setVersionGame] = useState(game),
     [versionLoader, setVersionLoader] = useState(loader),
     [selected, setSelected] = useState("");
-  const [versionsLoading, setVersionsLoading] = useState(true),
-    [versionsError, setVersionsError] = useState(""),
-    [versionsRetry, setVersionsRetry] = useState(0),
+  const [versionsRetry, setVersionsRetry] = useState(0),
     [versionsCapped, setVersionsCapped] = useState(false);
+  const versionsKey = `${project.id}:${versionGame}:${versionLoader}:${versionsRetry}`;
+  const [versionsState, setVersionsState] = useState<{ settledKey: string; error: string }>({
+    settledKey: "",
+    error: "",
+  });
+  const versionsLoading = versionsState.settledKey !== versionsKey;
+  const versionsError = versionsState.settledKey === versionsKey ? versionsState.error : "";
   const selectedVersion = minecraftPreferredVersion(versions ?? [], selected);
   const chooseVersion = (id: string) => {
     if (id !== selectedVersion?.id) {
@@ -528,7 +562,6 @@ export function MinecraftProjectDialog({
   };
   const changeVersions = (game: string, loader: string) => {
     positions.current.changelog = 0;
-    setVersionsLoading(true);
     setVersions(null);
     setSelected("");
     setVersionGame(game);
@@ -580,7 +613,6 @@ export function MinecraftProjectDialog({
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    setError("");
     void minecraftCatalogRequest(
       { kind: "project", query: project.id },
       controller.signal,
@@ -589,17 +621,19 @@ export function MinecraftProjectDialog({
       .then(minecraftProject)
       .then((value) => {
         if (value.id !== project.id || value.type !== project.type) throw Error("mods_metadata");
-        if (!controller.signal.aborted) setDetail(value);
+        if (!controller.signal.aborted) {
+          setDetail(value);
+          setDetailError(null);
+        }
       })
       .catch((reason) => {
-        if (!controller.signal.aborted) setError(catalogError(reason));
+        if (!controller.signal.aborted)
+          setDetailError({ key: detailKey, message: catalogError(reason) });
       });
     return () => controller.abort();
-  }, [project.id, retry]);
+  }, [project.id, retry, detailKey]);
   useEffect(() => {
     const controller = new AbortController();
-    setVersionsLoading(true);
-    setVersionsError("");
     void minecraftCatalogRequest(
       { kind: "versions", query: project.id, game: versionGame, loader: versionLoader },
       controller.signal,
@@ -611,15 +645,14 @@ export function MinecraftProjectDialog({
         setVersions(items);
         setVersionsCapped(Array.isArray(value) && value.length > 500);
         setSelected((current) => minecraftPreferredVersion(items, current)?.id ?? "");
+        setVersionsState({ settledKey: versionsKey, error: "" });
       })
       .catch((reason) => {
-        if (!controller.signal.aborted) setVersionsError(catalogError(reason));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setVersionsLoading(false);
+        if (!controller.signal.aborted)
+          setVersionsState({ settledKey: versionsKey, error: catalogError(reason) });
       });
     return () => controller.abort();
-  }, [project.id, versionGame, versionLoader, versionsRetry]);
+  }, [project.id, versionGame, versionLoader, versionsRetry, versionsKey]);
   const gallery = detail?.gallery.length
     ? detail.gallery
     : project.art

@@ -14,15 +14,19 @@ export function ConfigCopy({
   compact?: boolean;
 }) {
   const t = useT(),
-    [state, setState] = useState<"idle" | "done" | "failed">("idle");
-  useEffect(() => {
-    setState("idle");
-  }, [value]);
+    [status, setStatus] = useState<{ value: string; state: "idle" | "done" | "failed" }>({
+      value,
+      state: "idle",
+    });
+  const state = status.value === value ? status.state : "idle";
   useEffect(() => {
     if (state !== "done") return;
-    const timer = setTimeout(() => setState("idle"), 2500);
+    const timer = setTimeout(
+      () => setStatus((s) => (s.value === value ? { value, state: "idle" } : s)),
+      2500,
+    );
     return () => clearTimeout(timer);
-  }, [state]);
+  }, [state, value]);
   const done = state === "done",
     text = done ? t("games.guides.copied") : label;
   return (
@@ -32,9 +36,9 @@ export function ConfigCopy({
         onClick={async () => {
           try {
             await navigator.clipboard.writeText(value);
-            setState("done");
+            setStatus({ value, state: "done" });
           } catch {
-            setState("failed");
+            setStatus({ value, state: "failed" });
           }
         }}
       >

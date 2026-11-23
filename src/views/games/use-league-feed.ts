@@ -10,11 +10,19 @@ export function useLeagueFeed<T>(
 ) {
   const [state, setState] = useState<{
     key: string;
+    attempt: number;
     data: T | null;
     at: number;
-    busy: boolean;
+    settled: boolean;
     failed: boolean;
-  }>({ key, data: null, at: 0, busy: false, failed: false });
+  }>({ key, attempt, data: null, at: 0, settled: false, failed: false });
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (prevEnabled !== enabled) {
+    setPrevEnabled(enabled);
+    if (enabled && state.key === key && state.attempt === attempt && state.settled) {
+      setState((s) => ({ ...s, settled: false, failed: false }));
+    }
+  }
   const loader = useRef(load);
   useLayoutEffect(() => {
     loader.current = load;
@@ -25,23 +33,38 @@ export function useLeagueFeed<T>(
     const controller = new AbortController(),
       refresh = previous.current.key === key && previous.current.attempt !== attempt;
     previous.current = { key, attempt };
-    setState((s) => ({
-      key,
-      data: s.key === key ? s.data : null,
-      at: s.key === key ? s.at : 0,
-      busy: true,
-      failed: false,
-    }));
     void loader.current(controller.signal, refresh).then(
       (result) => {
         if (!controller.signal.aborted)
-          setState({ key, data: result.data, at: result.at, busy: false, failed: false });
+          setState({
+            key,
+            attempt,
+            data: result.data,
+            at: result.at,
+            settled: true,
+            failed: false,
+          });
       },
       () => {
-        if (!controller.signal.aborted) setState((s) => ({ ...s, busy: false, failed: true }));
+        if (!controller.signal.aborted)
+          setState((s) => ({
+            key,
+            attempt,
+            data: s.key === key ? s.data : null,
+            at: s.key === key ? s.at : 0,
+            settled: true,
+            failed: true,
+          }));
       },
     );
     return () => controller.abort();
   }, [key, enabled, attempt]);
-  return state.key === key ? state : { key, data: null, at: 0, busy: enabled, failed: false };
+  const current = state.key === key && state.attempt === attempt;
+  return {
+    key,
+    data: state.key === key ? state.data : null,
+    at: state.key === key ? state.at : 0,
+    busy: enabled && (!current || !state.settled),
+    failed: current && state.failed,
+  };
 }

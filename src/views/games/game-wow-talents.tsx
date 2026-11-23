@@ -31,14 +31,12 @@ export function GameWowTalents({
     language = useUiLanguage(),
     trigger = useRef<HTMLButtonElement | null>(null);
   const [selectedId, setSelected] = useState<number | null>(null);
+  if (!active && selectedId !== null) setSelected(null);
   const selected =
     talents &&
     Object.values(talents.groups)
       .flat()
       .find((node) => node.nodeId === selectedId);
-  useEffect(() => {
-    if (!active) setSelected(null);
-  }, [active]);
   const dismiss = useCallback(() => {
     setSelected(null);
     requestAnimationFrame(() => {
@@ -181,24 +179,30 @@ function TalentDialog({ talent, onClose }: { talent: WowTalent; onClose: () => v
     title = useId(),
     closeButton = useRef<HTMLButtonElement>(null),
     { closing, close } = useModalExit(onClose);
-  const [description, setDescription] = useState<WowSpellDescription | null>(null),
-    [failed, setFailed] = useState(false),
-    [attempt, setAttempt] = useState(0);
+  const [attempt, setAttempt] = useState(0);
+  const requestKey = `${talent.id}:${language}:${attempt}`;
+  const [spellState, setSpellState] = useState<{
+    key: string;
+    description: WowSpellDescription | null;
+    failed: boolean;
+  }>({ key: "", description: null, failed: false });
+  const description = spellState.key === requestKey ? spellState.description : null,
+    failed = spellState.key === requestKey && spellState.failed;
   useSectionBack(close, true);
   useEffect(() => {
     const controller = new AbortController();
-    setFailed(false);
-    setDescription(null);
     void loadWowSpell(talent.id, language, controller.signal).then(
       (value) => {
-        if (!controller.signal.aborted) setDescription(value.data);
+        if (!controller.signal.aborted)
+          setSpellState({ key: requestKey, description: value.data, failed: false });
       },
       () => {
-        if (!controller.signal.aborted) setFailed(true);
+        if (!controller.signal.aborted)
+          setSpellState({ key: requestKey, description: null, failed: true });
       },
     );
     return () => controller.abort();
-  }, [talent.id, language, attempt]);
+  }, [talent.id, language, requestKey]);
   useEffect(() => {
     const frame = requestAnimationFrame(() => closeButton.current?.focus({ preventScroll: true }));
     const dialog = closeButton.current?.closest<HTMLElement>('[role="dialog"]');

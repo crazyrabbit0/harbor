@@ -46,21 +46,32 @@ export function GameWarframeCompanion({ active }: { active: boolean }) {
     [activated, setActivated] = useState(false),
     [attempt, setAttempt] = useState(0),
     [loadedAt, setLoadedAt] = useState(0);
+  if (!active && (activated || visible)) {
+    setActivated(false);
+    setVisible(false);
+  }
   const [data, setData] = useState<WarframeState | null>(null),
-    [busy, setBusy] = useState(false),
-    [failed, setFailed] = useState(false);
+    [run, setRun] = useState(0),
+    [status, setStatus] = useState<{ settledKey: string; failedKey: string | null }>({
+      settledKey: "",
+      failedKey: null,
+    });
   const [tier, setTier] = useState("all"),
     [mode, setMode] = useState("all"),
     [query, setQuery] = useState(""),
     [limit, setLimit] = useState(8);
   const revision = useLiveRefresh(active && visible, WARFRAME_TTL);
+  const enabled = active && activated;
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (prevEnabled !== enabled) {
+    setPrevEnabled(enabled);
+    if (enabled) setRun((n) => n + 1);
+  }
+  const requestKey = `${attempt}:${revision}:${run}`,
+    busy = enabled && status.settledKey !== requestKey,
+    failed = status.failedKey === requestKey;
   useEffect(() => {
-    if (!active) {
-      setActivated(false);
-      setVisible(false);
-      return;
-    }
-    if (!root.current) return;
+    if (!active || !root.current) return;
     const observer = new IntersectionObserver(
       (entries) => {
         const shown = entries.some((entry) => entry.isIntersecting);
@@ -73,28 +84,24 @@ export function GameWarframeCompanion({ active }: { active: boolean }) {
     return () => observer.disconnect();
   }, [active]);
   useEffect(() => {
-    if (!active || !activated) return;
+    if (!enabled) return;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
-    setLoadedAt(Date.now());
     void loadWarframeState(controller.signal, attempt > 0).then(
       (result) => {
         if (!controller.signal.aborted) {
           setData(result.data);
-          setBusy(false);
+          setStatus({ settledKey: requestKey, failedKey: null });
           setLoadedAt(Date.now());
         }
       },
       () => {
         if (!controller.signal.aborted) {
-          setFailed(true);
-          setBusy(false);
+          setStatus({ settledKey: requestKey, failedKey: requestKey });
         }
       },
     );
     return () => controller.abort();
-  }, [active, activated, attempt, revision]);
+  }, [enabled, attempt, requestKey]);
   const clock = useNow(1000, active && visible),
     now = Math.max(clock, loadedAt);
   const usable = data && warframeUsable(data, now),

@@ -39,7 +39,11 @@ export function MinecraftCurseForge({
   useEffect(() => {
     if (!embedded) back.current?.focus({ preventScroll: true });
   }, [embedded]);
-  useEffect(() => setTerm(query), [query]);
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    setTerm(query);
+  }
   useEffect(() => {
     const timer = setTimeout(() => setSearch(term), 250);
     return () => clearTimeout(timer);

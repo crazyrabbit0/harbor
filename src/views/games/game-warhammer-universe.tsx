@@ -72,38 +72,46 @@ function useNear(active: boolean) {
   return { root, ready: active && near };
 }
 function useFeed(kind: "animations" | WarhammerSetting, active: boolean) {
+  const [run, setRun] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setRun((n) => n + 1);
+  }
+  const [attempt, setAttempt] = useState(0),
+    revision = useLiveRefresh(active, 31 * 60_000);
+  const requestKey = `${kind}:${attempt}:${revision}:${run}`;
   const [state, setState] = useState<{
     kind: string;
     data?: WarhammerFeed;
-    failed: boolean;
-    busy: boolean;
-  }>({ kind, failed: false, busy: true });
-  const [attempt, setAttempt] = useState(0),
-    revision = useLiveRefresh(active, 31 * 60_000);
+    settledKey: string;
+    failedKey: string | null;
+  }>({ kind, settledKey: "", failedKey: null });
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
-    setState((previous) => ({
-      kind,
-      data: previous.kind === kind ? previous.data : undefined,
-      failed: false,
-      busy: true,
-    }));
     void loadWarhammerFeed(kind, request.signal).then(
       (data) => {
-        if (!request.signal.aborted) setState({ kind, data, failed: false, busy: false });
+        if (!request.signal.aborted)
+          setState({ kind, data, settledKey: requestKey, failedKey: null });
       },
       () => {
         if (!request.signal.aborted)
-          setState((previous) => ({ ...previous, failed: true, busy: false }));
+          setState((previous) => ({
+            kind,
+            data: previous.kind === kind ? previous.data : undefined,
+            settledKey: requestKey,
+            failedKey: requestKey,
+          }));
       },
     );
     return () => request.abort();
-  }, [kind, active, attempt, revision]);
+  }, [kind, active, requestKey]);
   return {
     data: state.kind === kind ? state.data : undefined,
-    failed: state.kind === kind && state.failed,
-    busy: state.kind !== kind || state.busy,
+    failed: state.kind === kind && state.failedKey === requestKey,
+    busy:
+      state.kind !== kind || (active ? state.settledKey !== requestKey : state.settledKey === ""),
     retry: () => setAttempt((value) => value + 1),
   };
 }
@@ -188,19 +196,29 @@ export function WarhammerStory({
   const t = useT(),
     language = useUiLanguage(),
     watch = useHackVideo(),
-    [observation, setObservation] = useState<GamePlayerCount>();
-  const revision = useLiveRefresh(active, 125_000);
+    [observationState, setObservationState] = useState<{
+      key: string;
+      value?: GamePlayerCount;
+    }>(),
+    [run, setRun] = useState(0),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active) setRun((n) => n + 1);
+  }
+  const revision = useLiveRefresh(active, 125_000),
+    obsKey = `${revision}:${run}`,
+    observation = observationState?.key === obsKey ? observationState.value : undefined;
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
-    setObservation(undefined);
     void loadCurrentPlayerCounts([2183900], request.signal)
       .then((rows) => {
-        if (!request.signal.aborted) setObservation(rows[0]);
+        if (!request.signal.aborted) setObservationState({ key: obsKey, value: rows[0] });
       })
       .catch(() => {});
     return () => request.abort();
-  }, [active, revision]);
+  }, [active, obsKey]);
   const media = () =>
     openMedia
       ? openMedia(WARHAMMER_SECRET_LEVEL)
@@ -539,38 +557,47 @@ export function WarhammerCreatorVideos({ active }: { active: boolean }) {
     { root, ready } = useNear(active),
     [query, setQuery] = useState(""),
     [search, setSearch] = useState(""),
-    [page, setPage] = useState<GuideVideoPage>(),
-    [failed, setFailed] = useState(false),
-    [busy, setBusy] = useState(false),
+    [feedState, setFeedState] = useState<{
+      search?: string;
+      loadedSearch?: string;
+      page?: GuideVideoPage;
+      settledKey: string;
+      failedKey: string | null;
+    }>({ settledKey: "", failedKey: null }),
+    [moreBusy, setMoreBusy] = useState(false),
     [attempt, setAttempt] = useState(0);
-  const controller = useRef<AbortController | null>(null),
-    loadedQuery = useRef<string | undefined>(undefined);
+  const controller = useRef<AbortController | null>(null);
+  const requestKey = `${search}:${attempt}`,
+    needsFetch = ready && feedState.loadedSearch !== search,
+    page = feedState.search === search ? feedState.page : undefined,
+    busy = moreBusy || (needsFetch && feedState.settledKey !== requestKey),
+    failed = feedState.failedKey === requestKey;
   useEffect(() => {
-    if (!ready) {
-      setBusy(false);
-      return;
-    }
-    // A media detail page temporarily deactivates the atlas. Keep its loaded row
-    // and continuation so Back restores the same results and scroll position.
-    if (loadedQuery.current === search) return () => controller.current?.abort();
+    if (!ready) return;
+    if (feedState.loadedSearch === search) return () => controller.current?.abort();
     const request = new AbortController();
     controller.current = request;
-    loadedQuery.current = undefined;
-    setFailed(false);
-    setBusy(true);
-    setPage(undefined);
     void loadWarhammerVideos(search, request.signal).then(
       (value) => {
         if (!request.signal.aborted) {
-          loadedQuery.current = search;
-          setPage(value);
-          setBusy(false);
+          setFeedState({
+            search,
+            loadedSearch: search,
+            page: value,
+            settledKey: requestKey,
+            failedKey: null,
+          });
         }
       },
       () => {
         if (!request.signal.aborted) {
-          setFailed(true);
-          setBusy(false);
+          setFeedState((previous) => ({
+            ...previous,
+            search,
+            page: previous.search === search ? previous.page : undefined,
+            settledKey: requestKey,
+            failedKey: requestKey,
+          }));
         }
       },
     );
@@ -578,31 +605,35 @@ export function WarhammerCreatorVideos({ active }: { active: boolean }) {
       request.abort();
       controller.current?.abort();
     };
-  }, [ready, search, attempt]);
+  }, [ready, search, feedState.loadedSearch, requestKey]);
   const more = async () => {
     if (!page?.cursor || busy || !ready) return;
     const request = new AbortController();
     controller.current = request;
-    setBusy(true);
-    setFailed(false);
+    setMoreBusy(true);
+    setFeedState((previous) => ({ ...previous, failedKey: null }));
     const work = async () => {
       const next = await loadWarhammerVideos(search, request.signal, page.cursor);
       if (!request.signal.aborted)
-        setPage((previous) => ({
-          ...next,
-          items: [
-            ...new Map(
-              [...(previous?.items ?? []), ...next.items].map((item) => [item.id, item]),
-            ).values(),
-          ],
+        setFeedState((previous) => ({
+          ...previous,
+          page: {
+            ...next,
+            items: [
+              ...new Map(
+                [...(previous.page?.items ?? []), ...next.items].map((item) => [item.id, item]),
+              ).values(),
+            ],
+          },
         }));
     };
     await work()
       .catch(() => {
-        if (!request.signal.aborted) setFailed(true);
+        if (!request.signal.aborted)
+          setFeedState((previous) => ({ ...previous, failedKey: requestKey }));
       })
       .finally(() => {
-        if (!request.signal.aborted) setBusy(false);
+        if (!request.signal.aborted) setMoreBusy(false);
       });
   };
   return (

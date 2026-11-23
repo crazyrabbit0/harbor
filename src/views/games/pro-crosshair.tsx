@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft, ChevronRight, Crosshair, Image as ImageIcon, Moon, Sun } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { proCrosshair } from "@/lib/games/pro-crosshair";
@@ -7,14 +7,19 @@ import type { ProConfig, ProConfigGame } from "@/lib/games/pro-configs";
 export function ProCrosshair({ config, game }: { config: ProConfig; game: ProConfigGame }) {
   const t = useT(),
     [light, setLight] = useState(false),
-    [shot, setShot] = useState(-1),
+    [shotState, setShotState] = useState<{ config: ProConfig; index: number }>({
+      config,
+      index: -1,
+    }),
     preview = proCrosshair(config, game);
-  const maps = config.maps ?? [],
+  const shot = shotState.config === config ? shotState.index : -1,
+    maps = config.maps ?? [],
     map = shot >= 0 ? (maps[shot] ?? "") : "";
-  useEffect(() => {
-    setShot(-1);
-  }, [config]);
-  const step = (delta: number) => setShot((index) => (index + delta + maps.length) % maps.length);
+  const step = (delta: number) =>
+    setShotState((prev) => ({
+      config,
+      index: ((prev.config === config ? prev.index : -1) + delta + maps.length) % maps.length,
+    }));
   return (
     <figure className="games-pro-crosshair">
       <div className="games-pro-crosshair-title">
@@ -26,7 +31,12 @@ export function ProCrosshair({ config, game }: { config: ProConfig; game: ProCon
                 className="games-pro-preview-toggle"
                 aria-label={t("games.guides.previewMap")}
                 aria-pressed={shot >= 0}
-                onClick={() => setShot((index) => (index >= 0 ? -1 : 0))}
+                onClick={() =>
+                  setShotState((prev) => ({
+                    config,
+                    index: (prev.config === config ? prev.index : -1) >= 0 ? -1 : 0,
+                  }))
+                }
               >
                 <ImageIcon size={17} />
               </button>

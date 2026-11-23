@@ -120,30 +120,49 @@ export function GameUnifiedLibraryView({
   const [linksOpen, setLinksOpen] = useState(false),
     [linksNotice, setLinksNotice] = useState<number | null>(null);
   const [metadataOpen, setMetadataOpen] = useState(false);
-  useEffect(() => {
-    setMetadataOpen(false);
-  }, [access.profile, active]);
-  useEffect(() => {
-    setLinksOpen(false);
-    setLinksNotice(null);
-  }, [access.profile, active]);
   const [titlesOpen, setTitlesOpen] = useState(false),
     [titlesNotice, setTitlesNotice] = useState<number | null>(null);
-  useEffect(() => {
+  const [editingCustom, setEditingCustom] = useState<string | null>(null);
+  const [prevDialogScope, setPrevDialogScope] = useState({ profile: access.profile, active });
+  if (prevDialogScope.profile !== access.profile || prevDialogScope.active !== active) {
+    setPrevDialogScope({ profile: access.profile, active });
+    setMetadataOpen(false);
+    setLinksOpen(false);
+    setLinksNotice(null);
     setTitlesOpen(false);
     setTitlesNotice(null);
-  }, [access.profile, active]);
-  useEffect(() => {
     setImportOpen(false);
     setImportError("");
-  }, [access.profile, active]);
-  const [editingCustom, setEditingCustom] = useState<string | null>(null);
-  useEffect(() => {
     setEditingCustom(null);
-  }, [access.profile, active]);
-  const lastSourceRequest = useRef(0);
+  }
+  const [lastSourceRevision, setLastSourceRevision] = useState(0);
   const lastPick = useRef<string | undefined>(undefined),
     controls = useRef<HTMLDivElement>(null);
+  const accountSteamId = account.status.snapshot?.steamId;
+  const [prevAccountScope, setPrevAccountScope] = useState({
+    profile: access.profile,
+    steamId: accountSteamId,
+  });
+  let nextFilters = filters;
+  let nextSourceRevision = lastSourceRevision;
+  if (prevAccountScope.profile !== access.profile || prevAccountScope.steamId !== accountSteamId) {
+    setPrevAccountScope({ profile: access.profile, steamId: accountSteamId });
+    nextFilters = unifiedLibraryDefaults();
+    nextSourceRevision = 0;
+    setFilters(nextFilters);
+    setLimit(36);
+    setLastSourceRevision(0);
+  }
+  if (active && requestedSource && nextSourceRevision !== requestedSource.revision) {
+    setLastSourceRevision(requestedSource.revision);
+    nextFilters = { ...unifiedLibraryDefaults(), source: requestedSource.source };
+    setFilters(nextFilters);
+  }
+  const [prevLimitScope, setPrevLimitScope] = useState({ query, filters: nextFilters });
+  if (prevLimitScope.query !== query || prevLimitScope.filters !== nextFilters) {
+    setPrevLimitScope({ query, filters: nextFilters });
+    setLimit(36);
+  }
   const all = useMemo(
     () =>
       unifiedLibrary({
@@ -196,18 +215,8 @@ export function GameUnifiedLibraryView({
     ),
     missingArtKey = missingArt.map(catalogArtKey).join(",");
   useEffect(() => {
-    setFilters(unifiedLibraryDefaults());
-    setLimit(36);
     lastPick.current = undefined;
-    lastSourceRequest.current = 0;
-  }, [access.profile, account.status.snapshot?.steamId]);
-  useEffect(() => {
-    if (!active || !requestedSource || lastSourceRequest.current === requestedSource.revision)
-      return;
-    lastSourceRequest.current = requestedSource.revision;
-    setFilters({ ...unifiedLibraryDefaults(), source: requestedSource.source });
-  }, [active, requestedSource, access.profile, account.status.snapshot?.steamId]);
-  useEffect(() => setLimit(36), [query, filters]);
+  }, [access.profile, accountSteamId]);
   useEffect(() => {
     if (!active || !ids) return;
     let current = true;

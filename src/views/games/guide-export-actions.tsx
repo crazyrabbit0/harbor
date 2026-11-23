@@ -9,19 +9,21 @@ const loadGuidePdf = () => import("@/lib/games/guide-export-pdf");
 export function GuideExportActions({ value, active }: { value: GuideExport; active: boolean }) {
   const t = useT(),
     request = useRef<AbortController | null>(null);
-  const [busy, setBusy] = useState<"txt" | "pdf" | null>(null),
-    [error, setError] = useState(false);
-  useEffect(() => {
-    setBusy(null);
-    setError(false);
-    return () => request.current?.abort();
-  }, [active, value.item.id]);
+  const resetKey = `${active}:${value.item.id}`;
+  const [state, setState] = useState<{
+    key: string;
+    busy: "txt" | "pdf" | null;
+    error: boolean;
+  }>({ key: resetKey, busy: null, error: false });
+  const busy = state.key === resetKey ? state.busy : null;
+  const error = state.key === resetKey ? state.error : false;
+  useEffect(() => () => request.current?.abort(), [active, value.item.id]);
   async function save(format: "txt" | "pdf") {
     if ((request.current && !request.current.signal.aborted) || !active) return;
     const controller = new AbortController();
+    const key = resetKey;
     request.current = controller;
-    setBusy(format);
-    setError(false);
+    setState({ key, busy: format, error: false });
     const work = async () => {
       if (format === "txt")
         await saveTextFileWithPath(
@@ -40,10 +42,11 @@ export function GuideExportActions({ value, active }: { value: GuideExport; acti
     };
     await work()
       .catch(() => {
-        if (!controller.signal.aborted) setError(true);
+        if (!controller.signal.aborted)
+          setState((s) => (s.key === key ? { ...s, error: true } : s));
       })
       .finally(() => {
-        if (!controller.signal.aborted) setBusy(null);
+        if (!controller.signal.aborted) setState((s) => (s.key === key ? { ...s, busy: null } : s));
         controller.abort();
         if (request.current === controller) request.current = null;
       });
@@ -75,7 +78,7 @@ export function GuideExportActions({ value, active }: { value: GuideExport; acti
             type="button"
             onClick={() => {
               request.current?.abort();
-              setBusy(null);
+              setState((s) => (s.key === resetKey ? { ...s, busy: null } : s));
             }}
           >
             {t("common.cancel")}

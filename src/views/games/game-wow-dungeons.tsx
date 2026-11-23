@@ -250,39 +250,47 @@ function RunResults({ query }: { query: WowRunQuery }) {
     [attempt, setAttempt] = useState(0),
     refreshed = useRef(0),
     moveFocus = useRef(false);
+  const requestKey = `${page}:${attempt}:${query.season}:${query.region}:${query.dungeon.id}:${query.affixes}`;
   const [feed, setFeed] = useState<{
     data: WowRunPage | null;
     page: number;
     at: number;
-    busy: boolean;
-    failed: boolean;
-  }>({ data: null, page: 0, at: 0, busy: true, failed: false });
+    settledKey: string;
+    failedKey: string | null;
+  }>({ data: null, page: 0, at: 0, settledKey: "", failedKey: null });
+  const busy = feed.settledKey !== requestKey,
+    failed = feed.failedKey === requestKey;
   useEffect(() => {
     const controller = new AbortController(),
       refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
-    setFeed((value) => ({ ...value, busy: true, failed: false }));
     void loadWowDungeonRuns({ ...query, page }, controller.signal, refresh).then(
       (value) => {
         if (!controller.signal.aborted)
-          setFeed({ data: value.data, page, at: value.at, busy: false, failed: false });
+          setFeed({
+            data: value.data,
+            page,
+            at: value.at,
+            settledKey: requestKey,
+            failedKey: null,
+          });
       },
       () => {
         if (!controller.signal.aborted)
-          setFeed((value) => ({ ...value, busy: false, failed: true }));
+          setFeed((value) => ({ ...value, settledKey: requestKey, failedKey: requestKey }));
       },
     );
     return () => controller.abort();
-  }, [page, attempt, query.season, query.region, query.dungeon.id, query.affixes]);
+  }, [page, attempt, query.season, query.region, query.dungeon.id, query.affixes, requestKey]);
   useEffect(() => {
-    if (feed.busy || feed.failed || !moveFocus.current) return;
+    if (busy || failed || !moveFocus.current) return;
     moveFocus.current = false;
     const frame = requestAnimationFrame(() => {
       body.current?.scrollTo({ top: 0 });
       heading.current?.focus({ preventScroll: true });
     });
     return () => cancelAnimationFrame(frame);
-  }, [feed]);
+  }, [busy, failed, feed]);
   const turnPage = (next: number) => {
     moveFocus.current = true;
     if (next === page) setAttempt((value) => value + 1);
@@ -297,7 +305,7 @@ function RunResults({ query }: { query: WowRunQuery }) {
         <button
           className="games-button"
           aria-label={t("games.wow.runs.refresh")}
-          disabled={feed.busy}
+          disabled={busy}
           onClick={() => setAttempt((value) => value + 1)}
         >
           <RefreshCw size={15} />
@@ -306,7 +314,7 @@ function RunResults({ query }: { query: WowRunQuery }) {
       <p className="games-wow-run-note">
         {t(query.affixes === "current" ? "games.wow.runs.currentNote" : "games.wow.runs.allNote")}
       </p>
-      {feed.failed && (
+      {failed && (
         <p role="status" className="games-wow-run-note">
           {t("games.wow.runs.unavailable")}{" "}
           <button className="games-wow-run-retry" onClick={() => setAttempt((value) => value + 1)}>
@@ -319,7 +327,7 @@ function RunResults({ query }: { query: WowRunQuery }) {
           {t("games.wow.runs.partial")}
         </p>
       )}
-      {!feed.data && !feed.failed && (
+      {!feed.data && !failed && (
         <div className="games-wow-run-loading" aria-busy="true" aria-label={t("common.loading")}>
           {Array.from({ length: 5 }, (_, i) => (
             <i className="games-detail-skeleton" key={i} />
@@ -327,7 +335,7 @@ function RunResults({ query }: { query: WowRunQuery }) {
         </div>
       )}
       {feed.data && (
-        <div aria-busy={feed.busy} className="games-wow-run-list" key={feed.page}>
+        <div aria-busy={busy} className="games-wow-run-list" key={feed.page}>
           {feed.data.runs.map((run) => (
             <Run
               key={run.id}
@@ -345,7 +353,7 @@ function RunResults({ query }: { query: WowRunQuery }) {
         <div className="games-wow-run-pagination">
           <button
             className="games-button"
-            disabled={feed.busy || feed.page === 0}
+            disabled={busy || feed.page === 0}
             onClick={() => turnPage(feed.page - 1)}
           >
             <ChevronLeft size={15} />
@@ -353,7 +361,7 @@ function RunResults({ query }: { query: WowRunQuery }) {
           </button>
           <button
             className="games-button"
-            disabled={feed.busy || feed.data.next === null}
+            disabled={busy || feed.data.next === null}
             onClick={() => turnPage(feed.data!.next!)}
           >
             {t("games.wow.runs.next")}
@@ -472,33 +480,42 @@ function Party({ run, query }: { run: WowDungeonRun; query: WowRunQuery }) {
   const t = useT(),
     language = useUiLanguage(),
     [selected, setSelected] = useState<number | null>(null),
-    [attempt, setAttempt] = useState(0);
+    [attempt, setAttempt] = useState(0),
+    [cycle, setCycle] = useState(0);
   const [feed, setFeed] = useState<{
     data: WowRunEquipment[] | null;
-    busy: boolean;
-    failed: boolean;
-  }>({ data: null, busy: false, failed: false });
+    settledKey: string;
+    failedKey: string | null;
+  }>({ data: null, settledKey: "", failedKey: null });
   const equipmentHeading = useRef<HTMLHeadingElement>(null),
     gearTrigger = useRef<HTMLButtonElement | null>(null),
     refreshed = useRef(0);
   const engaged = selected !== null;
+  const [prevEngaged, setPrevEngaged] = useState(engaged);
+  if (prevEngaged !== engaged) {
+    setPrevEngaged(engaged);
+    if (engaged) setCycle((n) => n + 1);
+  }
+  const requestKey = `${run.id}:${attempt}:${cycle}`,
+    busy = engaged && feed.settledKey !== requestKey,
+    failed = engaged && feed.failedKey === requestKey;
   useEffect(() => {
     if (!engaged) return;
     const controller = new AbortController(),
       refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
-    setFeed((value) => ({ ...value, busy: true, failed: false }));
     void loadWowRunEquipment(query, run, controller.signal, refresh).then(
       (value) => {
-        if (!controller.signal.aborted) setFeed({ data: value.data, busy: false, failed: false });
+        if (!controller.signal.aborted)
+          setFeed({ data: value.data, settledKey: requestKey, failedKey: null });
       },
       () => {
         if (!controller.signal.aborted)
-          setFeed((value) => ({ ...value, busy: false, failed: true }));
+          setFeed((value) => ({ ...value, settledKey: requestKey, failedKey: requestKey }));
       },
     );
     return () => controller.abort();
-  }, [engaged, attempt, run.id]);
+  }, [engaged, attempt, run.id, requestKey]);
   useEffect(() => {
     if (!engaged) return;
     const frame = requestAnimationFrame(() => {
@@ -506,7 +523,7 @@ function Party({ run, query }: { run: WowDungeonRun; query: WowRunQuery }) {
       equipmentHeading.current?.scrollIntoView({ block: "nearest" });
     });
     return () => cancelAnimationFrame(frame);
-  }, [selected]);
+  }, [selected, engaged]);
   const member = run.members.find((member) => member.id === selected),
     gear = feed.data?.find((item) => item.id === selected);
   return (
@@ -572,7 +589,7 @@ function Party({ run, query }: { run: WowDungeonRun; query: WowRunQuery }) {
               <X size={16} />
             </button>
           </header>
-          {feed.busy && !feed.data && (
+          {busy && !feed.data && (
             <div
               className="games-wow-run-loading"
               aria-busy="true"
@@ -582,7 +599,7 @@ function Party({ run, query }: { run: WowDungeonRun; query: WowRunQuery }) {
               <i className="games-detail-skeleton" />
             </div>
           )}
-          {feed.failed && (
+          {failed && (
             <p className="games-wow-run-note" role="status">
               {t("games.wow.runs.unavailable")}{" "}
               <button

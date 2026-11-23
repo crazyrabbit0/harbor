@@ -3,6 +3,7 @@ import { ArrowUpRight, LockKeyhole, RefreshCw, Search, Star } from "lucide-react
 import { Dropdown } from "@/components/dropdown";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { useT, useUiLanguage } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { openUrl } from "@/lib/window";
 import { wowClassicArt } from "@/lib/games/wow-art";
 import { parsePinnedWowRealms, wowClassicStorageKey } from "@/lib/games/wow-classic";
@@ -88,10 +89,11 @@ function ClassicRealms({
     root = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false),
     [observation, setObservation] = useState<CompanionObservation<WowRealmDirectory> | null>(null);
-  const [busy, setBusy] = useState(false),
+  const [settledKey, setSettledKey] = useState(""),
     [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0),
-    [now, setNow] = useState(Date.now);
+    [run, setRun] = useState(0),
+    [loadedAt, setLoadedAt] = useState(0);
   const [query, setQuery] = useState(""),
     [category, setCategory] = useState("__default"),
     [onlyPinned, setOnlyPinned] = useState(false);
@@ -99,6 +101,16 @@ function ClassicRealms({
   const [pinned, setPinned] = useState(() => readPinned(storageKey)),
     [saveFailed, setSaveFailed] = useState(false);
   const revision = useLiveRefresh(active && visible, WOW_REALM_TTL);
+  const canLoad = active && visible && !(typeof document !== "undefined" && document.hidden);
+  const [prevCanLoad, setPrevCanLoad] = useState(canLoad);
+  if (prevCanLoad !== canLoad) {
+    setPrevCanLoad(canLoad);
+    if (canLoad) setRun((n) => n + 1);
+  }
+  const loadKey = `${region}:${edition}:${revision}:${attempt}:${run}`,
+    busy = canLoad && settledKey !== loadKey,
+    clock = useNow(15_000, active && visible),
+    now = Math.max(clock, loadedAt);
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -109,38 +121,26 @@ function ClassicRealms({
     return () => observer.disconnect();
   }, [active]);
   useEffect(() => {
-    if (!active || !visible || document.hidden) return;
+    if (!canLoad) return;
     const request = new AbortController();
-    setBusy(true);
     void loadWowRealmDirectory(region, edition, request.signal).then(
       (result) => {
         if (!request.signal.aborted) {
           setObservation(result);
           setFailed(false);
-          setBusy(false);
-          setNow(Date.now());
+          setSettledKey(loadKey);
+          setLoadedAt(Date.now());
         }
       },
       () => {
         if (!request.signal.aborted) {
           setFailed(true);
-          setBusy(false);
+          setSettledKey(loadKey);
         }
       },
     );
     return () => request.abort();
-  }, [active, visible, region, edition, revision, attempt]);
-  useEffect(() => {
-    if (!active || !visible) return;
-    const tick = () => setNow(Date.now());
-    tick();
-    const timer = setInterval(tick, 15_000);
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [active, visible]);
+  }, [canLoad, region, edition, loadKey]);
   const realms = observation?.data.realms ?? [],
     categories = [...new Set(realms.map((realm) => realm.category).filter(Boolean))].sort();
   const selectedCategory =

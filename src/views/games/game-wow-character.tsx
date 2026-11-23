@@ -56,20 +56,29 @@ export function GameWowCharacter({
     [name, setName] = useState(remembered?.name ?? "");
   const [target, setTarget] = useState<WowCharacterTarget | null>(remembered);
   const [result, setResult] = useState<{ data: WowCharacter; at: number } | null>(null);
-  const [error, setError] = useState<"invalid" | "missing" | "limited" | "unavailable" | null>(
-    null,
-  );
+  const [errorState, setErrorState] = useState<{
+    key: string | null;
+    value: "invalid" | "missing" | "limited" | "unavailable" | null;
+  }>({ key: null, value: null });
   const [storageError, setStorageError] = useState(false),
-    [busy, setBusy] = useState(false),
-    [attempt, setAttempt] = useState(0);
+    [settledKey, setSettledKey] = useState(""),
+    [attempt, setAttempt] = useState(0),
+    [run, setRun] = useState(0);
   const [visible, setVisible] = useState(false),
     [tab, setTab] = useState<"recent" | "weekly" | "best" | "equipment" | "talents">("recent"),
     [expanded, setExpanded] = useState(false);
   const refreshed = useRef(0);
   const revision = useLiveRefresh(active && visible && !!target, WOW_CHARACTER_TTL);
-  // An explicit lookup finishes even if surrounding asynchronous content moves
-  // the form outside the viewport. Navigation still cancels the request.
   const enabled = active && (visible || attempt > 0);
+  const canLoad = enabled && !!target && !(typeof document !== "undefined" && document.hidden);
+  const [prevCanLoad, setPrevCanLoad] = useState(canLoad);
+  if (prevCanLoad !== canLoad) {
+    setPrevCanLoad(canLoad);
+    if (canLoad) setRun((n) => n + 1);
+  }
+  const loadKey = `${target ? wowCharacterKey(target) : ""}:${season?.slug ?? ""}:${attempt}:${revision}:${run}`,
+    busy = canLoad && settledKey !== loadKey,
+    error = errorState.key === null || errorState.key === loadKey ? errorState.value : null;
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -80,37 +89,35 @@ export function GameWowCharacter({
     return () => observer.disconnect();
   }, [active]);
   useEffect(() => {
-    if (!enabled || !target || document.hidden) {
-      setBusy(false);
-      return;
-    }
+    if (!canLoad || !target) return;
     const controller = new AbortController(),
       refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
-    setBusy(true);
-    setError(null);
     void loadWowCharacter(target, season?.slug ?? null, controller.signal, refresh).then(
       (value) => {
         if (!controller.signal.aborted) {
           setResult(value);
-          setBusy(false);
+          setSettledKey(loadKey);
+          setErrorState({ key: null, value: null });
         }
       },
-      (error) => {
+      (err) => {
         if (!controller.signal.aborted) {
-          setBusy(false);
-          setError(
-            error instanceof WowApiError && [400, 404].includes(error.status)
-              ? "missing"
-              : error instanceof WowApiError && error.status === 429
-                ? "limited"
-                : "unavailable",
-          );
+          setSettledKey(loadKey);
+          setErrorState({
+            key: loadKey,
+            value:
+              err instanceof WowApiError && [400, 404].includes(err.status)
+                ? "missing"
+                : err instanceof WowApiError && err.status === 429
+                  ? "limited"
+                  : "unavailable",
+          });
         }
       },
     );
     return () => controller.abort();
-  }, [enabled, target, season?.slug, attempt, revision]);
+  }, [canLoad, target, season?.slug, attempt, loadKey]);
   const data = result && target && result.data.key === wowCharacterKey(target) ? result.data : null;
   const currentSeason = data && (!season || data.season === season.slug);
   const runs = currentSeason && (tab === "recent" || tab === "best") ? data[tab] : null;
@@ -162,12 +169,12 @@ export function GameWowCharacter({
           if (busy) return;
           const next = wowCharacterTarget({ region, realm, name });
           if (!next) {
-            setError("invalid");
+            setErrorState({ key: null, value: "invalid" });
             return;
           }
           setTarget(next);
           setAttempt((value) => value + 1);
-          setError(null);
+          setErrorState({ key: null, value: null });
           setExpanded(false);
           setTab("recent");
         }}

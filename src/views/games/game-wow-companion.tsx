@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, ChevronDown, Clock3, RefreshCw } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT, useUiLanguage } from "@/lib/i18n";
+import { useNow } from "@/lib/use-now";
 import { openUrl } from "@/lib/window";
 import { loadWowCompanion, type WowCompanionData } from "@/lib/games/wow";
 import {
@@ -106,11 +107,25 @@ export function GameWowCompanion({ active, profile }: { active: boolean; profile
   const [region, setRegion] = useState<WowRegion>(() => readRegion(profile));
   const [visible, setVisible] = useState(false),
     [data, setData] = useState<WowCompanionData | null>(null);
-  const [busy, setBusy] = useState(false),
-    [failed, setFailed] = useState(false),
-    [attempt, setAttempt] = useState(0);
-  const [now, setNow] = useState(Date.now);
+  const [status, setStatus] = useState<{ settledKey: string; failedKey: string | null }>({
+      settledKey: "",
+      failedKey: null,
+    }),
+    [attempt, setAttempt] = useState(0),
+    [run, setRun] = useState(0),
+    [loadedAt, setLoadedAt] = useState(0);
   const revision = useLiveRefresh(active && visible, WOW_WEEK_TTL);
+  const canLoad = active && visible && !(typeof document !== "undefined" && document.hidden);
+  const [prevCanLoad, setPrevCanLoad] = useState(canLoad);
+  if (prevCanLoad !== canLoad) {
+    setPrevCanLoad(canLoad);
+    if (canLoad) setRun((n) => n + 1);
+  }
+  const loadKey = `${region}:${language}:${attempt}:${revision}:${run}`,
+    busy = canLoad && status.settledKey !== loadKey,
+    failed = status.failedKey === loadKey,
+    clock = useNow(30_000, active && visible),
+    now = Math.max(clock, loadedAt);
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -121,40 +136,24 @@ export function GameWowCompanion({ active, profile }: { active: boolean; profile
     return () => observer.disconnect();
   }, [active]);
   useEffect(() => {
-    if (!active || !visible) return;
-    const tick = () => {
-      if (!document.hidden) setNow(Date.now());
-    };
-    tick();
-    const timer = setInterval(tick, 30_000);
-    document.addEventListener("visibilitychange", tick);
-    return () => {
-      clearInterval(timer);
-      document.removeEventListener("visibilitychange", tick);
-    };
-  }, [active, visible]);
-  useEffect(() => {
-    if (!active || !visible || document.hidden) return;
+    if (!canLoad) return;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
     void loadWowCompanion(region, language, controller.signal).then(
       (value) => {
         if (!controller.signal.aborted) {
           setData(value);
-          setBusy(false);
-          setNow(Date.now());
+          setStatus({ settledKey: loadKey, failedKey: null });
+          setLoadedAt(Date.now());
         }
       },
       () => {
         if (!controller.signal.aborted) {
-          setFailed(true);
-          setBusy(false);
+          setStatus({ settledKey: loadKey, failedKey: loadKey });
         }
       },
     );
     return () => controller.abort();
-  }, [active, visible, region, language, attempt, revision]);
+  }, [canLoad, region, language, loadKey]);
   const shown = data?.region === region ? data : null;
   const period = shown && activeWowPeriod(shown.periods, region, now);
   const weekly =
@@ -210,7 +209,7 @@ export function GameWowCompanion({ active, profile }: { active: boolean; profile
             onChange={(value) => {
               const next = wowRegion(value);
               setRegion(next);
-              setFailed(false);
+              setStatus((previous) => ({ ...previous, failedKey: null }));
               try {
                 localStorage.setItem(`harbor.games.wow.region:${profile}`, next);
               } catch {}
