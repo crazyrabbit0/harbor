@@ -76,35 +76,33 @@ function byPopularity(a: PersonCredit, b: PersonCredit): number {
 
 export function useBpPerson(personId: number): BpPersonState {
   const { settings } = useSettings();
-  const [person, setPerson] = useState<PersonDetail | null>(
-    () => tmdbPersonCached(personId) ?? null,
-  );
-  const [loading, setLoading] = useState(!person);
+  const cached = tmdbPersonCached(personId) ?? null;
+  const reqKey = `${personId}\0${settings.tmdbKey}`;
+  const [fetched, setFetched] = useState<{
+    key: string;
+    person: PersonDetail | null;
+    done: boolean;
+  }>({ key: "", person: null, done: false });
   const [sort, setSort] = useState<FilmographySort>("popularity");
   const [minRating, setMinRating] = useState(0);
 
   useEffect(() => {
-    const cached = tmdbPersonCached(personId);
-    if (cached) {
-      setPerson(cached);
-      setLoading(false);
-      return;
-    }
+    if (tmdbPersonCached(personId)) return;
     let alive = true;
-    setPerson(null);
-    setLoading(true);
     tmdbPerson(settings.tmdbKey, personId)
       .then((p) => {
-        if (alive) setPerson(p);
+        if (alive) setFetched({ key: reqKey, person: p, done: true });
       })
-      .catch(() => {})
-      .finally(() => {
-        if (alive) setLoading(false);
+      .catch(() => {
+        if (alive) setFetched({ key: reqKey, person: null, done: true });
       });
     return () => {
       alive = false;
     };
-  }, [personId, settings.tmdbKey]);
+  }, [reqKey, personId, settings.tmdbKey]);
+
+  const person = cached ?? (fetched.key === reqKey ? fetched.person : null);
+  const loading = !cached && !(fetched.key === reqKey && fetched.done);
 
   const cast = useMemo(() => (person ? dedupe(person.cast).sort(byPopularity) : []), [person]);
   const crew = useMemo(() => (person ? person.crew.slice().sort(byPopularity) : []), [person]);

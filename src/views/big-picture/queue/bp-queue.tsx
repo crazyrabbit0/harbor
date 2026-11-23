@@ -158,11 +158,9 @@ export function BpQueue({ onSelect }: { onSelect: (m: Meta) => void }) {
     });
   }, [confirming]);
 
-  // The zone is set by onFocus alone, so a rail that unmounts under the ring
-  // leaves it reading "rail" with nothing focused and the art veiled for good.
-  useEffect(() => {
-    if (!ready) setZone("deck");
-  }, [ready]);
+  if (!ready && zone !== "deck") {
+    setZone("deck");
+  }
 
   // Blocking the last entry tears down both the rail and the confirm in one
   // commit, and BpConfirm only hands the ring back if the element it took it

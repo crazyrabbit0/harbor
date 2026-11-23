@@ -1,5 +1,5 @@
 import { Lock } from "lucide-react";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useState, type CSSProperties } from "react";
 import { profileInitials, type Profile } from "@/lib/profiles";
 import { useBpT } from "./bp-i18n";
 
@@ -26,14 +26,8 @@ export function BpWhoTile({
 }) {
   const t = useBpT();
   const locked = Boolean(profile.passwordHash);
-  const [artBroken, setArtBroken] = useState(false);
-
-  // A profile can be re-pointed at a different avatar while the chooser is up,
-  // and a stale broken flag would strand it on initials for the rest of the
-  // session.
-  useEffect(() => setArtBroken(false), [profile.avatar]);
-
-  const showArt = Boolean(profile.avatar) && !artBroken;
+  const [brokenAvatar, setBrokenAvatar] = useState<string | null>(null);
+  const showArt = Boolean(profile.avatar) && brokenAvatar !== profile.avatar;
 
   return (
     <button
@@ -80,7 +74,7 @@ export function BpWhoTile({
               src={profile.avatar ?? ""}
               alt=""
               draggable={false}
-              onError={() => setArtBroken(true)}
+              onError={() => setBrokenAvatar(profile.avatar ?? null)}
               className="h-full w-full object-cover"
             />
           ) : (

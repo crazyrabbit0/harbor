@@ -149,6 +149,8 @@ export function useBpEpisodeArt(
   const hd = settings.hdEpisodeImages;
   const kitsuId = parseKitsuId(meta.id);
 
+  const resetKey = `${meta.id}\0${tmdbKey}`;
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
   const [imdbId, setImdbId] = useState<string | null>(() => directImdb(meta.id));
   const [tvId, setTvId] = useState<number | null>(() => directTmdbTv(meta.id));
   const [tmdb, setTmdb] = useState<Record<string, string>>({});
@@ -156,15 +158,19 @@ export function useBpEpisodeArt(
   const [proxy, setProxy] = useState<TvdbImageMap>({});
   const [aniZip, setAniZip] = useState<AniZipMapping | null>(null);
 
-  useEffect(() => {
-    const imdb = directImdb(meta.id);
-    const tv = directTmdbTv(meta.id);
-    setImdbId(imdb);
-    setTvId(tv);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    setImdbId(directImdb(meta.id));
+    setTvId(directTmdbTv(meta.id));
     setTmdb({});
     setOrder(null);
     setProxy({});
     setAniZip(null);
+  }
+
+  useEffect(() => {
+    const imdb = directImdb(meta.id);
+    const tv = directTmdbTv(meta.id);
     if (!tmdbKey) return;
     let alive = true;
     if (!imdb && tv != null) {

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const BACKDROP = "https://image.tmdb.org/t/p/w780/eGX66zonvc4bXg3rM08RUxdYSDx.jpg";
@@ -12,11 +12,14 @@ const CAST = [
   { path: "/dt8yMyycDlzxkjhmuuJJ4tXDbp4.jpg", name: "Edi Gathegi" },
 ];
 
+const NOOP_SUBSCRIBE = () => () => {};
+const readAsideHost = () =>
+  typeof document === "undefined"
+    ? null
+    : document.querySelector<HTMLElement>("[data-bp-onboard-aside]");
+
 function BpAside({ children }: { children: ReactNode }) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setHost(document.querySelector<HTMLElement>("[data-bp-onboard-aside]"));
-  }, []);
+  const host = useSyncExternalStore(NOOP_SUBSCRIBE, readAsideHost);
   if (!host) return null;
   return createPortal(children, host);
 }

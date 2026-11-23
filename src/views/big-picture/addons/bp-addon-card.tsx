@@ -113,13 +113,9 @@ export function BpAddonCard<E extends BpAddonCardEntry>({
   const failed = !!proxied && proxied === failedUrl;
   const markSrc = failed ? undefined : proxied;
 
-  // Extraction refetches and decodes the whole mark, so a row of sixteen must
-  // not all pay for it. The seed latches on first focus and is never cleared,
-  // so the veil survives blur and every later visit is a module-cache hit.
-  useEffect(() => {
-    if (!touched || !markSrc) return;
-    setGlowSeed((prev) => prev ?? markSrc);
-  }, [touched, markSrc]);
+  if (touched && markSrc && !glowSeed) {
+    setGlowSeed(markSrc);
+  }
   const glow = useArtGlow(glowSeed);
 
   const host = hostOf(entry.transportUrl);
@@ -146,12 +142,11 @@ export function BpAddonCard<E extends BpAddonCardEntry>({
     return [...pad, ...kept];
   }, [posters]);
 
-  // A layer that mounts already carrying its final opacity has no transition to
-  // run. The art has to land as a fade, so the flag is set in an effect after
-  // the layer has painted at zero.
   useEffect(() => {
-    if (cells.length > 0) setArtOn(true);
-  }, [cells.length]);
+    if (cells.length === 0 || artOn) return;
+    const id = requestAnimationFrame(() => setArtOn(true));
+    return () => cancelAnimationFrame(id);
+  }, [cells.length, artOn]);
 
   const hasArt = cells.length > 0;
   const markOn = !!markSrc && markLoaded;

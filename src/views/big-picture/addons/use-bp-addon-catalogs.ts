@@ -41,31 +41,29 @@ export function useBpAddonCatalogs(base: string): {
   loading: boolean;
 } {
   const seed = useMemo(() => localCatalogs(base), [base]);
-  const [fetched, setFetched] = useState<BpAddonCatalog[] | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [fetched, setFetched] = useState<{ base: string; catalogs: BpAddonCatalog[] } | null>(null);
 
   useEffect(() => {
-    setFetched(null);
     if (seed.length > 0) return;
     let alive = true;
-    setLoading(true);
     void fetchManifestAt(`${base}/manifest.json`)
       .then((manifest) => {
-        if (alive) setFetched(toCatalogs(base, bpUsableCatalogs(manifest)));
+        if (alive) setFetched({ base, catalogs: toCatalogs(base, bpUsableCatalogs(manifest)) });
       })
       .catch(() => {
-        if (alive) setFetched([]);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
+        if (alive) setFetched({ base, catalogs: [] });
       });
     return () => {
       alive = false;
     };
   }, [base, seed]);
 
-  return { catalogs: seed.length > 0 ? seed : (fetched ?? []), loading };
+  if (seed.length > 0) return { catalogs: seed, loading: false };
+  const ready = fetched?.base === base;
+  return { catalogs: ready ? fetched.catalogs : [], loading: !ready };
 }
+
+const EMPTY_METAS: Meta[] = [];
 
 export function useBpAddonFeed(cursor: AddonCatalogCursor | undefined): {
   metas: Meta[];
@@ -74,9 +72,12 @@ export function useBpAddonFeed(cursor: AddonCatalogCursor | undefined): {
   loadMore: () => void;
 } {
   const key = cursor ? `${cursor.base}|${cursor.type}|${cursor.id}` : "";
-  const [metas, setMetas] = useState<Meta[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [done, setDone] = useState(false);
+  const [state, setState] = useState<{
+    key: string;
+    metas: Meta[];
+    loading: boolean;
+    done: boolean;
+  }>({ key: "", metas: EMPTY_METAS, loading: false, done: false });
   // The fetcher learns the addon's page size from its first answer, so it has to
   // survive across loadMore calls or every page re-requests skip=0.
   const fetcher = useRef<((page: number, loaded?: number) => Promise<Meta[]>) | null>(null);
@@ -84,52 +85,54 @@ export function useBpAddonFeed(cursor: AddonCatalogCursor | undefined): {
   const loaded = useRef(0);
 
   useEffect(() => {
-    setMetas([]);
-    setDone(false);
     loaded.current = 0;
     busy.current = false;
     fetcher.current = cursor ? createAddonCatalogFetcher(cursor) : null;
-    if (!cursor) return;
+    if (!cursor || !key) return;
     let alive = true;
-    setLoading(true);
     void fetcher.current!(1, 0)
       .then((page) => {
         if (!alive) return;
         loaded.current = page.length;
-        setMetas(page);
-        setDone(page.length === 0);
+        setState({ key, metas: page, loading: false, done: page.length === 0 });
       })
       .catch(() => {
-        if (alive) setDone(true);
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
+        if (alive) setState({ key, metas: EMPTY_METAS, loading: false, done: true });
       });
     return () => {
       alive = false;
     };
   }, [key]);
 
+  const metas = key && state.key === key ? state.metas : EMPTY_METAS;
+  const loading = Boolean(key) && (state.key !== key || state.loading);
+  const done = Boolean(key) && state.key === key && state.done;
+
   const loadMore = (): void => {
     const next = fetcher.current;
     if (!next || busy.current || done || loading) return;
     busy.current = true;
+    const activeKey = key;
     void next(2, loaded.current)
       .then((page) => {
         if (page.length === 0) {
-          setDone(true);
+          setState((prev) => (prev.key === activeKey ? { ...prev, done: true } : prev));
           return;
         }
         loaded.current += page.length;
         // Addons repeat entries across pages far more often than TMDB does, and
         // a duplicated id inside a keyed grid is a React warning plus a tile
         // that shares focus state with its twin.
-        setMetas((prev) => {
-          const seen = new Set(prev.map((m) => m.id));
-          return [...prev, ...page.filter((m) => m.id && !seen.has(m.id))];
+        setState((prev) => {
+          if (prev.key !== activeKey) return prev;
+          const seen = new Set(prev.metas.map((m) => m.id));
+          return {
+            ...prev,
+            metas: [...prev.metas, ...page.filter((m) => m.id && !seen.has(m.id))],
+          };
         });
       })
-      .catch(() => setDone(true))
+      .catch(() => setState((prev) => (prev.key === activeKey ? { ...prev, done: true } : prev)))
       .finally(() => {
         busy.current = false;
       });

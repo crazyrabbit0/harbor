@@ -181,16 +181,24 @@ function useCwLogoAndTitle(
     }),
     [id, item.type, item.name, item.poster, item.background],
   );
-  const [logo, setLogo] = useState<string | undefined>(() => peekCachedLogo(tmdbKey, shell));
-  const [episodeTitle, setEpisodeTitle] = useState("");
+  const reqKey = `${tmdbKey}\0${id}\0${item.type}\0${item.name}\0${item.poster ?? ""}\0${item.background ?? ""}\0${videoId}`;
+  const [fetchedLogo, setFetchedLogo] = useState<{ key: string; url: string | undefined }>({
+    key: "",
+    url: undefined,
+  });
+  const [fetchedTitle, setFetchedTitle] = useState<{ key: string; title: string }>({
+    key: "",
+    title: "",
+  });
+  const logo =
+    (fetchedLogo.key === reqKey ? fetchedLogo.url : undefined) ?? peekCachedLogo(tmdbKey, shell);
+  const episodeTitle = fetchedTitle.key === reqKey ? fetchedTitle.title : "";
   const itemRef = useRef(item);
   useLayoutEffect(() => {
     itemRef.current = item;
   }, [item]);
 
   useEffect(() => {
-    setLogo(peekCachedLogo(tmdbKey, shell));
-    setEpisodeTitle("");
     const el = ref.current;
     if (!el) return;
     let alive = true;
@@ -215,12 +223,12 @@ function useCwLogoAndTitle(
       el.removeEventListener("focusin", run);
       resolveLogo(tmdbKey, shell)
         .then((url) => {
-          if (alive && url) setLogo(url);
+          if (alive && url) setFetchedLogo({ key: reqKey, url });
         })
         .catch(() => {});
       episodeTitleFor(itemRef.current, tmdbKey)
         .then((title) => {
-          if (alive && title) setEpisodeTitle(title);
+          if (alive && title) setFetchedTitle({ key: reqKey, title });
         })
         .catch(() => {});
     };
@@ -233,7 +241,7 @@ function useCwLogoAndTitle(
       alive = false;
       el.removeEventListener("focusin", run);
     };
-  }, [shell, videoId, tmdbKey, ref]);
+  }, [shell, reqKey, tmdbKey, ref]);
 
   return { logo, episodeTitle };
 }

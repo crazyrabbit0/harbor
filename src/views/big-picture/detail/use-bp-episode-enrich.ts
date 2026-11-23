@@ -24,25 +24,30 @@ export function useBpEpisodeEnrich(imdbId: string | null, season: number): BpEpi
   const omdbKey = settings.omdbKey;
   const tvdbKey = settings.tvdbKey;
 
-  const [imdb, setImdb] = useState<Map<string, number>>(
-    () => (imdbId ? harborImdbEpisodesCached(imdbId) : undefined) ?? NO_IMDB,
-  );
+  const [imdbFetched, setImdbFetched] = useState<{
+    id: string;
+    map: Map<string, number>;
+  } | null>(null);
   const [omdb, setOmdb] = useState<BpSeasonMap<Map<number, number>>>(OMDB_AT);
   const [tvdb, setTvdb] = useState<BpSeasonMap<Map<number, TvdbEpisode>>>(TVDB_AT);
 
   useEffect(() => {
-    setImdb((imdbId ? harborImdbEpisodesCached(imdbId) : undefined) ?? NO_IMDB);
     if (!imdbId) return;
     let cancelled = false;
     void harborImdbEpisodes(imdbId)
       .then((m) => {
-        if (!cancelled && m.size > 0) setImdb(m);
+        if (!cancelled && m.size > 0) setImdbFetched({ id: imdbId, map: m });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, [imdbId]);
+
+  const imdb =
+    (imdbId && imdbFetched?.id === imdbId ? imdbFetched.map : undefined) ??
+    (imdbId ? harborImdbEpisodesCached(imdbId) : undefined) ??
+    NO_IMDB;
 
   useEffect(() => {
     if (!omdbKey || !imdbId || season <= 0) return;

@@ -135,12 +135,8 @@ export function useBpAnimeDetail(meta: Meta | null, opts?: BpAnimeDetailOptions)
   const [settled, setSettled] = useState<string | null>(null);
 
   useEffect(() => {
-    setLoaded(null);
     const seed = metaRef.current;
-    if (!isAnime || !seed) {
-      setSettled(metaId);
-      return;
-    }
+    if (!isAnime || !seed) return;
     let alive = true;
     const patch = (fn: (prev: Loaded) => Loaded) =>
       setLoaded((prev) => (prev && prev.key === metaId ? fn(prev) : prev));
@@ -184,17 +180,18 @@ export function useBpAnimeDetail(meta: Meta | null, opts?: BpAnimeDetailOptions)
     };
   }, [isAnime, metaId]);
 
-  const loading = isAnime && settled !== metaId;
+  const currentLoaded = loaded?.key === metaId ? loaded : null;
+  const loading = isAnime && Boolean(meta) && settled !== metaId;
 
-  const episodes = loaded?.episodes ?? EMPTY_EPISODES;
-  const kitsuId = loaded?.kitsuId ?? (isAnime ? parseKitsuId(metaId) : null);
+  const episodes = currentLoaded?.episodes ?? EMPTY_EPISODES;
+  const kitsuId = currentLoaded?.kitsuId ?? (isAnime ? parseKitsuId(metaId) : null);
   // animeDetails remaps an ova or side entry onto its main TV series, so the
   // canonical id is the tracker key only. Local resume and manual watched are
   // written under the id the player was handed, which is meta.id, and reading
   // them under the canonical id alone loses every tick the user just earned.
-  const canonicalId = loaded ? `kitsu:${loaded.kitsuId}` : metaId;
+  const canonicalId = currentLoaded ? `kitsu:${currentLoaded.kitsuId}` : metaId;
   const trackId = canonicalId === metaId ? undefined : canonicalId;
-  const imdbId = loaded?.imdbId ?? null;
+  const imdbId = currentLoaded?.imdbId ?? null;
   const mwVersion = useSyncExternalStore(subscribeManualWatched, manualWatchedVersion);
   const { watchedKeys: anilistWatched } = useAnilistWatched(isAnime ? canonicalId : "", episodes);
   const { watchedKeys: malWatched } = useMalWatched(isAnime ? canonicalId : "", episodes);
@@ -309,9 +306,9 @@ export function useBpAnimeDetail(meta: Meta | null, opts?: BpAnimeDetailOptions)
     isAnime,
     owns: isAnime && (loading || shown.length > 0),
     loading,
-    detail: loaded?.detail ?? null,
-    canonicalId: loaded ? canonicalId : null,
-    streamers: loaded?.streamers ?? EMPTY_STREAMERS,
+    detail: currentLoaded?.detail ?? null,
+    canonicalId: currentLoaded ? canonicalId : null,
+    streamers: currentLoaded?.streamers ?? EMPTY_STREAMERS,
     episodes: shown,
     showSeason,
     seasons: tvdb.panel?.items ?? order?.items ?? [],

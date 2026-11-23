@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { pushBigPicture } from "@/lib/big-picture";
 import type { CategoryWinner } from "@/lib/awards-history";
 import type { Meta } from "@/lib/cinemeta";
@@ -72,8 +72,13 @@ export function BpAward({
     [byDecade, categoryKey],
   );
 
+  const limitKey = `${awardType}:${decade ?? "all"}:${categoryKey}`;
+  const [limitFor, setLimitFor] = useState(limitKey);
   const [limit, setLimit] = useState(PAGE);
-  useEffect(() => setLimit(PAGE), [decade, categoryKey, awardType]);
+  if (limitFor !== limitKey) {
+    setLimitFor(limitKey);
+    setLimit(PAGE);
+  }
 
   const paged = useMemo(() => {
     const out: typeof groups = [];

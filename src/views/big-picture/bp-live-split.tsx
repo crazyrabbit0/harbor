@@ -79,14 +79,15 @@ export function BpLiveSplit({
 // envelope's own scrims so nothing dims the one object carrying the front plane.
 export function BpLiveBridge({ src, rtl, solo }: { src: string; rtl: boolean; solo: boolean }) {
   const url = useProxiedImageSrc(src);
-  const [lit, setLit] = useState(false);
+  const litKey = url ? `${url}:${solo ? 1 : 0}` : "";
+  const [litFor, setLitFor] = useState("");
+  const lit = Boolean(litKey) && litFor === litKey;
 
   useEffect(() => {
-    setLit(false);
-    if (!url) return;
-    const id = window.requestAnimationFrame(() => setLit(true));
+    if (!litKey) return;
+    const id = window.requestAnimationFrame(() => setLitFor(litKey));
     return () => window.cancelAnimationFrame(id);
-  }, [url, solo]);
+  }, [litKey]);
 
   if (!url) return null;
 

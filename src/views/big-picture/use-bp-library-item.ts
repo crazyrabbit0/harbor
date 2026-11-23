@@ -7,11 +7,15 @@ import { CLOUD_OK, libraryGetOne, type LibraryItem } from "@/lib/stremio";
 // the way the desktop detail view does.
 export function useBpLibraryItem(metaId: string, imdbId: string | null): LibraryItem | null {
   const { authKey } = useAuth();
-  const [item, setItem] = useState<LibraryItem | null>(null);
+  const reqKey =
+    authKey && !metaId.startsWith("simkl:") ? `${authKey}\0${metaId}\0${imdbId ?? ""}` : "";
+  const [result, setResult] = useState<{ key: string; item: LibraryItem | null }>({
+    key: "",
+    item: null,
+  });
 
   useEffect(() => {
-    setItem(null);
-    if (!authKey || metaId.startsWith("simkl:")) return;
+    if (!authKey || !reqKey) return;
     const candidates: string[] = [];
     if (metaId.startsWith("tt")) candidates.push(metaId);
     if (imdbId?.startsWith("tt") && !candidates.includes(imdbId)) candidates.push(imdbId);
@@ -24,7 +28,7 @@ export function useBpLibraryItem(metaId: string, imdbId: string | null): Library
         const found = await libraryGetOne(authKey, cid).catch(() => null);
         if (cancelled) return;
         if (found) {
-          setItem(found);
+          setResult({ key: reqKey, item: found });
           return;
         }
       }
@@ -32,7 +36,7 @@ export function useBpLibraryItem(metaId: string, imdbId: string | null): Library
     return () => {
       cancelled = true;
     };
-  }, [authKey, metaId, imdbId]);
+  }, [reqKey, authKey, metaId, imdbId]);
 
-  return item;
+  return reqKey && result.key === reqKey ? result.item : null;
 }

@@ -160,8 +160,10 @@ export function useBpCardBadges(
   const scoreId = want ? imdbId : undefined;
 
   const visible = useBpCardVisible(ref);
-  const [animeImdb, setAnimeImdb] = useState<string>();
-  const [harborRating, setHarborRating] = useState<string>();
+  const [animeImdbState, setAnimeImdbState] = useState<{ id: string; tt: string }>();
+  const [harborRatingState, setHarborRatingState] = useState<{ id: string; rating: string }>();
+  const animeImdb = animeImdbState?.id === meta.id ? animeImdbState.tt : undefined;
+  const harborRating = harborRatingState?.id === meta.id ? harborRatingState.rating : undefined;
 
   // A card shows one anime score and animeCardRating picks which. A detail page
   // shows both, so there the IMDb chip alone is enough to want the mapping.
@@ -174,16 +176,11 @@ export function useBpCardBadges(
   const ratingTt = wantImdbValue ? (isAnime ? animeImdb : imdbId) : undefined;
 
   useEffect(() => {
-    setAnimeImdb(undefined);
-    setHarborRating(undefined);
-  }, [meta.id]);
-
-  useEffect(() => {
     if (!wantAnimeMap) return;
     let cancelled = false;
     resolveAnimeImdb(meta.id)
       .then((tt) => {
-        if (!cancelled && tt) setAnimeImdb(tt);
+        if (!cancelled && tt) setAnimeImdbState({ id: meta.id, tt });
       })
       .catch(() => {});
     return () => {
@@ -196,13 +193,13 @@ export function useBpCardBadges(
     let cancelled = false;
     harborImdbTitle(ratingTt)
       .then((r) => {
-        if (!cancelled && r != null) setHarborRating(r.toFixed(1));
+        if (!cancelled && r != null) setHarborRatingState({ id: meta.id, rating: r.toFixed(1) });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [visible, ratingTt]);
+  }, [visible, ratingTt, meta.id]);
 
   const hasInlineImdb = meta.id.startsWith("tt") && !!meta.imdbRating;
   const wantCinemetaRating = gate.imdb && !isAnime && !hasInlineImdb;

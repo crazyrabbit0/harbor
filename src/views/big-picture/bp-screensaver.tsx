@@ -35,9 +35,20 @@ function BpGamepadWake({ onWake }: { onWake: () => void }) {
 export function BpScreensaver({ blocked }: { blocked: boolean }) {
   const { active, items, wake } = useBpScreensaver(blocked);
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [prevShow, setPrevShow] = useState(false);
+  const [exiting, setExiting] = useState(false);
   const [visible, setVisible] = useState(false);
   const show = active && items.length > 0;
+  if (show !== prevShow) {
+    setPrevShow(show);
+    if (show) {
+      setExiting(false);
+    } else {
+      setExiting(true);
+      setVisible(false);
+    }
+  }
+  const mounted = show || exiting;
 
   const reduce = useMemo(
     () =>
@@ -48,14 +59,13 @@ export function BpScreensaver({ blocked }: { blocked: boolean }) {
 
   useEffect(() => {
     if (show) {
-      setMounted(true);
       const id = requestAnimationFrame(() => setVisible(true));
       return () => cancelAnimationFrame(id);
     }
-    setVisible(false);
-    const id = window.setTimeout(() => setMounted(false), EXIT_MS);
+    if (!exiting) return;
+    const id = window.setTimeout(() => setExiting(false), EXIT_MS);
     return () => window.clearTimeout(id);
-  }, [show]);
+  }, [show, exiting]);
 
   useEffect(() => {
     if (!visible) return;

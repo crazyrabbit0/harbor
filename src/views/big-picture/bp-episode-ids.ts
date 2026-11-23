@@ -116,21 +116,12 @@ export function bpEpisodeAt(season: number, episode: number, ids: BpEpisodeIds):
 export function useBpEpisodeIds(meta: Meta | null | undefined): BpEpisodeIds {
   const { settings } = useSettings();
   const source = useBpKeyed([meta?.id, meta?.videos?.length], () => bpEpisodeIdSource(meta));
-  const [ids, setIds] = useState<BpEpisodeIds>(
-    () => (source ? indexCache.get(source) : null) ?? BP_NO_EPISODE_IDS,
-  );
+  const reqKey = source ? `${source}\0${settings.tmdbKey}` : "";
+  const [loaded, setLoaded] = useState<{ key: string; ids: BpEpisodeIds } | null>(null);
+  const cached = source ? indexCache.get(source) : undefined;
 
   useEffect(() => {
-    if (!source) {
-      setIds(BP_NO_EPISODE_IDS);
-      return;
-    }
-    const cached = indexCache.get(source);
-    if (cached) {
-      setIds(cached);
-      return;
-    }
-    setIds(BP_NO_EPISODE_IDS);
+    if (!source || indexCache.has(source)) return;
     let cancelled = false;
     void (async () => {
       const shell: Meta = { id: source, type: "series", name: "" };
@@ -140,12 +131,14 @@ export function useBpEpisodeIds(meta: Meta | null | undefined): BpEpisodeIds {
       if (cancelled || eps.length === 0) return;
       const built = indexEpisodes(eps);
       lruSet(indexCache, source, built, INDEX_MAX);
-      setIds(built);
+      setLoaded({ key: reqKey, ids: built });
     })();
     return () => {
       cancelled = true;
     };
-  }, [source, settings.tmdbKey]);
+  }, [source, settings.tmdbKey, reqKey]);
 
-  return ids;
+  if (!source) return BP_NO_EPISODE_IDS;
+  if (cached) return cached;
+  return loaded?.key === reqKey ? loaded.ids : BP_NO_EPISODE_IDS;
 }

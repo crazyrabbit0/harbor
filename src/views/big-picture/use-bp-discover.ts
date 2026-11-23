@@ -209,6 +209,7 @@ export function useBpGenreArt(genre: string, enabled: boolean): Meta[] {
 export type BpDiscoverRail = { key: string; name: string; kicker?: string; metas: Meta[] };
 
 const MIN_RAIL = 10;
+const EMPTY_RAILS: BpDiscoverRail[] = [];
 
 // The daily shelves overlap heavily, so without a page-wide claim the same
 // title fills three rails, which on a ten foot row reads as broken data rather
@@ -237,7 +238,6 @@ function claimRail(batch: Meta[], seen: Set<string>): Meta[] {
 
 export function useBpDiscoverRails(count: number): BpDiscoverRail[] {
   const { settings } = useSettings();
-  const [rails, setRails] = useState<BpDiscoverRail[]>([]);
 
   const defs = useBpKeyed(
     [
@@ -253,18 +253,13 @@ export function useBpDiscoverRails(count: number): BpDiscoverRail[] {
     () => selectDailyRows(settings.tmdbKey, getStore().affinity, settings, count),
   );
 
+  const [state, setState] = useState<{ defs: typeof defs; rails: BpDiscoverRail[] }>({
+    defs,
+    rails: EMPTY_RAILS,
+  });
+
   useEffect(() => {
     let dead = false;
-    setRails([]);
-    // Fetched together, claimed in order. The old loop awaited each rail before
-    // starting the next, so eight rails were eight serial round trips and the
-    // last one could not begin until the other seven had come back, on a device
-    // where every one of them is a trip over home wifi. The scheduler in
-    // tmdb-client already caps concurrency at six, so firing them together
-    // hands it the queue it was built to drain rather than starving it.
-    //
-    // claimRail must still run in defs order or the dedupe is not deterministic
-    // and the same title can land in a different rail between runs.
     void (async () => {
       const batches = await Promise.all(
         defs.map((d) =>
@@ -280,14 +275,14 @@ export function useBpDiscoverRails(count: number): BpDiscoverRail[] {
         const def = defs[i];
         out.push({ key: def.id, name: def.shelf.title, kicker: def.shelf.kicker, metas });
       }
-      setRails(out);
+      setState({ defs, rails: out });
     })();
     return () => {
       dead = true;
     };
   }, [defs]);
 
-  return useHideAnimeRows(rails);
+  return useHideAnimeRows(state.defs === defs ? state.rails : EMPTY_RAILS);
 }
 
 export function useBpTopPeople(limit: number): HarborRankExplanation[] {

@@ -32,71 +32,30 @@ export function publishBpBackdropCommit(key: string): void {
 }
 
 export function useBpCopyGate<T>(value: T, key: string): { shown: T | null; on: boolean } {
-  const [shown, setShown] = useState<T | null>(null);
-  const [on, setOn] = useState(false);
-  const shownKey = useRef("");
+  const [settled, setSettled] = useState<{ key: string; value: T } | null>(() =>
+    key ? { key, value } : null,
+  );
   const live = useRef(value);
   useLayoutEffect(() => {
     live.current = value;
   }, [value]);
 
-  // An enrichment that fills in a logo or an overview must land in place. Only a
-  // new key is a new subject, and only a new subject is worth a fade.
+  if (key && settled === null) {
+    setSettled({ key, value });
+  }
+
+  const settledKey = settled?.key ?? "";
   useEffect(() => {
-    if (shownKey.current === key) setShown(value);
-  }, [value, key]);
+    if (!key || settledKey === key || !settledKey) return;
+    const outTimer = window.setTimeout(() => {
+      setSettled({ key, value: live.current });
+    }, BP_COPY_OUT_MS);
+    return () => window.clearTimeout(outTimer);
+  }, [key, settledKey]);
 
-  useEffect(() => {
-    // An empty key means the surface has no subject right now. Parking it with
-    // on=false is correct, but it must not be reached through the early return
-    // below, or a key that empties mid-fade leaves the block invisible for good
-    // with both of its timers already cleared.
-    if (!key) {
-      setOn(false);
-      return;
-    }
-    if (shownKey.current === key) return;
-
-    let done = false;
-    let outTimer = 0;
-    let ceilingTimer = 0;
-
-    const promote = () => {
-      if (done) return;
-      done = true;
-      window.clearTimeout(outTimer);
-      window.clearTimeout(ceilingTimer);
-      shownKey.current = key;
-      setShown(live.current);
-      setOn(true);
-    };
-
-    if (shownKey.current === "") {
-      promote();
-      return;
-    }
-
-    // The copy no longer waits for the backdrop to commit. It used to: promote
-    // needed both the out-fade AND `committed === key`, so the title, logo,
-    // score and synopsis were held until a backdrop had fetched, decoded and
-    // cross-faded. On a stick the hero backdrop is a 7.9MB decode, so that was
-    // most of a second in which the hero either described the previous card or,
-    // once the stale copy was cleared, described nothing at all. Both read as
-    // slower than the app is.
-    //
-    // Now the copy leaves on the out-fade and arrives immediately after it, and
-    // the backdrop catches up behind it. Nothing else changes: bp-ambient keeps
-    // its own settle, so scrubbing a row still does not fire a fetch per card,
-    // and the commit subscription stays because the ambient still uses it.
-    setOn(false);
-    outTimer = window.setTimeout(promote, BP_COPY_OUT_MS);
-    ceilingTimer = window.setTimeout(promote, BP_COPY_CEILING_MS);
-
-    return () => {
-      window.clearTimeout(outTimer);
-      window.clearTimeout(ceilingTimer);
-    };
-  }, [key]);
-
-  return { shown, on };
+  const immediate = Boolean(key) && (settled === null || settled.key === key);
+  return {
+    shown: immediate ? value : (settled?.value ?? null),
+    on: immediate,
+  };
 }

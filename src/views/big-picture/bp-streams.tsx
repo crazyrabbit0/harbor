@@ -182,19 +182,18 @@ export function BpStreams({
         (entry) => entry.connectionId === copy.connectionId && entry.id === copy.itemId,
       );
       if (!connection || !item) return;
-      setHomeServerError(null);
       const imdbId = s.imdbId ?? undefined;
       const open = async () => {
-        play.openLocal(
-          await createMediaServerPlayerSrc({
-            meta,
-            imdbId,
-            episode,
-            connection,
-            item,
-            versionId: copy.version.id,
-          }),
-        );
+        const src = await createMediaServerPlayerSrc({
+          meta,
+          imdbId,
+          episode,
+          connection,
+          item,
+          versionId: copy.version.id,
+        });
+        setHomeServerError(null);
+        play.openLocal(src);
       };
       await open().catch((cause: unknown) => {
         setHomeServerError(cause instanceof Error ? cause.message : String(cause));
@@ -202,6 +201,30 @@ export function BpStreams({
     },
     [episode, homeServerCopies, meta, play, s.homeServerConnections, s.homeServerItems, s.imdbId],
   );
+
+  const prefKey = `${meta.id}\0${episode?.season ?? ""}\0${episode?.episode ?? ""}`;
+  const [prefSourceFor, setPrefSourceFor] = useState("");
+  if (
+    prefSourceFor !== prefKey &&
+    applyPreference &&
+    mode === "pick" &&
+    s.homeServersLoaded &&
+    homeServerHealthReady
+  ) {
+    if (settings.playbackSourcePreference === "local" && localFiles.length === 0) {
+      setPrefSourceFor(prefKey);
+      setSourceKind("all");
+    } else if (settings.playbackSourcePreference === "local" && localFiles.length > 1) {
+      setPrefSourceFor(prefKey);
+      setSourceKind("local");
+    } else if (
+      settings.playbackSourcePreference === "home-server" &&
+      settings.preferredMediaServerId == null
+    ) {
+      setPrefSourceFor(prefKey);
+      setSourceKind("media-server");
+    }
+  }
 
   const preferredSourceFired = useRef(false);
   useEffect(() => {
@@ -216,22 +239,12 @@ export function BpStreams({
       !homeServerHealthReady
     )
       return;
-    if (settings.playbackSourcePreference === "local" && localFiles.length === 0) {
-      preferredSourceFired.current = true;
-      setSourceKind("all");
-      return;
-    }
-    if (settings.playbackSourcePreference === "local" && localFiles.length > 1) {
-      preferredSourceFired.current = true;
-      setSourceKind("local");
-      return;
-    }
     if (
-      settings.playbackSourcePreference === "home-server" &&
-      settings.preferredMediaServerId == null
+      (settings.playbackSourcePreference === "local" && localFiles.length !== 1) ||
+      (settings.playbackSourcePreference === "home-server" &&
+        settings.preferredMediaServerId == null)
     ) {
       preferredSourceFired.current = true;
-      setSourceKind("media-server");
       return;
     }
     const decision = decidePlaybackSource(settings, localFiles.length, availableHomeServerCopies);
@@ -310,9 +323,11 @@ export function BpStreams({
     return [cur, ...copy];
   }, [s.streams, mode, currentUrl, currentInfoHash, currentFileIdx]);
 
-  useEffect(() => {
+  const [prevList, setPrevList] = useState(list);
+  if (prevList !== list) {
+    setPrevList(list);
     setShown(STREAM_PAGE);
-  }, [list]);
+  }
 
   // Keyed on list.length alone, never on shown. Re-arming per page mounted the
   // whole list with no input: a fresh IntersectionObserver reports its first
@@ -461,7 +476,10 @@ export function BpStreams({
                   status={status}
                   unavailable={status !== "active"}
                   autofocus={(!showLocal || localFiles.length === 0) && i === 0}
-                  onPick={() => void playHomeServer(copy)}
+                  onPick={() => {
+                    setHomeServerError(null);
+                    void playHomeServer(copy);
+                  }}
                 />
               </BpSourceCell>
             );

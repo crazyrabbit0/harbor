@@ -84,11 +84,13 @@ export function BpGuidePortal({
   const reduced = useReducedMotion();
   const pageVisible = usePageVisible();
   const { stackKinds } = useView();
-  const [playing, setPlaying] = useState(false);
-  const [armed, setArmed] = useState(false);
+  const [playingFor, setPlayingFor] = useState<string | null>(null);
+  const [armedFor, setArmedFor] = useState<string | null>(null);
   const [, markFailed] = useReducer((n: number) => n + 1, 0);
 
   const channelId = channel?.id ?? "";
+  const playing = !!channelId && playingFor === channelId;
+  const armed = !!channelId && armedFor === channelId;
   const artKey = program?.title?.trim() || channel?.name || "";
   const hydrateNames = useMemo(
     () => (channel && artKey && isHydratableChannel(channel) ? [artKey] : NO_NAMES),
@@ -97,10 +99,8 @@ export function BpGuidePortal({
   const hydrations = useChannelHydration(hydrateNames);
 
   useEffect(() => {
-    setPlaying(false);
-    setArmed(false);
     if (!channelId) return;
-    const id = window.setTimeout(() => setArmed(true), DWELL_MS);
+    const id = window.setTimeout(() => setArmedFor(channelId), DWELL_MS);
     return () => window.clearTimeout(id);
   }, [channelId]);
 
@@ -157,10 +157,10 @@ export function BpGuidePortal({
             muted
             exclusive
             cover
-            onPlaying={() => setPlaying(true)}
+            onPlaying={() => setPlayingFor(channel.id)}
             onError={() => {
               FAILED.add(channel.id);
-              setPlaying(false);
+              setPlayingFor(null);
               markFailed();
             }}
           />

@@ -66,15 +66,18 @@ export function useBpP2pStatus(params: {
   const torrent = (isBundledEngineUrl(url) || isLocalEngineUrl(url)) && !url.includes("/hlsv2/");
   const live = active && !!infoHash && isLocalEngineUrl(url);
   const [attempt, setAttempt] = useState(0);
-  const [sample, setSample] = useState<Sample>(IDLE);
+  const reqKey = live && infoHash ? `${url}\0${infoHash}\0${fileIdx ?? ""}\0${attempt}` : "";
+  const [sampleState, setSampleState] = useState<{ key: string; sample: Sample }>({
+    key: "",
+    sample: IDLE,
+  });
   const failedRef = useRef(false);
   const sawDataRef = useRef(false);
 
   useEffect(() => {
     failedRef.current = false;
     sawDataRef.current = false;
-    setSample(IDLE);
-    if (!live || !infoHash) return;
+    if (!live || !infoHash || !reqKey) return;
 
     const idx = typeof fileIdx === "number" && fileIdx >= 0 ? fileIdx : null;
     const startAt = Date.now();
@@ -89,11 +92,6 @@ export function useBpP2pStatus(params: {
       prev = s;
       const peers = s.unchoked > 0 ? s.unchoked : s.peers;
       const elapsedMs = Date.now() - startAt;
-      // Local latch, deliberately NOT s.sawData. The shared parser latches that
-      // flag on peers > 0 as well, which would make `quiet` false the instant a
-      // single choked peer appeared and put both slow and no-peers permanently
-      // out of reach. Bytes moving is the only thing that proves the torrent is
-      // alive, and it stays sticky so one byte is enough forever.
       if (s.downloadSpeed > 0 || s.streamProgress > 0 || s.downloaded > 0) {
         sawDataRef.current = true;
       }
@@ -106,14 +104,17 @@ export function useBpP2pStatus(params: {
           : peers > 0
             ? "connected"
             : "searching";
-      setSample({
-        phase,
-        peers,
-        speed: s.downloadSpeed,
-        downloaded: s.downloaded,
-        total: s.streamLen,
-        readiness: readinessScore(s, true),
-        elapsedMs,
+      setSampleState({
+        key: reqKey,
+        sample: {
+          phase,
+          peers,
+          speed: s.downloadSpeed,
+          downloaded: s.downloaded,
+          total: s.streamLen,
+          readiness: readinessScore(s, true),
+          elapsedMs,
+        },
       });
       if (failedRef.current && stop) {
         stop();
@@ -126,7 +127,7 @@ export function useBpP2pStatus(params: {
       cancelled = true;
       stop?.();
     };
-  }, [live, url, infoHash, fileIdx, attempt]);
+  }, [live, url, infoHash, fileIdx, reqKey]);
 
   // The bundled Stremio server has no local engine to poll, so its numbers come
   // from whatever the caller already fetched. It has no terminal failure state,
@@ -148,6 +149,7 @@ export function useBpP2pStatus(params: {
     };
   }, [torrent, stats, relayStart, now]);
 
+  const sample = reqKey && sampleState.key === reqKey ? sampleState.sample : IDLE;
   const retry = useCallback(() => setAttempt((a) => a + 1), []);
   const current = live ? sample : relayed;
 
@@ -179,13 +181,12 @@ export function bpStageLabel(
 }
 
 function useMonotonicPct(ready: number, done: boolean): number {
-  const [pct, setPct] = useState(0);
-  // A readiness score that drops mid-load reads as broken, so the bar only ever
-  // climbs and the finish snaps it to full.
-  useEffect(() => {
-    setPct((cur) => (done ? 100 : Math.max(cur, ready)));
-  }, [ready, done]);
-  return pct;
+  const [high, setHigh] = useState(0);
+  const target = done ? 100 : Math.max(high, ready);
+  if (target !== high) {
+    setHigh(target);
+  }
+  return target;
 }
 
 function BpReadinessMeter({ pct, done, reduce }: { pct: number; done: boolean; reduce: boolean }) {

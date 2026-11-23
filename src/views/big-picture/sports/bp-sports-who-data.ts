@@ -59,27 +59,23 @@ function summaryOf(raw: unknown): { title: string; stats: BpSportsWhoStat[] } {
 export function useBpSportsWhoBio(
   person: BpSportsWhoPerson | null,
 ): BpSportsWhoState<BpSportsWhoBio> {
-  const [state, setState] = useState<BpSportsWhoState<BpSportsWhoBio>>({
-    data: null,
-    loading: person !== null,
-    failed: false,
-  });
   const id = person?.id ?? "";
   const path = person?.path ?? "";
   const group = person?.group ?? "";
   const source = person?.source ?? "none";
+  const espn = source === "espn" && /^\d+$/.test(id) && path.includes("/");
+  const db = source === "thesportsdb" && /^\d{1,15}$/.test(id);
+  const reqKey = espn || db ? `${source}\0${id}\0${path}\0${group}` : "";
+  const [state, setState] = useState<{
+    key: string;
+    result: BpSportsWhoState<BpSportsWhoBio>;
+  }>({ key: "", result: { data: null, loading: false, failed: false } });
 
   useEffect(() => {
-    const espn = source === "espn" && /^\d+$/.test(id) && path.includes("/");
-    const db = source === "thesportsdb" && /^\d{1,15}$/.test(id);
-    if (!espn && !db) {
-      setState({ data: null, loading: false, failed: false });
-      return;
-    }
+    if (!espn && !db) return;
     const controller = new AbortController();
-    setState({ data: null, loading: true, failed: false });
     const settle = (next: BpSportsWhoState<BpSportsWhoBio>) => {
-      if (!controller.signal.aborted) setState(next);
+      if (!controller.signal.aborted) setState({ key: reqKey, result: next });
     };
     const signal = AbortSignal.any([controller.signal, AbortSignal.timeout(TIMEOUT_MS)]);
 
@@ -119,44 +115,47 @@ export function useBpSportsWhoBio(
       })
       .catch(() => settle({ data: null, loading: false, failed: true }));
     return () => controller.abort();
-  }, [id, path, group, source]);
+  }, [reqKey, espn, db, id, path, group]);
 
-  return state;
+  if (!reqKey) return { data: null, loading: false, failed: false };
+  return state.key === reqKey ? state.result : { data: null, loading: true, failed: false };
 }
 
 export function useBpSportsWhoTeam(
   identity: TeamIdentity | null,
 ): BpSportsWhoState<TeamProfileData> {
-  const [state, setState] = useState<BpSportsWhoState<TeamProfileData>>({
-    data: null,
-    loading: identity !== null,
-    failed: false,
-  });
   const id = identity?.id ?? "";
   const name = identity?.name ?? "";
   const logo = identity?.logo ?? "";
   const league = identity?.league ?? "";
   const source = identity?.source ?? "";
+  const reqKey =
+    name !== "" && league !== "" ? `${id}\0${name}\0${logo}\0${league}\0${source}` : "";
+  const [state, setState] = useState<{
+    key: string;
+    result: BpSportsWhoState<TeamProfileData>;
+  }>({ key: "", result: { data: null, loading: false, failed: false } });
 
   useEffect(() => {
-    if (name === "" || league === "") {
-      setState({ data: null, loading: false, failed: false });
-      return;
-    }
+    if (!reqKey) return;
     const controller = new AbortController();
-    setState({ data: null, loading: true, failed: false });
     void fetchTeamProfile(
       { id, name, logo, league, source: source === "" ? undefined : source },
       controller.signal,
     )
       .then((data) => {
-        if (!controller.signal.aborted) setState({ data, loading: false, failed: false });
+        if (!controller.signal.aborted) {
+          setState({ key: reqKey, result: { data, loading: false, failed: false } });
+        }
       })
       .catch(() => {
-        if (!controller.signal.aborted) setState({ data: null, loading: false, failed: true });
+        if (!controller.signal.aborted) {
+          setState({ key: reqKey, result: { data: null, loading: false, failed: true } });
+        }
       });
     return () => controller.abort();
-  }, [id, name, logo, league, source]);
+  }, [reqKey, id, name, logo, league, source]);
 
-  return state;
+  if (!reqKey) return { data: null, loading: false, failed: false };
+  return state.key === reqKey ? state.result : { data: null, loading: true, failed: false };
 }

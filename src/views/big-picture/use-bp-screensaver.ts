@@ -54,11 +54,12 @@ export function useBpScreensaver(blocked: boolean): {
     setActive(false);
   }, []);
 
+  if ((!enabled || suppressed) && active) {
+    setActive(false);
+  }
+
   useEffect(() => {
-    if (!enabled || suppressed) {
-      setActive(false);
-      return;
-    }
+    if (!enabled || suppressed) return;
     lastRef.current = performance.now();
     const seen = () => document.visibilityState === "visible";
     // Big Picture claims window keydown in the capture phase and stops
@@ -114,5 +115,5 @@ export function useBpScreensaver(blocked: boolean): {
     };
   }, [active, settings.heroFeed]);
 
-  return { active, items, wake };
+  return { active: enabled && !suppressed && active, items, wake };
 }

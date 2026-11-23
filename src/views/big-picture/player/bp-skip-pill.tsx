@@ -76,8 +76,18 @@ export function BpSkipPill({
   const pads = useGamepads();
   const shell = useBpPlayerOptional();
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const segKey = segment ? `${segment.kind}:${segment.startSec}:${segment.endSec}` : "";
+  const [prevSegKey, setPrevSegKey] = useState(segKey);
   const [mounted, setMounted] = useState<SkipSegment | null>(segment);
   const [show, setShow] = useState(false);
+  if (prevSegKey !== segKey) {
+    setPrevSegKey(segKey);
+    if (segment) {
+      setMounted(segment);
+    } else {
+      setShow(false);
+    }
+  }
 
   // `visible && show` is load-bearing, not belt and braces. The exit fade holds
   // this mounted for EXIT_MS after the segment clears with show already false,
@@ -90,15 +100,14 @@ export function BpSkipPill({
   useLayoutEffect(() => ensureBpPlayerSurfaceTokens(), []);
 
   useEffect(() => {
-    if (segment) {
-      setMounted(segment);
+    if (segKey) {
       const id = window.requestAnimationFrame(() => setShow(true));
       return () => window.cancelAnimationFrame(id);
     }
-    setShow(false);
+    if (!mounted) return;
     const timer = window.setTimeout(() => setMounted(null), EXIT_MS);
     return () => window.clearTimeout(timer);
-  }, [segment?.kind, segment?.startSec, segment?.endSec]);
+  }, [segKey, mounted]);
 
   const isOutroNext = mounted?.kind === "outro" && hasNextEp && Boolean(nextEp);
   const finalLeadSec = typeof leadSec === "number" && leadSec > 0 ? leadSec : 15;

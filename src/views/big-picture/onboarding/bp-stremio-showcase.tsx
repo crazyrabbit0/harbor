@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import streemur from "@/assets/streemur.png";
 import stremioWordmark from "@/assets/stremio-wordmark.png";
@@ -12,11 +12,14 @@ const WALL = [
   "/1g0dhYtq4irTY1GPXvft6k4YLjm.jpg",
 ];
 
+const NOOP_SUBSCRIBE = () => () => {};
+const readAsideHost = () =>
+  typeof document === "undefined"
+    ? null
+    : document.querySelector<HTMLElement>("[data-bp-onboard-aside]");
+
 function BpAside({ children }: { children: ReactNode }) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-  useEffect(() => {
-    setHost(document.querySelector<HTMLElement>("[data-bp-onboard-aside]"));
-  }, []);
+  const host = useSyncExternalStore(NOOP_SUBSCRIBE, readAsideHost);
   if (!host) return null;
   return createPortal(children, host);
 }

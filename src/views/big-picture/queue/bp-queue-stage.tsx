@@ -190,44 +190,41 @@ export function BpQueueStage({
 }) {
   const rtl = isRtl(useUiLanguage());
   const reduce = useReducedMotion();
-  const [layers, setLayers] = useState<Layer[]>([]);
-  const seq = useRef(0);
+  const [layerState, setLayerState] = useState<{ layers: Layer[]; nextId: number }>({
+    layers: [],
+    nextId: 1,
+  });
+  const layers = layerState.layers;
 
-  // A keyless art object is the hook's "nothing has committed yet", which only
-  // happens before the first entry of a run resolves. Pushing a layer for it
-  // would put an empty plate on screen and then make the real first frame slide
-  // in as though the queue had stepped.
   const sig = art?.key ? `${art.key}|${art.mode}|${art.src ?? ""}|${art.poster ?? ""}` : "";
 
-  useEffect(() => {
-    if (!art || !sig) {
-      setLayers((prev) => (prev.length === 0 ? prev : []));
-      return;
-    }
-    setLayers((prev) => {
-      const last = prev[prev.length - 1];
-      if (last?.sig === sig) return prev;
-      // The ladder upgrading a composite into the real backdrop is the same
-      // entry, not a step. Sliding it would read as the queue moving on its own.
+  if (!art || !sig) {
+    if (layers.length > 0) setLayerState((prev) => ({ ...prev, layers: [] }));
+  } else {
+    const last = layers[layers.length - 1];
+    if (last?.sig !== sig) {
       const stepped = Boolean(last) && last.art.key !== art.key;
-      seq.current += 1;
-      return [
-        ...prev.slice(-1),
-        {
-          id: seq.current,
-          sig,
-          art,
-          ordinal,
-          first: prev.length === 0,
-          slide: stepped && !reduce ? (rtl ? -dir : dir) * SLIDE : 0,
-        },
-      ];
-    });
-  }, [sig, art, ordinal, dir, rtl, reduce]);
+      const nextLayer: Layer = {
+        id: layerState.nextId,
+        sig,
+        art,
+        ordinal,
+        first: layers.length === 0,
+        slide: stepped && !reduce ? (rtl ? -dir : dir) * SLIDE : 0,
+      };
+      setLayerState({
+        layers: [...layers.slice(-1), nextLayer],
+        nextId: layerState.nextId + 1,
+      });
+    }
+  }
 
   useEffect(() => {
     if (layers.length < 2) return;
-    const id = window.setTimeout(() => setLayers((prev) => prev.slice(-1)), PRUNE_MS);
+    const id = window.setTimeout(
+      () => setLayerState((prev) => ({ ...prev, layers: prev.layers.slice(-1) })),
+      PRUNE_MS,
+    );
     return () => window.clearTimeout(id);
   }, [layers]);
 

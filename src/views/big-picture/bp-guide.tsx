@@ -172,12 +172,9 @@ export function BpGuide({
     });
   }, [rows, resetKey, setAnchorMs]);
 
-  useEffect(() => {
-    if (rows.length === 0) return;
-    setCursor((cur) =>
-      cur.row < rows.length ? cur : { row: rows.length - 1, kind: "channel", cellStart: 0 },
-    );
-  }, [rows.length]);
+  if (rows.length > 0 && cursor.row >= rows.length) {
+    setCursor({ row: rows.length - 1, kind: "channel", cellStart: 0 });
+  }
 
   const range = bpMountRange(cursor.row, rows.length, metrics?.rowsVisible ?? 1);
   const lanes: BpGuideCell[][] = [];

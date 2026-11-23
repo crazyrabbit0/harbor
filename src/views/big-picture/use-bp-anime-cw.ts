@@ -31,6 +31,8 @@ function readAtVersion<T>(_version: unknown, read: () => T): T {
 }
 
 const CW_CAP = 20;
+const EMPTY_LIB: LibraryItem[] = [];
+const EMPTY_ADDON_ROWS: AddonRow[] = [];
 // Each root is a walk of up to eight sequential kitsu calls, and the pool this
 // runs over is the whole anime library, not the capped row.
 const ROOT_LANES = 4;
@@ -93,22 +95,27 @@ export function useBpAnimeCwBase(): BpAnimeCwBase {
   const trackerCw = useExternalCw(!hideSharedCw && (cwSources.trakt || cwSources.simkl));
   const localCwVer = useSyncExternalStore(subscribeLocalCw, localCwVersion);
   const manualWatchedVer = useSyncExternalStore(subscribeManualWatched, manualWatchedVersion);
-  const [libItems, setLibItems] = useState<LibraryItem[]>([]);
-  const [addonRows, setAddonRows] = useState<AddonRow[]>([]);
+  const [libState, setLibState] = useState<{ authKey: string | null; items: LibraryItem[] }>({
+    authKey: null,
+    items: EMPTY_LIB,
+  });
+  const [addonState, setAddonState] = useState<{ authKey: string | null; rows: AddonRow[] }>({
+    authKey: null,
+    rows: EMPTY_ADDON_ROWS,
+  });
   const [rootVersion, setRootVersion] = useState(0);
+  const libItems = authKey && libState.authKey === authKey ? libState.items : EMPTY_LIB;
+  const addonRows = authKey && addonState.authKey === authKey ? addonState.rows : EMPTY_ADDON_ROWS;
 
   useEffect(() => {
-    if (!authKey) {
-      setLibItems([]);
-      return;
-    }
+    if (!authKey) return;
     const load = () => {
       library(authKey)
         .then((li) => {
-          setLibItems(li);
+          setLibState({ authKey, items: li });
           if (!hideSharedCw) absorbCloudAnimeCw(li);
         })
-        .catch(() => setLibItems([]));
+        .catch(() => setLibState({ authKey, items: EMPTY_LIB }));
     };
     load();
     const refresh = () => {
@@ -122,11 +129,8 @@ export function useBpAnimeCwBase(): BpAnimeCwBase {
   // addon whenever that toggle moves. Keyed on authKey alone, and the returned canceller
   // is what stops a stale sign-in's rows from landing after a switch.
   useEffect(() => {
-    if (!authKey) {
-      setAddonRows([]);
-      return;
-    }
-    return loadAnimeAddonRows(authKey, setAddonRows);
+    if (!authKey) return;
+    return loadAnimeAddonRows(authKey, (rows) => setAddonState({ authKey, rows }));
   }, [authKey]);
 
   const activeProfileId = activeProfile?.id;

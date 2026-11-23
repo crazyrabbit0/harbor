@@ -18,6 +18,9 @@ import { parseTs } from "@/views/library/shared";
 import type { BpLibEntry, BpLibFeed, BpLibGroup, BpLibStatus } from "./bp-library-types";
 
 const EMPTY: BpLibFeed = { entries: [], status: "ready", groups: [] };
+const EMPTY_ANILIST: AnilistMediaEntry[] = [];
+const EMPTY_MAL: MalListEntry[] = [];
+const EMPTY_ENTRIES: BpLibEntry[] = [];
 
 const ANILIST_GROUPS: Array<BpLibGroup & { statuses: string[] }> = [
   { id: "watching", label: "Watching", statuses: ["CURRENT", "REPEATING"] },
@@ -46,32 +49,57 @@ function groupOf(groups: Array<BpLibGroup & { statuses: string[] }>, status: str
 function useAnilistFeed(enabled: boolean, reload: number): BpLibFeed {
   const { session } = useAnilist();
   const userId = session?.userId;
-  const [raw, setRaw] = useState<AnilistMediaEntry[]>([]);
-  const [status, setStatus] = useState<BpLibStatus>("loading");
+  const reqKey = enabled && userId != null ? `${userId}:${reload}` : "";
+  const [state, setState] = useState<{
+    userId: number | undefined;
+    key: string;
+    raw: AnilistMediaEntry[];
+    status: BpLibStatus;
+  }>({ userId: undefined, key: "", raw: EMPTY_ANILIST, status: "loading" });
 
   useEffect(() => {
     if (!enabled || userId == null) return;
     let alive = true;
-    const cached = readCachedCollection(userId);
-    if (cached) {
-      setRaw(cached.flatMap((g) => g.entries));
-      setStatus("ready");
-    } else {
-      setStatus("loading");
-    }
     fetchMediaListCollection(userId)
       .then((groups) => {
         if (!alive) return;
-        setRaw(groups.flatMap((g) => g.entries));
-        setStatus("ready");
+        setState({ userId, key: reqKey, raw: groups.flatMap((g) => g.entries), status: "ready" });
       })
       .catch(() => {
-        if (alive && readCachedCollection(userId) == null) setStatus("error");
+        if (alive && readCachedCollection(userId) == null) {
+          setState((cur) => ({
+            userId,
+            key: reqKey,
+            raw: cur.userId === userId ? cur.raw : EMPTY_ANILIST,
+            status: "error",
+          }));
+        }
       });
     return () => {
       alive = false;
     };
-  }, [enabled, userId, reload]);
+  }, [enabled, userId, reqKey]);
+
+  const cached = useMemo(
+    () =>
+      enabled && userId != null
+        ? (readCachedCollection(userId)?.flatMap((g) => g.entries) ?? null)
+        : null,
+    [enabled, userId],
+  );
+
+  const raw =
+    state.key === reqKey && reqKey !== ""
+      ? state.raw
+      : (cached ?? (state.userId === userId ? state.raw : EMPTY_ANILIST));
+  const status: BpLibStatus =
+    !enabled || userId == null
+      ? "loading"
+      : state.key === reqKey
+        ? state.status
+        : cached
+          ? "ready"
+          : "loading";
 
   const entries = useMemo(() => {
     const out: BpLibEntry[] = [];
@@ -93,32 +121,46 @@ function useAnilistFeed(enabled: boolean, reload: number): BpLibFeed {
 
 function useMalFeed(enabled: boolean, reload: number): BpLibFeed {
   const { isConnected } = useMal();
-  const [raw, setRaw] = useState<MalListEntry[]>([]);
-  const [status, setStatus] = useState<BpLibStatus>("loading");
+  const reqKey = enabled && isConnected ? String(reload) : "";
+  const [state, setState] = useState<{
+    key: string;
+    raw: MalListEntry[];
+    status: BpLibStatus;
+  }>({ key: "", raw: EMPTY_MAL, status: "loading" });
 
   useEffect(() => {
     if (!enabled || !isConnected) return;
     let alive = true;
-    const cached = readCachedMalList();
-    if (cached) {
-      setRaw(cached.flatMap((g) => g.entries));
-      setStatus("ready");
-    } else {
-      setStatus("loading");
-    }
     fetchMalList()
       .then((groups) => {
         if (!alive) return;
-        setRaw(groups.flatMap((g) => g.entries));
-        setStatus("ready");
+        setState({ key: reqKey, raw: groups.flatMap((g) => g.entries), status: "ready" });
       })
       .catch(() => {
-        if (alive && readCachedMalList() == null) setStatus("error");
+        if (alive && readCachedMalList() == null) {
+          setState((cur) => ({ key: reqKey, raw: cur.raw, status: "error" }));
+        }
       });
     return () => {
       alive = false;
     };
-  }, [enabled, isConnected, reload]);
+  }, [enabled, isConnected, reqKey]);
+
+  const cached = useMemo(
+    () =>
+      enabled && isConnected ? (readCachedMalList()?.flatMap((g) => g.entries) ?? null) : null,
+    [enabled, isConnected],
+  );
+
+  const raw = state.key === reqKey && reqKey !== "" ? state.raw : (cached ?? state.raw);
+  const status: BpLibStatus =
+    !enabled || !isConnected
+      ? "loading"
+      : state.key === reqKey
+        ? state.status
+        : cached
+          ? "ready"
+          : "loading";
 
   const entries = useMemo(() => {
     const out: BpLibEntry[] = [];
@@ -154,32 +196,44 @@ function simklIdIndex(cache: SimklCache): Map<number, string> {
 
 function useSimklFeed(enabled: boolean, reload: number): BpLibFeed {
   const { isConnected } = useSimkl();
-  const [cache, setCache] = useState<SimklCache | null>(null);
-  const [status, setStatus] = useState<BpLibStatus>("loading");
+  const reqKey = enabled && isConnected ? String(reload) : "";
+  const [state, setState] = useState<{
+    key: string;
+    cache: SimklCache | null;
+    status: BpLibStatus;
+  }>({ key: "", cache: null, status: "loading" });
 
   useEffect(() => {
     if (!enabled || !isConnected) return;
     let alive = true;
-    const local = getLocalCache();
-    if (local) {
-      setCache(local);
-      setStatus("ready");
-    } else {
-      setStatus("loading");
-    }
     syncWatchlistCache()
       .then((next) => {
         if (!alive) return;
-        setCache(next);
-        setStatus("ready");
+        setState({ key: reqKey, cache: next, status: "ready" });
       })
       .catch(() => {
-        if (alive && !getLocalCache()) setStatus("error");
+        if (alive && !getLocalCache()) {
+          setState((cur) => ({ key: reqKey, cache: cur.cache, status: "error" }));
+        }
       });
     return () => {
       alive = false;
     };
-  }, [enabled, isConnected, reload]);
+  }, [enabled, isConnected, reqKey]);
+
+  const local = useMemo(
+    () => (enabled && isConnected ? getLocalCache() : null),
+    [enabled, isConnected],
+  );
+  const cache = state.key === reqKey && reqKey !== "" ? state.cache : (local ?? state.cache);
+  const status: BpLibStatus =
+    !enabled || !isConnected
+      ? "loading"
+      : state.key === reqKey
+        ? state.status
+        : local
+          ? "ready"
+          : "loading";
 
   const entries = useMemo(() => {
     if (!cache) return [];
@@ -209,36 +263,45 @@ function useSimklFeed(enabled: boolean, reload: number): BpLibFeed {
 function useLetterboxdFeed(enabled: boolean, reload: number): BpLibFeed {
   const { session, configSegment } = useLetterboxd();
   const userId = session?.userId ?? null;
-  const [entries, setEntries] = useState<BpLibEntry[]>([]);
-  const [status, setStatus] = useState<BpLibStatus>("loading");
+  const reqKey = enabled ? `${userId ?? ""}\0${configSegment ?? ""}\0${reload}` : "";
+  const [state, setState] = useState<{
+    key: string;
+    entries: BpLibEntry[];
+    status: BpLibStatus;
+  }>({ key: "", entries: EMPTY_ENTRIES, status: "loading" });
 
   useEffect(() => {
     if (!enabled) return;
     let alive = true;
-    setStatus("loading");
     const page = userId
       ? fetchFullModeCatalog(userId, "letterboxd-watchlist", 0)
       : fetchStremboxdCatalog(configSegment, "letterboxd-watchlist", 0);
     page
       .then((result) => {
         if (!alive) return;
-        setEntries(
-          result.metas.map((m) => {
+        setState({
+          key: reqKey,
+          entries: result.metas.map((m) => {
             const meta = stremboxdMetaToMeta(m);
             return { key: meta.id, meta, date: null };
           }),
-        );
-        setStatus("ready");
+          status: "ready",
+        });
       })
       .catch(() => {
-        if (alive) setStatus("error");
+        if (alive) setState((cur) => ({ key: reqKey, entries: cur.entries, status: "error" }));
       });
     return () => {
       alive = false;
     };
-  }, [enabled, userId, configSegment, reload]);
+  }, [enabled, userId, configSegment, reqKey]);
 
-  return { entries, status, groups: [] };
+  const status: BpLibStatus = !enabled
+    ? "loading"
+    : state.key === reqKey
+      ? state.status
+      : "loading";
+  return { entries: state.entries, status, groups: [] };
 }
 
 export function useBpServiceFeed(tab: string, reload: number): BpLibFeed {

@@ -26,10 +26,9 @@ export function useBpSportsCycle(
     countRef.current = count;
   }, [count]);
 
-  useEffect(() => {
-    if (count === 0 || index < count) return;
+  if (count > 0 && index >= count) {
     setIndex(0);
-  }, [count, index]);
+  }
 
   useEffect(() => {
     if (!enabled || count < 2) return;

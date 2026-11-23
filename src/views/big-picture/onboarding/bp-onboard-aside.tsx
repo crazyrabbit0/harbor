@@ -1,13 +1,14 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+const NOOP_SUBSCRIBE = () => () => {};
+const readAsideHost = () =>
+  typeof document === "undefined"
+    ? null
+    : document.querySelector<HTMLElement>("[data-bp-onboard-aside]");
+
 export function BpOnboardAside({ children }: { children: ReactNode }) {
-  const [host, setHost] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    setHost(document.querySelector<HTMLElement>("[data-bp-onboard-aside]"));
-  }, []);
-
+  const host = useSyncExternalStore(NOOP_SUBSCRIBE, readAsideHost);
   if (!host) return null;
 
   return createPortal(

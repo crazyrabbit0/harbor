@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import { bpPlatform } from "./bp-platform";
 import { bpArtTintsLoad, bpArtTintsSave } from "./bp-home-cache";
 
@@ -301,23 +301,17 @@ function enqueue(src: string): void {
 }
 
 export function useArtGlow(src: string | undefined): string | null {
-  const [color, setColor] = useState<string | null>(() => (src ? (cache.get(src) ?? null) : null));
+  const [resolved, setResolved] = useState<{ src: string; value: string | null } | null>(null);
+  const cached = src && cache.has(src) ? (cache.get(src) ?? null) : undefined;
 
   useEffect(() => {
-    if (!src) {
-      setColor(null);
-      return;
-    }
-    if (cache.has(src)) {
-      setColor(cache.get(src) ?? null);
-      return;
-    }
+    if (!src || cache.has(src)) return;
     let alive = true;
     const timer = window.setTimeout(() => {
       const pending = inflight.get(src) ?? extract(src).then((value) => remember(src, value));
       inflight.set(src, pending);
       void pending.then((value) => {
-        if (alive) setColor(value);
+        if (alive) setResolved({ src, value });
       });
     }, SETTLE_MS);
     return () => {
@@ -326,7 +320,9 @@ export function useArtGlow(src: string | undefined): string | null {
     };
   }, [src]);
 
-  return color;
+  if (!src) return null;
+  if (cached !== undefined) return cached;
+  return resolved?.src === src ? resolved.value : null;
 }
 
 /**
@@ -340,30 +336,22 @@ export function useArtGlow(src: string | undefined): string | null {
  * screen becomes a real second request instead of a cache read.
  */
 export function useArtTint(src: string | undefined, loaded: boolean): string | null {
-  const [tint, setTint] = useState<string | null>(() => (src ? (cache.get(src) ?? null) : null));
-
-  useEffect(() => {
-    if (!src) {
-      setTint(null);
-      return;
-    }
-    const known = cache.get(src);
-    setTint(known ?? null);
-    if (known !== undefined) return;
-    hydrate();
-    let alive = true;
-    const sink = (value: string | null) => {
-      if (alive) setTint(value);
-    };
-    const set = subs.get(src) ?? new Set<(value: string | null) => void>();
-    set.add(sink);
-    subs.set(src, set);
-    return () => {
-      alive = false;
-      set.delete(sink);
-      if (set.size === 0) subs.delete(src);
-    };
-  }, [src]);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      if (!src || cache.has(src)) return () => {};
+      hydrate();
+      const set = subs.get(src) ?? new Set<(value: string | null) => void>();
+      set.add(onStoreChange);
+      subs.set(src, set);
+      return () => {
+        set.delete(onStoreChange);
+        if (set.size === 0) subs.delete(src);
+      };
+    },
+    [src],
+  );
+  const getSnapshot = useCallback(() => (src ? (cache.get(src) ?? null) : null), [src]);
+  const tint = useSyncExternalStore(subscribe, getSnapshot);
 
   useEffect(() => {
     if (!src || !loaded) return;

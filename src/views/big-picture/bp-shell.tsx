@@ -130,6 +130,7 @@ export function BigPictureShell() {
   const { active, stack } = useBigPicture();
   const { picker, player } = useView();
   const route = stack[stack.length - 1] ?? { kind: "home" as const };
+  const routeId = routeKey(route);
   const rootRef = useRef<HTMLDivElement | null>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
   const kid = useActiveKid();
@@ -143,6 +144,11 @@ export function BigPictureShell() {
   const [confirmExit, setConfirmExit] = useState(false);
   const [phoneOpen, setPhoneOpen] = useState(false);
   const [sources, setSources] = useState<BpSourcesTarget | null>(null);
+  const [prevRouteId, setPrevRouteId] = useState(routeId);
+  if (prevRouteId !== routeId) {
+    setPrevRouteId(routeId);
+    if (sources !== null) setSources(null);
+  }
   const who = useBpWhoLayer();
   const tabGate = useBpTabGate();
   const tabOrder = useMemo(() => bpTabKinds(tabGate), [tabGate]);
@@ -376,16 +382,6 @@ export function BigPictureShell() {
     },
     [],
   );
-
-  const routeId = routeKey(route);
-  // Route only. This used to list `player` as well, which tore the source list
-  // down the moment playback opened, so Back out of a stream that never started
-  // landed on the detail page instead of the list the user was mid-choice in.
-  // BpStreams latches autoFiredRef once it has fired, so keeping it mounted
-  // across a playback session cannot re-fire auto.
-  useEffect(() => {
-    setSources(null);
-  }, [routeId]);
 
   const rootStyle = useMemo<CSSProperties | undefined>(() => {
     const o = bpOverscan();

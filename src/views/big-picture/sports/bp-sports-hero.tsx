@@ -56,11 +56,13 @@ function BpSportsFaceOffSide({
   mirrored: boolean;
 }) {
   const list = useMemo(() => sources.filter((src) => src.length > 0), [sources]);
-  const [at, setAt] = useState(0);
   const chain = list.join("|");
-  useEffect(() => {
+  const [prevChain, setPrevChain] = useState(chain);
+  const [at, setAt] = useState(0);
+  if (prevChain !== chain) {
+    setPrevChain(chain);
     setAt(0);
-  }, [chain]);
+  }
   const src = list[at];
   if (!src) return <span className="h-full w-1/2" />;
   return (
@@ -119,12 +121,13 @@ function BpSportsHeroMark({
   alt: string;
 }) {
   const list = useMemo(() => sources.filter((src) => src.length > 0), [sources]);
-  const [at, setAt] = useState(0);
   const chain = list.join("|");
-
-  useEffect(() => {
+  const [prevChain, setPrevChain] = useState(chain);
+  const [at, setAt] = useState(0);
+  if (prevChain !== chain) {
+    setPrevChain(chain);
     setAt(0);
-  }, [chain]);
+  }
 
   const src = list[at];
   if (!src)

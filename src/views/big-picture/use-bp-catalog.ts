@@ -56,30 +56,21 @@ export function useBpCatalog(): BpCatalog {
   ].join(":");
 
   const primed = cache?.key === key ? cache.built : null;
-  const [built, setBuilt] = useState<Built>(primed ?? EMPTY);
-  const [loading, setLoading] = useState(!primed);
-  const [failed, setFailed] = useState(false);
+  const [state, setState] = useState<{
+    key: string;
+    built: Built;
+    loading: boolean;
+    failed: boolean;
+  }>({ key: "", built: EMPTY, loading: true, failed: false });
 
   useEffect(() => {
-    if (cache?.key === key) {
-      setBuilt(cache.built);
-      setLoading(false);
-      return;
-    }
+    if (cache?.key === key) return;
     let alive = true;
     let live = false;
-    setLoading(true);
-    setFailed(false);
 
-    // Last session's shelves, drawn while this session's are still in flight.
-    // A television kills the process between sessions, so the module cache
-    // above is always cold on the boot that matters and the viewer used to
-    // watch an empty screen for twenty seconds. Never allowed to land on top
-    // of a live build that already finished.
     void bpHomeCacheLoad(key).then((snap) => {
       if (!alive || live || !snap) return;
-      setBuilt(snap);
-      setLoading(false);
+      setState({ key, built: snap, loading: false, failed: false });
     });
 
     const run = async () => {
@@ -90,9 +81,7 @@ export function useBpCatalog(): BpCatalog {
       const merged = { rows: mergeRows(base.rows, []), hero: base.hero };
       live = true;
       cache = { key, built: merged };
-      setBuilt(merged);
-      setFailed(merged.rows.length === 0);
-      setLoading(false);
+      setState({ key, built: merged, loading: false, failed: merged.rows.length === 0 });
       void bpHomeCacheSave(key, merged);
 
       const dedup = !classic && !settings.homeShowAllAddonRows;
@@ -101,13 +90,17 @@ export function useBpCatalog(): BpCatalog {
       const usable = usableAddonRows(addons, classic);
       const withAddons = { rows: mergeRows(base.rows, usable, { dedup }), hero: base.hero };
       cache = { key, built: withAddons };
-      setBuilt(withAddons);
+      setState({ key, built: withAddons, loading: false, failed: false });
       void bpHomeCacheSave(key, withAddons);
     };
     void run().catch(() => {
       if (alive) {
-        setFailed(true);
-        setLoading(false);
+        setState((cur) => ({
+          key,
+          built: cur.key === key ? cur.built : EMPTY,
+          loading: false,
+          failed: true,
+        }));
       }
     });
 
@@ -115,6 +108,10 @@ export function useBpCatalog(): BpCatalog {
       alive = false;
     };
   }, [key, authKey]);
+
+  const built = primed ?? (state.key === key ? state.built : EMPTY);
+  const loading = primed ? false : state.key === key ? state.loading : true;
+  const failed = primed ? false : state.key === key ? state.failed : false;
 
   const ordered = useMemo(() => {
     const seen = new Set<string>();

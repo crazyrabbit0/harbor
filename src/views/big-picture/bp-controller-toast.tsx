@@ -105,7 +105,9 @@ export function BpControllerToast() {
   const t = useBpT();
   const seqRef = useRef(0);
   const [pad, setPad] = useState<{ kind: Kind; key: number } | null>(null);
-  const [shown, setShown] = useState(false);
+  const [shownKey, setShownKey] = useState<number | null>(null);
+  const shown = pad !== null && shownKey === pad.key;
+  const padKey = pad?.key;
 
   // Chromium withholds gamepadconnected until the pad sends its first input, a
   // privacy gate no path here can skip, so a freshly plugged pad announces on its
@@ -123,17 +125,16 @@ export function BpControllerToast() {
   // Under reduced motion the token sheet flattens the transition to a cut, so the
   // card still appears and the timers still retire it, without the travel.
   useEffect(() => {
-    if (!pad) return;
-    setShown(false);
-    const raise = window.setTimeout(() => setShown(true), 30);
-    const drop = window.setTimeout(() => setShown(false), 3000);
+    if (padKey == null) return;
+    const raise = window.setTimeout(() => setShownKey(padKey), 30);
+    const drop = window.setTimeout(() => setShownKey(null), 3000);
     const end = window.setTimeout(() => setPad(null), 3360);
     return () => {
       window.clearTimeout(raise);
       window.clearTimeout(drop);
       window.clearTimeout(end);
     };
-  }, [pad?.key]);
+  }, [padKey]);
 
   if (!pad) return null;
 

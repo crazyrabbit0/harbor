@@ -13,6 +13,8 @@ import { useBpKeyed } from "./use-bp-keyed";
 const ANIME_ID = /^(kitsu|mal|anilist):/;
 
 const NO_IDS: string[] = [];
+const EMPTY_WATCHED = new Map<string, Set<string>>();
+const EMPTY_STATUS = new Map<string, WatchlistStatus>();
 
 export type BpAnimeWatched = {
   simklWatched: Map<string, Set<string>>;
@@ -24,25 +26,31 @@ export type BpAnimeWatched = {
 
 export function useBpAnimeWatched(ids: string[]): BpAnimeWatched {
   const { isConnected: simklConnected } = useSimkl();
-  const [simklWatched, setSimklWatched] = useState<Map<string, Set<string>>>(() => new Map());
-  const [simklStatus, setSimklStatus] = useState<Map<string, WatchlistStatus>>(() => new Map());
+  const [simklWatchedState, setSimklWatchedState] =
+    useState<Map<string, Set<string>>>(EMPTY_WATCHED);
+  const [simklStatusState, setSimklStatusState] =
+    useState<Map<string, WatchlistStatus>>(EMPTY_STATUS);
   const [anilistWatched, setAnilistWatched] = useState<Map<string, Set<string>>>(() => new Map());
 
+  if (!simklConnected && (simklWatchedState.size > 0 || simklStatusState.size > 0)) {
+    setSimklWatchedState(EMPTY_WATCHED);
+    setSimklStatusState(EMPTY_STATUS);
+  }
+
+  const simklWatched = simklConnected ? simklWatchedState : EMPTY_WATCHED;
+  const simklStatus = simklConnected ? simklStatusState : EMPTY_STATUS;
+
   useEffect(() => {
-    if (!simklConnected) {
-      setSimklWatched(new Map());
-      setSimklStatus(new Map());
-      return;
-    }
+    if (!simklConnected) return;
     let cancelled = false;
     loadSimklWatchedMap()
       .then((m) => {
-        if (!cancelled) setSimklWatched(m);
+        if (!cancelled) setSimklWatchedState(m);
       })
       .catch(() => {});
     loadSimklStatusMap()
       .then((m) => {
-        if (!cancelled) setSimklStatus(m);
+        if (!cancelled) setSimklStatusState(m);
       })
       .catch(() => {});
     return () => {

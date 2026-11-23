@@ -38,19 +38,22 @@ export function useBpMovies(): BpMoviesPage {
   return { ...page, rows, runtimeTitleKeys };
 }
 
+const EMPTY_ROWS: HomeRow[] = [];
+
 function useBpLetterboxdRows(): HomeRow[] {
   const letterboxd = useLetterboxd();
-  const [rows, setRows] = useState<HomeRow[]>([]);
+  const [rows, setRows] = useState<HomeRow[]>(EMPTY_ROWS);
   const ready =
     letterboxd.isActive &&
     !(letterboxd.mode === "full" && !letterboxd.session) &&
     !(letterboxd.mode === "public" && !letterboxd.configSegment);
 
+  if (!ready && rows.length > 0) {
+    setRows(EMPTY_ROWS);
+  }
+
   useEffect(() => {
-    if (!ready) {
-      setRows([]);
-      return;
-    }
+    if (!ready) return;
     let cancelled = false;
     buildLetterboxdHomeRows({
       configSegment: letterboxd.configSegment,
@@ -77,5 +80,5 @@ function useBpLetterboxdRows(): HomeRow[] {
     letterboxd.listRefs,
   ]);
 
-  return rows;
+  return ready ? rows : EMPTY_ROWS;
 }

@@ -252,22 +252,25 @@ export function BpTopBar({ active }: { active: BigPictureTabKind }) {
   const cog = useMemo(() => tabs.find((tab) => tab.kind === "settings"), [tabs]);
   const trackRef = useRef<HTMLDivElement | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
-  const [hint, setHint] = useState<BpHint>(null);
+  const [hintState, setHintState] = useState<{ active: BigPictureTabKind; hint: BpHint }>({
+    active,
+    hint: null,
+  });
+  const hint = hintState.active === active ? hintState.hint : null;
 
-  const onHint = useCallback((el: HTMLElement | null, label: string) => {
-    const nav = navRef.current;
-    if (!el || !nav || !label) {
-      setHint(null);
-      return;
-    }
-    const a = el.getBoundingClientRect();
-    const b = nav.getBoundingClientRect();
-    setHint({ x: a.left - b.left + a.width / 2, label });
-  }, []);
-
-  // The strip scrolls itself to the active tab, and a hint measured before that
-  // scroll would sit over the wrong icon.
-  useEffect(() => setHint(null), [active]);
+  const onHint = useCallback(
+    (el: HTMLElement | null, label: string) => {
+      const nav = navRef.current;
+      if (!el || !nav || !label) {
+        setHintState({ active, hint: null });
+        return;
+      }
+      const a = el.getBoundingClientRect();
+      const b = nav.getBoundingClientRect();
+      setHintState({ active, hint: { x: a.left - b.left + a.width / 2, label } });
+    },
+    [active],
+  );
 
   // Reaching a tab through a click or the shoulder cycle leaves focus on the
   // page body, so nothing else ever scrolls the strip to the current tab.

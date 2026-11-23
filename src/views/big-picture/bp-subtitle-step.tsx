@@ -33,12 +33,11 @@ export function BpSubtitleStep({
   const { loading, error, results, groups, bestId } = useSubtitleChoices(src);
   const [selected, setSelected] = useState<Selection>(null);
   const [activeLang, setActiveLang] = useState("all");
-  const inited = useRef(false);
+  const [inited, setInited] = useState(false);
   const seedRef = useRef<HTMLButtonElement | null>(null);
 
-  useEffect(() => {
-    if (loading || inited.current) return;
-    inited.current = true;
+  if (!loading && !inited) {
+    setInited(true);
     if (bestId) {
       setSelected(bestId);
       const g = groups.find((gr) => gr.items.some((it) => it.id === bestId));
@@ -46,7 +45,7 @@ export function BpSubtitleStep({
     } else {
       setSelected("off");
     }
-  }, [loading, bestId, groups]);
+  }
 
   useEffect(() => {
     const prev = currentBpFocus(document.querySelector<HTMLElement>("[data-bp-root]"));

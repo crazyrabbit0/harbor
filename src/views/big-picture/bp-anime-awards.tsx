@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Trophy } from "lucide-react";
 import {
   allAwardSources,
@@ -41,17 +41,17 @@ export function BpAnimeAward({
 }) {
   const t = useBpT();
   const { custom } = useAwardPacks();
+  const [prevPropSource, setPrevPropSource] = useState(sourceId);
   const [source, setSource] = useState<AwardSourceId>(sourceId ?? "crunchyroll");
-  const [year, setYear] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (!sourceId) return;
-    setSource(sourceId);
-  }, [sourceId]);
-
-  useEffect(() => {
-    setYear(null);
-  }, [source]);
+  if (sourceId !== prevPropSource) {
+    setPrevPropSource(sourceId);
+    if (sourceId) setSource(sourceId);
+  }
+  const [yearState, setYearState] = useState<{ source: AwardSourceId; year: number | null }>({
+    source,
+    year: null,
+  });
+  const year = yearState.source === source ? yearState.year : null;
 
   const data = useMemo(() => readAnimeAwardSource(source), [source]);
   const sources = useMemo(() => allAwardSources(), []);
@@ -137,7 +137,7 @@ export function BpAnimeAward({
               label={t("All years")}
               count={totalWins}
               selected={year === null}
-              onSelect={() => setYear(null)}
+              onSelect={() => setYearState({ source, year: null })}
             />
             {data.years.map((y) => (
               <BpChip
@@ -146,7 +146,7 @@ export function BpAnimeAward({
                 count={perYear.get(y)}
                 ariaLabel={`${y}, ${t("{n} winners", { n: perYear.get(y) ?? 0 })}`}
                 selected={year === y}
-                onSelect={() => setYear(year === y ? null : y)}
+                onSelect={() => setYearState({ source, year: year === y ? null : y })}
               />
             ))}
           </BpChipRow>

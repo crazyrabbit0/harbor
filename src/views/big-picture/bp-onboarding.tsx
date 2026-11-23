@@ -203,14 +203,10 @@ export function useBpOnboardingGate(ready: boolean): BpOnboardingGate {
   const [snoozed, setSnoozed] = useState(false);
   const [resumeIndex, setResumeIndex] = useState(readResumeIndex);
 
-  // The shell keeps this component mounted across Big Picture sessions, so
-  // without a reset on the way out a Finish later would hide setup for the
-  // rest of the app run rather than for this visit.
-  useEffect(() => {
-    if (active || !snoozed) return;
+  if (!active && snoozed) {
     setSnoozed(false);
     setResumeIndex(readResumeIndex());
-  }, [active, snoozed]);
+  }
 
   const suspend = useCallback(() => setSnoozed(true), []);
 

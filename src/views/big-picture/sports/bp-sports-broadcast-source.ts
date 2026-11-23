@@ -31,6 +31,7 @@ const LEAGUE_GAMES: Record<string, EsportsGameId> = {
 };
 
 const NEAR_MS = 3 * 60 * 60_000;
+const EMPTY_FEED: EsportsStream[] = [];
 
 function bpEsportsGameId(league: string, source?: string): EsportsGameId | null {
   if (source === "opendota") return "dota2";
@@ -99,26 +100,33 @@ export type BpBroadcasts = {
 export function useBpOfficialBroadcasts(game: SportsGame): BpBroadcasts {
   const { league, source, id } = game;
   const catalog = useMemo(() => bpCatalogBroadcasts(league, source), [league, source]);
-  const [feed, setFeed] = useState<EsportsStream[]>([]);
+  const reqKey = `${league}\0${source ?? ""}\0${id}`;
+  const [feedState, setFeedState] = useState<{ key: string; streams: EsportsStream[] }>({
+    key: "",
+    streams: EMPTY_FEED,
+  });
   const gameRef = useRef(game);
   useLayoutEffect(() => {
     gameRef.current = game;
   }, [game]);
 
   useEffect(() => {
-    setFeed([]);
     const kind = bpEsportsGameId(league, source);
     if (!kind) return;
     const controller = new AbortController();
     void fetchEsportsFeed(kind, { signal: controller.signal })
       .then((result) => {
         if (controller.signal.aborted) return;
-        setFeed(playable(feedMatchFor(result.matches, gameRef.current)?.streams ?? []));
+        setFeedState({
+          key: reqKey,
+          streams: playable(feedMatchFor(result.matches, gameRef.current)?.streams ?? []),
+        });
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [league, source, id]);
+  }, [reqKey, league, source]);
 
+  const feed = feedState.key === reqKey ? feedState.streams : EMPTY_FEED;
   return useMemo(
     () => ({ list: playable([...feed, ...catalog]), onAir: feed.length > 0 }),
     [feed, catalog],

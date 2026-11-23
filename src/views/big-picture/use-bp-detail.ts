@@ -26,27 +26,29 @@ export function useBpDetail(metaId: string): BpDetailData {
   const { authKey } = useAuth();
   const { settings } = useSettings();
   const { type, id } = parseId(metaId);
+  const reqKey = `${metaId}\0${authKey ?? ""}\0${settings.tmdbKey}\0${settings.region}`;
+  const [prevReqKey, setPrevReqKey] = useState(reqKey);
   const seed = readBpMeta();
   const [meta, setMeta] = useState<Meta | null>(seed?.id === id ? seed : null);
-  // Seeded from the dwell prefetch the spotlight already ran for this card, so
-  // the page opens with its cast, ratings and tagline on it rather than filling
-  // them in once the duplicate request comes back. A miss is null, which is
-  // exactly what this used to start as.
+  // Seeded from the dwell prefetch the spotlight already ran for this card.
   const [detail, setDetail] = useState<TmdbDetail | null>(() => peekBpEnrich(id));
   const [collection, setCollection] = useState<{ name: string; parts: Meta[] } | null>(null);
   const [providers, setProviders] = useState<WatchProvider[]>(NO_PROVIDERS);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
+  if (prevReqKey !== reqKey) {
+    setPrevReqKey(reqKey);
+    setMeta(seed?.id === id ? seed : null);
     setDetail(peekBpEnrich(id));
     setCollection(null);
     setProviders(NO_PROVIDERS);
+    setLoading(true);
+  }
 
+  useEffect(() => {
+    let alive = true;
     const base = readBpMeta();
     const start: Meta = base?.id === id ? base : { id, type, name: "" };
-    if (base?.id === id) setMeta(base);
 
     (async () => {
       const fullP = resolveMeta(authKey, type, id).catch(() => null);

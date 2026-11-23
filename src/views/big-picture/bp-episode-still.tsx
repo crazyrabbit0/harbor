@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Star } from "lucide-react";
 import { ImdbIcon } from "@/components/icons/imdb-icon";
 import { useProxiedImageSrc } from "@/lib/remote-image-proxy";
@@ -86,17 +86,15 @@ export function BpEpisodeStill({
   label: number;
   backdrop?: string;
 }) {
+  const key = chain.join("|");
+  const [prevKey, setPrevKey] = useState(key);
   const [step, setStep] = useState(0);
   const [ready, setReady] = useState(false);
-  // enrichEpisodes fills thumbnails in after first paint, so the chain can change
-  // under a card that has already resolved. Without the ready reset the new url
-  // paints at full opacity before it has loaded, which reads as a blank frame
-  // rather than as art arriving.
-  const key = chain.join("|");
-  useEffect(() => {
+  if (prevKey !== key) {
+    setPrevKey(key);
     setStep(0);
     setReady(false);
-  }, [key]);
+  }
   const url = chain[step];
   const src = useProxiedImageSrc(url);
   // The bed is one series backdrop drawn at 25 percent behind a numeral in a

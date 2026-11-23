@@ -50,8 +50,15 @@ function BpSportsPage() {
   const sports = useBpSports(active);
   const { mode, group, rows, status, heroes, open, empty, setMode } = sports;
   const { personalized, setDay, today } = sports;
+  const resetKey = `${mode}\0${group}`;
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
   const [focused, setFocused] = useState<SportsGame | null>(null);
   const [browsed, setBrowsed] = useState("");
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    setFocused(null);
+    setBrowsed("");
+  }
   const [tuning, setTuning] = useState(false);
   const [watch, setWatch] = useState<BpSportsWatchFn>(null);
 
@@ -59,11 +66,6 @@ function BpSportsPage() {
     unpinBpMeta();
     forceBpMeta(null);
   }, []);
-
-  useEffect(() => {
-    setFocused(null);
-    setBrowsed("");
-  }, [mode, group]);
 
   const publishWatch = useCallback((next: BpSportsWatchFn) => setWatch(() => next), []);
 

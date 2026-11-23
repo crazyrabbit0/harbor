@@ -15,10 +15,15 @@ const MIN_AFTER_MOUNT_MS = 3500;
 export type BpIntroPhase = "showing" | "leaving" | "done";
 
 export function useBpIntro(active: boolean, contentReady: boolean): BpIntroPhase {
+  const [prevActive, setPrevActive] = useState(active);
   const [phase, setPhase] = useState<BpIntroPhase>(active ? "showing" : "done");
-  // contentReady flips mid-session and reruns this effect. Without a latch the
-  // rerun would put the splash back up over a screen the user is already using.
+  // contentReady flips mid-session and reruns this effect without resetting the splash.
   const leftRef = useRef(false);
+
+  if (prevActive !== active) {
+    setPrevActive(active);
+    setPhase(active ? "showing" : "done");
+  }
 
   // The fade-out timer lives in its own effect, keyed on the phase, because the
   // effect below reruns when contentReady flips. On a slow device the 8s cap
@@ -35,11 +40,9 @@ export function useBpIntro(active: boolean, contentReady: boolean): BpIntroPhase
   useEffect(() => {
     if (!active) {
       leftRef.current = false;
-      setPhase("done");
       return;
     }
     if (leftRef.current) return;
-    setPhase("showing");
 
     // Counted from when the viewer first saw a splash, not from this mount.
     // index-tv.html puts the boot splash up at about 1.7s and the bundle does

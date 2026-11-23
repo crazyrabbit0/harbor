@@ -31,15 +31,11 @@ export function bpRgbTriplet(value: string | undefined): string {
 // Two persistent layers crossfade instead.
 export function useBpPair(next: string | undefined): BpPair {
   const [pair, setPair] = useState<BpPair>({ a: "", b: "", front: "a" });
-  useEffect(() => {
-    if (!next) return;
-    setPair((prev) => {
-      if (prev[prev.front] === next) return prev;
-      return prev.front === "a"
-        ? { a: prev.a, b: next, front: "b" }
-        : { a: next, b: prev.b, front: "a" };
-    });
-  }, [next]);
+  if (next && pair[pair.front] !== next) {
+    setPair(
+      pair.front === "a" ? { a: pair.a, b: next, front: "b" } : { a: next, b: pair.b, front: "a" },
+    );
+  }
   return pair;
 }
 

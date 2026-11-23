@@ -102,12 +102,13 @@ export function useBpArt({
 }: BpArtSource): BpArt {
   const { settings } = useSettings();
   const tmdbKey = settings.tmdbKey ?? null;
-  const [found, setFound] = useState<{ poster?: string; background?: string }>();
+  const [foundState, setFoundState] = useState<{
+    id: string;
+    poster?: string;
+    background?: string;
+  }>();
   const [, redraw] = useState(0);
-
-  useEffect(() => {
-    setFound(undefined);
-  }, [id]);
+  const found = foundState?.id === id ? foundState : undefined;
 
   // Two picks, not one: a custom poster that 404s has to fall back to the plain
   // one, and a single pick would report NONE and send the tile off to hydrate
@@ -138,7 +139,8 @@ export function useBpArt({
       );
       pending
         .then((full) => {
-          if (alive && full) setFound({ poster: full.poster, background: full.background });
+          if (alive && full)
+            setFoundState({ id, poster: full.poster, background: full.background });
         })
         .catch(() => {});
     });

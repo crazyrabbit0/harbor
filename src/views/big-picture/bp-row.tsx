@@ -108,16 +108,21 @@ export function BpRow({
   const { settings } = useSettings();
   const sectionRef = useRef<HTMLElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
+  const rowKey = row?.key;
+  const [prevRowKey, setPrevRowKey] = useState(rowKey);
   const [shown, setShown] = useState(CHUNK);
   const [extra, setExtra] = useState<Meta[]>([]);
+  if (prevRowKey !== rowKey) {
+    setPrevRowKey(rowKey);
+    setExtra([]);
+    setShown(CHUNK);
+  }
   const pageRef = useRef(row?.page ?? 1);
   const exhaustedRef = useRef(!row?.fetcher || !row?.hasMore);
   const busyRef = useRef(false);
   const ranked = shape === "rank";
 
   useEffect(() => {
-    setExtra([]);
-    setShown(CHUNK);
     pageRef.current = row?.page ?? 1;
     exhaustedRef.current = !row?.fetcher || !row?.hasMore;
   }, [row?.key]);

@@ -78,12 +78,12 @@ export function useBpPlayerChrome(params: { playing: boolean; pinned: boolean })
     return () => window.clearTimeout(id);
   }, [phase, playing, pinned, held, activity]);
 
+  if (phase === "down" && mounted && reducedMotion()) {
+    setMounted(false);
+  }
+
   useEffect(() => {
-    if (phase !== "down") return;
-    if (reducedMotion()) {
-      setMounted(false);
-      return;
-    }
+    if (phase !== "down" || reducedMotion()) return;
     const id = window.setTimeout(() => setMounted(false), FADE_MS);
     return () => window.clearTimeout(id);
   }, [phase]);

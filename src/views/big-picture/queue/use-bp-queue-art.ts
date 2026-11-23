@@ -41,10 +41,13 @@ export function useBpQueueArt(entry: BpQueueEntry | null): BpQueueArt {
   const [resolved, setResolved] = useState<BpQueueResolved | null>(null);
   const committedFor = useRef("");
 
+  if (!id && resolved !== null) {
+    setResolved(null);
+  }
+
   useEffect(() => {
     if (!id) {
       committedFor.current = "";
-      setResolved(null);
       return;
     }
     const timer = window.setTimeout(() => setGraceFor(id), ENRICH_GRACE_MS);
@@ -55,8 +58,9 @@ export function useBpQueueArt(entry: BpQueueEntry | null): BpQueueArt {
   // paints meta.background and then snaps to the gallery backdrop. The grace is
   // the ceiling on that wait. The very first entry skips it outright: there is no
   // outgoing layer to hold the screen, so waiting here is a void screen on open.
+  const liveResolved = id ? resolved : null;
   const armed =
-    !!id && (resolved === null || (enrich.id === id && (enrich.settled || graceFor === id)));
+    !!id && (liveResolved === null || (enrich.id === id && (enrich.settled || graceFor === id)));
 
   useEffect(() => {
     if (!id || !armed || committedFor.current === id) return;
@@ -144,16 +148,16 @@ export function useBpQueueArt(entry: BpQueueEntry | null): BpQueueArt {
   // Held, not cleared, until the next entry commits. The stage cross-fades on
   // this key changing, so clearing it on the keypress is the blank frame the
   // whole transition exists to avoid.
-  const src = useProxiedImageSrc(resolved?.src ?? undefined);
-  const posterSrc = useProxiedImageSrc(resolved?.poster ?? undefined);
+  const src = useProxiedImageSrc(liveResolved?.src ?? undefined);
+  const posterSrc = useProxiedImageSrc(liveResolved?.poster ?? undefined);
 
   return useMemo(() => {
-    if (!resolved) return NO_ART;
+    if (!liveResolved) return NO_ART;
     return {
-      key: `queue:${resolved.id}`,
+      key: `queue:${liveResolved.id}`,
       src: src ?? null,
       poster: posterSrc ?? null,
-      mode: resolved.mode,
+      mode: liveResolved.mode,
     };
-  }, [resolved, src, posterSrc]);
+  }, [liveResolved, src, posterSrc]);
 }

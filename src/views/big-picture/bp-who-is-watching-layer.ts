@@ -33,16 +33,17 @@ export type BpWhoLayer = {
 export function useBpWhoLayer(): BpWhoLayer {
   const { pickerOpen, closePicker, activeId } = useProfiles();
   const [manual, setManual] = useState(false);
+  const [prevActiveId, setPrevActiveId] = useState(activeId);
+  if (prevActiveId !== activeId) {
+    setPrevActiveId(activeId);
+    setManual(false);
+  }
 
   useEffect(() => {
     const onOpen = () => setManual(true);
     window.addEventListener(BP_WHO_EVENT, onOpen);
     return () => window.removeEventListener(BP_WHO_EVENT, onOpen);
   }, []);
-
-  useEffect(() => {
-    setManual(false);
-  }, [activeId]);
 
   const canClose = activeId != null;
 

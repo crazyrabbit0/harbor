@@ -115,18 +115,18 @@ export function BpPlayerShell({
   });
 
   const up = phase === "up";
-
-  useEffect(() => setTick(phase !== "down"), [phase]);
+  const nextTick = phase !== "down";
+  if (tick !== nextTick) {
+    setTick(nextTick);
+  }
 
   useLayoutEffect(() => {
     ensureBigPictureTokens();
   }, []);
 
-  // A panel whose slot went away would pin the chrome open forever with nothing
-  // on screen to close. A forced panel is the caller's problem, not the rail's.
-  useEffect(() => {
-    if (!locked && openId && !activePanel) setOpenId(null);
-  }, [locked, openId, activePanel]);
+  if (!locked && openId && !activePanel) {
+    setOpenId(null);
+  }
 
   // The chrome is clamp-sized, so its height is a different number on a 1280x800
   // handheld and a 4K panel. A stage surface parked at a guessed offset lands on

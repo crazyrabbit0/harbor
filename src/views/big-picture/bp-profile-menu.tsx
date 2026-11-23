@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { User } from "lucide-react";
 import { profileInitials, useProfiles } from "@/lib/profiles";
 import { useBpT } from "./bp-i18n";
@@ -29,16 +29,12 @@ const DISC =
 export function BpProfileMenu({ onHint }: { onHint: HintFn }) {
   const t = useBpT();
   const { activeProfile } = useProfiles();
-  const [broken, setBroken] = useState(false);
+  const [brokenFor, setBrokenFor] = useState<string | null>(null);
 
   const avatar = activeProfile?.avatar ?? null;
   const name = activeProfile?.name ?? "";
   const color = activeProfile?.color ?? "";
-
-  // An avatar ref that resolves on the desktop can 404 on a television that has
-  // never held the file, and a torn image in the nav is worse than initials.
-  useEffect(() => setBroken(false), [avatar]);
-
+  const broken = Boolean(avatar) && brokenFor === avatar;
   const showImage = Boolean(avatar) && !broken;
   // Composed from the bare key, which ar, pt and ru all carry. The parameterised
   // "Switch profile ({name})" existed in no catalog, so translate returned the raw key
@@ -75,7 +71,7 @@ export function BpProfileMenu({ onHint }: { onHint: HintFn }) {
             src={avatar}
             alt=""
             draggable={false}
-            onError={() => setBroken(true)}
+            onError={() => setBrokenFor(avatar)}
             className="h-full w-full object-cover"
           />
         ) : name ? (

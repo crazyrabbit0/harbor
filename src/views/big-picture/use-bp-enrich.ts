@@ -41,41 +41,35 @@ export async function warmBpEnrich(tmdbKey: string, meta: Meta | null): Promise<
 export function useBpEnrichFor(meta: Meta | null, enabled = true): BpEnrich {
   const { settings } = useSettings();
   const id = meta?.id ?? "";
-  const [state, setState] = useState<BpEnrich>(() => ({
-    id,
-    detail: cache.get(id) ?? null,
-    settled: cache.has(id),
-  }));
+  const reqKey = enabled && meta && settings.tmdbKey ? `${id}\0${settings.tmdbKey}` : "";
+  const [state, setState] = useState<{ key: string; value: BpEnrich }>({
+    key: "",
+    value: { id: "", detail: null, settled: false },
+  });
 
   useEffect(() => {
-    if (!enabled || !meta || !settings.tmdbKey) {
-      setState({ id, detail: null, settled: true });
-      return;
-    }
-    if (cache.has(id)) {
-      setState({ id, detail: cache.get(id) ?? null, settled: true });
-      return;
-    }
-    setState({ id, detail: null, settled: false });
+    if (!enabled || !meta || !settings.tmdbKey || cache.has(id)) return;
     let alive = true;
     const timer = window.setTimeout(() => {
       tmdbDetails(settings.tmdbKey, meta)
         .then((d) => {
           cache.set(id, d);
-          if (alive) setState({ id, detail: d, settled: true });
+          if (alive) setState({ key: reqKey, value: { id, detail: d, settled: true } });
         })
         .catch(() => {
           cache.set(id, null);
-          if (alive) setState({ id, detail: null, settled: true });
+          if (alive) setState({ key: reqKey, value: { id, detail: null, settled: true } });
         });
     }, DWELL_MS);
     return () => {
       alive = false;
       window.clearTimeout(timer);
     };
-  }, [id, enabled, settings.tmdbKey]);
+  }, [reqKey, id, enabled, meta, settings.tmdbKey]);
 
-  return state;
+  if (!reqKey) return { id, detail: null, settled: true };
+  if (cache.has(id)) return { id, detail: cache.get(id) ?? null, settled: true };
+  return state.key === reqKey ? state.value : { id, detail: null, settled: false };
 }
 
 export function useBpEnrich(meta: Meta | null, enabled = true): TmdbDetail | null {
