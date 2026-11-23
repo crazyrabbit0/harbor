@@ -40,12 +40,9 @@ export function GameFavoriteReviewFilters({
     if (active) anchor.current?.focus({ preventScroll: true });
   };
   useSectionBack(close, open && active, true);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
+  if (!active && open) setOpen(false);
   useEffect(() => {
     if (!open || !active || !mounted || closing) return;
-    setWidth(Math.min(320, window.innerWidth - 16));
     menu.current
       ?.querySelector<HTMLButtonElement>('[aria-checked="true"]')
       ?.focus({ preventScroll: true });
@@ -65,7 +62,13 @@ export function GameFavoriteReviewFilters({
         aria-haspopup="dialog"
         aria-expanded={open && active}
         aria-controls={mounted ? id : undefined}
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => {
+          if (open) close();
+          else {
+            setWidth(Math.min(320, window.innerWidth - 16));
+            setOpen(true);
+          }
+        }}
       >
         <GameMark kind="filter" size={17} />
         {t("games.favorites.reviewFilters")}

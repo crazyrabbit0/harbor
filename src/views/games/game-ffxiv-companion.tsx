@@ -49,6 +49,28 @@ export function GameFfxivCompanion({ active, profile }: { active: boolean; profi
     pagination?.language === language && pagination.query === query ? pagination : undefined;
   const center = centers.find((row) => row.name === centerName),
     item = search?.items.find((row) => row.id === selected) ?? search?.items[0];
+  const dirKey = active && visible ? directoryAttempt : null;
+  const [prevDirKey, setPrevDirKey] = useState<number | null>(null);
+  if (prevDirKey !== dirKey) {
+    setPrevDirKey(dirKey);
+    if (dirKey !== null && directoryFailed) setDirectoryFailed(false);
+  }
+  const searchKey =
+    active && visible
+      ? `${query}\0${language}\0${searchAttempt}\0${next?.cursor ?? ""}\0${next?.version ?? ""}`
+      : null;
+  const [prevSearchKey, setPrevSearchKey] = useState<string | null>(null);
+  if (prevSearchKey !== searchKey) {
+    setPrevSearchKey(searchKey);
+    if (searchKey !== null) {
+      setSearchBusy(true);
+      setSearchFailed(false);
+      if (!next) {
+        setSearch(null);
+        setSelected(null);
+      }
+    }
+  }
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -63,7 +85,6 @@ export function GameFfxivCompanion({ active, profile }: { active: boolean; profi
   useEffect(() => {
     if (!active || !visible) return;
     const request = new AbortController();
-    setDirectoryFailed(false);
     void loadXivCenters(request.signal, directoryAttempt > 0).then(
       (value) => {
         if (!request.signal.aborted) setCenters(value);
@@ -77,12 +98,6 @@ export function GameFfxivCompanion({ active, profile }: { active: boolean; profi
   useEffect(() => {
     if (!active || !visible) return;
     const request = new AbortController();
-    setSearchBusy(true);
-    setSearchFailed(false);
-    if (!next) {
-      setSearch(null);
-      setSelected(null);
-    }
     void searchXivItems(query, language, request.signal, next)
       .then(
         (value) => {
@@ -293,11 +308,18 @@ function XivItemMarket({
     [busy, setBusy] = useState(false);
   const key = `${center?.name}:${item.id}:${world}:${quality}`,
     market = observation?.key === key ? observation : null;
+  const marketRunKey = active && center ? `${key}:${attempt}` : null;
+  const [prevMarketRunKey, setPrevMarketRunKey] = useState<string | null>(null);
+  if (prevMarketRunKey !== marketRunKey) {
+    setPrevMarketRunKey(marketRunKey);
+    if (marketRunKey !== null) {
+      setBusy(true);
+      setFailed(false);
+    }
+  }
   useEffect(() => {
     if (!active || !center) return;
     const request = new AbortController();
-    setBusy(true);
-    setFailed(false);
     void loadXivMarket(center, item.id, world, quality, request.signal, attempt > 0)
       .then(
         (value) => {

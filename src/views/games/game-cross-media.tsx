@@ -55,10 +55,15 @@ function GameStories({
       if (entry.isIntersecting) setSeen(true);
     });
   }, [identity]);
+  const runKey = active && seen && identity ? `${identity}\0${attempt}\0${hideAdult}` : null;
+  const [prevRunKey, setPrevRunKey] = useState(runKey);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null && failed) setFailed(false);
+  }
   useEffect(() => {
     if (!active || !seen || !identity) return;
     const request = new AbortController();
-    setFailed(false);
     void loadGameMedia(game, request.signal, hideAdult).then(
       (value) => {
         if (!request.signal.aborted) setData(value);

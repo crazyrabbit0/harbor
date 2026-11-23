@@ -7,24 +7,28 @@ import { GameTrailer } from "./game-trailer";
 
 export function GameBroadcastPlayer({ broadcast }: { broadcast: GameBroadcast }) {
   const t = useT();
-  const [playback, setPlayback] = useState<BroadcastPlayback>(),
-    [failed, setFailed] = useState(false),
-    [attempt, setAttempt] = useState(0),
+  const [attempt, setAttempt] = useState(0),
     [playing, setPlaying] = useState(false);
+  const loadKey = `${broadcast.steamId}:${attempt}`;
+  const [loadState, setLoadState] = useState<{
+    key: string;
+    playback?: BroadcastPlayback;
+    failed: boolean;
+  } | null>(null);
   useEffect(() => {
     const request = new AbortController();
-    setFailed(false);
-    setPlayback(undefined);
     void loadBroadcastPlayback(broadcast.steamId, request.signal).then(
       (value) => {
-        if (!request.signal.aborted) setPlayback(value);
+        if (!request.signal.aborted) setLoadState({ key: loadKey, playback: value, failed: false });
       },
       () => {
-        if (!request.signal.aborted) setFailed(true);
+        if (!request.signal.aborted) setLoadState({ key: loadKey, failed: true });
       },
     );
     return () => request.abort();
-  }, [broadcast.steamId, attempt]);
+  }, [broadcast.steamId, attempt, loadKey]);
+  const playback = loadState?.key === loadKey ? loadState.playback : undefined;
+  const failed = loadState?.key === loadKey ? loadState.failed : false;
   useEffect(() => {
     if (!playback || !playing) return;
     const request = new AbortController();
@@ -49,7 +53,7 @@ export function GameBroadcastPlayer({ broadcast }: { broadcast: GameBroadcast })
           onPlaybackChange={setPlaying}
           onError={() => {
             setPlaying(false);
-            setFailed(true);
+            setLoadState({ key: loadKey, failed: true });
           }}
         />
       ) : (

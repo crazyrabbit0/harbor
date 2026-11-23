@@ -19,10 +19,12 @@ export function GameBattleNetAccountControl({
   const t = useT(),
     [open, setOpen] = useState(false),
     origin = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
-  useEffect(() => setOpen(false), [account.profile]);
+  const [prevProfile, setPrevProfile] = useState(account.profile);
+  if (prevProfile !== account.profile) {
+    setPrevProfile(account.profile);
+    if (open) setOpen(false);
+  }
+  if (!active && open) setOpen(false);
   if (!account.available) return null;
   const close = () => {
     setOpen(false);

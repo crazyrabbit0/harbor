@@ -120,19 +120,29 @@ export function GameAiSearch({
       provider: groq ? "groq" : "openai",
     });
   const fingerprint = JSON.stringify([query, filters, model, key, settings.aiWebSearch, language]);
-  useEffect(() => {
-    request.current?.abort();
-    request.current = null;
+  const [prevFingerprint, setPrevFingerprint] = useState(fingerprint);
+  if (prevFingerprint !== fingerprint) {
+    setPrevFingerprint(fingerprint);
     setStatus("idle");
     setResults([]);
     setError(null);
+  }
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active) {
+      setSettingsOpen(false);
+      if (status === "loading") setStatus("idle");
+    }
+  }
+  useEffect(() => {
+    request.current?.abort();
+    request.current = null;
   }, [fingerprint]);
   useEffect(() => {
     if (!active) {
       request.current?.abort();
       request.current = null;
-      setSettingsOpen(false);
-      setStatus((value) => (value === "loading" ? "idle" : value));
     }
   }, [active]);
   useEffect(

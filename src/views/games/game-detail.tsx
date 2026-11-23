@@ -285,12 +285,15 @@ export function GameDetailPage({
     [allDetails, roomy, game.id],
   );
   const revision = useLiveRefresh(active);
-  useEffect(() => {
-    if (!active) setBackups(false);
-  }, [active]);
-  useEffect(() => {
+  if (!active && backups) setBackups(false);
+  const extrasKey = `${steamId ?? ""}:${active}:${extrasAttempt}:${revision}`;
+  const [prevExtrasKey, setPrevExtrasKey] = useState(extrasKey);
+  if (prevExtrasKey !== extrasKey) {
+    setPrevExtrasKey(extrasKey);
     setExtras(null);
     setExtrasFailed(false);
+  }
+  useEffect(() => {
     if (!active || !steamId) return;
     const request = new AbortController();
     void loadDetailExtras(steamId, request.signal).then(
@@ -303,13 +306,20 @@ export function GameDetailPage({
     );
     return () => request.abort();
   }, [steamId, active, extrasAttempt, revision]);
+  const storeKey = active ? `${steamId ?? ""}:${attempt}:${revision}` : null;
+  const [prevStoreKey, setPrevStoreKey] = useState<string | null>(null);
+  if (prevStoreKey !== storeKey) {
+    setPrevStoreKey(storeKey);
+    if (storeKey !== null) {
+      if (loadedStore && loadedStore.steamId !== steamId) setDetail(null);
+      if (failed) setFailed(false);
+      setRefreshing(!!steamId);
+    }
+  }
   useEffect(() => {
     if (!active) return;
     let current = true,
       received = false;
-    setDetail((previous) => (previous?.steamId === steamId ? previous : null));
-    setFailed(false);
-    setRefreshing(!!steamId);
     if (steamId) {
       void readGameDetailSnapshot(steamId).then((value) => {
         if (current && !received && value) setDetail((previous) => previous ?? value);
@@ -332,19 +342,28 @@ export function GameDetailPage({
       current = false;
     };
   }, [steamId, attempt, active, revision]);
+  const atlasKey = active
+    ? `${game.id}:${target.igdbId ?? ""}:${target.catalogSteamId ?? ""}:${reviewedMetadata?.igdbId ?? ""}:${atlasAttempt}:${revision}:${classicEdition}`
+    : null;
+  const [prevAtlasKey, setPrevAtlasKey] = useState<string | null>(null);
+  if (prevAtlasKey !== atlasKey) {
+    setPrevAtlasKey(atlasKey);
+    if (atlasKey !== null) {
+      if (atlasFailed) setAtlasFailed(false);
+      if (
+        loadedAtlas &&
+        !(metadataTarget.igdbId
+          ? loadedAtlas.igdbId === metadataTarget.igdbId
+          : loadedAtlas.steamId === steamId)
+      ) {
+        setAtlas(null);
+      }
+    }
+  }
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
     let received = false;
-    setAtlasFailed(false);
-    setAtlas((previous) =>
-      previous &&
-      (metadataTarget.igdbId
-        ? previous.igdbId === metadataTarget.igdbId
-        : previous.steamId === steamId)
-        ? previous
-        : null,
-    );
     if (!reviewedMetadata && (classicEdition || game.sourceListing) && !game.igdbId && !steamId)
       return () => request.abort();
     void readAtlasGameSnapshot(metadataTarget).then((value) => {

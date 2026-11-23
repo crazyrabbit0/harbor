@@ -1,5 +1,5 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
 import { MoreHorizontal, Settings2 } from "lucide-react";
 import { HoverTooltip } from "@/components/hover-tooltip";
@@ -46,9 +46,7 @@ export function GameCollectionLocalCard({
     [editing, setEditing] = useState(false);
   const { game, custom, rom } = entry,
     { customLibrary, emulation, preferences } = access;
-  useEffect(() => {
-    if (!active) setEditing(false);
-  }, [active]);
+  if (!active && editing) setEditing(false);
   const missing = !custom && !rom,
     linked = custom?.linked ?? rom?.linked;
   const source = game.local?.kind === "custom" ? t("games.custom.nav") : game.platforms.join(" · ");

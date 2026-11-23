@@ -78,23 +78,28 @@ function useAccess(
   const [intent, setIntent] = useState<Intent | null>(null),
     serial = useRef(0);
   const consumed = useRef(0);
-  useEffect(() => {
-    if (library.scan || library.error || !library.available) setPrimed(true);
-  }, [library.scan, library.error, library.available]);
-  useEffect(() => {
-    setDockOpen(false);
-    setIntent(null);
-    setActivity({ custom: false, retro: false });
-    setSavedState({ profile, games: readSavedGames(profile) });
-    setSaveFailed(false);
-  }, [profile]);
-  useEffect(() => {
-    if (!enabled) {
+  const [prevProfile, setPrevProfile] = useState(profile);
+  const [prevEnabled, setPrevEnabled] = useState(enabled);
+  if (!primed && (library.scan || library.error || !library.available)) setPrimed(true);
+  if (prevProfile !== profile || prevEnabled !== enabled) {
+    if (prevProfile !== profile) {
+      setPrevProfile(profile);
       setDockOpen(false);
+      setIntent(null);
+      setActivity({ custom: false, retro: false });
+      setSavedState({ profile, games: readSavedGames(profile) });
+      setSaveFailed(false);
       setRepair(null);
     }
-  }, [enabled]);
-  useEffect(() => setRepair(null), [profile]);
+    if (prevEnabled !== enabled) {
+      setPrevEnabled(enabled);
+      if (!enabled) {
+        setDockOpen(false);
+        setRepair(null);
+      }
+    }
+    setShortcutDetails(null);
+  }
   const storedSaved = savedState.profile === profile ? savedState.games : [];
   const quick = useMemo(
     () =>
@@ -191,7 +196,6 @@ function useAccess(
       if (origin?.isConnected) origin.focus({ preventScroll: true });
     });
   };
-  useEffect(() => setShortcutDetails(null), [profile, enabled]);
   return {
     profile,
     library,

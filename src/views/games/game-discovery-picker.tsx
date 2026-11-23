@@ -65,9 +65,7 @@ export function GameDiscoveryPicker(props: Props) {
     setShown(false);
     requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
   }, []);
-  useEffect(() => {
-    if (!props.active) setShown(false);
-  }, [props.active]);
+  if (!props.active && shown) setShown(false);
   if (!props.active) return null;
   return (
     <>
@@ -111,10 +109,16 @@ function PickerModal({
     [advanced, setAdvanced] = useState(false),
     [names, setNames] = useState<Map<number, string>>(new Map());
   const [tagSearch, setTagSearch] = useState("");
-  const [query, setQuery] = useState(""),
-    [search, setSearch] = useState<GameSummary[]>([]),
-    [searchBusy, setSearchBusy] = useState(false),
-    [searchFailed, setSearchFailed] = useState(false);
+  const [query, setQuery] = useState("");
+  const searchKey = active && step === 1 && query.trim().length >= 2 ? query : null;
+  const [searchState, setSearchState] = useState<{
+    key: string;
+    results: GameSummary[];
+    failed: boolean;
+  } | null>(null);
+  const search = searchKey !== null && searchState?.key === searchKey ? searchState.results : [];
+  const searchBusy = searchKey !== null && searchState?.key !== searchKey;
+  const searchFailed = searchKey !== null && searchState?.key === searchKey && searchState.failed;
   const [feed, setFeed] = useState<DiscoveryFeed | null>(null),
     [picks, setPicks] = useState<DiscoveryPick[]>([]),
     [busy, setBusy] = useState(false),
@@ -162,7 +166,9 @@ function PickerModal({
     DISCOVERY_STYLES.find((item) => item[0] === tag)?.[2] ??
     DISCOVERY_MODES.find((item) => item[0] === tag)?.[2] ??
     fallback;
+  const savedObservation = useRef(preferences.observation);
   const persist = (next: typeof preferences) => {
+    savedObservation.current = next.observation;
     setPreferences(next);
     try {
       writeDiscoveryPreferences(profile, next);
@@ -180,13 +186,25 @@ function PickerModal({
         : [...options[field], value],
     });
 
-  useEffect(() => {
-    const steam = libraryContext.steam;
-    if (!steam?.libraryVisible) return;
+  const steam = libraryContext.steam;
+  const steamKey = steam?.libraryVisible ? `${steam.steamId}:${steam.updatedAt}` : null;
+  const [prevSteamKey, setPrevSteamKey] = useState<string | null>(null);
+  if (steam?.libraryVisible && steamKey !== null && prevSteamKey !== steamKey) {
+    setPrevSteamKey(steamKey);
     const observation = observeSteamLibrary(preferences.observation, steam);
-    if (JSON.stringify(observation) !== JSON.stringify(preferences.observation))
-      persist({ ...preferences, observation });
-  }, [libraryContext.steam?.steamId, libraryContext.steam?.updatedAt]);
+    if (JSON.stringify(observation) !== JSON.stringify(preferences.observation)) {
+      setPreferences({ ...preferences, observation });
+    }
+  }
+  useEffect(() => {
+    if (savedObservation.current === preferences.observation) return;
+    savedObservation.current = preferences.observation;
+    try {
+      writeDiscoveryPreferences(profile, preferences);
+    } catch {
+      // Retain the session observation.
+    }
+  }, [profile, preferences]);
   useEffect(() => {
     if (!active) return;
     let current = true;
@@ -200,11 +218,9 @@ function PickerModal({
       current = false;
     };
   }, [active, language]);
+  if (!active && busy) setBusy(false);
   useEffect(() => {
-    if (!active) {
-      request.current?.abort();
-      setBusy(false);
-    }
+    if (!active) request.current?.abort();
     return () => request.current?.abort();
   }, [active]);
   useEffect(() => {
@@ -261,19 +277,12 @@ function PickerModal({
   };
 
   useEffect(() => {
-    if (!active || step !== 1 || query.trim().length < 2) {
-      setSearch([]);
-      setSearchBusy(false);
-      setSearchFailed(false);
-      return;
-    }
+    if (searchKey === null) return;
     const controller = new AbortController();
-    setSearchBusy(true);
-    setSearchFailed(false);
     const timer = setTimeout(async () => {
       const responses = await Promise.allSettled([
-        loadGameCatalog(query, DEFAULT_CATALOG_FILTERS, 0, controller.signal),
-        loadMetadataMatches(query, undefined, 0, controller.signal),
+        loadGameCatalog(searchKey, DEFAULT_CATALOG_FILTERS, 0, controller.signal),
+        loadMetadataMatches(searchKey, undefined, 0, controller.signal),
       ]);
       if (controller.signal.aborted) return;
       const results: GameSummary[] = [],
@@ -288,16 +297,18 @@ function PickerModal({
           }
       // Exact titles lead, then the providers' own order. Editions are not collapsed by title.
       const exact = (game: GameSummary) =>
-        game.name.toLocaleLowerCase() === query.trim().toLocaleLowerCase() ? 1 : 0;
-      setSearch(results.sort((a, b) => exact(b) - exact(a)).slice(0, 10));
-      setSearchFailed(responses.some((r) => r.status === "rejected"));
-      setSearchBusy(false);
+        game.name.toLocaleLowerCase() === searchKey.trim().toLocaleLowerCase() ? 1 : 0;
+      setSearchState({
+        key: searchKey,
+        results: results.sort((a, b) => exact(b) - exact(a)).slice(0, 10),
+        failed: responses.some((r) => r.status === "rejected"),
+      });
     }, 240);
     return () => {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [active, step, query]);
+  }, [searchKey]);
 
   const find = async (more = false) => {
     if (busy || paging.current) return;

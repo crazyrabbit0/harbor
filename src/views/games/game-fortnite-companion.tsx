@@ -46,11 +46,23 @@ export function GameFortniteCompanion({ active }: { active: boolean }) {
     [failed, setFailed] = useState(false),
     [mediaFailed, setMediaFailed] = useState(false);
   const refreshed = useRef(0);
-  useEffect(() => {
-    if (!active) {
-      setActivated(false);
-      return;
+  if (!active && activated) setActivated(false);
+  const runKey =
+    active && activated
+      ? `${genre}:${page?.cursor ?? ""}:${page?.before ?? ""}:${page?.snapshot ?? ""}:${attempt}`
+      : null;
+  const [prevRunKey, setPrevRunKey] = useState<string | null>(null);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null) {
+      setBusy(true);
+      setMediaBusy(false);
+      setFailed(false);
+      setMediaFailed(false);
     }
+  }
+  useEffect(() => {
+    if (!active) return;
     const observer = new IntersectionObserver(
       (entries) => {
         if (entries.some((entry) => entry.isIntersecting)) setActivated(true);
@@ -63,10 +75,6 @@ export function GameFortniteCompanion({ active }: { active: boolean }) {
   useEffect(() => {
     if (!active || !activated) return;
     const controller = new AbortController();
-    setBusy(true);
-    setMediaBusy(false);
-    setFailed(false);
-    setMediaFailed(false);
     const force = refreshed.current !== attempt;
     refreshed.current = attempt;
     void loadFortniteRankings(genre, controller.signal, page, force)
@@ -348,11 +356,18 @@ function IslandActivity({
     [failed, setFailed] = useState(false),
     [busy, setBusy] = useState(false);
   const refreshed = useRef(attempt);
+  const runKey = active ? `${code}:${attempt}` : null;
+  const [prevRunKey, setPrevRunKey] = useState<string | null>(null);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null) {
+      setBusy(true);
+      setFailed(false);
+    }
+  }
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
     const force = refreshed.current !== attempt;
     refreshed.current = attempt;
     void loadFortniteActivity(code, controller.signal, force)

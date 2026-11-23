@@ -117,10 +117,15 @@ export function GameFranchiseWorlds({
   const target = choices.find((item) => item.id === selected) ?? choices[0],
     world = displayed?.world;
   const slots = () => Math.max(1, Math.floor(((root.current?.clientWidth ?? 1280) + 20) / 164));
+  const prepareKey = active && target ? `${target.id}:${target.hero}:${attempt}` : null;
+  const [prevPrepareKey, setPrevPrepareKey] = useState<string | null>(null);
+  if (prevPrepareKey !== prepareKey) {
+    setPrevPrepareKey(prepareKey);
+    if (prepareKey !== null && prepareFailed) setPrepareFailed(false);
+  }
   useEffect(() => {
     if (!active || !target) return;
     const request = new AbortController();
-    setPrepareFailed(false);
     const held = prepared.current.get(target.id);
     void (held ? Promise.resolve(held) : prepareGameWorld(target, slots(), request.signal)).then(
       (next) => {

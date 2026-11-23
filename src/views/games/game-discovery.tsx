@@ -85,7 +85,8 @@ export function NewReleases({
   const first = recent[0],
     detailId = detail?.id,
     firstId = first?.id,
-    lead = detailId === firstId ? detail : null;
+    lead =
+      first?.steamId && detail?.steamId === first.steamId && detailId === firstId ? detail : null;
   const ids = recent.flatMap((game) => (game.steamId ? [game.steamId] : [])).join(",");
   useEffect(() => {
     if (!active || !ids) return;
@@ -102,7 +103,6 @@ export function NewReleases({
   }, [active, ids]);
   useEffect(() => {
     let current = true;
-    setDetail(null);
     if (first?.steamId)
       void loadGameDetail(first.steamId).then(
         (value) => {
@@ -315,6 +315,21 @@ export function DiscoveryDesk({
   const loading = tab === "most_played" ? chartLoading : provider.busy,
     failed = tab === "most_played" ? chartFailed : provider.failed;
   const refresh = useLiveRefresh(active && seen);
+  const chartRunKey = active && seen && tab === "most_played" ? `${attempt}:${refresh}` : null;
+  const [prevChartRunKey, setPrevChartRunKey] = useState(chartRunKey);
+  if (prevChartRunKey !== chartRunKey) {
+    setPrevChartRunKey(chartRunKey);
+    if (chartRunKey !== null) {
+      setLoading(true);
+      setFailed(false);
+    }
+  }
+  const focusKey = `${tab}\0${platform}\0${term}`;
+  const [prevFocusKey, setPrevFocusKey] = useState(focusKey);
+  if (prevFocusKey !== focusKey) {
+    setPrevFocusKey(focusKey);
+    setFocused(null);
+  }
   useEffect(() => {
     const el = root.current;
     if (!el) return;
@@ -325,8 +340,6 @@ export function DiscoveryDesk({
   useEffect(() => {
     if (!active || !seen || tab !== "most_played") return;
     const request = new AbortController();
-    setLoading(true);
-    setFailed(false);
     const task = loadMostPlayedGames().then((value) => {
       if (!request.signal.aborted) setChart(value);
     });
@@ -339,9 +352,6 @@ export function DiscoveryDesk({
       });
     return () => request.abort();
   }, [active, seen, tab, attempt, refresh]);
-  useEffect(() => {
-    setFocused(null);
-  }, [tab, platform, term]);
   const all = tab === "most_played" ? (chart?.games ?? []) : provider.games;
   const games =
     tab === "most_played"

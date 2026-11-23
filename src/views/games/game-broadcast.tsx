@@ -21,10 +21,7 @@ export function GameLiveBroadcast({ appId, active }: { appId: number; active: bo
     [visible, setVisible] = useState(false),
     pageVisible = usePageVisible();
   useEffect(() => {
-    if (!active) {
-      setWatching(false);
-      return;
-    }
+    if (!active) return;
     const request = new AbortController();
     // An intermittent refresh failure should not tear down a playing stream.
     void loadGameBroadcasts(appId, request.signal).then(
@@ -40,9 +37,13 @@ export function GameLiveBroadcast({ appId, active }: { appId: number; active: bo
     };
   }, [appId, active, revision]);
   const broadcast = items.find((item) => item.steamId === selected) ?? items[0];
-  useEffect(() => {
-    setWatching(false);
-  }, [broadcast?.steamId]);
+  const broadcastId = broadcast?.steamId;
+  const [prevBroadcastId, setPrevBroadcastId] = useState(broadcastId);
+  if (prevBroadcastId !== broadcastId) {
+    setPrevBroadcastId(broadcastId);
+    if (watching) setWatching(false);
+  }
+  if (!active && watching) setWatching(false);
   useEffect(() => {
     const element = root.current;
     if (element) return observe(element, setVisible);

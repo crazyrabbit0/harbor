@@ -72,7 +72,13 @@ export function CustomPlayButton({
     busy = library.busy.includes(game.id);
   const [repair, setRepair] = useState(false),
     ready = customLaunchHealth(game, library.health)?.state === "ready";
-  useEffect(() => setRepair(false), [library.profile, game.id, active]);
+  const repairKey = `${library.profile}\0${game.id}`;
+  const [prevRepairKey, setPrevRepairKey] = useState(repairKey);
+  if (prevRepairKey !== repairKey) {
+    setPrevRepairKey(repairKey);
+    if (repair) setRepair(false);
+  }
+  if (!active && repair) setRepair(false);
   return (
     <>
       <GamePlayButton
@@ -189,18 +195,23 @@ export function GameCustomLibrary({
     update: library.updateMany,
     collect,
   });
-  useEffect(() => setLimit(36), [query, visibility, sort, availability, playtime, pinnedOnly]);
-  useEffect(() => {
-    if (!active) {
-      setEditing(null);
-      setMatching(null);
-    }
-  }, [active]);
-  useEffect(() => {
+  const limitKey = `${query}\0${visibility}\0${sort}\0${availability}\0${playtime}\0${pinnedOnly}`;
+  const [prevLimitKey, setPrevLimitKey] = useState(limitKey);
+  if (prevLimitKey !== limitKey) {
+    setPrevLimitKey(limitKey);
+    setLimit(36);
+  }
+  const [prevProfile, setPrevProfile] = useState(library.profile);
+  if (prevProfile !== library.profile) {
+    setPrevProfile(library.profile);
     setEditing(null);
     setMatching(null);
     resetFilters();
-  }, [library.profile]);
+  }
+  if (!active && (editing !== null || matching !== null)) {
+    setEditing(null);
+    setMatching(null);
+  }
   return (
     <section className="games-custom games-inset">
       <div className="games-section-heading">

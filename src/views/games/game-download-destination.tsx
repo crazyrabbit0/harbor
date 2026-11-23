@@ -159,9 +159,11 @@ export function GameDownloadDestination({
     t("games.preparation.folder", { name }),
   );
   const invalidPreparation = preparation.enabled && (!options.length || !unpack);
-  useEffect(() => {
+  const [prevOptionsLen, setPrevOptionsLen] = useState(options.length);
+  if (prevOptionsLen !== options.length) {
+    setPrevOptionsLen(options.length);
     if (!options.length) setPreparation({ enabled: false });
-  }, [options.length]);
+  }
   const choice = choices.find(
     (item) => downloadLocationKey(item.path) === downloadLocationKey(parent),
   );

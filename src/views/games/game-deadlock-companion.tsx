@@ -18,9 +18,7 @@ export function GameDeadlockCompanion({ active }: { active: boolean }) {
     root = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false),
     [data, setData] = useState<DeadlockCompanionData | null>(null);
-  const [failed, setFailed] = useState(false),
-    [busy, setBusy] = useState(false),
-    [attempt, setAttempt] = useState(0);
+  const [attempt, setAttempt] = useState(0);
   const [query, setQuery] = useState(""),
     [sort, setSort] = useState<"matches" | "winRate" | "name">("matches");
   const [expanded, setExpanded] = useState(false),
@@ -31,6 +29,20 @@ export function GameDeadlockCompanion({ active }: { active: boolean }) {
     setAttempt((value) => value + 1);
   };
   const revision = useLiveRefresh(active && visible, DEADLOCK_STATS_TTL);
+  const fetchKey = active && visible ? `${language}:${attempt}:${revision}` : null;
+  const [run, setRun] = useState<{ busy: boolean; failed: boolean }>({
+    busy: false,
+    failed: false,
+  });
+  const [prevFetchKey, setPrevFetchKey] = useState<string | null>(null);
+  if (prevFetchKey !== fetchKey) {
+    setPrevFetchKey(fetchKey);
+    if (fetchKey !== null && !document.hidden) {
+      setRun({ busy: true, failed: false });
+    }
+  }
+  const busy = run.busy;
+  const failed = run.failed;
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -45,19 +57,16 @@ export function GameDeadlockCompanion({ active }: { active: boolean }) {
     const controller = new AbortController(),
       force = forceRefresh.current;
     forceRefresh.current = false;
-    setBusy(true);
-    setFailed(false);
     void loadDeadlockCompanion(language, controller.signal, force).then(
       (value) => {
         if (!controller.signal.aborted) {
           setData(value);
-          setBusy(false);
+          setRun({ busy: false, failed: false });
         }
       },
       () => {
         if (!controller.signal.aborted) {
-          setFailed(true);
-          setBusy(false);
+          setRun({ busy: false, failed: true });
         }
       },
     );

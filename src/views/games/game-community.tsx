@@ -105,10 +105,15 @@ export function GameUpdates({
     [items, screenshots, excludedArtwork],
   );
   const [unavailableImages, setUnavailableImages] = useState<Set<string>>(() => new Set());
+  const runKey = ready ? `${appId}:${attempt}` : null;
+  const [prevRunKey, setPrevRunKey] = useState(runKey);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null && failed) setFailed(false);
+  }
   useEffect(() => {
     if (!ready) return;
     const request = new AbortController();
-    setFailed(false);
     void loadGameNews(appId, request.signal).then(
       (data) => {
         if (!request.signal.aborted) setItems(data);

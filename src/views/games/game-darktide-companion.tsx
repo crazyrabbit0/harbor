@@ -34,15 +34,28 @@ export function GameDarktideCompanion({
     root = useRef<HTMLElement>(null);
   const [visible, setVisible] = useState(false),
     [observation, setObservation] = useState<{ data: DarktideBoard; at: number } | null>(null);
-  const [busy, setBusy] = useState(false),
-    [failed, setFailed] = useState(false),
-    [attempt, setAttempt] = useState(0);
+  const [attempt, setAttempt] = useState(0);
   const [category, setCategory] = useState("common"),
     [difficulty, setDifficulty] = useState("all"),
     [query, setQuery] = useState(""),
     [limit, setLimit] = useState(6);
   const [now, setNow] = useState(Date.now);
   const revision = useLiveRefresh(active && visible, DARKTIDE_TTL);
+  const fetchKey = active && visible ? `${attempt}:${revision}` : null;
+  const [run, setRun] = useState<{ key: string; busy: boolean; failed: boolean }>({
+    key: "",
+    busy: false,
+    failed: false,
+  });
+  const [prevFetchKey, setPrevFetchKey] = useState<string | null>(null);
+  if (prevFetchKey !== fetchKey) {
+    setPrevFetchKey(fetchKey);
+    if (fetchKey !== null && !document.hidden) {
+      setRun({ key: fetchKey, busy: true, failed: false });
+    }
+  }
+  const busy = run.busy;
+  const failed = run.failed;
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -68,20 +81,18 @@ export function GameDarktideCompanion({
   useEffect(() => {
     if (!active || !visible || document.hidden) return;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
+    const key = `${attempt}:${revision}`;
     void loadDarktideBoard(controller.signal, attempt > 0).then(
       (value) => {
         if (!controller.signal.aborted) {
           setObservation(value);
           setNow(Date.now());
-          setBusy(false);
+          setRun({ key, busy: false, failed: false });
         }
       },
       () => {
         if (!controller.signal.aborted) {
-          setFailed(true);
-          setBusy(false);
+          setRun({ key, busy: false, failed: true });
         }
       },
     );

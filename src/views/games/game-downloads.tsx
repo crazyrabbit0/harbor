@@ -109,19 +109,6 @@ export function GameDownloads({
     [archive, setArchive] = useState<string | null>(null),
     [cloud, setCloud] = useState(false);
   const [cleanup, setCleanup] = useState(false);
-  useEffect(() => {
-    setCleanup(false);
-  }, [downloads.profile, active]);
-  useEffect(() => {
-    if (!active) {
-      setAdding(false);
-      setArchive(null);
-      setCloud(false);
-    }
-  }, [active]);
-  useEffect(() => {
-    if (revealId) setFilter("all");
-  }, [revealId]);
   const torrents = downloads.torrents;
   const localArchives = useGameArchives(downloads.profile, !providedArchives && active),
     archives = providedArchives ?? localArchives;
@@ -137,14 +124,33 @@ export function GameDownloads({
       providedSetup ? undefined : customLibrary,
     ),
     setupState = providedSetup ?? localSetup;
-  useEffect(() => {
+  const [reviewPreparation, setReviewPreparation] = useState<DownloadItem | null>(null);
+  const [prevProfile, setPrevProfile] = useState(downloads.profile);
+  if (prevProfile !== downloads.profile) {
+    setPrevProfile(downloads.profile);
+    setCleanup(false);
     setSetup(null);
     setArchive(null);
     setReviewedArchive(null);
-  }, [downloads.profile]);
-  useEffect(() => {
-    if (!active) setSetup(null);
-  }, [active]);
+    setReviewPreparation(null);
+  }
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    setCleanup(false);
+    setReviewPreparation(null);
+    if (!active) {
+      setAdding(false);
+      setArchive(null);
+      setCloud(false);
+      setSetup(null);
+    }
+  }
+  const [prevRevealId, setPrevRevealId] = useState<string | undefined>(undefined);
+  if (prevRevealId !== revealId) {
+    setPrevRevealId(revealId);
+    if (revealId) setFilter("all");
+  }
   const matches = (item: DownloadItem) =>
     [item.record.name, downloadGame(item.record)?.name ?? ""].some((name) =>
       name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
@@ -158,10 +164,6 @@ export function GameDownloads({
     active,
     all.some((item) => !!item.record.preparation),
   );
-  const [reviewPreparation, setReviewPreparation] = useState<DownloadItem | null>(null);
-  useEffect(() => {
-    setReviewPreparation(null);
-  }, [downloads.profile, active]);
   const preparation = (item: DownloadItem) => downloadPreparation(item, preparations.choices);
   const preparing = (item: DownloadItem) => {
     const choice = preparation(item);

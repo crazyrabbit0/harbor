@@ -46,26 +46,18 @@ export function GameAntiCheatDetails({
 }) {
   const t = useT();
   const [result, setResult] = useState<{ appId: number; info: GameAntiCheat } | null>(null);
-  const [loading, setLoading] = useState(!!appId);
+  const loading = active && !!appId && result?.appId !== appId;
   useEffect(() => {
-    if (!active || !appId) {
-      setLoading(false);
-      return;
-    }
+    if (!active || !appId) return;
     const request = new AbortController();
-    setLoading(true);
-    void loadGameAntiCheat(appId, request.signal)
-      .then(
-        (info) => {
-          if (!request.signal.aborted) setResult({ appId, info });
-        },
-        () => {
-          if (!request.signal.aborted) setResult({ appId, info: UNKNOWN_ANTI_CHEAT });
-        },
-      )
-      .finally(() => {
-        if (!request.signal.aborted) setLoading(false);
-      });
+    void loadGameAntiCheat(appId, request.signal).then(
+      (info) => {
+        if (!request.signal.aborted) setResult({ appId, info });
+      },
+      () => {
+        if (!request.signal.aborted) setResult({ appId, info: UNKNOWN_ANTI_CHEAT });
+      },
+    );
     return () => request.abort();
   }, [appId, active]);
   const info = antiCheatWithCategories(

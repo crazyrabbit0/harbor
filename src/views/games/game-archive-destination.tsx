@@ -92,14 +92,18 @@ export function GameArchiveDestinations({
     sourceParent = setupParent(source),
     key = JSON.stringify([profile, recent, sourceParent]);
   const [attempt, retry] = useState(0),
-    [state, setState] = useState<{ key: string; choices: ArchiveLocation[]; error: boolean }>();
+    [state, setState] = useState<{
+      key: string;
+      attempt: number;
+      choices: ArchiveLocation[];
+      error: boolean;
+    }>();
   useEffect(() => {
     let current = true;
-    setState(undefined);
     const deadline = window.setTimeout(() => {
       if (current) {
         current = false;
-        setState({ key, choices: [], error: true });
+        setState({ key, attempt, choices: [], error: true });
       }
     }, 10000);
     const load = (path: string) =>
@@ -115,6 +119,7 @@ export function GameArchiveDestinations({
       const second = results[1].status === "fulfilled" ? results[1].value : null;
       setState({
         key,
+        attempt,
         choices: archiveLocationChoices(first ?? empty, second ?? empty),
         error: !first && !second,
       });
@@ -124,7 +129,7 @@ export function GameArchiveDestinations({
       clearTimeout(deadline);
     };
   }, [key, recent, sourceParent, attempt]);
-  const current = state?.key === key ? state : undefined;
+  const current = state?.key === key && state.attempt === attempt ? state : undefined;
   return (
     <div className="games-archive-locations" aria-busy={!current}>
       {!current ? (
