@@ -29,11 +29,11 @@ export function TorrentDestination({
 }) {
   const t = useT(),
     [locations, setLocations] = useState<SetupLocations>({ drives: [], selected: null }),
-    [pending, setPending] = useState(true),
+    [settledFor, setSettledFor] = useState<{ parent: string } | null>(null),
     [unavailable, setUnavailable] = useState(false);
+  const pending = settledFor?.parent !== parent;
   useEffect(() => {
     let live = true;
-    setPending(true);
     const refresh = async () => {
       const work = async () => {
         const value = await invoke<SetupLocations>("games_download_locations", {
@@ -52,7 +52,7 @@ export function TorrentDestination({
           }
         })
         .finally(() => {
-          if (live) setPending(false);
+          if (live) setSettledFor({ parent });
         });
     };
     void refresh();

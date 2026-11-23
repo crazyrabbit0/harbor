@@ -51,7 +51,9 @@ export function GameSimsContent({
   const [busy, setBusy] = useState(true),
     [file, setFile] = useState(""),
     [attempt, setAttempt] = useState(0),
-    [cover, setCover] = useState("");
+    [coverState, setCoverState] = useState({ key: "", src: "" });
+  const coverKey = `${path}\0${item.id}\0${item.installed}`;
+  const cover = coverState.key === coverKey ? coverState.src : "";
   const [limit, setLimit] = useState(12);
   const alive = useRef(true),
     operation = useRef("");
@@ -124,24 +126,36 @@ export function GameSimsContent({
       });
     };
   }, [cancel, trigger]);
-  useEffect(() => {
-    const controller = new AbortController();
-    setCover("");
-    void simsTrayPreview(path, item.id, controller.signal).then(
-      (value) => {
-        if (!controller.signal.aborted) setCover(value ?? "");
-      },
-      () => {},
-    );
-    return () => controller.abort();
-  }, [path, item.id, item.installed]);
-  useEffect(() => {
-    let current = true;
+  const contentKey = JSON.stringify([
+    profile,
+    path,
+    item.id,
+    item.installed,
+    selectionKey,
+    packs.busy,
+    attempt,
+  ]);
+  const [lastContentKey, setLastContentKey] = useState(contentKey);
+  if (lastContentKey !== contentKey) {
+    setLastContentKey(contentKey);
     setReport(null);
     setError("");
     setFile("");
     setLimit(12);
     setBusy(true);
+  }
+  useEffect(() => {
+    const controller = new AbortController();
+    void simsTrayPreview(path, item.id, controller.signal).then(
+      (value) => {
+        if (!controller.signal.aborted) setCoverState({ key: coverKey, src: value ?? "" });
+      },
+      () => {},
+    );
+    return () => controller.abort();
+  }, [path, item.id, item.installed, coverKey]);
+  useEffect(() => {
+    let current = true;
     if (packs.busy) return;
     const token = crypto.randomUUID();
     operation.current = token;
@@ -233,7 +247,7 @@ export function GameSimsContent({
               className="games-sims-content-cover"
               src={cover}
               alt=""
-              onError={() => setCover("")}
+              onError={() => setCoverState({ key: coverKey, src: "" })}
             />
           )}
           <div>

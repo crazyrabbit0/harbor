@@ -46,11 +46,8 @@ export function GameSourceContinuation({
   }, [count, failed]);
   useEffect(() => {
     const node = root.current;
-    if (!node || !more || busy || failed || focused) return;
-    if (typeof IntersectionObserver === "undefined") {
-      setFallback(true);
+    if (!node || !more || busy || failed || focused || typeof IntersectionObserver === "undefined")
       return;
-    }
     const observer = new IntersectionObserver(
       (entries) => {
         if (!entries.some((entry) => entry.isIntersecting)) return;
@@ -77,12 +74,13 @@ export function GameSourceContinuation({
     return () => observer.disconnect();
   }, [count, cursor, more, busy, failed, focused]);
   if (!more || failed) return null;
+  const showFallback = fallback || typeof IntersectionObserver === "undefined";
   return (
     <div ref={root} className="games-source-continuation">
       {busy && <span role="status">{t("games.sources.website.loading")}</span>}
       <button
         aria-disabled={busy || undefined}
-        className={`games-button${fallback ? "" : " games-source-auto-more"}`}
+        className={`games-button${showFallback ? "" : " games-source-auto-more"}`}
         onFocus={(event) => {
           const browse = event.currentTarget.closest(".games-source-browse");
           focusAnchor.current = browse ? { count, browse } : null;

@@ -172,6 +172,10 @@ export function SimsPackProvider({
       cancel();
     };
   }, [cancel]);
+  if (!active && (rawReport || error)) {
+    setReport(null);
+    setError("");
+  }
   const detectedPath = installations.length === 1 ? installations[0].path : "";
   useEffect(() => {
     if (active) {
@@ -180,8 +184,6 @@ export function SimsPackProvider({
     } else {
       picker.current++;
       cancel();
-      setReport(null);
-      setError("");
     }
     return cancel;
   }, [active, profile, run, cancel, detectedPath]);

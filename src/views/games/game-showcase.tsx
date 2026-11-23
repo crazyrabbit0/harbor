@@ -44,10 +44,18 @@ export function GameShowcase({
   const [attempt, setAttempt] = useState(0);
   const [page, setPage] = useState(visit.page);
   const [slots, setSlots] = useState(3);
+  const [failedSync, setFailedSync] = useState({ active, attempt, visit });
+  if (
+    failedSync.active !== active ||
+    failedSync.attempt !== attempt ||
+    failedSync.visit !== visit
+  ) {
+    setFailedSync({ active, attempt, visit });
+    if (active) setFailed(false);
+  }
   useEffect(() => {
     if (!active) return;
     let current = true;
-    setFailed(false);
     void loadExploreVisit(
       visit,
       () => {
@@ -57,9 +65,14 @@ export function GameShowcase({
         }
       },
       attempt > 0 || (!!visit.detailsAt && Date.now() - visit.detailsAt > 15 * 60_000),
-    ).catch(() => {
-      if (current) setFailed(true);
-    });
+    ).then(
+      () => {
+        if (current) setFailed(false);
+      },
+      () => {
+        if (current) setFailed(true);
+      },
+    );
     return () => {
       current = false;
     };
@@ -93,10 +106,12 @@ export function GameShowcase({
   }, [!!game, active]);
   const pages = Math.ceil(ordered.length / slots),
     currentPage = Math.min(page, Math.max(0, pages - 1));
-  useEffect(() => {
+  const [pageSync, setPageSync] = useState({ selected, slots });
+  if (pageSync.selected !== selected || pageSync.slots !== slots) {
+    setPageSync({ selected, slots });
     const index = ordered.findIndex((item) => item.steamId === selected);
     if (index >= 0) setPage(Math.floor(index / slots));
-  }, [selected, slots]);
+  }
   const orderedIdentity = ordered.map((item) => item.steamId).join(",");
   useEffect(() => {
     if (!playing || hovered || !game || artworkReady !== game.id || ordered.length < 2) return;

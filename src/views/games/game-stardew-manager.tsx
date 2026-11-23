@@ -97,9 +97,7 @@ export function GameStardewManager({
       if (alive.current) setError(stardewError(e));
     }
   };
-  useEffect(() => {
-    if (!active) setSelection(null);
-  }, [active]);
+  if (!active && selection) setSelection(null);
   const disabled =
     blocked || loading || picking || !active || !workspace?.supported || workspace.pending;
   return (

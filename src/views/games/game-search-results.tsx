@@ -230,8 +230,12 @@ export function GamePreviewTrigger({
   const keep = () => {
     cancel();
   };
+  if (!active && (preview || tracking)) {
+    setPreview(false);
+    setTracking(false);
+  }
   useEffect(() => {
-    if (!active) close();
+    if (!active) cancel();
     return cancel;
   }, [active]);
   useEffect(() => {

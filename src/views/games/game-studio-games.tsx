@@ -65,12 +65,10 @@ export function GameStudioGames({
       ...new Map([...lead, ...profile.games, ...extra].map((game) => [game.id, game])).values(),
     ];
   }, [profile.games, extra]);
+  if (!active && loading) setLoading(false);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
-    if (!active) {
-      request.current?.abort();
-      setLoading(false);
-    }
+    if (!active) request.current?.abort();
   }, [active]);
   const current = Math.min(page, Math.max(0, Math.ceil(games.length / slots) - 1));
   const next = async () => {

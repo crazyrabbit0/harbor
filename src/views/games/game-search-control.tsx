@@ -33,8 +33,12 @@ export function GameSearchControl({
   const input = useRef<HTMLInputElement>(null),
     lastRemembered = useRef(""),
     [history, setHistory] = useState(() => readGameSearchHistory(profile));
-  useEffect(() => {
+  const [historyProfile, setHistoryProfile] = useState(profile);
+  if (historyProfile !== profile) {
+    setHistoryProfile(profile);
     setHistory(readGameSearchHistory(profile));
+  }
+  useEffect(() => {
     lastRemembered.current = "";
   }, [profile]);
   const write = (items: RecentGameSearch[]) => {

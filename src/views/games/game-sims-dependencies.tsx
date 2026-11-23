@@ -58,10 +58,15 @@ export function GameSimsDependencies({
   useEffect(() => {
     if (!active || disabled) cancel();
   }, [active, disabled, cancel]);
-  useEffect(() => {
-    cancel();
+  const resetKey = JSON.stringify([packKey, active, profile]);
+  const [lastResetKey, setLastResetKey] = useState(resetKey);
+  if (lastResetKey !== resetKey) {
+    setLastResetKey(resetKey);
     setReport(null);
     setError("");
+  }
+  useEffect(() => {
+    cancel();
   }, [packKey, active, cancel]);
   useEffect(() => {
     if (busy && focusCancel.current) {

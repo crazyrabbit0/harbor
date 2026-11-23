@@ -38,12 +38,19 @@ export function GameTarkovCompanion({ active }: { active: boolean }) {
     observer.observe(root.current);
     return () => observer.disconnect();
   }, [active]);
+  const fetchKey = active && visible ? String(retry) : "";
+  const [syncKey, setSyncKey] = useState(fetchKey);
+  if (syncKey !== fetchKey) {
+    setSyncKey(fetchKey);
+    if (fetchKey) {
+      setPending(true);
+      setSeasonFailed(false);
+      setWipesFailed(false);
+    }
+  }
   useEffect(() => {
     if (!active || !visible) return;
     const request = new AbortController();
-    setPending(true);
-    setSeasonFailed(false);
-    setWipesFailed(false);
     void Promise.allSettled([
       loadTarkovSeasons(request.signal, retry > 0).then(
         (value) => {

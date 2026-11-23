@@ -103,9 +103,7 @@ export function GameSteamAccountControl({
 }) {
   const t = useT(),
     [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
+  if (!active && open) setOpen(false);
   const snapshot = account.status.snapshot;
   const status = snapshot
     ? t(account.status.connected ? "games.account.synced" : "games.account.cached", {
@@ -380,13 +378,23 @@ export function GameSteamOwnedLibrary({
     ...installs.find((item) => item.appId === game.appId)?.artwork,
   });
   const ids = shown.map((game) => game.appId).join(",");
-  useEffect(() => setLimit(36), [query, installation, activity, sort, visibility]);
-  useEffect(() => {
+  const ownerKey = `${preferences.profile}\0${snapshot?.steamId ?? ""}`;
+  const [lastOwnerKey, setLastOwnerKey] = useState(ownerKey);
+  if (lastOwnerKey !== ownerKey) {
+    setLastOwnerKey(ownerKey);
     setInstallation("all");
     setActivity("all");
     setVisibility("visible");
     setSort("recent");
     setLimit(36);
+  }
+  const filterKey = JSON.stringify([query, installation, activity, sort, visibility]);
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (lastFilterKey !== filterKey) {
+    setLastFilterKey(filterKey);
+    setLimit(36);
+  }
+  useEffect(() => {
     lastPick.current = undefined;
   }, [preferences.profile, snapshot?.steamId]);
   useEffect(() => {
@@ -662,9 +670,7 @@ export function GameSteamAchievementButton({
 }) {
   const t = useT(),
     [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!active || !account.status.connected) setOpen(false);
-  }, [active, account.status.connected]);
+  if ((!active || !account.status.connected) && open) setOpen(false);
   if (!account.status.connected) return null;
   return (
     <>
@@ -698,12 +704,27 @@ function SteamAchievementsDialog({
     [filter, setFilter] = useState("all"),
     [revealed, setRevealed] = useState(false),
     [limit, setLimit] = useState(80);
+  const [fetchSync, setFetchSync] = useState({
+    achievements: account.achievements,
+    appId,
+    attempt,
+  });
+  if (
+    fetchSync.achievements !== account.achievements ||
+    fetchSync.appId !== appId ||
+    fetchSync.attempt !== attempt
+  ) {
+    setFetchSync({ achievements: account.achievements, appId, attempt });
+    setError(null);
+  }
   useEffect(() => {
     let current = true;
-    setError(null);
     void account.achievements(appId).then(
       (value) => {
-        if (current) setData(value);
+        if (current) {
+          setData(value);
+          setError(null);
+        }
       },
       (reason) => {
         if (current) setError(steamAccountError(reason));
@@ -713,7 +734,12 @@ function SteamAchievementsDialog({
       current = false;
     };
   }, [account.achievements, appId, attempt]);
-  useEffect(() => setLimit(80), [query, filter]);
+  const filterKey = JSON.stringify([query, filter]);
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (lastFilterKey !== filterKey) {
+    setLastFilterKey(filterKey);
+    setLimit(80);
+  }
   const secret = (item: NonNullable<typeof data>["items"][number]) =>
     item.hidden && !item.unlocked && !revealed;
   const items =

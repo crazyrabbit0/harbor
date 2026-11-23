@@ -89,12 +89,12 @@ export function GameStardewCatalog({
       cancel();
     };
   }, [profile]);
+  if (!active && (selection || expanded)) {
+    setSelection(null);
+    setExpanded(false);
+  }
   useEffect(() => {
-    if (!active) {
-      cancel();
-      setSelection(null);
-      setExpanded(false);
-    }
+    if (!active) cancel();
   }, [active]);
   useEffect(() => {
     let mounted = true;

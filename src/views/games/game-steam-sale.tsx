@@ -31,15 +31,21 @@ export function GameSteamSale({ active }: { active: boolean }) {
     [attempt, setAttempt] = useState(0),
     [expanded, setExpanded] = useState(false);
   const revision = useLiveRefresh(running, 6 * 60 * 60_000);
+  const fetchKey = running ? `${revision}:${attempt}` : "";
+  const [failedKey, setFailedKey] = useState(fetchKey);
+  if (failedKey !== fetchKey) {
+    setFailedKey(fetchKey);
+    if (running) setFailed(false);
+  }
   useEffect(() => {
     if (!running) return;
     const request = new AbortController();
-    setFailed(false);
     void loadSteamSaleEvents(request.signal).then(
       (value) => {
         if (!request.signal.aborted) {
           setEvents(value);
           setLoaded(true);
+          setFailed(false);
         }
       },
       () => {

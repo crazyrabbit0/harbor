@@ -26,13 +26,15 @@ function StartMenuMark() {
 
 export function GameShortcuts({ game }: { game: CustomGame }) {
   const t = useT(),
-    [result, setResult] = useState<GameShortcuts>(),
+    [resultState, setResultState] = useState<{ identity: string; value: GameShortcuts }>(),
     [busy, setBusy] = useState<GameShortcutTarget | null>(null),
-    [error, setError] = useState("");
+    [errorState, setErrorState] = useState<{ identity: string; message: string }>();
   const live = useRef(true),
     pending = useRef(false),
     supported = osClass() === "windows" && game.config.mode === "native";
   const identity = JSON.stringify([game.id, game.name, game.config]);
+  const result = resultState?.identity === identity ? resultState.value : undefined;
+  const error = errorState?.identity === identity ? errorState.message : "";
   const currentIdentity = useRef(identity);
   useLayoutEffect(() => {
     currentIdentity.current = identity;
@@ -41,13 +43,11 @@ export function GameShortcuts({ game }: { game: CustomGame }) {
     live.current = true;
     if (!supported) return;
     let current = true;
-    setResult(undefined);
-    setError("");
     const deadline = window.setTimeout(() => {
       if (current) {
         current = false;
-        setResult({ desktop: null, startMenu: null });
-        setError("games.setupShortcuts.error");
+        setResultState({ identity, value: { desktop: null, startMenu: null } });
+        setErrorState({ identity, message: "games.setupShortcuts.error" });
       }
     }, 10000);
     void invoke<GameShortcuts>("games_game_shortcuts", {
@@ -59,14 +59,14 @@ export function GameShortcuts({ game }: { game: CustomGame }) {
       (value) => {
         if (current) {
           clearTimeout(deadline);
-          setResult(value);
+          setResultState({ identity, value });
         }
       },
       (reason) => {
         if (current) {
           clearTimeout(deadline);
-          setResult({ desktop: null, startMenu: null });
-          setError(shortcutError(reason));
+          setResultState({ identity, value: { desktop: null, startMenu: null } });
+          setErrorState({ identity, message: shortcutError(reason) });
         }
       },
     );
@@ -80,7 +80,7 @@ export function GameShortcuts({ game }: { game: CustomGame }) {
     if (pending.current) return;
     pending.current = true;
     setBusy(target);
-    setError("");
+    setErrorState(undefined);
     const work = async () => {
       const value = await invoke<GameShortcuts>("games_game_shortcuts", {
         id: game.id,
@@ -88,11 +88,12 @@ export function GameShortcuts({ game }: { game: CustomGame }) {
         config: game.config,
         target,
       });
-      if (live.current && currentIdentity.current === identity) setResult(value);
+      if (live.current && currentIdentity.current === identity) setResultState({ identity, value });
     };
     await work()
       .catch((reason) => {
-        if (live.current && currentIdentity.current === identity) setError(shortcutError(reason));
+        if (live.current && currentIdentity.current === identity)
+          setErrorState({ identity, message: shortcutError(reason) });
       })
       .finally(() => {
         pending.current = false;

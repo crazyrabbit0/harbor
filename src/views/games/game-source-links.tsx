@@ -85,12 +85,8 @@ export function GameSourceLinkScope({
 }) {
   const [draft, setDraft] = useState<{ link: SourceLink; profile: string } | null>(null);
   const [repair, setRepair] = useState<GameTransfer | null>(null);
-  useEffect(() => {
-    if (!active || (repair && repair.profile !== profile)) setRepair(null);
-  }, [active, profile, repair]);
-  useEffect(() => {
-    if (!active || (draft && draft.profile !== profile)) setDraft(null);
-  }, [active, profile, draft]);
+  if (repair && (!active || repair.profile !== profile)) setRepair(null);
+  if (draft && (!active || draft.profile !== profile)) setDraft(null);
   const openLink = useCallback((link: SourceLink) => setDraft({ link, profile }), [profile]);
   return (
     <SourceTransfersContext.Provider value={downloads}>
@@ -239,14 +235,19 @@ function SourceLinkDialog({
       if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
-  useEffect(() => {
-    revision.current++;
-    pending.current = false;
+  const resetKey = JSON.stringify([provider, key, pmMode, publicMode]);
+  const [lastResetKey, setLastResetKey] = useState(resetKey);
+  if (lastResetKey !== resetKey) {
+    setLastResetKey(resetKey);
     setFiles(null);
     setError("");
     setLoading(false);
     setSelected([0]);
     setLimit(50);
+  }
+  useEffect(() => {
+    revision.current++;
+    pending.current = false;
   }, [provider, key, pmMode, publicMode]);
   const prepare = async () => {
     if (separateFlow || pending.current || saving || !key || !downloads.available) return;

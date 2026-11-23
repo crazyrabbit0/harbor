@@ -32,9 +32,7 @@ export function GameStoryTimeline({
     [expanded, setExpanded] = useState(false),
     [visited, setVisited] = useState(false),
     trigger = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!active) setExpanded(false);
-  }, [active]);
+  if (!active && expanded) setExpanded(false);
   if (!residentEvilStoryAvailable(game))
     return <GamePlayOrder game={game} active={active} openGame={openGame} />;
   return (
@@ -102,13 +100,17 @@ function StoryContent({
     [pending, setPending] = useState(true),
     [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
+  const [lastAttempt, setLastAttempt] = useState(attempt);
+  if (lastAttempt !== attempt) {
+    setLastAttempt(attempt);
+    setPending(true);
+    setFailed(false);
+  }
   useEffect(() => {
     const request = new AbortController(),
       ids = RESIDENT_EVIL_STORY.flatMap((entry) =>
         [entry.gameId, entry.originalId].filter((id): id is number => !!id),
       );
-    setPending(true);
-    setFailed(false);
     void queryIgdb(
       `fields ${ATLAS_SUMMARY_FIELDS},franchises.name; where id = (${ids.join(",")}); limit 40;`,
       request.signal,

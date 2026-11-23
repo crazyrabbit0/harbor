@@ -25,13 +25,33 @@ export function GameSpeedruns({ name, active }: { name: string; active: boolean 
     [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
   const [watching, setWatching] = useState<SpeedrunRecord | null>(null);
-  useEffect(() => {
+  const watchKey = JSON.stringify([name, category, active]);
+  const [lastWatchKey, setLastWatchKey] = useState(watchKey);
+  if (lastWatchKey !== watchKey) {
+    setLastWatchKey(watchKey);
     setWatching(null);
-  }, [name, category, active]);
+  }
+  const gameFetchKey = active ? JSON.stringify([name, attempt]) : "";
+  const [lastGameFetchKey, setLastGameFetchKey] = useState(gameFetchKey);
+  if (lastGameFetchKey !== gameFetchKey) {
+    setLastGameFetchKey(gameFetchKey);
+    if (active) setFailed(false);
+  }
+  const [boardSync, setBoardSync] = useState({ game, category, active, attempt });
+  if (
+    boardSync.game !== game ||
+    boardSync.category !== category ||
+    boardSync.active !== active ||
+    boardSync.attempt !== attempt
+  ) {
+    setBoardSync({ game, category, active, attempt });
+    setBoard(null);
+    const selected = game?.categories.find((item) => item.id === category);
+    if (active && game && selected) setFailed(false);
+  }
   useEffect(() => {
     if (!active) return;
     const request = new AbortController();
-    setFailed(false);
     void loadSpeedrunGame(name, request.signal).then(
       (value) => {
         if (request.signal.aborted) return;
@@ -50,10 +70,8 @@ export function GameSpeedruns({ name, active }: { name: string; active: boolean 
   }, [name, active, attempt]);
   useEffect(() => {
     const selected = game?.categories.find((item) => item.id === category);
-    setBoard(null);
     if (!active || !game || !selected) return;
     const request = new AbortController();
-    setFailed(false);
     void loadSpeedrunBoard(game, selected, request.signal).then(
       (value) => {
         if (!request.signal.aborted) setBoard(value);

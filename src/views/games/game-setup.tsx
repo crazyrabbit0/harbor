@@ -143,12 +143,25 @@ export function GameSetupDialog({
   const job = setupJobForSource(jobs, source.source) ?? setupJobForSource(jobs, location),
     running = job?.status === "running";
   const recovering = !!job && !running;
-  useEffect(() => {
-    if (job?.status !== "running" && job?.destination)
-      setLocation((current) =>
-        setupPath(current) === setupPath(job.destination!) ? current : job.destination!,
-      );
-  }, [job?.id, job?.status, job?.destination]);
+  const [jobSync, setJobSync] = useState({
+    id: job?.id,
+    status: job?.status,
+    destination: job?.destination,
+  });
+  if (
+    jobSync.id !== job?.id ||
+    jobSync.status !== job?.status ||
+    jobSync.destination !== job?.destination
+  ) {
+    setJobSync({ id: job?.id, status: job?.status, destination: job?.destination });
+    if (
+      job?.status !== "running" &&
+      job?.destination &&
+      setupPath(location) !== setupPath(job.destination)
+    ) {
+      setLocation(job.destination);
+    }
+  }
   const installed =
     job?.destination &&
     job.status === "finished" &&
@@ -196,9 +209,7 @@ export function GameSetupDialog({
     !plan.truncated &&
     entries.length > 0 &&
     entries.every((entry) => entry.kind === "torrent");
-  useEffect(() => {
-    if (!executable && detected) setExecutable(detected);
-  }, [detected, executable]);
+  if (!executable && detected) setExecutable(detected);
   const verifying = job?.progress?.stage === "checking";
   const steps = verifying ? ["check", "install", "verify", "ready"] : ["check", "install", "ready"];
   const stage =
@@ -283,12 +294,16 @@ export function GameSetupDialog({
   }, []);
   const current = (revision: number) =>
     live.current && !dismissed.current && revision === generation.current;
-  const scan = async () => {
-    const revision = ++generation.current;
-    pending.current = true;
+  const [scanSync, setScanSync] = useState({ location, profile });
+  if (scanSync.location !== location || scanSync.profile !== profile) {
+    setScanSync({ location, profile });
     setBusy("scan");
     setError("");
     setPlan(null);
+  }
+  const runScan = async () => {
+    const revision = ++generation.current;
+    pending.current = true;
     const recover = async (revision: number) => {
       if (!job) return;
       await invoke<SetupJob>("games_recover_setup", {
@@ -331,8 +346,14 @@ export function GameSetupDialog({
         }
       });
   };
+  const scan = () => {
+    setBusy("scan");
+    setError("");
+    setPlan(null);
+    return runScan();
+  };
   useEffect(() => {
-    void scan();
+    void runScan();
   }, [location, profile]);
   const reveal = async (path = location) => {
     try {

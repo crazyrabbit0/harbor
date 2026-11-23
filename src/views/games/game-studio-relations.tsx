@@ -28,7 +28,11 @@ export function GameStudioRelations({
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-  useEffect(() => setPage(0), [profile?.id, slots]);
+  const [pageSync, setPageSync] = useState({ id: profile?.id, slots });
+  if (pageSync.id !== profile?.id || pageSync.slots !== slots) {
+    setPageSync({ id: profile?.id, slots });
+    setPage(0);
+  }
   const relations = profile
     ? [
         ...(profile.parent ? [{ company: profile.parent, parent: true }] : []),

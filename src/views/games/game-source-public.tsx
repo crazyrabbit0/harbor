@@ -1,6 +1,6 @@
 import { GameFileIcon } from "./game-file-icon";
 import { SourceFilesLoading } from "./game-source-loading";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PublicBatchRequest, PublicFilesRequest } from "@/lib/generated/games-requests-ipc";
 import { ArrowDown, ArrowUpRight, Check, ShieldCheck, Square, SquareCheck } from "lucide-react";
@@ -144,13 +144,10 @@ export function SourcePublicFiles({
         if (alive.current) setBusy(false);
       });
   };
-  const visible = result?.files.slice(0, limit) ?? [];
   // Reveal the provider-selected member, including links pointing past the first page.
-  useEffect(() => {
-    if (!result) return;
-    const index = result.files.findIndex((item) => item.id === focused);
-    if (index >= limit) setLimit(Math.ceil((index + 1) / 50) * 50);
-  }, [result, focused, limit]);
+  const focusedIndex = result ? result.files.findIndex((item) => item.id === focused) : -1;
+  if (focusedIndex >= limit) setLimit(Math.ceil((focusedIndex + 1) / 50) * 50);
+  const visible = result?.files.slice(0, limit) ?? [];
   useLayoutEffect(() => {
     const container = body.current,
       item = container?.querySelector<HTMLElement>('[data-current="true"]');
