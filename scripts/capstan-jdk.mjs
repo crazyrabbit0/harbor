@@ -109,10 +109,9 @@ function unpack(buf, kind, into) {
   writeFileSync(archive, buf);
   try {
     if (kind === "zip" && process.platform === "win32") {
-      const command = `Expand-Archive -LiteralPath "${archive}" -DestinationPath "${into}" -Force`;
-      execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", command], {
-        stdio: "inherit",
-      });
+      // Windows' own bsdtar reads zip; Expand-Archive fails under PowerShell 7 on the runners.
+      const tar = join(process.env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe");
+      execFileSync(tar, ["-xf", name], { cwd: into, stdio: "inherit" });
     } else if (kind === "zip") {
       execFileSync("unzip", ["-oq", name], { cwd: into, stdio: "inherit" });
     } else {
