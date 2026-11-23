@@ -94,9 +94,7 @@ export function GameCatalogFilters({
     else close();
   }, open && active);
 
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
+  if (!active && open) setOpen(false);
   useEffect(() => {
     const resize = () => setWidth(Math.min(320, window.innerWidth - 16));
     window.addEventListener("resize", resize);

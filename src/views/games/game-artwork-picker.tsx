@@ -46,14 +46,29 @@ export function GameArtworkPicker({
   const { closing, close } = useModalExit(onClose);
   const [draft, setDraft] = useState(() => matchingLibraryArtwork(value, binding));
   const [tab, setTab] = useState<"cover" | "background">("background");
-  const [result, setResult] = useState<AtlasGame | null>(null),
-    [loading, setLoading] = useState(true),
-    [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0),
     [saving, setSaving] = useState(false),
     [saveFailed, setSaveFailed] = useState(false);
-  const [broken, setBroken] = useState<string[]>([]),
-    pending = useRef(false);
+  const loadKey = `${game.id}:${game.igdbId ?? ""}:${game.steamId ?? ""}:${game.catalogSteamId ?? ""}:${attempt}`;
+  const [loaded, setLoaded] = useState<{
+    key: string;
+    result: AtlasGame | null;
+    failed: boolean;
+  } | null>(null);
+  const [brokenState, setBrokenState] = useState<{ key: string; ids: string[] }>({
+    key: loadKey,
+    ids: [],
+  });
+  const pending = useRef(false);
+  const loading = loaded?.key !== loadKey;
+  const failed = !loading && (loaded?.failed ?? false);
+  const result = !loading ? (loaded?.result ?? null) : null;
+  const broken = brokenState.key === loadKey ? brokenState.ids : [];
+  const markBroken = (imageId: string) =>
+    setBrokenState((previous) => ({
+      key: loadKey,
+      ids: previous.key === loadKey ? [...previous.ids, imageId] : [imageId],
+    }));
   const dismiss = () => {
     if (!pending.current) close();
   };
@@ -88,31 +103,25 @@ export function GameArtworkPicker({
   }, []);
   useEffect(() => {
     const request = new AbortController();
-    setLoading(true);
-    setFailed(false);
-    setResult(null);
-    setBroken([]);
     void loadAtlasGame(game, request.signal).then(
       (next) => {
         if (!request.signal.aborted) {
-          setResult(next);
+          setLoaded({ key: loadKey, result: next, failed: false });
           const nextId = next?.igdbId;
           setDraft((previous) => {
             const previousId = previous?.igdbId;
             return previousId === nextId ? previous : undefined;
           });
-          setLoading(false);
         }
       },
       () => {
         if (!request.signal.aborted) {
-          setFailed(true);
-          setLoading(false);
+          setLoaded({ key: loadKey, result: null, failed: true });
         }
       },
     );
     return () => request.abort();
-  }, [game.id, game.igdbId, game.steamId, game.catalogSteamId, attempt]);
+  }, [game.id, game.igdbId, game.steamId, game.catalogSteamId, attempt, loadKey]);
   const catalog = result?.artwork ?? [],
     backgrounds = backgroundArtwork(
       catalog,
@@ -216,7 +225,7 @@ export function GameArtworkPicker({
                     src={currentPreview}
                     alt=""
                     onError={() => {
-                      if (chosen) setBroken((previous) => [...previous, chosen.imageId]);
+                      if (chosen) markBroken(chosen.imageId);
                     }}
                   />
                 ) : (
@@ -281,7 +290,7 @@ export function GameArtworkPicker({
                           src={igdbArtworkUrl(image, true)}
                           alt=""
                           loading="lazy"
-                          onError={() => setBroken((previous) => [...previous, image.imageId])}
+                          onError={() => markBroken(image.imageId)}
                         />
                       )}
                       <i>{chosen?.imageId === image.imageId && <Check size={16} />}</i>

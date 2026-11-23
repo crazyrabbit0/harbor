@@ -74,26 +74,30 @@ export function GameChartPreview({
   open: (game: GameSummary) => void;
 }) {
   const t = useT(),
-    [state, setState] = useState<{ phase: "loading" | "ready" | "failed"; detail?: GameDetail }>({
-      phase: "loading",
-    }),
-    [attempt, setAttempt] = useState(0);
+    [attempt, setAttempt] = useState(0),
+    loadKey = game.steamId ? `${game.steamId}:${attempt}` : null,
+    [result, setResult] = useState<{
+      key: string;
+      phase: "ready" | "failed";
+      detail?: GameDetail;
+    } | null>(null),
+    [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (active && loadKey) setResult(null);
+  }
   useEffect(() => {
-    if (!active) return;
+    if (!active || !game.steamId) return;
     let current = true;
-    setState({ phase: "loading" });
-    if (!game.steamId) {
-      setState({ phase: "ready" });
-      return;
-    }
+    const key = `${game.steamId}:${attempt}`;
     const timer = setTimeout(
       () =>
         void loadGameDetail(game.steamId!).then(
           (detail) => {
-            if (current) setState({ phase: "ready", detail });
+            if (current) setResult({ key, phase: "ready", detail });
           },
           () => {
-            if (current) setState({ phase: "failed" });
+            if (current) setResult({ key, phase: "failed" });
           },
         ),
       HOVER_INTENT_MS,
@@ -103,7 +107,13 @@ export function GameChartPreview({
       clearTimeout(timer);
     };
   }, [game.steamId, active, attempt]);
-  const { detail, phase } = state,
+  const matched = loadKey && result?.key === loadKey ? result : null,
+    phase: "loading" | "ready" | "failed" = !game.steamId
+      ? "ready"
+      : matched
+        ? matched.phase
+        : "loading",
+    detail = matched?.detail,
     pending = phase === "loading",
     screens = detail?.screenshots.slice(0, 3) ?? [];
   return (

@@ -168,8 +168,13 @@ export function GameAchievementManager({
     const timer = window.setTimeout(() => setExpired(true), review.expiresIn * 1000);
     return () => clearTimeout(timer);
   }, [review]);
-  useEffect(() => {
+  const filterKey = `${query}\0${filter}\0${pickQuery}`;
+  const [limitFilterKey, setLimitFilterKey] = useState(filterKey);
+  if (limitFilterKey !== filterKey) {
+    setLimitFilterKey(filterKey);
     setLimit(60);
+  }
+  useEffect(() => {
     if (scroller.current) scroller.current.scrollTop = 0;
   }, [query, filter, pickQuery]);
   const items = result?.snapshot?.items ?? review?.snapshot.items;

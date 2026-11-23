@@ -87,6 +87,22 @@ export function GameCloudDialog({
   const saving = downloads.busy.includes("new"),
     available = downloads.available,
     connected = !!key;
+  const loadKey = `${provider}\0${key}\0${parent}\0${page}\0${retry}\0${available}\0${connected}\0${scope}\0${jobs}\0${folder}\0${jobCommand}`;
+  const [prevLoadKey, setPrevLoadKey] = useState(loadKey);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
+    setSelected(null);
+    setResolving("");
+    setResult(null);
+    setError("");
+    setLimit(100);
+    setLoading(connected && available);
+  }
+  const [prevQuery, setPrevQuery] = useState(query);
+  if (prevQuery !== query) {
+    setPrevQuery(query);
+    setLimit(100);
+  }
   const dismiss = () => {
     if (!saving) close();
   };
@@ -145,17 +161,8 @@ export function GameCloudDialog({
   }, []);
   useEffect(() => {
     const current = ++revision.current;
-    setSelected(null);
-    setResolving("");
     pending.current = false;
-    setResult(null);
-    setError("");
-    setLimit(100);
-    if (!connected || !available) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!connected || !available) return;
     const request = { args: { provider, key, parent, page } satisfies CloudRequest };
     const load =
       jobs && !folder
@@ -199,7 +206,6 @@ export function GameCloudDialog({
       });
   }, [provider, key, parent, page, retry, available, connected, scope, jobs, folder, jobCommand]);
   useEffect(() => {
-    setLimit(100);
     list.current?.scrollTo(0, 0);
   }, [query]);
   const choose = async (entry: CloudEntry) => {

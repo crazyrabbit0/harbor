@@ -209,12 +209,14 @@ function AtlasPage({
   const controller = useRef<AbortController | null>(null);
   const continuation = useRef<HTMLDivElement>(null),
     pagePending = useRef<AbortController | null>(null);
+  if (!active && state.loading) {
+    setState((s) => (s.loading ? { ...s, loading: false } : s));
+  }
   useEffect(() => {
     pagePending.current?.abort();
     pagePending.current = null;
     if (!active) {
       controller.current?.abort();
-      setState((s) => (s.loading ? { ...s, loading: false } : s));
       return;
     }
     const requestKey = `${attempt}:${revision}`,

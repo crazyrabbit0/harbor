@@ -180,10 +180,15 @@ export function GameMilestones({
     [games, setGames] = useState<AtlasGame[]>([]),
     [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
+  const runKey = active && near && !games.length ? attempt : null;
+  const [prevRunKey, setPrevRunKey] = useState(runKey);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null && failed) setFailed(false);
+  }
   useEffect(() => {
     if (!active || !near || games.length) return;
     const request = new AbortController();
-    setFailed(false);
     void queryIgdb(milestoneQuery, request.signal).then(
       (rows) => {
         if (!request.signal.aborted) {

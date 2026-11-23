@@ -55,8 +55,8 @@ export function runDownloadAction(
 
 export function DownloadArtwork({ item, hero = false }: { item: DownloadItem; hero?: boolean }) {
   const game = downloadGame(item.record),
-    [failed, setFailed] = useState(false);
-  useEffect(() => setFailed(false), [game?.artwork]);
+    [failedSrc, setFailedSrc] = useState<string>();
+  const failed = !!game?.artwork && failedSrc === game.artwork;
   return (
     <span className={hero ? "games-download-feature-art" : "games-download-art"} aria-hidden="true">
       {game?.artwork && !failed ? (
@@ -64,7 +64,7 @@ export function DownloadArtwork({ item, hero = false }: { item: DownloadItem; he
           src={game.artwork}
           alt=""
           loading={hero ? "eager" : "lazy"}
-          onError={() => setFailed(true)}
+          onError={() => setFailedSrc(game.artwork)}
         />
       ) : (
         !hero && <HarborMark />
@@ -195,10 +195,14 @@ export function DownloadActivity({
     [peak, setPeak] = useState(
       record.status === "downloading" ? Math.max(0, record.bytesPerSecond) : 0,
     );
-  useEffect(() => {
-    if (active && document.visibilityState !== "hidden" && record.status === "downloading")
-      setPeak((old) => Math.max(old, record.bytesPerSecond));
-  }, [active, record.status, record.bytesPerSecond]);
+  if (
+    active &&
+    document.visibilityState !== "hidden" &&
+    record.status === "downloading" &&
+    record.bytesPerSecond > peak
+  ) {
+    setPeak(record.bytesPerSecond);
+  }
   useEffect(() => {
     if (!active || setup || extraction) return;
     const sample = () => {

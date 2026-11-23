@@ -1,4 +1,4 @@
-import { useEffect, useId, useState } from "react";
+import { useId, useState } from "react";
 import { Gauge, X } from "lucide-react";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
@@ -21,9 +21,7 @@ export function GameDownloadSpeed({
     language = useUiLanguage(),
     [open, setOpen] = useState(false),
     settings = useGameTransferSettings(profile, active, available);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
+  if (!active && open) setOpen(false);
   if (!available) return null;
   const rate = settings.value?.bytesPerSecondLimit;
   const label =
@@ -62,15 +60,11 @@ function SpeedDialog({
     id = useId(),
     root = useAccountDialogFocus(),
     { closing, close } = useModalExit(onClose);
-  const [mode, setMode] = useState(settings.value?.bytesPerSecondLimit ? "limited" : "unlimited"),
-    [rate, setRate] = useState(String((settings.value?.bytesPerSecondLimit || 1024 * 1024) / 1024)),
-    [dirty, setDirty] = useState(false);
-  useEffect(() => {
-    if (settings.value && !dirty) {
-      setMode(settings.value.bytesPerSecondLimit ? "limited" : "unlimited");
-      setRate(String((settings.value.bytesPerSecondLimit || 1024 * 1024) / 1024));
-    }
-  }, [settings.value, dirty]);
+  const defaultMode = settings.value?.bytesPerSecondLimit ? "limited" : "unlimited";
+  const defaultRate = String((settings.value?.bytesPerSecondLimit || 1024 * 1024) / 1024);
+  const [draft, setDraft] = useState<{ mode?: "limited" | "unlimited"; rate?: string }>({});
+  const mode = draft.mode ?? defaultMode;
+  const rate = draft.rate ?? defaultRate;
   const valid = /^\d+$/.test(rate) && Number(rate) >= 16 && Number(rate) <= 1048576;
   const busy = settings.saving,
     dismiss = () => {
@@ -122,10 +116,9 @@ function SpeedDialog({
                     key={value}
                     disabled={busy}
                     aria-pressed={mode === value}
-                    onClick={() => {
-                      setDirty(true);
-                      setMode(value);
-                    }}
+                    onClick={() =>
+                      setDraft((previous) => ({ mode: value, rate: previous.rate ?? defaultRate }))
+                    }
                   >
                     {t(`games.download.speed.${value}`)}
                   </button>
@@ -143,10 +136,12 @@ function SpeedDialog({
                     required
                     disabled={busy}
                     value={rate}
-                    onChange={(event) => {
-                      setDirty(true);
-                      setRate(event.target.value);
-                    }}
+                    onChange={(event) =>
+                      setDraft((previous) => ({
+                        mode: previous.mode ?? defaultMode,
+                        rate: event.target.value,
+                      }))
+                    }
                     aria-invalid={!valid}
                     aria-describedby={!valid ? `${id}-range` : undefined}
                   />

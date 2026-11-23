@@ -82,6 +82,12 @@ export function GameDotaCompanion({ active }: { active: boolean }) {
     [sort, setSort] = useState("picks");
   const [limit, setLimit] = useState(24),
     [selected, setSelected] = useState(0);
+  const runKey = active && engaged ? attempt : null;
+  const [prevRunKey, setPrevRunKey] = useState<number | null>(null);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null) setFeed((value) => ({ ...value, busy: true, failed: false }));
+  }
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -98,7 +104,6 @@ export function GameDotaCompanion({ active }: { active: boolean }) {
     const controller = new AbortController(),
       refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
-    setFeed((value) => ({ ...value, busy: true, failed: false }));
     void loadDotaHeroes(controller.signal, refresh).then(
       (value) => {
         if (controller.signal.aborted) return;
@@ -312,12 +317,17 @@ function Matchups({
     [minimum, setMinimum] = useState(50),
     [sort, setSort] = useState("games"),
     [limit, setLimit] = useState(10);
+  const runKey = active ? `${hero.id}:${attempt}` : null;
+  const [prevRunKey, setPrevRunKey] = useState<string | null>(null);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null) setFeed((value) => ({ ...value, busy: true, failed: false }));
+  }
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController(),
       refresh = attempt !== refreshed.current;
     refreshed.current = attempt;
-    setFeed((value) => ({ ...value, busy: true, failed: false }));
     void loadDotaMatchups(hero.id, controller.signal, refresh).then(
       (value) => {
         if (!controller.signal.aborted)

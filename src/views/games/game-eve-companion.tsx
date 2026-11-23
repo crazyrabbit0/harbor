@@ -60,6 +60,16 @@ export function GameEveCompanion({ active, profile }: { active: boolean; profile
   const [status, setStatus] = useState<EveSnapshot<EveStatus> | null>(null),
     [statusFailed, setStatusFailed] = useState(false),
     [busy, setBusy] = useState(false);
+  const runKey = active && visible ? attempt : null;
+  const [prevRunKey, setPrevRunKey] = useState<number | null>(null);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null) {
+      setUniverseFailed(false);
+      setStatusFailed(false);
+      setBusy(true);
+    }
+  }
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -74,9 +84,6 @@ export function GameEveCompanion({ active, profile }: { active: boolean; profile
   useEffect(() => {
     if (!active || !visible) return;
     const request = new AbortController();
-    setUniverseFailed(false);
-    setStatusFailed(false);
-    setBusy(true);
     void Promise.allSettled([
       loadEveUniverse(request.signal).then(
         (value) => {
@@ -231,11 +238,18 @@ function EveFlightPlanner({
     }
     setRequest((previous) => ({ plan: next, revision: (previous?.revision ?? 0) + 1 }));
   }
+  const routeKey = active && request ? request.revision : null;
+  const [prevRouteKey, setPrevRouteKey] = useState<number | null>(null);
+  if (prevRouteKey !== routeKey) {
+    setPrevRouteKey(routeKey);
+    if (routeKey !== null) {
+      setBusy(true);
+      setFailed(false);
+    }
+  }
   useEffect(() => {
     if (!active || !request) return;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
     void loadEveRoute(request.plan, controller.signal)
       .then(
         (snapshot) => {
@@ -253,11 +267,18 @@ function EveFlightPlanner({
       });
     return () => controller.abort();
   }, [active, request]);
+  const killsKey = active && result?.snapshot.data ? activityAttempt : null;
+  const [prevKillsKey, setPrevKillsKey] = useState<number | null>(null);
+  if (prevKillsKey !== killsKey) {
+    setPrevKillsKey(killsKey);
+    if (killsKey !== null) {
+      setKillsFailed(false);
+      setActivityBusy(true);
+    }
+  }
   useEffect(() => {
     if (!active || !result?.snapshot.data) return;
     const controller = new AbortController();
-    setKillsFailed(false);
-    setActivityBusy(true);
     void loadEveKills(controller.signal)
       .then(
         (value) => {
@@ -272,11 +293,18 @@ function EveFlightPlanner({
       });
     return () => controller.abort();
   }, [active, !!result?.snapshot.data, activityAttempt]);
+  const incursionKey = active ? incursionAttempt : null;
+  const [prevIncursionKey, setPrevIncursionKey] = useState<number | null>(null);
+  if (prevIncursionKey !== incursionKey) {
+    setPrevIncursionKey(incursionKey);
+    if (incursionKey !== null) {
+      setIncursionFailed(false);
+      setIncursionBusy(true);
+    }
+  }
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
-    setIncursionFailed(false);
-    setIncursionBusy(true);
     void loadEveIncursions(controller.signal)
       .then(
         (value) => {

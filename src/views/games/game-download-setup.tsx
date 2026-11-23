@@ -42,23 +42,26 @@ export function DownloadSetupStatus({
 }
 
 export function useInstallerClock(job?: SetupJob, active = true) {
-  const [now, setNow] = useState(Date.now);
-  // A job event also re-reads the clock.
-  useEffect(() => {
-    setNow(Date.now());
-  }, [job?.id, job?.status, job?.startedAt, job?.progress?.observedAt]);
+  const [tick, setTick] = useState(Date.now);
+  const observedAt =
+    typeof job?.progress?.observedAt === "number" && Number.isFinite(job.progress.observedAt)
+      ? job.progress.observedAt
+      : 0;
+  const startedAt =
+    typeof job?.startedAt === "number" && Number.isFinite(job.startedAt) ? job.startedAt : 0;
+  const now = Math.max(tick, observedAt, startedAt);
   useEffect(() => {
     if (!active || job?.status !== "running") return;
-    // Job events drive updates. At most two one-shot deadlines cover startup and
-    // stale telemetry; a silent installer never starts a renderer polling loop.
-    const now = Date.now();
+    // At most two one-shot deadlines cover startup and stale telemetry without polling.
+    const currentNow = Date.now();
     const deadlines = [
       job.startedAt + SETUP_STARTING_MS,
       job.progress ? job.progress.observedAt + 10_001 : NaN,
     ]
-      .map((at) => at - now)
-      .filter((delay) => Number.isFinite(delay) && delay > 0 && delay <= 11_001);
-    const update = () => setNow(Date.now());
+      .filter((at) => Number.isFinite(at) && at > tick)
+      .map((at) => Math.max(0, at - currentNow))
+      .filter((delay) => delay <= 11_001);
+    const update = () => setTick(Date.now());
     const visible = () => {
       if (document.visibilityState !== "hidden") update();
     };
@@ -68,7 +71,7 @@ export function useInstallerClock(job?: SetupJob, active = true) {
       window.clearTimeout(timer);
       document.removeEventListener("visibilitychange", visible);
     };
-  }, [active, job?.id, job?.status, job?.startedAt, job?.progress?.observedAt, now]);
+  }, [active, job?.id, job?.status, job?.startedAt, job?.progress?.observedAt, tick]);
   return now;
 }
 
@@ -90,17 +93,15 @@ export function DownloadSetupProgress({
   const root = useRef<HTMLDivElement>(null);
   useInstallerObservation(job, active, root);
   const [revealing, setRevealing] = useState(false),
-    [revealError, setRevealError] = useState(false);
-  useEffect(() => {
-    setRevealError(false);
-  }, [job?.id]);
+    [revealErrorFor, setRevealErrorFor] = useState<string | null>(null);
+  const revealError = !!job?.id && revealErrorFor === job.id;
   const reveal = async () => {
     if (!job) return;
     setRevealing(true);
-    setRevealError(false);
+    setRevealErrorFor(null);
     await invoke("games_reveal_setup", { profile: job.profile, id: job.id })
       .catch(() => {
-        setRevealError(true);
+        setRevealErrorFor(job.id);
       })
       .finally(() => {
         setRevealing(false);

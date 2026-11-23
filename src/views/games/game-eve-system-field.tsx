@@ -32,7 +32,9 @@ export function EveSystemField({
     field = useRef<HTMLDivElement>(null),
     input = useRef<HTMLInputElement>(null),
     menu = useRef<HTMLDivElement>(null);
-  const [text, setText] = useState(""),
+  const [text, setText] = useState(() =>
+      selected !== null ? eveName(universe.byId.get(selected)?.names, language) : "",
+    ),
     [open, setOpen] = useState(false),
     [index, setIndex] = useState(-1),
     [box, setBox] = useState<{
@@ -42,12 +44,17 @@ export function EveSystemField({
       maxHeight: number;
       transform: string;
     } | null>(null);
-  useEffect(() => {
+  const [prevSelected, setPrevSelected] = useState(selected);
+  const [prevUniverse, setPrevUniverse] = useState(universe);
+  const [prevLanguage, setPrevLanguage] = useState(language);
+  if (prevSelected !== selected || prevUniverse !== universe || prevLanguage !== language) {
+    setPrevSelected(selected);
+    setPrevUniverse(universe);
+    setPrevLanguage(language);
     if (selected !== null) setText(eveName(universe.byId.get(selected)?.names, language));
-  }, [selected, universe, language]);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
+  }
+  if (!active && open) setOpen(false);
+  if (!open && box !== null) setBox(null);
   const matches = useMemo(
     () => filterEveSystems(universe, text, language),
     [universe, text, language],
@@ -91,10 +98,7 @@ export function EveSystemField({
     };
   }, [open]);
   useLayoutEffect(() => {
-    if (!open) {
-      setBox(null);
-      return;
-    }
+    if (!open) return;
     const place = () => {
       const r = field.current?.getBoundingClientRect();
       if (!r) return;

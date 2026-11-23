@@ -53,9 +53,7 @@ export function GameActivePlayers({
   const availability = useGameAvailabilityIndex();
   const [near, setNear] = useState(false),
     [chart, setChart] = useState<ConcurrentChart | null>(() => readConcurrentSteamChart() ?? null),
-    [failed, setFailed] = useState(false),
-    [retry, setRetry] = useState(0),
-    [refreshing, setRefreshing] = useState(false);
+    [retry, setRetry] = useState(0);
   const [page, setPage] = useState(0),
     [chosen, setChosen] = useState<string>(),
     [now, setNow] = useState(Date.now);
@@ -63,77 +61,99 @@ export function GameActivePlayers({
   const [reviews, setReviews] = useState<GameHighlight[]>([]);
   const [board, setBoard] = useState<AudienceBoard>("steam");
   const [xboxChart, setXboxChart] = useState<{ data: AudienceGame[]; at: number }>(),
-    [xboxFailed, setXboxFailed] = useState(false);
-  const [deckChart, setDeckChart] = useState<{ data: DeckAudience; at: number }>(),
-    [deckFailed, setDeckFailed] = useState(false);
+    [deckChart, setDeckChart] = useState<{ data: DeckAudience; at: number }>();
   const steam = board === "steam",
     xbox = board === "xbox",
     deck = board === "deck";
   const chartRevision = useLiveRefresh(active && near && steam, PLAYER_COUNT_TTL);
   const xboxRevision = useLiveRefresh(active && near && xbox, XBOX_AUDIENCE_TTL);
   const deckRevision = useLiveRefresh(active && near && deck, DECK_AUDIENCE_TTL);
+  const steamRunKey = active && near && steam ? `${chartRevision}:${retry}` : null;
+  const xboxRunKey = active && near && xbox ? `${xboxRevision}:${retry}` : null;
+  const deckRunKey = active && near && deck ? `${deckRevision}:${retry}` : null;
+  const [steamRun, setSteamRun] = useState<{ key: string; failed: boolean } | null>(null);
+  const [prevSteamRunKey, setPrevSteamRunKey] = useState(steamRunKey);
+  if (prevSteamRunKey !== steamRunKey) {
+    setPrevSteamRunKey(steamRunKey);
+    if (steamRunKey !== null) setSteamRun(null);
+  }
+  const [xboxRun, setXboxRun] = useState<{ key: string; failed: boolean } | null>(null);
+  const [prevXboxRunKey, setPrevXboxRunKey] = useState(xboxRunKey);
+  if (prevXboxRunKey !== xboxRunKey) {
+    setPrevXboxRunKey(xboxRunKey);
+    if (xboxRunKey !== null) setXboxRun(null);
+  }
+  const [deckRun, setDeckRun] = useState<{ key: string; failed: boolean } | null>(null);
+  const [prevDeckRunKey, setPrevDeckRunKey] = useState(deckRunKey);
+  if (prevDeckRunKey !== deckRunKey) {
+    setPrevDeckRunKey(deckRunKey);
+    if (deckRunKey !== null) setDeckRun(null);
+  }
+  const refreshing = steamRunKey !== null && steamRun?.key !== steamRunKey;
+  const failed = steamRun?.failed ?? false;
+  const xboxFailed = xboxRun?.failed ?? false;
+  const deckFailed = deckRun?.failed ?? false;
   useEffect(() => {
     const node = root.current;
     if (!node) return;
     return observeWithin(node, "450px", (entry) => setNear(entry.isIntersecting));
   }, []);
   useEffect(() => {
-    if (!active || !near || !steam) return;
+    if (steamRunKey === null) return;
     const request = new AbortController();
-    setFailed(false);
-    setRefreshing(true);
     void loadConcurrentSteamChart(
       request.signal,
       (value) => {
         if (!request.signal.aborted) setChart((previous) => previous ?? value);
       },
       retry > 0,
-    )
-      .then(
-        (value) => {
-          if (!request.signal.aborted) {
-            setChosen((id) => id ?? selectedId.current);
-            setChart(value);
-            setNow(Date.now());
-          }
-        },
-        () => {
-          if (!request.signal.aborted) setFailed(true);
-        },
-      )
-      .finally(() => {
-        if (!request.signal.aborted) setRefreshing(false);
-      });
+    ).then(
+      (value) => {
+        if (!request.signal.aborted) {
+          setChosen((id) => id ?? selectedId.current);
+          setChart(value);
+          setNow(Date.now());
+          setSteamRun({ key: steamRunKey, failed: false });
+        }
+      },
+      () => {
+        if (!request.signal.aborted) setSteamRun({ key: steamRunKey, failed: true });
+      },
+    );
     return () => request.abort();
-  }, [active, near, steam, chartRevision, retry]);
+  }, [steamRunKey, retry]);
   useEffect(() => {
-    if (!active || !near || !xbox) return;
+    if (xboxRunKey === null) return;
     const request = new AbortController();
-    setXboxFailed(false);
     void loadXboxAudience(request.signal).then(
       (value) => {
-        if (!request.signal.aborted) setXboxChart(value);
+        if (!request.signal.aborted) {
+          setXboxChart(value);
+          setXboxRun({ key: xboxRunKey, failed: false });
+        }
       },
       () => {
-        if (!request.signal.aborted) setXboxFailed(true);
+        if (!request.signal.aborted) setXboxRun({ key: xboxRunKey, failed: true });
       },
     );
     return () => request.abort();
-  }, [active, near, xbox, xboxRevision, retry]);
+  }, [xboxRunKey]);
   useEffect(() => {
-    if (!active || !near || !deck) return;
+    if (deckRunKey === null) return;
     const request = new AbortController();
-    setDeckFailed(false);
     void loadDeckAudience(request.signal).then(
       (value) => {
-        if (!request.signal.aborted) setDeckChart(value);
+        if (!request.signal.aborted) {
+          setDeckChart(value);
+          setDeckRun({ key: deckRunKey, failed: false });
+        }
       },
       () => {
-        if (!request.signal.aborted) setDeckFailed(true);
+        if (!request.signal.aborted) setDeckRun({ key: deckRunKey, failed: true });
       },
     );
     return () => request.abort();
-  }, [active, near, deck, deckRevision, retry]);
+  }, [deckRunKey]);
   const all: AudienceGame[] = useMemo(
     () =>
       board === "steam"

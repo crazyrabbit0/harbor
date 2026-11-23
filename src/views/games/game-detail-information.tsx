@@ -527,9 +527,7 @@ export function DetailAchievements({
     setRequested(id);
     setView("manage-from-list");
   };
-  useEffect(() => {
-    if (!active) setView(null);
-  }, [active]);
+  if (!active && view !== null) setView(null);
   useEffect(() => {
     onOpenChange(open);
     return () => onOpenChange(false);

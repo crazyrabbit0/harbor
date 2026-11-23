@@ -29,9 +29,9 @@ export function GameDockWelcome({ eligible }: { eligible: boolean }) {
     }
     setOpen(false);
   };
+  if ((!eligible || settings.showQuickGameLibrary) && open) setOpen(false);
   useEffect(() => {
     if (!eligible || settings.showQuickGameLibrary) {
-      setOpen(false);
       // An existing opt-in must not become a new invitation after disabling it.
       if (eligible && settings.showQuickGameLibrary && !seen) dismiss(KEY);
       return;

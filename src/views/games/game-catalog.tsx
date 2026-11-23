@@ -121,10 +121,15 @@ export function GameCatalog({
     sentinel = useRef<HTMLDivElement>(null);
   const key = catalogParameters(query, filters).toString();
   const unified = !!query.trim() && !hasSteamSearchFilters(filters);
-  useEffect(() => {
-    randomRequest.current?.abort();
+  const randomKey = `${active}:${key}:${aiMode}`;
+  const [prevRandomKey, setPrevRandomKey] = useState(randomKey);
+  if (prevRandomKey !== randomKey) {
+    setPrevRandomKey(randomKey);
     setRandomBusy(false);
     setRandomError(false);
+  }
+  useEffect(() => {
+    randomRequest.current?.abort();
     return () => randomRequest.current?.abort();
   }, [active, key, aiMode]);
   const filterRef = useRef(filters);
@@ -133,10 +138,12 @@ export function GameCatalog({
     filterRef.current = filters;
     queryRef.current = query;
   }, [filters, query]);
+  if ((!active || aiMode) && state.loading) {
+    setState((s) => (s.loading ? { ...s, loading: false } : s));
+  }
   useEffect(() => {
     if (!active || aiMode) {
       controller.current?.abort();
-      setState((s) => (s.loading ? { ...s, loading: false } : s));
       return;
     }
     const requestKey = `${attempt}:${revision}`;

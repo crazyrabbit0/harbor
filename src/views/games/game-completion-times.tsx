@@ -7,21 +7,23 @@ import { DetailDisclosure } from "./game-detail-disclosure";
 
 export function GameCompletionTime({ gameId, active }: { gameId?: number; active: boolean }) {
   const t = useT(),
-    [data, setData] = useState<GameCompletionTimes | null>(null);
+    [result, setResult] = useState<{ gameId: number; value: GameCompletionTimes | null } | null>(
+      null,
+    );
   useEffect(() => {
     if (!gameId || !active) return;
     const request = new AbortController();
-    setData(null);
     void loadCompletionTimes(gameId, request.signal).then(
       (value) => {
-        if (!request.signal.aborted) setData(value);
+        if (!request.signal.aborted) setResult({ gameId, value });
       },
       () => {
-        if (!request.signal.aborted) setData(null);
+        if (!request.signal.aborted) setResult({ gameId, value: null });
       },
     );
     return () => request.abort();
   }, [gameId, active]);
+  const data = gameId && result?.gameId === gameId ? result.value : null;
   if (!data) return null;
   return (
     <DetailDisclosure title={t("games.details.completionTimes")} icon={<Clock3 size={22} />}>

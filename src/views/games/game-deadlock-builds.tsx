@@ -48,9 +48,7 @@ export function GameDeadlockBuilds({
       if (trigger.current?.isConnected) trigger.current.focus({ preventScroll: true });
     });
   }, []);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
+  if (!active && open) setOpen(false);
   return (
     <>
       <button
@@ -90,13 +88,14 @@ function BuildBrowser({ hero, onClose }: { hero: DeadlockHero; onClose: () => vo
   const queryKey = JSON.stringify([hero.id, sort, query, buildLanguage, offset]);
   const [result, setResult] = useState<{
     key: string;
+    attempt: number;
     page: Page | null;
     busy: boolean;
     failed: boolean;
-  }>({ key: "", page: null, busy: true, failed: false });
+  }>({ key: "", attempt: -1, page: null, busy: true, failed: false });
   const page = result.key === queryKey ? result.page : null,
-    busy = result.key !== queryKey || result.busy;
-  const failed = result.key === queryKey && result.failed;
+    busy = !closing && (result.key !== queryKey || result.attempt !== attempt || result.busy);
+  const failed = result.key === queryKey && result.attempt === attempt && result.failed;
   const refresh = useRef(false),
     focusResults = useRef(false);
   useEffect(() => {
@@ -104,12 +103,6 @@ function BuildBrowser({ hero, onClose }: { hero: DeadlockHero; onClose: () => vo
     const controller = new AbortController(),
       force = refresh.current;
     refresh.current = false;
-    setResult((previous) => ({
-      key: queryKey,
-      page: previous.key === queryKey ? previous.page : null,
-      busy: true,
-      failed: false,
-    }));
     void loadDeadlockBuilds(
       hero.id,
       sort,
@@ -121,11 +114,17 @@ function BuildBrowser({ hero, onClose }: { hero: DeadlockHero; onClose: () => vo
     ).then(
       (value) => {
         if (!controller.signal.aborted)
-          setResult({ key: queryKey, page: value, busy: false, failed: false });
+          setResult({ key: queryKey, attempt, page: value, busy: false, failed: false });
       },
       () => {
         if (!controller.signal.aborted)
-          setResult((previous) => ({ ...previous, busy: false, failed: true }));
+          setResult((previous) => ({
+            key: queryKey,
+            attempt,
+            page: previous.key === queryKey ? previous.page : null,
+            busy: false,
+            failed: true,
+          }));
       },
     );
     return () => controller.abort();
@@ -419,33 +418,32 @@ function BuildGuide({
   closing: boolean;
 }) {
   const t = useT(),
-    [definitions, setDefinitions] = useState<Definitions | null>(null),
-    [busy, setBusy] = useState(false),
     [attempt, setAttempt] = useState(0),
     force = useRef(false);
+  const defKey = `${build.hero}:${language}:${attempt}`;
+  const [defState, setDefState] = useState<{
+    key: string;
+    definitions: Definitions;
+  } | null>(null);
+  const definitions = defState?.definitions ?? null;
+  const busy = !closing && defState?.key !== defKey;
   const [copy, setCopy] = useState<"idle" | "done" | "failed">("idle");
   useEffect(() => {
     if (closing) return;
     const controller = new AbortController(),
       refresh = force.current;
     force.current = false;
-    setBusy(true);
     void loadDeadlockBuildDefinitions(build.hero, language, controller.signal, refresh).then(
       (value) => {
-        if (!controller.signal.aborted) {
-          setDefinitions(value);
-          setBusy(false);
-        }
+        if (!controller.signal.aborted) setDefState({ key: defKey, definitions: value });
       },
       () => {
-        if (!controller.signal.aborted) {
-          setDefinitions({ items: [], abilities: [], partial: true });
-          setBusy(false);
-        }
+        if (!controller.signal.aborted)
+          setDefState({ key: defKey, definitions: { items: [], abilities: [], partial: true } });
       },
     );
     return () => controller.abort();
-  }, [build.hero, language, attempt, closing]);
+  }, [build.hero, language, attempt, closing, defKey]);
   const items = new Map(definitions?.items.map((item) => [item.id, item])),
     abilities = new Map(definitions?.abilities.map((item) => [item.id, item]));
   const missing =

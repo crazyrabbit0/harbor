@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ImagePlus, Images } from "lucide-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useT } from "@/lib/i18n";
@@ -26,6 +26,7 @@ export function CustomGameArtwork({
     binding = artworkBinding(id, game.linked ?? undefined, value.metadata?.igdbId);
   const [review, setReview] = useState<{
     profile: string;
+    gameId: string;
     binding: string;
     artwork?: LibraryArtwork;
     metadata?: LibraryMetadataMatch;
@@ -35,9 +36,13 @@ export function CustomGameArtwork({
     : (preferences.cover(id, game.linked ?? undefined) ??
       game.linked?.portrait ??
       game.linked?.capsule);
-  useEffect(() => {
-    setReview(null);
-  }, [library.profile, game.id, binding]);
+  const activeReview =
+    review &&
+    review.profile === library.profile &&
+    review.gameId === game.id &&
+    review.binding === binding
+      ? review
+      : null;
   const busy = disabled || preferences.busy;
   return (
     <>
@@ -59,6 +64,7 @@ export function CustomGameArtwork({
               preferences.dismissError();
               setReview({
                 profile: library.profile,
+                gameId: game.id,
                 binding,
                 artwork: value.artwork,
                 metadata: value.metadata,
@@ -79,25 +85,24 @@ export function CustomGameArtwork({
           </button>
         )}
       </div>
-      {preferences.error && !review && (
+      {preferences.error && !activeReview && (
         <p className="games-custom-error" role="alert">
           {t(preferences.error)}
         </p>
       )}
-      {review &&
-        review.profile === library.profile &&
-        review.binding === binding &&
-        game.linked && (
-          <GameArtworkPicker
-            game={game.linked}
-            binding={binding}
-            value={review.artwork}
-            localCover={!!game.artwork || !!value.cover}
-            error={preferences.error}
-            onSave={(next) => preferences.updateArtwork(id, next, review.artwork, review.metadata)}
-            onClose={() => setReview(null)}
-          />
-        )}
+      {activeReview && game.linked && (
+        <GameArtworkPicker
+          game={game.linked}
+          binding={binding}
+          value={activeReview.artwork}
+          localCover={!!game.artwork || !!value.cover}
+          error={preferences.error}
+          onSave={(next) =>
+            preferences.updateArtwork(id, next, activeReview.artwork, activeReview.metadata)
+          }
+          onClose={() => setReview(null)}
+        />
+      )}
     </>
   );
 }

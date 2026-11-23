@@ -132,16 +132,26 @@ export function GameEmulation({
     collect,
   });
   const configured = profile && profile.kind === kind;
-  useEffect(() => {
+  const kindKey = `${system.id}:${profile?.kind ?? ""}`;
+  const [prevKindKey, setPrevKindKey] = useState(kindKey);
+  if (prevKindKey !== kindKey) {
+    setPrevKindKey(kindKey);
     setKind(profile?.kind ?? system.emulators[0]);
-  }, [system.id, profile?.kind]);
-  useEffect(() => setLimit(48), [systemId, query, sort, visibility]);
-  useEffect(() => {
-    if (!active) setTool(null);
-  }, [active]);
+  }
+  const limitKey = `${systemId}\0${query}\0${sort}\0${visibility}`;
+  const [prevLimitKey, setPrevLimitKey] = useState(limitKey);
+  if (prevLimitKey !== limitKey) {
+    setPrevLimitKey(limitKey);
+    setLimit(48);
+  }
+  const [prevProfile, setPrevProfile] = useState(preferences.profile);
+  if (prevProfile !== preferences.profile) {
+    setPrevProfile(preferences.profile);
+    setTool(null);
+  }
+  if (!active && tool !== null) setTool(null);
   useEffect(() => {
     pendingImport.current = null;
-    setTool(null);
   }, [preferences.profile]);
   useEffect(() => {
     if (tool)
