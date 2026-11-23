@@ -46,6 +46,8 @@ import { useMusicAudioMeter } from "@/lib/music/audio-meter";
 import { MusicSignalDetails } from "./music-signal-details";
 import "./music-audio-settings.css";
 
+const EMPTY_DEVICES: MusicAudioDevice[] = [];
+
 function PreferredSourceRow() {
   const t = useT();
   const [value, setValue] = useState(preferredMusicSource);
@@ -110,34 +112,40 @@ export function MusicAudioSettings({
   const [showSignal, setShowSignal] = useState(false);
   const meter = useMusicAudioMeter(player.current, showSignal);
   const [draft, setDraft] = useState(state.settings);
-  const [devices, setDevices] = useState<MusicAudioDevice[]>([]);
-  const [scanning, setScanning] = useState(true);
-  const [deviceFailed, setDeviceFailed] = useState(false);
+  const [draftSource, setDraftSource] = useState(state.settings);
+  if (draftSource !== state.settings) {
+    setDraftSource(state.settings);
+    setDraft(state.settings);
+  }
   const [refresh, setRefresh] = useState(0);
+  const [deviceScan, setDeviceScan] = useState<{
+    refresh: number;
+    devices: MusicAudioDevice[];
+    failed: boolean;
+  } | null>(null);
   const [saved, setSaved] = useState(false);
   useEffect(() => {
-    setDraft(state.settings);
-  }, [state.settings]);
-  useEffect(() => {
     let cancelled = false;
-    setScanning(true);
-    setDeviceFailed(false);
-    loadMusicAudioDevices()
-      .then(
-        (result) => {
-          if (!cancelled) setDevices(result);
-        },
-        () => {
-          if (!cancelled) setDeviceFailed(true);
-        },
-      )
-      .finally(() => {
-        if (!cancelled) setScanning(false);
-      });
+    loadMusicAudioDevices().then(
+      (result) => {
+        if (!cancelled) setDeviceScan({ refresh, devices: result, failed: false });
+      },
+      () => {
+        if (!cancelled)
+          setDeviceScan((current) => ({
+            refresh,
+            devices: current?.devices ?? EMPTY_DEVICES,
+            failed: true,
+          }));
+      },
+    );
     return () => {
       cancelled = true;
     };
   }, [refresh]);
+  const devices = deviceScan?.devices ?? EMPTY_DEVICES;
+  const scanning = deviceScan?.refresh !== refresh;
+  const deviceFailed = deviceScan?.refresh === refresh && deviceScan.failed;
   const update = (value: Partial<MusicAudioSettingsValue>) => {
     setSaved(false);
     setDraft((current) => normalizeMusicAudio({ ...current, ...value }));

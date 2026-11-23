@@ -62,46 +62,48 @@ export function MusicConnectionsProvider({
 }) {
   const [request, setRequest] = useState<ConnectionsRequest | null>(null);
   const [connections, setConnections] = useState<MusicConnection[] | null>(null);
-  const [error, setError] = useState("");
+  const [epoch, setEpoch] = useState(0);
+  const [errorState, setErrorState] = useState<{ epoch: number; message: string } | null>(null);
   const closeConnections = useCallback(() => setRequest(null), []);
-  const generation = useRef(0);
+  if (!active && request !== null) setRequest(null);
+  else if (active && pendingConnection && request?.focusId !== pendingConnection) {
+    setRequest({ focusId: pendingConnection });
+  }
+  if (!active && errorState !== null) setErrorState(null);
+  const error = errorState?.epoch === epoch ? errorState.message : "";
+
   useEffect(() => {
-    if (!active) {
-      setRequest(null);
-      return;
-    }
-    const consume = () => {
+    if (!active) return;
+    pendingConnection = null;
+    const onConnect = () => {
       if (pendingConnection) {
         setRequest({ focusId: pendingConnection });
         pendingConnection = null;
       }
     };
-    consume();
-    window.addEventListener("harbor:music-connect", consume);
-    return () => window.removeEventListener("harbor:music-connect", consume);
+    window.addEventListener("harbor:music-connect", onConnect);
+    return () => window.removeEventListener("harbor:music-connect", onConnect);
   }, [active]);
 
-  const reload = useCallback(() => {
-    const run = ++generation.current;
-    setError("");
-    void loadConnections()
-      .then((next) => {
-        if (generation.current !== run) return;
-        setConnections(Array.isArray(next) ? next : []);
-      })
-      .catch((reason) => {
-        if (generation.current !== run) return;
-        setError(errorText(reason));
-      });
-  }, []);
+  const reload = useCallback(() => setEpoch((n) => n + 1), []);
 
   useEffect(() => {
     if (!active) return;
-    reload();
+    let cancelled = false;
+    void loadConnections()
+      .then((next) => {
+        if (cancelled) return;
+        setConnections(Array.isArray(next) ? next : []);
+        setErrorState(null);
+      })
+      .catch((reason) => {
+        if (cancelled) return;
+        setErrorState({ epoch, message: errorText(reason) });
+      });
     return () => {
-      generation.current += 1;
+      cancelled = true;
     };
-  }, [active, reload]);
+  }, [active, epoch]);
 
   const apply = useCallback((next: MusicConnection) => {
     setConnections((current) =>

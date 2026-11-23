@@ -9,15 +9,14 @@ const year = (value: string) => YEAR.exec(value)?.[1] ?? "";
 
 export function MusicLabelHeader({ labelId, name }: { labelId: string; name: string }) {
   const t = useT();
-  const [page, setPage] = useState<MusicLabelPage | null>(null);
+  const [loaded, setLoaded] = useState<{ labelId: string; page: MusicLabelPage } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    setPage(null);
     const controller = new AbortController();
     void loadMusicLabelPage(labelId, controller.signal)
       .then((next) => {
-        if (!cancelled) setPage(next);
+        if (!cancelled) setLoaded({ labelId, page: next });
       })
       .catch(() => {});
     return () => {
@@ -25,6 +24,8 @@ export function MusicLabelHeader({ labelId, name }: { labelId: string; name: str
       controller.abort();
     };
   }, [labelId]);
+
+  const page = loaded?.labelId === labelId ? loaded.page : null;
 
   const profile = page?.profile;
   const began = year(profile?.began ?? "");

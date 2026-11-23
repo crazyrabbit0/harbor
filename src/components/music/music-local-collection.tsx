@@ -16,6 +16,7 @@ import type { MusicCatalogItem } from "@/lib/music/types";
 import { useT } from "@/lib/i18n";
 
 type Kind = "albums" | "artists" | "tracks";
+const EMPTY_ITEMS: MusicCatalogItem[] = [];
 export function MusicLocalCollection({
   kind,
   query,
@@ -33,11 +34,20 @@ export function MusicLocalCollection({
   const { openPlaylistPicker } = useMusicPlaylistPicker();
   const { openSourcePicker } = useMusicSourcePicker();
   const playback = useMusicCatalogPlayback();
-  const [items, setItems] = useState<MusicCatalogItem[]>([]);
+  const [items, setItems] = useState<MusicCatalogItem[]>(EMPTY_ITEMS);
   const [next, setNext] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  const loadKey = `${kind}\0${query}\0${revision}`;
+  const [activeLoadKey, setActiveLoadKey] = useState(loadKey);
+  if (activeLoadKey !== loadKey) {
+    setActiveLoadKey(loadKey);
+    setItems(EMPTY_ITEMS);
+    setNext(null);
+    setLoading(true);
+    setError("");
+  }
   const generation = useRef(0);
   const itemMenu = useMusicItemMenu({ onOpen: (item) => onOpen(item, items) });
   const load = useCallback(
@@ -71,10 +81,6 @@ export function MusicLocalCollection({
     [kind, query],
   );
   useEffect(() => {
-    setItems([]);
-    setNext(null);
-    setLoading(true);
-    setError("");
     const timer = setTimeout(() => load(0), query ? 180 : 0);
     return () => {
       clearTimeout(timer);

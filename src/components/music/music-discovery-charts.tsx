@@ -140,28 +140,29 @@ export function MusicBillboardCharts({
 }) {
   const t = useT();
   const language = useUiLanguage();
-  const [chart, setChart] = useState<MusicBillboardChart | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [attempt, setAttempt] = useState<{
+    retry: number;
+    chart: MusicBillboardChart | null;
+    error: boolean;
+  } | null>(null);
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError(false);
-    loadBillboardHot100()
-      .then((value) => {
-        if (!cancelled) setChart(value);
-      })
-      .catch(() => {
-        if (!cancelled) setError(true);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    loadBillboardHot100().then(
+      (value) => {
+        if (!cancelled) setAttempt({ retry, chart: value, error: false });
+      },
+      () => {
+        if (!cancelled) setAttempt((prev) => ({ retry, chart: prev?.chart ?? null, error: true }));
+      },
+    );
     return () => {
       cancelled = true;
     };
   }, [retry]);
+  const chart = attempt?.chart ?? null;
+  const loading = attempt?.retry !== retry;
+  const error = attempt?.retry === retry && attempt.error;
   const date = chart
     ? new Intl.DateTimeFormat(language, { dateStyle: "long", timeZone: "UTC" }).format(
         new Date(`${chart.date}T12:00:00Z`),

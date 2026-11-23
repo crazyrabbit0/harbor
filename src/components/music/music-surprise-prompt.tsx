@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowLeft, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT } from "@/lib/i18n";
@@ -27,9 +27,11 @@ export function MusicSurprisePrompt() {
     status = useMusicSurprise();
   const [leaving, setLeaving] = useState(false);
   const open = feedback.step !== "idle" && (status === "playing" || status === "waiting");
-  useEffect(() => {
+  const [wasOpen, setWasOpen] = useState(open);
+  if (wasOpen !== open) {
+    setWasOpen(open);
     if (open) setLeaving(false);
-  }, [open]);
+  }
   if (!open && !leaving) return null;
   const redirect = feedback.step === "redirect";
   const choose = (id: number) => {

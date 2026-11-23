@@ -15,19 +15,20 @@ export function MusicBillboardRank({
   logoSize?: number;
 }) {
   const t = useT();
-  const [rank, setRank] = useState<number | null>(null);
+  const rankKey = `${title}\0${artist}`;
+  const [result, setResult] = useState<{ key: string; rank: number | null } | null>(null);
   useEffect(() => {
     let active = true;
-    setRank(null);
     billboardHot100Rank({ title, artist })
       .then((found) => {
-        if (active) setRank(found);
+        if (active) setResult({ key: rankKey, rank: found });
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [title, artist]);
+  }, [title, artist, rankKey]);
+  const rank = result?.key === rankKey ? result.rank : null;
   if (!rank) return null;
   const label = t("music.billboard.rank", { rank });
   return (

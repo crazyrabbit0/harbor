@@ -38,6 +38,7 @@ import type { MusicTrack } from "@/lib/music/types";
 import "./music-quick-listen.css";
 
 type PreviewState = "loading" | "playing" | "paused" | "ended";
+const EMPTY_GENRES: number[] = [];
 
 function SnippetAction({
   label,
@@ -84,9 +85,19 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
   const { items, building, reject } = useSnippetFeed(seeds, index);
   const tracks = items.map((item) => item.track);
   const snippet = items[index];
-  const [genres, setGenres] = useState<number[]>([]);
+  const track = tracks[index];
+  const display = track;
+  const trackKey = track ? `${track.connectorId ?? ""}:${track.id}` : "";
+  const [genreResult, setGenreResult] = useState<{ key: string; genres: number[] } | null>(null);
   const [status, setStatus] = useState<PreviewState>("loading");
   const [elapsed, setElapsed] = useState(0);
+  const [loadedTrackKey, setLoadedTrackKey] = useState(trackKey);
+  if (loadedTrackKey !== trackKey) {
+    setLoadedTrackKey(trackKey);
+    setStatus("loading");
+    setElapsed(0);
+  }
+  const genres = genreResult?.key === trackKey ? genreResult.genres : EMPTY_GENRES;
   const [muted, setMuted] = useState(false);
   const [profileId] = useState(activeProfileId);
   const [loop, setLoop] = useState(
@@ -104,8 +115,6 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
   const audio = useRef<HTMLAudioElement | null>(null);
   const session = useRef<ReturnType<typeof beginSnippetSession> | null>(null);
   const preservePlayback = useRef(true);
-  const track = tracks[index];
-  const display = track;
   const failed = useRef(() => {});
   useLayoutEffect(() => {
     failed.current = () => {
@@ -209,13 +218,10 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
     player.pause();
     player.removeAttribute("src");
     player.load();
-    setStatus("loading");
-    setElapsed(0);
-    setGenres([]);
     if (snippet.artist)
       void loadSnippetGenres(snippet.artist, controller.signal)
         .then((value) => {
-          if (!controller.signal.aborted) setGenres(value);
+          if (!controller.signal.aborted) setGenreResult({ key: trackKey, genres: value });
         })
         .catch(() => {});
     void session

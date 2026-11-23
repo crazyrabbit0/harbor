@@ -32,6 +32,21 @@ import { MusicServiceLogo } from "./music-service-logo";
 import { useMusicSourcePicker } from "./music-source-picker";
 import "./music-spotify-library.css";
 
+const mergeSpotifyPage = (
+  previous: SpotifyLibraryPage | undefined,
+  next: SpotifyLibraryPage,
+  append: boolean,
+): SpotifyLibraryPage =>
+  append && previous
+    ? {
+        ...next,
+        tracks: [...previous.tracks, ...next.tracks],
+        trackAddedAt: { ...previous.trackAddedAt, ...next.trackAddedAt },
+        playlists: [...previous.playlists, ...next.playlists],
+        skipped: previous.skipped + next.skipped,
+      }
+    : next;
+
 export function MusicSpotifyLibrary({
   onImported,
   active = true,
@@ -48,80 +63,110 @@ export function MusicSpotifyLibrary({
   const { openSourcePicker } = useMusicSourcePicker();
   const [kind, setKind] = useState<"playlists" | "liked">(initialKind);
   const [selected, setSelected] = useState<SpotifyLibraryPlaylist | null>(null);
-  const [page, setPage] = useState<SpotifyLibraryPage | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [failure, setFailure] = useState("");
-  const [notice, setNotice] = useState("");
+  const [cache, setCache] = useState<{
+    identity: string;
+    pages: Record<string, SpotifyLibraryPage>;
+  }>({ identity: "", pages: {} });
+  const [manualLoading, setManualLoading] = useState(false);
+  const [failureState, setFailureState] = useState<{ key: string; code: string } | null>(null);
+  const [noticeState, setNoticeState] = useState<{ key: string; text: string } | null>(null);
   const [working, setWorking] = useState<"import" | "create" | "connect" | null>(null);
   const [progress, setProgress] = useState(0);
   const [name, setName] = useState("");
   const [refresh, setRefresh] = useState(0);
   const generation = useRef(0);
-  const pages = useRef(new Map<string, SpotifyLibraryPage>());
-  const cacheIdentity = useRef("");
   const root = useRef<HTMLElement>(null);
   const heading = useRef<HTMLHeadingElement>(null);
   const importAbort = useRef<AbortController | null>(null);
   const origin = useRef<{ id: string; scroll: Element | null; top: number } | null>(null);
   const selectedId = selected?.id;
+  const identity = `${connected}:${account?.account}:${refresh}`;
+  const pageKey = selectedId ?? kind;
+  const scopeKey = `${identity}\0${pageKey}`;
+  const [activeScopeKey, setActiveScopeKey] = useState(scopeKey);
+  if (activeScopeKey !== scopeKey) {
+    setActiveScopeKey(scopeKey);
+    setManualLoading(false);
+  }
+  const page = cache.identity === identity ? (cache.pages[pageKey] ?? null) : null;
+  const failure = failureState?.key === scopeKey ? failureState.code : "";
+  const notice = noticeState?.key === scopeKey ? noticeState.text : "";
   const player = useMusicPlayback();
   const collection = usePlaylistFilters(selectedId ?? kind, page?.tracks, {
     addedAt: page?.trackAddedAt,
     recentFirst: kind === "liked" && !selected,
   });
   const filteringCollection = collection.active || collection.filters.sort !== "default";
+  const initialLoading = Boolean(connected && !page && !failure);
+  const autoFetching = Boolean(
+    connected &&
+    active &&
+    filteringCollection &&
+    page?.nextOffset != null &&
+    !manualLoading &&
+    !working &&
+    !failure,
+  );
+  const loading = initialLoading || manualLoading || autoFetching;
 
   const more = useRef<HTMLButtonElement | null>(null);
   const read = useCallback(
     (offset = 0, append = false) => {
       const run = ++generation.current;
-      setLoading(true);
-      setFailure("");
+      setManualLoading(true);
+      setFailureState((prev) => (prev?.key === scopeKey ? null : prev));
       return loadSpotifyLibraryPage(selectedId ? "playlist" : kind, offset, selectedId)
         .then((next) => {
           if (run !== generation.current) return;
-          const key = selectedId ?? kind;
-          const previous = pages.current.get(key);
-          const result =
-            append && previous
-              ? {
-                  ...next,
-                  tracks: [...previous.tracks, ...next.tracks],
-                  trackAddedAt: { ...previous.trackAddedAt, ...next.trackAddedAt },
-                  playlists: [...previous.playlists, ...next.playlists],
-                  skipped: previous.skipped + next.skipped,
-                }
-              : next;
-          pages.current.set(key, result);
-          setPage(result);
+          setCache((prev) => {
+            const base = prev.identity === identity ? prev.pages : {};
+            return {
+              identity,
+              pages: {
+                ...base,
+                [pageKey]: mergeSpotifyPage(base[pageKey], next, append),
+              },
+            };
+          });
         })
         .catch((error: unknown) => {
-          if (run === generation.current) setFailure(spotifyLibraryErrorKey(error));
+          if (run === generation.current)
+            setFailureState({ key: scopeKey, code: spotifyLibraryErrorKey(error) });
         })
         .finally(() => {
-          if (run === generation.current) setLoading(false);
+          if (run === generation.current) setManualLoading(false);
         });
     },
-    [kind, selectedId],
+    [kind, selectedId, identity, pageKey, scopeKey],
   );
 
   useEffect(() => {
-    const identity = `${connected}:${account?.account}:${refresh}`;
-    if (cacheIdentity.current !== identity) {
-      pages.current.clear();
-      cacheIdentity.current = identity;
+    if (connected && !page) {
+      const run = ++generation.current;
+      void loadSpotifyLibraryPage(selectedId ? "playlist" : kind, 0, selectedId)
+        .then((next) => {
+          if (run !== generation.current) return;
+          setCache((prev) => {
+            const base = prev.identity === identity ? prev.pages : {};
+            return {
+              identity,
+              pages: {
+                ...base,
+                [pageKey]: next,
+              },
+            };
+          });
+        })
+        .catch((error: unknown) => {
+          if (run === generation.current)
+            setFailureState({ key: scopeKey, code: spotifyLibraryErrorKey(error) });
+        });
     }
-    const cached = pages.current.get(selectedId ?? kind);
-    setPage(cached ?? null);
-    setFailure("");
-    setNotice("");
-    if (connected && !cached) void read();
-    else setLoading(false);
     return () => {
       generation.current += 1;
       importAbort.current?.abort();
     };
-  }, [connected, account?.account, read, refresh, selectedId, kind]);
+  }, [connected, identity, pageKey, scopeKey, selectedId, kind]);
 
   useEffect(() => {
     const node = more.current;
@@ -138,16 +183,28 @@ export function MusicSpotifyLibrary({
   }, [page?.nextOffset, loading, working, read, failure, filteringCollection]);
 
   useEffect(() => {
-    if (
-      active &&
-      filteringCollection &&
-      page?.nextOffset != null &&
-      !loading &&
-      !working &&
-      !failure
-    )
-      void read(page.nextOffset, true);
-  }, [active, filteringCollection, page?.nextOffset, loading, working, failure, read]);
+    const nextOffset = page?.nextOffset;
+    if (!autoFetching || nextOffset == null) return;
+    const run = ++generation.current;
+    void loadSpotifyLibraryPage(selectedId ? "playlist" : kind, nextOffset, selectedId)
+      .then((next) => {
+        if (run !== generation.current) return;
+        setCache((prev) => {
+          const base = prev.identity === identity ? prev.pages : {};
+          return {
+            identity,
+            pages: {
+              ...base,
+              [pageKey]: mergeSpotifyPage(base[pageKey], next, true),
+            },
+          };
+        });
+      })
+      .catch((error: unknown) => {
+        if (run === generation.current)
+          setFailureState({ key: scopeKey, code: spotifyLibraryErrorKey(error) });
+      });
+  }, [autoFetching, page?.nextOffset, selectedId, kind, identity, pageKey, scopeKey]);
 
   useEffect(() => {
     const changed = () => setRefresh((value) => value + 1);
@@ -203,13 +260,15 @@ export function MusicSpotifyLibrary({
 
   const reconnect = async () => {
     setWorking("connect");
-    setFailure("");
+    setFailureState(null);
     return connectSource("spotify")
       .then((next) => {
         connections.apply(next);
         setRefresh((value) => value + 1);
       })
-      .catch((error: unknown) => setFailure(spotifyLibraryErrorKey(error)))
+      .catch((error: unknown) =>
+        setFailureState({ key: scopeKey, code: spotifyLibraryErrorKey(error) }),
+      )
       .finally(() => setWorking(null));
   };
 
@@ -217,8 +276,8 @@ export function MusicSpotifyLibrary({
     const controller = new AbortController();
     importAbort.current = controller;
     setWorking("import");
-    setFailure("");
-    setNotice("");
+    setFailureState(null);
+    setNoticeState(null);
     setProgress(0);
     return importSpotifyCollection({
       kind: selected ? "playlist" : "liked",
@@ -229,18 +288,21 @@ export function MusicSpotifyLibrary({
     })
       .then((result) => {
         onImported(result.playlist);
-        setNotice(
-          t("music.spotifyLibrary.imported", {
-            count: result.playlist.tracks.length,
-            name: result.playlist.name,
-          }) +
+        setNoticeState({
+          key: scopeKey,
+          text:
+            t("music.spotifyLibrary.imported", {
+              count: result.playlist.tracks.length,
+              name: result.playlist.name,
+            }) +
             (result.skipped
               ? ` ${t("music.spotifyLibrary.skipped", { count: result.skipped })}`
               : ""),
-        );
+        });
       })
       .catch((error: unknown) => {
-        if (!controller.signal.aborted) setFailure(spotifyLibraryErrorKey(error));
+        if (!controller.signal.aborted)
+          setFailureState({ key: scopeKey, code: spotifyLibraryErrorKey(error) });
       })
       .finally(() => {
         importAbort.current = null;
@@ -251,16 +313,21 @@ export function MusicSpotifyLibrary({
   const create = async () => {
     if (!name.trim() || working) return;
     setWorking("create");
-    setFailure("");
-    setNotice("");
+    setFailureState(null);
+    setNoticeState(null);
     return createSpotifyPlaylist(name)
       .then((playlist) => {
         setName("");
         return read().then(() =>
-          setNotice(t("music.spotifyLibrary.created", { name: playlist.name })),
+          setNoticeState({
+            key: scopeKey,
+            text: t("music.spotifyLibrary.created", { name: playlist.name }),
+          }),
         );
       })
-      .catch((error: unknown) => setFailure(spotifyLibraryErrorKey(error)))
+      .catch((error: unknown) =>
+        setFailureState({ key: scopeKey, code: spotifyLibraryErrorKey(error) }),
+      )
       .finally(() => setWorking(null));
   };
 

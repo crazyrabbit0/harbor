@@ -23,12 +23,10 @@ export function MusicArtistLink({
   const line = useRef<HTMLSpanElement>(null);
   const [hovered, setHovered] = useState(false);
   const [shift, setShift] = useState(0);
+  if (!hovered && shift !== 0) setShift(0);
   const credit = artists.map((artist) => artist.name).join(", ");
   useEffect(() => {
-    if (!hovered) {
-      setShift(0);
-      return;
-    }
+    if (!hovered) return;
     const box = viewport.current,
       text = line.current;
     if (!box || !text) return;
@@ -52,7 +50,10 @@ export function MusicArtistLink({
       className={`block min-w-0 truncate text-start ${className}`}
       title={credit}
       onPointerEnter={() => setHovered(true)}
-      onPointerLeave={() => setHovered(false)}
+      onPointerLeave={() => {
+        setHovered(false);
+        setShift(0);
+      }}
     >
       <span
         ref={line}

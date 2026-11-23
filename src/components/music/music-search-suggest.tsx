@@ -14,32 +14,34 @@ const MIN_CHARS = 2;
 const CAP = { artists: 3, tracks: 5, albums: 3 } as const;
 
 type Group = { key: "artists" | "tracks" | "albums"; label: string; items: MusicCatalogItem[] };
-type Suggest = { query: string; results: Awaited<ReturnType<typeof searchTyped>> };
+type Suggest = { key: string; query: string; results: Awaited<ReturnType<typeof searchTyped>> };
 
 export function useMusicSuggest(query: string, connector: string | null, enabled: boolean) {
   const t = useT();
   const language = useUiLanguage();
+  const trimmed = query.trim();
+  const active = enabled && trimmed.length >= MIN_CHARS;
+  const key = active ? `${connector ?? ""}\0${trimmed}` : "";
   const [found, setFound] = useState<Suggest | null>(null);
+  const [settledKey, setSettledKey] = useState("");
   const [pass, setPass] = useState(0);
-  const [loading, setLoading] = useState(false);
   const generation = useRef(0);
+  if (!active && (found !== null || settledKey !== "")) {
+    setFound(null);
+    setSettledKey("");
+  }
 
   useEffect(() => {
-    const trimmed = query.trim();
-    if (!enabled || trimmed.length < MIN_CHARS) {
+    if (!active) {
       generation.current += 1;
-      setFound(null);
-      setLoading(false);
       return;
     }
     const mine = ++generation.current;
-    setFound(null);
-    setLoading(true);
     const timer = window.setTimeout(() => {
       void searchTyped(trimmed, 8, connector ?? undefined)
         .then((res) => {
           if (generation.current !== mine) return;
-          setFound({ query: trimmed, results: res });
+          setFound({ key, query: trimmed, results: res });
           // Only the visible artist suggestions need audience enrichment; the authority caches probes.
           const visible = [
             ...new Map(
@@ -60,8 +62,8 @@ export function useMusicSuggest(query: string, connector: string | null, enabled
                 if (generation.current === mine) setPass((value) => value + 1);
               });
           }
-          const key = artistIdentityKey(trimmed);
-          const named = res.artists.filter((a) => artistIdentityKey(a.name) === key);
+          const identityKey = artistIdentityKey(trimmed);
+          const named = res.artists.filter((a) => artistIdentityKey(a.name) === identityKey);
           if (named.length < 2 || peekArtistIdentity(trimmed).probed) return;
           void resolveArtist(named[0].name, { hint: named })
             .catch(() => null)
@@ -73,16 +75,17 @@ export function useMusicSuggest(query: string, connector: string | null, enabled
           if (generation.current === mine) setFound(null);
         })
         .finally(() => {
-          if (generation.current === mine) setLoading(false);
+          if (generation.current === mine) setSettledKey(key);
         });
     }, DEBOUNCE_MS);
     return () => window.clearTimeout(timer);
-  }, [query, connector, enabled]);
+  }, [active, key, trimmed, connector]);
 
+  const loading = active && settledKey !== key;
   const groups = useMemo(
     () =>
       readAtVersion(pass, () => {
-        if (!enabled || !found || found.query !== query.trim()) return [];
+        if (!active || !found || found.key !== key) return [];
         const res = found.results;
         const next: Group[] = [
           {
@@ -110,7 +113,7 @@ export function useMusicSuggest(query: string, connector: string | null, enabled
         ];
         return next.filter((g) => g.items.length > 0);
       }),
-    [found, pass, t, language, enabled, query],
+    [active, found, key, pass, t, language],
   );
   return { groups, loading };
 }

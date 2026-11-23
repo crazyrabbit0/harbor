@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useRef, useState, type CSSProperties } from "react";
 import { MusicGlyph } from "@/components/icons/music-glyph";
 import { useT } from "@/lib/i18n";
 import "./music-like-burst.css";
@@ -22,9 +22,7 @@ export function MusicLikeButton({
   const t = useT();
   const sequence = useRef(0);
   const [burst, setBurst] = useState(0);
-  useEffect(() => {
-    if (!liked) setBurst(0);
-  }, [liked]);
+  if (!liked && burst !== 0) setBurst(0);
   return (
     <button
       type="button"

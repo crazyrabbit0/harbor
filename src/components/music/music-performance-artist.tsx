@@ -30,20 +30,22 @@ export function MusicPerformanceArtist({ track }: { track: MusicTrack }) {
   const t = useT(),
     { goToArtist } = useMusicNavigate();
   const name = performanceArtistName(track);
-  const [artist, setArtist] = useState<MusicArtistRef | null>(null);
+  const [resolved, setResolved] = useState<{ name: string; artist: MusicArtistRef | null } | null>(
+    null,
+  );
   useEffect(() => {
+    if (!name) return;
     let live = true;
-    setArtist(null);
-    if (name)
-      void resolveArtist(name)
-        .then((value) => {
-          if (live) setArtist(value.canonical);
-        })
-        .catch(() => {});
+    void resolveArtist(name)
+      .then((value) => {
+        if (live) setResolved({ name, artist: value.canonical });
+      })
+      .catch(() => {});
     return () => {
       live = false;
     };
   }, [name]);
+  const artist = name && resolved?.name === name ? resolved.artist : null;
   if (!name) return null;
   return (
     <button

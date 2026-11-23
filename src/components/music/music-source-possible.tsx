@@ -67,28 +67,29 @@ export function MusicSourcePossible({
   onPick: (found: MusicTrack) => void;
 }) {
   const t = useT();
-  const [state, setState] = useState<PossibleState | null>(null);
+  const [state, setState] = useState<(PossibleState & { key: string }) | null>(null);
   const trackKey = possibleKey(track);
+  const stateKey = `${trackKey}\0${covered}`;
   const onlyOriginal = covered.split(",").filter(Boolean).length <= 1;
 
   useEffect(() => {
     let live = true;
-    setState(null);
     const run = async () => {
       const ids = await unmatchedSources(covered);
       if (!live || ids.length === 0) return;
-      setState({ searching: true, tracks: [] });
+      setState({ key: stateKey, searching: true, tracks: [] });
       const tracks = await searchSources(track, ids).catch(() => [] as MusicTrack[]);
-      if (live) setState({ searching: false, tracks });
+      if (live) setState({ key: stateKey, searching: false, tracks });
     };
     void run().catch(() => {});
     return () => {
       live = false;
     };
-  }, [trackKey, covered]);
+  }, [stateKey]);
 
-  if (!state) return null;
-  if (!onlyOriginal && (state.searching || state.tracks.length === 0)) return null;
+  const current = state?.key === stateKey ? state : null;
+  if (!current) return null;
+  if (!onlyOriginal && (current.searching || current.tracks.length === 0)) return null;
 
   return (
     <section
@@ -101,7 +102,7 @@ export function MusicSourcePossible({
       <p className="mt-1 px-2 text-[11px] leading-relaxed text-ink-muted">
         {t("music.source.possible.note")}
       </p>
-      {state.searching ? (
+      {current.searching ? (
         <div
           role="status"
           aria-label={t("music.source.possible.loading")}
@@ -131,13 +132,13 @@ export function MusicSourcePossible({
             </div>
           ))}
         </div>
-      ) : state.tracks.length === 0 ? (
+      ) : current.tracks.length === 0 ? (
         <p className="grid min-h-20 place-items-center px-4 text-center text-[11px] text-ink-muted">
           {t("music.source.possible.empty")}
         </p>
       ) : (
         <div className="mt-2 grid gap-px pb-2">
-          {state.tracks.map((found) => (
+          {current.tracks.map((found) => (
             <button
               key={possibleKey(found)}
               type="button"

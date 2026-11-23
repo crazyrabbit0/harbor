@@ -113,10 +113,13 @@ export function MusicVideoSurface({
   const player = useMusicPlayer();
   const selected = state.owner === owner;
   const ready = active && selected && state.status === "playing";
-  const [stream, setStream] = useState<MusicVideoStream | null>(() =>
-    musicVideoHostSource(musicVideoStreamKey(track)),
-  );
+  const key = musicVideoStreamKey(track);
+  const picture = nodes?.video ?? null;
   const [attempt, setAttempt] = useState(0);
+  const [resolvedStream, setResolvedStream] = useState<{
+    key: string;
+    stream: MusicVideoStream;
+  } | null>(null);
   const [broken, setBroken] = useState(false);
   const [decoded, setDecoded] = useState(
     () =>
@@ -127,18 +130,43 @@ export function MusicVideoSurface({
   const stallTimer = useRef(0);
   const [idle, setIdle] = useState(false);
   const [halted, setHalted] = useState(false);
-  const [waited, setWaited] = useState(0);
+  const [waitedState, setWaitedState] = useState<{ key: string; level: number }>({
+    key: "",
+    level: 0,
+  });
   const [lyricsOn, setLyricsOn] = useState(() => lyricsPreferred);
-  const [lyrics, setLyrics] = useState<LyricLine[] | null>(null);
-  const [lyricsBusy, setLyricsBusy] = useState(false);
-  const [lyricsMissing, setLyricsMissing] = useState(false);
+  const [lyricsResult, setLyricsResult] = useState<{
+    key: string;
+    lines: LyricLine[] | null;
+    missing: boolean;
+  } | null>(null);
   const [currentTime, setCurrentTime] = useState(0);
-  const picture = nodes?.video ?? null;
+  const resolveKey = ready ? `${key}\0${attempt}\0${state.key}` : "";
+  const held = ready && attempt === 0 ? (musicVideoHostSource(key) ?? musicVideoHostLive()) : null;
+  const stream = !ready
+    ? null
+    : (held ?? (resolvedStream?.key === resolveKey ? resolvedStream.stream : null));
+  const [activeResolveKey, setActiveResolveKey] = useState(resolveKey);
+  if (activeResolveKey !== resolveKey) {
+    setActiveResolveKey(resolveKey);
+    setBroken(false);
+    setWaiting(false);
+    setHalted(false);
+    setDecoded(!!held && (picture?.readyState ?? 0) >= 2);
+  }
   const sound = stream?.audioUrl && nodes ? nodes.audio : null;
-  const key = musicVideoStreamKey(track);
-  const showing = ready && decoded && !broken;
+  const isDecoded = decoded || Boolean(stream && picture && picture.readyState >= 2);
+  const showing = ready && isDecoded && !broken;
   // Another surface holding the session is not this one failing, so its spinner is never judged.
   const preempted = state.owner !== null && !selected;
+  const waitKey =
+    active &&
+    !preempted &&
+    !(showing || error || broken || (selected && state.status === "unavailable"))
+      ? `${state.key}\0${key}`
+      : "";
+  if (!waitKey && waitedState.level !== 0) setWaitedState({ key: "", level: 0 });
+  const waited = waitKey && waitedState.key === waitKey ? waitedState.level : 0;
   const unavailable = error || broken || (selected && state.status === "unavailable") || waited > 1;
   const settled = showing || unavailable;
   const interrupted = showing && (halted || waiting);
@@ -158,22 +186,7 @@ export function MusicVideoSurface({
     return adoptMusicVideoHost(parent);
   }, [active, selected, fullscreen, key, stream]);
   useEffect(() => {
-    setBroken(false);
-    setWaiting(false);
-    setHalted(false);
-    if (!ready) {
-      setStream(null);
-      setDecoded(false);
-      return;
-    }
-    const held = attempt === 0 ? (musicVideoHostSource(key) ?? musicVideoHostLive()) : null;
-    if (held) {
-      setStream(held);
-      setDecoded((picture?.readyState ?? 0) >= 2);
-      return;
-    }
-    setStream(null);
-    setDecoded(false);
+    if (!ready || held) return;
     let live = true;
     const expire = setTimeout(() => {
       if (live) {
@@ -185,7 +198,7 @@ export function MusicVideoSurface({
       .then((next) => {
         if (live) {
           setMusicVideoHostSource(key, next);
-          setStream(next);
+          setResolvedStream({ key: resolveKey, stream: next });
         }
       })
       .catch(() => {
@@ -196,7 +209,7 @@ export function MusicVideoSurface({
       live = false;
       clearTimeout(expire);
     };
-  }, [ready, key, attempt, state.key]);
+  }, [ready, held, key, attempt, resolveKey]);
   useEffect(() => {
     if (!stream || !picture) return;
     const media: HTMLMediaElement[] = sound ? [picture, sound] : [picture];
@@ -228,9 +241,6 @@ export function MusicVideoSurface({
       node.addEventListener("error", failed);
     }
     picture.addEventListener("loadeddata", first);
-    // Adopting a picture that already decoded means loadeddata has been and gone, and a surface
-    // that waits for it again would sit behind its own placeholder forever.
-    if (picture.readyState >= 2) setDecoded(true);
     return () => {
       for (const node of media) {
         node.removeEventListener("waiting", stall);
@@ -285,40 +295,39 @@ export function MusicVideoSurface({
         lyricsPreferred = !on;
         return !on;
       }),
-    [],
+    [setLyricsOn],
   );
+  const lyricsKey = lyricsOn && ready ? key : "";
+  if (!lyricsKey && lyricsResult !== null) setLyricsResult(null);
+  const currentLyrics = lyricsKey && lyricsResult?.key === lyricsKey ? lyricsResult : null;
+  const lyrics = currentLyrics?.lines ?? null;
+  const lyricsBusy = Boolean(lyricsKey) && currentLyrics === null;
+  const lyricsMissing = currentLyrics?.missing ?? false;
   useEffect(() => {
-    setLyrics(null);
-    setLyricsMissing(false);
-    if (!lyricsOn || !ready) return;
+    if (!lyricsKey) return;
     let live = true;
-    setLyricsBusy(true);
     void loadTrackLyrics(track)
       .then((lines) => {
         if (!live) return;
-        setLyrics(lines && lines.length > 0 ? lines : null);
-        setLyricsMissing(!lines || lines.length === 0);
+        const found = lines && lines.length > 0 ? lines : null;
+        setLyricsResult({ key: lyricsKey, lines: found, missing: !found });
       })
       .catch(() => {
-        if (live) setLyricsMissing(true);
-      })
-      .finally(() => {
-        if (live) setLyricsBusy(false);
+        if (live) setLyricsResult({ key: lyricsKey, lines: null, missing: true });
       });
     return () => {
       live = false;
     };
-  }, [lyricsOn, ready, key]);
+  }, [lyricsKey]);
   useEffect(() => {
-    setWaited(0);
-    if (!active || preempted || settled) return;
-    const slow = setTimeout(() => setWaited(1), SLOW_MS);
-    const stuck = setTimeout(() => setWaited(2), STUCK_MS);
+    if (!waitKey || settled) return;
+    const slow = setTimeout(() => setWaitedState({ key: waitKey, level: 1 }), SLOW_MS);
+    const stuck = setTimeout(() => setWaitedState({ key: waitKey, level: 2 }), STUCK_MS);
     return () => {
       clearTimeout(slow);
       clearTimeout(stuck);
     };
-  }, [active, preempted, settled, state.key, key]);
+  }, [waitKey, settled]);
   const again = useCallback(() => {
     if (onRetry) {
       onRetry();
@@ -326,20 +335,18 @@ export function MusicVideoSurface({
     }
     setAttempt((count) => count + 1);
     retryMusicVideo(track);
-  }, [onRetry, track]);
+  }, [onRetry, track, setAttempt]);
+  if (!fullscreen && idle) setIdle(false);
   // Fullscreen is a lean-back surface: the chrome rests on its own the way a film player does.
   useEffect(() => {
-    if (!fullscreen) {
-      setIdle(false);
-      return;
-    }
+    if (!fullscreen) return;
     let timer = 0;
     const stir = () => {
       setIdle(false);
       window.clearTimeout(timer);
       timer = window.setTimeout(() => setIdle(true), 2400);
     };
-    stir();
+    timer = window.setTimeout(() => setIdle(true), 2400);
     window.addEventListener("pointermove", stir, { passive: true });
     window.addEventListener("pointerdown", stir, { passive: true });
     window.addEventListener("keydown", stir);

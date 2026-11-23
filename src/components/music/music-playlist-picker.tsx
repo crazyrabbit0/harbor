@@ -50,9 +50,7 @@ export function MusicPlaylistPickerProvider({
     },
     [active],
   );
-  useEffect(() => {
-    if (!active) setTrack(null);
-  }, [active]);
+  if (!active && track !== null) setTrack(null);
   const value = useMemo(() => ({ openPlaylistPicker }), [openPlaylistPicker]);
 
   return (

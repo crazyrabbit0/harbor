@@ -1,5 +1,5 @@
 import { HoverTooltip } from "@/components/hover-tooltip";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useT } from "@/lib/i18n";
 import { startMusicSurprise, stopMusicSurprise, useMusicSurprise } from "@/lib/music/surprise-me";
 import { MusicSurpriseIcon } from "./music-surprise-icon";
@@ -20,10 +20,15 @@ export function MusicSurpriseButton({
   const t = useT(),
     status = useMusicSurprise();
   const [rolling, setRolling] = useState(status === "loading");
-  useEffect(() => {
-    if (status === "loading") setRolling(true);
-    else if (matchMedia("(prefers-reduced-motion: reduce)").matches) setRolling(false);
-  }, [status]);
+  if (status === "loading") {
+    if (!rolling) setRolling(true);
+  } else if (
+    rolling &&
+    typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches
+  ) {
+    setRolling(false);
+  }
   const active = status === "playing" || status === "loading" || status === "waiting";
   const message =
     status === "empty"

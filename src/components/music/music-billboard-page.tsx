@@ -50,13 +50,18 @@ export function MusicBillboardPage({
         ? (new Intl.DisplayNames([language], { type: "language" }).of("ar") ?? "Arabic")
         : (regions.of(code) ?? code);
   const available = BILLBOARD_CHARTS.filter((c) => country === "all" || c.country === country);
-  useEffect(() => {
-    const controller = new AbortController();
-    generation.current++;
+  const chartKey = `${id}\0${revision}`;
+  const [activeChartKey, setActiveChartKey] = useState(chartKey);
+  if (activeChartKey !== chartKey) {
+    setActiveChartKey(chartKey);
     setResult(null);
     setError(false);
     setBusy(null);
     setUnmatched(null);
+  }
+  useEffect(() => {
+    const controller = new AbortController();
+    generation.current++;
     loadBillboardChart(id, controller.signal, revision > 0)
       .then((value) => {
         if (!controller.signal.aborted) setResult(value);

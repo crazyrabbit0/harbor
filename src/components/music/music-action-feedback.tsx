@@ -48,18 +48,18 @@ export function MusicActionGlyph({
 
 /** Brief confirmation for immediate actions such as adding a collection to the queue. */
 export function useMusicActionReceipt(identity?: string) {
-  const [confirmed, setConfirmed] = useState(false);
+  const [confirmedFor, setConfirmedFor] = useState<{ identity: string | undefined } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    setConfirmed(false);
-    return () => {
+  useEffect(
+    () => () => {
       if (timer.current) clearTimeout(timer.current);
-    };
-  }, [identity]);
+    },
+    [identity],
+  );
   const confirm = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
-    setConfirmed(true);
-    timer.current = setTimeout(() => setConfirmed(false), 1200);
-  }, []);
-  return { confirmed, confirm };
+    setConfirmedFor({ identity });
+    timer.current = setTimeout(() => setConfirmedFor(null), 1200);
+  }, [identity]);
+  return { confirmed: confirmedFor !== null && confirmedFor.identity === identity, confirm };
 }

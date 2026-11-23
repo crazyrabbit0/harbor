@@ -38,6 +38,7 @@ export function MusicVideoFullscreen({ track }: { track?: MusicTrack | null }) {
   );
   const active = fullscreen.active;
   const [awake, setAwake] = useState(true);
+  if (!active && !awake) setAwake(true);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const controlRef = useRef<HTMLButtonElement | null>(null);
   const idle = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -52,10 +53,10 @@ export function MusicVideoFullscreen({ track }: { track?: MusicTrack | null }) {
   useEffect(() => {
     if (!active) {
       clearTimeout(idle.current);
-      setAwake(true);
       return;
     }
-    wake();
+    clearTimeout(idle.current);
+    idle.current = setTimeout(() => setAwake(false), 2400);
     const stir = () => wake();
     window.addEventListener("pointermove", stir, { passive: true });
     window.addEventListener("pointerdown", stir, { passive: true });
