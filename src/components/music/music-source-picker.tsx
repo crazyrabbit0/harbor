@@ -82,10 +82,14 @@ function MusicSourcePickerRoot({ children, active }: { children: ReactNode; acti
   const dismiss = useCallback(() => {
     generation.current += 1;
     setResolving(null);
-  }, []);
+  }, [setResolving]);
+  if (!active && resolving !== null) setResolvingState(null);
   useEffect(() => {
-    if (!active) dismiss();
-  }, [active, dismiss]);
+    if (active) return;
+    generation.current += 1;
+    release.current();
+    release.current = () => {};
+  }, [active]);
   // A stale playback url can leave playMusic unsettled, which would strand the status chip.
   useEffect(() => {
     if (!resolving) return;
@@ -229,11 +233,15 @@ export function MusicSourcePicker({
       }),
     [close],
   );
-  const [candidates, setCandidates] = useState<MusicSourceCandidate[]>([]);
-  const [spotify, setSpotify] = useState<SpotifyStatus | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [attempt, setAttempt] = useState(0);
+  const [result, setResult] = useState<{
+    track: MusicTrack;
+    attempt: number;
+    candidates: MusicSourceCandidate[];
+    spotify: SpotifyStatus | null;
+    error: string | null;
+  } | null>(null);
   const [pending, setPending] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const loadGeneration = useRef(0);
   const releaseSearch = useRef<() => void>(() => {});
   const preferred = readMusicPreference(SOURCE_KEY);
@@ -241,10 +249,8 @@ export function MusicSourcePicker({
   const failedSource = request.failure ? failedTrack.connectorId : undefined;
   const providerLink = musicProviderSearch(failedTrack);
 
-  const load = useCallback(() => {
+  useEffect(() => {
     const generation = ++loadGeneration.current;
-    setLoading(true);
-    setError(null);
     releaseSearch.current();
     const finish = beginMusicSourceRequest(request.track);
     releaseSearch.current = finish;
@@ -254,27 +260,40 @@ export function MusicSourcePicker({
     ])
       .then(([nextCandidates, status]) => {
         if (loadGeneration.current !== generation) return;
-        setCandidates(nextCandidates);
-        setSpotify(status);
+        setResult({
+          track: request.track,
+          attempt,
+          candidates: nextCandidates,
+          spotify: status,
+          error: null,
+        });
       })
       .catch((reason) => {
-        if (loadGeneration.current === generation) {
-          setError(reason instanceof Error ? reason.message : String(reason));
-        }
+        if (loadGeneration.current !== generation) return;
+        setResult({
+          track: request.track,
+          attempt,
+          candidates: [],
+          spotify: null,
+          error: reason instanceof Error ? reason.message : String(reason),
+        });
       })
       .finally(() => {
         finish();
-        if (loadGeneration.current === generation) setLoading(false);
       });
-  }, [request.track]);
-
-  useEffect(() => {
-    load();
     return () => {
       loadGeneration.current += 1;
       releaseSearch.current();
     };
-  }, [load]);
+  }, [request.track, attempt]);
+
+  const activeResult =
+    result?.track === request.track && result.attempt === attempt ? result : null;
+  const loading = activeResult === null;
+  const candidates = activeResult?.candidates ?? [];
+  const spotify = activeResult?.spotify ?? null;
+  const error = activeResult?.error ?? null;
+  const load = () => setAttempt((value) => value + 1);
 
   const ordered = useMemo(() => {
     const [original, ...alternatives] = candidates;
@@ -290,7 +309,7 @@ export function MusicSourcePicker({
   }, [candidates, preferred, failedSource]);
 
   const start = (chosen: MusicTrack, connectorId?: string) => {
-    setError(null);
+    setResult((prev) => (prev ? { ...prev, error: null } : prev));
     if (connectorId) {
       setPending(connectorId);
       writeMusicPreference(SOURCE_KEY, connectorId);

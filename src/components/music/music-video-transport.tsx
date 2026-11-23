@@ -24,17 +24,20 @@ export function MusicVideoTransport({ awake, onWake }: { awake: boolean; onWake:
   const [dragging, setDragging] = useState(false);
   const draggingRef = useRef(false);
   const trackId = player.current?.id;
-  useEffect(() => {
-    draggingRef.current = false;
+  const [activeTrackId, setActiveTrackId] = useState(trackId);
+  if (activeTrackId !== trackId) {
+    setActiveTrackId(trackId);
     setDragging(false);
     setScrub(null);
+  }
+  useEffect(() => {
+    draggingRef.current = false;
   }, [trackId]);
+  if (scrub !== null && !dragging && Math.abs(player.currentTime - scrub) < 1.5) {
+    setScrub(null);
+  }
   useEffect(() => {
     if (scrub === null || dragging) return;
-    if (Math.abs(player.currentTime - scrub) < 1.5) {
-      setScrub(null);
-      return;
-    }
     const id = window.setTimeout(() => setScrub(null), SETTLE_MS);
     return () => window.clearTimeout(id);
   }, [scrub, dragging, player.currentTime]);

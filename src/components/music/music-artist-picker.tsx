@@ -21,29 +21,36 @@ export function MusicArtistPicker({
   const titleId = useId();
   const closeRef = useRef<HTMLButtonElement>(null);
   const selected = useRef(false);
-  const [artists, setArtists] = useState<MusicArtistRef[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const searchKey = `${connector}\0${name}\0${attempt}`;
+  const [result, setResult] = useState<{
+    key: string;
+    artists: MusicArtistRef[];
+    error: string;
+  } | null>(null);
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError("");
-    setArtists([]);
-    searchTyped(name, 24, connector)
-      .then((result) => {
-        if (!cancelled) setArtists(result.artists);
-      })
-      .catch((reason) => {
-        if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
+    searchTyped(name, 24, connector).then(
+      (found) => {
+        if (!cancelled) setResult({ key: searchKey, artists: found.artists, error: "" });
+      },
+      (reason) => {
+        if (!cancelled)
+          setResult({
+            key: searchKey,
+            artists: [],
+            error: reason instanceof Error ? reason.message : String(reason),
+          });
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [name, connector, attempt]);
+  }, [name, connector, searchKey]);
+  const current = result?.key === searchKey ? result : null;
+  const loading = current === null;
+  const artists = current?.artists ?? [];
+  const error = current?.error ?? "";
   useEffect(() => {
     const trigger = document.activeElement as HTMLElement | null;
     const dialog = closeRef.current?.closest<HTMLElement>('[role="dialog"]');

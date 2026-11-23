@@ -63,6 +63,11 @@ export function MusicVideoDiscovery({
   const baseQuery = tabs ? (queryForKind?.(kind) ?? musicVideoQuery(kind, subject)) : query;
   const regular = tabs ? musicVideoUsesYoutube(kind) : interviews;
   const [draft, setDraft] = useState(baseQuery);
+  const [syncedBaseQuery, setSyncedBaseQuery] = useState(baseQuery);
+  if (syncedBaseQuery !== baseQuery) {
+    setSyncedBaseQuery(baseQuery);
+    setDraft(baseQuery);
+  }
   const [queryOverride, setQueryOverride] = useState<{ base: string; query: string } | null>(null);
   const search = queryOverride?.base === baseQuery ? queryOverride.query : baseQuery;
   const [retry, setRetry] = useState(0);
@@ -79,6 +84,16 @@ export function MusicVideoDiscovery({
     seenCursors = useRef(new Set<string>());
   const resultSubject = queryOverride?.base === baseQuery ? "" : filterSubject;
   const searchKey = `${regular}:${resultSubject}:${search}`;
+  const fetchKey = active && activated && search.trim() ? `${searchKey}\0${retry}` : "";
+  const [activeFetchKey, setActiveFetchKey] = useState(fetchKey);
+  if (activeFetchKey !== fetchKey) {
+    setActiveFetchKey(fetchKey);
+    if (fetchKey) {
+      setLoadingMore(false);
+      setMoreError(false);
+      setResult(null);
+    }
+  }
   const [edges, setEdges] = useState({ start: true, end: true });
   const tracks = result?.tracks ?? [];
   const itemMenu = useMusicItemMenu({
@@ -87,9 +102,6 @@ export function MusicVideoDiscovery({
     },
   });
   const { ref: railRef, handlers: railHandlers } = useDragScroll<HTMLDivElement>();
-  useEffect(() => {
-    setDraft(baseQuery);
-  }, [baseQuery]);
   useEffect(() => {
     const node = root.current;
     if (!node) return;
@@ -111,9 +123,6 @@ export function MusicVideoDiscovery({
     const version = ++generation.current;
     moreRequest.current = false;
     seenCursors.current.clear();
-    setLoadingMore(false);
-    setMoreError(false);
-    setResult(null);
     searchMusicVideoPage(search, regular, null, retry > 0, resultSubject)
       .then((page) => {
         if (!cancelled) setResult({ key: searchKey, ...page, error: false });

@@ -36,13 +36,17 @@ export function MusicQueueContinuation({
   );
   const [loading, setLoading] = useState(false);
   const [notice, setNotice] = useState("");
+  const [resetKey, setResetKey] = useState({ revision, mode });
+  if (resetKey.revision !== revision || resetKey.mode !== mode) {
+    setResetKey({ revision, mode });
+    setLoading(false);
+    setNotice("");
+  }
   const request = useRef(0);
   const busy = useRef(false);
   useEffect(() => {
     request.current += 1;
     busy.current = false;
-    setLoading(false);
-    setNotice("");
     return () => {
       request.current += 1;
       busy.current = false;

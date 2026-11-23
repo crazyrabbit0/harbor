@@ -51,8 +51,20 @@ export function MusicMast({
   const t = useT();
   const { connections, status, error, connected, reload } = useMusicConnections();
   const [query, setQuery] = useState(initialQuery);
-  useEffect(() => setQuery(initialQuery), [initialQuery]);
+  const [syncedInitialQuery, setSyncedInitialQuery] = useState(initialQuery);
+  if (syncedInitialQuery !== initialQuery) {
+    setSyncedInitialQuery(initialQuery);
+    setQuery(initialQuery);
+  }
   const [scope, setScope] = useState<string | null>(null);
+  const scopeOptions = useMemo(
+    () =>
+      connections.filter(
+        (row) => row.status === "connected" && row.capabilities.includes("search"),
+      ),
+    [connections],
+  );
+  if (scope && !scopeOptions.some((row) => row.id === scope)) setScope(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const chipRef = useRef<HTMLButtonElement>(null);
@@ -61,6 +73,11 @@ export function MusicMast({
   const [focused, setFocused] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [activeKey, setActiveKey] = useState({ query, scope });
+  if (activeKey.query !== query || activeKey.scope !== scope) {
+    setActiveKey({ query, scope });
+    setActiveIndex(-1);
+  }
   const history = useMusicSearchHistory();
 
   const { groups: suggestGroups, loading: suggesting } = useMusicSuggest(
@@ -72,16 +89,6 @@ export function MusicMast({
   const showingHistory = !query.trim();
   const suggestOpen = focused && !dismissed && !!onPick;
   const optionCount = showingHistory ? history.length : suggestFlat.length;
-
-  useEffect(() => setActiveIndex(-1), [query, scope]);
-
-  const scopeOptions = useMemo(
-    () =>
-      connections.filter(
-        (row) => row.status === "connected" && row.capabilities.includes("search"),
-      ),
-    [connections],
-  );
 
   const choose = (item: MusicCatalogItem) => {
     rememberMusicSearchItem(item);
@@ -131,10 +138,6 @@ export function MusicMast({
       else if (suggestFlat[activeIndex]) choose(suggestFlat[activeIndex]);
     }
   };
-
-  useEffect(() => {
-    if (scope && !scopeOptions.some((row) => row.id === scope)) setScope(null);
-  }, [scope, scopeOptions]);
 
   const closeMenu = useCallback(() => {
     setMenuOpen(false);

@@ -52,10 +52,10 @@ export function MusicArtistFilmography({ name }: { name: string }) {
   const [result, setResult] = useState<{ key: string; credits: PersonCredit[] } | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const [attempt, retry] = useState(0);
+  const requestKey = `${key}:${attempt}`;
   useEffect(() => {
     if (!settings.tmdbKey) return;
     let alive = true;
-    setFailed(null);
     let request = cache.get(key);
     if (!request) {
       request = creditsFor(settings.tmdbKey, name);
@@ -68,14 +68,14 @@ export function MusicArtistFilmography({ name }: { name: string }) {
         if (alive) setResult({ key, credits });
       })
       .catch(() => {
-        if (alive) setFailed(key);
+        if (alive) setFailed(requestKey);
       });
     return () => {
       alive = false;
     };
-  }, [key, attempt]);
+  }, [key, requestKey]);
   const credits = result?.key === key ? result.credits : [];
-  if (failed === key)
+  if (failed === requestKey)
     return (
       <section className="music-filmography">
         <h2>{t("music.artist.filmography")}</h2>

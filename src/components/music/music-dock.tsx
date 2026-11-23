@@ -159,7 +159,10 @@ export function MusicDock() {
   const { topKind } = useViewSelector((v) => ({ topKind: v.topKind }));
   const dockRef = useRef<HTMLElement | null>(null);
   const sourceButton = useRef<HTMLButtonElement | null>(null);
-  const [skipIn, setSkipIn] = useState<number | null>(null);
+  const [skipState, setSkipState] = useState<{ key: string; left: number | null }>({
+    key: "",
+    left: null,
+  });
   const [stayed, setStayed] = useState("");
   const [queueOpen, setQueueOpen] = useState(false);
   const [expanded, setExpanded] = useState(false);
@@ -286,33 +289,44 @@ export function MusicDock() {
     return out;
   };
 
-  useEffect(() => {
-    draggingRef.current = false;
+  const currentId = current?.id;
+  const [syncedTrackId, setSyncedTrackId] = useState(currentId);
+  if (syncedTrackId !== currentId) {
+    setSyncedTrackId(currentId);
     setDragging(false);
     setScrub(null);
-  }, [current?.id]);
+  }
+  useEffect(() => {
+    draggingRef.current = false;
+  }, [currentId]);
   const visible = Boolean(current) && topKind !== "player" && topKind !== "picker";
+  if (!visible && (queueOpen || expanded || collapsed)) {
+    setQueueOpen(false);
+    setExpanded(false);
+    setCollapsed(false);
+  }
   const inset = useDockInset(dockRef, visible, collapsed, topKind === "games");
   const stuckError = player.error && !player.error.startsWith("music.cast.") ? player.error : null;
   const stuckKey = `${player.current?.connectorId ?? ""}:${player.current?.id ?? ""}`;
   const hasNext = player.queueIndex >= 0 && player.queueIndex < player.queue.length - 1;
+  const skipKey = stuckError && hasNext && stayed !== stuckKey ? `${stuckError}\0${stuckKey}` : "";
+  if (!skipKey && skipState.left !== null) setSkipState({ key: "", left: null });
+  else if (skipKey && skipState.key !== skipKey)
+    setSkipState({ key: skipKey, left: SKIP_AFTER_SECONDS });
+  const skipIn = skipKey ? skipState.left : null;
   useEffect(() => {
-    if (!stuckError || !hasNext || stayed === stuckKey) {
-      setSkipIn(null);
-      return;
-    }
-    setSkipIn(SKIP_AFTER_SECONDS);
+    if (!skipKey) return;
     const timer = window.setInterval(() => {
-      setSkipIn((left) => {
-        if (left === null) return null;
-        if (left > 1) return left - 1;
+      setSkipState((prev) => {
+        if (prev.key !== skipKey || prev.left === null) return prev;
+        if (prev.left > 1) return { key: skipKey, left: prev.left - 1 };
         window.clearInterval(timer);
         nextMusic();
-        return null;
+        return { key: skipKey, left: null };
       });
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [stuckError, hasNext, stuckKey, stayed]);
+  }, [skipKey]);
   const attachVolumeWheel = useCallback((node: HTMLSpanElement | null) => {
     if (!node) return;
     const adjust = (event: WheelEvent) => {
@@ -364,9 +378,6 @@ export function MusicDock() {
         };
       }
     } else {
-      setQueueOpen(false);
-      setExpanded(false);
-      setCollapsed(false);
       delete root.dataset.musicDockActive;
       root.style.removeProperty("--harbor-music-dock");
       root.style.removeProperty("--harbor-dock-gap");
@@ -378,12 +389,11 @@ export function MusicDock() {
     };
   }, [visible, collapsed]);
 
+  if (scrub !== null && !dragging && Math.abs(player.currentTime - scrub) < 1.5) {
+    setScrub(null);
+  }
   useEffect(() => {
     if (scrub === null || dragging) return;
-    if (Math.abs(player.currentTime - scrub) < 1.5) {
-      setScrub(null);
-      return;
-    }
     const id = window.setTimeout(() => setScrub(null), SETTLE_MS);
     return () => window.clearTimeout(id);
   }, [scrub, dragging, player.currentTime]);

@@ -47,9 +47,17 @@ export function MusicKaraoke({
   const previous = useRef(-1);
   const seen = useRef("");
   const dismiss = useRef(onClose);
-  const [lines, setLines] = useState<LyricLine[] | null>(null);
-  const [status, setStatus] = useState<KaraokeStatus>("idle");
+  const [lyricResult, setLyricResult] = useState<{
+    key: string;
+    status: "ready" | "missing";
+    lines: LyricLine[] | null;
+  } | null>(null);
   const key = track ? `${track.connectorId ?? ""}:${track.id ?? ""}:${track.title ?? ""}` : "";
+  const activeKey = open && track ? key : "";
+  if (!activeKey && lyricResult !== null) setLyricResult(null);
+  const current = activeKey && lyricResult?.key === activeKey ? lyricResult : null;
+  const status: KaraokeStatus = !activeKey ? "idle" : current ? current.status : "loading";
+  const lines = current?.lines ?? null;
   const offset = getLyricOffset(player.current);
   const active =
     status === "ready" && lines
@@ -61,38 +69,31 @@ export function MusicKaraoke({
   }, [onClose]);
 
   useEffect(() => {
-    if (!open || !track) {
-      setLines(null);
-      setStatus("idle");
-      return;
-    }
+    if (!activeKey || !track) return;
     let live = true;
-    setLines(null);
-    setStatus("loading");
     const bail = window.setTimeout(() => {
       if (!live) return;
       live = false;
-      setStatus("missing");
+      setLyricResult({ key: activeKey, status: "missing", lines: null });
     }, WAIT_MS);
     void loadTrackLyrics(track)
       .then((found) => {
         if (!live) return;
         if (found && found.length > 0 && sung(found)) {
-          setLines(found);
-          setStatus("ready");
+          setLyricResult({ key: activeKey, status: "ready", lines: found });
           return;
         }
-        setStatus("missing");
+        setLyricResult({ key: activeKey, status: "missing", lines: null });
       })
       .catch(() => {
-        if (live) setStatus("missing");
+        if (live) setLyricResult({ key: activeKey, status: "missing", lines: null });
       })
       .finally(() => window.clearTimeout(bail));
     return () => {
       live = false;
       window.clearTimeout(bail);
     };
-  }, [open, key]);
+  }, [activeKey]);
 
   useEffect(() => {
     if (!open) {

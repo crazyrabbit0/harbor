@@ -50,6 +50,8 @@ const createWatchHost = () => {
   return host;
 };
 
+const EMPTY_SIMILAR: MusicTrack[] = [];
+
 export function MusicWatch({
   track,
   queue,
@@ -66,23 +68,36 @@ export function MusicWatch({
   const t = useT();
   const player = useMusicPlayer();
   useMusicTransport();
-  const [preparationError, setPreparationError] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [similar, setSimilar] = useState<MusicTrack[]>([]);
-  const [similarBusy, setSimilarBusy] = useState(true);
-  const [similarNext, setSimilarNext] = useState<string | null>(null);
+  const [similarResult, setSimilarResult] = useState<{
+    key: string;
+    tracks: MusicTrack[];
+    next: string | null;
+  } | null>(null);
   const [moreBusy, setMoreBusy] = useState(false),
     [moreError, setMoreError] = useState(false);
   const similarGeneration = useRef(0),
     moreLoading = useRef(false),
     moreButton = useRef<HTMLButtonElement>(null);
   const seenPages = useRef(new Set<string>());
-  const [readySelection, setReadySelection] = useState("");
+  const [prepState, setPrepState] = useState<{
+    key: string;
+    ready: boolean;
+    error: boolean;
+  } | null>(null);
   const [videoShowing, setVideoShowing] = useState(false);
   const replay = useRef(false);
   const stageRef = useRef<HTMLDivElement>(null);
   const [host] = useState(createWatchHost);
   const selection = `${track.connectorId ?? ""}:${track.id}`;
+  const activePrepareKey = active ? `${selection}\0${retry}` : "";
+  const [lastPrepareKey, setLastPrepareKey] = useState(activePrepareKey);
+  if (lastPrepareKey !== activePrepareKey) {
+    setLastPrepareKey(activePrepareKey);
+    if (activePrepareKey) setPrepState(null);
+  }
+  const preparationError = prepState?.key === activePrepareKey && prepState.error;
+  const ready = active && prepState?.key === activePrepareKey && prepState.ready;
   const showVideo = useCallback(
     (next: boolean) => {
       setVideoShowing(next);
@@ -107,8 +122,6 @@ export function MusicWatch({
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
-    setReadySelection("");
-    setPreparationError(false);
     const current = getMusicState();
     // An explicit retry loads the track again rather than taking the already-current fast path,
     // which would hand the surface back the same state that just failed.
@@ -134,27 +147,40 @@ export function MusicWatch({
     };
     // Surfaced rather than abandoned: a load that answers late still clears the message itself.
     const stuck = setTimeout(() => {
-      if (!cancelled) setPreparationError(true);
+      if (!cancelled) setPrepState({ key: activePrepareKey, ready: false, error: true });
     }, PREPARE_MS);
     void prepare()
       .then(() => {
         if (!cancelled) {
-          setPreparationError(false);
-          setReadySelection(selection);
+          setPrepState({ key: activePrepareKey, ready: true, error: false });
         }
       })
       .catch(() => {
-        if (!cancelled) setPreparationError(true);
+        if (!cancelled) setPrepState({ key: activePrepareKey, ready: false, error: true });
       })
       .finally(() => clearTimeout(stuck));
     return () => {
       cancelled = true;
       clearTimeout(stuck);
     };
-  }, [selection, active, retry]);
+  }, [selection, active, retry, activePrepareKey]);
 
-  const playing = readySelection === selection ? (player.current ?? track) : track;
+  const playing = ready ? (player.current ?? track) : track;
   const playingId = playing.id;
+  const similarKey = active ? `${playingId}\0${playing.artist}` : "";
+  const [lastSimilarKey, setLastSimilarKey] = useState(similarKey);
+  if (lastSimilarKey !== similarKey) {
+    setLastSimilarKey(similarKey);
+    if (similarKey) {
+      setSimilarResult(null);
+      setMoreBusy(false);
+      setMoreError(false);
+    }
+  }
+  const currentSimilar = similarResult?.key === similarKey ? similarResult : null;
+  const similar = currentSimilar?.tracks ?? EMPTY_SIMILAR;
+  const similarBusy = Boolean(similarKey) && currentSimilar === null;
+  const similarNext = currentSimilar?.next ?? null;
 
   useEffect(() => {
     if (!active) return;
@@ -162,16 +188,11 @@ export function MusicWatch({
     const generation = ++similarGeneration.current;
     moreLoading.current = false;
     seenPages.current.clear();
-    setSimilarNext(null);
-    setMoreBusy(false);
-    setMoreError(false);
-    setSimilarBusy(true);
     searchMusicVideoPage(`${playing.artist} music videos`, false)
       .then(({ tracks, next: cursor }) => {
         if (cancelled) return;
         const next = tracks.filter((item) => item.id !== playingId);
-        setSimilar(next);
-        setSimilarNext(cursor);
+        setSimilarResult({ key: similarKey, tracks: next, next: cursor });
         // Warmed against the same predicate the surface resolves by, because video.ts cannot
         // import it back from video-session without a cycle.
         prefetchMusicVideoStreams(
@@ -182,16 +203,13 @@ export function MusicWatch({
         );
       })
       .catch(() => {
-        if (!cancelled) setSimilar([]);
-      })
-      .finally(() => {
-        if (!cancelled) setSimilarBusy(false);
+        if (!cancelled) setSimilarResult({ key: similarKey, tracks: EMPTY_SIMILAR, next: null });
       });
     return () => {
       cancelled = true;
       if (similarGeneration.current === generation) similarGeneration.current++;
     };
-  }, [playingId, playing.artist, active]);
+  }, [playingId, playing.artist, active, similarKey]);
 
   const loadMoreVideos = useCallback(async () => {
     if (!active || !similarNext || moreLoading.current) return;
@@ -204,13 +222,18 @@ export function MusicWatch({
       .then((page) => {
         if (similarGeneration.current !== generation) return;
         seenPages.current.add(cursor);
-        setSimilar((previous) =>
-          appendMusicVideos(
-            previous,
-            page.tracks.filter((item) => item.id !== playingId),
-          ),
+        setSimilarResult((previous) =>
+          previous?.key === similarKey
+            ? {
+                key: similarKey,
+                tracks: appendMusicVideos(
+                  previous.tracks,
+                  page.tracks.filter((item) => item.id !== playingId),
+                ),
+                next: page.next && !seenPages.current.has(page.next) ? page.next : null,
+              }
+            : previous,
         );
-        setSimilarNext(page.next && !seenPages.current.has(page.next) ? page.next : null);
       })
       .catch(() => {
         if (similarGeneration.current === generation) setMoreError(true);
@@ -221,7 +244,7 @@ export function MusicWatch({
           setMoreBusy(false);
         }
       });
-  }, [active, similarNext, playing.artist, playingId]);
+  }, [active, similarNext, playing.artist, playingId, similarKey]);
   useEffect(() => {
     const button = moreButton.current;
     if (!button || similarBusy || moreBusy || moreError || !active) return;
@@ -289,7 +312,7 @@ export function MusicWatch({
                 {createPortal(
                   <MusicVideoSurface
                     track={playing}
-                    active={active && readySelection === selection && playing.mediaKind === "video"}
+                    active={ready && playing.mediaKind === "video"}
                     onShowing={showVideo}
                   />,
                   host,

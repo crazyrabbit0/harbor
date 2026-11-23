@@ -58,27 +58,35 @@ export function MusicNowSearch({ onClose }: { onClose: () => void }) {
     setNextLimit(null);
   }, []);
 
-  useEffect(() => {
-    const value = query.trim();
-    if (!value) {
+  const trimmed = query.trim();
+  const searchKey = trimmed ? `${mode}\0${trimmed}\0${limit}\0${attempt}` : "";
+  const [activeKey, setActiveKey] = useState(searchKey);
+  if (activeKey !== searchKey) {
+    setActiveKey(searchKey);
+    if (!trimmed) {
       setResults(null);
       setBusy(false);
       setMore(false);
       setFailed(false);
       setNextLimit(null);
-      return;
-    }
-    const initial = limit === NOW_SEARCH_PAGE;
-    if (initial) {
+    } else if (limit === NOW_SEARCH_PAGE) {
       setBusy(true);
+      setMore(false);
       setFailed(false);
-    } else setMore(true);
+    } else {
+      setMore(true);
+    }
+  }
+
+  useEffect(() => {
+    if (!trimmed) return;
+    const initial = limit === NOW_SEARCH_PAGE;
     let live = true;
     const run = () => {
       const request =
         mode === "videos"
-          ? searchMusicVideoPage(value, false, videoCursors.current.get(limit) ?? null)
-          : fetchSearchMode(value, limit).then((tracks) => ({ tracks, next: null }));
+          ? searchMusicVideoPage(trimmed, false, videoCursors.current.get(limit) ?? null)
+          : fetchSearchMode(trimmed, limit).then((tracks) => ({ tracks, next: null }));
       void request
         .then(({ tracks: found, next }) => {
           if (!live) return;
@@ -115,7 +123,7 @@ export function MusicNowSearch({ onClose }: { onClose: () => void }) {
       live = false;
       clearTimeout(id);
     };
-  }, [query, mode, limit, attempt]);
+  }, [trimmed, mode, limit, attempt]);
 
   useEffect(() => {
     const node = sentinelRef.current;

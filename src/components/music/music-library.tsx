@@ -55,38 +55,46 @@ export function MusicLibrary({
   const player = useMusicPlayback();
   const [playlists, setPlaylists] = useState<MusicPlaylist[]>([]);
   const [shelf, setShelf] = useState<MusicCatalogItem[]>([]);
-  const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [readError, setReadError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  const [settledRevision, setSettledRevision] = useState(-1);
+  const [readErrorState, setReadErrorState] = useState<{
+    revision: number;
+    message: string;
+  } | null>(null);
+  const loading = settledRevision !== revision;
+  const readError = readErrorState?.revision === revision ? readErrorState.message : null;
   const [filter, setFilter] = useState<LibraryFilter>(() =>
     (FILTERS as string[]).includes(initialView ?? "") ? (initialView as LibraryFilter) : "all",
   );
+  const [syncedInitialView, setSyncedInitialView] = useState(initialView);
+  if (syncedInitialView !== initialView) {
+    setSyncedInitialView(initialView);
+    if (initialView && (FILTERS as string[]).includes(initialView))
+      setFilter(initialView as LibraryFilter);
+  }
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<MusicCollectionSort>("recent");
   const [creating, setCreating] = useState(false);
   const [playlistName, setPlaylistName] = useState("");
 
   useEffect(() => {
-    if (initialView && (FILTERS as string[]).includes(initialView))
-      setFilter(initialView as LibraryFilter);
-  }, [initialView]);
-
-  useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setReadError(null);
     void listMusicPlaylists()
       .then((next) => {
         if (!cancelled) setPlaylists(next);
       })
       .catch((reason) => {
-        if (!cancelled) setReadError(reason instanceof Error ? reason.message : String(reason));
+        if (!cancelled)
+          setReadErrorState({
+            revision,
+            message: reason instanceof Error ? reason.message : String(reason),
+          });
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setSettledRevision(revision);
       });
     return () => {
       cancelled = true;

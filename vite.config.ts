@@ -57,6 +57,7 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/components/lazy-mount.tsx",
   "/src/components/mal/",
   "/src/components/modal-shell.tsx",
+  "/src/components/music/",
   "/src/components/notification-center/",
   "/src/components/peek-hero.tsx",
   "/src/components/person-hover-card.tsx",

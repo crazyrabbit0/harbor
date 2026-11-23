@@ -33,7 +33,16 @@ export function MusicBroadcast() {
     device: "",
   });
   const alive = useRef(true);
-  const picked = useRef("");
+  const [syncedStatusDevice, setSyncedStatusDevice] = useState(status.device);
+  if (syncedStatusDevice !== status.device) {
+    setSyncedStatusDevice(status.device);
+    if (status.device) setDevice(status.device);
+  }
+  const [pickedCable, setPickedCable] = useState("");
+  if (cable.device && pickedCable !== cable.device) {
+    setPickedCable(cable.device);
+    setDevice(cable.device);
+  }
 
   useEffect(() => {
     alive.current = true;
@@ -57,16 +66,6 @@ export function MusicBroadcast() {
     return () => {
       cancelled = true;
     };
-  }, [cable.device]);
-
-  useEffect(() => {
-    if (status.device) setDevice(status.device);
-  }, [status.device]);
-
-  useEffect(() => {
-    if (!cable.device || picked.current === cable.device) return;
-    picked.current = cable.device;
-    setDevice(cable.device);
   }, [cable.device]);
 
   const onCable = useCallback((next: CableStatus) => {

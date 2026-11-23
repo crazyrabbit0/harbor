@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, LoaderCircle, RotateCcw, Speaker } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import {
@@ -11,6 +11,7 @@ import {
 
 const CHOICE =
   "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 text-start transition-colors hover:bg-elevated";
+const EMPTY_DEVICES: SpotifyDevice[] = [];
 
 function describe(cause: unknown): string {
   return cause instanceof Error ? cause.message : String(cause);
@@ -18,32 +19,51 @@ function describe(cause: unknown): string {
 
 export function SpotifyPlaybackTarget() {
   const t = useT();
-  const [devices, setDevices] = useState<SpotifyDevice[]>([]);
+  const [attempt, setAttempt] = useState(0);
+  const [snapshot, setSnapshot] = useState<{
+    attempt: number;
+    devices: SpotifyDevice[];
+    error: string;
+  } | null>(null);
   const [target, setTarget] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
 
-  const load = useCallback(() => {
-    setLoading(true);
-    setError("");
+  useEffect(() => {
+    let cancelled = false;
     Promise.all([spotifyDevices(), spotifyPlaybackTarget()])
       .then(([found, chosen]) => {
-        setDevices(selectableSpotifyDevices(found));
+        if (cancelled) return;
+        setSnapshot({ attempt, devices: selectableSpotifyDevices(found), error: "" });
         setTarget(chosen);
       })
-      .catch((cause) => setError(describe(cause)))
-      .finally(() => setLoading(false));
-  }, []);
+      .catch((cause) => {
+        if (cancelled) return;
+        setSnapshot((prev) => ({
+          attempt,
+          devices: prev?.devices ?? EMPTY_DEVICES,
+          error: describe(cause),
+        }));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [attempt]);
 
-  useEffect(() => load(), [load]);
+  const loading = snapshot?.attempt !== attempt;
+  const devices = snapshot?.devices ?? EMPTY_DEVICES;
+  const error = snapshot?.attempt === attempt ? snapshot.error : "";
+  const load = () => setAttempt((value) => value + 1);
 
   const choose = (device: string | null) => {
     const previous = target;
     setTarget(device);
-    setError("");
+    setSnapshot((prev) => (prev ? { ...prev, error: "" } : prev));
     void setSpotifyPlaybackTarget(device).catch((cause) => {
       setTarget(previous);
-      setError(describe(cause));
+      setSnapshot((prev) => ({
+        attempt,
+        devices: prev?.devices ?? EMPTY_DEVICES,
+        error: describe(cause),
+      }));
     });
   };
 

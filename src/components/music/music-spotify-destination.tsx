@@ -32,13 +32,38 @@ export function MusicSpotifyDestination({
   const account = connections.connections.find((connection) => connection.id === "spotify");
   const connected = account?.status === "connected";
   const uri = spotifyTrackUri(track);
-  const [page, setPage] = useState<SpotifyLibraryPage | null>(null);
-  const [loading, setLoading] = useState(false);
+  const destKey = `${connected}:${account?.account ?? ""}:${uri ?? ""}`;
+  const [pageState, setPageState] = useState<{ key: string; page: SpotifyLibraryPage } | null>(
+    null,
+  );
+  const [errorState, setErrorState] = useState<{ key: string; code: string } | null>(null);
+  const [manualLoading, setManualLoading] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [saved, setSaved] = useState("");
   const [target, setTarget] = useState<string | null>(null);
+  const [activeDestKey, setActiveDestKey] = useState(destKey);
+  if (activeDestKey !== destKey) {
+    setActiveDestKey(destKey);
+    setSaved("");
+    setBusy(false);
+    setTarget(null);
+    setManualLoading(false);
+  }
+  const page = pageState?.key === destKey ? pageState.page : null;
+  const error = errorState?.key === destKey ? errorState.code : "";
+  const initialLoading = Boolean(connected && uri && !page && !error);
+  const autoLoading = Boolean(
+    query.trim() &&
+    !manualLoading &&
+    !busy &&
+    !saved &&
+    !error &&
+    connected &&
+    uri &&
+    page?.nextOffset != null,
+  );
+  const loading = initialLoading || manualLoading || autoLoading;
   const created = useMusicActionReceipt(`${account?.account}:${uri}`);
   const [name, setName] = useState("");
   const generation = useRef(0);
@@ -46,8 +71,8 @@ export function MusicSpotifyDestination({
 
   const load = async (offset = 0) => {
     const run = ++generation.current;
-    setLoading(true);
-    setError("");
+    setManualLoading(true);
+    setErrorState(null);
     return loadSpotifyLibraryPage("playlists", offset)
       .then((next) => {
         if (
@@ -58,70 +83,111 @@ export function MusicSpotifyDestination({
         )
           return Promise.reject(new Error("Invalid playlist pagination"));
         if (generation.current === run)
-          setPage((previous) =>
-            offset && previous
-              ? {
-                  ...next,
-                  playlists: [
-                    ...new Map(
-                      [...previous.playlists, ...next.playlists].map((playlist) => [
-                        playlist.id,
-                        playlist,
-                      ]),
-                    ).values(),
-                  ],
-                }
-              : next,
-          );
+          setPageState((previous) => ({
+            key: destKey,
+            page:
+              offset && previous?.key === destKey
+                ? {
+                    ...next,
+                    playlists: [
+                      ...new Map(
+                        [...previous.page.playlists, ...next.playlists].map((playlist) => [
+                          playlist.id,
+                          playlist,
+                        ]),
+                      ).values(),
+                    ],
+                  }
+                : next,
+          }));
       })
-      .catch((error: unknown) => {
-        if (generation.current === run) setError(spotifyLibraryErrorKey(error));
+      .catch((cause: unknown) => {
+        if (generation.current === run)
+          setErrorState({ key: destKey, code: spotifyLibraryErrorKey(cause) });
       })
       .finally(() => {
-        if (generation.current === run) setLoading(false);
+        if (generation.current === run) setManualLoading(false);
       });
   };
 
   useEffect(() => {
-    setSaved("");
-    setBusy(false);
-    setTarget(null);
-    if (connected && uri) void load();
+    if (connected && uri) {
+      const run = ++generation.current;
+      void loadSpotifyLibraryPage("playlists", 0)
+        .then((next) => {
+          if (
+            next.nextOffset != null &&
+            (!Number.isSafeInteger(next.nextOffset) ||
+              next.nextOffset <= 0 ||
+              next.nextOffset > 100_000)
+          )
+            return Promise.reject(new Error("Invalid playlist pagination"));
+          if (generation.current === run) setPageState({ key: destKey, page: next });
+        })
+        .catch((cause: unknown) => {
+          if (generation.current === run)
+            setErrorState({ key: destKey, code: spotifyLibraryErrorKey(cause) });
+        });
+    }
     return () => {
       generation.current += 1;
       if (finishTimer.current) clearTimeout(finishTimer.current);
     };
-  }, [connected, account?.account, uri]);
+  }, [destKey, connected, uri]);
 
   useEffect(() => {
-    if (
-      !query.trim() ||
-      loading ||
-      busy ||
-      saved ||
-      error ||
-      !connected ||
-      !uri ||
-      page?.nextOffset == null
-    )
-      return;
-    void load(page.nextOffset);
-  }, [query, loading, busy, saved, error, connected, uri, page?.nextOffset]);
+    const nextOffset = page?.nextOffset;
+    if (!autoLoading || nextOffset == null) return;
+    const run = ++generation.current;
+    void loadSpotifyLibraryPage("playlists", nextOffset)
+      .then((next) => {
+        if (
+          next.nextOffset != null &&
+          (!Number.isSafeInteger(next.nextOffset) ||
+            next.nextOffset <= nextOffset ||
+            next.nextOffset > 100_000)
+        )
+          return Promise.reject(new Error("Invalid playlist pagination"));
+        if (generation.current === run)
+          setPageState((previous) => ({
+            key: destKey,
+            page:
+              previous?.key === destKey
+                ? {
+                    ...next,
+                    playlists: [
+                      ...new Map(
+                        [...previous.page.playlists, ...next.playlists].map((playlist) => [
+                          playlist.id,
+                          playlist,
+                        ]),
+                      ).values(),
+                    ],
+                  }
+                : next,
+          }));
+      })
+      .catch((cause: unknown) => {
+        if (generation.current === run)
+          setErrorState({ key: destKey, code: spotifyLibraryErrorKey(cause) });
+      });
+  }, [autoLoading, page?.nextOffset, destKey]);
 
   const add = async (playlistId: string) => {
     if (busy || saved) return;
     const run = generation.current;
     setBusy(true);
     setTarget(playlistId);
-    setError("");
+    setErrorState(null);
     return addTrackToSpotifyPlaylist(playlistId, track)
       .then(() => {
         if (generation.current !== run) return;
         setSaved(playlistId);
         finishTimer.current = setTimeout(onDone, 600);
       })
-      .catch((error: unknown) => {
-        if (generation.current === run) setError(spotifyLibraryErrorKey(error));
+      .catch((cause: unknown) => {
+        if (generation.current === run)
+          setErrorState({ key: destKey, code: spotifyLibraryErrorKey(cause) });
       })
       .finally(() => {
         if (generation.current === run) setBusy(false);
@@ -133,26 +199,30 @@ export function MusicSpotifyDestination({
     const run = generation.current;
     setBusy(true);
     setTarget(null);
-    setError("");
+    setErrorState(null);
     return createSpotifyPlaylist(name)
       .then((playlist) => {
         if (generation.current !== run) return;
         created.confirm();
         setName("");
         setNotice(t("music.spotifyLibrary.created", { name: playlist.name }));
-        setPage((previous) =>
-          previous
+        setPageState((previous) =>
+          previous?.key === destKey
             ? {
-                ...previous,
-                playlists: [playlist, ...previous.playlists],
-                total: previous.total == null ? null : previous.total + 1,
+                key: destKey,
+                page: {
+                  ...previous.page,
+                  playlists: [playlist, ...previous.page.playlists],
+                  total: previous.page.total == null ? null : previous.page.total + 1,
+                },
               }
             : previous,
         );
         window.dispatchEvent(new Event("harbor:spotify-library-changed"));
       })
-      .catch((error: unknown) => {
-        if (generation.current === run) setError(spotifyLibraryErrorKey(error));
+      .catch((cause: unknown) => {
+        if (generation.current === run)
+          setErrorState({ key: destKey, code: spotifyLibraryErrorKey(cause) });
       })
       .finally(() => {
         if (generation.current === run) setBusy(false);
@@ -162,13 +232,15 @@ export function MusicSpotifyDestination({
   const reconnect = async () => {
     setBusy(true);
     setTarget("reconnect");
-    setError("");
+    setErrorState(null);
     return connectSource("spotify")
       .then((next) => {
         connections.apply(next);
         return load();
       })
-      .catch((error: unknown) => setError(spotifyLibraryErrorKey(error)))
+      .catch((cause: unknown) =>
+        setErrorState({ key: destKey, code: spotifyLibraryErrorKey(cause) }),
+      )
       .finally(() => setBusy(false));
   };
 

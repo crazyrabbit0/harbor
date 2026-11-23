@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import { Dropdown } from "@/components/dropdown";
@@ -44,7 +44,11 @@ function NumericField({
   onChange: (value: number) => void;
 }) {
   const [text, setText] = useState(String(value));
-  useEffect(() => setText(String(value)), [value]);
+  const [syncedValue, setSyncedValue] = useState(value);
+  if (syncedValue !== value) {
+    setSyncedValue(value);
+    setText(String(value));
+  }
   const commit = () => {
     const number = Number(text);
     const next =

@@ -268,7 +268,6 @@ export function MusicArtistStory({
 export function MusicWhereToBuy({ item }: { item: MusicCatalogItem }) {
   const t = useT();
   const [opened, setOpened] = useState(false);
-  const [profile, setProfile] = useState<MusicArtistProfile | null>(null);
   const artist =
     item.kind === "track" || item.kind === "album"
       ? item.artist
@@ -276,19 +275,24 @@ export function MusicWhereToBuy({ item }: { item: MusicCatalogItem }) {
         ? item.name
         : "";
   const title = item.kind === "track" || item.kind === "album" ? item.title : "";
+  const key = opened && artist ? `${item.id}\0${artist}` : "";
+  const [result, setResult] = useState<{ key: string; profile: MusicArtistProfile | null } | null>(
+    null,
+  );
+  if (!key && result !== null) setResult(null);
   useEffect(() => {
-    setProfile(null);
-    if (!opened || !artist) return;
+    if (!key) return;
     const controller = new AbortController();
     void resolveArtist(artist, { track: item.kind === "track" ? item : undefined })
       .then(async (ranking) => {
         if (!ranking.canonical || controller.signal.aborted) return;
         const value = await loadArtistProfile(ranking.canonical, "en", controller.signal);
-        if (!controller.signal.aborted) setProfile(value);
+        if (!controller.signal.aborted) setResult({ key, profile: value });
       })
       .catch(() => {});
     return () => controller.abort();
-  }, [item.id, artist, opened]);
+  }, [key]);
+  const profile = key && result?.key === key ? result.profile : null;
   if (!artist) return null;
   const links =
     profile?.links.filter((link) => link.kind === "store" || link.kind === "merch") ?? [];

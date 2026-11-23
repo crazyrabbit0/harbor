@@ -189,11 +189,6 @@ function loadBody(id: number): Promise<string> {
   return body;
 }
 
-function initialBody(id: number): string {
-  if (!(id in FILES)) return FALLBACK;
-  return bodies.get(id) ?? "";
-}
-
 /** Original genre drawings sharing Harbor's rounded instrument stroke. */
 export function MusicDiscoveryIcon({
   genreId,
@@ -203,18 +198,19 @@ export function MusicDiscoveryIcon({
   className?: string;
 }) {
   const id = genreId ?? 0;
-  const [body, setBody] = useState(() => initialBody(id));
+  const cached = !(id in FILES) ? FALLBACK : bodies.get(id);
+  const [loaded, setLoaded] = useState<{ id: number; body: string } | null>(null);
   useEffect(() => {
-    setBody(initialBody(id));
-    if (!(id in FILES) || bodies.has(id)) return;
+    if (cached !== undefined) return;
     let live = true;
     void loadBody(id).then((inner) => {
-      if (live) setBody(inner);
+      if (live) setLoaded({ id, body: inner });
     });
     return () => {
       live = false;
     };
-  }, [id]);
+  }, [id, cached]);
+  const body = cached ?? (loaded?.id === id ? loaded.body : "");
   return (
     <svg
       viewBox="0 0 48 48"

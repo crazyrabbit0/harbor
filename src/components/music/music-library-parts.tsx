@@ -81,11 +81,9 @@ export function LibraryTrackList({
   const sourceRequest = useMusicSourceRequest();
   const resultsRef = useRef<HTMLDivElement>(null);
   const [slowFilter, setSlowFilter] = useState(false);
+  if (!filtering && slowFilter) setSlowFilter(false);
   useEffect(() => {
-    if (!filtering) {
-      setSlowFilter(false);
-      return;
-    }
+    if (!filtering) return;
     const timer = setTimeout(() => setSlowFilter(true), 180);
     return () => clearTimeout(timer);
   }, [filtering]);
@@ -530,6 +528,12 @@ export function PlaylistHeader({
   const { openSourcePicker } = useMusicSourcePicker();
   const [renaming, setRenaming] = useState(false);
   const [name, setName] = useState(playlist.name);
+  const [syncedPlaylist, setSyncedPlaylist] = useState({ id: playlist.id, name: playlist.name });
+  if (syncedPlaylist.id !== playlist.id || syncedPlaylist.name !== playlist.name) {
+    setSyncedPlaylist({ id: playlist.id, name: playlist.name });
+    setName(playlist.name);
+    setRenaming(false);
+  }
   const [busy, setBusy] = useState(false);
   const renameButton = useRef<HTMLButtonElement>(null);
   const cancelRename = () => {
@@ -537,11 +541,6 @@ export function PlaylistHeader({
     setRenaming(false);
     requestAnimationFrame(() => renameButton.current?.focus());
   };
-
-  useEffect(() => {
-    setName(playlist.name);
-    setRenaming(false);
-  }, [playlist.id, playlist.name]);
 
   const commit = async () => {
     const trimmed = name.trim();

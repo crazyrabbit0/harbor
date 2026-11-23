@@ -76,6 +76,7 @@ import { musicTrackQuality } from "@/lib/music/quality";
 import "./music-now-playing.css";
 
 const NOW_LIKE_SPOKES = [0, 45, 90, 135, 180, 225, 270, 315];
+const EMPTY_LYRICS: LyricLine[] = [];
 
 const createPictureHost = () => {
   const host = document.createElement("div");
@@ -138,9 +139,15 @@ export function MusicNowPlaying({
     return () => window.clearTimeout(id);
   }, [searchExit]);
   const [karaoke, setKaraoke] = useState(false);
-  const [lyrics, setLyrics] = useState<LyricLine[]>([]);
-  const [lyricsState, setLyricsState] = useState<"loading" | "ready" | "empty">("loading");
-  const [hasLyrics, setHasLyrics] = useState<boolean | null>(null);
+  const [lyricsResult, setLyricsResult] = useState<{
+    track: MusicTrack;
+    lines: LyricLine[];
+    state: "ready" | "empty";
+  } | null>(null);
+  const [hasLyricsState, setHasLyricsState] = useState<{
+    track: MusicTrack;
+    has: boolean;
+  } | null>(null);
   const lyricsRef = useRef<HTMLOListElement>(null);
   const [outputs, setOutputs] = useState<Array<{ name: string; description: string }>>([]);
   const current = player.current;
@@ -167,14 +174,16 @@ export function MusicNowPlaying({
   // transitioned, so the frame snaps. A veil rises over the swap and clears once it has landed,
   // which reads as a deliberate cut and works the same going in as coming out.
   const [shifting, setShifting] = useState(false);
-  const wasImmersive = useRef(immersive);
-  useEffect(() => {
-    if (wasImmersive.current === immersive) return;
-    wasImmersive.current = immersive;
+  const [prevImmersive, setPrevImmersive] = useState(immersive);
+  if (prevImmersive !== immersive) {
+    setPrevImmersive(immersive);
     setShifting(true);
+  }
+  useEffect(() => {
+    if (!shifting) return;
     const timer = setTimeout(() => setShifting(false), 520);
     return () => clearTimeout(timer);
-  }, [immersive]);
+  }, [shifting, immersive]);
   const artwork = useRef<HTMLDivElement>(null);
   const [host] = useState(createPictureHost);
   // One permanent host for the picture. Fullscreen moves this node between the artwork box and
@@ -272,50 +281,69 @@ export function MusicNowPlaying({
     };
   }, [dockRef, onClose]);
 
-  const [lyricOffset, setLyricOffsetState] = useState(0);
-  useEffect(() => {
-    setLyricOffsetState(getLyricOffset(current));
-  }, [current]);
+  const [lyricOffsetState, setLyricOffsetState] = useState(() => ({
+    track: current,
+    offset: getLyricOffset(current),
+  }));
+  const lyricOffset =
+    lyricOffsetState.track === current ? lyricOffsetState.offset : getLyricOffset(current);
   const nudgeLyrics = useCallback(
     (delta: number) => {
-      setLyricOffsetState(setLyricOffset(current, getLyricOffset(current) + delta));
+      setLyricOffsetState({
+        track: current,
+        offset: setLyricOffset(current, getLyricOffset(current) + delta),
+      });
     },
     [current],
   );
+  const lyricsKey = panel === "lyrics" && current ? current : null;
+  if (!lyricsKey && lyricsResult !== null) setLyricsResult(null);
+  const activeLyrics = lyricsKey && lyricsResult?.track === lyricsKey ? lyricsResult : null;
+  const lyrics = activeLyrics?.lines ?? EMPTY_LYRICS;
+  const lyricsState: "loading" | "ready" | "empty" = activeLyrics?.state ?? "loading";
+  const hasLyrics = current && hasLyricsState?.track === current ? hasLyricsState.has : null;
+  const [prevHasLyrics, setPrevHasLyrics] = useState(hasLyrics);
+  if (prevHasLyrics !== hasLyrics) {
+    setPrevHasLyrics(hasLyrics);
+    if (hasLyrics === false) {
+      setKaraoke(false);
+      if (panel === "lyrics") setPanel("queue");
+    }
+  }
   const activeLyric = lyricIndexAt(lyrics, shiftedLyricTime(player.currentTime, lyricOffset));
   useEffect(() => {
     if (!current) return;
     let alive = true;
-    setHasLyrics(null);
     void loadTrackLyrics(current)
       .then((lines) => {
-        if (alive) setHasLyrics(!!lines && lines.length > 0);
+        if (alive) setHasLyricsState({ track: current, has: !!lines && lines.length > 0 });
       })
       .catch(() => {
-        if (alive) setHasLyrics(false);
+        if (alive) setHasLyricsState({ track: current, has: false });
       });
     return () => {
       alive = false;
     };
   }, [current]);
   useEffect(() => {
-    if (hasLyrics !== false) return;
-    setKaraoke(false);
-    setPanel((value) => (value === "lyrics" ? "queue" : value));
-  }, [hasLyrics]);
-  useEffect(() => {
     if (panel !== "lyrics" || !current) return;
     let alive = true;
-    setLyrics([]);
-    setLyricsState("loading");
     const giveUp = window.setTimeout(() => {
-      if (alive) setLyricsState((state) => (state === "loading" ? "empty" : state));
+      if (alive)
+        setLyricsResult((state) =>
+          state?.track === current
+            ? state
+            : { track: current, lines: EMPTY_LYRICS, state: "empty" },
+        );
     }, 9000);
     void loadTrackLyrics(current).then((lines) => {
       if (!alive) return;
       window.clearTimeout(giveUp);
-      setLyrics(lines ?? []);
-      setLyricsState(lines && lines.length > 0 ? "ready" : "empty");
+      setLyricsResult({
+        track: current,
+        lines: lines ?? EMPTY_LYRICS,
+        state: lines && lines.length > 0 ? "ready" : "empty",
+      });
     });
     return () => {
       alive = false;
