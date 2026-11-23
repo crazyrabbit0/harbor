@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { MusicCatalogRow } from "@/components/music/music-catalog-row";
 import { useT } from "@/lib/i18n";
 import { searchTyped } from "@/lib/music/catalog";
@@ -27,14 +27,29 @@ type Props = {
   genre?: MusicDiscoveryGenre | null;
 };
 
+const EMPTY_TRACKS: MusicTrack[] = [];
+const noopSubscribe = () => () => {};
+const subscribeMoment = (onStoreChange: () => void) => {
+  const timer = window.setInterval(onStoreChange, 60_000);
+  window.addEventListener("focus", onStoreChange);
+  document.addEventListener("visibilitychange", onStoreChange);
+  return () => {
+    window.clearInterval(timer);
+    window.removeEventListener("focus", onStoreChange);
+    document.removeEventListener("visibilitychange", onStoreChange);
+  };
+};
+const getMomentStamp = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}-${d.getHours()}`;
+};
+
 function useMomentTracks(moment: HabitMoment | null, active: boolean) {
-  const [tracks, setTracks] = useState<MusicTrack[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready">("loading");
+  const [result, setResult] = useState<{ key: string; tracks: MusicTrack[] } | null>(null);
   const key = moment?.id ?? "";
   useEffect(() => {
     if (!moment || !active) return;
     let cancelled = false;
-    setStatus("loading");
     void (async () => {
       const lanes = await Promise.all(
         moment.queries.map((query) => searchTyped(query, 12).catch(() => null)),
@@ -50,13 +65,15 @@ function useMomentTracks(moment: HabitMoment | null, active: boolean) {
           out.push(track);
         }
       }
-      setTracks(out.slice(0, 18));
-      setStatus("ready");
+      setResult({ key, tracks: out.slice(0, 18) });
     })();
     return () => {
       cancelled = true;
     };
   }, [key, active]);
+  const current = result?.key === key ? result : null;
+  const tracks = current?.tracks ?? EMPTY_TRACKS;
+  const status: "loading" | "ready" = current ? "ready" : "loading";
   return { tracks, status };
 }
 
@@ -95,12 +112,15 @@ function HabitRow({
 
 export function MusicExploreBands({ recents, liked, active, onPlay, onOpen, genre }: Props) {
   const t = useT();
-  const [now, setNow] = useState(() => new Date());
-  useEffect(() => {
-    if (active) setNow(new Date());
-  }, [active]);
-  const season = useMemo(() => seasonalMoment(now), [now]);
-  const part = useMemo(() => dayPart(now), [now]);
+  const momentStamp = useSyncExternalStore(
+    active ? subscribeMoment : noopSubscribe,
+    getMomentStamp,
+  );
+  const { season, part } = useMemo(() => {
+    const [year, month, day, hour] = momentStamp.split("-").map(Number);
+    const now = new Date(year, month, day, hour);
+    return { season: seasonalMoment(now), part: dayPart(now) };
+  }, [momentStamp]);
   const seasonTracks = useMomentTracks(season, active);
   const partTracks = useMomentTracks(part, active);
 

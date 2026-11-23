@@ -85,17 +85,20 @@ export function MusicTastes({
   );
 }
 
+const EMPTY_TASTE_ROWS: CatalogRow[] = [];
+
 export function useMusicTasteRows(selected: number[]) {
-  const [rows, setRows] = useState<CatalogRow[]>([]);
-  const [error, setError] = useState(false);
-  const [loading, setLoading] = useState(false);
+  const [state, setState] = useState<{
+    selected: number[];
+    retry: number;
+    rows: CatalogRow[];
+    error: boolean;
+    done: boolean;
+  } | null>(null);
   const [retry, setRetry] = useState(0);
   useEffect(() => {
-    let live = true;
-    setRows([]);
-    setError(false);
-    setLoading(selected.length > 0);
     if (!selected.length) return;
+    let live = true;
     (async () => {
       const all = await loadMusicDiscoveryGenres();
       // Rotate a bounded selection instead of requesting every selected genre on mount.
@@ -117,24 +120,61 @@ export function useMusicTasteRows(selected: number[]) {
           }),
         );
         if (!live) return;
-        if (batch.some((result) => result.status === "rejected")) setError(true);
-        setRows((previous) => [
-          ...previous,
-          ...batch.flatMap((result) =>
-            result.status === "fulfilled" && result.value.items.length ? [result.value] : [],
-          ),
-        ]);
+        const batchError = batch.some((result) => result.status === "rejected");
+        const added = batch.flatMap((result) =>
+          result.status === "fulfilled" && result.value.items.length ? [result.value] : [],
+        );
+        setState((previous) => {
+          const base =
+            previous && previous.selected === selected && previous.retry === retry
+              ? previous
+              : { selected, retry, rows: [], error: false, done: false };
+          return {
+            selected,
+            retry,
+            rows: [...base.rows, ...added],
+            error: base.error || batchError,
+            done: false,
+          };
+        });
       }
     })()
       .catch(() => {
-        if (live) setError(true);
+        if (!live) return;
+        setState((previous) => ({
+          selected,
+          retry,
+          rows:
+            previous && previous.selected === selected && previous.retry === retry
+              ? previous.rows
+              : [],
+          error: true,
+          done: true,
+        }));
       })
       .finally(() => {
-        if (live) setLoading(false);
+        if (!live) return;
+        setState((previous) => ({
+          selected,
+          retry,
+          rows:
+            previous && previous.selected === selected && previous.retry === retry
+              ? previous.rows
+              : [],
+          error:
+            previous && previous.selected === selected && previous.retry === retry
+              ? previous.error
+              : false,
+          done: true,
+        }));
       });
     return () => {
       live = false;
     };
   }, [selected, retry]);
+  const matches = selected.length > 0 && state?.selected === selected && state.retry === retry;
+  const rows = matches ? state.rows : EMPTY_TASTE_ROWS;
+  const error = matches ? state.error : false;
+  const loading = selected.length > 0 && (!matches || !state.done);
   return { rows, error, loading, retry: () => setRetry((value) => value + 1) };
 }

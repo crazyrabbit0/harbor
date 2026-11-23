@@ -22,6 +22,7 @@ import type { MusicBand, MusicBandContext } from "./music-band-types";
 
 type Mix = MadeForYouMix;
 type Translate = MusicBandContext["t"];
+const EMPTY_MIXES: Mix[] = [];
 
 function mixName(mix: Mix, t: Translate): string {
   return mix.kind === "daily"
@@ -51,13 +52,17 @@ function MadeForYouRow({
   useLayoutEffect(() => {
     inputs.current = { player, followed };
   });
-  const [loadingPersonal, setLoadingPersonal] = useState(true);
-  const [mixes, setMixes] = useState<Mix[]>([]);
+  const [feed, setFeed] = useState<{
+    key: string;
+    mixes: Mix[];
+    errored: boolean;
+    loading: boolean;
+  } | null>(null);
   const [day, setDay] = useState(dailyDayKey);
   const [retry, setRetry] = useState(0);
-  const [errored, setErrored] = useState(false);
   const hasTaste = !!(player.likedTracks.length || player.recents.length || followed.length);
   const profile = activeProfileId();
+  const feedKey = `${hasTaste ? 1 : 0}\0${day}\0${profile}\0${retry}`;
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
     const checkDay = () => {
@@ -78,9 +83,6 @@ function MadeForYouRow({
   }, []);
   useEffect(() => {
     let live = true;
-    setMixes([]);
-    setErrored(false);
-    setLoadingPersonal(true);
     void readMadeForYouShelf(day, profile, hasTaste)
       .then(async (held) => {
         if (held.length) return held;
@@ -97,26 +99,31 @@ function MadeForYouRow({
           day,
           profile,
           (value) => {
-            if (live) setMixes(value);
+            if (live) {
+              setFeed((previous) => ({
+                key: feedKey,
+                mixes: value,
+                errored: previous?.key === feedKey ? previous.errored : false,
+                loading: previous?.key === feedKey ? previous.loading : true,
+              }));
+            }
           },
         );
       })
       .then((value) => {
-        if (live) setMixes(value);
+        if (live) setFeed({ key: feedKey, mixes: value, errored: false, loading: false });
       })
       .catch(() => {
-        if (live) {
-          setMixes([]);
-          setErrored(true);
-        }
-      })
-      .finally(() => {
-        if (live) setLoadingPersonal(false);
+        if (live) setFeed({ key: feedKey, mixes: EMPTY_MIXES, errored: true, loading: false });
       });
     return () => {
       live = false;
     };
-  }, [hasTaste, day, profile, retry]);
+  }, [hasTaste, day, profile, retry, feedKey]);
+  const current = feed?.key === feedKey ? feed : null;
+  const mixes = current?.mixes ?? EMPTY_MIXES;
+  const errored = current?.errored ?? false;
+  const loadingPersonal = current ? current.loading : true;
   const [busy, setBusy] = useState<string | null>(null);
   const [failed, setFailed] = useState<string | null>(null);
   const request = useRef(0);

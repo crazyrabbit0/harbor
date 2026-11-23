@@ -59,12 +59,21 @@ export function MusicPlaylistPage({
   const player = useMusicPlayback();
   const { openSourcePicker } = useMusicSourcePicker();
   const [playlist, setPlaylist] = useState<MusicPlaylist | null>(null);
-  const [loading, setLoading] = useState(true);
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
   const [adding, setAdding] = useState(false);
+  const loadKey = `${playlistId}\0${revision}`;
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [prevPlaylistId, setPrevPlaylistId] = useState(playlistId);
+  if (prevPlaylistId !== playlistId) {
+    setPrevPlaylistId(playlistId);
+    setPlaylist(null);
+    setError(null);
+    setNotice(null);
+  }
+  const loading = loadedKey !== loadKey;
   // The tray adds tracks TO this playlist, so the count must be what is still missing,
   // not the playlist's own length, and the title must not repeat the playlist name.
   const addable = useMemo(() => {
@@ -84,7 +93,6 @@ export function MusicPlaylistPage({
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
     void listMusicPlaylists()
       .then((playlists) => {
         if (cancelled) return;
@@ -94,12 +102,12 @@ export function MusicPlaylistPage({
         if (!cancelled) setError(reason instanceof Error ? reason.message : String(reason));
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setLoadedKey(loadKey);
       });
     return () => {
       cancelled = true;
     };
-  }, [playlistId, revision]);
+  }, [playlistId, loadKey]);
 
   useEffect(() => {
     const changed = () => setRevision((value) => value + 1);

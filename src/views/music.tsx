@@ -317,9 +317,7 @@ function MusicViewContent({ active }: { active: boolean }) {
     }
   }, [connectionsPage]);
   const [quickListen, setQuickListen] = useState<MusicTrack[] | null>(null);
-  useEffect(() => {
-    if (!active) setQuickListen(null);
-  }, [active]);
+  if (!active && quickListen !== null) setQuickListen(null);
   const [tab, setTab] = useState<MusicTabId>("forYou");
   const [search, setSearch] = useState<SearchState | null>(null);
   const [searching, setSearching] = useState(false);

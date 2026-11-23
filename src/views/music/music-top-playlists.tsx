@@ -18,6 +18,26 @@ import "./music-tastes.css";
 const LANES_PER_STEP = 4;
 const OPENING_STEPS = 2;
 const SKELETON_CARDS = 15;
+const EMPTY_PLAYLIST_ITEMS: TopPlaylistItem[] = [];
+
+type PlaylistFeedTarget = {
+  genreId: number | null;
+  genres: MusicDiscoveryGenre[];
+  retry: number;
+};
+
+type PlaylistFeedState = PlaylistFeedTarget & {
+  items: TopPlaylistItem[];
+  status: "loading" | "ready" | "error";
+  drained: boolean;
+  more: boolean;
+};
+
+function sameTarget(left: PlaylistFeedTarget, right: PlaylistFeedTarget): boolean {
+  return (
+    left.genreId === right.genreId && left.genres === right.genres && left.retry === right.retry
+  );
+}
 
 function PlaylistGenreFilters({
   genres,
@@ -138,15 +158,20 @@ export function MusicTopPlaylists({
   const heading = useRef<HTMLHeadingElement>(null);
   const [genres, setGenres] = useState<MusicDiscoveryGenre[]>([]);
   const [genreId, setGenreId] = useState<number | null>(null);
-  const [items, setItems] = useState<TopPlaylistItem[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [more, setMore] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [feed, setFeed] = useState<PlaylistFeedState>(() => ({
+    genreId: null,
+    genres: [],
+    retry: 0,
+    items: EMPTY_PLAYLIST_ITEMS,
+    status: "loading",
+    drained: false,
+    more: false,
+  }));
   const lanes = useRef<TopPlaylistLane[]>([]);
   const cursor = useRef(0);
   const seen = useRef(new Set<string>());
   const live = useRef(true);
-  const [drained, setDrained] = useState(false);
 
   useEffect(() => {
     heading.current?.focus({ preventScroll: true });
@@ -169,47 +194,103 @@ export function MusicTopPlaylists({
     };
   }, []);
 
-  const absorb = useCallback((batch: PromiseSettledResult<TopPlaylistItem[]>[]) => {
-    const fresh: TopPlaylistItem[] = [];
-    for (const result of batch) {
-      if (result.status !== "fulfilled") continue;
-      for (const item of result.value) {
-        const id = topPlaylistKey(item);
-        const title = topPlaylistTitleKey(item);
-        if (seen.current.has(id) || seen.current.has(title)) continue;
-        seen.current.add(id);
-        seen.current.add(title);
-        fresh.push(item);
+  const absorb = useCallback(
+    (
+      batch: PromiseSettledResult<TopPlaylistItem[]>[],
+      target: PlaylistFeedTarget,
+      isDrained: boolean,
+    ) => {
+      const fresh: TopPlaylistItem[] = [];
+      for (const result of batch) {
+        if (result.status !== "fulfilled") continue;
+        for (const item of result.value) {
+          const id = topPlaylistKey(item);
+          const title = topPlaylistTitleKey(item);
+          if (seen.current.has(id) || seen.current.has(title)) continue;
+          seen.current.add(id);
+          seen.current.add(title);
+          fresh.push(item);
+        }
       }
-    }
-    if (fresh.length) setItems((previous) => [...previous, ...fresh]);
-  }, []);
+      if (fresh.length) {
+        setFeed((previous) =>
+          sameTarget(previous, target)
+            ? { ...previous, items: [...previous.items, ...fresh], drained: isDrained }
+            : {
+                ...target,
+                items: fresh,
+                status: "loading",
+                drained: isDrained,
+                more: false,
+              },
+        );
+      }
+    },
+    [],
+  );
 
-  const pull = useCallback(async () => {
-    const slice = lanes.current.slice(cursor.current, cursor.current + LANES_PER_STEP);
-    cursor.current += slice.length;
-    setDrained(cursor.current >= lanes.current.length);
-    if (!slice.length) return;
-    const batch = await Promise.allSettled(slice.map((lane) => lane.load()));
-    if (live.current) absorb(batch);
-  }, [absorb]);
+  const pull = useCallback(
+    async (target: PlaylistFeedTarget) => {
+      const slice = lanes.current.slice(cursor.current, cursor.current + LANES_PER_STEP);
+      cursor.current += slice.length;
+      const isDrained = cursor.current >= lanes.current.length;
+      setFeed((previous) =>
+        sameTarget(previous, target)
+          ? { ...previous, drained: isDrained }
+          : {
+              ...target,
+              items: EMPTY_PLAYLIST_ITEMS,
+              status: "loading",
+              drained: isDrained,
+              more: false,
+            },
+      );
+      if (!slice.length) return;
+      const batch = await Promise.allSettled(slice.map((lane) => lane.load()));
+      if (live.current) absorb(batch, target, isDrained);
+    },
+    [absorb],
+  );
 
   useEffect(() => {
     live.current = true;
-    setItems([]);
-    setStatus("loading");
     seen.current = new Set();
     cursor.current = 0;
     lanes.current = [];
+    const target: PlaylistFeedTarget = { genreId, genres, retry };
     const picked = genreId === null ? null : (genres.find((g) => g.id === genreId) ?? null);
     void (async () => {
       const work = async () => {
         lanes.current = await topPlaylistLanes(picked);
-        for (let step = 0; step < OPENING_STEPS; step += 1) await pull();
-        if (live.current) setStatus("ready");
+        for (let step = 0; step < OPENING_STEPS; step += 1) await pull(target);
+        if (live.current) {
+          setFeed((previous) =>
+            sameTarget(previous, target)
+              ? { ...previous, status: "ready" }
+              : {
+                  ...target,
+                  items: EMPTY_PLAYLIST_ITEMS,
+                  status: "ready",
+                  drained: cursor.current >= lanes.current.length,
+                  more: false,
+                },
+          );
+        }
       };
       await work().catch(() => {
-        if (live.current) setStatus("error");
+        if (live.current) {
+          setFeed((previous) =>
+            sameTarget(previous, target)
+              ? { ...previous, status: "error" }
+              : {
+                  ...target,
+                  items: EMPTY_PLAYLIST_ITEMS,
+                  status: "error",
+                  drained: false,
+                  more: false,
+                },
+          );
+        }
       });
     })();
     return () => {
@@ -217,11 +298,32 @@ export function MusicTopPlaylists({
     };
   }, [genreId, genres, pull, retry]);
 
+  const current = sameTarget(feed, { genreId, genres, retry }) ? feed : null;
+  const items = current ? current.items : EMPTY_PLAYLIST_ITEMS;
+  const status = current ? current.status : "loading";
+  const more = current ? current.more : false;
+  const drained = current ? current.drained : false;
+
   const loadMore = () => {
     if (more) return;
-    setMore(true);
-    void pull().finally(() => {
-      if (live.current) setMore(false);
+    const target: PlaylistFeedTarget = { genreId, genres, retry };
+    setFeed((previous) =>
+      sameTarget(previous, target)
+        ? { ...previous, more: true }
+        : {
+            ...target,
+            items: EMPTY_PLAYLIST_ITEMS,
+            status: "loading",
+            drained,
+            more: true,
+          },
+    );
+    void pull(target).finally(() => {
+      if (live.current) {
+        setFeed((previous) =>
+          sameTarget(previous, target) ? { ...previous, more: false } : previous,
+        );
+      }
     });
   };
 

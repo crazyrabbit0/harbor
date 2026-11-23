@@ -27,18 +27,28 @@ export type MusicData = {
 };
 
 const HOME_TIMEOUT_MS = CATALOG_REQUEST_TIMEOUT_MS * 2;
+const EMPTY_TRACKS: MusicTrack[] = [];
 
 export function useMusicData(recents: MusicTrack[]): MusicData {
   const [entries, setEntries] = useState<HomeEntry[]>([]);
-  const [homeStatus, setHomeStatus] = useState<MusicFeedStatus>("loading");
-  const [homeError, setHomeError] = useState("");
+  const [homeState, setHomeState] = useState<{
+    attempt: number;
+    status: MusicFeedStatus;
+    error: string;
+  }>({ attempt: 0, status: "loading", error: "" });
   const [library, setLibrary] = useState<MusicLibrarySnapshot | null>(null);
-  const [libraryStatus, setLibraryStatus] = useState<MusicFeedStatus>("loading");
-  const [libraryError, setLibraryError] = useState("");
+  const [libraryState, setLibraryState] = useState<{
+    attempt: number;
+    status: MusicFeedStatus;
+    error: string;
+  }>({ attempt: 0, status: "loading", error: "" });
   const [lastfm, setLastfm] = useState<LastFmStatus | null>(null);
-  const [fresh, setFresh] = useState<MusicTrack[]>([]);
-  const [freshStatus, setFreshStatus] = useState<MusicFeedStatus>("loading");
-  const [freshError, setFreshError] = useState("");
+  const [freshTracks, setFreshTracks] = useState<MusicTrack[]>([]);
+  const [freshState, setFreshState] = useState<{
+    key: string;
+    status: MusicFeedStatus;
+    error: string;
+  } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [releaseRefresh, setReleaseRefresh] = useState(0);
   const reloadFresh = useCallback(() => setReleaseRefresh((value) => value + 1), []);
@@ -60,33 +70,27 @@ export function useMusicData(recents: MusicTrack[]): MusicData {
   useEffect(() => {
     const run = ++generation.current;
     const live = () => generation.current === run;
-    setHomeStatus("loading");
-    setHomeError("");
-    setLibraryStatus("loading");
-    setLibraryError("");
 
     withTimeout(loadHomeRows(attempt > 0), HOME_TIMEOUT_MS)
       .then((rows) => {
         if (!live()) return;
         setEntries(rows.map((row) => ({ key: row.id, row })));
-        setHomeStatus("ready");
+        setHomeState({ attempt, status: "ready", error: "" });
       })
       .catch((cause) => {
         if (!live()) return;
-        setHomeError(errorText(cause));
-        setHomeStatus("error");
+        setHomeState({ attempt, status: "error", error: errorText(cause) });
       });
 
     withTimeout(loadMusicLibrary(), CATALOG_REQUEST_TIMEOUT_MS)
       .then((snapshot) => {
         if (!live()) return;
         setLibrary(snapshot);
-        setLibraryStatus("ready");
+        setLibraryState({ attempt, status: "ready", error: "" });
       })
       .catch((cause) => {
         if (!live()) return;
-        setLibraryError(errorText(cause));
-        setLibraryStatus("error");
+        setLibraryState({ attempt, status: "error", error: errorText(cause) });
       });
 
     getLastFmStatus()
@@ -106,34 +110,41 @@ export function useMusicData(recents: MusicTrack[]): MusicData {
     .slice(0, 50)
     .map((track) => track.id)
     .join("|");
+  const freshKey = `${historyKey}\0${attempt}\0${releaseRefresh}`;
 
   useEffect(() => {
-    if (!historyKey) {
-      setFresh([]);
-      setFreshError("");
-      setFreshStatus("ready");
-      return;
-    }
+    if (!historyKey) return;
     let live = true;
-    setFreshStatus("loading");
-    setFreshError("");
     loadFreshFromArtists(recentsRef.current, 9, (tracks) => {
-      if (live) setFresh(tracks);
+      if (live) setFreshTracks(tracks);
     })
       .then((tracks) => {
         if (!live) return;
-        setFresh(tracks);
-        setFreshStatus("ready");
+        setFreshTracks(tracks);
+        setFreshState({ key: freshKey, status: "ready", error: "" });
       })
       .catch((cause) => {
         if (!live) return;
-        setFreshError(errorText(cause));
-        setFreshStatus("error");
+        setFreshState({ key: freshKey, status: "error", error: errorText(cause) });
       });
     return () => {
       live = false;
     };
-  }, [historyKey, attempt, releaseRefresh]);
+  }, [historyKey, attempt, releaseRefresh, freshKey]);
+
+  const homeStatus: MusicFeedStatus = homeState.attempt === attempt ? homeState.status : "loading";
+  const homeError = homeState.attempt === attempt ? homeState.error : "";
+  const libraryStatus: MusicFeedStatus =
+    libraryState.attempt === attempt ? libraryState.status : "loading";
+  const libraryError = libraryState.attempt === attempt ? libraryState.error : "";
+  const freshCurrent = historyKey && freshState?.key === freshKey ? freshState : null;
+  const fresh = historyKey ? freshTracks : EMPTY_TRACKS;
+  const freshStatus: MusicFeedStatus = !historyKey
+    ? "ready"
+    : freshCurrent
+      ? freshCurrent.status
+      : "loading";
+  const freshError = !historyKey ? "" : (freshCurrent?.error ?? "");
 
   const homeRows = useMemo(() => entries.map((entry) => entry.row), [entries]);
   const reload = useCallback(() => setAttempt((value) => value + 1), []);

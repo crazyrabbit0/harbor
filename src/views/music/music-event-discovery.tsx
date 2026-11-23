@@ -24,34 +24,36 @@ export function MusicEventDiscovery({
   const t = useT();
   const [eventId, setEventId] = useState("recent"),
     [year, setYear] = useState("");
-  const [index, setIndex] = useState(0),
-    [retry, setRetry] = useState(0);
+  const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<{ key: string; sets: EventSet[]; error: boolean } | null>(
     null,
   );
   const event = MUSIC_EVENTS.find((item) => item.id === eventId),
-    key = `${eventId}:${year}`;
+    requestKey = `${eventId}:${year}:${retry}`;
   useEffect(() => {
     if (!active) return;
     let live = true;
-    setResult(null);
-    setIndex(0);
     const request = event
       ? loadEventSets(event, year ? Number(year) : undefined, retry > 0)
       : loadRecentEventSets(retry > 0);
     request
       .then((sets) => {
-        if (live) setResult({ key, sets, error: false });
+        if (live) setResult({ key: requestKey, sets, error: false });
       })
       .catch(() => {
-        if (live) setResult({ key, sets: [], error: true });
+        if (live) setResult({ key: requestKey, sets: [], error: true });
       });
     return () => {
       live = false;
     };
-  }, [event, year, key, active, retry]);
-  const current = result?.key === key ? result : null,
-    featured = current?.sets[index];
+  }, [event, year, requestKey, active, retry]);
+  const current = result?.key === requestKey ? result : null;
+  const [indexState, setIndexState] = useState<{ result: typeof result; value: number }>({
+    result: null,
+    value: 0,
+  });
+  const index = indexState.result === current ? indexState.value : 0;
+  const featured = current?.sets[index];
   const watch = (item: EventSet) =>
     onWatch(
       item.track,
@@ -187,7 +189,7 @@ export function MusicEventDiscovery({
                 type="button"
                 disabled={index === 0}
                 aria-label={t("common.previous")}
-                onClick={() => setIndex((value) => value - 1)}
+                onClick={() => setIndexState({ result: current, value: index - 1 })}
               >
                 <ArrowLeft className="dir-icon" size={18} />
               </button>
@@ -198,7 +200,7 @@ export function MusicEventDiscovery({
                 type="button"
                 disabled={index >= current.sets.length - 1}
                 aria-label={t("common.next")}
-                onClick={() => setIndex((value) => value + 1)}
+                onClick={() => setIndexState({ result: current, value: index + 1 })}
               >
                 <ArrowRight className="dir-icon" size={18} />
               </button>
