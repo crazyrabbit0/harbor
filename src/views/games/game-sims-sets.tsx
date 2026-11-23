@@ -42,14 +42,19 @@ export function GameSimsSets({
     previous: SimsModSet | null;
     trigger: HTMLElement | null;
   } | null>(null);
-  useEffect(() => {
-    if (!active) {
-      setEditor(null);
-      return;
+  if (!active && editor) setEditor(null);
+  const fetchKey = active ? JSON.stringify([profile, path, refreshKey, attempt]) : "";
+  const [syncKey, setSyncKey] = useState(fetchKey);
+  if (syncKey !== fetchKey) {
+    setSyncKey(fetchKey);
+    if (active) {
+      setLoading(true);
+      setError("");
     }
+  }
+  useEffect(() => {
+    if (!active) return;
     let live = true;
-    setLoading(true);
-    setError("");
     void simsSets(profile, path)
       .then(
         (value) => {

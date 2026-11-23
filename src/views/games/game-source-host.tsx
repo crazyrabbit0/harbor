@@ -30,15 +30,22 @@ export function GameSourceHost({
   const [imageFailed, setImageFailed] = useState(false);
   const pending = useRef(false),
     button = useRef<HTMLButtonElement>(null);
+  const fetchKey = open && available ? JSON.stringify([provider, apiKey, url, retry]) : "";
+  const [syncKey, setSyncKey] = useState(fetchKey);
+  if (syncKey !== fetchKey) {
+    setSyncKey(fetchKey);
+    if (fetchKey) {
+      setValue(null);
+      setError("");
+      setImageFailed(false);
+      setLoading(true);
+    }
+  }
   useEffect(() => {
     let current = true;
     pending.current = false;
     if (!open || !available) return;
-    setValue(null);
-    setError("");
-    setImageFailed(false);
     pending.current = true;
-    setLoading(true);
     // Read the service's directory only; the source URL is never fetched or submitted.
     const args: CloudLinkRequest = { provider, key: apiKey, url };
     void invoke<HostCheck>("games_cloud_host_check", { args })

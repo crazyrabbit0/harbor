@@ -79,11 +79,18 @@ export function GameTftCompanion({ active, profile }: { active: boolean; profile
     observer.observe(root.current);
     return () => observer.disconnect();
   }, [active]);
+  const fetchKey = active && visible ? `${language}:${attempt}` : "";
+  const [syncKey, setSyncKey] = useState(fetchKey);
+  if (syncKey !== fetchKey) {
+    setSyncKey(fetchKey);
+    if (fetchKey) {
+      setBusy(true);
+      setFailed(false);
+    }
+  }
   useEffect(() => {
     if (!active || !visible) return;
     const controller = new AbortController();
-    setBusy(true);
-    setFailed(false);
     void loadTftCatalog(language, controller.signal, attempt > 0)
       .then(
         (value) => {
@@ -275,13 +282,15 @@ function TftPlanner({
       setNotice("imported");
     }
   }, [incoming]);
-  useEffect(() => {
+  const [checkedSet, setCheckedSet] = useState(set);
+  if (checkedSet !== set) {
+    setCheckedSet(set);
     const draft = valid(plans.draft);
     if (draft.length !== plans.draft.length) {
       setPlans((previous) => ({ ...previous, draft }));
       setMissing(true);
     }
-  }, [set]);
+  }
   const counts = tftCounts(set, plans.draft),
     selected = plans.draft.flatMap((id) => {
       const c = set.champions.find((c) => c.id === id);

@@ -49,15 +49,16 @@ function CreatorList({
     focusItem !== undefined && focusItem >= offset && focusItem < offset + content.items.length
       ? focusItem - offset
       : undefined;
-  useEffect(() => {
+  const [lastContent, setLastContent] = useState(content);
+  if (lastContent !== content) {
+    setLastContent(content);
     setLimit(12);
-  }, [content]);
+  }
+  const minLimit =
+    localFocus !== undefined && !disabled ? Math.ceil((localFocus + 1) / 12) * 12 : 12;
+  if (limit < minLimit) setLimit(minLimit);
   useEffect(() => {
-    if (localFocus === undefined || disabled) return;
-    if (limit <= localFocus) {
-      setLimit(Math.ceil((localFocus + 1) / 12) * 12);
-      return;
-    }
+    if (localFocus === undefined || disabled || limit <= localFocus) return;
     root.current
       ?.querySelector<HTMLButtonElement>(`[data-sims-creator-item="${offset + localFocus}"]`)
       ?.focus({ preventScroll: true });

@@ -45,25 +45,24 @@ export function GameSetupDestination({
 }) {
   const t = useT(),
     labelId = useId();
-  const [locations, setLocations] = useState<SetupLocations>({ drives: [], selected: null });
-  const [loading, setLoading] = useState(true),
-    [unavailable, setUnavailable] = useState(false);
+  const [result, setResult] = useState<{
+    recent: string;
+    locations: SetupLocations;
+    unavailable: boolean;
+  } | null>(null);
+  const loading = result?.recent !== recent;
+  const locations = result?.recent === recent ? result.locations : { drives: [], selected: null };
+  const unavailable = result?.recent === recent && result.unavailable;
   useEffect(() => {
     let alive = true;
-    setLoading(true);
-    setUnavailable(false);
     void invoke<SetupLocations>("games_download_locations", { parent: recent || null })
       .then((value) => {
-        if (alive) setLocations(value);
+        if (alive) setResult({ recent, locations: value, unavailable: false });
       })
       .catch(() => {
         if (alive) {
-          setLocations({ drives: [], selected: null });
-          setUnavailable(true);
+          setResult({ recent, locations: { drives: [], selected: null }, unavailable: true });
         }
-      })
-      .finally(() => {
-        if (alive) setLoading(false);
       });
     return () => {
       alive = false;

@@ -1129,12 +1129,15 @@ export function GameSourcesModal({
       )?.focus({ preventScroll: true });
     }
   }, [adding, editing, draft, sources.profile]);
+  const activeSourceId = useRef<string | null>(null);
+  if (selected && !source && sources.ready && !adding) setSelected(null);
   useLayoutEffect(() => {
-    if (selected && !source && sources.ready && !adding) {
-      returnToSources();
-      return;
-    }
-    const pending = navigation.current;
+    const pending =
+      navigation.current ??
+      (!selected && activeSourceId.current && !adding
+        ? { ...listReturn.current, selector: "[data-source-filter]" }
+        : null);
+    activeSourceId.current = selected;
     if (
       !pending ||
       adding ||

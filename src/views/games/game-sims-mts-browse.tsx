@@ -107,15 +107,13 @@ export function GameSimsMtsBrowse({
 
   const started = useRef<string | null>(null);
   const [hasStarted, setHasStarted] = useState(false);
+  if (!active && busy && hasStarted) setHasStarted(false);
 
   const cancel = useCallback(
     (navigation = false) => {
       const own = task.current;
       if (own) {
-        if (navigation) {
-          started.current = null;
-          setHasStarted(false);
-        }
+        if (navigation) started.current = null;
         own.canceled = true;
         void simsCancel(profile, own.id).catch(() => {});
       }

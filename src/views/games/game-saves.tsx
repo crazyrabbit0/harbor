@@ -36,9 +36,7 @@ export function GameSaveLauncher({
 }) {
   const t = useT(),
     [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!active) setOpen(false);
-  }, [active]);
+  if (!active && open) setOpen(false);
   return (
     <>
       <button className="games-button" onClick={() => setOpen(true)}>

@@ -53,17 +53,22 @@ export function GameSteamImportedLibrary({
       live.current = false;
     };
   }, []);
-  useEffect(() => {
+  const [lastProfile, setLastProfile] = useState(library.profile);
+  if (lastProfile !== library.profile) {
+    setLastProfile(library.profile);
     setImportOpen(false);
     setError("");
     setBusy(null);
     setVisibility("visible");
     setLimit(36);
-  }, [library.profile]);
-  useEffect(() => {
-    if (!active) setImportOpen(false);
-  }, [active]);
-  useEffect(() => setLimit(36), [query, visibility]);
+  }
+  if (!active && importOpen) setImportOpen(false);
+  const filterKey = JSON.stringify([query, visibility]);
+  const [lastFilterKey, setLastFilterKey] = useState(filterKey);
+  if (lastFilterKey !== filterKey) {
+    setLastFilterKey(filterKey);
+    setLimit(36);
+  }
   const title = (game: GameSummary) => preferences.title(game.id, game.name);
   const all = library.data.games.filter((item) => !represented.has(item.game.steamId!));
   const games = all

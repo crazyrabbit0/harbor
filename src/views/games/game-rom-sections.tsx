@@ -299,6 +299,11 @@ export function RomVideos({
     root = useRef<HTMLElement>(null),
     [near, setNear] = useState(false);
   const [source, setSource] = useState<"classics" | "creators">(platform ? "classics" : "creators");
+  const [sourcePlatform, setSourcePlatform] = useState(platform);
+  if (sourcePlatform !== platform) {
+    setSourcePlatform(platform);
+    setSource(platform ? "classics" : "creators");
+  }
   const [order, setOrder] = useState<"featured" | GuideVideoSort>("featured"),
     [date, setDate] = useState<GuideVideoDate>("all"),
     [page, setPage] = useState(0),
@@ -306,10 +311,10 @@ export function RomVideos({
   type Video = HackVideo & { views?: number; published?: string };
   const [results, setResults] = useState<{
     key: string;
+    attempt: number;
     videos: Video[];
-    busy: boolean;
     failed: boolean;
-  }>({ key: "", videos: [], busy: false, failed: false });
+  }>({ key: "", attempt: -1, videos: [], failed: false });
   useEffect(() => {
     const node = root.current;
     if (!node || !active) return;
@@ -334,14 +339,14 @@ export function RomVideos({
     date,
     featured.map((video) => [video.gameId, video.gameName]),
   ]);
-  useEffect(() => {
-    setSource(platform ? "classics" : "creators");
-  }, [platform]);
-  useEffect(() => setPage(0), [key]);
+  const [pageKey, setPageKey] = useState(key);
+  if (pageKey !== key) {
+    setPageKey(key);
+    setPage(0);
+  }
   useEffect(() => {
     if (!active || !near || order === "featured" || !featured.length) return;
     const request = new AbortController();
-    setResults({ key, videos: [], busy: true, failed: false });
     void Promise.allSettled(
       featured.map(async (game) => {
         const found = await loadGuideVideos(
@@ -381,17 +386,17 @@ export function RomVideos({
       );
       setResults({
         key,
+        attempt,
         videos,
-        busy: false,
         failed: batches.every((batch) => batch.status === "rejected"),
       });
     });
     return () => request.abort();
   }, [active, near, key, attempt]);
-  const videos: readonly Video[] =
-    order === "featured" ? featured : results.key === key ? results.videos : [];
-  const busy = featured.length > 0 && order !== "featured" && (results.key !== key || results.busy),
-    failed = order !== "featured" && results.key === key && results.failed;
+  const settled = results.key === key && results.attempt === attempt;
+  const videos: readonly Video[] = order === "featured" ? featured : settled ? results.videos : [];
+  const busy = featured.length > 0 && order !== "featured" && !settled,
+    failed = order !== "featured" && settled && results.failed;
   const current = Math.min(page, Math.max(0, Math.ceil(videos.length / 4) - 1));
   return (
     <section ref={root} className="games-section games-rom-videos" aria-busy={busy}>

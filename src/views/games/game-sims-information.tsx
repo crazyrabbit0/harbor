@@ -39,6 +39,14 @@ export function GameSimsInformation({
     [error, setError] = useState("");
   const [file, setFile] = useState(""),
     [attempt, setAttempt] = useState(0);
+  const fetchKey = JSON.stringify([profile, path, target, attempt]);
+  const [syncKey, setSyncKey] = useState(fetchKey);
+  if (syncKey !== fetchKey) {
+    setSyncKey(fetchKey);
+    setBusy(true);
+    setError("");
+    setFile("");
+  }
   const { closing, close: animateClose } = useModalExit(onClose);
   const close = () => {
     alive.current = false;
@@ -77,9 +85,6 @@ export function GameSimsInformation({
     let current = true;
     const token = crypto.randomUUID();
     operation.current = token;
-    setBusy(true);
-    setError("");
-    setFile("");
     void (async () => {
       let stop: (() => void) | undefined;
       const work = async () => {

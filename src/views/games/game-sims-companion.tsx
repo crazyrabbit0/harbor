@@ -86,10 +86,15 @@ function SimsPreview({ path, file, active }: { path: string; file?: string; acti
     observer.observe(root.current);
     return () => observer.disconnect();
   }, [active, file]);
+  const inspectKey = active && visible && file ? `${path}\0${file}` : "";
+  const [syncKey, setSyncKey] = useState(inspectKey);
+  if (syncKey !== inspectKey) {
+    setSyncKey(inspectKey);
+    if (inspectKey) setBusy(true);
+  }
   useEffect(() => {
     if (!active || !visible || !file) return;
     const controller = new AbortController();
-    setBusy(true);
     void simsInspect(path, file, controller.signal)
       .then(
         (value) => {
@@ -182,16 +187,18 @@ function SimsCompanionBody({
     [error, setError] = useState(""),
     [attempt, setAttempt] = useState(0);
   const [tab, setTab] = useState("managed"),
-    [query, setQuery] = useState(""),
+    [query, setQuery] = useState(workspace ? globalQuery : ""),
     [kind, setKind] = useState("all"),
     [limit, setLimit] = useState(24),
     [picking, setPicking] = useState(false);
-  useEffect(() => {
+  const [querySync, setQuerySync] = useState({ globalQuery, workspace });
+  if (querySync.globalQuery !== globalQuery || querySync.workspace !== workspace) {
+    setQuerySync({ globalQuery, workspace });
     if (workspace) {
       setQuery(globalQuery);
       setLimit(24);
     }
-  }, [globalQuery, workspace]);
+  }
   const [editingSet, setEditingSet] = useState(false);
   const [selection, setSelection] = useState<SimsSelection | null>(null);
   const [information, setInformation] = useState<{
@@ -208,9 +215,16 @@ function SimsCompanionBody({
       trigger,
     });
   };
-  useEffect(() => {
+  const [contextSync, setContextSync] = useState({ active, path, profile });
+  if (
+    contextSync.active !== active ||
+    contextSync.path !== path ||
+    contextSync.profile !== profile
+  ) {
+    setContextSync({ active, path, profile });
     setCreatorRequest(null);
-  }, [active, path, profile]);
+    setInformation(null);
+  }
   useEffect(() => {
     if (requested && active && lastRequest.current !== requested) {
       lastRequest.current = requested;
@@ -237,9 +251,6 @@ function SimsCompanionBody({
     captureFocus();
     setInformation({ target, title });
   };
-  useEffect(() => {
-    setInformation(null);
-  }, [active, path, profile]);
   const chooseAction = (value: SimsSelection) => {
     captureFocus();
     setSelection(value);
@@ -258,14 +269,19 @@ function SimsCompanionBody({
     observer.observe(root.current);
     return () => observer.disconnect();
   }, [active]);
-  useEffect(() => {
-    if (!active) setSelection(null);
-  }, [active]);
+  if (!active && selection) setSelection(null);
+  const loadKey = active && visible && desktop ? JSON.stringify([path, profile, attempt]) : "";
+  const [loadSyncKey, setLoadSyncKey] = useState(loadKey);
+  if (loadSyncKey !== loadKey) {
+    setLoadSyncKey(loadKey);
+    if (loadKey) {
+      setLoading(true);
+      setError("");
+    }
+  }
   useEffect(() => {
     const own = ++generation.current;
     if (!active || !visible || !desktop) return;
-    setLoading(true);
-    setError("");
     const load = async () => {
       if (path) {
         const value = await simsWorkspace(path);
@@ -295,9 +311,7 @@ function SimsCompanionBody({
       generation.current++;
     };
   }, [active, visible, desktop, path, profile, attempt]);
-  useEffect(() => {
-    if (data || !active) setSetupOpen(false);
-  }, [data, active]);
+  if (setupOpen && (data || !active)) setSetupOpen(false);
   const chooseFolder = async () => {
     if (picking) return;
     setPicking(true);

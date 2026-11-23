@@ -51,11 +51,24 @@ export function SourceAllDebrid({
     lastCheck = useRef(0),
     body = useRef<HTMLDivElement>(null),
     focusReturn = useRef<HTMLElement | null>(null);
+  const resetKey = `${identity}\0${downloads.available}`;
   const [owner, setOwner] = useState(identity),
-    [stamp, setStamp] = useState(0);
+    [stamp, setStamp] = useState(0),
+    [lastResetKey, setLastResetKey] = useState(resetKey);
   if (owner !== identity) {
     setOwner(identity);
     setStamp(stamp + 1);
+  }
+  if (lastResetKey !== resetKey) {
+    setLastResetKey(resetKey);
+    setIntent(null);
+    setFile(null);
+    setStatus(null);
+    setError("");
+    setLoaded(false);
+    setBusy(false);
+    setPassword("");
+    setUnsaved(null);
   }
   useLayoutEffect(() => {
     revision.current = stamp;
@@ -83,14 +96,6 @@ export function SourceAllDebrid({
   }, [busy, intent, file, error, unsaved]);
   useEffect(() => {
     let current = true;
-    setIntent(null);
-    setFile(null);
-    setStatus(null);
-    setError("");
-    setLoaded(false);
-    setBusy(false);
-    setPassword("");
-    setUnsaved(null);
     pending.current = false;
     lastCheck.current = 0;
     if (!apiKey || !downloads.available) return;

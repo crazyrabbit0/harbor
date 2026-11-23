@@ -42,13 +42,20 @@ export function GameSimsCatalog({
   const [catalog, setCatalog] = useState<SimsCreatorCatalog | null>(null),
     [version, setVersion] = useState(""),
     [error, setError] = useState(false),
-    [loading, setLoading] = useState(false),
+    [loading, setLoading] = useState(active),
     [attempt, setAttempt] = useState(0);
+  const fetchKey = active ? String(attempt) : "";
+  const [syncKey, setSyncKey] = useState(fetchKey);
+  if (syncKey !== fetchKey) {
+    setSyncKey(fetchKey);
+    if (active) {
+      setLoading(true);
+      setError(false);
+    }
+  }
   useEffect(() => {
     if (!active) return;
     let live = true;
-    setLoading(true);
-    setError(false);
     void simsCreatorCatalog(attempt > 0)
       .then(
         (value) => {

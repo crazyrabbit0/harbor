@@ -50,10 +50,12 @@ export function GameSimsCurseForge({
     classes: { value: string; label: string }[];
     categories: { value: string; label: string }[];
   }>({ classes: [], categories: [] });
-  useEffect(() => {
+  const [lastMeta, setLastMeta] = useState(feed.meta);
+  if (feed.meta !== lastMeta) {
+    setLastMeta(feed.meta);
     if (feed.meta)
       setOptions({ classes: feed.meta.classes ?? [], categories: feed.meta.categories });
-  }, [feed.meta]);
+  }
   const sorts = [
     { value: "total downloads", label: t("games.sims.mtsPopular") },
     { value: "latest update", label: t("games.sims.mtsUpdated") },

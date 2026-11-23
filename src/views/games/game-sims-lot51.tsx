@@ -73,7 +73,7 @@ export function GameSimsLot51({
     language = useUiLanguage(),
     label = (key: string) => t(`games.sims.${key}`);
   const [catalog, setCatalog] = useState<SimsLot51Catalog | null>(null),
-    [loading, setLoading] = useState(false),
+    [loading, setLoading] = useState(active),
     [error, setError] = useState("");
   const [attempt, setAttempt] = useState(0),
     [search, setSearch] = useState(""),
@@ -83,11 +83,18 @@ export function GameSimsLot51({
     [detailError, setDetailError] = useState(""),
     [detailAttempt, setDetailAttempt] = useState(0),
     [targetKey, setTargetKey] = useState("");
+  const catalogFetchKey = active ? String(attempt) : "";
+  const [catalogSyncKey, setCatalogSyncKey] = useState(catalogFetchKey);
+  if (catalogSyncKey !== catalogFetchKey) {
+    setCatalogSyncKey(catalogFetchKey);
+    if (active) {
+      setLoading(true);
+      setError("");
+    }
+  }
   useEffect(() => {
     if (!active) return;
     let live = true;
-    setLoading(true);
-    setError("");
     void simsLot51Catalog(attempt > 0)
       .then(
         (value) => {
@@ -104,11 +111,18 @@ export function GameSimsLot51({
       live = false;
     };
   }, [active, attempt]);
+  const detailFetchKey = active && slug && !catalog?.cached ? `${slug}:${detailAttempt}` : "";
+  const [detailSyncKey, setDetailSyncKey] = useState(detailFetchKey);
+  if (detailSyncKey !== detailFetchKey) {
+    setDetailSyncKey(detailFetchKey);
+    if (detailFetchKey) {
+      setDetail(null);
+      setDetailError("");
+    }
+  }
   useEffect(() => {
     if (!active || !slug || catalog?.cached) return;
     let live = true;
-    setDetail(null);
-    setDetailError("");
     void simsLot51Detail(slug).then(
       (value) => {
         if (live) setDetail(value);

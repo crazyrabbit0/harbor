@@ -251,7 +251,11 @@ function RomShelf({
     games = data.page?.games ?? [],
     pages = Math.ceil(games.length / displaySlots),
     current = Math.min(page, Math.max(0, pages - 1));
-  useEffect(() => setPage(0), [platform, year]);
+  const [pageSync, setPageSync] = useState({ platform, year });
+  if (pageSync.platform !== platform || pageSync.year !== year) {
+    setPageSync({ platform, year });
+    setPage(0);
+  }
   return (
     <section ref={root} className={`games-section games-rom-shelf games-rom-shelf-${kind}`}>
       <div className="games-section-heading">
@@ -413,7 +417,12 @@ function RomDiscovery({ active, query, clearQuery, open: openDetail, hacks, emul
     .filter((game) => game.hero || game.screenshots.length)
     .slice(0, 24);
   const [genreOptions, setGenreOptions] = useState<Array<{ id: number; name: string }>>([]);
-  useEffect(() => {
+  const [genrePages, setGenrePages] = useState({
+    editorial: editorial.page,
+    catalog: catalog.page,
+  });
+  if (genrePages.editorial !== editorial.page || genrePages.catalog !== catalog.page) {
+    setGenrePages({ editorial: editorial.page, catalog: catalog.page });
     const received = [...(editorial.page?.genres ?? []), ...(catalog.page?.genres ?? [])];
     if (received.length)
       setGenreOptions((previous) =>
@@ -421,7 +430,7 @@ function RomDiscovery({ active, query, clearQuery, open: openDetail, hacks, emul
           (a, b) => a.name.localeCompare(b.name),
         ),
       );
-  }, [editorial.page, catalog.page]);
+  }
   const collectionGames = editorial.page?.games ?? [];
   const franchises = romCollections(collectionGames);
   const scrollToContent = () =>

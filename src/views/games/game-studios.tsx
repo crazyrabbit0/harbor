@@ -118,10 +118,16 @@ export function GameStudios({
       if (entry.isIntersecting) setSeen(true);
     });
   }, []);
+  const fetchKey =
+    active && seen ? `${attempt}:${selected}:${studioPage}:${studioSlots}:${revision}` : "";
+  const [failedSyncKey, setFailedSyncKey] = useState(fetchKey);
+  if (failedSyncKey !== fetchKey) {
+    setFailedSyncKey(fetchKey);
+    if (fetchKey) setFailed(false);
+  }
   useEffect(() => {
     if (!active || !seen) return;
     const request = new AbortController();
-    setFailed(false);
     const needed = visibleStudios.filter(
       (studio) =>
         studio.id === selected &&
@@ -154,17 +160,23 @@ export function GameStudios({
     })();
     return () => request.abort();
   }, [active, seen, attempt, selected, studioPage, studioSlots, revision]);
-  useEffect(() => {
-    if (!active || query.trim().length < 2) {
-      setResults([]);
+  const searchActive = active && query.trim().length >= 2;
+  const searchKey = searchActive ? JSON.stringify([query, attempt, revision]) : "";
+  const [lastSearchKey, setLastSearchKey] = useState(searchKey);
+  if (lastSearchKey !== searchKey) {
+    setLastSearchKey(searchKey);
+    setResults([]);
+    if (searchActive) {
+      setSearching(true);
+      setSearchError(false);
+    } else {
       setSearching(false);
-      return;
     }
+  }
+  useEffect(() => {
+    if (!active || query.trim().length < 2) return;
     const request = new AbortController();
     let received = false;
-    setSearching(true);
-    setSearchError(false);
-    setResults([]);
     void readStudioSearchSnapshot(query).then((value) => {
       if (value && !received && !request.signal.aborted) setResults(value);
     });
@@ -375,10 +387,12 @@ export function GameStudioHeading({
     [expanded, setExpanded] = useState(false),
     [attempt, setAttempt] = useState(0);
   const revision = useLiveRefresh(active, 31 * 60_000);
-  useEffect(() => {
+  const [lastRouteId, setLastRouteId] = useState(route.id);
+  if (lastRouteId !== route.id) {
+    setLastRouteId(route.id);
     setProfile(null);
     setExpanded(false);
-  }, [route.id]);
+  }
   useEffect(() => {
     if (!active || !route.id) return;
     const request = new AbortController();

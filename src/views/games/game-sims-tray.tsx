@@ -35,11 +35,18 @@ function TrayPreview({
     observer.observe(root.current);
     return () => observer.disconnect();
   }, [active]);
+  const fetchKey = active && visible ? `${path}\0${item.id}\0${item.installed}` : "";
+  const [syncKey, setSyncKey] = useState(fetchKey);
+  if (syncKey !== fetchKey) {
+    setSyncKey(fetchKey);
+    if (fetchKey) {
+      setBusy(true);
+      setSrc("");
+    }
+  }
   useEffect(() => {
     if (!active || !visible) return;
     const controller = new AbortController();
-    setBusy(true);
-    setSrc("");
     void simsTrayPreview(path, item.id, controller.signal)
       .then(
         (value) => {
@@ -95,9 +102,12 @@ export function GameSimsTray({
   const [selection, setSelection] = useState<{ item: SimsTrayItem; trigger: HTMLElement } | null>(
     null,
   );
-  useEffect(() => {
+  const resetKey = JSON.stringify([profile, path, revision, active, disabled]);
+  const [lastResetKey, setLastResetKey] = useState(resetKey);
+  if (lastResetKey !== resetKey) {
+    setLastResetKey(resetKey);
     setSelection(null);
-  }, [profile, path, revision, active, disabled]);
+  }
   return (
     <div className="games-sims-tray">
       {items.map((item) => (

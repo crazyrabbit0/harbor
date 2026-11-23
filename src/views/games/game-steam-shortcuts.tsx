@@ -78,7 +78,11 @@ export function GameSteamShortcuts({
     [pickerError, setPickerError] = useState(false),
     [limit, setLimit] = useState(24);
   const [activityProfile, setActivityProfile] = useState<string | null>(null);
-  useEffect(() => setActivityProfile(null), [library.profile]);
+  const [lastProfile, setLastProfile] = useState(library.profile);
+  if (lastProfile !== library.profile) {
+    setLastProfile(library.profile);
+    setActivityProfile(null);
+  }
   const profile = useRef(library.profile);
   useLayoutEffect(() => {
     profile.current = library.profile;
@@ -88,7 +92,12 @@ export function GameSteamShortcuts({
     (game) =>
       !preferences.get(game.id).hidden && preferences.matchesTitle(game.id, game.name, query),
   );
-  useEffect(() => setLimit(24), [query, library.accountId, library.profile]);
+  const limitKey = JSON.stringify([query, library.accountId, library.profile]);
+  const [lastLimitKey, setLastLimitKey] = useState(limitKey);
+  if (lastLimitKey !== limitKey) {
+    setLastLimitKey(limitKey);
+    setLimit(24);
+  }
   const choose = async () => {
     const owner = library.profile;
     setPicking(true);

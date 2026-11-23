@@ -71,11 +71,29 @@ export function SourceCloudTransfer({
     focusReturn = useRef<HTMLElement | null>(null);
   const [recent, setRecent] = useState<CloudWebJob[]>([]),
     [browseFolder, setBrowseFolder] = useState<CloudEntry | null>(null);
+  const resetKey = `${identity}\0${downloads.available}`;
   const [owner, setOwner] = useState(identity),
-    [currentRevision, setCurrentRevision] = useState(0);
+    [currentRevision, setCurrentRevision] = useState(0),
+    [lastResetKey, setLastResetKey] = useState(resetKey);
   if (owner !== identity) {
     setOwner(identity);
     setCurrentRevision(currentRevision + 1);
+  }
+  if (lastResetKey !== resetKey) {
+    setLastResetKey(resetKey);
+    setLoaded(false);
+    setIntent(null);
+    setJob(null);
+    setError("");
+    setChecked(false);
+    setFile("");
+    setScanNext(null);
+    setScanPage(0);
+    setRecent([]);
+    setBrowse(false);
+    setBrowseFolder(null);
+    setLimit(50);
+    setBusy(false);
   }
   useLayoutEffect(() => {
     revision.current = currentRevision;
@@ -114,20 +132,7 @@ export function SourceCloudTransfer({
   }, [busy, job, intent, error]);
   useEffect(() => {
     let current = true;
-    setLoaded(false);
-    setIntent(null);
-    setJob(null);
-    setError("");
-    setChecked(false);
-    setFile("");
-    setScanNext(null);
-    setScanPage(0);
-    setRecent([]);
-    setBrowse(false);
-    setBrowseFolder(null);
-    setLimit(50);
     pending.current = false;
-    setBusy(false);
     if (!key || !downloads.available) return;
     void webIntentKey(downloads.profile, key, link.url, provider)
       .then(async (id) => ({ id, value: await readWebIntent(id) }))

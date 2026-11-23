@@ -35,7 +35,7 @@ export function GameSeasonal({
     [season, setSeason] = useState(gameSeason),
     [games, setGames] = useState<GameSummary[]>([]),
     [selected, setSelected] = useState(""),
-    [detail, setDetail] = useState<GameDetail | null>(null),
+    [detailState, setDetailState] = useState<{ gameId: string; value: GameDetail } | null>(null),
     [loaded, setLoaded] = useState(false),
     [failed, setFailed] = useState(false),
     [attempt, setAttempt] = useState(0);
@@ -59,11 +59,16 @@ export function GameSeasonal({
       if (entry.isIntersecting) setSeen(true);
     });
   }, []);
+  const fetchKey = active && seen ? `${season}:${attempt}:${refresh}` : "";
+  const [failedKey, setFailedKey] = useState(fetchKey);
+  if (failedKey !== fetchKey) {
+    setFailedKey(fetchKey);
+    if (active && seen) setFailed(false);
+  }
   useEffect(() => {
     if (!active || !seen) return;
     const request = new AbortController(),
       selection = seasonCatalog(season);
-    setFailed(false);
     void loadGameCatalog(
       selection.query,
       { ...DEFAULT_CATALOG_FILTERS, tags: selection.tags },
@@ -74,6 +79,7 @@ export function GameSeasonal({
         if (!request.signal.aborted) {
           setGames(result.games.slice(0, 12));
           setLoaded(true);
+          setFailed(false);
         }
       },
       () => {
@@ -83,34 +89,45 @@ export function GameSeasonal({
     return () => request.abort();
   }, [active, seen, season, attempt, refresh]);
   const game = games.find((game) => game.id === selected) ?? games[0];
-  const detailSteamId = detail?.steamId,
-    gameSteamId = game?.steamId;
-  const currentDetail = detailSteamId === gameSteamId ? detail : null;
+  const gameId = game?.id;
+  const currentDetail =
+    detailState &&
+    gameId &&
+    detailState.gameId === gameId &&
+    detailState.value.steamId === game?.steamId
+      ? detailState.value
+      : null;
   const inspecting = active && visible && pageVisible && (hovered || focused);
-  useEffect(() => {
+  const previewKey = inspecting ? `1:${gameId ?? ""}` : "0";
+  const [lastPreviewKey, setLastPreviewKey] = useState(previewKey);
+  if (lastPreviewKey !== previewKey) {
+    setLastPreviewKey(previewKey);
     setPreview(false);
+  }
+  useEffect(() => {
     if (!inspecting) return;
     const timer = setTimeout(() => setPreview(true), 250);
     return () => clearTimeout(timer);
-  }, [inspecting, game?.id]);
-  useEffect(() => {
+  }, [inspecting, gameId]);
+  const [playbackGameId, setPlaybackGameId] = useState(gameId);
+  if (playbackGameId !== gameId) {
+    setPlaybackGameId(gameId);
     setStarted(false);
     setPaused(false);
-  }, [game?.id]);
+  }
   useEffect(() => {
     let current = true;
-    setDetail(null);
-    if (game?.steamId)
+    if (gameId && game?.steamId)
       void loadGameDetail(game.steamId).then(
         (value) => {
-          if (current) setDetail(value);
+          if (current) setDetailState({ gameId, value });
         },
         () => {},
       );
     return () => {
       current = false;
     };
-  }, [game?.id]);
+  }, [gameId, game?.steamId]);
   const explore = () => {
     const selection = seasonCatalog(season);
     browse({ tags: selection.tags }, selection.query);
