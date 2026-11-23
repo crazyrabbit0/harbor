@@ -6,43 +6,46 @@ import { harborImdbTitle } from "@/lib/providers/harbor-imdb";
 
 export function useModalRatings(imdbId: string | null, mediaType: "movie" | "show") {
   const settings = useSettingsSelector((s) => ({ mdblistKey: s.mdblistKey, omdbKey: s.omdbKey }));
-  const [scores, setScores] = useState<OmdbScores | null>(null);
-  const [harborImdb, setHarborImdb] = useState<string | null>(null);
+  const omdbKey = imdbId && settings.omdbKey ? `${imdbId}\0${settings.omdbKey}` : null;
+  const [scoresResult, setScoresResult] = useState<{
+    key: string;
+    scores: OmdbScores | null;
+  } | null>(null);
+  const harborKey = imdbId?.startsWith("tt") ? imdbId : null;
+  const [harborResult, setHarborResult] = useState<{
+    key: string;
+    rating: string | null;
+  } | null>(null);
   const mdblist = useMdblistScores(settings.mdblistKey, imdbId, mediaType);
 
   useEffect(() => {
-    if (!imdbId || !settings.omdbKey) {
-      setScores(null);
-      return;
-    }
+    if (!omdbKey || !imdbId || !settings.omdbKey) return;
     let cancelled = false;
-    setScores(null);
     omdbScores(settings.omdbKey, imdbId)
       .then((s) => {
-        if (!cancelled) setScores(s);
+        if (!cancelled) setScoresResult({ key: omdbKey, scores: s });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [imdbId, settings.omdbKey]);
+  }, [omdbKey, imdbId, settings.omdbKey]);
 
   useEffect(() => {
-    if (!imdbId?.startsWith("tt")) {
-      setHarborImdb(null);
-      return;
-    }
+    if (!harborKey) return;
     let cancelled = false;
-    setHarborImdb(null);
-    harborImdbTitle(imdbId)
+    harborImdbTitle(harborKey)
       .then((r) => {
-        if (!cancelled && r != null) setHarborImdb(r.toFixed(1));
+        if (!cancelled && r != null) setHarborResult({ key: harborKey, rating: r.toFixed(1) });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [imdbId]);
+  }, [harborKey]);
+
+  const scores = omdbKey && scoresResult?.key === omdbKey ? scoresResult.scores : null;
+  const harborImdb = harborKey && harborResult?.key === harborKey ? harborResult.rating : null;
 
   return { scores, mdblist, harborImdb };
 }

@@ -29,8 +29,10 @@ export function SearchPanel({
 }) {
   const t = useT();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResults | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [searchState, setSearchState] = useState<{
+    key: string;
+    results: SearchResults | null;
+  } | null>(null);
   const [trending, setTrending] = useState<{ movies: Meta[]; series: Meta[] } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -51,32 +53,31 @@ export function SearchPanel({
     };
   }, [tmdbKey]);
 
+  const trimmedQuery = query.trim();
+  const searchKey = trimmedQuery ? `${trimmedQuery}\0${tmdbKey ?? ""}` : null;
+  if (searchKey === null && searchState !== null) setSearchState(null);
+  const results = searchKey ? (searchState?.results ?? null) : null;
+  const loading = searchKey !== null && searchState?.key !== searchKey;
+
   useEffect(() => {
-    const q = query.trim();
-    if (!q) {
-      setResults(null);
-      setLoading(false);
-      return;
-    }
+    if (!searchKey || !trimmedQuery) return;
     let cancelled = false;
-    setLoading(true);
     const timer = window.setTimeout(() => {
-      searchAll(tmdbKey ?? "", q)
+      searchAll(tmdbKey ?? "", trimmedQuery)
         .then((r) => {
-          if (!cancelled) {
-            setResults(r);
-            setLoading(false);
-          }
+          if (!cancelled) setSearchState({ key: searchKey, results: r });
         })
         .catch(() => {
-          if (!cancelled) setLoading(false);
+          if (!cancelled) {
+            setSearchState((prev) => ({ key: searchKey, results: prev?.results ?? null }));
+          }
         });
     }, 260);
     return () => {
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [query, tmdbKey]);
+  }, [searchKey, trimmedQuery, tmdbKey]);
 
   const movies = results?.movies ?? [];
   const series = results?.series ?? [];

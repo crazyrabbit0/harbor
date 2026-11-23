@@ -22,10 +22,11 @@ export function WatchLocalModal() {
   const t = useT();
   const state = useSyncExternalStore(subscribeWatchLocalConfirm, getWatchLocalConfirm);
   const [remember, setRemember] = useState(false);
-
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(state.open);
+  if (state.open !== prevOpen) {
+    setPrevOpen(state.open);
     if (state.open) setRemember(false);
-  }, [state.open]);
+  }
 
   const choose = (choice: WatchLocalChoice) => {
     const fn = state.onChoose;

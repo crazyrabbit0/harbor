@@ -64,24 +64,21 @@ export function MenuBody(props: SubtitleMenuProps & { onClose: () => void }) {
   const [searchFocusLang, setSearchFocusLang] = useState<string | null>(null);
   const [justImported, setJustImported] = useState<string | null>(null);
 
+  if (languageTracks.length > 0 && searchSettled) setSearchSettled(false);
   useEffect(() => {
     if (languageTracks.length > 0) return;
-    setSearchSettled(false);
     const timer = setTimeout(() => setSearchSettled(true), 9000);
     return () => clearTimeout(timer);
   }, [languageTracks.length]);
 
-  useEffect(() => {
-    if (groups.length === 0) {
-      setActiveLang(null);
-      return;
-    }
-    if (activeLang === ALL_LANGS) return;
-    if (!activeLang || !groups.some((g) => g.langKey === activeLang)) {
-      const sel = groups.find((g) => g.variants.some((v) => v.id === selectedId));
-      setActiveLang(sel?.langKey ?? groups[0].langKey);
-    }
+  const desiredActiveLang = useMemo(() => {
+    if (groups.length === 0) return null;
+    if (activeLang === ALL_LANGS) return ALL_LANGS;
+    if (activeLang && groups.some((g) => g.langKey === activeLang)) return activeLang;
+    const sel = groups.find((g) => g.variants.some((v) => v.id === selectedId));
+    return sel?.langKey ?? groups[0].langKey;
   }, [groups, activeLang, selectedId]);
+  if (desiredActiveLang !== activeLang) setActiveLang(desiredActiveLang);
 
   const veryNewMovie = useMemo(() => isVeryNewRelease(metaReleaseDate), [metaReleaseDate]);
   const allLangs = activeLang === ALL_LANGS;

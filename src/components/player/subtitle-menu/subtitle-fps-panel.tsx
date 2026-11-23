@@ -59,17 +59,23 @@ export function SubtitleFpsPanel({
     field.select();
   }, [customOpen, loading]);
 
-  useEffect(() => {
-    let cancelled = false;
-    applyRequestRef.current += 1;
+  const loadKey = `${autoSyncActive ? 1 : 0}:${hasSecondary ? 1 : 0}:${track?.id ?? ""}`;
+  const [prevLoadKey, setPrevLoadKey] = useState(loadKey);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
     setError(null);
     setSaving(false);
     setCustomOpen(false);
     setAutomatic(false);
     setVideoFps(null);
     setSubtitleFps(null);
-
     setLoading(true);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    applyRequestRef.current += 1;
+
     void Promise.all([readMpvVideoFps(), readMpvSubtitleFps()]).then(([video, subtitle]) => {
       if (cancelled) return;
       const resetByPlayer = autoSyncActive || hasSecondary || !isTextSubTrack(track);

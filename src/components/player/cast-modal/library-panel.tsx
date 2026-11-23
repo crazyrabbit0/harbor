@@ -55,13 +55,15 @@ export function LibraryPanel() {
     } catch {}
   }, [tab]);
 
-  useEffect(() => {
-    if (tab === "trakt" && !traktConnected) setTab("library");
-    else if (tab === "anilist" && !anilistConnected) setTab("library");
-    else if (tab === "simkl" && !simklConnected) setTab("library");
-    else if (tab === "letterboxd" && !lb.isActive) setTab("library");
-    else if (tab === "mal" && !malConnected) setTab("library");
-  }, [tab, traktConnected, anilistConnected, simklConnected, malConnected, lb.isActive]);
+  const effectiveTab: Tab =
+    (tab === "trakt" && !traktConnected) ||
+    (tab === "anilist" && !anilistConnected) ||
+    (tab === "simkl" && !simklConnected) ||
+    (tab === "letterboxd" && !lb.isActive) ||
+    (tab === "mal" && !malConnected)
+      ? "library"
+      : tab;
+  if (effectiveTab !== tab) setTab(effectiveTab);
 
   return (
     <div className="flex flex-col gap-5 px-5 pb-8">

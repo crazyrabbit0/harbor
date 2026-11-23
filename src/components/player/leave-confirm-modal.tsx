@@ -10,10 +10,11 @@ export function LeaveConfirmModal() {
   const t = useT();
   const state = useSyncExternalStore(subscribeLeaveConfirm, getLeaveConfirm);
   const [remember, setRemember] = useState(false);
-
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(state.open);
+  if (state.open !== prevOpen) {
+    setPrevOpen(state.open);
     if (state.open) setRemember(false);
-  }, [state.open]);
+  }
 
   useEffect(() => {
     if (!state.open) return;

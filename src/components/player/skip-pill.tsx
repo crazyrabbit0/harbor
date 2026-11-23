@@ -54,25 +54,29 @@ export function SkipPill({
   const isMountedOutroNext = mounted?.kind === "outro" && hasNextEpisodeTarget;
   const shouldCountdown = hasCountdown && !isMountedOutroNext;
 
-  useEffect(() => {
+  const segKey = segment
+    ? `${segment.kind}:${segment.startSec}:${segment.endSec}:${hasCountdown ? 1 : 0}:${countdownSec}:${hasNextEpisodeTarget ? 1 : 0}`
+    : null;
+  const [prevSegKey, setPrevSegKey] = useState(segKey);
+  if (segKey !== prevSegKey) {
+    setPrevSegKey(segKey);
     if (segment) {
       setMounted(segment);
       const isNextEpisodePrompt = segment.kind === "outro" && hasNextEpisodeTarget;
       setTimeLeft(hasCountdown && !isNextEpisodePrompt ? countdownSec : 0);
+    } else {
+      setShow(false);
+    }
+  }
+
+  useEffect(() => {
+    if (segKey) {
       const id = window.requestAnimationFrame(() => setShow(true));
       return () => window.cancelAnimationFrame(id);
     }
-    setShow(false);
     const timer = window.setTimeout(() => setMounted(null), 240);
     return () => window.clearTimeout(timer);
-  }, [
-    segment?.kind,
-    segment?.startSec,
-    segment?.endSec,
-    hasCountdown,
-    countdownSec,
-    hasNextEpisodeTarget,
-  ]);
+  }, [segKey]);
 
   const counting = shouldCountdown && timeLeft > 0 && !hovered && !!mounted;
   const onDismissRef = useRef(onDismiss);
@@ -99,11 +103,9 @@ export function SkipPill({
   }, [counting]);
 
   const hasUndo = !!onUndo;
+  if (!hasUndo && undoShown) setUndoShown(false);
   useEffect(() => {
-    if (!hasUndo) {
-      setUndoShown(false);
-      return;
-    }
+    if (!hasUndo) return;
     const id = window.requestAnimationFrame(() => setUndoShown(true));
     return () => window.cancelAnimationFrame(id);
   }, [hasUndo]);

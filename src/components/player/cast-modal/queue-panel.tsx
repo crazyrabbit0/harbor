@@ -124,7 +124,10 @@ export function QueuePanel({
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
   const queue = useQueue();
   const sleepAtEnd = useSleepAtEnd();
-  const [upcoming, setUpcoming] = useState<PlayEpisode[]>([]);
+  const [upcomingState, setUpcomingState] = useState<{
+    key: string;
+    eps: PlayEpisode[];
+  } | null>(null);
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
   const rowRefs = useRef<Map<string, HTMLElement>>(new Map());
@@ -178,11 +181,13 @@ export function QueuePanel({
       currentMeta.id.startsWith("tmdb:tv:") ||
       /^(kitsu|mal|anilist):/.test(currentMeta.id));
 
+  const upcomingKey =
+    queue.length === 0 && isSeriesCurrent && currentMeta && currentEpisode
+      ? `${currentMeta.id}:${currentEpisode.season}:${currentEpisode.episode}:${settings.tmdbKey ?? ""}`
+      : null;
+
   useEffect(() => {
-    if (queue.length > 0 || !isSeriesCurrent || !currentMeta || !currentEpisode) {
-      setUpcoming([]);
-      return;
-    }
+    if (!upcomingKey || !currentMeta || !currentEpisode) return;
     let cancelled = false;
     fetchUpcomingEpisodes(
       currentMeta,
@@ -193,13 +198,15 @@ export function QueuePanel({
       },
     )
       .then((eps) => {
-        if (!cancelled) setUpcoming(eps);
+        if (!cancelled) setUpcomingState({ key: upcomingKey, eps });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [queue.length, isSeriesCurrent, currentMeta, currentEpisode, settings.tmdbKey]);
+  }, [upcomingKey, currentMeta, currentEpisode, settings.tmdbKey]);
+
+  const upcoming = upcomingKey && upcomingState?.key === upcomingKey ? upcomingState.eps : [];
 
   const cwList = useContinueWatching(currentMeta?.id);
   const totalMins = queue.reduce((sum, i) => sum + runtimeMinutes(i), 0);

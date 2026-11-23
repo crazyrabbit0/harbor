@@ -196,10 +196,11 @@ function GridModal({ payload }: { payload: LocalEpisodesPayload }) {
         : (localSeasons[0] ?? (hasSpecials ? 0 : 1));
   const [selected, setSelected] = useState<number>(initialSeason);
   const [downloadSelection, setDownloadSelection] = useState<Set<string>>(new Set());
-  useEffect(() => {
-    const valid = selected === 0 ? hasSpecials : localSeasons.includes(selected);
-    if (!valid) setSelected(localSeasons[0] ?? (hasSpecials ? 0 : 1));
-  }, [localSeasons, hasSpecials, selected]);
+  const selectedValid = selected === 0 ? hasSpecials : localSeasons.includes(selected);
+  const fallbackSeason = localSeasons[0] ?? (hasSpecials ? 0 : 1);
+  if (!selectedValid && selected !== fallbackSeason) {
+    setSelected(fallbackSeason);
+  }
 
   const listEps = useMemo(() => {
     // A spanning file owns multiple logical cells but remains one physical row.

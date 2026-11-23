@@ -31,12 +31,10 @@ export function Anime4kIndicator({
   const enabled = settings.playerAnime4kIndicator && engine === "mpv" && isTauri;
   const [active, setActive] = useState(false);
   const pageVisible = usePageVisible();
+  if (!enabled && active) setActive(false);
 
   useEffect(() => {
-    if (!enabled) {
-      setActive(false);
-      return;
-    }
+    if (!enabled) return;
     // The badge is only seen with the chrome up, so hidden chrome skips the IPC poll and showing it re-reads once.
     if (!pageVisible || !chromeVisible) return;
     let cancelled = false;

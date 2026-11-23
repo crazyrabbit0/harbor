@@ -5,6 +5,8 @@ import { isRtl, useT, useUiLanguage } from "@/lib/i18n";
 import { CastIcon } from "./cast-icon";
 import { noteOverlayDismiss } from "@/lib/player/overlay-dismiss";
 
+const EMPTY_DEVICES: CastDeviceInfo[] = [];
+
 export function CastMenu({
   open,
   anchor,
@@ -24,28 +26,36 @@ export function CastMenu({
 }) {
   const t = useT();
   const dir = isRtl(useUiLanguage()) ? "rtl" : "ltr";
-  const [devices, setDevices] = useState<CastDeviceInfo[]>([]);
-  const [loading, setLoading] = useState(false);
   const [scanCount, setScanCount] = useState(0);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setScanCount(scanCount + 1);
+  }
+  const activeScan = open ? scanCount : null;
+  const [scanResult, setScanResult] = useState<{
+    key: number;
+    devices: CastDeviceInfo[];
+  } | null>(null);
+  const loading = activeScan != null && scanResult?.key !== activeScan;
+  const devices =
+    activeScan != null && scanResult?.key === activeScan ? scanResult.devices : EMPTY_DEVICES;
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!open) return;
+    if (activeScan == null) return;
     let cancelled = false;
-    setLoading(true);
-    setDevices([]);
     void discoverCastDevices()
       .then((rows) => {
-        if (cancelled) return;
-        setDevices(rows);
+        if (!cancelled) setScanResult({ key: activeScan, devices: rows });
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+      .catch(() => {
+        if (!cancelled) setScanResult({ key: activeScan, devices: EMPTY_DEVICES });
       });
     return () => {
       cancelled = true;
     };
-  }, [open, scanCount]);
+  }, [activeScan]);
 
   useEffect(() => {
     if (!open) return;

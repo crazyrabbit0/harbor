@@ -23,6 +23,8 @@ import { useModalRatings } from "./use-modal-ratings";
 import { useTitleDetail } from "./use-title-detail";
 import { readAtVersion } from "@/lib/read-at-version";
 
+const EMPTY_CAST: CastEntry[] = [];
+
 function isAnimeId(id: string): boolean {
   return id.startsWith("kitsu:") || id.startsWith("mal:") || id.startsWith("anilist:");
 }
@@ -99,25 +101,31 @@ export function TitlePanel({
   );
   const awardSummaryItems = pickHeroAwards(awardSummary(awards), 3);
 
-  const [tvdbCast, setTvdbCast] = useState<CastEntry[]>([]);
+  const tt = detail?.imdbId ?? (meta.id.startsWith("tt") ? meta.id : null);
+  const kitsuMatch = meta.id.match(/^kitsu:(\d+)/);
+  const kitsuId = kitsuMatch ? Number(kitsuMatch[1]) : null;
+  const tvdbCastKey =
+    !loading && (detail?.cast?.length ?? 0) === 0 && (tt || kitsuId != null)
+      ? `${meta.id}:${tt ?? ""}:${kitsuId ?? ""}:${isSeries ? "series" : "movie"}`
+      : null;
+  const [tvdbCastResult, setTvdbCastResult] = useState<{
+    key: string;
+    cast: CastEntry[];
+  } | null>(null);
   useEffect(() => {
-    setTvdbCast([]);
-    if (loading) return;
-    if ((detail?.cast?.length ?? 0) > 0) return;
-    const tt = detail?.imdbId ?? (meta.id.startsWith("tt") ? meta.id : null);
-    const kitsuMatch = meta.id.match(/^kitsu:(\d+)/);
-    const kitsuId = kitsuMatch ? Number(kitsuMatch[1]) : null;
-    if (!tt && kitsuId == null) return;
+    if (!tvdbCastKey) return;
     let cancelled = false;
     fetchTvdbCast({ imdb: tt, kitsuId, type: isSeries ? "series" : "movie" })
       .then((c) => {
-        if (!cancelled) setTvdbCast(c);
+        if (!cancelled) setTvdbCastResult({ key: tvdbCastKey, cast: c });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [detail, loading, meta.id, isSeries]);
+  }, [tvdbCastKey, tt, kitsuId, isSeries]);
+  const tvdbCast =
+    tvdbCastKey && tvdbCastResult?.key === tvdbCastKey ? tvdbCastResult.cast : EMPTY_CAST;
 
   const cast: Person[] = (detail?.cast?.length ? detail.cast : tvdbCast).slice(0, 30).map((c) => ({
     id: c.id,

@@ -1,5 +1,5 @@
 import { EyeOff, Ghost, Heart, Info, MessageSquareWarning, Swords, Wine, X } from "lucide-react";
-import { type FocusEvent, useEffect, useMemo, useRef, useState } from "react";
+import { type FocusEvent, useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { ignoreAdvisory } from "@/lib/player/content-advisory-ignore";
 import { usePlaybackPositionGated } from "@/lib/player/playback-clock";
@@ -102,37 +102,45 @@ export function ContentAdvisoryToast({
   const [phase, setPhase] = useState<Phase>(preview ? "holding" : "idle");
   const [paused, setPaused] = useState(false);
   const [hasTriggered, setHasTriggered] = useState(preview);
-  const durationRef = useRef(HOLD_MS);
+  const [holdMs, setHoldMs] = useState(HOLD_MS);
 
-  useEffect(() => {
+  const resetKey = `${playKey}\0${preview ? 1 : 0}\0${enabled ? 1 : 0}`;
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey);
     if (preview) {
       setActive(true);
       setPhase("holding");
       setHasTriggered(true);
-      return;
+    } else {
+      setActive(false);
+      setPhase("idle");
+      setPaused(false);
+      setHasTriggered(false);
+      setHoldMs(HOLD_MS);
     }
+  }
 
-    setActive(false);
-    setPhase("idle");
-    setPaused(false);
-    setHasTriggered(false);
-    durationRef.current = HOLD_MS;
-  }, [playKey, preview, enabled]);
-
-  useEffect(() => {
-    if (!enabled || preview || !playKey || !hasPlaybackStarted || !hasContent || hasTriggered)
-      return;
+  if (
+    resetKey === prevResetKey &&
+    enabled &&
+    !preview &&
+    playKey &&
+    hasPlaybackStarted &&
+    hasContent &&
+    !hasTriggered
+  ) {
     setHasTriggered(true);
     setActive(true);
     setPhase("holding");
-    durationRef.current = HOLD_MS;
-  }, [enabled, hasPlaybackStarted, hasContent, hasTriggered, playKey, preview]);
+    setHoldMs(HOLD_MS);
+  }
 
   useEffect(() => {
     if (preview || phase !== "holding" || paused) return;
-    const timer = window.setTimeout(() => setPhase("collapsing"), durationRef.current);
+    const timer = window.setTimeout(() => setPhase("collapsing"), holdMs);
     return () => window.clearTimeout(timer);
-  }, [paused, phase, preview]);
+  }, [holdMs, paused, phase, preview]);
 
   useEffect(() => {
     if (preview || phase !== "collapsing") return;
@@ -149,7 +157,7 @@ export function ContentAdvisoryToast({
   const handleInteractionEnd = (stillInteracting = false) => {
     setPaused(stillInteracting);
     if (phase === "holding") {
-      durationRef.current = HOVER_TAIL_MS;
+      setHoldMs(HOVER_TAIL_MS);
     }
   };
   const handleBlur = (event: FocusEvent<HTMLDivElement>) => {

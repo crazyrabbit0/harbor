@@ -55,19 +55,23 @@ export function SubtitleFpsControl({
     triggerRef.current?.focus();
   };
 
+  const canUseMpv = engine === "mpv" && isMainTauriWindow();
+  if (!canUseMpv) {
+    if (supported) setSupported(false);
+    if (open) setOpen(false);
+  }
+
   useEffect(() => {
-    if (engine !== "mpv" || !isMainTauriWindow()) {
+    if (!canUseMpv) {
       supportController.invalidate();
-      setSupported(false);
-      setOpen(false);
       return;
     }
 
-    refreshSupport();
+    void supportController.refresh();
     return () => {
       supportController.invalidate();
     };
-  }, [engine, refreshSupport, supportController, track?.id]);
+  }, [canUseMpv, supportController, track?.id]);
 
   useEffect(() => {
     if (engine !== "mpv" || !isMainTauriWindow()) return;

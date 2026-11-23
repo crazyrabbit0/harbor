@@ -1,7 +1,7 @@
 import { AlertCircle } from "lucide-react";
 import { appFeatures } from "@/lib/app-features";
 import { NavGlyph } from "@/components/icons/nav-glyph";
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { PlayerControlId } from "@/lib/player-chrome";
 import { t as translate } from "@/lib/i18n";
 import type { ControlContext } from "./control-renderer";
@@ -12,10 +12,8 @@ import { StremioBtn } from "./stremio-btn";
 import { withHotkey } from "./hotkey-label";
 
 export function CustomIcon({ url, size }: { url: string; size: number }) {
-  const [errored, setErrored] = useState(false);
-  useEffect(() => {
-    setErrored(false);
-  }, [url]);
+  const [failedUrl, setFailedUrl] = useState<string | null>(null);
+  const errored = failedUrl === url;
   if (errored) {
     return (
       <AlertCircle
@@ -32,7 +30,7 @@ export function CustomIcon({ url, size }: { url: string; size: number }) {
       width={size}
       height={size}
       draggable={false}
-      onError={() => setErrored(true)}
+      onError={() => setFailedUrl(url)}
       className="pointer-events-none select-none object-contain"
       style={{ width: size, height: size }}
     />

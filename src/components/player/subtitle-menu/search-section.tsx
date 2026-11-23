@@ -50,6 +50,7 @@ function isPlayingTarget(a: TitleTarget, b: TitleTarget): boolean {
 }
 
 const searchCache = new Map<string, SubtitleSearchCacheEntry>();
+const EMPTY_SUGGESTIONS: TitleCandidate[] = [];
 
 type SavedSearchState = {
   playingKey: string;
@@ -126,8 +127,6 @@ export function SearchSection(
           ).padStart(2, "0")}`
         : (metaTitle ?? "")),
   );
-  const [suggestions, setSuggestions] = useState<TitleCandidate[]>([]);
-  const [suggestLoading, setSuggestLoading] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const searchAnchorRef = useRef<HTMLDivElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -139,11 +138,16 @@ export function SearchSection(
   const [forcedOnly, setForcedOnly] = useState(restorable?.forcedOnly ?? false);
   const [sortBySource, setSortBySource] = useState(restorable?.sortBySource ?? false);
   const [filtersOpen, setFiltersOpen] = useState(restorable?.filtersOpen ?? true);
-  const [addons, setAddons] = useState<Addon[] | null>(null);
-  const [addonsLoading, setAddonsLoading] = useState(true);
+  const [addonsState, setAddonsState] = useState<{
+    authKey: string | null;
+    addons: Addon[];
+  } | null>(null);
+  const addons = addonsState?.authKey === authKey ? addonsState.addons : null;
+  const addonsLoading = addonsState?.authKey !== authKey;
   const lastAutoSearchKey = useRef<string | null>(null);
+  const [prevAutoKey, setPrevAutoKey] = useState<string | null>(null);
   const searchSeq = useRef(0);
-  const coordsTouchedRef = useRef(false);
+  const [coordsTouched, setCoordsTouched] = useState(false);
   const [pendingSources, setPendingSources] = useState(0);
   const resultStreamHints = useMemo<StreamHints>(
     () => ({
@@ -208,28 +212,19 @@ export function SearchSection(
 
   useEffect(() => {
     let cancelled = false;
-    setAddonsLoading(true);
     gatherSubtitleAddons(authKey)
       .then((a) => {
-        if (!cancelled) {
-          setAddons(a);
-          setAddonsLoading(false);
-        }
+        if (!cancelled) setAddonsState({ authKey, addons: a });
       })
       .catch(() => {
-        if (!cancelled) {
-          setAddons([]);
-          setAddonsLoading(false);
-        }
+        if (!cancelled) setAddonsState({ authKey, addons: [] });
       });
     return () => {
       cancelled = true;
     };
   }, [authKey]);
 
-  const run = (tgt: TitleTarget) => {
-    setLoading(true);
-    setResults(null);
+  const performSearch = (tgt: TitleTarget) => {
     const search = async () => {
       const enabled = settings.subProvidersEnabled ?? {};
       const titleOnly = !tgt.imdbId && !!tgt.title;
@@ -286,51 +281,92 @@ export function SearchSection(
     });
   };
 
-  useEffect(() => {
-    if (!playbackContext || isOverride || coordsTouchedRef.current) return;
-    const s = playbackContext.searchSeason;
-    const e = playbackContext.searchEpisode;
-    if (s == null && e == null) return;
-    if (s === target.season && e === target.episode) return;
-    const next = { ...target, season: s, episode: e };
-    setTarget(next);
-  }, [playbackContext, isOverride, target]);
-
-  useEffect(() => {
-    if (addons === null || addonsLoading) return;
-    if (!target.imdbId && !target.title) return;
-    const playing = isPlayingTarget(target, playingTarget) ? playbackContext : null;
-    const scope = cacheScope(target);
-    const key = cacheKeyFor(target, playing?.filename);
-    if (lastAutoSearchKey.current === key) return;
+  const run = (tgt: TitleTarget) => {
+    const playing = isPlayingTarget(tgt, playingTarget) ? playbackContext : null;
+    const key = cacheKeyFor(tgt, playing?.filename);
     lastAutoSearchKey.current = key;
-    const cached = scope.credentialBound
-      ? null
-      : readSubtitleSearchCacheEntry(searchCache.get(key));
-    if (cached) {
-      setResults(cached);
-      return;
+    setPrevAutoKey(key);
+    setLoading(true);
+    setResults(null);
+    return performSearch(tgt);
+  };
+
+  if (
+    playbackContext &&
+    !isOverride &&
+    !coordsTouched &&
+    (playbackContext.searchSeason != null || playbackContext.searchEpisode != null) &&
+    (playbackContext.searchSeason !== target.season ||
+      playbackContext.searchEpisode !== target.episode)
+  ) {
+    setTarget({
+      ...target,
+      season: playbackContext.searchSeason,
+      episode: playbackContext.searchEpisode,
+    });
+  }
+
+  const autoScope =
+    addons !== null && !addonsLoading && (target.imdbId || target.title)
+      ? cacheScope(target)
+      : null;
+  const autoPlaying = autoScope && isPlayingTarget(target, playingTarget) ? playbackContext : null;
+  const autoKey = autoScope ? cacheKeyFor(target, autoPlaying?.filename) : null;
+  const autoCached =
+    autoKey && autoScope && !autoScope.credentialBound
+      ? readSubtitleSearchCacheEntry(searchCache.get(autoKey))
+      : null;
+
+  if (autoKey !== null && autoKey !== prevAutoKey) {
+    setPrevAutoKey(autoKey);
+    if (autoCached) {
+      setResults(autoCached);
+      setLoading(false);
+      setPendingSources(0);
+    } else {
+      setLoading(true);
+      setResults(null);
     }
-    void run(target);
-  }, [addons, addonsLoading, target, playingTarget, playbackContext, settings]);
+  }
 
   useEffect(() => {
-    if (!suggestOpen) return;
+    if (!autoKey) return;
+    if (lastAutoSearchKey.current === autoKey) return;
+    lastAutoSearchKey.current = autoKey;
+    if (autoCached) return;
+    void performSearch(target);
+  }, [autoKey, autoCached, target]);
+
+  const suggestQueryKey = useMemo(() => {
+    if (!suggestOpen) return null;
     const parsed = parseTitleQuery(query);
-    if (parsed.title.length < 2) {
-      setSuggestions([]);
-      setSuggestLoading(false);
-      return;
-    }
-    setSuggestLoading(true);
+    return parsed.title.length >= 2 ? `${metaImdbId ?? ""}\0${query}` : null;
+  }, [suggestOpen, query, metaImdbId]);
+  const [suggestState, setSuggestState] = useState<{
+    key: string;
+    items: TitleCandidate[];
+  } | null>(null);
+  const suggestions =
+    suggestQueryKey === null ? EMPTY_SUGGESTIONS : (suggestState?.items ?? EMPTY_SUGGESTIONS);
+  const suggestLoading = suggestQueryKey !== null && suggestState?.key !== suggestQueryKey;
+
+  useEffect(() => {
+    if (!suggestQueryKey) return;
+    let cancelled = false;
     const id = window.setTimeout(() => {
       searchTitleCandidates(query, metaImdbId)
-        .then((c) => setSuggestions(c.slice(0, 8)))
-        .catch(() => setSuggestions([]))
-        .finally(() => setSuggestLoading(false));
+        .then((c) => {
+          if (!cancelled) setSuggestState({ key: suggestQueryKey, items: c.slice(0, 8) });
+        })
+        .catch(() => {
+          if (!cancelled) setSuggestState({ key: suggestQueryKey, items: EMPTY_SUGGESTIONS });
+        });
     }, 250);
-    return () => window.clearTimeout(id);
-  }, [query, suggestOpen]);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(id);
+    };
+  }, [suggestQueryKey, query, metaImdbId]);
 
   const pickCandidate = (c: TitleCandidate) => {
     const parsed = parseTitleQuery(query);
@@ -382,7 +418,7 @@ export function SearchSection(
   };
 
   const changeEp = (patch: Partial<Pick<TitleTarget, "season" | "episode">>) => {
-    coordsTouchedRef.current = true;
+    setCoordsTouched(true);
     const next = { ...target, ...patch };
     setTarget(next);
     void run(next);
@@ -391,7 +427,7 @@ export function SearchSection(
   const clearOverride = () => {
     setTarget(playingTarget);
     setIsOverride(false);
-    coordsTouchedRef.current = false;
+    setCoordsTouched(false);
     setQuery(
       metaTitle && playingTarget.season != null && playingTarget.episode != null
         ? `${metaTitle} S${String(playingTarget.season).padStart(2, "0")}E${String(

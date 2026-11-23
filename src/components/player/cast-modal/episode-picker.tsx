@@ -24,6 +24,7 @@ import type { PickerItem } from "@/views/detail/series-episodes/season-arc-picke
 import { seasonDateRange, type OrderedEpisode } from "@/lib/providers/tvdb-order";
 
 type DropOption = { key: string; label: string };
+const EMPTY_EPS: PlayEpisode[] = [];
 
 function SeasonDropdown({
   options,
@@ -103,34 +104,31 @@ export function EpisodePicker({
     imdbId,
     metaId: meta.id,
   });
-  const [eps, setEps] = useState<PlayEpisode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [season, setSeason] = useState<number | null>(null);
-  const [orderSeason, setOrderSeason] = useState<number>(-1);
   const metaRef = useRef(meta);
   useLayoutEffect(() => {
     metaRef.current = meta;
   }, [meta]);
   const metaId = meta.id;
+  const fetchKey = `${metaId}\0${settings.tmdbKey ?? ""}`;
+  const [fetched, setFetched] = useState<{ key: string; eps: PlayEpisode[] } | null>(null);
+  const eps = fetched?.key === fetchKey ? fetched.eps : EMPTY_EPS;
+  const loading = fetched?.key !== fetchKey;
+  const [season, setSeason] = useState<number | null>(null);
+  const [orderSeason, setOrderSeason] = useState<number>(-1);
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setEps([]);
     fetchEpisodeList(metaRef.current, { tmdbKey: settings.tmdbKey })
       .then((list) => {
-        if (!cancelled) {
-          setEps(list);
-          setLoading(false);
-        }
+        if (!cancelled) setFetched({ key: fetchKey, eps: list });
       })
       .catch(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setFetched({ key: fetchKey, eps: EMPTY_EPS });
       });
     return () => {
       cancelled = true;
     };
-  }, [metaId, settings.tmdbKey]);
+  }, [fetchKey, settings.tmdbKey]);
 
   const combinedWatched = useMemo(() => {
     const s = new Set<string>();
