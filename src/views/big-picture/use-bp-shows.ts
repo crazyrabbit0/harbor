@@ -164,29 +164,24 @@ function useBuiltCatalog(kind: BpCatalogKind): {
   const region = settings.region;
   const cacheKey = `${kind}:${tmdbKey}:${kind === "movies" ? region : ""}`;
   const primed = cache.get(cacheKey) ?? null;
-  const [built, setBuilt] = useState<Built>(primed ?? EMPTY);
-  const [loading, setLoading] = useState(!primed);
-  const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const reqKey = `${cacheKey}:${attempt}`;
+  const [state, setState] = useState<{
+    key: string;
+    built: Built;
+    loading: boolean;
+    failed: boolean;
+  }>({ key: "", built: EMPTY, loading: true, failed: false });
 
   useEffect(() => {
-    const hit = cache.get(cacheKey);
-    if (hit) {
-      setBuilt(hit);
-      setLoading(false);
-      setFailed(false);
-      return;
-    }
+    if (cache.has(cacheKey)) return;
     let cancelled = false;
     let acc: Built = EMPTY;
     let settled = false;
-    setBuilt(EMPTY);
-    setLoading(true);
-    setFailed(false);
 
     const commit = (next: Built) => {
       acc = next;
-      setBuilt(next);
+      setState({ key: reqKey, built: next, loading: !settled, failed: false });
       if (settled) cache.set(cacheKey, next);
     };
 
@@ -211,33 +206,38 @@ function useBuiltCatalog(kind: BpCatalogKind): {
         if (results.some((r) => r.status === "fulfilled" && r.value)) {
           settled = true;
           cache.set(cacheKey, acc);
-          setLoading(false);
+          setState({ key: reqKey, built: acc, loading: false, failed: false });
           return;
         }
       }
       const fallback = await buildFallback(kind);
       if (cancelled) return;
       settled = true;
-      // A build with nothing in it is not an answer. Caching it would pin the
-      // failure screen for the rest of the session.
       if (fallback.rows.length > 0) cache.set(cacheKey, fallback);
-      commit(fallback);
-      setFailed(fallback.rows.length === 0);
-      setLoading(false);
+      acc = fallback;
+      setState({
+        key: reqKey,
+        built: fallback,
+        loading: false,
+        failed: fallback.rows.length === 0,
+      });
     })().catch(() => {
       if (cancelled) return;
-      setFailed(true);
-      setLoading(false);
+      setState({ key: reqKey, built: EMPTY, loading: false, failed: true });
     });
 
     return () => {
       cancelled = true;
     };
-  }, [cacheKey, kind, tmdbKey, region, attempt]);
+  }, [cacheKey, reqKey, kind, tmdbKey, region]);
 
   const retry = useCallback(() => setAttempt((n) => n + 1), []);
 
-  return { built, loading, failed, retry };
+  if (primed) return { built: primed, loading: false, failed: false, retry };
+  if (state.key === reqKey) {
+    return { built: state.built, loading: state.loading, failed: state.failed, retry };
+  }
+  return { built: EMPTY, loading: true, failed: false, retry };
 }
 
 export function useBpCatalogPage(kind: BpCatalogKind): BpCatalogPage {

@@ -137,6 +137,21 @@ function emptyCopy(params: {
   return t("Nothing here yet.");
 }
 
+function initialTabPrefs(tab: BpLibTab) {
+  const section = tab === "local" || tab === "media-servers" ? tab : null;
+  const saved = section ? readLibraryFilterPreferences(section) : {};
+  return {
+    group:
+      section === "media-servers" && saved.server && saved.server !== "all" ? saved.server : "",
+    library:
+      section === "media-servers" && saved.library && saved.library !== "all" ? saved.library : "",
+    genres: new Set(saved.genres ?? []),
+    type: saved.type ?? ("all" as TypeKey),
+    ownedSort: saved.sort ?? ("added" as LocalSortKey),
+    sortDir: saved.sortDir ?? ("desc" as SortDir),
+  };
+}
+
 export function BpLibrary({ onSelect }: { onSelect: (m: Meta) => void }) {
   const t = useBpT();
   const { settings, update } = useSettings();
@@ -144,58 +159,88 @@ export function BpLibrary({ onSelect }: { onSelect: (m: Meta) => void }) {
   const [stored, setTab] = useBpPersistedState<BpLibTab>("libraryTab", "library");
   const tab = tabs.some((x) => x.id === stored) ? stored : tabs[0].id;
 
-  const [type, setType] = useState<TypeKey>("all");
+  const [prevTab, setPrevTab] = useState(tab);
+  const [init] = useState(() => initialTabPrefs(tab));
+  const [type, setType] = useState<TypeKey>(init.type);
   const [query, setQuery] = useState("");
-  const [group, setGroup] = useState("");
-  const [library, setLibrary] = useState("");
-  const [genres, setGenres] = useState<Set<string>>(() => new Set());
-  const [ownedSort, setOwnedSort] = useState<LocalSortKey>("added");
-  const [sortDir, setSortDir] = useState<SortDir>("desc");
+  const [group, setGroup] = useState(init.group);
+  const [library, setLibrary] = useState(init.library);
+  const [genres, setGenres] = useState<Set<string>>(() => init.genres);
+  const [ownedSort, setOwnedSort] = useState<LocalSortKey>(init.ownedSort);
+  const [sortDir, setSortDir] = useState<SortDir>(init.sortDir);
   const [flat, setFlat] = useState(false);
   const [episodes, setEpisodes] = useState(true);
   const [searching, setSearching] = useState(false);
   const [filtering, setFiltering] = useState(false);
   const [limit, setLimit] = useState(PAGE);
-  const [filterPrefsSection, setFilterPrefsSection] = useState<"local" | "media-servers" | null>(
-    null,
-  );
 
   const feed = useBpLibraryFeed(tab);
   const sort: SortKey = settings.librarySort;
 
-  useEffect(() => {
-    const section = tab === "local" || tab === "media-servers" ? tab : null;
-    const saved = section ? readLibraryFilterPreferences(section) : {};
-    setGroup(
-      section === "media-servers" && saved.server && saved.server !== "all" ? saved.server : "",
-    );
-    setLibrary(
-      section === "media-servers" && saved.library && saved.library !== "all" ? saved.library : "",
-    );
-    setGenres(new Set(saved.genres ?? []));
+  if (prevTab !== tab) {
+    setPrevTab(tab);
+    const next = initialTabPrefs(tab);
+    setGroup(next.group);
+    setLibrary(next.library);
+    setGenres(next.genres);
     setQuery("");
-    setType(saved.type ?? "all");
-    setOwnedSort(saved.sort ?? "added");
-    setSortDir(saved.sortDir ?? "desc");
-    setFilterPrefsSection(section);
-  }, [tab]);
+    setType(next.type);
+    setOwnedSort(next.ownedSort);
+    setSortDir(next.sortDir);
+  }
 
   useEffect(() => {
-    if (filterPrefsSection == null || filterPrefsSection !== tab) return;
-    writeLibraryFilterPreferences(filterPrefsSection, {
+    if (tab !== "local" && tab !== "media-servers") return;
+    writeLibraryFilterPreferences(tab, {
       type,
       genres: [...genres],
       sort: ownedSort,
       sortDir,
-      ...(filterPrefsSection === "media-servers"
-        ? { server: group || "all", library: library || "all" }
-        : {}),
+      ...(tab === "media-servers" ? { server: group || "all", library: library || "all" } : {}),
     });
-  }, [filterPrefsSection, tab, type, genres, ownedSort, sortDir, group, library]);
+  }, [tab, type, genres, ownedSort, sortDir, group, library]);
 
-  useEffect(() => {
+  const [limitDeps, setLimitDeps] = useState({
+    tab,
+    type,
+    query,
+    group,
+    library,
+    genres,
+    sort,
+    ownedSort,
+    sortDir,
+    flat,
+    episodes,
+  });
+  if (
+    limitDeps.tab !== tab ||
+    limitDeps.type !== type ||
+    limitDeps.query !== query ||
+    limitDeps.group !== group ||
+    limitDeps.library !== library ||
+    limitDeps.genres !== genres ||
+    limitDeps.sort !== sort ||
+    limitDeps.ownedSort !== ownedSort ||
+    limitDeps.sortDir !== sortDir ||
+    limitDeps.flat !== flat ||
+    limitDeps.episodes !== episodes
+  ) {
+    setLimitDeps({
+      tab,
+      type,
+      query,
+      group,
+      library,
+      genres,
+      sort,
+      ownedSort,
+      sortDir,
+      flat,
+      episodes,
+    });
     setLimit(PAGE);
-  }, [tab, type, query, group, library, genres, sort, ownedSort, sortDir, flat, episodes]);
+  }
 
   const scoped = useMemo(
     () =>

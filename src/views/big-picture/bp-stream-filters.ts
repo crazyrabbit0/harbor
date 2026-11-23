@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Addon } from "@/lib/addons";
 import {
   QUALITY_ORDER,
@@ -189,12 +189,22 @@ export function useBpStreamFilters(params: {
     [displayStreams, addonRank, addonLogoFor],
   );
 
+  const activeAddonFilter =
+    addonFilter !== "all" &&
+    displayStreams.length > 0 &&
+    !displayStreams.some((s) => addonInstanceKey(s) === addonFilter)
+      ? "all"
+      : addonFilter;
+  if (activeAddonFilter !== addonFilter) {
+    setAddonFilter("all");
+  }
+
   const addonFiltered = useMemo(
     () =>
-      addonFilter === "all"
+      activeAddonFilter === "all"
         ? displayStreams
-        : displayStreams.filter((s) => addonInstanceKey(s) === addonFilter),
-    [displayStreams, addonFilter],
+        : displayStreams.filter((s) => addonInstanceKey(s) === activeAddonFilter),
+    [displayStreams, activeAddonFilter],
   );
 
   const qualityChips = useMemo(() => {
@@ -212,12 +222,19 @@ export function useBpStreamFilters(params: {
     return out;
   }, [addonFiltered, facet]);
 
+  const activeQuality =
+    quality !== "all" && !qualityChips.some((c) => c.key === quality) ? "all" : quality;
+  if (activeQuality !== quality) {
+    setQuality("all");
+  }
+
   const allFacets = useMemo(
     () =>
       BP_FACET_DIMS.map((dim) => {
         const pool = addonFiltered.filter(
           (s) =>
-            (quality === "all" || qualityKey(s) === quality) && matchesFacets(s, facet, dim.key),
+            (activeQuality === "all" || qualityKey(s) === activeQuality) &&
+            matchesFacets(s, facet, dim.key),
         );
         return {
           key: dim.key,
@@ -227,39 +244,42 @@ export function useBpStreamFilters(params: {
           options: facetOptions(pool, dim),
         };
       }),
-    [addonFiltered, facet, quality],
+    [addonFiltered, facet, activeQuality],
   );
 
-  useEffect(() => {
-    for (const f of allFacets) {
-      if (f.value !== "all" && !f.options.some((o) => o.key === f.value)) {
-        setFacetState((prev) => ({ ...prev, [f.key]: "all" }));
-      }
-    }
-  }, [allFacets]);
-
-  useEffect(() => {
-    if (quality !== "all" && !qualityChips.some((c) => c.key === quality)) setQuality("all");
-  }, [quality, qualityChips]);
-
-  useEffect(() => {
-    if (addonFilter !== "all" && addonFiltered.length === 0 && displayStreams.length > 0) {
-      setAddonFilter("all");
-    }
-  }, [addonFilter, addonFiltered.length, displayStreams.length]);
-
-  // A dimension where every stream lands on the same value cannot narrow
-  // anything, and on a controller each dead chip is an extra press.
-  const facets = useMemo(
-    () => allFacets.filter((f) => f.options.length >= 2 || f.value !== "all"),
+  const staleFacets = useMemo(
+    () => allFacets.filter((f) => f.value !== "all" && !f.options.some((o) => o.key === f.value)),
     [allFacets],
+  );
+  if (staleFacets.length > 0) {
+    setFacetState((prev) => {
+      const next = { ...prev };
+      for (const f of staleFacets) next[f.key] = "all";
+      return next;
+    });
+  }
+  const activeFacet = useMemo(() => {
+    if (staleFacets.length === 0) return facet;
+    const next = { ...facet };
+    for (const f of staleFacets) next[f.key] = "all";
+    return next;
+  }, [facet, staleFacets]);
+
+  const facets = useMemo(
+    () =>
+      allFacets
+        .map((f) => (staleFacets.some((s) => s.key === f.key) ? { ...f, value: "all" } : f))
+        .filter((f) => f.options.length >= 2 || f.value !== "all"),
+    [allFacets, staleFacets],
   );
 
   const streams = useMemo(() => {
     const visible = addonFiltered.filter(
-      (s) => (quality === "all" || qualityKey(s) === quality) && matchesFacets(s, facet),
+      (s) =>
+        (activeQuality === "all" || qualityKey(s) === activeQuality) &&
+        matchesFacets(s, activeFacet),
     );
-    if (addonFilter !== "all") return visible;
+    if (activeAddonFilter !== "all") return visible;
     if (addonOrderMode || hostMatch) return visible;
     const sorted = visible.slice().sort((a, b) => {
       const aw = isWatchHub(a) ? 1 : 0;
@@ -278,7 +298,16 @@ export function useBpStreamFilters(params: {
     });
     if (!pinned || !sorted.includes(pinned)) return sorted;
     return [pinned, ...sorted.filter((s) => s !== pinned)];
-  }, [addonFiltered, quality, facet, addonFilter, addonOrderMode, addonRank, hostMatch, pinned]);
+  }, [
+    addonFiltered,
+    activeQuality,
+    activeFacet,
+    activeAddonFilter,
+    addonOrderMode,
+    addonRank,
+    hostMatch,
+    pinned,
+  ]);
 
   const pickerAll = result?.picker.all ?? [];
   const langHiddenCount = useMemo(() => {
@@ -291,21 +320,21 @@ export function useBpStreamFilters(params: {
   }, [pickerAll, debrids.length, isCached]);
 
   const filtered =
-    quality !== "all" ||
-    addonFilter !== "all" ||
+    activeQuality !== "all" ||
+    activeAddonFilter !== "all" ||
     cachedOnly ||
     langFilter ||
-    Object.values(facet).some((v) => v && v !== "all");
+    Object.values(activeFacet).some((v) => v && v !== "all");
 
   return {
     streams,
     total: displayStreams.length,
-    quality,
+    quality: activeQuality,
     setQuality,
     qualityChips,
     facets,
     setFacet: (key, value) => setFacetState((prev) => ({ ...prev, [key]: value })),
-    addonFilter,
+    addonFilter: activeAddonFilter,
     setAddonFilter,
     addonOptions,
     cachedOnly,

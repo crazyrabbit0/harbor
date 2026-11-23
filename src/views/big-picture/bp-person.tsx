@@ -40,19 +40,14 @@ const MIN_RATINGS = [0, 6, 7, 8];
 // the clamp was cut with no way to finish it.
 function useBioClipped(text: string, expanded: boolean) {
   const ref = useRef<HTMLParagraphElement | null>(null);
-  const [clipped, setClipped] = useState(false);
-
-  useLayoutEffect(() => {
-    setClipped(false);
-  }, [text]);
+  const [clippedFor, setClippedFor] = useState<string | null>(null);
+  const clipped = Boolean(text) && clippedFor === text;
 
   useLayoutEffect(() => {
     const el = ref.current;
-    // Expanding drops the clamp, so the element stops overflowing and a fresh
-    // measurement would pull the chip out from under the focus ring.
-    if (!el || expanded) return;
+    if (!el || expanded || !text) return;
     const measure = () => {
-      if (el.scrollHeight > el.clientHeight + 1) setClipped(true);
+      if (el.scrollHeight > el.clientHeight + 1) setClippedFor(text);
     };
     measure();
     const ro = new ResizeObserver(measure);

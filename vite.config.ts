@@ -93,6 +93,7 @@ const SET_STATE_IN_EFFECT_DIRS = [
   "/src/views/anime/",
   "/src/views/award.tsx",
   "/src/views/award/",
+  "/src/views/big-picture/",
   "/src/views/brands.tsx",
   "/src/views/calendar.tsx",
   "/src/views/calendar/",

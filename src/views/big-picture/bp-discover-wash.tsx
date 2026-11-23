@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 const BAND_ANGLE: Record<string, string> = {
   queue: "120deg",
@@ -38,15 +38,14 @@ export function BpDiscoverWash({ tint, bandId }: { tint: string | null; bandId: 
     front: "a",
   }));
 
-  useEffect(() => {
-    setPair((prev) => {
-      const live = prev[prev.front];
-      if (live.colour === colour && live.angle === angle) return prev;
-      return prev.front === "a"
-        ? { a: prev.a, b: { colour, angle }, front: "b" }
-        : { a: { colour, angle }, b: prev.b, front: "a" };
-    });
-  }, [colour, angle]);
+  const live = pair[pair.front];
+  if (live.colour !== colour || live.angle !== angle) {
+    setPair(
+      pair.front === "a"
+        ? { a: pair.a, b: { colour, angle }, front: "b" }
+        : { a: { colour, angle }, b: pair.b, front: "a" },
+    );
+  }
 
   return (
     <>

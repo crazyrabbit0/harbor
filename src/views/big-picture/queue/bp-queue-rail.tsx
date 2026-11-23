@@ -168,10 +168,11 @@ export function BpQueueRail({
 }) {
   const t = useBpT();
   const [hint, setHint] = useState("");
-  const [listsOpen, setListsOpen] = useState(false);
+  const [listsOpenFor, setListsOpenFor] = useState<string | null>(null);
   const [host, setHost] = useState<HTMLElement | null>(null);
   const sectionRef = useRef<HTMLElement | null>(null);
   const meta = entry.meta;
+  const listsOpen = listsOpenFor === meta.id;
 
   const dialogRef = useRef(onDialog);
   useLayoutEffect(() => {
@@ -199,14 +200,12 @@ export function BpQueueRail({
     return () => dialogRef.current(false);
   }, [listsOpen]);
 
-  useEffect(() => setListsOpen(false), [meta.id]);
-
   const actions = useBpQueueActions({
     entry,
     onDetails,
     onSkip,
     onBlock,
-    onLists: () => setListsOpen(true),
+    onLists: () => setListsOpenFor(meta.id),
   });
 
   /* Never mounted inside the section. Two separate breakages if it is:
@@ -218,7 +217,7 @@ export function BpQueueRail({
   const sheet = listsOpen ? (
     <BpListDialog
       item={{ id: meta.id, type: meta.type, name: meta.name, poster: meta.poster }}
-      onClose={() => setListsOpen(false)}
+      onClose={() => setListsOpenFor(null)}
     />
   ) : null;
 

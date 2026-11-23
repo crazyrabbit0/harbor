@@ -70,16 +70,15 @@ export function useBpServiceRows(service: StreamingService): BpServiceRows {
   const { settings } = useSettings();
   const tmdbKey = settings.tmdbKey;
   const region = settings.region;
-  const [rows, setRows] = useState<HomeRow[]>(NO_ROWS);
-  const [loading, setLoading] = useState(true);
+  const reqKey = tmdbKey ? `${service}\0${tmdbKey}\0${region}` : "";
+  const [state, setState] = useState<{ key: string; rows: HomeRow[]; done: boolean }>({
+    key: "",
+    rows: NO_ROWS,
+    done: false,
+  });
 
   useEffect(() => {
-    setRows(NO_ROWS);
-    if (!tmdbKey) {
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
+    if (!reqKey) return;
     let cancelled = false;
     let acc: HomeRow[] = NO_ROWS;
     const ids = providerIdsFor(SERVICES[service]);
@@ -94,15 +93,22 @@ export function useBpServiceRows(service: StreamingService): BpServiceRows {
       const metas = await withTimeout(page(1), CATALOG_REQUEST_TIMEOUT_MS);
       if (cancelled || metas.length === 0) return;
       acc = upsertOrdered(acc, serviceRow(service, cat, metas, page), order);
-      setRows(acc);
+      setState({ key: reqKey, rows: acc, done: false });
     }).then(() => {
-      if (!cancelled) setLoading(false);
+      if (!cancelled) {
+        setState((cur) =>
+          cur.key === reqKey ? { ...cur, done: true } : { key: reqKey, rows: NO_ROWS, done: true },
+        );
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [service, tmdbKey, region]);
+  }, [reqKey, service, tmdbKey, region]);
 
-  return { rows, loading, hasKey: Boolean(tmdbKey) };
+  if (!reqKey) return { rows: NO_ROWS, loading: false, hasKey: false };
+  const rows = state.key === reqKey ? state.rows : NO_ROWS;
+  const loading = state.key !== reqKey || !state.done;
+  return { rows, loading, hasKey: true };
 }

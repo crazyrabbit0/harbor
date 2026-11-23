@@ -39,6 +39,9 @@ import { useStreamIds } from "@/views/play-picker/use-stream-ids";
 import { useBpStreamFilters, type BpStreamFilters } from "./bp-stream-filters";
 
 const ANIME_ID_RE = /^(kitsu|mal|anilist|anidb):/;
+const EMPTY_COPIES: PlayableCopy[] = [];
+const EMPTY_CONNECTIONS: MediaServerConnection[] = [];
+const EMPTY_ITEMS: MediaServerItem[] = [];
 
 export type BpCachedOn = { name: string; owned: boolean };
 
@@ -93,14 +96,16 @@ export function useBpStreams(params: { meta: Meta; episode?: PlayEpisode }): BpS
   const streamIds = useStreamIds(meta, episode, resolvedImdb.id);
   const animeTitles = useAnimeAltTitles(meta);
   const { hostSource, snapshot: roomSnapshot, clientId } = useTogether();
+  const resetKey = `${meta.id}\0${episode?.season ?? ""}\0${episode?.episode ?? ""}\0${settings.streamFilterLevel}`;
+  const [resetFor, setResetFor] = useState(resetKey);
   const [strictMode, setStrictMode] = useState(settings.streamFilterLevel === "strict");
   const [forceShowAll, setForceShowAll] = useState(false);
-  const filterDisabled = settings.streamFilterLevel === "off" || forceShowAll;
-
-  useEffect(() => {
+  if (resetFor !== resetKey) {
+    setResetFor(resetKey);
     setStrictMode(settings.streamFilterLevel === "strict");
     setForceShowAll(false);
-  }, [meta.id, episode?.season, episode?.episode, settings.streamFilterLevel]);
+  }
+  const filterDisabled = settings.streamFilterLevel === "off" || forceShowAll;
 
   const {
     result,
@@ -257,16 +262,17 @@ export function useBpStreams(params: { meta: Meta; episode?: PlayEpisode }): BpS
       : findLocalMovieVersions(tmdbId, resolvedImdb.id);
   }, [meta.id, resolvedImdb.id, episode]);
 
+  const homeKey = `${meta.id}\0${resolvedImdb.id ?? ""}\0${episode?.season ?? ""}\0${episode?.episode ?? ""}`;
   const [homeServerState, setHomeServerState] = useState<{
+    key: string;
     copies: PlayableCopy[];
     connections: MediaServerConnection[];
     items: MediaServerItem[];
-  }>({ copies: [], connections: [], items: [] });
-  const [homeServersLoaded, setHomeServersLoaded] = useState(false);
+  }>({ key: "", copies: [], connections: [], items: [] });
+  const homeServersLoaded = homeServerState.key === homeKey;
 
   useEffect(() => {
     let cancelled = false;
-    setHomeServersLoaded(false);
     const match = meta.id.match(/^tmdb:(?:movie|tv):(\d+)$/);
     const identity = {
       tmdbId: match ? Number(match[1]) : undefined,
@@ -283,16 +289,16 @@ export function useBpStreams(params: { meta: Meta; episode?: PlayEpisode }): BpS
         episode?.episode,
       );
       setHomeServerState({
+        key: homeKey,
         copies: serverPlayableCopies(items, connections),
         connections,
         items,
       });
-      setHomeServersLoaded(true);
     });
     return () => {
       cancelled = true;
     };
-  }, [meta.id, resolvedImdb.id, episode?.season, episode?.episode]);
+  }, [homeKey, meta.id, resolvedImdb.id, episode?.season, episode?.episode]);
 
   const pendingAddonCount = useMemo(() => {
     if (!addons || pipelineDone) return 0;
@@ -336,9 +342,9 @@ export function useBpStreams(params: { meta: Meta; episode?: PlayEpisode }): BpS
     imdbIdVerified: resolvedImdb.verified,
     isAnime,
     localFiles,
-    homeServerCopies: homeServerState.copies,
-    homeServerConnections: homeServerState.connections,
-    homeServerItems: homeServerState.items,
+    homeServerCopies: homeServersLoaded ? homeServerState.copies : EMPTY_COPIES,
+    homeServerConnections: homeServersLoaded ? homeServerState.connections : EMPTY_CONNECTIONS,
+    homeServerItems: homeServersLoaded ? homeServerState.items : EMPTY_ITEMS,
     homeServersLoaded,
     noSources: addons !== null && addons.length === 0 && debrids.length === 0,
     rememberedStream,

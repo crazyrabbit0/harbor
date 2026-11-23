@@ -74,14 +74,10 @@ export function BpAmbient({ pool, still }: { pool: Meta[]; still?: boolean }) {
   }, [detail?.backdrop, detail?.gallery.backdrops[0], meta, fallback, settings.heroFullQuality]);
 
   const { src: trailerSrc } = useBpTrailer(ownsTitle ? meta : null);
-  const [trailerReady, setTrailerReady] = useState(false);
+  const [readySrc, setReadySrc] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
-  const playing = Boolean(trailerSrc) && trailerReady;
-  const onTrailerReady = useCallback(() => setTrailerReady(true), []);
-
-  useEffect(() => {
-    setTrailerReady(false);
-  }, [trailerSrc]);
+  const playing = Boolean(trailerSrc) && readySrc === trailerSrc;
+  const onTrailerReady = useCallback(() => setReadySrc(trailerSrc), [trailerSrc]);
 
   useEffect(() => {
     const v = videoRef.current;
@@ -354,18 +350,16 @@ export function BpAmbient({ pool, still }: { pool: Meta[]; still?: boolean }) {
   });
 
   useEffect(() => {
-    if (mosaic.key === wantKey) {
-      if (mosaic.posters !== wantPosters) setMosaic({ key: wantKey, posters: wantPosters });
-      return;
-    }
+    if (mosaic.key === wantKey) return;
     const timer = window.setTimeout(
       () => setMosaic({ key: wantKey, posters: wantPosters }),
       MOSAIC_SWAP_MS,
     );
     return () => window.clearTimeout(timer);
-  }, [wantKey, wantPosters, mosaic]);
+  }, [wantKey, wantPosters, mosaic.key]);
 
-  const mosaicOn = mosaic.key === wantKey && wantKey !== "" && mosaic.posters.length >= MOSAIC_MIN;
+  const mosaicPosters = mosaic.key === wantKey ? wantPosters : mosaic.posters;
+  const mosaicOn = mosaic.key === wantKey && wantKey !== "" && mosaicPosters.length >= MOSAIC_MIN;
 
   // A gradient needs no decode, so the wash commits on the same tick the band
   // settles. A still commits when it has actually painted. The floor is there so
@@ -395,7 +389,7 @@ export function BpAmbient({ pool, still }: { pool: Meta[]; still?: boolean }) {
       wash={wash}
       washOn={washOn}
       mosaicKey={mosaic.key}
-      mosaicPosters={mosaic.posters}
+      mosaicPosters={mosaicPosters}
       mosaicOn={mosaicOn}
       stills={stills}
       stillBand={band?.id ?? ""}

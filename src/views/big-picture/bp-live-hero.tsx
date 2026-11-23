@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { isRtl, useUiLanguage } from "@/lib/i18n";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
@@ -35,36 +35,30 @@ const PAGE_FADE =
 const TOP_FADE =
   "linear-gradient(to bottom, color-mix(in oklab, var(--bp-void) 80%, transparent) 0%, transparent 26%)";
 
+const NOOP_SUBSCRIBE = () => () => {};
+const readAmbientRoot = () =>
+  typeof document === "undefined" ? null : document.querySelector<HTMLElement>("[data-bp-ambient]");
+
 export function BpLiveHero({ item }: { item: NowItem | null }) {
   const reduced = useReducedMotion();
   const pageVisible = usePageVisible();
   const { stackKinds } = useView();
   const rtl = isRtl(useUiLanguage());
   const panelRef = useRef<HTMLDivElement | null>(null);
-  const [root, setRoot] = useState<HTMLElement | null>(null);
+  const root = useSyncExternalStore(NOOP_SUBSCRIBE, readAmbientRoot);
   const [armedId, setArmedId] = useState("");
-  const [playing, setPlaying] = useState(false);
+  const [playingId, setPlayingId] = useState("");
   const [, markFailed] = useReducer((n: number) => n + 1, 0);
 
   const channel = item?.channel ?? null;
   const channelId = channel?.id ?? "";
+  const playing = channelId !== "" && playingId === channelId;
 
-  // Into the ambient, never into [data-bp-root]. A portal appends as the last
-  // child, so mounting at root put a full height video above every row and hid
-  // the page behind it. The ambient is the backdrop layer and paints under main,
-  // which is the only place a full bleed preview can live. Positioning stays
-  // absolute so it escapes the rail's transform.
-  useEffect(() => {
-    setRoot(document.querySelector<HTMLElement>("[data-bp-ambient]"));
-  }, []);
-
-  // The dwell is held as the channel id, not a boolean. A boolean is still true
-  // for the one render between a new channel arriving and this effect clearing
-  // it, and MultiPlayer mounting in that render opens a socket with no dwell at
-  // all and flashes the outgoing channel's opacity onto it.
-  useEffect(() => {
-    setPlaying(false);
+  if (armedId && armedId !== channelId) {
     setArmedId("");
+  }
+
+  useEffect(() => {
     if (!channelId) return;
     const id = window.setTimeout(() => setArmedId(channelId), HERO_DWELL_MS);
     return () => window.clearTimeout(id);
@@ -111,10 +105,10 @@ export function BpLiveHero({ item }: { item: NowItem | null }) {
         muted
         exclusive
         cover
-        onPlaying={() => setPlaying(true)}
+        onPlaying={() => setPlayingId(channel.id)}
         onError={() => {
           FAILED.add(channel.id);
-          setPlaying(false);
+          setPlayingId("");
           markFailed();
         }}
       />

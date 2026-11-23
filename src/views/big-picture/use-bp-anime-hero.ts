@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { animeFiltered, enrichAnimeCountry, type AnimeFilterOpts } from "@/lib/anime-filter";
 import { fetchHostedHero, peekHostedHero, type HostedHeroItem } from "@/lib/anime-hosted-hero";
 import type { Meta } from "@/lib/cinemeta";
@@ -99,10 +99,22 @@ export function useBpAnimeHero(
   );
   const [malExtra, setMalExtra] = useState<MalHeroItem[]>([]);
   const [poolVersion, setPoolVersion] = useState(0);
+  const [prevFilterSig, setPrevFilterSig] = useState(filterSig);
+  const [upgradedHosted, setUpgradedHosted] = useState<{
+    sig: string;
+    seed: number;
+    hero: HeroBuilt;
+  } | null>(null);
   const buildRef = useRef(0);
   const resolvedRef = useRef(false);
   const buildingRef = useRef(false);
-  const filterInitRef = useRef(true);
+  const hostedKeyRef = useRef("");
+
+  if (prevFilterSig !== filterSig) {
+    setPrevFilterSig(filterSig);
+    setSeed(((seed * 1664525 + 1013904223) >>> 0) & 0x7fffffff);
+    setHero(readCachedHero(filterSig) ?? { metas: [], trending: {} });
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -130,43 +142,43 @@ export function useBpAnimeHero(
   }, []);
 
   useEffect(() => {
-    if (filterInitRef.current) {
-      filterInitRef.current = false;
-      return;
-    }
     resolvedRef.current = false;
-    setSeed(Math.floor(Math.random() * 0x7fffffff));
-    setHero({ metas: [], trending: {} });
+    hostedKeyRef.current = "";
   }, [filterSig]);
 
-  const buildHosted = useCallback(
-    (at: number): boolean => {
-      if (!hosted || hosted.length < 3) return false;
-      const built = buildHostedHero(hosted, at, filterOpts);
-      if (built.metas.length < 3) return false;
+  const hostedBuilt = useMemo(
+    () => (hosted && hosted.length >= 3 ? buildHostedHero(hosted, seed, filterOpts) : null),
+    [hosted, seed, filterOpts],
+  );
+  const hostedReady = Boolean(hostedBuilt && hostedBuilt.metas.length >= 3);
+  const activeHero =
+    hostedReady && hostedBuilt
+      ? upgradedHosted?.sig === filterSig && upgradedHosted.seed === seed
+        ? upgradedHosted.hero
+        : hostedBuilt
+      : hero;
+
+  useEffect(() => {
+    if (hostedReady && hostedBuilt) {
       resolvedRef.current = true;
+      const hostedKey = `${filterSig}:${seed}:${hosted?.length ?? 0}`;
+      if (hostedKeyRef.current === hostedKey) return;
+      hostedKeyRef.current = hostedKey;
       const buildId = ++buildRef.current;
-      setHero(built);
-      cacheHero(built, filterSig);
-      void upgradeHeroArtFromStatic(built).then((up) => {
+      cacheHero(hostedBuilt, filterSig);
+      void upgradeHeroArtFromStatic(hostedBuilt).then((up) => {
         if (buildRef.current === buildId) {
-          setHero(up);
+          setUpgradedHosted({ sig: filterSig, seed, hero: up });
           cacheHero(up, filterSig);
         }
       });
-      return true;
-    },
-    [hosted, filterOpts, filterSig],
-  );
-
-  useEffect(() => {
-    if (hero.metas.length === 0 && buildHosted(seed)) return;
+      return;
+    }
     if (resolvedRef.current) return;
     if (hero.metas.length > 0 && isHeroCacheFresh(filterSig)) {
       resolvedRef.current = true;
       return;
     }
-    if (buildHosted(seed)) return;
     const ready = SPECS.filter((s) => rowsByKey[s.key]?.ready).length;
     if (ready < 2 && anilistTrending.length === 0) return;
     if (buildingRef.current) return;
@@ -192,14 +204,16 @@ export function useBpAnimeHero(
     anilistTrending,
     settings.tmdbKey,
     filterSig,
-    buildHosted,
     filterOpts,
+    hostedReady,
+    hostedBuilt,
+    hosted?.length,
   ]);
 
   const slides = useMemo(
     () =>
       readAtVersion(poolVersion, () => {
-        const front = frontSlides(hero.metas, filterOpts);
+        const front = frontSlides(activeHero.metas, filterOpts);
         if (front.length === 0) return front;
         const seenBg = new Set(front.map((m) => m.background));
         const seenFr = new Set(front.filter((m) => m.name).map((m) => animeFranchiseKey(m.name)));
@@ -222,17 +236,17 @@ export function useBpAnimeHero(
         for (const m of staticHeroPool()) if (consider(m)) bulk.push(m);
         return [...front, ...interleave(bulk, malPool)];
       }),
-    [hero.metas, filterOpts, malExtra, poolVersion],
+    [activeHero.metas, filterOpts, malExtra, poolVersion],
   );
 
   const trending = useMemo(() => {
-    const out: Record<string, string> = { ...hero.trending };
+    const out: Record<string, string> = { ...activeHero.trending };
     for (const s of slides)
       if (!(s.id in out)) out[s.id] = heroSourceLabel((s as { source?: string }).source);
     return out;
-  }, [hero.trending, slides]);
+  }, [activeHero.trending, slides]);
 
-  return { metas: hero.metas, slides, trending, hosted, anilistTrending };
+  return { metas: activeHero.metas, slides, trending, hosted, anilistTrending };
 }
 
 export function useBpAnimeTopPicks(params: {

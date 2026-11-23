@@ -18,21 +18,25 @@ const loadMangaApi = () => import("@/lib/manga/api");
 export function BpHeroManga({ meta }: { meta: Meta }) {
   const t = useBpT();
   const { openEBook, openManga } = useViewActions();
-  const [source, setSource] = useState<AnimeReadingSource | null>(null);
+  const reqKey = `${meta.id}\0${meta.malId ?? ""}\0${meta.name ?? ""}`;
+  const [state, setState] = useState<{ key: string; source: AnimeReadingSource | null }>({
+    key: "",
+    source: null,
+  });
+  const source = state.key === reqKey ? state.source : null;
   const poster = useProxiedImageSrc(bpCardArt(source?.node.poster, THUMB_W));
 
   useEffect(() => {
     let cancelled = false;
-    setSource(null);
     resolveAnimeSourceReading(meta.id, meta.malId, meta.name ?? "")
       .then((resolved) => {
-        if (!cancelled) setSource(resolved);
+        if (!cancelled) setState({ key: reqKey, source: resolved });
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [meta.id, meta.malId, meta.name]);
+  }, [reqKey, meta.id, meta.malId, meta.name]);
 
   if (!source) return null;
   const { kind, node } = source;

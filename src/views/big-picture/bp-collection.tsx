@@ -26,7 +26,9 @@ type CollectionState = {
 };
 
 function useBpCollection(id: number, fallbackName: string): CollectionState {
-  const [state, setState] = useState<CollectionState>({
+  const reqKey = `${id}\0${fallbackName}`;
+  const [state, setState] = useState<{ key: string } & CollectionState>({
+    key: reqKey,
     name: fallbackName,
     overview: null,
     metas: [],
@@ -35,16 +37,16 @@ function useBpCollection(id: number, fallbackName: string): CollectionState {
 
   useEffect(() => {
     let alive = true;
-    setState({ name: fallbackName, overview: null, metas: [], loading: true });
     void fetchTvdbCollection(id)
       .then(async (coll) => {
         if (!alive) return;
         if (!coll) {
-          setState({ name: fallbackName, overview: null, metas: [], loading: false });
+          setState({ key: reqKey, name: fallbackName, overview: null, metas: [], loading: false });
           return;
         }
         const wanted = coll.entries.slice(0, MAX_ENTRIES).map((e, i) => ({ e, i }));
         setState({
+          key: reqKey,
           name: coll.name,
           overview: coll.overview,
           metas: [],
@@ -55,21 +57,26 @@ function useBpCollection(id: number, fallbackName: string): CollectionState {
           const card = await fetchTvdbEntity(e.kind, e.tvdbId).catch(() => null);
           if (!alive || !card) return;
           found[i] = entityToMeta(card);
-          setState((prev) => ({
-            ...prev,
-            metas: found.filter((m): m is Meta => m !== null),
-          }));
+          setState((prev) =>
+            prev.key === reqKey
+              ? { ...prev, metas: found.filter((m): m is Meta => m !== null) }
+              : prev,
+          );
         });
-        if (alive) setState((prev) => ({ ...prev, loading: false }));
+        if (alive) setState((prev) => (prev.key === reqKey ? { ...prev, loading: false } : prev));
       })
       .catch(() => {
-        if (alive) setState({ name: fallbackName, overview: null, metas: [], loading: false });
+        if (alive)
+          setState({ key: reqKey, name: fallbackName, overview: null, metas: [], loading: false });
       });
     return () => {
       alive = false;
     };
-  }, [id, fallbackName]);
+  }, [reqKey, id, fallbackName]);
 
+  if (state.key !== reqKey) {
+    return { name: fallbackName, overview: null, metas: [], loading: true };
+  }
   return state;
 }
 

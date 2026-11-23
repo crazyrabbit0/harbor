@@ -89,15 +89,21 @@ function queueStatus(rawLength: number | null, count: number, key: string): BpQu
 export function useBpQueue(): BpQueueState {
   const { settings } = useSettings();
   const key = settings.tmdbKey;
+  const [prevKey, setPrevKey] = useState(key);
   const [rawLength, setRawLength] = useState<number | null>(null);
   const [entries, setEntries] = useState<FeedItem[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [dir, setDir] = useState<1 | -1>(1);
 
-  useEffect(() => {
-    let cancelled = false;
+  if (prevKey !== key) {
+    setPrevKey(key);
     setRawLength(null);
     setActiveId(null);
+    setEntries([]);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
     getPool(key)
       .then((pool) => {
         if (cancelled) return;
@@ -226,12 +232,18 @@ export type BpQueuePeek = {
 export function useBpQueuePeek(count: number): BpQueuePeek {
   const { settings } = useSettings();
   const key = settings.tmdbKey;
+  const [prevKey, setPrevKey] = useState(key);
   const [entries, setEntries] = useState<FeedItem[]>([]);
   const [rawLength, setRawLength] = useState<number | null>(null);
 
+  if (prevKey !== key) {
+    setPrevKey(key);
+    setRawLength(null);
+    setEntries([]);
+  }
+
   useEffect(() => {
     let cancelled = false;
-    setRawLength(null);
     getPool(key)
       .then((pool) => {
         if (cancelled) return;

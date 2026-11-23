@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { BpRail, type BpRailEntry } from "./bp-rail";
 import { useBpRail } from "./use-bp-rail";
 import { useBpLayoutReflow } from "./use-bp-row-layout";
@@ -19,22 +26,41 @@ function bpPhaseOf(target: Element | null): BpPagePhase | null {
   return "row";
 }
 
+function createPhaseStore() {
+  let value: BpPagePhase =
+    bpPhaseOf(typeof document !== "undefined" ? document.activeElement : null) ?? "hero";
+  return {
+    get: () => {
+      const next = bpPhaseOf(typeof document !== "undefined" ? document.activeElement : null);
+      if (next) value = next;
+      return value;
+    },
+    set: (next: BpPagePhase | null) => {
+      if (!next || next === value) return false;
+      value = next;
+      return true;
+    },
+  };
+}
+
 export function useBpPagePhase(ref: RefObject<HTMLElement | null>): BpPagePhase {
-  const [phase, setPhase] = useState<BpPagePhase>("hero");
-  useEffect(() => {
-    const page = ref.current;
-    if (!page) return;
-    const host = bpRootAboveThePage(page);
-    const seeded = bpPhaseOf(document.activeElement);
-    if (seeded) setPhase(seeded);
-    const onFocus = (e: FocusEvent) => {
-      const next = bpPhaseOf(e.target instanceof HTMLElement ? e.target : null);
-      if (next) setPhase(next);
-    };
-    host.addEventListener("focusin", onFocus);
-    return () => host.removeEventListener("focusin", onFocus);
-  }, [ref]);
-  return phase;
+  const [store] = useState(createPhaseStore);
+  const subscribe = useCallback(
+    (onStoreChange: () => void) => {
+      const page = ref.current;
+      if (!page) return () => {};
+      const host = bpRootAboveThePage(page);
+      const onFocus = (e: FocusEvent) => {
+        if (store.set(bpPhaseOf(e.target instanceof HTMLElement ? e.target : null))) {
+          onStoreChange();
+        }
+      };
+      host.addEventListener("focusin", onFocus);
+      return () => host.removeEventListener("focusin", onFocus);
+    },
+    [ref, store],
+  );
+  return useSyncExternalStore(subscribe, store.get);
 }
 
 export function BpCatalogPage({

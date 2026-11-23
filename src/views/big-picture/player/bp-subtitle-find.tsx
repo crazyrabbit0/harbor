@@ -75,6 +75,7 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
   const [searching, setSearching] = useState(false);
   const [limit, setLimit] = useState(PAGE);
   const [addons, setAddons] = useState<Addon[] | null>(null);
+  const [autoStarted, setAutoStarted] = useState(false);
   const seq = useRef(0);
   const ranOnce = useRef(false);
 
@@ -88,12 +89,9 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
     };
   }, [authKey]);
 
-  const run = useCallback(
+  const executeSearch = useCallback(
     async (tgt: BpSubtitleTarget) => {
       const mine = ++seq.current;
-      setSearching(true);
-      setResults(null);
-      setLimit(PAGE);
       const enabled = settings.subProvidersEnabled ?? {};
       const playing = tgt.imdbId === home.imdbId && tgt.title === home.title;
       const opts: SearchOptions = {
@@ -144,12 +142,30 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
     [addons, home, settings, props.candidateIds, props.stremioId],
   );
 
+  const run = useCallback(
+    async (tgt: BpSubtitleTarget) => {
+      ranOnce.current = true;
+      setAutoStarted(true);
+      setSearching(true);
+      setResults(null);
+      setLimit(PAGE);
+      await executeSearch(tgt);
+    },
+    [executeSearch],
+  );
+
+  if (addons !== null && !autoStarted && (target.imdbId || target.title)) {
+    setAutoStarted(true);
+    setSearching(true);
+    setResults(null);
+    setLimit(PAGE);
+  }
+
   useEffect(() => {
-    if (addons === null || ranOnce.current) return;
-    if (!target.imdbId && !target.title) return;
+    if (!autoStarted || ranOnce.current) return;
     ranOnce.current = true;
-    void run(target);
-  }, [addons, target, run]);
+    void executeSearch(target);
+  }, [autoStarted, target, executeSearch]);
 
   const submit = useCallback(async () => {
     const parsed = parseTitleQuery(query);

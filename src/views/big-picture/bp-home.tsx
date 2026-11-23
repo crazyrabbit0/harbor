@@ -49,7 +49,7 @@ export function BpHome({ onSelect }: { onSelect: (m: Meta) => void }) {
   const { settings } = useSettings();
   const numerals = useBpNumerals();
   const { band, art: bandArt } = useBpBandState(BAND_SETTLE_MS);
-  const [identityUp, setIdentityUp] = useState(false);
+  const identityUp = band?.owns === "band";
 
   const services = useMemo(
     () =>
@@ -106,13 +106,6 @@ export function BpHome({ onSelect }: { onSelect: (m: Meta) => void }) {
   }, [seed?.id]);
 
   useEffect(() => () => publishBpBand(null), []);
-
-  // Only a band that owns its own backdrop has nothing better to put in the
-  // hero. A card-owning band already has the focused title, so flashing its
-  // label first just delays the hero and reads as the page loading twice.
-  useEffect(() => {
-    setIdentityUp(band?.owns === "band");
-  }, [band]);
 
   // Every row declares the tab it belongs to, and that is the whole link-out
   // now: Left at the start of the row lands the ring on that tab rather than on

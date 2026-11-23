@@ -42,12 +42,15 @@ export function useBpEpisodeFacts(
 ): BpEpisodeFacts {
   const { settings } = useSettings();
   const key = settings.tmdbKey;
-  const [tmdbFacts, setTmdbFacts] = useState<BpEpisodeFacts>(EMPTY);
+  const reqKey = key && tvId != null && season > 0 ? `${key}\0${tvId}\0${season}` : "";
+  const [tmdbState, setTmdbState] = useState<{ key: string; facts: BpEpisodeFacts }>({
+    key: "",
+    facts: EMPTY,
+  });
   const enrich = useBpEpisodeEnrich(imdbId, season);
 
   useEffect(() => {
-    setTmdbFacts(EMPTY);
-    if (!key || tvId == null || season <= 0) return;
+    if (!key || tvId == null || season <= 0 || !reqKey) return;
     let alive = true;
     const lang = tmdbLanguageIso() || "en";
     void once(`${tvId}:${season}:${lang}`, async () => {
@@ -65,13 +68,15 @@ export function useBpEpisodeFacts(
       return out;
     })
       .then((m) => {
-        if (alive && m.size > 0) setTmdbFacts(m);
+        if (alive && m.size > 0) setTmdbState({ key: reqKey, facts: m });
       })
       .catch(() => {});
     return () => {
       alive = false;
     };
-  }, [key, tvId, season]);
+  }, [reqKey, key, tvId, season]);
+
+  const tmdbFacts = reqKey && tmdbState.key === reqKey ? tmdbState.facts : EMPTY;
 
   return useMemo(() => {
     const prefix = `${season}:`;

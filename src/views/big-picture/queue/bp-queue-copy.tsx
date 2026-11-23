@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useHeroLogos } from "@/components/anime-hero/use-hero-logos";
 import { useProxiedImageSrc } from "@/lib/remote-image-proxy";
 import { useSettings } from "@/lib/settings";
@@ -11,13 +11,10 @@ export const BP_QUEUE_TITLE =
   "font-display text-[clamp(28px,5vh,74px)] font-semibold leading-[1.02] tracking-[-0.025em] text-ink drop-shadow-[0_3px_20px_rgba(0,0,0,0.65)]";
 
 function BpQueueLogo({ title, logo }: { title: string; logo?: string }) {
-  const [loaded, setLoaded] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    setLoaded(false);
-    setFailed(false);
-  }, [logo]);
+  const [loadedFor, setLoadedFor] = useState<string | undefined>(undefined);
+  const [failedFor, setFailedFor] = useState<string | undefined>(undefined);
+  const loaded = Boolean(logo) && loadedFor === logo;
+  const failed = Boolean(logo) && failedFor === logo;
 
   if (!logo || failed) return <h1 className={BP_QUEUE_TITLE}>{title}</h1>;
 
@@ -26,8 +23,8 @@ function BpQueueLogo({ title, logo }: { title: string; logo?: string }) {
       src={logo}
       alt={title}
       decoding="async"
-      onLoad={() => setLoaded(true)}
-      onError={() => setFailed(true)}
+      onLoad={() => setLoadedFor(logo)}
+      onError={() => setFailedFor(logo)}
       style={{ opacity: loaded ? 1 : 0, transition: "opacity var(--bp-dur-slow) var(--bp-ease)" }}
       className="max-h-[clamp(56px,11vh,180px)] w-auto max-w-[min(42vw,700px)] object-contain object-left drop-shadow-[0_6px_26px_rgba(0,0,0,0.7)] rtl:object-right"
     />

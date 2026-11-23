@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { popBigPicture } from "@/lib/big-picture";
 import { hostOf } from "@/lib/addons-store/reorder";
@@ -47,16 +47,13 @@ export function BpAddon({
 }) {
   const t = useBpT();
   const { catalogs, loading: manifestLoading } = useBpAddonCatalogs(base);
-  const [pickedKey, setPickedKey] = useState("");
+  const [pickedState, setPickedState] = useState<{ base: string; key: string }>({
+    base,
+    key: "",
+  });
+  const pickedKey = pickedState.base === base ? pickedState.key : "";
   const picked = catalogs.find((c) => c.key === pickedKey) ?? catalogs[0];
   const { metas, loading, loadMore } = useBpAddonFeed(picked?.cursor);
-
-  // The chip list arrives after the first paint whenever the manifest had to be
-  // refetched, and a stale key from the previous addon would pin the page to a
-  // catalog this one does not have.
-  useEffect(() => {
-    setPickedKey("");
-  }, [base]);
 
   const empty = !manifestLoading && catalogs.length === 0;
 
@@ -91,7 +88,7 @@ export function BpAddon({
                 aria-pressed={picked?.key === c.key}
                 onClick={() => {
                   SFX.click();
-                  setPickedKey(c.key);
+                  setPickedState({ base, key: c.key });
                 }}
                 className={`${CHIP} border ${
                   picked?.key === c.key

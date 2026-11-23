@@ -89,64 +89,106 @@ function worst(a: BpLibStatus, b: BpLibStatus): BpLibStatus {
   return a === "error" || b === "error" ? "error" : "ready";
 }
 
+const EMPTY_STREMIO: LibraryItem[] = [];
+const EMPTY_WATCHLIST: TraktItem[] = [];
+const EMPTY_HISTORY: HistoryItem[] = [];
+
 function useStremioItems(enabled: boolean, reload: number) {
   const { authKey } = useAuth();
-  const [items, setItems] = useState<LibraryItem[]>([]);
-  const [status, setStatus] = useState<BpLibStatus>("loading");
+  const reqKey = enabled && authKey ? `${authKey}:${reload}` : "";
+  const [state, setState] = useState<{
+    authKey: string | null;
+    key: string;
+    items: LibraryItem[];
+    status: BpLibStatus;
+  }>({ authKey: null, key: "", items: EMPTY_STREMIO, status: "loading" });
 
   useEffect(() => {
-    if (!enabled) return;
-    if (!authKey) {
-      setItems([]);
-      setStatus("ready");
-      return;
-    }
+    if (!enabled || !authKey) return;
     let alive = true;
-    setStatus("loading");
     library(authKey)
       .then((li) => {
         if (!alive) return;
-        setItems(li);
-        setStatus("ready");
+        setState({ authKey, key: reqKey, items: li, status: "ready" });
       })
       .catch(() => {
-        if (alive) setStatus("error");
+        if (alive) {
+          setState((cur) => ({
+            authKey,
+            key: reqKey,
+            items: cur.authKey === authKey ? cur.items : EMPTY_STREMIO,
+            status: "error",
+          }));
+        }
       });
     return () => {
       alive = false;
     };
-  }, [enabled, authKey, reload]);
+  }, [enabled, authKey, reqKey]);
 
-  return { items, status, signedIn: Boolean(authKey) };
+  if (!enabled) {
+    return {
+      items: state.items,
+      status: state.key ? state.status : ("loading" as BpLibStatus),
+      signedIn: Boolean(authKey),
+    };
+  }
+  if (!authKey) {
+    return { items: EMPTY_STREMIO, status: "ready" as BpLibStatus, signedIn: false };
+  }
+  const items = state.authKey === authKey ? state.items : EMPTY_STREMIO;
+  const status: BpLibStatus = state.key === reqKey ? state.status : "loading";
+  return { items, status, signedIn: true };
 }
 
 function useTraktItems(enabled: boolean, reload: number) {
   const { isConnected } = useTrakt();
-  const [watchlist, setWatchlist] = useState<TraktItem[]>([]);
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [status, setStatus] = useState<BpLibStatus>("ready");
+  const reqKey = enabled && isConnected ? String(reload) : "";
+  const [state, setState] = useState<{
+    key: string;
+    watchlist: TraktItem[];
+    history: HistoryItem[];
+    status: BpLibStatus;
+  }>({ key: "", watchlist: EMPTY_WATCHLIST, history: EMPTY_HISTORY, status: "ready" });
+
+  if (
+    (!enabled || !isConnected) &&
+    (state.key !== "" || state.watchlist.length > 0 || state.history.length > 0)
+  ) {
+    setState({ key: "", watchlist: EMPTY_WATCHLIST, history: EMPTY_HISTORY, status: "ready" });
+  }
 
   useEffect(() => {
-    if (!enabled || !isConnected) {
-      setWatchlist([]);
-      setHistory([]);
-      setStatus("ready");
-      return;
-    }
+    if (!enabled || !isConnected) return;
     let alive = true;
-    setStatus("loading");
     void Promise.allSettled([fetchWatchlist(), fetchWatchedHistory(200)]).then(([w, h]) => {
       if (!alive) return;
-      if (w.status === "fulfilled") setWatchlist(w.value);
-      if (h.status === "fulfilled") setHistory(h.value);
-      setStatus(w.status === "rejected" && h.status === "rejected" ? "error" : "ready");
+      setState((cur) => ({
+        key: reqKey,
+        watchlist: w.status === "fulfilled" ? w.value : cur.watchlist,
+        history: h.status === "fulfilled" ? h.value : cur.history,
+        status: w.status === "rejected" && h.status === "rejected" ? "error" : "ready",
+      }));
     });
     return () => {
       alive = false;
     };
-  }, [enabled, isConnected, reload]);
+  }, [enabled, isConnected, reqKey]);
 
-  return { watchlist, history, status, connected: isConnected };
+  if (!enabled || !isConnected) {
+    return {
+      watchlist: EMPTY_WATCHLIST,
+      history: EMPTY_HISTORY,
+      status: "ready" as BpLibStatus,
+      connected: isConnected,
+    };
+  }
+  return {
+    watchlist: state.watchlist,
+    history: state.history,
+    status: state.key === reqKey ? state.status : ("loading" as BpLibStatus),
+    connected: true,
+  };
 }
 
 function useSavedEntries(): SavedEntry[] {

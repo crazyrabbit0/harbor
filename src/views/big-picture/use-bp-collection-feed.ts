@@ -32,6 +32,7 @@ export {
 
 const RECHECK_MS = 300;
 const AUTO_PULLS = 4;
+const EMPTY_ENTRIES: BpCollectionEntry[] = [];
 
 export function useBpCuratedRow(limit: number): {
   entries: BpCollectionEntry[];
@@ -42,8 +43,12 @@ export function useBpCuratedRow(limit: number): {
   const key = settings.tmdbKey;
   const [node, setNode] = useState<HTMLElement | null>(null);
   const [seen, setSeen] = useState(false);
-  const [entries, setEntries] = useState<BpCollectionEntry[]>([]);
-  const [settled, setSettled] = useState(false);
+  const reqKey = seen && key ? `${key}\0${limit}` : "";
+  const [state, setState] = useState<{
+    key: string;
+    entries: BpCollectionEntry[];
+    settled: boolean;
+  }>({ key: "", entries: EMPTY_ENTRIES, settled: false });
 
   useEffect(() => {
     if (!node || seen) return;
@@ -60,9 +65,8 @@ export function useBpCuratedRow(limit: number): {
   }, [node, seen]);
 
   useEffect(() => {
-    if (!seen || !key) return;
+    if (!seen || !key || !reqKey) return;
     let alive = true;
-    setSettled(false);
     const slice = COLLECTIONS_CATALOG.slice(0, limit).map((c, i) => ({ c, i }));
     const found = Array.from({ length: slice.length }, (): BpCollectionEntry | null => null);
     void bpMapLimit(slice, HYDRATE_LANES, async ({ c, i }) => {
@@ -74,18 +78,30 @@ export function useBpCuratedRow(limit: number): {
         hit.backdrop ?? null,
         hit.parts.length,
       );
-      setEntries(found.filter((e): e is BpCollectionEntry => e !== null));
+      const next = found.filter((e): e is BpCollectionEntry => e !== null);
+      setState((cur) => ({
+        key: reqKey,
+        entries: next,
+        settled: cur.key === reqKey ? cur.settled : false,
+      }));
     })
       .catch(() => {})
       .then(() => {
-        if (alive) setSettled(true);
+        if (alive) {
+          setState((cur) => ({
+            key: reqKey,
+            entries: cur.key === reqKey ? cur.entries : EMPTY_ENTRIES,
+            settled: true,
+          }));
+        }
       });
     return () => {
       alive = false;
     };
-  }, [seen, key, limit]);
+  }, [seen, key, limit, reqKey]);
 
-  return { entries, settled, rowRef: setNode };
+  const settled = Boolean(reqKey) && state.key === reqKey && state.settled;
+  return { entries: state.entries, settled, rowRef: setNode };
 }
 
 export type BpCollectionFeed = {
@@ -112,12 +128,23 @@ export function useBpCollectionFeed(
     [owned, source],
   );
 
+  const feedKey = `${source}\0${category}\0${key}`;
+  const [prevFeedKey, setPrevFeedKey] = useState(feedKey);
   const [chain, setChain] = useState<BpCollectionEntry[]>([]);
   const [loading, setLoading] = useState(false);
-  const [chainDone, setChainDone] = useState(false);
+  const [chainDone, setChainDone] = useState(() => source === "mine");
   const [tvdbCapped, setTvdbCapped] = useState(false);
   const [communityFailed, setCommunityFailed] = useState(false);
   const [tvdbFailed, setTvdbFailed] = useState(false);
+  if (prevFeedKey !== feedKey) {
+    setPrevFeedKey(feedKey);
+    setChain([]);
+    setLoading(false);
+    setTvdbCapped(false);
+    setCommunityFailed(false);
+    setTvdbFailed(false);
+    setChainDone(source === "mine");
+  }
   const ctxRef = useRef<Ctx | null>(null);
   const busyRef = useRef(false);
   const runRef = useRef(0);
@@ -140,12 +167,6 @@ export function useBpCollectionFeed(
     ctxRef.current = ctx;
     busyRef.current = false;
     autoRef.current = 0;
-    setChain([]);
-    setLoading(false);
-    setTvdbCapped(false);
-    setCommunityFailed(false);
-    setTvdbFailed(false);
-    setChainDone(ctx.phases.length === 0);
     return () => window.clearTimeout(timerRef.current);
   }, [source, category, key]);
 

@@ -235,11 +235,9 @@ export function useBpStreamPlay(params: {
     return () => window.clearTimeout(timer);
   }, [autoActive]);
 
-  useEffect(() => {
-    if (!autoPlay || !s.done) return;
-    if (autoCandidates.length > 0 || autoExhausted || autoCancelled) return;
+  if (autoPlay && s.done && autoCandidates.length === 0 && !autoExhausted && !autoCancelled) {
     setAutoExhausted(true);
-  }, [autoPlay, s.done, autoCandidates.length, autoExhausted, autoCancelled]);
+  }
 
   const play = (stream: ScoredStream) => {
     setError(null);

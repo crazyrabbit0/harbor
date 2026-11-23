@@ -86,46 +86,55 @@ function useBpSimkl(
   enabled: boolean,
 ): BpTracker | null {
   const { isConnected } = useSimkl();
-  const [target, setTarget] = useState<SimklTarget | null>(null);
-  const [status, setStatus] = useState<WatchlistStatus | null>(null);
+  const reqKey = isConnected && enabled && harborId ? `${harborId}:${type}` : "";
+  const [state, setState] = useState<{
+    key: string;
+    target: SimklTarget | null;
+    status: WatchlistStatus | null;
+  }>({ key: "", target: null, status: null });
+
+  const target = state.key === reqKey ? state.target : null;
+  const status = state.key === reqKey ? state.status : null;
 
   useEffect(() => {
-    setTarget(null);
-    setStatus(null);
-    if (!isConnected || !enabled || !harborId) return;
+    if (!reqKey) return;
     let cancelled = false;
     void (async () => {
       const tgt = await resolveSimklTarget(harborId, type).catch(() => null);
       if (cancelled || !tgt) return;
-      setTarget(tgt);
+      setState({ key: reqKey, target: tgt, status: null });
       const malKey = "ids" in tgt && tgt.ids.mal != null ? `mal:${tgt.ids.mal}` : null;
       const map = await loadSimklStatusMap().catch(() => null);
       if (cancelled || !map) return;
-      setStatus(statusForId(map, harborId) ?? (malKey ? statusForId(map, malKey) : null));
+      const next = statusForId(map, harborId) ?? (malKey ? statusForId(map, malKey) : null);
+      setState((cur) => (cur.key === reqKey ? { key: reqKey, target: tgt, status: next } : cur));
     })();
     return () => {
       cancelled = true;
     };
-  }, [harborId, isConnected, type, enabled]);
+  }, [reqKey, harborId, type]);
 
   const set = useCallback(
     (id: string) => {
       if (!target) return;
       const next = id as WatchlistStatus;
-      setStatus(next);
+      const prev = status;
+      setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
       void setSimklStatus(target, next)
-        .then(setStatus)
-        .catch(() => setStatus(status));
+        .then((saved) => setState((cur) => (cur.key === reqKey ? { ...cur, status: saved } : cur)))
+        .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
     },
-    [target, status],
+    [target, status, reqKey],
   );
 
   const remove = useCallback(() => {
     if (!target) return;
     const prev = status;
-    setStatus(null);
-    void clearSimklStatus(target).catch(() => setStatus(prev));
-  }, [target, status]);
+    setState((cur) => (cur.key === reqKey ? { ...cur, status: null } : cur));
+    void clearSimklStatus(target).catch(() =>
+      setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)),
+    );
+  }, [target, status, reqKey]);
 
   if (!isConnected || !enabled || !target) return null;
   const order = target.kind === "movie" ? MOVIE_STATUS_ORDER : SHOW_STATUS_ORDER;
@@ -143,51 +152,66 @@ function useBpSimkl(
 
 function useBpAnilist(harborId: string, enabled: boolean): BpTracker | null {
   const { isConnected } = useAnilist();
-  const [mediaId, setMediaId] = useState<number | null>(null);
-  const [entryId, setEntryId] = useState<number | null>(null);
-  const [status, setStatus] = useState<MediaListStatus | null>(null);
+  const reqKey = isConnected && enabled && harborId ? harborId : "";
+  const [state, setState] = useState<{
+    key: string;
+    mediaId: number | null;
+    entryId: number | null;
+    status: MediaListStatus | null;
+  }>({ key: "", mediaId: null, entryId: null, status: null });
+
+  const mediaId = state.key === reqKey ? state.mediaId : null;
+  const entryId = state.key === reqKey ? state.entryId : null;
+  const status = state.key === reqKey ? state.status : null;
 
   useEffect(() => {
-    setMediaId(null);
-    setEntryId(null);
-    setStatus(null);
-    if (!isConnected || !enabled || !harborId) return;
+    if (!reqKey) return;
     let cancelled = false;
     void (async () => {
       const id = await resolveAnilistMediaId(harborId).catch(() => null);
       if (cancelled || id == null) return;
-      setMediaId(id);
+      setState({ key: reqKey, mediaId: id, entryId: null, status: null });
       const info = await anilistFetch(id).catch(() => null);
       if (cancelled) return;
-      setEntryId(info?.entry?.id ?? null);
-      setStatus(info?.entry?.status ?? null);
+      setState((cur) =>
+        cur.key === reqKey
+          ? {
+              key: reqKey,
+              mediaId: id,
+              entryId: info?.entry?.id ?? null,
+              status: info?.entry?.status ?? null,
+            }
+          : cur,
+      );
     })();
     return () => {
       cancelled = true;
     };
-  }, [harborId, isConnected, enabled]);
+  }, [reqKey, harborId]);
 
   const set = useCallback(
     (id: string) => {
       if (mediaId == null) return;
       const next = id as MediaListStatus;
       const prev = status;
-      setStatus(next);
+      setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
       void anilistSave({ mediaId, status: next })
-        .then((saved) => setEntryId(saved.id))
-        .catch(() => setStatus(prev));
+        .then((saved) =>
+          setState((cur) => (cur.key === reqKey ? { ...cur, entryId: saved.id } : cur)),
+        )
+        .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
     },
-    [mediaId, status],
+    [mediaId, status, reqKey],
   );
 
   const remove = useCallback(() => {
     if (entryId == null) return;
     const prev = status;
-    setStatus(null);
+    setState((cur) => (cur.key === reqKey ? { ...cur, status: null } : cur));
     void anilistDelete(entryId)
-      .then(() => setEntryId(null))
-      .catch(() => setStatus(prev));
-  }, [entryId, status]);
+      .then(() => setState((cur) => (cur.key === reqKey ? { ...cur, entryId: null } : cur)))
+      .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
+  }, [entryId, status, reqKey]);
 
   if (!isConnected || !enabled || mediaId == null) return null;
   return {
@@ -204,46 +228,57 @@ function useBpAnilist(harborId: string, enabled: boolean): BpTracker | null {
 
 function useBpMal(harborId: string, enabled: boolean): BpTracker | null {
   const { isConnected } = useMal();
-  const [malId, setMalId] = useState<number | null>(null);
-  const [status, setStatus] = useState<MalListStatus | null>(null);
+  const reqKey = isConnected && enabled && harborId ? harborId : "";
+  const [state, setState] = useState<{
+    key: string;
+    malId: number | null;
+    status: MalListStatus | null;
+  }>({ key: "", malId: null, status: null });
+
+  const malId = state.key === reqKey ? state.malId : null;
+  const status = state.key === reqKey ? state.status : null;
 
   useEffect(() => {
-    setMalId(null);
-    setStatus(null);
-    if (!isConnected || !enabled || !harborId) return;
+    if (!reqKey) return;
     let cancelled = false;
     void (async () => {
       const id = await resolveMalMediaId(harborId).catch(() => null);
       if (cancelled || id == null) return;
-      setMalId(id);
+      setState({ key: reqKey, malId: id, status: null });
       const info = await malFetch(id).catch(() => null);
       if (cancelled) return;
-      setStatus(info?.entry?.status ?? null);
+      setState((cur) =>
+        cur.key === reqKey ? { key: reqKey, malId: id, status: info?.entry?.status ?? null } : cur,
+      );
     })();
     return () => {
       cancelled = true;
     };
-  }, [harborId, isConnected, enabled]);
+  }, [reqKey, harborId]);
 
   const set = useCallback(
     (id: string) => {
       if (malId == null) return;
       const next = id as MalListStatus;
       const prev = status;
-      setStatus(next);
+      setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
       void malSave({ malId, status: next })
-        .then((saved) => setStatus(saved.status))
-        .catch(() => setStatus(prev));
+        .then((saved) =>
+          setState((cur) => (cur.key === reqKey ? { ...cur, status: saved.status } : cur)),
+        )
+        .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
     },
-    [malId, status],
+    [malId, status, reqKey],
   );
 
   const remove = useCallback(() => {
     if (malId == null) return;
     const prev = status;
-    setStatus(null);
-    void malDelete(malId).catch(() => setStatus(prev));
-  }, [malId, status]);
+    setState((cur) => (cur.key === reqKey ? { ...cur, status: null } : cur));
+    void malDelete(malId).catch(() =>
+      setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)),
+    );
+  }, [malId, status, reqKey]);
 
   if (!isConnected || !enabled || malId == null) return null;
   return {

@@ -81,20 +81,25 @@ export function useBpSportsEvent(input: SportsGame): BpSportsEventData {
     individual,
   );
 
-  const [standings, setStandings] = useState<StandingsTable | null>(null);
+  const standingsKey = league && !NO_TABLE.has(group) ? `${game.league}\0${group}` : "";
+  const [standingsState, setStandingsState] = useState<{
+    key: string;
+    table: StandingsTable | null;
+  }>({ key: "", table: null });
   useEffect(() => {
-    setStandings(null);
-    if (!league || NO_TABLE.has(group)) return;
+    if (!standingsKey) return;
     let active = true;
     void fetchStandings(game.league)
       .then((table) => {
-        if (active) setStandings(table);
+        if (active) setStandingsState({ key: standingsKey, table });
       })
       .catch(() => {});
     return () => {
       active = false;
     };
-  }, [game.league, group, league]);
+  }, [standingsKey, game.league]);
+  const standings =
+    standingsKey && standingsState.key === standingsKey ? standingsState.table : null;
 
   const sides = named(game.home.name) && named(game.away.name);
 

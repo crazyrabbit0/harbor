@@ -33,14 +33,16 @@ const CHIP_STYLE: CSSProperties = {
 export function BpLeaveConfirm() {
   const t = useBpT();
   const state = useSyncExternalStore(subscribeLeaveConfirm, getLeaveConfirm);
+  const [prevOpen, setPrevOpen] = useState(state.open);
   const [remember, setRemember] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
-  useLayoutEffect(() => ensureBigPictureTokens(), []);
-
-  useEffect(() => {
+  if (state.open !== prevOpen) {
+    setPrevOpen(state.open);
     if (state.open) setRemember(false);
-  }, [state.open]);
+  }
+
+  useLayoutEffect(() => ensureBigPictureTokens(), []);
 
   const close = useCallback(() => {
     SFX.close();

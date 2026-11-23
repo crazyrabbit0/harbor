@@ -25,14 +25,12 @@ export type BpSportsAddonSources = {
   hardReload: () => void;
 };
 
+const EMPTY_ROWS: SportsAddonListing[] = [];
+
 export function useBpSportsAddonSources(game: SportsGame): BpSportsAddonSources {
   const consent = useSportsConsent();
   const { authKey } = useAuth();
   const { activeId } = useProfiles();
-  const [rows, setRows] = useState<SportsAddonListing[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [failed, setFailed] = useState(false);
-  const [installed, setInstalled] = useState(false);
   const [tick, setTick] = useState(0);
   const providers = useRef<Addon[]>([]);
   const gameRef = useRef(game);
@@ -48,21 +46,21 @@ export function useBpSportsAddonSources(game: SportsGame): BpSportsAddonSources 
     game.context?.name,
     game.broadcasts,
   ]);
+  const reqKey = active ? `${authKey ?? ""}\0${activeId ?? ""}\0${identity}\0${tick}` : "";
+  const [state, setState] = useState<{
+    key: string;
+    rows: SportsAddonListing[];
+    loading: boolean;
+    failed: boolean;
+    installed: boolean;
+  }>({ key: "", rows: EMPTY_ROWS, loading: false, failed: false, installed: false });
 
   useEffect(() => {
-    if (!active) {
+    if (!active || !reqKey) {
       providers.current = [];
-      setRows([]);
-      setLoading(false);
-      setFailed(false);
-      setInstalled(false);
       return;
     }
     const controller = new AbortController();
-    setRows([]);
-    setLoading(true);
-    setFailed(false);
-    setInstalled(false);
     void (async () => {
       const gathered = await gatherCatalogAddons(authKey);
       if (controller.signal.aborted) return;
@@ -70,27 +68,57 @@ export function useBpSportsAddonSources(game: SportsGame): BpSportsAddonSources 
       if (controller.signal.aborted) return;
       providers.current = hydrated.addons;
       const eligible = hydrated.addons.filter((addon) => sportsAddonCatalogs(addon).length > 0);
-      setInstalled(eligible.length > 0);
+      const hasInstalled = eligible.length > 0;
+      setState({
+        key: reqKey,
+        rows: EMPTY_ROWS,
+        loading: true,
+        failed: false,
+        installed: hasInstalled,
+      });
       const result = await loadSportsAddonListings(
         eligible,
         gameRef.current,
         controller.signal,
         (partial) => {
-          if (!controller.signal.aborted) setRows(partial);
+          if (!controller.signal.aborted) {
+            setState((cur) => ({
+              key: reqKey,
+              rows: partial,
+              loading: cur.key === reqKey ? cur.loading : true,
+              failed: false,
+              installed: hasInstalled,
+            }));
+          }
         },
       );
       if (controller.signal.aborted) return;
-      setRows(result.rows);
-      setFailed(result.failed > 0 || hydrated.failed > 0);
-    })()
-      .catch(() => {
-        if (!controller.signal.aborted) setFailed(true);
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
+      setState({
+        key: reqKey,
+        rows: result.rows,
+        loading: false,
+        failed: result.failed > 0 || hydrated.failed > 0,
+        installed: hasInstalled,
       });
+    })().catch(() => {
+      if (!controller.signal.aborted) {
+        setState((cur) => ({
+          key: reqKey,
+          rows: cur.key === reqKey ? cur.rows : EMPTY_ROWS,
+          loading: false,
+          failed: true,
+          installed: cur.key === reqKey ? cur.installed : false,
+        }));
+      }
+    });
     return () => controller.abort();
-  }, [active, authKey, activeId, identity, tick]);
+  }, [active, reqKey, authKey]);
+
+  const settled = active && state.key === reqKey;
+  const rows = settled ? state.rows : EMPTY_ROWS;
+  const loading = active && (!settled || state.loading);
+  const failed = settled && state.failed;
+  const installed = settled && state.installed;
 
   const matching = useMemo(() => rows.filter((row) => row.match !== null), [rows]);
 
@@ -109,7 +137,7 @@ export function useBpSportsAddonSources(game: SportsGame): BpSportsAddonSources 
   return {
     rows,
     matching,
-    loading: active && loading,
+    loading,
     failed,
     installed,
     available: active && rows.length > 0,

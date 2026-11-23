@@ -110,16 +110,14 @@ export function BpConnecting({
     forceShow || (!everPlayed && !failed && snap.errorCode == null && snap.status !== "ended");
   const done = !showing && snap.errorCode == null;
   const [mounted, setMounted] = useState(showing);
+  if (showing && !mounted) setMounted(true);
 
   useEffect(() => {
     onShowingChange?.(showing);
   }, [showing, onShowingChange]);
   useEffect(() => () => onShowingChange?.(false), [onShowingChange]);
   useEffect(() => {
-    if (showing) {
-      setMounted(true);
-      return;
-    }
+    if (showing) return;
     const timer = window.setTimeout(() => setMounted(false), FADE_MS);
     return () => window.clearTimeout(timer);
   }, [showing]);

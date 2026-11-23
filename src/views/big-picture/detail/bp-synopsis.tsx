@@ -23,13 +23,15 @@ export type BpSynopsisState = {
 // straight to the episodes.
 export function useBpSynopsis(text: string): BpSynopsisState {
   const ref = useRef<HTMLParagraphElement | null>(null);
+  const [prevText, setPrevText] = useState(text);
   const [expanded, setExpanded] = useState(false);
   const [canExpand, setCanExpand] = useState(false);
 
-  useEffect(() => {
+  if (prevText !== text) {
+    setPrevText(text);
     setExpanded(false);
     setCanExpand(false);
-  }, [text]);
+  }
 
   useEffect(() => {
     const el = ref.current;

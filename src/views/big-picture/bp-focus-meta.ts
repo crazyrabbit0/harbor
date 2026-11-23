@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import type { LibraryItem } from "@/lib/stremio";
 
@@ -91,27 +91,25 @@ export function readBpCwItem(): LibraryItem | null {
   return currentCw && currentCw._id === current?.id ? currentCw : null;
 }
 
+function subscribeImmediate(fn: () => void): () => void {
+  subs.add(fn);
+  return () => {
+    subs.delete(fn);
+  };
+}
+
 export function useBpFocusedMeta(settleMs = 0): Meta | null {
-  const [meta, setMeta] = useState<Meta | null>(current);
+  const live = useSyncExternalStore(subscribeImmediate, readBpMeta);
+  const [settled, setSettled] = useState<{ ms: number; meta: Meta | null }>({
+    ms: settleMs,
+    meta: live,
+  });
 
   useEffect(() => {
-    if (settleMs <= 0) {
-      subs.add(setMeta);
-      setMeta(current);
-      return () => void subs.delete(setMeta);
-    }
-    let timer = 0;
-    const onChange = (m: Meta | null) => {
-      window.clearTimeout(timer);
-      timer = window.setTimeout(() => setMeta(m), settleMs);
-    };
-    subs.add(onChange);
-    setMeta(current);
-    return () => {
-      window.clearTimeout(timer);
-      subs.delete(onChange);
-    };
-  }, [settleMs]);
+    if (settleMs <= 0) return;
+    const timer = window.setTimeout(() => setSettled({ ms: settleMs, meta: live }), settleMs);
+    return () => window.clearTimeout(timer);
+  }, [live, settleMs]);
 
-  return meta;
+  return settleMs <= 0 ? live : settled.ms === settleMs ? settled.meta : live;
 }

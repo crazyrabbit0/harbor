@@ -124,39 +124,43 @@ function yearRange(parts: Meta[]): string | null {
 
 export function useBpCollectionDetail(collectionId: number, name: string): BpCollectionDetail {
   const { settings } = useSettings();
-  const [state, setState] = useState<BpCollectionDetail>(() => blank(name, true));
+  const reqKey = settings.tmdbKey ? `${collectionId}\0${name}\0${settings.tmdbKey}` : "";
+  const [state, setState] = useState<{ key: string; detail: BpCollectionDetail }>({
+    key: "",
+    detail: blank(name, true),
+  });
 
   useEffect(() => {
+    if (!settings.tmdbKey) return;
     let alive = true;
-    setState(blank(name, true));
-    if (!settings.tmdbKey) {
-      setState(blank(name, false));
-      return;
-    }
     void resolveBpCollection(settings.tmdbKey, collectionId, name)
       .then((found) => {
         if (!alive) return;
         if (!found) {
-          setState(blank(name, false));
+          setState({ key: reqKey, detail: blank(name, false) });
           return;
         }
         setState({
-          name: found.name || name,
-          overview: found.overview,
-          image: found.backdrop ?? null,
-          poster: found.poster ?? null,
-          parts: found.parts,
-          years: yearRange(found.parts),
-          loading: false,
+          key: reqKey,
+          detail: {
+            name: found.name || name,
+            overview: found.overview,
+            image: found.backdrop ?? null,
+            poster: found.poster ?? null,
+            parts: found.parts,
+            years: yearRange(found.parts),
+            loading: false,
+          },
         });
       })
       .catch(() => {
-        if (alive) setState(blank(name, false));
+        if (alive) setState({ key: reqKey, detail: blank(name, false) });
       });
     return () => {
       alive = false;
     };
-  }, [collectionId, name, settings.tmdbKey]);
+  }, [reqKey, collectionId, name, settings.tmdbKey]);
 
-  return state;
+  if (!settings.tmdbKey) return blank(name, false);
+  return state.key === reqKey ? state.detail : blank(name, true);
 }

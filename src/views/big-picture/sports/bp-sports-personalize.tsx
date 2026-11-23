@@ -61,9 +61,6 @@ export function BpSportsPersonalize({ onClose }: { onClose: () => void }) {
   const [chosenGroups, setChosenGroups] = useState<string[]>([]);
   const [teams, setTeams] = useState<FavouriteTeam[]>(fav.teams);
   const [league, setLeague] = useState(saved[0] || "NFL");
-  const [available, setAvailable] = useState<SportsTeam[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
   const [retry, setRetry] = useState(0);
   const [saveError, setSaveError] = useState(false);
 
@@ -76,6 +73,14 @@ export function BpSportsPersonalize({ onClose }: { onClose: () => void }) {
     () => HUB_LEAGUES.filter((l) => chosenGroups.includes(l.group)),
     [chosenGroups],
   );
+
+  const wantTeams = step === 2 && teamLeagues.some((l) => l.key === league);
+  const teamReqKey = wantTeams ? `${league}:${retry}` : "";
+  const [teamState, setTeamState] = useState<{
+    key: string;
+    available: SportsTeam[];
+    error: boolean;
+  }>({ key: "", available: [], error: false });
 
   useEffect(() => {
     const el = bodyRef.current?.querySelector<HTMLElement>("[data-bp-focusable]");
@@ -96,28 +101,39 @@ export function BpSportsPersonalize({ onClose }: { onClose: () => void }) {
   );
 
   useEffect(() => {
-    if (step !== 2 || !teamLeagues.some((l) => l.key === league)) return;
+    if (!wantTeams) return;
     let alive = true;
     const cached = cachedLeagueTeams(league);
-    setAvailable(cached);
-    setLoading(cached.length === 0);
-    setError(false);
     fetchLeagueTeams(league, { force: retry > 0 })
       .then((next) => {
         if (!alive) return;
-        setAvailable(next);
-        setLoading(false);
-        setError(next.length === 0);
+        setTeamState({
+          key: teamReqKey,
+          available: next,
+          error: next.length === 0,
+        });
       })
       .catch(() => {
         if (!alive) return;
-        setLoading(false);
-        setError(cached.length === 0);
+        setTeamState({
+          key: teamReqKey,
+          available: cached,
+          error: cached.length === 0,
+        });
       });
     return () => {
       alive = false;
     };
-  }, [step, league, retry, teamLeagues]);
+  }, [wantTeams, teamReqKey, league, retry]);
+
+  const cachedTeams = wantTeams ? cachedLeagueTeams(league) : [];
+  const available = !wantTeams
+    ? []
+    : teamState.key === teamReqKey
+      ? teamState.available
+      : cachedTeams;
+  const loading = wantTeams && teamState.key !== teamReqKey && cachedTeams.length === 0;
+  const error = wantTeams && teamState.key === teamReqKey && teamState.error;
 
   const toggleGroup = (group: string) => {
     const items = HUB_LEAGUES.filter((l) => l.group === group);
