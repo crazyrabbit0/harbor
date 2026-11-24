@@ -88,11 +88,15 @@ test("each capture writes into its own folder setting", async () => {
   ]);
 });
 
+// player.tsx is too large to load, so only the three capture hook calls are read as text.
 test("the player passes each capture its folder setting", () => {
   const player = read("src/views/player.tsx");
-  assert.match(player, /folder: settings\.screenshotDir/);
+  assert.match(
+    player,
+    /useFrameGrab\(\{\s*bridgeRef,\s*src,\s*folder: settings\.screenshotDir,\s*\}\)/,
+  );
   assert.match(player, /useGifRecorder\(\{ src, folder: settings\.gifDir \}\)/);
-  assert.match(player, /folder: settings\.clipDir/);
+  assert.match(player, /useClipRecorder\(\{\s*src,\s*folder: settings\.clipDir,/);
 });
 
 test("saving a clip shows one busy toast, not a second centred pill", async () => {

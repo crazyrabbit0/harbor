@@ -266,6 +266,7 @@ test("the 0-9 frames are prefetched once the source opens, not on hover", async 
   h.render(torrent);
   assert.equal(prefetched.length, 1, "torrent sources only show buffered frames");
 
+  // player.tsx is too large to load, so only its useTrickplay wiring line is read as text.
   const player = read("src/views/player.tsx");
   assert.match(player, /prefetchDurationSec: jumpDigitsShown \? snap\.durationSec : 0/);
   const rust = read("src-tauri/src/thumbs.rs");
