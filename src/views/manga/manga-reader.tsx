@@ -682,8 +682,6 @@ export function MangaReader({
         chapterLabel: bm.chapterLabel,
         page: bm.page,
         totalPages: bm.totalPages,
-        // oxlint-disable-next-line react/purity -- runs when a bookmark is opened, not during render
-        updatedAt: Date.now(),
       });
     didSeek.current = false;
     onChangeIndex(targetIdx);
@@ -753,7 +751,7 @@ export function MangaReader({
     if (!book || complete) bookApi.current = null;
   }, [book, complete]);
 
-  const remoteSetPage = (page: number, scroll?: number, vel?: number) => {
+  const remoteSetPage = (page: number, scroll?: number, vel?: number, at = 0) => {
     const clamped = Math.max(0, Math.min(Math.max(0, total - 1), page));
     if (book) {
       const api = bookApi.current;
@@ -790,8 +788,7 @@ export function MangaReader({
       return;
     }
     const s = scroll != null && Number.isFinite(scroll) ? Math.max(0, Math.min(1, scroll)) : 0;
-    // oxlint-disable-next-line react/purity -- runs on a remote page command, not during render
-    const now = performance.now();
+    const now = at;
     const rRoot = root.getBoundingClientRect();
     const rEl = el.getBoundingClientRect();
     const geom = {

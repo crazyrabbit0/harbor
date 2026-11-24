@@ -28,8 +28,7 @@ let probeTimer = 0;
 
 function runProbes(): void {
   // Probe callbacks can change subscriptions; process only this sweep's snapshot.
-  // oxlint-disable-next-line unicorn/no-useless-spread
-  for (const p of [...probes]) if (p()) probes.delete(p);
+  for (const p of Array.from(probes)) if (p()) probes.delete(p);
   if (probes.size === 0) {
     window.clearInterval(probeTimer);
     probeTimer = 0;

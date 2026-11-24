@@ -92,6 +92,10 @@ const releaseFlipPages = (pages: EBookFlipPages) => {
   pages.urls.forEach((url) => url.startsWith("blob:") && URL.revokeObjectURL(url));
 };
 
+const newNarrationRequestId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  `reader-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
 const fontFamily = {
   literary: 'Georgia, "Times New Roman", serif',
   arabic: '"Traditional Arabic", "Noto Naskh Arabic", serif',
@@ -1376,10 +1380,7 @@ export function HarborReader({
   const speakFrom = async (index = current): Promise<void> => {
     stopSpeech();
     const run = ++narrationRun.current;
-    const requestId =
-      globalThis.crypto?.randomUUID?.() ??
-      // oxlint-disable-next-line react/purity -- runs when narration starts, not during render
-      `reader-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const requestId = newNarrationRequestId();
     narrationRequestId.current = requestId;
     const ready = narrationAhead.current;
     const usePrefetched = !!ready && ready.start === index;

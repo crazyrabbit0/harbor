@@ -37,7 +37,10 @@ export type MusicBandContext = {
   playTrack: (track: MusicTrack, queue: MusicTrack[]) => void;
   openItem: (item: MusicCatalogItem, siblings: MusicCatalogItem[]) => void;
   openLibrary: (target?: MusicLibraryTarget) => void;
-  openMix: (context: MusicRecentContext, load?: () => Promise<MusicTrack[]>) => Promise<void>;
+  openMix: (
+    context: Omit<MusicRecentContext, "at">,
+    load?: () => Promise<MusicTrack[]>,
+  ) => Promise<void>;
   searchArtist: (name: string) => void;
   openConnections: (id?: string) => void;
 };

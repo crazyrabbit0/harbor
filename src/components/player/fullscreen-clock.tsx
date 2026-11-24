@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { usePlaybackPositionGated } from "@/lib/player/playback-clock";
+import { useNow } from "@/lib/use-now";
 import { useSettings } from "@/lib/settings";
 import {
   DEFAULT_FULLSCREEN_CLOCK_SIZE_PX,
@@ -115,6 +116,7 @@ export function FullscreenClock({
     Number.isFinite(durationSec) &&
     durationSec > 0;
   const positionSec = usePlaybackPositionGated(trackEndTime);
+  const endClock = useNow(1_000, trackEndTime);
 
   useEffect(() => {
     if (!enabled) return;
@@ -147,8 +149,7 @@ export function FullscreenClock({
     ? variant === "preview"
       ? new Date(now.getTime() + 47 * 60_000)
       : typeof durationSec === "number"
-        ? // oxlint-disable-next-line react/purity -- the end time follows each position update, so it reads the clock then
-          estimatePlaybackEndTime(new Date(), durationSec, positionSec, playbackRate)
+        ? estimatePlaybackEndTime(new Date(endClock), durationSec, positionSec, playbackRate)
         : null
     : null;
 
