@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
+import ts from "typescript";
 import * as modal from "../src/lib/external-link-viewer-modal.ts";
 import * as controller from "../src/lib/social/external-link-journey-controller.ts";
 import * as preference from "../src/lib/social/external-link-preference.ts";
@@ -352,11 +353,25 @@ test("the warning is the first stage of a single portal keyed by journey", () =>
     "the viewer never opens first",
   );
   assert.deepEqual([split(tree)!.props.main, split(tree)!.props.alternate], ["browser", "harbor"]);
-  const app = read("src/App.tsx");
-  assert.equal(
-    app.split("\n").filter((line) => line.trim() === "<LinkOutInterstitial />").length,
-    1,
+  // App.tsx is too large to load, so its JSX elements are counted on the parsed tree.
+  const app = ts.createSourceFile(
+    "App.tsx",
+    read("src/App.tsx"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
   );
+  let mounted = 0;
+  const visit = (node: ts.Node) => {
+    if (
+      (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
+      node.tagName.getText(app) === "LinkOutInterstitial"
+    )
+      mounted++;
+    ts.forEachChild(node, visit);
+  };
+  visit(app);
+  assert.equal(mounted, 1, "the app mounts exactly one link-out interstitial");
 });
 
 test("choosing a destination opens the viewer or the strict browser opener", async () => {

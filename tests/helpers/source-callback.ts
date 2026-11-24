@@ -47,6 +47,18 @@ export const callbackContaining =
       ? node.arguments[0]
       : undefined;
 
+/** Picks the value of property `prop` in the object literal that initializes `const <owner>`. */
+export const objectProperty =
+  (owner: string, prop: string): Pick =>
+  (node, source) => {
+    if (!ts.isVariableDeclaration(node) || node.name.getText(source) !== owner) return undefined;
+    if (!node.initializer || !ts.isObjectLiteralExpression(node.initializer)) return undefined;
+    const found = node.initializer.properties.find(
+      (p) => ts.isPropertyAssignment(p) && p.name.getText(source) === prop,
+    );
+    return found && ts.isPropertyAssignment(found) ? found.initializer : undefined;
+  };
+
 /** Picks the first argument of a `useEffect` whose callback text contains `marker`. */
 export const effectContaining = (marker: string): Pick => callbackContaining("useEffect", marker);
 

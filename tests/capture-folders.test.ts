@@ -1,14 +1,11 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { captureDirLabel } from "../src/lib/player/capture-path.ts";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 import { named, ofType, treeHarness } from "./helpers/tree-render.ts";
-
-const read = (p: string) => readFileSync(new URL(`../${p}`, import.meta.url), "utf8");
+import { hookArgument, sourceCallback } from "./helpers/source-callback.ts";
 
 test("capture toasts name the folder that was used", () => {
   assert.equal(captureDirLabel(null), "downloads");
@@ -88,15 +85,30 @@ test("each capture writes into its own folder setting", async () => {
   ]);
 });
 
-// player.tsx is too large to load, so only the three capture hook calls are read as text.
+// player.tsx is too large to load, so each capture hook's argument object runs alone with `scope`.
 test("the player passes each capture its folder setting", () => {
-  const player = read("src/views/player.tsx");
-  assert.match(
-    player,
-    /useFrameGrab\(\{\s*bridgeRef,\s*src,\s*folder: settings\.screenshotDir,\s*\}\)/,
-  );
-  assert.match(player, /useGifRecorder\(\{ src, folder: settings\.gifDir \}\)/);
-  assert.match(player, /useClipRecorder\(\{\s*src,\s*folder: settings\.clipDir,/);
+  const settings = {
+    screenshotDir: "/shots",
+    gifDir: "/gifs",
+    clipDir: "/clips",
+    clipLengthSec: 45,
+  };
+  const scope = {
+    bridgeRef: { current: null },
+    src: { url: "x" },
+    settings,
+    sanitizeClipLength: (value: number) => value,
+    DEFAULT: { clipLengthSec: 30 },
+  };
+  const arg = (name: string) => sourceCallback("src/views/player.tsx", hookArgument(name), scope);
+  const grab = arg("frameGrab");
+  assert.equal(grab.folder, "/shots");
+  assert.equal(grab.bridgeRef, scope.bridgeRef);
+  assert.equal(grab.src, scope.src);
+  assert.equal(arg("gif").folder, "/gifs");
+  assert.equal(arg("gif").src, scope.src);
+  assert.equal(arg("clip").folder, "/clips");
+  assert.equal(arg("clip").seconds, 45);
 });
 
 test("saving a clip shows one busy toast, not a second centred pill", async () => {

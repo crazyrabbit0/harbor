@@ -140,12 +140,44 @@ test("Expanding Cards reflows the row and keeps artwork under the card badges", 
   row.settle();
   assert.equal(row.track.style.scrollSnapType, "", "collapsing restores snapping");
 
-  // pick-card.tsx is over 1000 lines; its artwork-before-badges order is checked as text.
-  const card = read("src/components/pick-card.tsx");
-  assert.ok(
-    card.indexOf("<ExpandingCardArtwork") < card.indexOf("<ScoreStack"),
-    "wide artwork must remain underneath IMDb and other card badges",
+  // pick-card.tsx is over 1000 lines; its artwork-before-badges order is read from the parsed JSX tree.
+  const card = ts.createSourceFile(
+    "pick-card.tsx",
+    read("src/components/pick-card.tsx"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
   );
+  const elementsNamed = (tag: string) => {
+    const found: ts.Node[] = [];
+    const visit = (node: ts.Node) => {
+      if (
+        (ts.isJsxSelfClosingElement(node) || ts.isJsxOpeningElement(node)) &&
+        node.tagName.getText(card) === tag
+      )
+        found.push(ts.isJsxOpeningElement(node) ? node.parent : node);
+      ts.forEachChild(node, visit);
+    };
+    visit(card);
+    assert.equal(found.length, 1, `one <${tag}> in pick-card.tsx`);
+    return found[0];
+  };
+  const lineage = (node: ts.Node) => {
+    const chain: ts.Node[] = [];
+    for (let at: ts.Node | undefined = node; at; at = at.parent) chain.unshift(at);
+    return chain;
+  };
+  const artwork = lineage(elementsNamed("ExpandingCardArtwork"));
+  const scores = lineage(elementsNamed("ScoreStack"));
+  let split = 0;
+  while (artwork[split] === scores[split]) split++;
+  const parent = artwork[split - 1];
+  assert.ok(ts.isJsxElement(parent), "artwork and badges share one JSX parent");
+  const siblings: ts.Node[] = [...parent.children];
+  const artworkAt = siblings.indexOf(artwork[split]);
+  const scoresAt = siblings.indexOf(scores[split]);
+  assert.ok(artworkAt >= 0 && scoresAt >= 0, "both sit under direct children of that parent");
+  assert.ok(artworkAt < scoresAt, "wide artwork must remain underneath IMDb and other card badges");
   assert.match(read("src/index.css"), /\[data-expanding-card\]\[data-row-card-expanded="true"\]/);
 });
 
