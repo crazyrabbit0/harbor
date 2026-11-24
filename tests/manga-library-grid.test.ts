@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import "./_localstorage-stub.ts";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
+import { all, treeHarness } from "./helpers/tree-render.ts";
 import {
   fakeElement,
   icons,
@@ -157,9 +158,58 @@ test("manga poster row exports the memo button with an optional ring", () => {
 });
 
 test("manga view wires the library scroll ref into the screen", () => {
-  // manga.tsx has an unmanageable import graph; pin the one wiring line.
-  const line = "<MangaLibrary scrollRef={libraryScrollRef} />";
-  assert.ok(lines("src/views/manga.tsx").has(line), `manga.tsx lacks: ${line}`);
+  const noop = () => {};
+  const view = treeHarness(
+    "src/views/manga.tsx",
+    {
+      "@/lib/settings": {
+        useSettingsSelector: (pick: (s: unknown) => unknown) => pick({ mangaEnabled: true }),
+        useSettingsUpdate: () => noop,
+      },
+      "@/lib/i18n": { useT: () => makeT().t },
+      "@/lib/view": {
+        useScrollMemory: noop,
+        useView: () => ({ mangaId: undefined, setChromeHidden: noop, topKind: "manga" }),
+      },
+      "@/lib/manga/sources": {
+        activeMangaSource: () => null,
+        activeMangaSourceId: () => "",
+        hasAnyMangaSource: () => true,
+        initMangaSource: noop,
+        mangaSourcesState: () => "ready",
+        retryMangaSources: noop,
+        setActiveMangaSource: noop,
+        subscribeMangaSources: () => noop,
+      },
+      "@/lib/manga/api": { popularManga: () => new Promise(noop), resumeChapters: async () => [] },
+      "@/lib/manga-downloads": { useMangaDownloadsCount: () => 0 },
+      "@/lib/manga-progress": { listMangaProgress: () => [] },
+      "@/lib/manga/chapter-identity": { chapterNumberKey: () => null },
+      "@/lib/profiles": { useProfiles: () => ({ activeId: null }) },
+      "@/lib/manga/read-intent": {
+        peekMangaReadIntent: () => null,
+        takeMangaReadIntent: () => null,
+      },
+      "@/lib/manga-favorites": { useMangaFavorites: () => ({ items: new Map() }) },
+      "@/lib/manga-lists": { mangaLists: { useLists: () => [] } },
+    },
+    {
+      lenient: true,
+      globals: {
+        window: { addEventListener: noop, removeEventListener: noop },
+        document: { addEventListener: noop, removeEventListener: noop },
+      },
+      expose: ["LibraryCta"],
+    },
+  );
+  const render = () => view.run(() => view.exports.MangaView());
+  const cta = all(render()).find((n) => n.type === view.exports.LibraryCta)!;
+  cta.props.onClick();
+  const tree = render();
+  const screen = all(tree).find((n) => n.type === "MangaLibrary")!;
+  const scroller = all(tree).find((n) => n.type === "main" && all(n).includes(screen))!;
+  assert.ok(screen.props.scrollRef, "the library gets a scroll ref");
+  assert.equal(screen.props.scrollRef, scroller.props.ref, "it is the ref of its own scroller");
 });
 
 function proxy(quality: string) {

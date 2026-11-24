@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import * as fflate from "fflate";
 import { flushPromises } from "./helpers/hook-harness.ts";
@@ -13,15 +12,14 @@ import {
   text,
   wheelHarness,
 } from "./helpers/ebook-harness.ts";
-
-const viewLines = new Set(
-  readFileSync(new URL("../src/views/ebook.tsx", import.meta.url), "utf8")
-    .split(/\r?\n/)
-    .map((line) => line.trim()),
-);
-const wired = (...lines: string[]) => {
-  for (const line of lines) assert.ok(viewLines.has(line), `ebook.tsx lacks: ${line}`);
-};
+import {
+  clickScreen,
+  detailsProps,
+  ebookViewHarness,
+  menuEvent,
+  ofKind,
+} from "./helpers/ebook-view-harness.ts";
+import { all as treeNodes } from "./helpers/tree-render.ts";
 
 const api = loadEBookApi();
 const book = (id: string, title: string, extra: Record<string, unknown> = {}): any => ({
@@ -47,21 +45,55 @@ const clickMenu = (wheel: ReturnType<typeof wheelHarness>, label: string) =>
     .find((item) => text(item) === label)!
     .props.onClick();
 
-test("eBook cards and the featured book open the dedicated wheel menu", () => {
-  wired(
-    "onContextMenu={(event) => openMenu(ebook, event)}",
-    "onContextMenu={(event) => current && openMenu(current, event)}",
-    "<EBookWheelMenu",
-    "target={wheelTarget}",
-  );
+const covered = book("source:p:1", "Dune", { cover: "dune.jpg" });
+
+test("eBook cards and the featured book open the dedicated wheel menu", async () => {
+  const view = ebookViewHarness({ sourceItems: [covered] });
+  await view.settle(view.render);
+  const tree = view.renderTree();
+  const card = ofKind(tree, view.exports.EBookCard)[0];
+  const cardButton = treeNodes(card).find((node) => node.type === "button")!;
+  const hero = treeNodes(tree).find((node) => node.type === "section" && node.props.onContextMenu)!;
+  const cardEvent = menuEvent(10, 20);
+  cardButton.props.onContextMenu(cardEvent);
+  assert.equal(cardEvent.prevented, true);
+  const target = (menu: { props: Record<string, any> }) => {
+    const { ebook, x, y } = menu.props.target;
+    return [ebook.id, x, y];
+  };
+  let menu = ofKind(view.render(), "EBookWheelMenu")[0];
+  assert.deepEqual(target(menu), [covered.id, 10, 20]);
+  menu.props.onClose();
+  assert.equal(ofKind(view.render(), "EBookWheelMenu").length, 0);
+
+  hero.props.onContextMenu(menuEvent(30, 40));
+  menu = ofKind(view.render(), "EBookWheelMenu")[0];
+  assert.deepEqual(target(menu), [covered.id, 30, 40]);
 });
 
-test("eBook pages suppress the native context menu without removing wheel handlers", () => {
-  wired(
-    'document.addEventListener("contextmenu", preventNativeMenu, true);',
-    'if (target instanceof Element && target.closest("[data-ebook-page]")) event.preventDefault();',
-    "data-ebook-page",
+test("eBook pages suppress the native context menu without removing wheel handlers", async () => {
+  const view = ebookViewHarness({ sourceItems: [covered] });
+  const tree = await view.settle(view.render);
+  const page = treeNodes(tree).find((node) => node.type === "main");
+  assert.equal(page?.props["data-ebook-page"], true, "the browse page is marked");
+  const capture = view.listeners.find((l) => l.target === "document" && l.type === "contextmenu");
+  assert.equal(capture?.options, true, "the listener runs in the capture phase");
+  const fire = (target: unknown) => {
+    const event = { target, prevented: false, preventDefault: () => (event.prevented = true) };
+    view.fire("document", "contextmenu", event);
+    return event.prevented;
+  };
+  assert.equal(fire(view.element(true)), true, "inside an eBook page the native menu is blocked");
+  assert.equal(fire(view.element(false)), false, "elsewhere the native menu stays");
+  assert.equal(fire({}), false, "a non-element target is left alone");
+  const card = treeNodes(view.renderTree()).find(
+    (node) => node.type === "button" && node.props.onContextMenu,
   );
+  assert.ok(card, "the wheel handler stays on the card");
+
+  const details = view.component("EBookDetails");
+  const { props } = detailsProps(covered);
+  assert.equal(details.render(props).props["data-ebook-page"], true, "the details page is marked");
 });
 
 test("duplicate books retain all readable sources and expose the details source picker", async () => {
@@ -158,10 +190,39 @@ test("duplicate books retain all readable sources and expose the details source 
     ["Latin", "Arabic"],
   );
 
-  wired(
-    "onSelect={setSourceRoute}",
-    "void sourceEBookChapters(sourceRoute)",
-    '[...new Set(queries)].slice(0, 6).map((query) => searchSourceEBookCatalog(query, "all")),',
+  const grouped = {
+    ...deduped[0],
+    altTitle: "a|b|c|d|e|f|g",
+    sourceAliases: ["The Wandering Inn"],
+  };
+  const view = ebookViewHarness({
+    chapters: {
+      [latin.id]: [{ id: "c1", title: "One" }],
+      [arabic.id]: [{ id: "c2", title: "Two" }],
+    },
+  });
+  const details = view.component("EBookDetails");
+  const { props } = detailsProps(grouped);
+  const tree = await view.settle(() => details.render(props));
+  assert.deepEqual(
+    view.calls.catalogSearches,
+    ["pirateaba", "The Wandering Inn", "a", "b", "c", "d", "e"].map((query) => [query, "all"]),
+    "the author, then each distinct title and alias at most six, are searched in every source",
+  );
+  const picker = ofKind(tree, details.exports.EBookDetailDropdown)[0];
+  assert.deepEqual(
+    picker.props.options.map((option: { id: string }) => option.id),
+    [latin.id, arabic.id],
+  );
+  assert.equal(picker.props.selected, latin.id);
+  assert.deepEqual(view.calls.chapters, [latin.id], "chapters load for the selected source");
+  picker.props.onSelect(arabic.id);
+  const switched = await view.settle(() => details.render(props));
+  assert.equal(ofKind(switched, details.exports.EBookDetailDropdown)[0].props.selected, arabic.id);
+  assert.deepEqual(
+    view.calls.chapters,
+    [latin.id, arabic.id],
+    "picking a source loads its chapters",
   );
 });
 
@@ -222,10 +283,25 @@ test("book details resolve source metadata and chapter statistics without a load
   assert.match(details, /3 chapters/);
   assert.ok(!all(wheel.render()).some((node) => node.type === "Loader2"), "loading ends");
 
-  wired("if (current.id !== detail.id) return { ...current, books };");
+  // Opening one member of a grouped book refreshes that member and keeps the group.
+  const first = book("source:en:7", "Group", { authors: ["Ann"] });
+  const second = book("source:ar:7", "Group", { authors: ["Ann"] });
+  const fresher = { ...second, description: "Fresh detail" };
+  const view = ebookViewHarness({
+    ebookId: second.id,
+    sourceItems: [first, second],
+    detail: (id) => (id === second.id ? fresher : null),
+  });
+  const page = await view.settle(view.render);
+  const shown = page.props.ebook;
+  assert.equal(shown.id, first.id, "the group keeps its own identity");
+  assert.deepEqual(
+    shown.books.map((item: { description: string }) => item.description),
+    ["", "Fresh detail"],
+  );
 });
 
-test("continue reading persists a profile-scoped chapter resume", () => {
+test("continue reading persists a profile-scoped chapter resume", async () => {
   const { api: state, store, events } = loadReaderState();
   state.saveEBookResume("alice", "book/1", { chapterId: "c3", chapterTitle: "Chapter 3" });
   assert.deepEqual([...store.keys()], ["harbor.ebook.resume.v1.alice.book%2F1"]);
@@ -236,11 +312,26 @@ test("continue reading persists a profile-scoped chapter resume", () => {
     [["harbor:ebook-resume", "book/1"]],
   );
 
-  wired(
-    "saveEBookResume(profile, ebook.id, {",
-    "const resume = loadEBookResume(profile, ebook.id);",
-    "chapters.find((chapter) => chapter.id === resume?.chapterId) ??",
-  );
+  const saved = book("source:p:9", "Saved");
+  const chapters = [
+    { id: "c1", title: "One", position: 1 },
+    { id: "c2", title: "Two", position: 2, chapter: "2", volume: "1" },
+  ];
+  const view = ebookViewHarness({
+    chapters: { [saved.id]: chapters },
+    resumes: { [`alice|${saved.id}`]: { chapterId: "c2", updatedAt: 1 } },
+  });
+  const details = view.component("EBookDetails");
+  const { props, log } = detailsProps(saved, { autoRead: true });
+  const tree = await view.settle(() => details.render(props));
+  const reader = ofKind(tree, "EBookReader")[0];
+  assert.equal(reader?.props.chapter.id, "c2", "continue reading opens the resumed chapter");
+  assert.equal(log.consumed, 1);
+  assert.deepEqual(view.calls.resumeSaves[0], [
+    "alice",
+    saved.id,
+    { chapterId: "c2", chapterTitle: "Two", chapterLabel: "2", volumeLabel: "Volume 1" },
+  ]);
 });
 
 test("reopening the same chapter preserves persisted percentages", () => {
@@ -354,43 +445,116 @@ test("the wheel queues downloads that the Downloads row reports with speed and E
   assert.match(row, /2m left/);
 });
 
-test("the eBook home replaces Universes with the live Shelf view", () => {
-  assert.ok(![...viewLines].some((line) => line.includes("EBookUniverses")));
-  wired(
-    'if (screen === "shelf") {',
-    'onClick={() => setScreen("shelf")}',
-    "items={displaySaved}",
-    'window.addEventListener("harbor:ebook-library", update);',
+test("the eBook home replaces Universes with the live Shelf view", async () => {
+  const shelved = book("source:p:2", "Shelved");
+  const view = ebookViewHarness({ sourceItems: [covered], saved: [shelved] });
+  await view.settle(view.render);
+  const names = treeNodes(view.renderTree()).map((node) =>
+    typeof node.type === "function" ? node.type.name : node.type,
+  );
+  assert.ok(!names.some((name) => /Universe/.test(String(name))), "no Universes screen or entry");
+  clickScreen(view, "Shelf");
+  const grid = () => ofKind(view.render(), view.exports.EBookGrid)[0];
+  assert.deepEqual(
+    grid().props.items.map((item: { id: string }) => item.id),
+    [shelved.id],
+  );
+  view.saved.push(covered);
+  view.fire("window", "harbor:ebook-library");
+  assert.deepEqual(
+    grid().props.items.map((item: { id: string }) => item.id),
+    [shelved.id, covered.id],
+    "the Shelf follows library changes live",
   );
 });
 
-test("the home bookmark rail is distinct from the Shelf collection", () => {
-  wired(
-    '.map((ebook) => ({ ebook, resume: loadEBookResume(activeId ?? "default", ebook.id) }))',
-    "items: continueBookmarks,",
-    "resumeReading: true,",
-    "if (rail.resumeReading) setReadIntent(ebook.id);",
-    'window.addEventListener("harbor:ebook-resume", update);',
-    'resumeProfile={activeId ?? "default"}',
-    "hideZeroProgress",
+test("the home bookmark rail is distinct from the Shelf collection", async () => {
+  const reading = book("source:p:3", "Reading");
+  const shelved = book("source:p:4", "Shelved");
+  const view = ebookViewHarness({
+    sourceItems: [covered, reading],
+    saved: [shelved],
+    resumes: { [`alice|${reading.id}`]: { chapterId: "c1", updatedAt: 1 } },
+  });
+  await view.settle(view.render);
+  const bookmarks = () =>
+    ofKind(view.render(), view.exports.EBookRail).find(
+      (rail) => rail.props.title === "Continue your bookmarks",
+    );
+  assert.deepEqual(
+    bookmarks()?.props.items.map((item: { id: string }) => item.id),
+    [reading.id],
+  );
+  assert.equal(bookmarks()?.props.resumeReading, true);
+  view.resumes.set(`alice|${covered.id}`, { chapterId: "c9", updatedAt: 2 });
+  view.fire("window", "harbor:ebook-resume");
+  assert.deepEqual(
+    bookmarks()?.props.items.map((item: { id: string }) => item.id),
+    [covered.id, reading.id],
+    "a new resume joins the rail, newest first",
+  );
+  bookmarks()!.props.onOpen(reading);
+  assert.deepEqual(view.calls.opened, [reading.id]);
+  view.view.ebookId = reading.id;
+  assert.equal(view.render().props.autoRead, true, "opening from the rail resumes reading");
+
+  view.view.ebookId = undefined;
+  clickScreen(view, "Shelf");
+  const shelf = ofKind(view.render(), view.exports.EBookGrid)[0];
+  assert.deepEqual(
+    shelf.props.items.map((item: { id: string }) => item.id),
+    [shelved.id],
+  );
+  assert.equal(shelf.props.resumeProfile, "alice");
+  assert.equal(shelf.props.hideZeroProgress, true);
+});
+
+test("book showcases distinguish read and partially read titles", async () => {
+  const read = book("source:p:5", "Read");
+  const partial = book("source:p:6", "Partial");
+  const unread = book("source:p:7", "Unread");
+  const view = ebookViewHarness({
+    tracking: { [read.id]: { status: "COMPLETED", progress: 0 } },
+    resumes: { [`alice|${partial.id}`]: { chapterId: "c1", updatedAt: 1 } },
+    progress: { [`alice|${partial.id}|c1:harbor`]: 12 },
+  });
+  const mark = (ebook: unknown) => {
+    const card = view.component("EBookCard");
+    return ofKind(card.render({ ebook, onOpen: () => {} }), card.exports.EBookReadMark)[0]?.props
+      .status;
+  };
+  assert.equal(mark(read), "read");
+  assert.equal(mark(partial), "partial", "a saved reading line counts as partly read");
+  assert.equal(mark(unread), undefined);
+
+  const details = view.component("EBookDetails");
+  const tree = details.render(detailsProps(read).props);
+  const cover = treeNodes(tree).find(
+    (node) => node.props.className === "ebook-details-book-cover",
+  )!;
+  const inside = treeNodes(cover.props.children);
+  assert.ok(inside.some((node) => node.props.className === "ebook-details-book-spine"));
+  assert.equal(
+    inside.find((node) => node.type === details.exports.EBookReadMark)?.props.status,
+    "read",
   );
 });
 
-test("book showcases distinguish read and partially read titles", () => {
-  wired(
-    'tracking.status === "COMPLETED" ||',
-    "savedLine > 0 ||",
-    'function EBookReadMark({ status }: { status: "read" | "partial" }) {',
-    "const readStatus = useEBookReadStatus(ebook, profile);",
-    '<div className="ebook-details-book-cover">',
-    '<span className="ebook-details-book-spine" aria-hidden="true" />',
+test("book details recommendations come from installed sources and share a genre", async () => {
+  const current = book("source:p:8", "Current", { genres: ["Fantasy", "Horror"] });
+  const both = book("source:q:1", "Both", { genres: ["Dark Fantasy", "Horror"] });
+  const one = book("source:q:2", "One", { genres: ["fantasy"] });
+  const none = book("source:q:3", "None", { genres: ["Romance"] });
+  const view = ebookViewHarness({ recommendationItems: [one, none, current, both] });
+  const details = view.component("EBookDetails");
+  const { props } = detailsProps(current);
+  const tree = await view.settle(() => details.render(props));
+  assert.ok(view.calls.sourcePages.some(([query, provider]) => !query && provider === "all"));
+  const rail = ofKind(tree, details.exports.EBookRail).find(
+    (node) => node.props.title === "Recommended eBooks",
   );
-});
-
-test("book details recommendations come from installed sources and share a genre", () => {
-  wired(
-    'void loadSourceEBookPage(undefined, "all")',
-    ".map((item) => ({ item, score: genreScore(item) }))",
-    ".filter(({ score }) => score > 0)",
+  assert.deepEqual(
+    rail?.props.items.map((item: { title: string }) => item.title),
+    ["Both", "One"],
   );
 });

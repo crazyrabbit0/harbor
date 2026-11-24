@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { EBook } from "../src/lib/ebook/api.ts";
 import {
   buildSourceEBookCollections,
   streamSourceEBookAwardMatches,
 } from "../src/lib/ebook/collections.ts";
+import { clickScreen, ebookViewHarness, ofKind } from "./helpers/ebook-view-harness.ts";
 import { loadModule } from "./helpers/hook-harness.ts";
 
 const book = (id: string, title: string, extra: Partial<EBook> = {}): EBook => ({
@@ -141,7 +141,20 @@ test("the Collections screen resolves curated awards through installed sources",
     hugo?.books.map((b) => b.title),
     ["Dune", "Neuromancer", "Hyperion"],
   );
-  // views/ebook.tsx is too large to load; its one wiring line passes the installed-source search.
-  const view = readFileSync(new URL("../src/views/ebook.tsx", import.meta.url), "utf8");
-  assert.match(view, /^\s*\(title\) => searchSourceEBookCatalog\(title, providerId\),$/m);
+
+  // The view searches the selected installed source for each award title it lacks.
+  const view = ebookViewHarness({
+    sourceItems: [book("source:demo:dune", "Dune")],
+    catalogSearch: (query) => (found.has(query) ? [found.get(query)!] : []),
+  });
+  await view.settle(view.render);
+  clickScreen(view, "Collections");
+  const tree = await view.settle(view.render, 40);
+  assert.ok(view.calls.catalogSearches.some(([query]) => query === "Neuromancer"));
+  assert.ok(view.calls.catalogSearches.every(([, provider]) => provider === "plugin:p"));
+  const rail = ofKind(tree, "MangaRail").find((node) => node.key === "award:hugo");
+  assert.deepEqual(
+    rail?.props.items.map((b: EBook) => b.title),
+    ["Dune", "Neuromancer", "Hyperion"],
+  );
 });
