@@ -165,6 +165,7 @@ test("TV focus navigation stays off while the screen is locked or the player is 
   assert.equal(playerTvNavigationEnabled({ ...on, pipDocked: true }), false);
   assert.equal(playerTvNavigationEnabled({ ...on, playerTvNavigation: false }), false);
   assert.equal(playerTvNavigationEnabled({ ...on, tvNavigation: false }), false);
+  // player.tsx is too large to load, so only its playerTvNavigationEnabled call is read as text.
   const call = /enabled: playerTvNavigationEnabled\(\{([\s\S]*?)\}\)/.exec(player)?.[1] ?? "";
   assert.match(call, /^\s*screenLocked,$/m, "the player passes its live lock state");
   assert.match(call, /pipDocked: src\.pipDocked/);
