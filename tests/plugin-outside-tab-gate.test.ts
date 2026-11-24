@@ -10,6 +10,7 @@ import {
   isExtensionCatalogueBase,
 } from "../src/lib/streams/plugins/extension/catalogue-base.ts";
 import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness.ts";
+import { effectContaining, sourceCallback } from "./helpers/source-callback.ts";
 
 type N = { type: unknown; props: Record<string, any> & { children?: unknown } };
 const element = (type: unknown, props: N["props"]) => ({ type, props });
@@ -209,20 +210,33 @@ function pluginsPage() {
   return spy.asked;
 }
 
-test("the Plugins page is the only surface that always asks for plugin rows", () => {
+test("the Plugins page is the only surface that always asks for plugin rows", async () => {
   assert.deepEqual(pluginsPage(), [{ pluginRows: true }, { pluginRows: true }]);
   for (const outside of [false, true]) {
     const want = [{ pluginRows: outside }, { pluginRows: outside }];
     assert.deepEqual(catalogsView(outside), want, "Catalogs threads the setting");
     assert.deepEqual(catalogBrowserView(outside), want, "Discover threads the setting");
   }
-  // Mobile search is over 1000 lines of view code, so its one call is checked as text.
-  const mobile = readFileSync("src/views/mobile/mobile-search.tsx", "utf8");
-  assert.match(
-    mobile,
-    /listBrowseCatalogs\(authKey, \{\s+pluginRows: settings\.pluginsOutsideTab,/,
-  );
+  for (const outside of [false, true]) {
+    assert.deepEqual(await mobileCollections(outside), [{ pluginRows: outside }]);
+  }
 });
+
+// Mobile search is over 1000 lines of view code, so only its collections effect runs.
+async function mobileCollections(pluginsOutsideTab: boolean) {
+  const asked: unknown[] = [];
+  sourceCallback("src/views/mobile/mobile-search.tsx", effectContaining("listBrowseCatalogs("), {
+    authKey: "k",
+    settings: { pluginsOutsideTab },
+    listKey: "k|0",
+    listBrowseCatalogs: async (_key: unknown, options: unknown) => (asked.push(options), []),
+    isCollectionCatalog: () => true,
+    browseFetcher: () => async () => [],
+    setListState: () => {},
+  })();
+  await flushPromises();
+  return asked;
+}
 
 test("every caller of the catalog list is one of the surfaces checked above", () => {
   const walk = (dir: string): string[] =>

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import "./_indexeddb-stub.ts";
 import { loadModule, readSource } from "../scripts/benchmark-discover.mjs";
 
 type Entry = { at: number; data: unknown };
@@ -151,7 +152,15 @@ test("a persisted detail bundle older than a day is refetched", async () => {
   assert.equal(cold.requests(), 1);
 });
 
-test("the title cache prefix is trimmable", () => {
-  const source = readSource("src/lib/idb-cache.ts");
-  assert.match(source, /TRIMMABLE_PREFIXES = \[[^\]]*"tmdb\.title\.v1:"/);
+test("the title cache prefix is trimmable", async () => {
+  const { idbCacheGet, idbCacheSet, idbCacheTrim } = await import("../src/lib/idb-cache.ts");
+  await idbCacheSet("tmdb.title.v1:movie/603", { at: 1, data: "title" });
+  await idbCacheSet("harbor.music.pinned-sources.v1", { at: 0, data: "pin" });
+  await idbCacheTrim(0);
+  assert.equal(
+    await idbCacheGet("tmdb.title.v1:movie/603"),
+    undefined,
+    "a trim evicts title bundles",
+  );
+  assert.equal((await idbCacheGet("harbor.music.pinned-sources.v1"))?.data, "pin");
 });

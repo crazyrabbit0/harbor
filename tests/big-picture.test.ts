@@ -1,9 +1,8 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
+import { sourceEffect } from "./helpers/source-effect.ts";
 
 import {
   bigPictureChromeState,
@@ -377,11 +376,33 @@ test("the nav jump key stays off every other Big Picture binding", () => {
   }
 });
 
-test("Big Picture autostart is a launch-only check, not a live setting reaction", () => {
-  // App.tsx is too large to load, so only its wiring line pair is read; the decision runs above.
-  const app = readFileSync(new URL("../src/App.tsx", import.meta.url), "utf8");
-  assert.match(
-    app,
-    /\n\s*const alreadyBooted = bigPictureBootChecked\.current;\n\s*bigPictureBootChecked\.current = true;\n/,
-  );
+test("Big Picture autostart is a launch-only check, not a live setting reaction", async () => {
+  // App.tsx is too large to load, so its autostart effect runs alone with the real decision.
+  const effect = sourceEffect("src/App.tsx", "shouldAutoStartBigPicture(");
+  const bigPictureBootChecked = { current: false };
+  const entered: string[] = [];
+  const run = (autoStart: boolean, display: object = { mode: "auto" }, kid: unknown = null) =>
+    effect({
+      bigPictureBootChecked,
+      shouldAutoStartBigPicture,
+      settings: { bigPictureAutoStart: autoStart, bigPictureDisplay: display },
+      kid,
+      enterBigPicture: () => entered.push("enter"),
+      moveMainToMonitor: async (monitor: string) => void entered.push(`move:${monitor}`),
+    });
+  run(false);
+  run(true);
+  assert.deepEqual(entered, [], "turning the setting on after launch does not enter");
+
+  bigPictureBootChecked.current = false;
+  run(true, { mode: "explicit", monitor: "HDMI-1" });
+  await Promise.resolve();
+  assert.deepEqual(entered, ["move:HDMI-1", "enter"], "a launch with autostart on enters once");
+  run(true);
+  assert.equal(entered.length, 2);
+
+  bigPictureBootChecked.current = false;
+  run(true, { mode: "auto" }, { id: "kid" });
+  assert.equal(entered.length, 2, "a kid profile never autostarts");
+  assert.equal(bigPictureBootChecked.current, true, "and still consumes the launch check");
 });

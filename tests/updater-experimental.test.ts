@@ -6,6 +6,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
 import { componentHarness, elements } from "./helpers/component-harness.ts";
+import { settingsNavHarness } from "./helpers/settings-nav-harness.ts";
 import * as experimental from "../src/lib/updater/experimental.ts";
 import ar from "../src/lib/i18n/locales/ar/experimental-updates.ts";
 import pt from "../src/lib/i18n/locales/pt/experimental-updates.ts";
@@ -1058,12 +1059,96 @@ function updatesPanel(options: { access: boolean; installed: boolean; inApp?: bo
   );
 }
 
-test("experimental settings live between updates and backup, with search pointing to that page", () => {
-  const source = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
-  const advanced = source("src/views/settings/advanced-panel/system-tab.tsx");
-  const navigation = source("src/views/settings/nav.tsx");
-  const experimentalSection = source("src/views/settings/experimental-builds-section.tsx");
+const tKey = (key: string) => `t:${key}`;
 
+function systemTab() {
+  const h = componentHarness(
+    "src/views/settings/advanced-panel/system-tab.tsx",
+    "SystemTab",
+    {
+      "@/lib/i18n": { useT: () => tKey },
+      "@/lib/settings": { useSettings: () => ({ settings: {}, update() {} }) },
+      "../shared": { Section: "Section", Segmented: "Segmented" },
+      "../tray-row": { TrayRow: "TrayRow" },
+      "../player-panel": { DownloadsSection: "DownloadsSection" },
+      "../player-panel/internals": { DesktopOnlyBlock: "DesktopOnlyBlock", isTauri: true },
+    },
+    { navigator: { userAgent: "Windows" } },
+  );
+  return [...elements(h.render())].map((el) => String(el.type));
+}
+
+// Clicks each button the section shows, including ones a click reveals; records the actions taken.
+function experimentalSectionActions() {
+  const calls: string[] = [];
+  const h = componentHarness(
+    "src/views/settings/experimental-builds-section.tsx",
+    "ExperimentalBuildsSection",
+    {
+      "./icons": { FlaskConical: "FlaskConical" },
+      "@/lib/i18n": { useT: () => tKey },
+      "@/lib/platform": { isWindowsDesktop: () => true },
+      "@/lib/updater/channel": {
+        normalUpdateChannel: () => "stable",
+        selectedUpdateChannel: () => "stable",
+      },
+      "@/lib/updater/experimental-access": { useExperimentalAccess: () => true },
+      "@/lib/updater/beta-return": { readBetaReturnContext: () => null },
+      "@/lib/updater/use-update": {
+        checkForUpdate: async () => void calls.push("check"),
+        openUpdatePanel: () => calls.push("open-update-panel"),
+        setExperimentalUpdates: (on: boolean) => (calls.push(`experimental:${on}`), true),
+        updateAvailable: () => false,
+        updateChannelLocked: () => false,
+        useUpdate: () => ({ status: "idle", channel: "stable" }),
+      },
+      "./kit": { ROW_ACTION: "", ROW_ACTION_PRIMARY: "", SettingRow: "SettingRow" },
+      "./shared": { Section: "Section" },
+      "./beta-return-section": { BetaReturnSection: "BetaReturnSection" },
+    },
+    { __APP_VERSION__: "0.9.123" },
+  );
+  const buttons = () => [...elements(h.render())].filter((el) => el.type === "button");
+  const seen = new Set<unknown>();
+  for (let next = buttons()[0]; next; next = buttons().find((b) => !seen.has(b.props.children))) {
+    seen.add(next.props.children);
+    next.props.onClick();
+  }
+  return { calls, labels: [...seen] };
+}
+
+function updatesRowButton(update: Record<string, unknown>) {
+  const h = componentHarness(
+    "src/views/settings/advanced-panel/update-rows.tsx",
+    "UpdatesRow",
+    {
+      "../icons": {
+        Download: "Download",
+        FlaskConical: "Flask",
+        Loader2: "Loader",
+        RotateCw: "Rot",
+      },
+      "@/lib/settings": { useSettings: () => ({ settings: {}, update() {} }) },
+      "@/lib/updater/channel": { readChannelPreference: () => null, selectedUpdateChannel() {} },
+      "@/lib/updater/beta-return": { readBetaReturnContext: () => null },
+      "@/lib/updater/use-update": {
+        checkForUpdate: async () => {},
+        setUpdateChannel() {},
+        openUpdatePanel() {},
+        updateAvailable: () => false,
+        useUpdate: () => update,
+      },
+      "@/lib/build-info": { IS_BETA_BUILD: false },
+      "@/lib/i18n": { useT: () => tKey },
+      "../shared": { ToggleRow: "ToggleRow" },
+      "../kit": { ROW_ACTION: "", ROW_ACTION_PRIMARY: "", SettingRow: "SettingRow" },
+    },
+    { __APP_VERSION__: "0.9.123" },
+  );
+  return [...elements(h.render())].find((el) => el.type === "button")!;
+}
+
+test("experimental settings live between updates and backup, with search pointing to that page", () => {
   for (const [access, installed] of [
     [true, false],
     [false, true],
@@ -1080,15 +1165,29 @@ test("experimental settings live between updates and backup, with search pointin
   );
   assert.ok(updatesPanel({ access: false, installed: false }).includes("RollbackRow"));
   assert.equal(updatesPanel({ access: true, installed: true }).includes("RollbackRow"), false);
-  assert.ok(!advanced.includes("ExperimentalBuildsSection"));
-  assert.match(
-    navigation,
-    /label:\s*"Experimental builds",\s*section:\s*"updates",\s*anchorTitle:\s*"Experimental builds"/,
+  assert.deepEqual(systemTab(), [
+    "Fragment",
+    "Section",
+    "DownloadsSection",
+    "Section",
+    "TrayRow",
+    "Section",
+    "Segmented",
+  ]);
+  const search = settingsNavHarness().options.filter((o) => o.label === "Experimental builds");
+  assert.deepEqual(
+    search.map(({ section, anchorTitle }) => ({ section, anchorTitle })),
+    [{ section: "updates", anchorTitle: "Experimental builds" }],
   );
-  assert.ok(!experimentalSection.includes("Open updates & backup"));
-  assert.ok(
-    !source("src/views/settings/advanced-panel/update-rows.tsx").includes(
-      "experimental builds in Advanced",
-    ),
+  const section = experimentalSectionActions();
+  assert.equal(section.labels.length, 2, "enable, then confirm; nothing that leaves the page");
+  assert.deepEqual(section.calls, ["experimental:true", "check"]);
+  const returning = updatesRowButton({ intent: "return-beta", status: "idle", progress: 0 });
+  assert.equal(
+    returning.props.onClick,
+    undefined,
+    "the return flow continues in the section below",
   );
+  assert.equal(returning.props["aria-disabled"], true);
+  assert.equal(typeof updatesRowButton({ status: "idle", progress: 0 }).props.onClick, "function");
 });

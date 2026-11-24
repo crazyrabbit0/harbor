@@ -10,6 +10,7 @@ import type { LibraryItem } from "../src/lib/stremio";
 import { continueCardHarness } from "./helpers/continue-card-harness.ts";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 import { profileRosterFor } from "./helpers/profile-roster.ts";
+import { hookArgument, sourceCallback } from "./helpers/source-callback.ts";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -327,11 +328,16 @@ function mobileExternalRequests(perProfile: boolean, shares: boolean, sources: o
 }
 
 test("source toggles preserve the shared-profile protection on desktop and mobile", () => {
-  // home.tsx is too large to load; pin its one wiring statement.
-  assert.match(
-    read("src/views/home.tsx"),
-    /const externalCw = useExternalCw\(\s*!hideSharedCw && \(settings\.cwSources\.trakt \|\| settings\.cwSources\.simkl\),\s*\);/,
-  );
+  // home.tsx is too large to load; its useExternalCw argument is evaluated alone.
+  const homeRequest = (hideSharedCw: boolean, cwSources: { trakt: boolean; simkl: boolean }) =>
+    sourceCallback("src/views/home.tsx", hookArgument("externalCw"), {
+      hideSharedCw,
+      settings: { cwSources },
+    });
+  assert.equal(homeRequest(true, { trakt: true, simkl: true }), false);
+  assert.equal(homeRequest(false, { trakt: true, simkl: false }), true);
+  assert.equal(homeRequest(false, { trakt: false, simkl: true }), true);
+  assert.equal(homeRequest(false, { trakt: false, simkl: false }), false);
   assert.deepEqual(mobileExternalRequests(true, true, { trakt: true, simkl: true }), [false]);
   assert.deepEqual(mobileExternalRequests(false, true, { trakt: true, simkl: false }), [true]);
   assert.deepEqual(mobileExternalRequests(true, false, { trakt: false, simkl: true }), [true]);
