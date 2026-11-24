@@ -203,6 +203,7 @@ export function mpvBridgeHarness(
     "mpv-subtitles",
     "mpv-audio",
     "mpv-controls",
+    "mpv-load",
   ]) {
     const sibling = { exports: {} };
     new Function(
