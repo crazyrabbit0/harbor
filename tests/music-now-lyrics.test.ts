@@ -177,15 +177,16 @@ test("lyric lines clear the 44px target floor and stand still under reduced moti
 test("Karaoke and the lyric strings exist in every locale, written in each script", async () => {
   const nonLatin = ["ar", "hi", "ja", "ko", "ru", "zh"];
   for (const lang of LOCALES) {
-    const source = readFileSync(`src/lib/i18n/locales/${lang}/music.ts`, "utf8");
-    const found = /"?Karaoke"?:\s*"([^"]+)"/.exec(source);
-    assert.ok(found, `${lang} is missing the Karaoke label`);
+    const table: Record<string, string> = (await import(`../src/lib/i18n/locales/${lang}/music.ts`))
+      .default;
+    const karaoke = table.Karaoke;
+    assert.ok(karaoke, `${lang} is missing the Karaoke label`);
     if (nonLatin.includes(lang))
       assert.ok(
-        [...found[1]].some((char) => (char.codePointAt(0) ?? 0) > 127),
+        [...karaoke].some((char) => (char.codePointAt(0) ?? 0) > 127),
         `${lang} left Karaoke in Latin`,
       );
     for (const key of ["Lyrics", "Finding lyrics", "No lyrics for this track"])
-      assert.ok(new RegExp(`"?${key}"?:`).test(source), `${lang} is missing ${key}`);
+      assert.ok(table[key], `${lang} is missing ${key}`);
   }
 });
