@@ -138,6 +138,72 @@ test("peeking at the previous track does not consume the history", () => {
   assert.equal(order.previous(QUEUE, at, true)?.id, "a");
 });
 
+const at = (track: MusicTrack) => QUEUE.findIndex((t) => queueTrackKey(t) === queueTrackKey(track));
+
+test("repeat all never plays the same track twice in a row across laps", () => {
+  const order = new MusicQueueOrder();
+  let index = 0;
+  for (let i = 0; i < QUEUE.length * 3; i += 1) {
+    const next = order.next(QUEUE, index, ON_ALL, true, null, seeded(43));
+    assert.ok(next, `stopped at step ${i}`);
+    assert.notEqual(next!.id, QUEUE[index].id, `step ${i} repeated ${next!.id}`);
+    index = at(next!);
+  }
+});
+
+test("Next after Previous walks forward through the tracks already heard", () => {
+  const order = new MusicQueueOrder();
+  const first = order.next(QUEUE, 0, ON, false, null, seeded(13))!;
+  const second = order.next(QUEUE, at(first), ON, false, null, seeded(13))!;
+  assert.equal(order.previous(QUEUE, at(second), true), first);
+  assert.equal(order.previous(QUEUE, at(first), true), QUEUE[0]);
+  assert.equal(order.next(QUEUE, 0, ON, false), first);
+  assert.equal(order.next(QUEUE, at(first), ON, false), second);
+});
+
+test("repeat one repeats only on automatic advance", () => {
+  const order = new MusicQueueOrder();
+  const one = { shuffle: false, repeat: "one" as const };
+  assert.equal(order.next(QUEUE, 0, one, true), QUEUE[0]);
+  assert.equal(order.next(QUEUE, 0, one, false), QUEUE[1]);
+});
+
+test("a play-next pick beats the shuffled order", () => {
+  const shuffled = new MusicQueueOrder().upcoming(QUEUE, 0, ON, 1, seeded(5))[0];
+  const pick = QUEUE.find((t) => t !== shuffled && t !== QUEUE[0])!;
+  assert.equal(new MusicQueueOrder().next(QUEUE, 0, ON, false, pick, seeded(5)), pick);
+});
+
+test("Previous skips history entries that left the queue", () => {
+  const order = new MusicQueueOrder();
+  const first = order.next(QUEUE, 0, ON, true, null, seeded(17))!;
+  assert.equal(order.previous([first], 0, true), null);
+});
+
+test("a single track ends under shuffle and repeats only with repeat all", () => {
+  const order = new MusicQueueOrder();
+  assert.equal(order.next([QUEUE[0]], 0, ON, true), null);
+  assert.equal(order.next([QUEUE[0]], 0, ON_ALL, true), QUEUE[0]);
+});
+
+test("reset forgets the previous session's history", () => {
+  const order = new MusicQueueOrder();
+  const first = order.next(QUEUE, 0, ON, true, null, seeded(23))!;
+  order.reset();
+  assert.equal(order.previous(QUEUE, at(first), true), null);
+});
+
+test("track identity includes the provider and follows the collection origin", () => {
+  const local = { id: "a", connectorId: "local" } as unknown as MusicTrack;
+  assert.notEqual(queueTrackKey(local), queueTrackKey({ ...local, connectorId: "soundcloud" }));
+  const replacement = {
+    id: "replacement",
+    connectorId: "youtube",
+    collectionOrigin: { id: "a", connectorId: "local" },
+  } as unknown as MusicTrack;
+  assert.equal(queueTrackKey(replacement), queueTrackKey(local));
+});
+
 test("the warm preview matches the track shuffle actually advances to", () => {
   const warm = new MusicQueueOrder();
   const play = new MusicQueueOrder();
