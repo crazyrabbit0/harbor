@@ -138,7 +138,7 @@ function MusicSourcePickerRoot({ children, active }: { children: ReactNode; acti
     },
     [active],
   );
-  const value = useMemo(() => ({ openSourcePicker }), [openSourcePicker]);
+  const value = { openSourcePicker };
 
   return (
     <MusicSourcePickerContext.Provider value={value}>

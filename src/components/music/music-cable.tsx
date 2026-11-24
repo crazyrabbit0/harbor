@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Check, Copy, MicVocal } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import { copyText } from "@/components/player/copy-link-button";
@@ -28,12 +28,12 @@ function CableName({ label, name, hint }: { label: string; name: string; hint: s
     },
     [],
   );
-  const copy = useCallback(async () => {
+  const copy = async () => {
     if (!(await copyText(label))) return;
     setCopied(true);
     if (timer.current !== null) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setCopied(false), COPIED_MS);
-  }, [label]);
+  };
   return (
     <div className="music-cable-name">
       <span className="music-cable-hint">{hint}</span>
@@ -103,23 +103,20 @@ export function MusicCable({ onStatus }: { onStatus?: (status: CableStatus) => v
     onStatus?.(status);
   }, [status, onStatus]);
 
-  const act = useCallback(
-    (rate?: number) => {
-      setBusy(true);
-      setFailed(null);
-      return (status.active && rate === undefined ? cableDestroy() : cableCreate(rate))
-        .then((next) => {
-          if (alive.current) setStatus(next);
-        })
-        .catch((error: unknown) => {
-          if (alive.current) setFailed(cableErrorKey(error));
-        })
-        .finally(() => {
-          if (alive.current) setBusy(false);
-        });
-    },
-    [status.active],
-  );
+  const act = (rate?: number) => {
+    setBusy(true);
+    setFailed(null);
+    return (status.active && rate === undefined ? cableDestroy() : cableCreate(rate))
+      .then((next) => {
+        if (alive.current) setStatus(next);
+      })
+      .catch((error: unknown) => {
+        if (alive.current) setFailed(cableErrorKey(error));
+      })
+      .finally(() => {
+        if (alive.current) setBusy(false);
+      });
+  };
 
   if (!status.supported) return null;
 

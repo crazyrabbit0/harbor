@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 
 type RowCardExpansionValue = {
   enabled: boolean;
@@ -24,12 +24,9 @@ export function RowCardExpansionProvider({
   onCollapse: (index: number) => void;
   children: ReactNode;
 }) {
-  const expand = useCallback((width: number) => onExpand(index, width), [index, onExpand]);
-  const collapse = useCallback(() => onCollapse(index), [index, onCollapse]);
-  const value = useMemo<RowCardExpansionValue>(
-    () => ({ enabled, expanded, expand, collapse }),
-    [collapse, enabled, expand, expanded],
-  );
+  const expand = (width: number) => onExpand(index, width);
+  const collapse = () => onCollapse(index);
+  const value: RowCardExpansionValue = { enabled, expanded, expand, collapse };
 
   return (
     <RowCardExpansionContext.Provider value={value}>{children}</RowCardExpansionContext.Provider>

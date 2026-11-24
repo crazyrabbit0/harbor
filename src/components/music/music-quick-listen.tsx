@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
@@ -139,7 +139,7 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
     stopAudio();
     onClose();
   }, [onClose]);
-  const attachVolumeWheel = useCallback((node: HTMLDivElement | null) => {
+  const attachVolumeWheel = (node: HTMLDivElement | null) => {
     if (!node) return;
     const adjust = (event: WheelEvent) => {
       if (event.ctrlKey || !(event.deltaY || event.deltaX)) return;
@@ -151,7 +151,7 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
     };
     node.addEventListener("wheel", adjust, { passive: false });
     return () => node.removeEventListener("wheel", adjust);
-  }, []);
+  };
 
   useEffect(() => {
     const origin = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -325,7 +325,7 @@ export function MusicQuickListen({ seeds, onClose }: { seeds: MusicTrack[]; onCl
         }
       : undefined,
   });
-  const labels = useMemo(() => genres.map(musicGenre).filter((genre) => !!genre), [genres]);
+  const labels = genres.map(musicGenre).filter((genre) => !!genre);
   const previewLabel = t(
     status === "playing"
       ? "music.pause"

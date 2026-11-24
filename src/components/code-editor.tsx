@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type KeyboardEvent, type UIEvent } from "react";
+import { useRef, useState, type KeyboardEvent, type UIEvent } from "react";
 
 export type CodeLang = "css" | "html" | "js";
 
@@ -79,8 +79,8 @@ export function CodeEditor({
   const gutterRef = useRef<HTMLDivElement>(null);
   const [caretLine, setCaretLine] = useState(1);
   const [scrollTop, setScrollTop] = useState(0);
-  const lineCount = useMemo(() => value.split("\n").length, [value]);
-  const markup = useMemo(() => `${highlight(value, language)}\n`, [value, language]);
+  const lineCount = value.split("\n").length;
+  const markup = `${highlight(value, language)}\n`;
 
   const reportCaret = (el: HTMLTextAreaElement) => {
     const upto = el.value.slice(0, el.selectionStart);

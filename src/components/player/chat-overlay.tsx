@@ -1,5 +1,5 @@
 import { MessageCircle, Send } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { nameColor } from "@/lib/together/colors";
 import type { PanelCorner } from "@/lib/player-chrome";
 import type { ChatMessage } from "@/lib/together/provider";
@@ -83,19 +83,12 @@ export function ChatOverlay({
     };
   }, [composing, draft]);
 
-  const recent = useMemo(
-    () => messages.filter((m) => tickNow - m.at < RECENT_WINDOW_MS).slice(-6),
-    [messages, tickNow],
-  );
-  const grouped = useMemo(
-    () =>
-      recent.map((m, i) => {
-        const prev = recent[i - 1];
-        const isContinuation = !!prev && prev.from === m.from && m.at - prev.at < GROUP_GAP_MS;
-        return { message: m, isContinuation };
-      }),
-    [recent],
-  );
+  const recent = messages.filter((m) => tickNow - m.at < RECENT_WINDOW_MS).slice(-6);
+  const grouped = recent.map((m, i) => {
+    const prev = recent[i - 1];
+    const isContinuation = !!prev && prev.from === m.from && m.at - prev.at < GROUP_GAP_MS;
+    return { message: m, isContinuation };
+  });
   const showStream = recent.length > 0 || forceVisible || composing;
 
   const submit = () => {

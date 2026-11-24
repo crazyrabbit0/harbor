@@ -159,19 +159,14 @@ export function StreamSwitcher({
     () => (showFiltered ? [...keptStreams, ...rejectedStreams] : keptStreams),
     [keptStreams, rejectedStreams, showFiltered],
   );
-  const cachedStreams = useMemo(
-    () =>
-      allStreams.filter(
-        (s) =>
-          s.url != null ||
-          debridSlugs.some(
-            (slug) =>
-              s.cached[slug as keyof typeof s.cached] ||
-              s.inLibrary[slug as keyof typeof s.inLibrary],
-          ) ||
-          hasCachedMarker(s),
-      ),
-    [allStreams, debridSlugs],
+  const cachedStreams = allStreams.filter(
+    (s) =>
+      s.url != null ||
+      debridSlugs.some(
+        (slug) =>
+          s.cached[slug as keyof typeof s.cached] || s.inLibrary[slug as keyof typeof s.inLibrary],
+      ) ||
+      hasCachedMarker(s),
   );
   const [cachedOnly, setCachedOnly] = useState(false);
   const baseList =
@@ -210,7 +205,7 @@ export function StreamSwitcher({
   if (sourceFilter !== "all" && !sourceOptions.some((o) => o.id === sourceFilter)) {
     setSourceFilter("all");
   }
-  const addonOptions = useMemo(() => buildAddonOptions(allStreams), [allStreams]);
+  const addonOptions = buildAddonOptions(allStreams);
   if (addonFilter !== "all" && !addonOptions.some((o) => o.id === addonFilter)) {
     setAddonFilter("all");
   }
@@ -236,13 +231,10 @@ export function StreamSwitcher({
     }
     return list;
   }, [baseList, addonFilter, qualityFilter, sourceFilter, matchScores]);
-  const matchedStreams = useMemo(
-    () =>
-      preferredLangs.length === 0
-        ? addonFilteredList
-        : addonFilteredList.filter((s) => streamMatchesLangs(s, preferredLangs)),
-    [addonFilteredList, preferredLangs],
-  );
+  const matchedStreams =
+    preferredLangs.length === 0
+      ? addonFilteredList
+      : addonFilteredList.filter((s) => streamMatchesLangs(s, preferredLangs));
   const filteredList =
     filterToPreferred && preferredLangs.length > 0 ? matchedStreams : addonFilteredList;
   const matchCurrent = useMemo(() => {

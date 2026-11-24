@@ -80,7 +80,7 @@ export function MenuBody(props: SubtitleMenuProps & { onClose: () => void }) {
   }, [groups, activeLang, selectedId]);
   if (desiredActiveLang !== activeLang) setActiveLang(desiredActiveLang);
 
-  const veryNewMovie = useMemo(() => isVeryNewRelease(metaReleaseDate), [metaReleaseDate]);
+  const veryNewMovie = isVeryNewRelease(metaReleaseDate);
   const allLangs = activeLang === ALL_LANGS;
   const activeGroup = useMemo(
     () => groups.find((g) => g.langKey === activeLang) ?? null,
@@ -103,26 +103,17 @@ export function MenuBody(props: SubtitleMenuProps & { onClose: () => void }) {
   const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
   const [localError, setLocalError] = useState<string | null>(null);
   const delayNonZero = delaySec !== 0;
-  const selectedTrack = useMemo(
-    () => tracks.find((t) => t.id === selectedId) ?? null,
-    [tracks, selectedId],
-  );
-  const secondaryTrack = useMemo(() => tracks.find((t) => t.secondary) ?? null, [tracks]);
+  const selectedTrack = tracks.find((t) => t.id === selectedId) ?? null;
+  const secondaryTrack = tracks.find((t) => t.secondary) ?? null;
   const pickSecondary = props.onSelectSecondary ?? setSecondarySub;
   const search = useSubtitleSearch();
   const generatedOptions = search?.generated ?? [];
 
   const bestPool = allLangs ? languageTracks : (activeGroup?.variants ?? []);
   const streamHints = search?.hints ?? null;
-  const rankedMatches = useMemo(
-    () => rankByRelease(bestPool, streamHints),
-    [bestPool, streamHints],
-  );
-  const verdictByTrack = useMemo(
-    () => new Map(rankedMatches.map((match) => [match.track.id, match])),
-    [rankedMatches],
-  );
-  const best = useMemo(() => pickBestMatch(bestPool, streamHints), [bestPool, streamHints]);
+  const rankedMatches = rankByRelease(bestPool, streamHints);
+  const verdictByTrack = new Map(rankedMatches.map((match) => [match.track.id, match]));
+  const best = pickBestMatch(bestPool, streamHints);
   const betterMatch = best && best.track.id !== selectedId ? best : null;
 
   const applyBestMatch = () => {

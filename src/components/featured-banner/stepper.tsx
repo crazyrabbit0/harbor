@@ -43,13 +43,13 @@ function HoldStepButton({
     }
   }, []);
 
-  const start = useCallback(() => {
+  const start = () => {
     stop();
     stepRef.current();
     timer.current = window.setTimeout(() => {
       interval.current = window.setInterval(() => stepRef.current(), 220);
     }, 380);
-  }, [stop]);
+  };
 
   useEffect(() => stop, [stop]);
 

@@ -75,10 +75,7 @@ export function LiveChannelOverlay({
     () => sortChannelsByGroupRelevance(playlist?.channels ?? [], region, preferredLanguages),
     [playlist?.channels, region, preferredLanguages],
   );
-  const sortedGroups = useMemo(
-    () => sortGroupsByRelevance(playlist?.groups ?? [], region, preferredLanguages),
-    [playlist?.groups, region, preferredLanguages],
-  );
+  const sortedGroups = sortGroupsByRelevance(playlist?.groups ?? [], region, preferredLanguages);
   const topRows = useMemo(() => rowsForRegion(region), [region]);
   const regionChannels = useMemo(
     () => filterChannelsByRegion(sortedChannels, region),

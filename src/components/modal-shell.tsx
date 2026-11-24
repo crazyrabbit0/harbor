@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 
 const EXIT_MS = 190;
@@ -6,11 +6,11 @@ const EXIT_MS = 190;
 export function useModalExit(onClose: () => void, open = true) {
   const [closing, setClosing] = useState(false);
   const fired = useRef(false);
-  const close = useCallback(() => {
+  const close = () => {
     if (fired.current) return;
     fired.current = true;
     setClosing(true);
-  }, []);
+  };
 
   const [openSeen, setOpenSeen] = useState(open);
   if (openSeen !== open) {

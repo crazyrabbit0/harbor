@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type FormEvent,
-  type ReactNode,
-} from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Check,
   ChevronDown,
@@ -57,12 +49,8 @@ export function MusicMast({
     setQuery(initialQuery);
   }
   const [scope, setScope] = useState<string | null>(null);
-  const scopeOptions = useMemo(
-    () =>
-      connections.filter(
-        (row) => row.status === "connected" && row.capabilities.includes("search"),
-      ),
-    [connections],
+  const scopeOptions = connections.filter(
+    (row) => row.status === "connected" && row.capabilities.includes("search"),
   );
   if (scope && !scopeOptions.some((row) => row.id === scope)) setScope(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -139,10 +127,10 @@ export function MusicMast({
     }
   };
 
-  const closeMenu = useCallback(() => {
+  const closeMenu = () => {
     setMenuOpen(false);
     chipRef.current?.focus();
-  }, []);
+  };
 
   useEffect(() => {
     if (!menuOpen) return;

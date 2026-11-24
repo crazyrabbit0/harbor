@@ -1,5 +1,5 @@
 import { Loader2 } from "lucide-react";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { IMG } from "@/lib/providers/tmdb/tmdb-client";
@@ -39,10 +39,7 @@ export function PersonPanel({
     key: string;
     person: PersonDetail | null;
   } | null>(null);
-  const person = useMemo(
-    () => cachedPerson ?? (fetchKey && fetched?.key === fetchKey ? fetched.person : null),
-    [cachedPerson, fetchKey, fetched],
-  );
+  const person = cachedPerson ?? (fetchKey && fetched?.key === fetchKey ? fetched.person : null);
   const loading = fetchKey != null && fetched?.key !== fetchKey;
   const [expanded, setExpanded] = useState(false);
   const bioRef = useRef<HTMLParagraphElement>(null);
@@ -89,27 +86,14 @@ export function PersonPanel({
   ].filter(Boolean) as string[];
   const bio = person?.biography?.trim() ?? "";
 
-  const sortedCast = useMemo(
-    () => (person ? dedupe(person.cast).sort((a, b) => b.popularity - a.popularity) : []),
-    [person],
-  );
-  const knownFor = useMemo(
-    () =>
-      sortedCast
-        .filter((c) => !isCameoOrGuest(c) && c.poster)
-        .sort((a, b) => notableScore(b) - notableScore(a))
-        .slice(0, 20)
-        .map(creditToMeta),
-    [sortedCast],
-  );
-  const movies = useMemo(
-    () => sortedCast.filter((c) => c.mediaType === "movie" && c.poster).map(creditToMeta),
-    [sortedCast],
-  );
-  const shows = useMemo(
-    () => sortedCast.filter((c) => c.mediaType === "tv" && c.poster).map(creditToMeta),
-    [sortedCast],
-  );
+  const sortedCast = person ? dedupe(person.cast).sort((a, b) => b.popularity - a.popularity) : [];
+  const knownFor = sortedCast
+    .filter((c) => !isCameoOrGuest(c) && c.poster)
+    .sort((a, b) => notableScore(b) - notableScore(a))
+    .slice(0, 20)
+    .map(creditToMeta);
+  const movies = sortedCast.filter((c) => c.mediaType === "movie" && c.poster).map(creditToMeta);
+  const shows = sortedCast.filter((c) => c.mediaType === "tv" && c.poster).map(creditToMeta);
 
   useLayoutEffect(() => {
     const el = bioRef.current;

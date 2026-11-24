@@ -149,15 +149,12 @@ export function SearchSection(
   const searchSeq = useRef(0);
   const [coordsTouched, setCoordsTouched] = useState(false);
   const [pendingSources, setPendingSources] = useState(0);
-  const resultStreamHints = useMemo<StreamHints>(
-    () => ({
-      release:
-        (isPlayingTarget(target, playingTarget) ? playbackContext?.filename : null) ?? target.title,
-      season: target.season ?? null,
-      episode: target.episode ?? null,
-    }),
-    [target, playingTarget, playbackContext],
-  );
+  const resultStreamHints: StreamHints = {
+    release:
+      (isPlayingTarget(target, playingTarget) ? playbackContext?.filename : null) ?? target.title,
+    season: target.season ?? null,
+    episode: target.episode ?? null,
+  };
 
   const cacheScope = (tgt: TitleTarget): SubtitleSearchCacheScope => {
     const enabled = settings.subProvidersEnabled ?? {};
@@ -473,10 +470,7 @@ export function SearchSection(
   }, [filtered, sortBySource, settings.preferredSubLangs]);
 
   // A generated translation group picked from the sidebar narrows the list to that group.
-  const visibleGroups = useMemo(
-    () => (focusLang ? grouped.filter((g) => g.lang === focusLang) : grouped),
-    [grouped, focusLang],
-  );
+  const visibleGroups = focusLang ? grouped.filter((g) => g.lang === focusLang) : grouped;
 
   useLayoutEffect(() => {
     if (scrollRestored.current || !restorable) return;

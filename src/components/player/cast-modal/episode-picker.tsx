@@ -282,12 +282,8 @@ export function EpisodePicker({
       undefined,
       simklWatched,
     );
-  const queuedKeys = useMemo(
-    () =>
-      new Set(
-        queue.map((i) => `${i.meta.id}:${i.episode?.season ?? ""}:${i.episode?.episode ?? ""}`),
-      ),
-    [queue],
+  const queuedKeys = new Set(
+    queue.map((i) => `${i.meta.id}:${i.episode?.season ?? ""}:${i.episode?.episode ?? ""}`),
   );
 
   const loadingNow = mode === "arcs" ? arc.loading : mode === "flat" ? loading : false;

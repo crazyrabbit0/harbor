@@ -1,5 +1,5 @@
 import { ArrowLeft, ExternalLink, TriangleAlert } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ExternalLinkSplitButton } from "@/components/external-link-split-button";
 import { ExternalLinkViewer } from "@/components/external-link-viewer";
@@ -33,10 +33,10 @@ type Stage = "warning" | "viewer";
 export function LinkOutInterstitial() {
   const journey = useLinkOutJourney();
   const [preference, setPreference] = useState(readExternalLinkDestinationPreference);
-  const rememberPreference = useCallback((next: ExternalLinkDestinationPreference) => {
+  const rememberPreference = (next: ExternalLinkDestinationPreference) => {
     setPreference(next);
     writeExternalLinkDestinationPreference(next);
-  }, []);
+  };
 
   if (!journey) return null;
   return createPortal(
@@ -60,7 +60,7 @@ function LinkOutJourneyInterstitial({
   onPreferenceChange: (next: ExternalLinkDestinationPreference) => void;
 }) {
   const t = useT();
-  const parsed = useMemo(() => parseExternalLink(journey.url), [journey.url]);
+  const parsed = parseExternalLink(journey.url);
   const [stage, setStage] = useState<Stage>("warning");
   const [menuOpen, setMenuOpen] = useState(false);
   const [openingBrowser, setOpeningBrowser] = useState(false);

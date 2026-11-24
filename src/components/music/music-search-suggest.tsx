@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Disc3, Mic2, Music2 } from "@/components/icons/music-icons";
 import { searchTyped } from "@/lib/music/catalog";
 import { artistIdentityKey, peekArtistIdentity, resolveArtist } from "@/lib/music/artist-authority";
@@ -82,39 +82,35 @@ export function useMusicSuggest(query: string, connector: string | null, enabled
   }, [active, key, trimmed, connector]);
 
   const loading = active && settledKey !== key;
-  const groups = useMemo(
-    () =>
-      readAtVersion(pass, () => {
-        if (!active || !found || found.key !== key) return [];
-        const res = found.results;
-        const next: Group[] = [
-          {
-            key: "artists",
-            label: t("music.search.artists"),
-            items: collapseArtistRows(
-              res.artists,
-              language,
-              t("music.metadata.deezerFans"),
-              artistIdentityKey(found.query),
-            )
-              .slice(0, CAP.artists)
-              .map((a) => ({ kind: "artist", ...a })),
-          },
-          {
-            key: "tracks",
-            label: t("music.search.tracks"),
-            items: res.tracks.slice(0, CAP.tracks).map((a) => ({ kind: "track", ...a })),
-          },
-          {
-            key: "albums",
-            label: t("music.search.albums"),
-            items: res.albums.slice(0, CAP.albums).map((a) => ({ kind: "album", ...a })),
-          },
-        ];
-        return next.filter((g) => g.items.length > 0);
-      }),
-    [active, found, key, pass, t, language],
-  );
+  const groups = readAtVersion(pass, () => {
+    if (!active || !found || found.key !== key) return [];
+    const res = found.results;
+    const next: Group[] = [
+      {
+        key: "artists",
+        label: t("music.search.artists"),
+        items: collapseArtistRows(
+          res.artists,
+          language,
+          t("music.metadata.deezerFans"),
+          artistIdentityKey(found.query),
+        )
+          .slice(0, CAP.artists)
+          .map((a) => ({ kind: "artist", ...a })),
+      },
+      {
+        key: "tracks",
+        label: t("music.search.tracks"),
+        items: res.tracks.slice(0, CAP.tracks).map((a) => ({ kind: "track", ...a })),
+      },
+      {
+        key: "albums",
+        label: t("music.search.albums"),
+        items: res.albums.slice(0, CAP.albums).map((a) => ({ kind: "album", ...a })),
+      },
+    ];
+    return next.filter((g) => g.items.length > 0);
+  });
   return { groups, loading };
 }
 
@@ -166,7 +162,7 @@ export function MusicSearchSuggest({
   onHover: (index: number) => void;
 }) {
   const listRef = useRef<HTMLDivElement>(null);
-  const flat = useMemo(() => groups.flatMap((g) => g.items), [groups]);
+  const flat = groups.flatMap((g) => g.items);
 
   useEffect(() => {
     if (activeIndex < 0) return;

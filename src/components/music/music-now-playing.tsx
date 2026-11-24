@@ -8,7 +8,6 @@ import type { MusicArtistRef, MusicTrack } from "@/lib/music/types";
 import {
   type CSSProperties,
   type RefObject,
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -120,7 +119,7 @@ export function MusicNowPlaying({
   const [burst, setBurst] = useState(0);
   const searchRef = useRef<HTMLButtonElement>(null);
   const searchSlotRef = useRef<HTMLDivElement>(null);
-  const closeSearch = useCallback(() => {
+  const closeSearch = () => {
     if (searchSlotRef.current?.contains(document.activeElement))
       searchRef.current?.focus({ preventScroll: true });
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
@@ -129,7 +128,7 @@ export function MusicNowPlaying({
       return;
     }
     setSearchExit(true);
-  }, []);
+  };
   useEffect(() => {
     if (!searchExit) return;
     const id = window.setTimeout(() => {
@@ -287,15 +286,12 @@ export function MusicNowPlaying({
   }));
   const lyricOffset =
     lyricOffsetState.track === current ? lyricOffsetState.offset : getLyricOffset(current);
-  const nudgeLyrics = useCallback(
-    (delta: number) => {
-      setLyricOffsetState({
-        track: current,
-        offset: setLyricOffset(current, getLyricOffset(current) + delta),
-      });
-    },
-    [current],
-  );
+  const nudgeLyrics = (delta: number) => {
+    setLyricOffsetState({
+      track: current,
+      offset: setLyricOffset(current, getLyricOffset(current) + delta),
+    });
+  };
   const lyricsKey = panel === "lyrics" && current ? current : null;
   if (!lyricsKey && lyricsResult !== null) setLyricsResult(null);
   const activeLyrics = lyricsKey && lyricsResult?.track === lyricsKey ? lyricsResult : null;

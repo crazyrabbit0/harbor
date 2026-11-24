@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { shuffle } from "@/lib/feed/tags";
 import { Shuffle } from "lucide-react";
 import { useAvatarValues } from "@/lib/avatars/library";
@@ -16,7 +16,7 @@ export function AvatarFan({
   const t = useT();
   const values = useAvatarValues();
   const [seed] = useState(() => Math.floor(Math.random() * 0x7fffffff));
-  const picks = useMemo(() => shuffle([...values], seed).slice(0, 5), [values, seed]);
+  const picks = shuffle([...values], seed).slice(0, 5);
   return (
     <div className="flex items-center overflow-hidden rounded-xl border border-edge-soft">
       <button

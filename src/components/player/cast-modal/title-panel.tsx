@@ -1,6 +1,6 @@
 import { ArrowRight, Loader2 } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { Check, Plus } from "lucide-react";
@@ -92,12 +92,8 @@ export function TitlePanel({
 
   const liveAwards = useAwards(imdbId ?? undefined, meta.type === "series");
   const awardsV = useBundledAwardsVersion();
-  const awards = useMemo(
-    () =>
-      readAtVersion(awardsV, () =>
-        mergeBundledAwards(liveAwards, title, year ? Number(year) : undefined),
-      ),
-    [awardsV, liveAwards, title, year],
+  const awards = readAtVersion(awardsV, () =>
+    mergeBundledAwards(liveAwards, title, year ? Number(year) : undefined),
   );
   const awardSummaryItems = pickHeroAwards(awardSummary(awards), 3);
 

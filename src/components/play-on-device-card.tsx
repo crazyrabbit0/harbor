@@ -121,7 +121,7 @@ function ThemeTile({
   theme: string | null | undefined;
   done: boolean;
 }) {
-  const swatch = useMemo(() => themeSwatch(theme), [theme]);
+  const swatch = themeSwatch(theme);
   const glyph = done ? (
     <Check size={19} strokeWidth={2.4} />
   ) : (

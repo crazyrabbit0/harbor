@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { EpgProgram } from "@/lib/iptv/types";
 import { useDvr } from "@/lib/dvr/provider";
 import { HoverTooltip } from "@/components/hover-tooltip";
@@ -26,13 +26,10 @@ export function DvrModal({
   nextProgram: EpgProgram | null;
 }) {
   const { sessions, start, stop, reveal, defaultDir } = useDvr();
-  const activeForChannel = useMemo(
-    () =>
-      sessions.find(
-        (s) => s.channelName === channelName && (s.state === "recording" || s.state === "done"),
-      ) ?? null,
-    [sessions, channelName],
-  );
+  const activeForChannel =
+    sessions.find(
+      (s) => s.channelName === channelName && (s.state === "recording" || s.state === "done"),
+    ) ?? null;
 
   useEffect(() => {
     if (!open) return;

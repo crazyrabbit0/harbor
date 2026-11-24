@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import snip404 from "@/assets/snip404.svg";
 import { HarborMark } from "@/components/icons/harbor-mark";
 import { openErrorReportIssue } from "@/lib/bug-report";
@@ -117,12 +117,12 @@ export function ErrorView() {
     return () => window.removeEventListener("keydown", onKey);
   }, [error]);
 
-  const dismiss = useCallback(() => {
+  const dismiss = () => {
     setError(null);
     setReport({ kind: "idle" });
-  }, []);
+  };
 
-  const reportBug = useCallback(() => {
+  const reportBug = () => {
     if (!error) return;
     try {
       const url = openErrorReportIssue({
@@ -135,19 +135,19 @@ export function ErrorView() {
     } catch (e) {
       setReport({ kind: "error", message: e instanceof Error ? e.message : String(e) });
     }
-  }, [error]);
+  };
 
-  const reload = useCallback(() => {
+  const reload = () => {
     window.location.reload();
-  }, []);
+  };
 
-  const goBack = useCallback(() => {
+  const goBack = () => {
     if (error?.fatal) {
       window.location.reload();
       return;
     }
     dismiss();
-  }, [error, dismiss]);
+  };
 
   if (!error) return null;
   const displayTitle =
@@ -300,14 +300,14 @@ function TechnicalDetail({ content }: { content: string }) {
   const [copied, setCopied] = useState(false);
   const resetTimer = useRef<number | null>(null);
 
-  const onCopy = useCallback(async () => {
+  const onCopy = async () => {
     try {
       await navigator.clipboard.writeText(content);
       setCopied(true);
       if (resetTimer.current) window.clearTimeout(resetTimer.current);
       resetTimer.current = window.setTimeout(() => setCopied(false), 1600);
     } catch {}
-  }, [content]);
+  };
 
   useEffect(() => {
     return () => {

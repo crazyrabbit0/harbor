@@ -67,7 +67,7 @@ export function usePlayOnTrigger(resolve: () => PlayOnRequest | null): PlayOnTri
 
   useEffect(() => cancel, [cancel]);
 
-  const onPointerDown = useCallback((e: React.PointerEvent) => {
+  const onPointerDown = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     fired.current = false;
     origin.current = { x: e.clientX, y: e.clientY };
@@ -79,25 +79,22 @@ export function usePlayOnTrigger(resolve: () => PlayOnRequest | null): PlayOnTri
       fired.current = true;
       openPlayOn(request);
     }, HOLD_MS);
-  }, []);
+  };
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      const start = origin.current;
-      if (!start || !timer.current) return;
-      const dx = Math.abs(e.clientX - start.x);
-      const dy = Math.abs(e.clientY - start.y);
-      if (dx > MOVE_TOLERANCE_PX || dy > MOVE_TOLERANCE_PX) cancel();
-    },
-    [cancel],
-  );
+  const onPointerMove = (e: React.PointerEvent) => {
+    const start = origin.current;
+    if (!start || !timer.current) return;
+    const dx = Math.abs(e.clientX - start.x);
+    const dy = Math.abs(e.clientY - start.y);
+    if (dx > MOVE_TOLERANCE_PX || dy > MOVE_TOLERANCE_PX) cancel();
+  };
 
-  const onClickCapture = useCallback((e: React.MouseEvent) => {
+  const onClickCapture = (e: React.MouseEvent) => {
     if (!fired.current) return;
     fired.current = false;
     e.preventDefault();
     e.stopPropagation();
-  }, []);
+  };
 
   return {
     onPointerDown,

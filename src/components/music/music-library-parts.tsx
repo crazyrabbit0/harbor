@@ -5,7 +5,7 @@ import { useMusicTrackMenuItems } from "./music-track-menu";
 import { requestMusicExplore } from "@/lib/music/navigation";
 import { HoverTooltip } from "@/components/hover-tooltip";
 import { likedIdsFor } from "@/lib/music/liked";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { MusicVirtualTrackList } from "./music-virtual-track-list";
 import {
   FileDown,
@@ -112,13 +112,10 @@ export function LibraryTrackList({
     openSourcePicker(track, queue);
   };
   const { openSourcePicker } = useMusicSourcePicker();
-  const positions = useMemo(() => new Map(order.map((track, index) => [track.id, index])), [order]);
-  const added = useMemo(
-    () => new Set(selectedPlaylist?.tracks.map((track) => track.id)),
-    [selectedPlaylist?.tracks],
-  );
-  const liked = useMemo(() => new Set(likedIds), [likedIds]);
-  const keys = useMemo(() => tracks.map((track) => track.id), [tracks]);
+  const positions = new Map(order.map((track, index) => [track.id, index]));
+  const added = new Set(selectedPlaylist?.tracks.map((track) => track.id));
+  const liked = new Set(likedIds);
+  const keys = tracks.map((track) => track.id);
   const renderRow = (displayIndex: number) => {
     const track = tracks[displayIndex];
     const playing = nowPlayingMatches(now, track);
@@ -243,10 +240,10 @@ function LibraryTrack({
   });
   const anchor = useRef<HTMLButtonElement>(null);
   const menu = useRef<HTMLDivElement | null>(null);
-  const bindMenu = useCallback((node: HTMLDivElement | null) => {
+  const bindMenu = (node: HTMLDivElement | null) => {
     menu.current = node;
     node?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-  }, []);
+  };
   const start = (item: MusicTrack, queue: MusicTrack[]) => {
     if (onPlay) {
       onPlay(item, queue);

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Dropdown } from "@/components/dropdown";
 import { MusicCatalogRow } from "@/components/music/music-catalog-row";
 import { MusicServiceLogo } from "@/components/music/music-service-logo";
@@ -26,11 +26,8 @@ export function MusicRollingStoneRow({
   const t = useT();
   const [decade, setDecade] = useState<number | null>(null);
   const [genre, setGenre] = useState("all");
-  const genres = useMemo(() => rollingStoneGenres(), []);
-  const items = useMemo(
-    () => rollingStoneItems({ decade, genre: genre === "all" ? null : genre }),
-    [decade, genre],
-  );
+  const genres = rollingStoneGenres();
+  const items = rollingStoneItems({ decade, genre: genre === "all" ? null : genre });
 
   return (
     <section className="flex min-w-0 flex-col gap-3">

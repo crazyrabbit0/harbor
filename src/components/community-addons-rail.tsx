@@ -41,10 +41,7 @@ export function CommunityAddonsRail({
   const showAdult = settings.showAdultAddons;
   const [sortMode, setSortMode] = useState<SortMode>("trending");
   const [items, setItems] = useState<SAAddon[] | null>(null);
-  const notInstalled = useMemo(
-    () => (items ?? []).filter((a) => !isInstalled(a, installedIds)),
-    [items, installedIds],
-  );
+  const notInstalled = (items ?? []).filter((a) => !isInstalled(a, installedIds));
   const [error, setError] = useState<string | null>(null);
 
   const [loadSeen, setLoadSeen] = useState({ sortMode, showAdult });

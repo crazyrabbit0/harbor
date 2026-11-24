@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Radio } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
@@ -68,16 +68,16 @@ export function MusicBroadcast() {
     };
   }, [cable.device]);
 
-  const onCable = useCallback((next: CableStatus) => {
+  const onCable = (next: CableStatus) => {
     setCable((prev) => {
       const device = next.active ? (next.outputDevice ?? "") : "";
       const same =
         prev.supported === next.supported && prev.active === next.active && prev.device === device;
       return same ? prev : { supported: next.supported, active: next.active, device };
     });
-  }, []);
+  };
 
-  const toggle = useCallback(() => {
+  const toggle = () => {
     setBusy(true);
     setFailed(null);
     return (status.active ? broadcastStop() : broadcastStart(device === AUTO ? null : device))
@@ -90,7 +90,7 @@ export function MusicBroadcast() {
       .finally(() => {
         if (alive.current) setBusy(false);
       });
-  }, [device, status.active]);
+  };
 
   const devices = useMemo(() => targets?.devices ?? [], [targets]);
   const options = useMemo(() => {

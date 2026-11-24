@@ -1,7 +1,7 @@
 import { ChevronLeft, ListVideo, X } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
 import { UiIcon } from "@/components/ui-icon";
-import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { useQueue } from "@/lib/queue";
@@ -79,10 +79,7 @@ export function CastModal({
   const [activeGenre, setActiveGenre] = useState<{ id: number; mediaType: "movie" | "tv" } | null>(
     null,
   );
-  const reportGenre = useCallback(
-    (id: number, mt: "movie" | "tv") => setActiveGenre({ id, mediaType: mt }),
-    [],
-  );
+  const reportGenre = (id: number, mt: "movie" | "tv") => setActiveGenre({ id, mediaType: mt });
 
   const view = stack[stack.length - 1];
   useEffect(() => {

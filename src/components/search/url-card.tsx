@@ -1,6 +1,5 @@
 import { Link2 } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { useMemo } from "react";
 import { directUrlNotWebReady } from "@/lib/torrent/magnet";
 import { type PlayerSrc, useViewActions } from "@/lib/view";
 import { useT } from "@/lib/i18n";
@@ -10,7 +9,7 @@ export function UrlCard({ raw, onClose }: { raw: string; onClose: () => void }) 
   const { openPlayer } = useViewActions();
   const url = raw.trim();
   const fallbackTitle = t("Direct stream");
-  const title = useMemo(() => fileTitle(url, fallbackTitle), [url, fallbackTitle]);
+  const title = fileTitle(url, fallbackTitle);
 
   const onPlay = () => {
     const src: PlayerSrc = {

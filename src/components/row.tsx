@@ -7,7 +7,6 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -310,10 +309,10 @@ export function Row({
     rowTitleScale: s.rowTitleScale,
     posterRadius: s.posterRadius,
   }));
-  const skeletonLook = useMemo<SkeletonLook>(
-    () => ({ radius: settings.posterRadius, hidePosterTitles: settings.hidePosterTitles }),
-    [settings.posterRadius, settings.hidePosterTitles],
-  );
+  const skeletonLook: SkeletonLook = {
+    radius: settings.posterRadius,
+    hidePosterTitles: settings.hidePosterTitles,
+  };
   const t = useT();
   const { rememberRowScroll, recallRowScroll } = useViewActions();
   const lang = useUiLanguage();
@@ -328,10 +327,10 @@ export function Row({
   const containerRef = useRef<HTMLDivElement>(null);
   const trackRef = useRef<HTMLDivElement>(null);
   const [trackEl, setTrackEl] = useState<HTMLDivElement | null>(null);
-  const trackCb = useCallback((el: HTMLDivElement | null) => {
+  const trackCb = (el: HTMLDivElement | null) => {
     trackRef.current = el;
     setTrackEl(el);
-  }, []);
+  };
   const [cellWidth, setCellWidth] = useState<number | null>(null);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(false);
@@ -403,23 +402,20 @@ export function Row({
   const expansionSettleRef = useRef<number | null>(null);
   const hadExpandedCardRef = useRef(false);
 
-  const expandRowCard = useCallback(
-    (index: number, width: number) => {
-      if (!expandingCards) return;
-      const baseWidth = cellWidth ?? effMin;
-      const widthScale = Math.max(1, width / baseWidth);
-      setExpandedCard((current) => {
-        if (current?.index === index && Math.abs(current.widthScale - widthScale) < 0.005) {
-          return current;
-        }
-        return { index, widthScale };
-      });
-    },
-    [cellWidth, effMin, expandingCards],
-  );
-  const collapseRowCard = useCallback((index: number) => {
+  const expandRowCard = (index: number, width: number) => {
+    if (!expandingCards) return;
+    const baseWidth = cellWidth ?? effMin;
+    const widthScale = Math.max(1, width / baseWidth);
+    setExpandedCard((current) => {
+      if (current?.index === index && Math.abs(current.widthScale - widthScale) < 0.005) {
+        return current;
+      }
+      return { index, widthScale };
+    });
+  };
+  const collapseRowCard = (index: number) => {
     setExpandedCard((current) => (current?.index === index ? null : current));
-  }, []);
+  };
 
   const revealExpanded = (track: HTMLDivElement, index: number) => {
     const cell = track.querySelector<HTMLElement>(`[data-row-card-index="${index}"]`);
@@ -649,8 +645,8 @@ export function Row({
   useLayoutEffect(() => {
     scrollRef.current = scroll;
   });
-  const scrollPrev = useCallback(() => scrollRef.current(-1), []);
-  const scrollNext = useCallback(() => scrollRef.current(1), []);
+  const scrollPrev = () => scrollRef.current(-1);
+  const scrollNext = () => scrollRef.current(1);
 
   const dockFrameRef = useRef<number | null>(null);
   const dockPointerXRef = useRef<number | null>(null);
@@ -658,7 +654,7 @@ export function Row({
     const track = trackRef.current;
     if (track) resetPosterDockItems(track);
   }, []);
-  const applyPosterDock = useCallback(() => {
+  const applyPosterDock = () => {
     dockFrameRef.current = null;
     const track = trackRef.current;
     const pointerX = dockPointerXRef.current;
@@ -675,16 +671,13 @@ export function Row({
       rtl,
       transitionMs: settings.posterDockTransitionMs,
     });
-  }, [cellWidth, dockEnabled, effMin, resetPosterDock, rtl, settings.posterDockTransitionMs]);
-  const schedulePosterDock = useCallback(
-    (clientX: number) => {
-      dockPointerXRef.current = clientX;
-      if (dockFrameRef.current === null) {
-        dockFrameRef.current = requestAnimationFrame(applyPosterDock);
-      }
-    },
-    [applyPosterDock],
-  );
+  };
+  const schedulePosterDock = (clientX: number) => {
+    dockPointerXRef.current = clientX;
+    if (dockFrameRef.current === null) {
+      dockFrameRef.current = requestAnimationFrame(applyPosterDock);
+    }
+  };
   useEffect(
     () => () => {
       if (dockFrameRef.current !== null) cancelAnimationFrame(dockFrameRef.current);

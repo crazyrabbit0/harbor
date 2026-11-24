@@ -144,43 +144,29 @@ function GridModal({ payload }: { payload: LocalEpisodesPayload }) {
     return m;
   }, [videos]);
 
-  const gridSeasons = useMemo(
-    () =>
-      Array.from(seasonEpisodeCount.keys())
-        .filter((s) => s > 0)
-        .sort((a, b) => a - b),
-    [seasonEpisodeCount],
-  );
-  const globalMax = useMemo(
-    () => Math.max(1, ...gridSeasons.map((s) => seasonEpisodeCount.get(s) ?? 0)),
-    [gridSeasons, seasonEpisodeCount],
-  );
+  const gridSeasons = Array.from(seasonEpisodeCount.keys())
+    .filter((s) => s > 0)
+    .sort((a, b) => a - b);
+  const globalMax = Math.max(1, ...gridSeasons.map((s) => seasonEpisodeCount.get(s) ?? 0));
 
-  const localSeasons = useMemo(
-    () =>
-      Array.from(localBySeason.keys())
-        .filter((s) => s > 0)
-        .sort((a, b) => a - b),
-    [localBySeason],
-  );
+  const localSeasons = Array.from(localBySeason.keys())
+    .filter((s) => s > 0)
+    .sort((a, b) => a - b);
   const hasSpecials = localBySeason.has(0);
 
-  const resumeIds = useMemo(
-    () => [imdbId, tmdbId != null ? `tmdb:tv:${tmdbId}` : null].filter((x): x is string => !!x),
-    [imdbId, tmdbId],
+  const resumeIds = [imdbId, tmdbId != null ? `tmdb:tv:${tmdbId}` : null].filter(
+    (x): x is string => !!x,
   );
-  const epProgress = useMemo(() => {
-    return (season: number, episode: number): { ms: number; t: number } | null => {
-      let best: { ms: number; t: number } | null = null;
-      for (const id of resumeIds) {
-        const e = readResumeEntry(id, season, episode);
-        if (e && (!best || e.t > best.t)) best = e;
-      }
-      return best;
-    };
-  }, [resumeIds]);
+  const epProgress = (season: number, episode: number): { ms: number; t: number } | null => {
+    let best: { ms: number; t: number } | null = null;
+    for (const id of resumeIds) {
+      const e = readResumeEntry(id, season, episode);
+      if (e && (!best || e.t > best.t)) best = e;
+    }
+    return best;
+  };
 
-  const lastWatched = useMemo(() => latestPlayedEpisode(resumeIds, all), [resumeIds, all]);
+  const lastWatched = latestPlayedEpisode(resumeIds, all);
 
   const hlSeason =
     payload.highlightEpisode != null

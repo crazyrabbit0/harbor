@@ -109,11 +109,9 @@ export function EmptyState({
   const fetchRef = useRef<AbortController | null>(null);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
 
-  const enabledServices: StreamingService[] = useMemo(
-    () =>
-      (Object.keys(settings.streaming) as StreamingService[]).filter((s) => settings.streaming[s]),
-    [settings.streaming],
-  );
+  const enabledServices: StreamingService[] = (
+    Object.keys(settings.streaming) as StreamingService[]
+  ).filter((s) => settings.streaming[s]);
 
   const movieId = genreBrowse ? MOVIE_GENRES[genreBrowse] : undefined;
   const tvId = genreBrowse ? TV_GENRE_FOR_MOVIE[genreBrowse] : undefined;

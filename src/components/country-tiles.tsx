@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { tmdbDiscover } from "@/lib/providers/tmdb";
@@ -67,7 +67,7 @@ function regionNamer(uiLang: string): (iso: string) => string {
 export function CountryTiles({ title }: { title?: string }) {
   const t = useT();
   const uiLang = useUiLanguage();
-  const regionName = useMemo(() => regionNamer(uiLang), [uiLang]);
+  const regionName = regionNamer(uiLang);
   return (
     <Row title={title ?? t("Browse by Country")} min={210} shape="tile">
       {ISO.map((iso) => (
