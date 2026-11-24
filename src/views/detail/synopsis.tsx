@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useT } from "@/lib/i18n";
 
 export function Synopsis({ text }: { text: string }) {
@@ -8,27 +8,26 @@ export function Synopsis({ text }: { text: string }) {
   const [toggleFor, setToggleFor] = useState<string | null>(null);
   const expanded = expandedFor === text;
   const showToggle = toggleFor === text;
-  const ref = useRef<HTMLParagraphElement>(null);
 
-  useLayoutEffect(() => {
-    if (expanded) return;
-    const el = ref.current;
-    if (!el) return;
-    if (el.scrollHeight > el.clientHeight + 1) {
-      // oxlint-disable-next-line react/set-state-in-effect -- measures clamped text overflow from DOM geometry
-      setToggleFor(text);
-    }
-    const ro = new ResizeObserver(() => {
-      if (el.scrollHeight > el.clientHeight + 1) setToggleFor(text);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, [text, expanded]);
+  // Measured from the ref callback, which runs at commit like a layout effect, so the toggle never flashes.
+  const measure = useCallback(
+    (el: HTMLParagraphElement | null) => {
+      if (!el || expanded) return;
+      const check = () => {
+        if (el.scrollHeight > el.clientHeight + 1) setToggleFor(text);
+      };
+      check();
+      const ro = new ResizeObserver(check);
+      ro.observe(el);
+      return () => ro.disconnect();
+    },
+    [text, expanded],
+  );
 
   return (
     <div className="max-w-3xl">
       <p
-        ref={ref}
+        ref={measure}
         data-tauri-drag-region="false"
         className={`text-[16px] leading-relaxed text-ink-muted ${expanded ? "" : "line-clamp-4"}`}
       >

@@ -1,5 +1,5 @@
 import { fillStyle } from "@/components/slider";
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ImagePlus, Move, ZoomIn } from "../../../icons";
 import { useT } from "@/lib/i18n";
 import { getDirection, isRtl } from "@/lib/keyboard-navigation/geometry";
@@ -28,12 +28,24 @@ export function CoverCropper({ onChange }: { onChange: (blob: Blob | null) => vo
     return { w: r?.width || 0, h: r?.height || 0 };
   };
   const [frame, setFrame] = useState({ w: 0, h: 0 });
-  // The frame is re-measured after every render so the display scale tracks its size.
-  useLayoutEffect(() => {
-    const next = frameSize();
-    // oxlint-disable-next-line react/set-state-in-effect -- measures DOM frame bounds in layout effect
-    setFrame((cur) => (cur.w === next.w && cur.h === next.h ? cur : next));
-  });
+  // The frame is measured when it mounts and whenever it resizes, so the display scale tracks its size.
+  const attachFrame = useCallback((el: HTMLDivElement | null) => {
+    frameRef.current = el;
+    if (!el) return;
+    const measure = () => {
+      const r = el.getBoundingClientRect();
+      setFrame((cur) =>
+        cur.w === r.width && cur.h === r.height ? cur : { w: r.width, h: r.height },
+      );
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      frameRef.current = null;
+    };
+  }, []);
 
   const clamp = useCallback(
     (o: { x: number; y: number }, z: number, n: { w: number; h: number }) => {
@@ -142,7 +154,7 @@ export function CoverCropper({ onChange }: { onChange: (blob: Blob | null) => vo
   return (
     <div className="flex flex-col gap-3">
       <div
-        ref={frameRef}
+        ref={attachFrame}
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
