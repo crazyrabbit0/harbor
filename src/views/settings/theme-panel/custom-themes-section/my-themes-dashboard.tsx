@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { BookOpen, RefreshCw, UploadCloud } from "../../icons";
 import { currentAuthor, subscribeAuthor } from "@/lib/theme-auth";
 import { myThemes, type StoreTheme } from "@/lib/theme-store";
@@ -87,13 +87,13 @@ export function MyThemesDashboard() {
     };
   }, [loadKey]);
 
-  const load = useCallback(() => setReloadTick((n) => n + 1), []);
+  const load = () => setReloadTick((n) => n + 1);
   const settled = loadKey !== "" && result?.key === loadKey;
   const themes = settled ? result.themes : [];
   const loading = loadKey !== "" && !settled;
   const error = settled ? result.error : null;
 
-  const stats = useMemo(() => computeStats(themes), [themes]);
+  const stats = computeStats(themes);
 
   if (!author) {
     return (

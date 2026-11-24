@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { Award, Check, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { socialPost } from "@/lib/social/client";
 import { useT } from "@/lib/i18n";
 import { useEscape } from "@/components/modal-shell";
@@ -83,11 +83,8 @@ export function ShownBadgesPicker({
 }) {
   const t = useT();
   useEscape(onClose);
-  const options = useMemo(() => pickableBadges(badges), [badges]);
-  const verifiedBadge = useMemo(
-    () => badges.find((b) => badgeKey(b.name) === "verified"),
-    [badges],
-  );
+  const options = pickableBadges(badges);
+  const verifiedBadge = badges.find((b) => badgeKey(b.name) === "verified");
   const [showVerified, setShowVerified] = useState(!hideVerified);
   const [selected, setSelected] = useState<string[]>(() => {
     const valid = new Set(options.map((b) => badgeKey(b.name)));

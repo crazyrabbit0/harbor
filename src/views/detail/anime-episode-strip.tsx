@@ -54,48 +54,42 @@ export function AnimeEpisodeStrip({
   const { settings } = useSettings();
   const t = useT();
 
-  const gridEpisodes = useMemo<GridEpisode[]>(
-    () =>
-      episodes.map((ep) => {
-        const epMeta = metaForEp ? metaForEp(ep) : meta;
-        return {
-          key: String(ep.id),
-          number: ep.number,
-          season: animeSeasonKey(ep),
-          seasonLabel: showSeason ? `S${ep.imdbSeason ?? ep.seasonNumber ?? 1}` : undefined,
-          title: ep.title || t("Episode {n}", { n: ep.number }),
-          stills: [ep.thumbnail, ep.thumbnailFallback, meta.background].filter(
-            (u): u is string => !!u,
-          ),
-          runtime: ep.length,
-          airDate: ep.airdate,
-          absoluteNumber: ep.absoluteNumber,
-          overview: ep.synopsis || undefined,
-          rating: ep.rating ?? undefined,
-          ratingIsImdb: ep.rating != null ? !!ep.ratingIsImdb : false,
-          filler: ep.filler,
-          upcoming: isUpcomingDate(ep.airdate),
-          meta: epMeta,
-          sourceMetaId: ep.sourceMetaId,
-          play: (opts) =>
-            openPicker(epMeta, animePlayEpisode(ep), {
-              autoPlay: settings.instantPlay,
-              resume: opts?.resume,
-            }),
-          openDetail: () => {
-            const target = resolveAnimeDetailTarget(ep, meta, epMeta);
-            openEpisodeDetail(
-              target.seriesId,
-              target.season,
-              target.episode,
-              target.seriesMeta,
-              target.playback,
-            );
-          },
-        };
-      }),
-    [episodes, meta, metaForEp, openEpisodeDetail, openPicker, settings.instantPlay, t, showSeason],
-  );
+  const gridEpisodes: GridEpisode[] = episodes.map((ep) => {
+    const epMeta = metaForEp ? metaForEp(ep) : meta;
+    return {
+      key: String(ep.id),
+      number: ep.number,
+      season: animeSeasonKey(ep),
+      seasonLabel: showSeason ? `S${ep.imdbSeason ?? ep.seasonNumber ?? 1}` : undefined,
+      title: ep.title || t("Episode {n}", { n: ep.number }),
+      stills: [ep.thumbnail, ep.thumbnailFallback, meta.background].filter((u): u is string => !!u),
+      runtime: ep.length,
+      airDate: ep.airdate,
+      absoluteNumber: ep.absoluteNumber,
+      overview: ep.synopsis || undefined,
+      rating: ep.rating ?? undefined,
+      ratingIsImdb: ep.rating != null ? !!ep.ratingIsImdb : false,
+      filler: ep.filler,
+      upcoming: isUpcomingDate(ep.airdate),
+      meta: epMeta,
+      sourceMetaId: ep.sourceMetaId,
+      play: (opts) =>
+        openPicker(epMeta, animePlayEpisode(ep), {
+          autoPlay: settings.instantPlay,
+          resume: opts?.resume,
+        }),
+      openDetail: () => {
+        const target = resolveAnimeDetailTarget(ep, meta, epMeta);
+        openEpisodeDetail(
+          target.seriesId,
+          target.season,
+          target.episode,
+          target.seriesMeta,
+          target.playback,
+        );
+      },
+    };
+  });
   const epByKey = useMemo(() => {
     const m = new Map<string, KitsuEpisode>();
     for (const e of episodes) m.set(String(e.id), e);

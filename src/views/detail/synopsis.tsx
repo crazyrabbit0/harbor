@@ -1,5 +1,5 @@
 import { ChevronDown } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { useT } from "@/lib/i18n";
 
 export function Synopsis({ text }: { text: string }) {
@@ -10,19 +10,16 @@ export function Synopsis({ text }: { text: string }) {
   const showToggle = toggleFor === text;
 
   // Measured from the ref callback, which runs at commit like a layout effect, so the toggle never flashes.
-  const measure = useCallback(
-    (el: HTMLParagraphElement | null) => {
-      if (!el || expanded) return;
-      const check = () => {
-        if (el.scrollHeight > el.clientHeight + 1) setToggleFor(text);
-      };
-      check();
-      const ro = new ResizeObserver(check);
-      ro.observe(el);
-      return () => ro.disconnect();
-    },
-    [text, expanded],
-  );
+  const measure = (el: HTMLParagraphElement | null) => {
+    if (!el || expanded) return;
+    const check = () => {
+      if (el.scrollHeight > el.clientHeight + 1) setToggleFor(text);
+    };
+    check();
+    const ro = new ResizeObserver(check);
+    ro.observe(el);
+    return () => ro.disconnect();
+  };
 
   return (
     <div className="max-w-3xl">

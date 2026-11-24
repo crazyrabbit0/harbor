@@ -1,6 +1,6 @@
 import { downloadDir } from "@tauri-apps/api/path";
 import { save } from "@tauri-apps/plugin-dialog";
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { t } from "@/lib/i18n";
 import type { Meta } from "@/lib/cinemeta";
 import {
@@ -62,7 +62,7 @@ export function useVideoDownload({ url, meta, episode, headers }: Args) {
             ? { kind: "error", message: current.error ?? t("Download interrupted") }
             : { kind: "idle" };
 
-  const start = useCallback(async () => {
+  const start = async () => {
     if (preparing || current?.status === "downloading" || current?.status === "paused") return;
     setPreparing(true);
     setLocalError(null);
@@ -102,20 +102,20 @@ export function useVideoDownload({ url, meta, episode, headers }: Args) {
         (e) => setLocalError(e instanceof Error ? e.message : t("Download failed")),
       )
       .finally(() => setPreparing(false));
-  }, [current?.status, episode, headers, meta, preparing, settings.downloadDir, url]);
+  };
 
-  const cancel = useCallback(() => {
+  const cancel = () => {
     if (current) cancelDownload(current.id);
-  }, [current]);
+  };
 
-  const reveal = useCallback(async () => {
+  const reveal = async () => {
     if (current?.status === "done") await revealDownload(current.id);
-  }, [current]);
+  };
 
-  const reset = useCallback(() => {
+  const reset = () => {
     setDownloadId(null);
     setLocalError(null);
-  }, []);
+  };
 
   return { status, start, cancel, reveal, reset };
 }

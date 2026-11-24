@@ -81,25 +81,22 @@ export function ThemeStudio({ seed, onClose }: { seed?: ThemePreset; onClose: ()
     [activityDetails, activityState],
   );
 
-  const draftPreset = useMemo<ThemePreset>(
-    () => ({
-      id: "user:__studio_preview__" as never,
-      name: draft.name || untitledThemeName,
-      blurb: draft.blurb,
-      swatch: [draft.colors.canvas, draft.colors.surface, draft.colors.accent] as [
-        string,
-        string,
-        string,
-      ],
-      tokens: customColorsToTokens(draft.colors),
-      layout: draft.layout,
-      cardStyle: draft.cardStyle,
-      buttonStyle: draft.buttonStyle,
-      fontPair: draft.fontPair,
-      bokeh: draft.bokeh,
-    }),
-    [draft, untitledThemeName],
-  );
+  const draftPreset: ThemePreset = {
+    id: "user:__studio_preview__" as never,
+    name: draft.name || untitledThemeName,
+    blurb: draft.blurb,
+    swatch: [draft.colors.canvas, draft.colors.surface, draft.colors.accent] as [
+      string,
+      string,
+      string,
+    ],
+    tokens: customColorsToTokens(draft.colors),
+    layout: draft.layout,
+    cardStyle: draft.cardStyle,
+    buttonStyle: draft.buttonStyle,
+    fontPair: draft.fontPair,
+    bokeh: draft.bokeh,
+  };
 
   useEffect(() => {
     applyTheme({

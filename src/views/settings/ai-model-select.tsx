@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from "./icons";
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { advanceFocus } from "@/lib/keyboard-navigation";
 import { getDirection, isBackKey } from "@/lib/keyboard-navigation/geometry";
 import { useT } from "@/lib/i18n";
@@ -32,14 +32,14 @@ export function AiModelSelect({
     models.find((m) => m.id === value) ??
     (value ? undefined : models.find((m) => m.id === defaultModel));
 
-  const enterMenu = useCallback((el: HTMLDivElement | null) => {
+  const enterMenu = (el: HTMLDivElement | null) => {
     listRef.current = el;
     if (!el) return;
     const target =
       el.querySelector<HTMLElement>('[data-selected="true"]') ??
       el.querySelector<HTMLElement>('[role="option"]');
     if (target) advanceFocus(target);
-  }, []);
+  };
 
   const close = (restore: boolean) => {
     setOpen(false);

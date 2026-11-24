@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  type RefObject,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { Captions, Check, Gauge, Languages, LoaderCircle } from "lucide-react";
 import { AllAddonsIcon } from "@/components/icons/harbor-glyphs";
 import type { SubtitleMenuProps } from "@/components/player/subtitle-menu/types";
@@ -92,77 +84,49 @@ function BpTenFoot(props: BpTenFootProps) {
   const metaId = src.meta.id;
   const resuming = props.pendingResumeSec != null;
 
-  const onSubtitle = useCallback(
-    (id: string | null) => {
-      bridgeRef.current?.setSubtitleTrack(id);
-      rememberSubChoice(snapRef.current.subtitleTracks.find((x) => x.id === id));
-    },
-    [bridgeRef, snapRef, rememberSubChoice],
-  );
+  const onSubtitle = (id: string | null) => {
+    bridgeRef.current?.setSubtitleTrack(id);
+    rememberSubChoice(snapRef.current.subtitleTracks.find((x) => x.id === id));
+  };
 
-  const onSubDelay = useCallback(
-    (sec: number) => {
-      bridgeRef.current?.setSubDelay(sec);
-      writePlayerPrefs(metaId, { subDelaySec: sec });
-    },
-    [bridgeRef, metaId],
-  );
+  const onSubDelay = (sec: number) => {
+    bridgeRef.current?.setSubDelay(sec);
+    writePlayerPrefs(metaId, { subDelaySec: sec });
+  };
 
-  const onAddSubtitle = useCallback<SubtitleMenuProps["onAddSubtitle"]>(
-    (url, lang, title, metadata) => {
-      const p =
-        bridgeRef.current?.addSubtitle(url, lang, title, true, metadata) ?? Promise.resolve(false);
-      void p.then((ok) => {
-        if (!ok) return;
-        rememberSubChoice(rememberedChoiceFromLoad(url, lang, title, metadata));
-      });
-      return p;
-    },
-    [bridgeRef, rememberSubChoice],
-  );
+  const onAddSubtitle: SubtitleMenuProps["onAddSubtitle"] = (url, lang, title, metadata) => {
+    const p =
+      bridgeRef.current?.addSubtitle(url, lang, title, true, metadata) ?? Promise.resolve(false);
+    void p.then((ok) => {
+      if (!ok) return;
+      rememberSubChoice(rememberedChoiceFromLoad(url, lang, title, metadata));
+    });
+    return p;
+  };
 
-  const onAudio = useCallback(
-    (id: string) => {
-      bridgeRef.current?.setAudioTrack(id);
-      const track = snapRef.current.audioTracks.find((x) => x.id === id);
-      if (track?.lang) writePlayerPrefs(metaId, { audioLang: track.lang });
-    },
-    [bridgeRef, snapRef, metaId],
-  );
+  const onAudio = (id: string) => {
+    bridgeRef.current?.setAudioTrack(id);
+    const track = snapRef.current.audioTracks.find((x) => x.id === id);
+    if (track?.lang) writePlayerPrefs(metaId, { audioLang: track.lang });
+  };
 
-  const onAudioDelay = useCallback(
-    (sec: number) => {
-      bridgeRef.current?.setAudioDelay(sec);
-    },
-    [bridgeRef],
-  );
+  const onAudioDelay = (sec: number) => {
+    bridgeRef.current?.setAudioDelay(sec);
+  };
 
-  const subtitleProps = useMemo<SubtitleMenuProps>(
-    () => ({
-      tracks: snap.subtitleTracks,
-      selectedId: snap.subtitleTracks.find((x) => x.selected)?.id ?? null,
-      delaySec: snap.subDelaySec,
-      onSelect: onSubtitle,
-      onDelay: onSubDelay,
-      onAddSubtitle,
-      metaImdbId: props.metaImdbId,
-      metaTitle: src.meta.name ?? null,
-      metaReleaseDate: props.metaReleaseDate,
-      season: src.episode?.season ?? null,
-      episode: src.episode?.episode ?? null,
-    }),
-    [
-      snap.subtitleTracks,
-      snap.subDelaySec,
-      onSubtitle,
-      onSubDelay,
-      onAddSubtitle,
-      props.metaImdbId,
-      props.metaReleaseDate,
-      src.meta.name,
-      src.episode,
-    ],
-  );
+  const subtitleProps: SubtitleMenuProps = {
+    tracks: snap.subtitleTracks,
+    selectedId: snap.subtitleTracks.find((x) => x.selected)?.id ?? null,
+    delaySec: snap.subDelaySec,
+    onSelect: onSubtitle,
+    onDelay: onSubDelay,
+    onAddSubtitle,
+    metaImdbId: props.metaImdbId,
+    metaTitle: src.meta.name ?? null,
+    metaReleaseDate: props.metaReleaseDate,
+    season: src.episode?.season ?? null,
+    episode: src.episode?.episode ?? null,
+  };
 
   return (
     <>

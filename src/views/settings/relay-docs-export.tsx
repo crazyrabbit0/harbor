@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AnchoredMenu } from "@/components/anchored-menu";
 import { Check, FolderOpen, X } from "./icons";
 import { saveTextFileWithPath } from "@/lib/download-text";
@@ -19,12 +19,12 @@ export function DownloadMenu({
   const btnRef = useRef<HTMLButtonElement>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  const enterMenu = useCallback((el: HTMLDivElement | null) => {
+  const enterMenu = (el: HTMLDivElement | null) => {
     listRef.current = el;
     if (!el) return;
     const first = el.querySelector<HTMLElement>('[role="menuitem"]');
     if (first) advanceFocus(first);
-  }, []);
+  };
 
   const close = (restore: boolean) => {
     setOpen(false);

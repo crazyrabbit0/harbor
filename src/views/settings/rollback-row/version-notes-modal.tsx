@@ -1,12 +1,6 @@
 import { ArrowDownToLine, Check, Info, X } from "../icons";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
-import {
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type KeyboardEvent as ReactKeyboardEvent,
-} from "react";
+import { useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from "react";
 import { RichNote } from "@/components/update/rich-notes";
 import { advanceFocus, captureFocusReturn } from "@/lib/keyboard-navigation";
 import { getDirection, isBackKey } from "@/lib/keyboard-navigation/geometry";
@@ -36,7 +30,7 @@ export function VersionNotesModal({
   const { closing, close } = useModalExit(onClose);
   const t = useT();
   const url = installerUrl(entry);
-  const fallbackNote = useMemo(() => noteFromMarkdown(entry.notes), [entry.notes]);
+  const fallbackNote = noteFromMarkdown(entry.notes);
   const [fetched, setFetched] = useState<{ version: string; note: ReleaseNote } | null>(null);
   const rich = fetched?.version === entry.version ? fetched.note : fallbackNote;
   const [scrolls, setScrolls] = useState(false);

@@ -14,13 +14,11 @@ function callback(name: string, scope: Record<string, unknown>) {
   const ast = ts.createSourceFile("hook.ts", source, ts.ScriptTarget.Latest, true);
   let found: ts.Node | undefined;
   function visit(node: ts.Node) {
-    if (
-      ts.isVariableDeclaration(node) &&
-      node.name.getText(ast) === name &&
-      node.initializer &&
-      ts.isCallExpression(node.initializer)
-    )
-      found = node.initializer.arguments[0];
+    if (ts.isVariableDeclaration(node) && node.name.getText(ast) === name && node.initializer) {
+      const init = node.initializer;
+      // A plain function, or one still wrapped in a memo hook call.
+      found = ts.isCallExpression(init) ? init.arguments[0] : init;
+    }
     ts.forEachChild(node, visit);
   }
   visit(ast);

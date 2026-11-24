@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ArrowLeft, ArrowRight, BookOpen, Loader2, UploadCloud, X } from "../../icons";
 import { getActiveModal, isBackKey, isEditable } from "@/lib/keyboard-navigation/geometry";
@@ -29,7 +29,7 @@ export function ThemeUpdateFlow({
   onUpdated: () => void;
 }) {
   const t = useT();
-  const localThemes = useMemo(() => getCustomThemes(), []);
+  const localThemes = getCustomThemes();
   const [step, setStep] = useState(0);
   const [theme, setTheme] = useState<CustomTheme | null>(
     () => localThemes.find((t) => t.name === target.name) ?? localThemes[0] ?? null,

@@ -1,4 +1,4 @@
-import { useCallback, type RefObject } from "react";
+import { type RefObject } from "react";
 import { clearOnePickerCache } from "@/lib/picker-cache";
 import {
   clearPlayback,
@@ -60,7 +60,7 @@ export function usePlayerExit(params: {
 
   const { activeProfile } = useProfiles();
 
-  const closePlayer = useCallback(async () => {
+  const closePlayer = async () => {
     await captureExitSnapshot();
     const pos = getPlaybackPosition();
     if (Number.isFinite(pos) && pos > 0) {
@@ -100,29 +100,9 @@ export function usePlayerExit(params: {
       clearInvite();
     }
     exitPlayback();
-  }, [
-    captureExitSnapshot,
-    exitPlayback,
-    src.meta.id,
-    src.meta.name,
-    src.historyUrl,
-    season,
-    episode,
-    inRoom,
-    isHost,
-    notifyHostLeaving,
-    clearInvite,
-    publishState,
-    exitPip,
-    liveStreamRef,
-    liveUrl,
-    src.url,
-    stopCast,
-    castActiveRef,
-    activeProfile?.id,
-  ]);
+  };
 
-  const onStubEject = useCallback(() => {
+  const onStubEject = () => {
     const nextAttempt = (src.attempt ?? 0) + 1;
     if (bridgeRef.current) {
       bridgeRef.current.destroy();
@@ -144,19 +124,7 @@ export function usePlayerExit(params: {
       src.episode,
       instantPlay || inRoom ? { autoPlay: true, attempt: nextAttempt } : { autoPlay: false },
     );
-  }, [
-    src.attempt,
-    src.meta,
-    src.episode,
-    src.streamRef,
-    season,
-    episode,
-    openPicker,
-    instantPlay,
-    inRoom,
-    closePlayer,
-    bridgeRef,
-  ]);
+  };
 
   return { closePlayer, onStubEject };
 }

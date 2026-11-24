@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type SetStateAction } from "react";
+import { type Dispatch, type SetStateAction } from "react";
 import {
   DEFAULT_DEFAULT_CONFIG,
   DEFAULT_STREMIO_CONFIG,
@@ -24,48 +24,40 @@ export function useChromeEdits(
   selectedId: PlayerControlId | null,
   theme: ThemeId,
 ) {
-  const moveSlot = useCallback(
-    (dir: -1 | 1) => {
-      if (!selectedId) return;
-      setDraft((cur) => moveControlSlot(cur, selectedId, dir));
-    },
-    [selectedId, setDraft],
-  );
+  const moveSlot = (dir: -1 | 1) => {
+    if (!selectedId) return;
+    setDraft((cur) => moveControlSlot(cur, selectedId, dir));
+  };
 
-  const moveOrder = useCallback(
-    (dir: -1 | 1) => {
-      if (!selectedId) return;
-      setDraft((cur) => moveControlOrder(cur, selectedId, dir));
-    },
-    [selectedId, setDraft],
-  );
+  const moveOrder = (dir: -1 | 1) => {
+    if (!selectedId) return;
+    setDraft((cur) => moveControlOrder(cur, selectedId, dir));
+  };
 
-  const dropControl = useCallback(
-    (id: PlayerControlId, slot: PlayerSlot | "hidden", beforeId: PlayerControlId | null) => {
-      setDraft((cur) => placeControl(cur, id, slot, beforeId));
-    },
-    [setDraft],
-  );
+  const dropControl = (
+    id: PlayerControlId,
+    slot: PlayerSlot | "hidden",
+    beforeId: PlayerControlId | null,
+  ) => {
+    setDraft((cur) => placeControl(cur, id, slot, beforeId));
+  };
 
-  const toggleHidden = useCallback(() => {
+  const toggleHidden = () => {
     if (!selectedId) return;
     setDraft((cur) => ({
       ...cur,
       controls: cur.controls.map((c) => (c.id === selectedId ? { ...c, hidden: !c.hidden } : c)),
     }));
-  }, [selectedId, setDraft]);
+  };
 
-  const unhideControl = useCallback(
-    (id: PlayerControlId) => {
-      setDraft((cur) => ({
-        ...cur,
-        controls: cur.controls.map((c) => (c.id === id ? { ...c, hidden: false } : c)),
-      }));
-    },
-    [setDraft],
-  );
+  const unhideControl = (id: PlayerControlId) => {
+    setDraft((cur) => ({
+      ...cur,
+      controls: cur.controls.map((c) => (c.id === id ? { ...c, hidden: false } : c)),
+    }));
+  };
 
-  const resetControl = useCallback(() => {
+  const resetControl = () => {
     if (!selectedId) return;
     const baseline = THEME_BASELINES[theme].controls.find((c) => c.id === selectedId);
     if (!baseline) return;
@@ -80,63 +72,51 @@ export function useChromeEdits(
         customIcons: nextIcons,
       };
     });
-  }, [selectedId, theme, setDraft]);
+  };
 
-  const setCustomIcon = useCallback(
-    (id: PlayerControlId, dataUrl: string | null, state?: string) => {
-      setDraft((cur) => {
-        const nextIcons = { ...cur.customIcons };
-        const k = state ? `${id}:${state}` : id;
-        if (dataUrl == null) delete nextIcons[k];
-        else nextIcons[k] = dataUrl;
-        return { ...cur, customIcons: nextIcons };
-      });
-    },
-    [setDraft],
-  );
+  const setCustomIcon = (id: PlayerControlId, dataUrl: string | null, state?: string) => {
+    setDraft((cur) => {
+      const nextIcons = { ...cur.customIcons };
+      const k = state ? `${id}:${state}` : id;
+      if (dataUrl == null) delete nextIcons[k];
+      else nextIcons[k] = dataUrl;
+      return { ...cur, customIcons: nextIcons };
+    });
+  };
 
-  const setVariant = useCallback(
-    (id: PlayerControlId, variant: ControlVariant | null) => {
-      setDraft((cur) => ({
-        ...cur,
-        controls: cur.controls.map((c) => {
-          if (c.id !== id) return c;
-          const next: PlayerControlConfig = { ...c };
-          if (variant == null) delete next.variant;
-          else next.variant = variant;
-          return next;
-        }),
-      }));
-    },
-    [setDraft],
-  );
+  const setVariant = (id: PlayerControlId, variant: ControlVariant | null) => {
+    setDraft((cur) => ({
+      ...cur,
+      controls: cur.controls.map((c) => {
+        if (c.id !== id) return c;
+        const next: PlayerControlConfig = { ...c };
+        if (variant == null) delete next.variant;
+        else next.variant = variant;
+        return next;
+      }),
+    }));
+  };
 
-  const setPanelCorner = useCallback(
-    (id: PanelId, corner: PanelCorner) => {
-      setDraft((cur) => {
-        const panels = { ...cur.panels };
-        const prev = panels[id];
-        panels[id] = { corner, hidden: prev?.hidden ?? false };
-        return { ...cur, panels };
-      });
-    },
-    [setDraft],
-  );
+  const setPanelCorner = (id: PanelId, corner: PanelCorner) => {
+    setDraft((cur) => {
+      const panels = { ...cur.panels };
+      const prev = panels[id];
+      panels[id] = { corner, hidden: prev?.hidden ?? false };
+      return { ...cur, panels };
+    });
+  };
 
-  const togglePanelHidden = useCallback(
-    (id: PanelId) => {
-      setDraft((cur) => {
-        const panels = { ...cur.panels };
-        const prev = panels[id];
-        panels[id] = {
-          corner: prev?.corner ?? PANEL_META[id].defaultCorner,
-          hidden: !prev?.hidden,
-        };
-        return { ...cur, panels };
-      });
-    },
-    [setDraft],
-  );
+  const togglePanelHidden = (id: PanelId) => {
+    setDraft((cur) => {
+      const panels = { ...cur.panels };
+      const prev = panels[id];
+      panels[id] = {
+        corner: prev?.corner ?? PANEL_META[id].defaultCorner,
+        hidden: !prev?.hidden,
+      };
+      return { ...cur, panels };
+    });
+  };
 
   return {
     moveSlot,

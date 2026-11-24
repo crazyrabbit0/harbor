@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { authToken, currentAuthor, refreshToken, subscribeAuthor } from "@/lib/theme-auth";
 import {
@@ -68,8 +68,8 @@ export function useProfile(handle: string): ProfileBundle {
   const [nonce, setNonce] = useState(0);
   const healedForRef = useRef("");
 
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
-  const patchSummary = useCallback((next: ProfileSummary) => setSummary(next), []);
+  const reload = () => setNonce((n) => n + 1);
+  const patchSummary = (next: ProfileSummary) => setSummary(next);
 
   useEffect(() => subscribeAuthor(() => setAuthorId(currentAuthor()?.id ?? "")), []);
 

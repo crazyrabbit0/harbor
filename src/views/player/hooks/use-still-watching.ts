@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { PlayEpisode } from "@/lib/view";
 
 export function useStillWatching(params: {
@@ -37,32 +37,29 @@ export function useStillWatching(params: {
     };
   }, [enabled]);
 
-  const gateAdvance = useCallback(
-    (ep: PlayEpisode): boolean => {
-      if (!enabled || threshold <= 0) return false;
-      if (runsRef.current + 1 >= threshold) {
-        setPrompt(ep);
-        return true;
-      }
-      runsRef.current += 1;
-      return false;
-    },
-    [enabled, threshold],
-  );
+  const gateAdvance = (ep: PlayEpisode): boolean => {
+    if (!enabled || threshold <= 0) return false;
+    if (runsRef.current + 1 >= threshold) {
+      setPrompt(ep);
+      return true;
+    }
+    runsRef.current += 1;
+    return false;
+  };
 
-  const continueWatching = useCallback(() => {
+  const continueWatching = () => {
     runsRef.current = 0;
     setPrompt((ep) => {
       if (ep) onContinueRef.current(ep);
       return null;
     });
-  }, []);
+  };
 
-  const stopWatching = useCallback(() => {
+  const stopWatching = () => {
     runsRef.current = 0;
     setPrompt(null);
     onStopRef.current();
-  }, []);
+  };
 
   return { prompt, gateAdvance, continueWatching, stopWatching };
 }

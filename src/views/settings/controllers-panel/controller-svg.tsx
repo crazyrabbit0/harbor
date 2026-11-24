@@ -205,7 +205,7 @@ export function ControllerSvg({ layout, compact }: { layout: Layout; compact?: b
         clipPath="url(#ps-body)"
       />
     ) : null;
-  const sequence = useMemo(() => buildSequence(art), [art]);
+  const sequence = buildSequence(art);
 
   const band = compact ? 0 : CHIP_GAP;
   const chipY = by - CHIP_GAP + (CHIP_GAP - CHIP_H) / 2;

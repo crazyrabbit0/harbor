@@ -1,6 +1,6 @@
 import { ChevronDown, Download, ExternalLink, Loader2, Zap } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { AddonLogo, AddonLogoStack } from "@/components/addon-logo";
 import { CopyLinkButton, resolveStreamLink } from "@/components/player/copy-link-button";
 import { FlagStack } from "@/components/flag";
@@ -55,15 +55,12 @@ export function SourceDrawer({
 }) {
   const t = useT();
   const [addonFilter, setAddonFilter] = useState("all");
-  const addonOptions = useMemo(() => buildAddonOptions(streams), [streams]);
+  const addonOptions = buildAddonOptions(streams);
   if (addonFilter !== "all" && !addonOptions.some((o) => o.id === addonFilter)) {
     setAddonFilter("all");
   }
-  const shown = useMemo(
-    () =>
-      addonFilter === "all" ? streams : streams.filter((s) => addonInstanceKey(s) === addonFilter),
-    [streams, addonFilter],
-  );
+  const shown =
+    addonFilter === "all" ? streams : streams.filter((s) => addonInstanceKey(s) === addonFilter);
   return (
     <div className="flex flex-col gap-4">
       <button

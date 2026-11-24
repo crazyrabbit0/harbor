@@ -1,4 +1,4 @@
-import { useEffect, useMemo, type RefObject } from "react";
+import { useEffect, type RefObject } from "react";
 import { useDebridClients } from "@/lib/debrid/registry";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import {
@@ -38,24 +38,14 @@ export function usePlayerCast(params: {
     }
   }, [session.castDevice, session.castPositionSec, session.audioRouting]);
 
-  const sync = useMemo(
-    () => ({
-      activeRef: session.castActiveRef,
-      play: session.playCast,
-      pause: session.pauseCast,
-      seek: session.seekCast,
-      getPosition: session.getCastPosition,
-      isPlaying: session.isCastPlaying,
-    }),
-    [
-      session.castActiveRef,
-      session.playCast,
-      session.pauseCast,
-      session.seekCast,
-      session.getCastPosition,
-      session.isCastPlaying,
-    ],
-  );
+  const sync = {
+    activeRef: session.castActiveRef,
+    play: session.playCast,
+    pause: session.pauseCast,
+    seek: session.seekCast,
+    getPosition: session.getCastPosition,
+    isPlaying: session.isCastPlaying,
+  };
 
   return { ...session, ...pick, sync };
 }

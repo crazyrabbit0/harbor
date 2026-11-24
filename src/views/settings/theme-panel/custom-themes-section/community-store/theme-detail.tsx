@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useModalExit } from "@/components/modal-shell";
 import { createPortal } from "react-dom";
 import { Check, RefreshCw, Share2, X } from "../../../icons";
@@ -19,7 +19,7 @@ export function ThemeDetail({ theme, onClose }: { theme: StoreTheme; onClose: ()
   const { closing, close } = useModalExit(onClose);
   const t = theme;
   const [copied, setCopied] = useState(false);
-  const tokens = useMemo(() => tokensFromStoreTheme(t), [t]);
+  const tokens = tokensFromStoreTheme(t);
   const { state, run } = useAcquireState(() =>
     downloadTheme(t.id, t.cover ?? t.screenshots[0] ?? null, t.versionsCount).then(() => {}),
   );

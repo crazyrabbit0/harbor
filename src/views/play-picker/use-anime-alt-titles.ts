@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { externalToKitsu } from "@/lib/providers/anime-mapping";
 import { kitsuAnime, parseKitsuId } from "@/lib/providers/kitsu";
@@ -38,10 +38,7 @@ export function useAnimeAltTitles(meta: Meta): string[] | null {
   const metaName = meta.name;
   const requestKey = `${metaId}\0${metaName}`;
   const [resolved, setResolved] = useState<{ key: string; titles: string[] } | null>(null);
-  const baseTitles = useMemo(
-    () => (ANIME_ID_RX.test(metaId) ? dedupeTitles(metaName, []) : null),
-    [metaId, metaName],
-  );
+  const baseTitles = ANIME_ID_RX.test(metaId) ? dedupeTitles(metaName, []) : null;
   useEffect(() => {
     const m = ANIME_ID_RX.exec(metaId);
     if (!m) return;

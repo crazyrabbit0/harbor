@@ -151,11 +151,8 @@ export function useAutoRetry(params: {
   const transcodedUrl = recoveryState.url === src.url ? recoveryState.transcodedUrl : null;
   const sourceError =
     recoveryState.url === src.url && !startedJustNow ? recoveryState.sourceError : null;
-  const setTranscodedUrl = useCallback(
-    (url: string | null) =>
-      setRecoveryState((cur) => (cur.url === src.url ? { ...cur, transcodedUrl: url } : cur)),
-    [src.url],
-  );
+  const setTranscodedUrl = (url: string | null) =>
+    setRecoveryState((cur) => (cur.url === src.url ? { ...cur, transcodedUrl: url } : cur));
   const setSourceError = useCallback(
     (updater: SourceError | null | ((prev: SourceError | null) => SourceError | null)) =>
       setRecoveryState((cur) => {

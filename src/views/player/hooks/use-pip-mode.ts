@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import { useSettingsSelector } from "@/lib/settings";
 import { makeSafeTauriUnlisten } from "@/lib/tauri-unlisten";
@@ -126,7 +126,7 @@ export function usePipMode(params: {
     };
   }, []);
 
-  const togglePipMode = useCallback(async () => {
+  const togglePipMode = async () => {
     const isTauri = "__TAURI__" in window || "__TAURI_INTERNALS__" in window;
     if (!isTauri) {
       bridgeRef.current?.requestPiP();
@@ -151,9 +151,9 @@ export function usePipMode(params: {
       setChromeHidden(false);
       bridgeRef.current?.requestPiP();
     });
-  }, [pipMode, setChromeHidden, detached, bridgeRef]);
+  };
 
-  const exitPip = useCallback(async () => {
+  const exitPip = async () => {
     if (!pipMode) return;
     setPipMode(false);
     setChromeHidden(false);
@@ -162,7 +162,7 @@ export function usePipMode(params: {
       await invoke(nativeDetached.current ? "pip_window_exit" : "window_pip_exit");
     };
     await exit().catch(() => {});
-  }, [pipMode, setChromeHidden]);
+  };
 
   return { pipMode, togglePipMode, exitPip };
 }

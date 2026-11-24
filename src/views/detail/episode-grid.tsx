@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useSettingsSelector } from "@/lib/settings";
 import type { SpoilerMask } from "@/lib/spoilers";
@@ -33,10 +33,7 @@ export function EpisodeGrid({
   }));
   const sort = settings.episodeSort;
   const wrapRef = useRef<HTMLDivElement>(null);
-  const displayed = useMemo(
-    () => (sort === "newest" ? episodes.slice().reverse() : episodes),
-    [episodes, sort],
-  );
+  const displayed = sort === "newest" ? episodes.slice().reverse() : episodes;
   const resetKey = `${sort}:${displayed.length}:${displayed[0]?.key ?? ""}:${displayed[displayed.length - 1]?.key ?? ""}`;
   const [pageState, setPageState] = useState<{ key: string; page: number }>({
     key: resetKey,
@@ -47,10 +44,7 @@ export function EpisodeGrid({
   const pageCount = Math.max(1, Math.ceil(displayed.length / PAGE_SIZE));
   const safePage = Math.min(page, pageCount - 1);
   const pageItems = displayed.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE);
-  const maxEpisode = useMemo(
-    () => episodes.reduce((m, e) => (e.number > m ? e.number : m), 0),
-    [episodes],
-  );
+  const maxEpisode = episodes.reduce((m, e) => (e.number > m ? e.number : m), 0);
 
   const change = (p: number) => {
     setPageState({ key: resetKey, page: p });

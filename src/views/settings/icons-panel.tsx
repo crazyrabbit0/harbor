@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, Check, Download } from "./icons";
 import { openUrl } from "@/lib/window";
 import { useT } from "@/lib/i18n";
@@ -192,27 +192,24 @@ function IconTile({
 }
 
 function IconSet({ glob, download }: { glob: Glob; download: AssetDownload }) {
-  const items = useMemo(() => entries(glob), [glob]);
+  const items = entries(glob);
   const saveAsset = download.save;
-  const save = useCallback(
-    (key: string, name: string) => {
-      void saveAsset(
-        key,
-        `${name}.svg`,
-        async () => {
-          const load = SVG_RAW[key];
-          if (load) return (await load()) as string;
-          if (!key.startsWith("/")) throw new Error("Icon source unavailable");
-          const res = await fetch(key);
-          if (!res.ok) throw new Error("Icon source unavailable");
-          return res.text();
-        },
-        ["svg"],
-        "SVG",
-      );
-    },
-    [saveAsset],
-  );
+  const save = (key: string, name: string) => {
+    void saveAsset(
+      key,
+      `${name}.svg`,
+      async () => {
+        const load = SVG_RAW[key];
+        if (load) return (await load()) as string;
+        if (!key.startsWith("/")) throw new Error("Icon source unavailable");
+        const res = await fetch(key);
+        if (!res.ok) throw new Error("Icon source unavailable");
+        return res.text();
+      },
+      ["svg"],
+      "SVG",
+    );
+  };
   return (
     <>
       <div className="hset-icon-grid">
@@ -332,14 +329,11 @@ function AnimationTile({
 }
 
 function AnimationSet({ glob, download }: { glob: LazyGlob; download: AssetDownload }) {
-  const keys = useMemo(() => Object.keys(glob).sort(), [glob]);
+  const keys = Object.keys(glob).sort();
   const saveAsset = download.save;
-  const save = useCallback(
-    (path: string, name: string, data: object) => {
-      void saveAsset(path, `${name}.json`, async () => JSON.stringify(data), ["json"], "Lottie");
-    },
-    [saveAsset],
-  );
+  const save = (path: string, name: string, data: object) => {
+    void saveAsset(path, `${name}.json`, async () => JSON.stringify(data), ["json"], "Lottie");
+  };
   return (
     <>
       <div className="hset-anim-grid">

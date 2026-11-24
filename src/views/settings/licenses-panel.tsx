@@ -1,4 +1,4 @@
-import { useCallback, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
 import { ArrowUpRight, Check, Download } from "./icons";
 import { openUrl } from "@/lib/window";
 import { useT } from "@/lib/i18n";
@@ -750,22 +750,19 @@ export function LicensesPanel() {
   const download = useAssetDownload();
   const saveAsset = download.save;
 
-  const save = useCallback(
-    (doc: LicenseDoc) => {
-      void saveAsset(
-        doc.id,
-        `${doc.file}.txt`,
-        async () => {
-          const load = LICENSE_TEXT[`../../assets/licenses/${doc.file}.txt`];
-          if (!load) throw new Error("Licence source unavailable");
-          return (await load()) as string;
-        },
-        ["txt"],
-        t("Licence"),
-      );
-    },
-    [saveAsset, t],
-  );
+  const save = (doc: LicenseDoc) => {
+    void saveAsset(
+      doc.id,
+      `${doc.file}.txt`,
+      async () => {
+        const load = LICENSE_TEXT[`../../assets/licenses/${doc.file}.txt`];
+        if (!load) throw new Error("Licence source unavailable");
+        return (await load()) as string;
+      },
+      ["txt"],
+      t("Licence"),
+    );
+  };
 
   return (
     <>

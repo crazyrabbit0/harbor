@@ -29,7 +29,7 @@ export function CoverCropper({ onChange }: { onChange: (blob: Blob | null) => vo
   };
   const [frame, setFrame] = useState({ w: 0, h: 0 });
   // The frame is measured when it mounts and whenever it resizes, so the display scale tracks its size.
-  const attachFrame = useCallback((el: HTMLDivElement | null) => {
+  const attachFrame = (el: HTMLDivElement | null) => {
     frameRef.current = el;
     if (!el) return;
     const measure = () => {
@@ -45,7 +45,7 @@ export function CoverCropper({ onChange }: { onChange: (blob: Blob | null) => vo
       ro.disconnect();
       frameRef.current = null;
     };
-  }, []);
+  };
 
   const clamp = useCallback(
     (o: { x: number; y: number }, z: number, n: { w: number; h: number }) => {

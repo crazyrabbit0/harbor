@@ -109,10 +109,10 @@ export function useGifRecorder(params: { src: PlayerSrc; folder?: string }): {
     }
   }, []);
 
-  const toggle = useCallback(() => {
+  const toggle = () => {
     if (stateRef.current === "recording") void stop();
     else if (stateRef.current === "idle") void start();
-  }, [start, stop]);
+  };
 
   useEffect(
     () => () => {

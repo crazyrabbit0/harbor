@@ -1,5 +1,5 @@
 import { Check, Copy, ExternalLink } from "../icons";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { QR_DARK, QR_LIGHT, buildHandoffQr } from "@/lib/tv-handoff/handoff-qr";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
@@ -8,7 +8,7 @@ import { SButton } from "../ui";
 import { DeviceArt, type DeviceKind } from "./device-art";
 
 function Qr({ url }: { url: string }) {
-  const qr = useMemo(() => buildHandoffQr(url), [url]);
+  const qr = buildHandoffQr(url);
   if (!qr) return null;
   return (
     <svg

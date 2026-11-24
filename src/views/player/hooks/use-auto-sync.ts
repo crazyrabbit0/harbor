@@ -542,7 +542,7 @@ export function useAutoSync(params: {
     return () => activeDisposeRef.current?.();
   }, [selKey, runKey, beginRun]);
 
-  const revert = useCallback(() => {
+  const revert = () => {
     progressiveRef.current?.stop();
     progressiveRef.current = null;
     stopDrift();
@@ -565,9 +565,9 @@ export function useAutoSync(params: {
     bestScoreRef.current = -1;
     setOffer(null);
     setStatus("idle");
-  }, [bridgeRef, isCurrentAutoSyncScope, stopDrift]);
+  };
 
-  const retry = useCallback(() => {
+  const retry = () => {
     const action = retryRef.current;
     if (!action) {
       beginRun(true);
@@ -582,18 +582,18 @@ export function useAutoSync(params: {
       undefined,
       () => isCurrentAutoSyncScope(statusScope),
     );
-  }, [beginRun, isCurrentAutoSyncScope, runWithSubtitleFpsReset]);
+  };
 
-  const run = useCallback(() => {
+  const run = () => {
     beginRun(true);
-  }, [beginRun]);
+  };
 
-  const stop = useCallback(() => {
+  const stop = () => {
     activeDisposeRef.current?.();
     revert();
-  }, [revert]);
+  };
 
-  const suspendForManualTiming = useCallback(() => {
+  const suspendForManualTiming = () => {
     // Unlike Stop/Revert, taking manual control must preserve the current offset.
     manualTimingMediaRef.current = autoSyncMediaKey(srcRef.current);
     activeDisposeRef.current?.();
@@ -602,9 +602,9 @@ export function useAutoSync(params: {
     setStatusScope(null);
     setOffer(null);
     setStatus("idle");
-  }, [stopDrift]);
+  };
 
-  const feedback = useCallback((good: boolean) => {
+  const feedback = (good: boolean) => {
     const s = settingsRef.current;
     if (s.subtitleAutoSyncCrowd === false) return;
     const r = lastReportRef.current;
@@ -613,9 +613,9 @@ export function useAutoSync(params: {
     if (!cfg) return;
     void reportCrowdFeedback(r.ctx.cues, good, cfg);
     if (good) void reportVerifiedSync(r.ctx, r.transform, r.confidence, cfg);
-  }, []);
+  };
 
-  const applyOffer = useCallback(() => {
+  const applyOffer = () => {
     const o = offer;
     if (!o) return;
     const statusScope = statusScopeRef.current;
@@ -652,14 +652,7 @@ export function useAutoSync(params: {
       dwarn("[auto-sync] offer apply failed", error);
       if (isCurrent()) setStatus("error");
     });
-  }, [
-    offer,
-    bridgeRef,
-    applyTransform,
-    isCurrentAutoSyncScope,
-    runWithSubtitleFpsReset,
-    startDrift,
-  ]);
+  };
 
   const scopeCurrent = isAutoSyncScopeCurrent(statusScope, {
     mediaKey,

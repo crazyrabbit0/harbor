@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import type { CastDeviceInfo } from "@/lib/cast";
 import type { PlayerBridge, PlayerSnapshot, TrackInfo } from "@/lib/player/bridge";
 import { getPlaybackPosition } from "@/lib/player/playback-clock";
@@ -74,88 +74,83 @@ export function usePlaybackControls(params: {
   }, [mediaKey, subtitleStreamKey]);
   useEffect(() => () => pendingSubtitleCacheRef.current?.(), []);
 
-  const rememberSubChoice = useCallback(
-    (choice: SubChoiceInput | null | undefined) => {
-      pendingSubtitleCacheRef.current?.();
-      const revision = ++subtitleCacheContextRef.current.revision;
-      if (choice) {
-        writePlayerPrefs(
-          metaId,
-          choice.lang ? { subLang: choice.lang, subsOff: false } : { subsOff: false },
-        );
-        const source =
-          choice.source ?? choice.url ?? choice.originalUrl ?? choice.externalFilename ?? undefined;
-        const imported =
-          choice.imported === true ||
-          hasImportedSubTitle(choice.title) ||
-          subtitleSourceIsLocal(source);
-        const rememberedChoice = { ...choice, imported, streamKey: subtitleStreamKey };
-        const remembered = writeRememberedSub(mediaKey, rememberedFromChoice(rememberedChoice));
-        if (!choice.external || !source || (imported && subtitleSourceIsLocal(source))) {
+  const rememberSubChoice = (choice: SubChoiceInput | null | undefined) => {
+    pendingSubtitleCacheRef.current?.();
+    const revision = ++subtitleCacheContextRef.current.revision;
+    if (choice) {
+      writePlayerPrefs(
+        metaId,
+        choice.lang ? { subLang: choice.lang, subsOff: false } : { subsOff: false },
+      );
+      const source =
+        choice.source ?? choice.url ?? choice.originalUrl ?? choice.externalFilename ?? undefined;
+      const imported =
+        choice.imported === true ||
+        hasImportedSubTitle(choice.title) ||
+        subtitleSourceIsLocal(source);
+      const rememberedChoice = { ...choice, imported, streamKey: subtitleStreamKey };
+      const remembered = writeRememberedSub(mediaKey, rememberedFromChoice(rememberedChoice));
+      if (!choice.external || !source || (imported && subtitleSourceIsLocal(source))) {
+        return;
+      }
+      const bridge = bridgeRef.current;
+      if (!bridge || !remembered) return;
+      let off: (() => void) | null = null;
+      let timeout: number | null = null;
+      let stopped = false;
+      const stopWaiting = () => {
+        stopped = true;
+        off?.();
+        if (timeout != null) window.clearTimeout(timeout);
+        if (pendingSubtitleCacheRef.current === stopWaiting) pendingSubtitleCacheRef.current = null;
+      };
+      pendingSubtitleCacheRef.current = stopWaiting;
+      off = bridge.subscribe((snapshot) => {
+        if (stopped) return;
+        if (
+          subtitleCacheContextRef.current.revision !== revision ||
+          bridgeRef.current !== bridge ||
+          readRememberedSub(mediaKey) !== remembered
+        ) {
+          stopWaiting();
           return;
         }
-        const bridge = bridgeRef.current;
-        if (!bridge || !remembered) return;
-        let off: (() => void) | null = null;
-        let timeout: number | null = null;
-        let stopped = false;
-        const stopWaiting = () => {
-          stopped = true;
-          off?.();
-          if (timeout != null) window.clearTimeout(timeout);
-          if (pendingSubtitleCacheRef.current === stopWaiting)
-            pendingSubtitleCacheRef.current = null;
-        };
-        pendingSubtitleCacheRef.current = stopWaiting;
-        off = bridge.subscribe((snapshot) => {
-          if (stopped) return;
-          if (
-            subtitleCacheContextRef.current.revision !== revision ||
-            bridgeRef.current !== bridge ||
-            readRememberedSub(mediaKey) !== remembered
-          ) {
-            stopWaiting();
-            return;
-          }
-          const selected = snapshot.subtitleTracks.find((track) => track.selected);
-          if (!selected) return;
-          const matches = choice.id
-            ? selected.id === choice.id
-            : choice.subId
-              ? selected.subId === choice.subId
-              : [selected.url, selected.originalUrl, selected.externalFilename].includes(source);
-          if (!matches) return;
-          // Capture identity and bytes from the same bridge event. React may
-          // still be displaying the preceding selection when this arrives.
-          const playableUrl = bridge.getSelectedTrackUrl();
-          const cues = bridge.getSelectedTrackCues();
-          stopWaiting();
-          void cacheSelectedSubtitle({
-            mediaKey,
-            streamKey: subtitleStreamKey,
-            choice: { ...rememberedChoice, ...selected, source, url: source },
-            playableUrl,
-            cues,
+        const selected = snapshot.subtitleTracks.find((track) => track.selected);
+        if (!selected) return;
+        const matches = choice.id
+          ? selected.id === choice.id
+          : choice.subId
+            ? selected.subId === choice.subId
+            : [selected.url, selected.originalUrl, selected.externalFilename].includes(source);
+        if (!matches) return;
+        // Identity and bytes come from the same bridge event, since React may still show the previous selection.
+        const playableUrl = bridge.getSelectedTrackUrl();
+        const cues = bridge.getSelectedTrackCues();
+        stopWaiting();
+        void cacheSelectedSubtitle({
+          mediaKey,
+          streamKey: subtitleStreamKey,
+          choice: { ...rememberedChoice, ...selected, source, url: source },
+          playableUrl,
+          cues,
+        })
+          .then((cached) => {
+            // The copy can finish after the player closed and reopened, so check the remembered entry is still this one.
+            if (!cached || readRememberedSub(mediaKey) !== remembered) return;
+            writeRememberedSub(
+              mediaKey,
+              rememberedFromChoice({ ...cached, streamKey: subtitleStreamKey }),
+            );
           })
-            .then((cached) => {
-              // The copy may finish after the player was closed and reopened.
-              if (!cached || readRememberedSub(mediaKey) !== remembered) return;
-              writeRememberedSub(
-                mediaKey,
-                rememberedFromChoice({ ...cached, streamKey: subtitleStreamKey }),
-              );
-            })
-            .catch(() => {});
-        });
-        if (stopped) off();
-        else timeout = window.setTimeout(stopWaiting, 15_000);
-      } else {
-        writePlayerPrefs(metaId, { subsOff: true });
-        writeRememberedSub(mediaKey, { off: true });
-      }
-    },
-    [bridgeRef, metaId, mediaKey, subtitleStreamKey],
-  );
+          .catch(() => {});
+      });
+      if (stopped) off();
+      else timeout = window.setTimeout(stopWaiting, 15_000);
+    } else {
+      writePlayerPrefs(metaId, { subsOff: true });
+      writeRememberedSub(mediaKey, { off: true });
+    }
+  };
 
   // Returns the track now selected, null for off, or undefined when there was nothing to cycle.
   const cycleSubtitles = (direction: 1 | -1 = 1): TrackInfo | null | undefined => {
@@ -242,25 +237,22 @@ export function usePlaybackControls(params: {
     notifyMediaSeeked(target);
   };
 
-  const seekTo = useCallback(
-    (sec: number) => {
-      const target = Math.max(0, sec);
-      if (castDevice) {
-        seekAccumRef.current = { target, at: performance.now(), clock: getPlaybackPosition() };
-        void seekCast(target);
-        return;
-      }
-      if (!canControl) return;
+  const seekTo = (sec: number) => {
+    const target = Math.max(0, sec);
+    if (castDevice) {
       seekAccumRef.current = { target, at: performance.now(), clock: getPlaybackPosition() };
-      if (inRoom && !isHost) {
-        sendCommand({ action: "seek", positionSeconds: target });
-        return;
-      }
-      bridgeRef.current?.seek(target, "keyframes");
-      notifyMediaSeeked(target);
-    },
-    [castDevice, canControl, inRoom, isHost, sendCommand, seekCast, bridgeRef],
-  );
+      void seekCast(target);
+      return;
+    }
+    if (!canControl) return;
+    seekAccumRef.current = { target, at: performance.now(), clock: getPlaybackPosition() };
+    if (inRoom && !isHost) {
+      sendCommand({ action: "seek", positionSeconds: target });
+      return;
+    }
+    bridgeRef.current?.seek(target, "keyframes");
+    notifyMediaSeeked(target);
+  };
 
   return { rememberSubChoice, cycleSubtitles, cycleAudio, playPauseToggle, seekStep, seekTo };
 }

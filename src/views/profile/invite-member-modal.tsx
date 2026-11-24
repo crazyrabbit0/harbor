@@ -1,6 +1,6 @@
 import { Check, Loader2, UserPlus, X } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { addGroupMember, type GroupDetail } from "@/lib/social/groups";
 import { searchUsers, type UserHit } from "@/lib/social/user-search";
@@ -29,10 +29,7 @@ export function InviteMemberModal({
   const [error, setError] = useState<string | null>(null);
 
   const myHandle = (currentAuthor()?.handle ?? "").toLowerCase();
-  const memberSet = useMemo(
-    () => new Set(existingHandles.map((h) => h.toLowerCase())),
-    [existingHandles],
-  );
+  const memberSet = new Set(existingHandles.map((h) => h.toLowerCase()));
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();

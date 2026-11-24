@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { useT } from "@/lib/i18n";
@@ -142,10 +142,8 @@ export function useAnchor(): {
   close: () => void;
 } {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
-  const open = useCallback(
-    (e: { currentTarget: HTMLElement }) => setAnchor(e.currentTarget.getBoundingClientRect()),
-    [],
-  );
-  const close = useCallback(() => setAnchor(null), []);
+  const open = (e: { currentTarget: HTMLElement }) =>
+    setAnchor(e.currentTarget.getBoundingClientRect());
+  const close = () => setAnchor(null);
   return { anchor, open, close };
 }

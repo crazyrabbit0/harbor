@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   tmdbEpisodeGroup,
   tmdbEpisodeGroups,
@@ -40,12 +40,9 @@ export function useArcGroups({
       : selectedArc?.key === groupKey && arcs.some((a) => a.id === selectedArc.id)
         ? selectedArc.id
         : arcs[0].id;
-  const setActiveArcId = useCallback(
-    (id: string) => {
-      if (groupKey) setSelectedArc({ key: groupKey, id });
-    },
-    [groupKey],
-  );
+  const setActiveArcId = (id: string) => {
+    if (groupKey) setSelectedArc({ key: groupKey, id });
+  };
 
   useEffect(() => {
     if (!groupKey) return;

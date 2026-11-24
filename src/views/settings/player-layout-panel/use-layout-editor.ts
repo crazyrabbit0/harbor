@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { alertDialog, confirmDialog } from "@/lib/dialog";
 import {
   notifyPlayerChromeChanged,
@@ -41,14 +41,8 @@ export function useLayoutEditor(theme: ThemeId, onThemeChange: (theme: ThemeId) 
     if (reloadConfig) setConfigVersion((v) => v + 1);
   }, []);
 
-  const profiles = useMemo(
-    () => readAtVersion(profileVersion, () => listProfiles(theme)),
-    [theme, profileVersion],
-  );
-  const activeProfileId = useMemo(
-    () => readAtVersion(profileVersion, () => getActiveProfile(theme)?.id ?? null),
-    [theme, profileVersion],
-  );
+  const profiles = readAtVersion(profileVersion, () => listProfiles(theme));
+  const activeProfileId = readAtVersion(profileVersion, () => getActiveProfile(theme)?.id ?? null);
 
   const currentKey = `${theme}:${configVersion}`;
   const [loadedKey, setLoadedKey] = useState(currentKey);
@@ -69,15 +63,15 @@ export function useLayoutEditor(theme: ThemeId, onThemeChange: (theme: ThemeId) 
     return () => window.removeEventListener("storage", onStorage);
   }, [bumpProfiles]);
 
-  const dirty = useMemo(() => !sameConfig(draft, saved), [draft, saved]);
+  const dirty = !sameConfig(draft, saved);
   const edits = useChromeEdits(setDraft, selectedId, theme);
 
-  const flashSaved = useCallback(() => {
+  const flashSaved = () => {
     setJustSaved(true);
     window.setTimeout(() => setJustSaved(false), 1600);
-  }, []);
+  };
 
-  const onSave = useCallback(() => {
+  const onSave = () => {
     const res = writePlayerChromeConfig(theme, draft);
     if (!res.ok) {
       void alertDialog(t("Couldn't save your layout. {error}", { error: res.error }));
@@ -87,55 +81,46 @@ export function useLayoutEditor(theme: ThemeId, onThemeChange: (theme: ThemeId) 
     bumpProfiles();
     notifyPlayerChromeChanged(theme);
     flashSaved();
-  }, [draft, theme, bumpProfiles, flashSaved, t]);
+  };
 
-  const onSwitchProfile = useCallback(
-    async (id: string) => {
-      if (!sameConfig(draft, saved)) {
-        const ok = await confirmDialog(
-          t("You have unsaved changes that will be lost when switching profiles. Continue?"),
-        );
-        if (!ok) return;
-      }
-      const res = setActiveProfile(theme, id);
-      if (!res.ok) {
-        void alertDialog(t("Couldn't switch profile. {error}", { error: res.error }));
-        return;
-      }
-      bumpProfiles();
-      notifyPlayerChromeChanged(theme);
-    },
-    [draft, saved, theme, bumpProfiles, t],
-  );
+  const onSwitchProfile = async (id: string) => {
+    if (!sameConfig(draft, saved)) {
+      const ok = await confirmDialog(
+        t("You have unsaved changes that will be lost when switching profiles. Continue?"),
+      );
+      if (!ok) return;
+    }
+    const res = setActiveProfile(theme, id);
+    if (!res.ok) {
+      void alertDialog(t("Couldn't switch profile. {error}", { error: res.error }));
+      return;
+    }
+    bumpProfiles();
+    notifyPlayerChromeChanged(theme);
+  };
 
-  const onSaveAsNew = useCallback(
-    (name: string) => {
-      const res = createProfile(theme, name, draft);
-      if (!res.ok) {
-        void alertDialog(t("Couldn't create the profile. {error}", { error: res.error }));
-        return;
-      }
-      bumpProfiles();
-      notifyPlayerChromeChanged(theme);
-      flashSaved();
-    },
-    [draft, theme, bumpProfiles, flashSaved, t],
-  );
+  const onSaveAsNew = (name: string) => {
+    const res = createProfile(theme, name, draft);
+    if (!res.ok) {
+      void alertDialog(t("Couldn't create the profile. {error}", { error: res.error }));
+      return;
+    }
+    bumpProfiles();
+    notifyPlayerChromeChanged(theme);
+    flashSaved();
+  };
 
-  const onRenameProfile = useCallback(
-    (newName: string) => {
-      if (!activeProfileId) return;
-      const res = renameProfileApi(activeProfileId, newName);
-      if (!res.ok) {
-        void alertDialog(t("Couldn't rename the profile. {error}", { error: res.error }));
-        return;
-      }
-      bumpProfiles(false);
-    },
-    [activeProfileId, bumpProfiles, t],
-  );
+  const onRenameProfile = (newName: string) => {
+    if (!activeProfileId) return;
+    const res = renameProfileApi(activeProfileId, newName);
+    if (!res.ok) {
+      void alertDialog(t("Couldn't rename the profile. {error}", { error: res.error }));
+      return;
+    }
+    bumpProfiles(false);
+  };
 
-  const onDeleteProfile = useCallback(() => {
+  const onDeleteProfile = () => {
     if (!activeProfileId) return;
     const res = deleteProfileApi(activeProfileId);
     if (!res.ok) {
@@ -144,9 +129,9 @@ export function useLayoutEditor(theme: ThemeId, onThemeChange: (theme: ThemeId) 
     }
     bumpProfiles();
     notifyPlayerChromeChanged(theme);
-  }, [activeProfileId, theme, bumpProfiles, t]);
+  };
 
-  const onExportProfile = useCallback(() => {
+  const onExportProfile = () => {
     if (!activeProfileId) return;
     const json = exportProfileJson(activeProfileId);
     if (!json) return;
@@ -161,44 +146,41 @@ export function useLayoutEditor(theme: ThemeId, onThemeChange: (theme: ThemeId) 
     a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
-  }, [activeProfileId, theme]);
+  };
 
-  const onImportProfile = useCallback(
-    (text: string) => {
-      const res = importProfileJson(text);
-      if (!res.ok) {
-        void alertDialog(t("Couldn't import that file. {error}", { error: res.error }));
-        return;
-      }
-      bumpProfiles();
-      notifyPlayerChromeChanged(res.profile.themeId);
-      if (res.profile.themeId !== theme) onThemeChange(res.profile.themeId);
-    },
-    [theme, bumpProfiles, onThemeChange, t],
-  );
+  const onImportProfile = (text: string) => {
+    const res = importProfileJson(text);
+    if (!res.ok) {
+      void alertDialog(t("Couldn't import that file. {error}", { error: res.error }));
+      return;
+    }
+    bumpProfiles();
+    notifyPlayerChromeChanged(res.profile.themeId);
+    if (res.profile.themeId !== theme) onThemeChange(res.profile.themeId);
+  };
 
-  const resetAll = useCallback(() => {
+  const resetAll = () => {
     const baseline = resetPlayerChromeConfig(theme);
     setSaved(baseline);
     setDraft(baseline);
     notifyPlayerChromeChanged(theme);
     setSelectedId(null);
     return baseline;
-  }, [theme]);
+  };
 
-  const onResetToDefaults = useCallback(() => {
+  const onResetToDefaults = () => {
     resetAll();
     bumpProfiles();
-  }, [resetAll, bumpProfiles]);
+  };
 
-  const discard = useCallback(() => {
+  const discard = () => {
     setDraft(saved);
     setSelectedId(null);
     setSelectedPanelId(null);
-  }, [saved]);
+  };
 
   /** Asks before throwing away unsaved edits; resolves true when the editor may close. */
-  const confirmClose = useCallback(async () => {
+  const confirmClose = async () => {
     if (!sameConfig(draft, saved)) {
       const ok = await confirmDialog(
         t("You have unsaved changes. Close the editor and discard them?"),
@@ -207,7 +189,7 @@ export function useLayoutEditor(theme: ThemeId, onThemeChange: (theme: ThemeId) 
       discard();
     }
     return true;
-  }, [draft, saved, discard, t]);
+  };
 
   return {
     saved,

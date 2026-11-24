@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Addon } from "@/lib/addons";
 import type { Meta } from "@/lib/cinemeta";
 import { useDebridClients } from "@/lib/debrid/registry";
@@ -68,16 +68,12 @@ export function usePipelineResult({
   });
   const baseTimestamp = refreshInfo.nonce > 0 ? refreshInfo.at : mountAt;
 
-  const configHash = useMemo(
-    () =>
-      buildPickerConfigHash({
-        addonTransportUrls: (addons ?? []).map((a) => a.transportUrl),
-        debridSlugs: debrids.map((d) => d.slug),
-        scraperKeys: pluginCacheTokens(),
-        filterMode: filterDisabled ? "off" : strictMode ? "strict" : "balanced",
-      }),
-    [addons, debrids, filterDisabled, strictMode],
-  );
+  const configHash = buildPickerConfigHash({
+    addonTransportUrls: (addons ?? []).map((a) => a.transportUrl),
+    debridSlugs: debrids.map((d) => d.slug),
+    scraperKeys: pluginCacheTokens(),
+    filterMode: filterDisabled ? "off" : strictMode ? "strict" : "balanced",
+  });
 
   const ready = streamIds !== null && addons !== null;
   const requestKey = ready
@@ -223,10 +219,10 @@ export function usePipelineResult({
     return () => ac.abort();
   }, [requestKey]);
 
-  const refresh = useCallback(() => {
+  const refresh = () => {
     clearOnePickerCache(meta, episode);
     setRefreshInfo((prev) => ({ nonce: prev.nonce + 1, at: performance.now() }));
-  }, [meta, episode]);
+  };
   const resolveError = pickerErrorTransport(pickerError);
 
   return {

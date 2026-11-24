@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayerBridge, PlayerSnapshot } from "@/lib/player/bridge";
 import { langScore, pickBestTrack, normalizeLang } from "@/lib/subtitles/language";
@@ -631,11 +631,8 @@ export function useTrackAutoload(params: {
     setSubRestoreState({ url: src.url, tick: 0 });
   }
   const subRestoreTick = subRestoreState.url === src.url ? subRestoreState.tick : 0;
-  const setSubRestoreTick = useCallback(
-    (update: (tick: number) => number) =>
-      setSubRestoreState((cur) => ({ url: cur.url, tick: update(cur.tick) })),
-    [],
-  );
+  const setSubRestoreTick = (update: (tick: number) => number) =>
+    setSubRestoreState((cur) => ({ url: cur.url, tick: update(cur.tick) }));
   const embeddedRestoreRef = useRef<string | null>(null);
   useEffect(() => {
     subRestoreWaitRef.current = null;

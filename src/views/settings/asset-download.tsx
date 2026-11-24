@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { saveTextFileWithPath } from "@/lib/download-text";
 import { useT } from "@/lib/i18n";
 
@@ -21,58 +21,55 @@ export function useAssetDownload() {
     };
   }, []);
 
-  const save = useCallback(
-    async (
-      id: string,
-      filename: string,
-      prepare: () => Promise<string>,
-      extensions: string[],
-      label: string,
-    ) => {
-      if (busy.current) return;
-      busy.current = true;
-      let prepared = false;
-      setStatus({ id, phase: "loading", message: t("Preparing {name}…", { name: filename }) });
-      const work = async () => {
-        const text = await prepare();
+  const save = async (
+    id: string,
+    filename: string,
+    prepare: () => Promise<string>,
+    extensions: string[],
+    label: string,
+  ) => {
+    if (busy.current) return;
+    busy.current = true;
+    let prepared = false;
+    setStatus({ id, phase: "loading", message: t("Preparing {name}…", { name: filename }) });
+    const work = async () => {
+      const text = await prepare();
+      if (!mounted.current) return;
+      prepared = true;
+      setStatus({ id, phase: "saving", message: t("Saving {name}…", { name: filename }) });
+      const result = await saveTextFileWithPath(filename, text, extensions, label, {
+        nativeFailure: "throw",
+      });
+      if (!mounted.current) return;
+      if (!result.saved) {
+        setStatus(null);
+        return;
+      }
+      setStatus({
+        id,
+        phase: result.path ? "saved" : "downloaded",
+        message: result.path
+          ? t("Saved {name}.", { name: filename })
+          : t("Download started for {name}.", { name: filename }),
+      });
+    };
+    await work()
+      .catch(() => {
         if (!mounted.current) return;
-        prepared = true;
-        setStatus({ id, phase: "saving", message: t("Saving {name}…", { name: filename }) });
-        const result = await saveTextFileWithPath(filename, text, extensions, label, {
-          nativeFailure: "throw",
-        });
-        if (!mounted.current) return;
-        if (!result.saved) {
-          setStatus(null);
-          return;
-        }
         setStatus({
           id,
-          phase: result.path ? "saved" : "downloaded",
-          message: result.path
-            ? t("Saved {name}.", { name: filename })
-            : t("Download started for {name}.", { name: filename }),
+          phase: "error",
+          message: prepared
+            ? t("Could not save {name}. Try again and choose a writable folder.", {
+                name: filename,
+              })
+            : t("Could not load {name}. Try again.", { name: filename }),
         });
-      };
-      await work()
-        .catch(() => {
-          if (!mounted.current) return;
-          setStatus({
-            id,
-            phase: "error",
-            message: prepared
-              ? t("Could not save {name}. Try again and choose a writable folder.", {
-                  name: filename,
-                })
-              : t("Could not load {name}. Try again.", { name: filename }),
-          });
-        })
-        .finally(() => {
-          busy.current = false;
-        });
-    },
-    [t],
-  );
+      })
+      .finally(() => {
+        busy.current = false;
+      });
+  };
 
   const pendingId = status?.phase === "loading" || status?.phase === "saving" ? status.id : null;
   const savedId = status?.phase === "saved" || status?.phase === "downloaded" ? status.id : null;

@@ -1,7 +1,6 @@
 import { LoaderCircle, Pencil, Plus, RefreshCw, Trash2 } from "../icons";
 import { UiIcon } from "@/components/ui-icon";
 import {
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -112,36 +111,33 @@ export function HomeServersTab() {
   );
   const reachability = useMediaServerHealth(connections);
   useEffect(() => subscribeMediaServerConnections(() => setRevision((value) => value + 1)), []);
-  const sync = useCallback(
-    async (connection: MediaServerConnection) => {
-      if (syncingIds.has(connection.id)) return;
-      setSyncingIds((current) => new Set(current).add(connection.id));
-      await synchronizeMediaServer(connection)
-        .catch((cause: unknown) => {
-          const at = Date.now();
-          markMediaServerInactive(connection.id);
-          updateMediaServerConnection(
-            connection.id,
-            {
-              lastSyncResult: {
-                ok: false,
-                message: cause instanceof Error ? cause.message : String(cause),
-                at,
-              },
+  const sync = async (connection: MediaServerConnection) => {
+    if (syncingIds.has(connection.id)) return;
+    setSyncingIds((current) => new Set(current).add(connection.id));
+    await synchronizeMediaServer(connection)
+      .catch((cause: unknown) => {
+        const at = Date.now();
+        markMediaServerInactive(connection.id);
+        updateMediaServerConnection(
+          connection.id,
+          {
+            lastSyncResult: {
+              ok: false,
+              message: cause instanceof Error ? cause.message : String(cause),
+              at,
             },
-            connection.profileId,
-          );
-        })
-        .finally(() =>
-          setSyncingIds((current) => {
-            const next = new Set(current);
-            next.delete(connection.id);
-            return next;
-          }),
+          },
+          connection.profileId,
         );
-    },
-    [syncingIds],
-  );
+      })
+      .finally(() =>
+        setSyncingIds((current) => {
+          const next = new Set(current);
+          next.delete(connection.id);
+          return next;
+        }),
+      );
+  };
   return (
     <>
       <Section

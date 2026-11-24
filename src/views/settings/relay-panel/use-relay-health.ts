@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetch as tauriFetchImpl } from "@tauri-apps/plugin-http";
 import { relayOutdated } from "@/lib/together/relay-version";
 
@@ -86,7 +86,7 @@ export function useRelayHealth(relayUrl: string): {
     };
   }, [relayUrl]);
 
-  const runTest = useCallback(async () => {
+  const runTest = async () => {
     if (!relayUrl) return;
     setTesting(true);
     setTestResult(null);
@@ -116,7 +116,7 @@ export function useRelayHealth(relayUrl: string): {
         setPassive({ version: null, needsUpdate: false, healthMs: null, reachable: false });
       })
       .finally(() => setTesting(false));
-  }, [relayUrl]);
+  };
 
   return { testing, testResult, runTest, passive };
 }

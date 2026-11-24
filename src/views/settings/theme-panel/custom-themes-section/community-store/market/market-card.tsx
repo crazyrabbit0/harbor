@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Download, Star } from "../../../../icons";
 import { useT } from "@/lib/i18n";
 import { downloadTheme, type StoreTheme } from "@/lib/theme-store";
@@ -62,7 +61,7 @@ function ThemeMarketCard({
       () => {},
     ),
   );
-  const tokens = useMemo(() => tokensFromStoreTheme(theme), [theme]);
+  const tokens = tokensFromStoreTheme(theme);
   return (
     <article
       role="button"

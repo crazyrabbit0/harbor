@@ -60,7 +60,7 @@ export function useMentionSuggest(text: string, caret: number) {
     };
   }, [token]);
 
-  const options = useMemo(() => (token ? rank(friends, token.query) : []), [friends, token]);
+  const options = token ? rank(friends, token.query) : [];
   const open = !!token && options.length > 0 && dismissedAt !== token.start;
   const active = Math.max(0, Math.min(index, options.length - 1));
 

@@ -1,6 +1,6 @@
 import traktLogo from "@/assets/trakt.svg";
 import "./trakt-comments.css";
-import { useCallback, useEffect, useMemo, useRef, useState, useId } from "react";
+import { useEffect, useMemo, useRef, useState, useId } from "react";
 import {
   Heart,
   MessageCircle,
@@ -209,7 +209,7 @@ function CommentCard({
   const initial = (comment.user.name ?? comment.user.username).charAt(0).toUpperCase();
   const showImg = avatar && !imgError;
 
-  const handleLike = useCallback(async () => {
+  const handleLike = async () => {
     if (liking || !connected) return;
     setLiking(true);
     const wasLiked = likes !== comment.likes;
@@ -225,7 +225,7 @@ function CommentCard({
       }
     }
     setLiking(false);
-  }, [liking, connected, likes, comment.id, comment.likes]);
+  };
 
   return (
     <div className="flex gap-3 rounded-xl bg-elevated p-4 ring-1 ring-edge">
@@ -507,7 +507,7 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
   const hasMore = feed ? feed.hasMore : false;
   const loading = commentsKey !== "" && feed == null;
 
-  const loadMore = useCallback(async () => {
+  const loadMore = async () => {
     if (!target || !commentsKey || loadingMore || !hasMore) return;
     setLoadingMore(true);
     const next = page + 1;
@@ -523,7 +523,7 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
       };
     });
     setLoadingMore(false);
-  }, [target, commentsKey, sort, page, hasMore, loadingMore]);
+  };
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -535,7 +535,7 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
     return () => document.removeEventListener("mousedown", handleClick);
   }, []);
 
-  const handleOpenTrakt = useCallback(() => {
+  const handleOpenTrakt = () => {
     if (!target) return;
     const ids = target.kind === "episode" ? target.show.ids : target.ids;
     const slug = ids.tmdb ? `tmdb:${ids.tmdb}` : ids.imdb;
@@ -549,9 +549,9 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
     } else {
       openUrl(`https://app.trakt.tv/shows/${slug}?mode=media`);
     }
-  }, [target]);
+  };
 
-  const handlePost = useCallback(async () => {
+  const handlePost = async () => {
     if (!target || !commentsKey || !text.trim() || posting) return;
     setPostError(null);
     setPosting(true);
@@ -570,42 +570,34 @@ export function TraktComments({ resolution }: { resolution: IdResolution | null 
       setPostError(postErrorMessage(e, t));
     }
     setPosting(false);
-  }, [target, commentsKey, text, posting, commentsCacheKey, spoiler, t]);
+  };
 
-  const handleDelete = useCallback(
-    (id: number) => {
-      setFeedState((prev) =>
-        prev ? { ...prev, comments: prev.comments.filter((c) => c.id !== id) } : prev,
-      );
-      if (commentsCacheKey) {
-        const existing = JSON.parse(
-          localStorage.getItem(commentsCacheKey) ?? "[]",
-        ) as TraktComment[];
-        localStorage.setItem(commentsCacheKey, JSON.stringify(existing.filter((c) => c.id !== id)));
+  const handleDelete = (id: number) => {
+    setFeedState((prev) =>
+      prev ? { ...prev, comments: prev.comments.filter((c) => c.id !== id) } : prev,
+    );
+    if (commentsCacheKey) {
+      const existing = JSON.parse(localStorage.getItem(commentsCacheKey) ?? "[]") as TraktComment[];
+      localStorage.setItem(commentsCacheKey, JSON.stringify(existing.filter((c) => c.id !== id)));
+    }
+  };
+
+  const handleRate = async (rating: number) => {
+    if (!target || ratinging) return;
+    setRatinging(true);
+    try {
+      if (rating === userRating) {
+        await removeRating(target);
+        setUserRating(0);
+        if (ratingCacheKey) localStorage.removeItem(ratingCacheKey);
+      } else {
+        await rateContent(target, rating);
+        setUserRating(rating);
+        if (ratingCacheKey) localStorage.setItem(ratingCacheKey, String(rating));
       }
-    },
-    [commentsCacheKey],
-  );
-
-  const handleRate = useCallback(
-    async (rating: number) => {
-      if (!target || ratinging) return;
-      setRatinging(true);
-      try {
-        if (rating === userRating) {
-          await removeRating(target);
-          setUserRating(0);
-          if (ratingCacheKey) localStorage.removeItem(ratingCacheKey);
-        } else {
-          await rateContent(target, rating);
-          setUserRating(rating);
-          if (ratingCacheKey) localStorage.setItem(ratingCacheKey, String(rating));
-        }
-      } catch {}
-      setRatinging(false);
-    },
-    [target, ratinging, userRating, ratingCacheKey],
-  );
+    } catch {}
+    setRatinging(false);
+  };
 
   return (
     <section className="group/trakt" data-trakt-collapsed={collapsed || undefined}>

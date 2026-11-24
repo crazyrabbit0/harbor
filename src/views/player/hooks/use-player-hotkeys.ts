@@ -183,6 +183,6 @@ export function usePlayerHotkeys(params: {
     onLoopClear: quickToolsEnabled ? ab?.clear : undefined,
   });
 
-  const toggleStats = useCallback(() => setShowStats((v) => !v), [setShowStats]);
+  const toggleStats = () => setShowStats((v) => !v);
   return { holdSpeedActive, showStats, toggleStats, subtitleOffsetSec };
 }
