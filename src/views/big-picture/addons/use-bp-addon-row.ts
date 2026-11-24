@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/lib/auth";
 import type { HomeRow } from "@/lib/home/home-types";
 import {
@@ -84,7 +84,7 @@ export function useBpAddonRow(rows?: readonly HomeRow[]): BpAddonRowData {
   // Imperative on purpose. Scanning a row of sixteen cards must not re-render
   // the row once per step, so focus arms a timer and only a landed poster set
   // ever reaches React.
-  const onFocusAddon = useCallback((transportUrl: string | null) => {
+  const onFocusAddon = (transportUrl: string | null) => {
     if (dwell.current != null) window.clearTimeout(dwell.current);
     dwell.current = null;
     if (!transportUrl) return;
@@ -94,7 +94,7 @@ export function useBpAddonRow(rows?: readonly HomeRow[]): BpAddonRowData {
       dwell.current = null;
       void bpAddonTopUp(entry);
     }, SETTLE_MS);
-  }, []);
+  };
 
   return { entries, posters, onFocusAddon };
 }

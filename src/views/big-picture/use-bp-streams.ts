@@ -133,18 +133,15 @@ export function useBpStreams(params: { meta: Meta; episode?: PlayEpisode }): BpS
 
   const isCached = useCallback((s: ScoredStream) => streamIsCached(s, debrids), [debrids]);
 
-  const cachedOn = useCallback(
-    (s: ScoredStream): BpCachedOn | null => {
-      for (const d of debrids) {
-        if (s.inLibrary[d.slug] === true) return { name: d.name, owned: true };
-      }
-      for (const d of debrids) {
-        if (s.cached[d.slug] === true) return { name: d.name, owned: false };
-      }
-      return null;
-    },
-    [debrids],
-  );
+  const cachedOn = (s: ScoredStream): BpCachedOn | null => {
+    for (const d of debrids) {
+      if (s.inLibrary[d.slug] === true) return { name: d.name, owned: true };
+    }
+    for (const d of debrids) {
+      if (s.cached[d.slug] === true) return { name: d.name, owned: false };
+    }
+    return null;
+  };
 
   const hostSourceForMedia = useMemo(() => {
     const foreignHost =
@@ -162,10 +159,7 @@ export function useBpStreams(params: { meta: Meta; episode?: PlayEpisode }): BpS
       hostSourceForMedia && result ? buildMatchScores(result.picker.all, hostSourceForMedia) : null,
     [hostSourceForMedia, result],
   );
-  const hostMatchFor = useCallback(
-    (s: ScoredStream) => (hostMatch ? matchBadge(hostMatch.get(s)) : null),
-    [hostMatch],
-  );
+  const hostMatchFor = (s: ScoredStream) => (hostMatch ? matchBadge(hostMatch.get(s)) : null);
 
   // Keyed by transport url as well as manifest id: two installs of the same
   // addon share an id, and only the url tells their logos apart.
@@ -179,19 +173,14 @@ export function useBpStreams(params: { meta: Meta; episode?: PlayEpisode }): BpS
     return m;
   }, [addons]);
 
-  const addonLogo = useCallback(
-    (s: ScoredStream) => logos.get(s.addonUrl ?? "") ?? logos.get(s.addonId) ?? null,
-    [logos],
-  );
+  const addonLogo = (s: ScoredStream) =>
+    logos.get(s.addonUrl ?? "") ?? logos.get(s.addonId) ?? null;
 
   const addonLogoFor = useCallback((key: string) => logos.get(key) ?? null, [logos]);
 
-  const isAnime = useMemo(
-    () =>
-      ANIME_ID_RE.test(meta.id) ||
-      (streamIds ?? []).some((id) => id.startsWith("kitsu:") || id.startsWith("mal:")),
-    [meta.id, streamIds],
-  );
+  const isAnime =
+    ANIME_ID_RE.test(meta.id) ||
+    (streamIds ?? []).some((id) => id.startsWith("kitsu:") || id.startsWith("mal:"));
 
   const isAnimeRequest = useMemo(
     () => (streamIds ?? []).some((id) => id.startsWith("kitsu:") || id.startsWith("mal:")),

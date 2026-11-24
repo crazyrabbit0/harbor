@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useAuth } from "@/lib/auth";
 import { useSettings } from "@/lib/settings";
@@ -304,7 +304,7 @@ export function useBpLibraryFeed(
   tab: BpLibTab,
 ): BpLibFeed & { refresh: () => void; signedIn: boolean } {
   const [reload, setReload] = useState(0);
-  const refresh = useCallback(() => setReload((n) => n + 1), []);
+  const refresh = () => setReload((n) => n + 1);
   const { settings } = useSettings();
   const hideAnime = useHideAnime();
   const stremioTab = tab === "library" || tab === "watchlist" || tab === "history";

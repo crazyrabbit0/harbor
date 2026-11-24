@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { gatherCatalogAddons, type Addon } from "@/lib/addons";
 import { isAddonEnabled } from "@/lib/addon-store";
 import { useAuth } from "@/lib/auth";
@@ -120,19 +120,17 @@ export function useBpSportsAddonSources(game: SportsGame): BpSportsAddonSources 
   const failed = settled && state.failed;
   const installed = settled && state.installed;
 
-  const matching = useMemo(() => rows.filter((row) => row.match !== null), [rows]);
+  const matching = rows.filter((row) => row.match !== null);
 
-  const enabledProviders = useCallback(
-    () => providers.current.filter((addon) => isAddonEnabled(addon.transportUrl)),
-    [],
-  );
+  const enabledProviders = () =>
+    providers.current.filter((addon) => isAddonEnabled(addon.transportUrl));
 
-  const reload = useCallback(() => setTick((n) => n + 1), []);
+  const reload = () => setTick((n) => n + 1);
 
-  const hardReload = useCallback(() => {
+  const hardReload = () => {
     clearSportsAddonCatalogCache();
     setTick((n) => n + 1);
-  }, []);
+  };
 
   return {
     rows,

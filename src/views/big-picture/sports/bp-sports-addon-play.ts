@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { isAddonEnabled } from "@/lib/addon-store";
 import type { Meta } from "@/lib/cinemeta";
 import { loadSportsAddonStreams } from "@/lib/sports/addon-sources";
@@ -47,141 +47,132 @@ export function useBpSportsAddonPick(sources: BpSportsAddonSources): BpSportsAdd
     [],
   );
 
-  const choose = useCallback(
-    (row: SportsAddonListing) => {
-      if (!isAddonEnabled(row.addon.transportUrl)) {
-        reload();
-        return;
-      }
-      run.current?.abort();
-      const controller = new AbortController();
-      run.current = controller;
-      setPicked(row);
-      setStreams([]);
-      setPending(true);
-      setPlaying(null);
-      setError("");
-      const load = async () => {
-        const found = await loadSportsAddonStreams(row, controller.signal, enabledProviders());
-        if (!controller.signal.aborted) setStreams(found);
-      };
-      void load()
-        .catch(() => {
-          if (!controller.signal.aborted) setError("listing");
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setPending(false);
-        });
-    },
-    [reload, enabledProviders],
-  );
+  const choose = (row: SportsAddonListing) => {
+    if (!isAddonEnabled(row.addon.transportUrl)) {
+      reload();
+      return;
+    }
+    run.current?.abort();
+    const controller = new AbortController();
+    run.current = controller;
+    setPicked(row);
+    setStreams([]);
+    setPending(true);
+    setPlaying(null);
+    setError("");
+    const load = async () => {
+      const found = await loadSportsAddonStreams(row, controller.signal, enabledProviders());
+      if (!controller.signal.aborted) setStreams(found);
+    };
+    void load()
+      .catch(() => {
+        if (!controller.signal.aborted) setError("listing");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setPending(false);
+      });
+  };
 
-  const back = useCallback(() => {
+  const back = () => {
     run.current?.abort();
     setPicked(null);
     setStreams([]);
     setPending(false);
     setPlaying(null);
     setError("");
-  }, []);
+  };
 
-  const start = useCallback(
-    async (row: SportsAddonListing, stream: Stream, index: number) => {
-      run.current?.abort();
-      const controller = new AbortController();
-      run.current = controller;
-      setPlaying(index);
-      setError("");
-      const handed: { session?: string; transferred: boolean } = { transferred: false };
-      const attempt = async () => {
-        const result = await resolveStream(
-          parseStream(stream),
-          [],
-          controller.signal,
-          true,
-          false,
-          undefined,
-          false,
-          false,
-        );
-        if (controller.signal.aborted) return;
-        if (!result.ok) throw new Error("bp-addon-source-resolution");
-        let url = result.data.url;
-        if (result.data.headers && Object.keys(result.data.headers).length > 0) {
-          const proxy = await registerStreamProxy(url, result.data.headers);
-          url = proxy.url;
-          handed.session = proxy.sessionId;
+  const start = async (row: SportsAddonListing, stream: Stream, index: number) => {
+    run.current?.abort();
+    const controller = new AbortController();
+    run.current = controller;
+    setPlaying(index);
+    setError("");
+    const handed: { session?: string; transferred: boolean } = { transferred: false };
+    const attempt = async () => {
+      const result = await resolveStream(
+        parseStream(stream),
+        [],
+        controller.signal,
+        true,
+        false,
+        undefined,
+        false,
+        false,
+      );
+      if (controller.signal.aborted) return;
+      if (!result.ok) throw new Error("bp-addon-source-resolution");
+      let url = result.data.url;
+      if (result.data.headers && Object.keys(result.data.headers).length > 0) {
+        const proxy = await registerStreamProxy(url, result.data.headers);
+        url = proxy.url;
+        handed.session = proxy.sessionId;
+      }
+      if (controller.signal.aborted) return;
+      openPlayer({
+        meta: row.meta,
+        url,
+        title: row.meta.name,
+        subtitle: row.addon.manifest.name,
+        isLive: true,
+        notWebReady: result.data.notWebReady ?? true,
+        subtitles: result.data.subtitles,
+        historyUrl: result.data.url,
+        proxySessionId: handed.session,
+      });
+      handed.transferred = true;
+    };
+    await attempt()
+      .catch(() => {
+        if (!controller.signal.aborted) setError("stream");
+      })
+      .finally(() => {
+        if (handed.session && !handed.transferred) {
+          void unregisterStreamProxy(handed.session).catch(() => {});
         }
-        if (controller.signal.aborted) return;
-        openPlayer({
-          meta: row.meta,
-          url,
-          title: row.meta.name,
-          subtitle: row.addon.manifest.name,
-          isLive: true,
-          notWebReady: result.data.notWebReady ?? true,
-          subtitles: result.data.subtitles,
-          historyUrl: result.data.url,
-          proxySessionId: handed.session,
-        });
-        handed.transferred = true;
-      };
-      await attempt()
-        .catch(() => {
-          if (!controller.signal.aborted) setError("stream");
-        })
-        .finally(() => {
-          if (handed.session && !handed.transferred) {
-            void unregisterStreamProxy(handed.session).catch(() => {});
-          }
-          if (!controller.signal.aborted) setPlaying(null);
-        });
-    },
-    [openPlayer],
-  );
+        if (!controller.signal.aborted) setPlaying(null);
+      });
+  };
 
-  const play = useCallback(
-    (stream: Stream, index: number) => {
-      const row = picked;
-      if (!row) return;
-      if (
-        !isAddonEnabled(row.addon.transportUrl) ||
-        (stream.addonUrl && !isAddonEnabled(stream.addonUrl))
-      ) {
-        run.current?.abort();
-        setPicked(null);
-        setStreams([]);
-        setPending(false);
-        setPlaying(null);
-        setError("");
-        reload();
-        return;
-      }
-      if (!stream.url && (stream.externalUrl || stream.ytId)) {
-        const url =
-          stream.externalUrl ||
-          `https://www.youtube.com/watch?v=${encodeURIComponent(stream.ytId ?? "")}`;
-        if (HTTP.test(url)) void openUrl(url);
-        else setError("stream");
-        return;
-      }
-      if (
-        stream.infoHash ||
-        !stream.url ||
-        !HTTP.test(stream.url) ||
-        (CATALOGUE.test(row.meta.type) && row.match !== "event")
-      ) {
-        run.current?.abort();
-        setPlaying(null);
-        setHandoff(row.meta);
-        return;
-      }
-      void start(row, stream, index);
-    },
-    [picked, reload, start],
-  );
+  const play = (stream: Stream, index: number) => {
+    const row = picked;
+    if (!row) return;
+    if (
+      !isAddonEnabled(row.addon.transportUrl) ||
+      (stream.addonUrl && !isAddonEnabled(stream.addonUrl))
+    ) {
+      run.current?.abort();
+      setPicked(null);
+      setStreams([]);
+      setPending(false);
+      setPlaying(null);
+      setError("");
+      reload();
+      return;
+    }
+    if (!stream.url && (stream.externalUrl || stream.ytId)) {
+      const url =
+        stream.externalUrl ||
+        `https://www.youtube.com/watch?v=${encodeURIComponent(stream.ytId ?? "")}`;
+      if (HTTP.test(url)) void openUrl(url);
+      else setError("stream");
+      return;
+    }
+    if (
+      stream.infoHash ||
+      !stream.url ||
+      !HTTP.test(stream.url) ||
+      (CATALOGUE.test(row.meta.type) && row.match !== "event")
+    ) {
+      run.current?.abort();
+      setPlaying(null);
+      setHandoff(row.meta);
+      return;
+    }
+    void start(row, stream, index);
+  };
 
-  const closeHandoff = useCallback(() => setHandoff(null), []);
+  const closeHandoff = () => setHandoff(null);
 
   return {
     picked,

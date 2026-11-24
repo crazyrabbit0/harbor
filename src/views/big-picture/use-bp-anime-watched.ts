@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { loadAnilistWatchedMap } from "@/lib/anilist/watched-map";
 import {
   loadSimklStatusMap,
@@ -82,13 +82,10 @@ export function useBpAnimeWatched(ids: string[]): BpAnimeWatched {
     };
   }, [wanted]);
 
-  const isAnimeWatched = useCallback(
-    (id: string): boolean =>
-      statusForId(simklStatus, id) === "completed" ||
-      simklWatchedForId(simklWatched, id).size > 0 ||
-      (anilistWatched.get(id)?.size ?? 0) > 0,
-    [simklStatus, simklWatched, anilistWatched],
-  );
+  const isAnimeWatched = (id: string): boolean =>
+    statusForId(simklStatus, id) === "completed" ||
+    simklWatchedForId(simklWatched, id).size > 0 ||
+    (anilistWatched.get(id)?.size ?? 0) > 0;
 
   return { simklWatched, simklStatus, anilistWatched, isAnimeWatched, simklConnected };
 }

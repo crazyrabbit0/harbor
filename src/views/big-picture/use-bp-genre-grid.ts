@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useHideAnimeMetas } from "@/lib/anime-hide";
 import type { Meta } from "@/lib/cinemeta";
 import { MOVIE_GENRES } from "@/lib/feed/tags";
@@ -107,7 +107,7 @@ export function useBpGenreGrid(genre: string): BpGenreFeed {
       });
   };
 
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = () => setAttempt((n) => n + 1);
   const metas = hasKey && state.key === reqKey ? state.metas : EMPTY_METAS;
   const loading = hasKey && (state.key !== reqKey || state.loading);
   const failed = hasKey && state.key === reqKey && state.failed;

@@ -83,7 +83,7 @@ export function BpSearchResults({
       ),
     [slots],
   );
-  const leads = useMemo(() => railLeads(slots), [slots]);
+  const leads = railLeads(slots);
 
   // Only acts when the new layout deleted the ring outright. Sources answering
   // at different speeds is the ordinary case and the rail handles that itself.

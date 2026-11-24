@@ -161,61 +161,34 @@ export function useBpAnime(): BpAnimeData {
     return mergeAwardWinners(specs.rowsByKey, entries);
   }, [specs.rowsByKey, awardEntries]);
 
-  const addonRows = useMemo(
-    () => dedupeAnimeAddonRows(cwBase.addonRows, settings.hideContent.adult),
-    [cwBase.addonRows, settings.hideContent.adult],
-  );
+  const addonRows = dedupeAnimeAddonRows(cwBase.addonRows, settings.hideContent.adult);
 
-  const groups = useMemo(
-    () =>
-      buildBpAnimeGroups({
-        t,
-        renamed: settings.animeRows.renamed,
-        cwItems,
-        cwReady: cwBase.ready,
-        cwPending: !cwBase.ready && cwBase.raw.length > 0,
-        malConnected: mal.isConnected,
-        malRails: malRails.rails,
-        malState: malRails,
-        anilistConnected: anilist.isConnected,
-        anilistRails: anilistRails.rails,
-        anilistState: anilistRails,
-        anilistTrending,
-        anilistTop,
-        awards,
-        specRows,
-        addonRows,
-        collections,
-      }),
-    [
-      t,
-      settings.animeRows.renamed,
-      cwItems,
-      cwBase.ready,
-      cwBase.raw.length,
-      mal.isConnected,
-      malRails,
-      anilist.isConnected,
-      anilistRails,
-      anilistTrending,
-      anilistTop,
-      awards,
-      specRows,
-      addonRows,
-      collections,
-    ],
-  );
+  const groups = buildBpAnimeGroups({
+    t,
+    renamed: settings.animeRows.renamed,
+    cwItems,
+    cwReady: cwBase.ready,
+    cwPending: !cwBase.ready && cwBase.raw.length > 0,
+    malConnected: mal.isConnected,
+    malRails: malRails.rails,
+    malState: malRails,
+    anilistConnected: anilist.isConnected,
+    anilistRails: anilistRails.rails,
+    anilistState: anilistRails,
+    anilistTrending,
+    anilistTop,
+    awards,
+    specRows,
+    addonRows,
+    collections,
+  });
 
-  const allRows = useMemo(
-    () =>
-      applyAnimeRowCustomization(groups, settings.animeRows)
-        .flatMap((g) => g.rows)
-        .filter((r) => !(r.notice && r.id.endsWith(":offline"))),
-    [groups, settings.animeRows],
-  );
+  const allRows = applyAnimeRowCustomization(groups, settings.animeRows)
+    .flatMap((g) => g.rows)
+    .filter((r) => !(r.notice && r.id.endsWith(":offline")));
 
-  const cwRow = useMemo(() => allRows.find((r) => r.cwItems) ?? null, [allRows]);
-  const rows = useMemo(() => allRows.filter((r) => !r.cwItems), [allRows]);
+  const cwRow = allRows.find((r) => r.cwItems) ?? null;
+  const rows = allRows.filter((r) => !r.cwItems);
 
   const heroSlide = useMemo(() => {
     const hosted = hero.hosted ?? [];

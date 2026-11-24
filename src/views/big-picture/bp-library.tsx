@@ -252,25 +252,19 @@ export function BpLibrary({ onSelect }: { onSelect: (m: Meta) => void }) {
     [feed.entries, group, library],
   );
 
-  const counts = useMemo(() => countByType(scoped), [scoped]);
-  const visible = useMemo(
-    () =>
-      applyFilter(scoped, type, query).filter((entry) => {
-        if (genres.size === 0) return true;
-        if (tab === "local") return entry.meta.genres?.some((genre) => genres.has(genre)) ?? false;
-        return [...genres].every((genre) => entry.meta.genres?.includes(genre));
-      }),
-    [scoped, type, query, genres, tab],
-  );
-  const dated = useMemo(() => visible.some((e) => e.date != null), [visible]);
-  const years = useMemo(() => visible.some((e) => e.meta.releaseInfo), [visible]);
+  const counts = countByType(scoped);
+  const visible = applyFilter(scoped, type, query).filter((entry) => {
+    if (genres.size === 0) return true;
+    if (tab === "local") return entry.meta.genres?.some((genre) => genres.has(genre)) ?? false;
+    return [...genres].every((genre) => entry.meta.genres?.includes(genre));
+  });
+  const dated = visible.some((e) => e.date != null);
+  const years = visible.some((e) => e.meta.releaseInfo);
   const ownedTab = tab === "local" || tab === "media-servers";
-  const sections = useMemo(
-    () =>
-      ownedTab ? sortOwned(visible, ownedSort, sortDir) : buildBpSections(visible, sort, flat),
-    [visible, ownedTab, ownedSort, sortDir, sort, flat],
-  );
-  const paged = useMemo(() => capBpSections(sections, limit), [sections, limit]);
+  const sections = ownedTab
+    ? sortOwned(visible, ownedSort, sortDir)
+    : buildBpSections(visible, sort, flat);
+  const paged = capBpSections(sections, limit);
 
   const groupCount = useMemo(() => {
     const out = new Map<string, number>();

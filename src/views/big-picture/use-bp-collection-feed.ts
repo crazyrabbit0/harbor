@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { COLLECTIONS_CATALOG } from "@/lib/collections-catalog";
 import { useCollections } from "@/lib/collections";
 import { useSettings } from "@/lib/settings";
@@ -170,7 +170,7 @@ export function useBpCollectionFeed(
     return () => window.clearTimeout(timerRef.current);
   }, [source, category, key]);
 
-  const pull = useCallback(async () => {
+  const pull = async () => {
     const ctx = ctxRef.current;
     if (!ctx || busyRef.current || ctx.at >= ctx.phases.length) return;
     busyRef.current = true;
@@ -207,7 +207,7 @@ export function useBpCollectionFeed(
       autoRef.current += 1;
       pullRef.current();
     }, RECHECK_MS);
-  }, []);
+  };
   useLayoutEffect(() => {
     pullRef.current = () => void pull();
   });

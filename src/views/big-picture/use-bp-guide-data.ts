@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { epgProgramsForChannel } from "@/lib/iptv/epg-resolver";
 import type { EpgIndex, EpgProgram, IptvChannel } from "@/lib/iptv/types";
 import { SLOT_MS } from "./bp-guide-geometry";
@@ -81,11 +80,11 @@ export function useBpGuideData(args: {
 } {
   const { channels, epg, tvgCounts } = args;
 
-  const rows = useMemo(() => channels.map((channel) => ({ channel })), [channels]);
+  const rows = channels.map((channel) => ({ channel }));
 
   // Every mounted row, the ruler and each nav step ask for the same lane, so the
   // resolver runs once per channel and window instead of once per read.
-  const laneFor = useMemo(() => lanesFor(epg, tvgCounts), [epg, tvgCounts]);
+  const laneFor = lanesFor(epg, tvgCounts);
 
   return { rows, laneFor };
 }

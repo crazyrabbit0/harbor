@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 
 // Search deliberately keeps nothing here. Its filter is derived from the live
 // query, because a chip persisted across queries collapses the next result set
@@ -35,12 +35,9 @@ export function useBpPersistedState<T extends string>(
   fallback: T,
 ): [T, (next: T) => void] {
   const [value, setValue] = useState<T>(() => (store[key] as T) || fallback);
-  const set = useCallback(
-    (next: T) => {
-      store[key] = next;
-      setValue(next);
-    },
-    [key],
-  );
+  const set = (next: T) => {
+    store[key] = next;
+    setValue(next);
+  };
   return [value, set];
 }

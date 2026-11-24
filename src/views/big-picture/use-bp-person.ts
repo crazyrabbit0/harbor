@@ -137,14 +137,10 @@ export function useBpPerson(personId: number): BpPersonState {
 
   const liveAwards = useAwards(person?.imdbId ?? undefined);
   const awardsV = useBundledAwardsVersion();
-  const awards = useMemo(
-    () =>
-      readAtVersion(awardsV, () =>
-        awardSummary(mergeBundledPersonAwards(liveAwards, person?.name)).filter(
-          (a) => a.wins > 0 || a.nominations > 0,
-        ),
-      ),
-    [awardsV, liveAwards, person?.name],
+  const awards = readAtVersion(awardsV, () =>
+    awardSummary(mergeBundledPersonAwards(liveAwards, person?.name)).filter(
+      (a) => a.wins > 0 || a.nominations > 0,
+    ),
   );
 
   const { rank } = useRankings();

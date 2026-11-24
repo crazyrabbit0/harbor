@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState, type ReactNode } from "react";
+import { Fragment, useEffect, useState, type ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { useSettings } from "@/lib/settings";
 import { pushBigPicture } from "@/lib/big-picture";
@@ -125,36 +125,33 @@ export function BpCollections({ onOpen }: { onOpen: (target: BpCollectionTarget)
   const feed = useBpCollectionFeed(source, source === "tmdb" ? category : BP_COLLECTIONS_ALL);
   const lastTvdb = feed.tvdbCapped ? feed.entries.map((e) => e.source).lastIndexOf("tvdb") : -1;
 
-  const open = useCallback(
-    (entry: BpCollectionEntry) => {
-      if (entry.open.kind === "tmdb") {
-        onOpen({
-          collectionId: entry.open.collectionId,
-          name: entry.open.name,
-          image: entry.open.image,
-        });
-        return;
-      }
-      if (entry.open.kind === "tvdb") {
-        pushBigPicture({
-          kind: "collection",
-          collectionId: entry.open.collectionId,
-          name: entry.open.name,
-          image: entry.open.image,
-        });
-        return;
-      }
-      setItems({ open: entry.open, key: entry.key });
-    },
-    [onOpen],
-  );
+  const open = (entry: BpCollectionEntry) => {
+    if (entry.open.kind === "tmdb") {
+      onOpen({
+        collectionId: entry.open.collectionId,
+        name: entry.open.name,
+        image: entry.open.image,
+      });
+      return;
+    }
+    if (entry.open.kind === "tvdb") {
+      pushBigPicture({
+        kind: "collection",
+        collectionId: entry.open.collectionId,
+        name: entry.open.name,
+        image: entry.open.image,
+      });
+      return;
+    }
+    setItems({ open: entry.open, key: entry.key });
+  };
 
   const empty = feed.entries.length === 0 && feed.done;
   const first = feed.entries.length === 0 && feed.loading;
 
   // Picking this card unmounts it, and it is the element holding focus. Nothing
   // else on the page removes itself on activation, so nothing else needs this.
-  const showAllTvdb = useCallback(() => {
+  const showAllTvdb = () => {
     setSource("tvdb");
     requestAnimationFrame(() => {
       setBpFocus(
@@ -162,7 +159,7 @@ export function BpCollections({ onOpen }: { onOpen: (target: BpCollectionTarget)
         { silent: true },
       );
     });
-  }, [setSource]);
+  };
 
   // Collections is TMDB's surface, so with no key there is nothing to show and
   // the tab is not hidden: hiding it would leave a TV-only viewer with no

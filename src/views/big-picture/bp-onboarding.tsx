@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useId,
-  useLayoutEffect,
-  useRef,
-  useState,
-  type ComponentType,
-} from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ComponentType } from "react";
 import { useBigPicture } from "@/lib/big-picture";
 import { useOnboarding } from "@/lib/onboarding";
 import { SFX } from "@/lib/sfx";
@@ -208,12 +200,12 @@ export function useBpOnboardingGate(ready: boolean): BpOnboardingGate {
     setResumeIndex(readResumeIndex());
   }
 
-  const suspend = useCallback(() => setSnoozed(true), []);
+  const suspend = () => setSnoozed(true);
 
-  const complete = useCallback(() => {
+  const complete = () => {
     clearResume();
     finishOnboarding();
-  }, [finishOnboarding]);
+  };
 
   return { open: ready && !onboarded && !snoozed, resumeIndex, suspend, complete };
 }
@@ -264,21 +256,21 @@ export function BpOnboarding({
   // Keyed on the index rather than reset by an effect. An effect racing the
   // step's own first report would flip a satisfied screen back to unsatisfied
   // after the ring had already been parked on the primary.
-  const setSatisfied = useCallback((value: boolean) => {
+  const setSatisfied = (value: boolean) => {
     setSatisfiedAt(value ? indexRef.current : null);
-  }, []);
+  };
 
   // Cleared on every move as well as by the step's own cleanup. A guard left
   // behind by the screen you just left would block the next one's Continue.
   const guardRef = useRef<BpOnboardGuard | null>(null);
-  const setPrimaryGuard = useCallback((fn: BpOnboardGuard | null) => {
+  const setPrimaryGuard = (fn: BpOnboardGuard | null) => {
     guardRef.current = fn;
-  }, []);
+  };
 
-  const next = useCallback(() => {
+  const next = () => {
     guardRef.current = null;
     setIndex((i) => Math.min(i + 1, BP_ONBOARD_LAST));
-  }, []);
+  };
 
   const [working, setWorking] = useState(false);
 
@@ -286,7 +278,7 @@ export function BpOnboarding({
   // second press must not fire a second sign-in.
   const busyRef = useRef(false);
 
-  const onPrimary = useCallback(async () => {
+  const onPrimary = async () => {
     if (busyRef.current) return;
     const guard = guardRef.current;
     if (guard) {
@@ -307,7 +299,7 @@ export function BpOnboarding({
       return;
     }
     next();
-  }, [next, onComplete]);
+  };
 
   // Written on every move, not only on the way out. A power cut mid-setup is
   // the common case on a TV and it should not restart the flow.

@@ -133,8 +133,8 @@ export function BpGuideCell({
   const showArt = Boolean(artSrc) && artSrc !== brokenArt;
 
   const chno = channelNumber(channel.attrs);
-  const name = useMemo(() => bpCleanChannelName(channel.name), [channel.name]);
-  const group = useMemo(() => bpCleanGroup(channel.group), [channel.group]);
+  const name = bpCleanChannelName(channel.name);
+  const group = bpCleanGroup(channel.group);
   const flag = useMemo(() => {
     const c = detectCountry(channel);
     return c ? flagUrl(c.code) : null;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { isBundledEngineUrl, isLocalEngineUrl } from "@/lib/stremio-server";
 import { parseEngineStats, readinessScore, type EngineStats } from "@/lib/torrent/engine-stats";
 import { torrentEngineStats } from "@/lib/torrent/local-engine";
@@ -150,7 +150,7 @@ export function useBpP2pStatus(params: {
   }, [torrent, stats, relayStart, now]);
 
   const sample = reqKey && sampleState.key === reqKey ? sampleState.sample : IDLE;
-  const retry = useCallback(() => setAttempt((a) => a + 1), []);
+  const retry = () => setAttempt((a) => a + 1);
   const current = live ? sample : relayed;
 
   return {

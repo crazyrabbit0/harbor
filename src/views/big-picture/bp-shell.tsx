@@ -153,7 +153,7 @@ export function BigPictureShell() {
   const tabGate = useBpTabGate();
   const tabOrder = useMemo(() => bpTabKinds(tabGate), [tabGate]);
   const { rows, loading } = useBpCatalog();
-  const mosaicPool = useMemo(() => rows.flatMap((r) => r.metas).slice(0, 90), [rows]);
+  const mosaicPool = rows.flatMap((r) => r.metas).slice(0, 90);
   // Pass 2 for the addons row, done here because the shell already holds rows.
   // Every meta carries the addon that returned it, so the row's mosaics are free
   // off catalogs home fetched anyway. Mounting useBpCatalog inside the row
@@ -365,23 +365,20 @@ export function BigPictureShell() {
     routeKey: `${routeKey(route)}${layer}`,
   });
 
-  const openDetail = useCallback((m: Meta) => {
+  const openDetail = (m: Meta) => {
     forceBpMeta(m);
     pushBigPicture({ kind: "detail", metaId: `${m.type}:${m.id}` });
-  }, []);
+  };
 
-  const openSources = useCallback(
-    (
-      meta: Meta,
-      episode: PlayEpisode | undefined,
-      resume: boolean,
-      auto: boolean,
-      applyPreference: boolean,
-    ) => {
-      setSources({ meta, episode, resume, auto, applyPreference });
-    },
-    [],
-  );
+  const openSources = (
+    meta: Meta,
+    episode: PlayEpisode | undefined,
+    resume: boolean,
+    auto: boolean,
+    applyPreference: boolean,
+  ) => {
+    setSources({ meta, episode, resume, auto, applyPreference });
+  };
 
   const rootStyle = useMemo<CSSProperties | undefined>(() => {
     const o = bpOverscan();

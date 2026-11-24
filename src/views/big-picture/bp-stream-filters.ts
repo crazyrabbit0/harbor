@@ -162,7 +162,7 @@ export function useBpStreamFilters(params: {
     hostMatch,
   ]);
 
-  const anyAddonRanked = useMemo(() => (addons ?? []).some((a) => isAddonRanked(a)), [addons]);
+  const anyAddonRanked = (addons ?? []).some((a) => isAddonRanked(a));
   const addonOrderMode = settings.streamSort === "addon" || anyAddonRanked;
 
   const displayStreams = useMemo(() => {
@@ -183,11 +183,10 @@ export function useBpStreamFilters(params: {
     return m;
   }, [addons]);
 
-  const addonOptions = useMemo(
-    () =>
-      buildAddonOptions(displayStreams, addonRank).map((o) => ({ ...o, logo: addonLogoFor(o.id) })),
-    [displayStreams, addonRank, addonLogoFor],
-  );
+  const addonOptions = buildAddonOptions(displayStreams, addonRank).map((o) => ({
+    ...o,
+    logo: addonLogoFor(o.id),
+  }));
 
   const activeAddonFilter =
     addonFilter !== "all" &&
@@ -265,13 +264,9 @@ export function useBpStreamFilters(params: {
     return next;
   }, [facet, staleFacets]);
 
-  const facets = useMemo(
-    () =>
-      allFacets
-        .map((f) => (staleFacets.some((s) => s.key === f.key) ? { ...f, value: "all" } : f))
-        .filter((f) => f.options.length >= 2 || f.value !== "all"),
-    [allFacets, staleFacets],
-  );
+  const facets = allFacets
+    .map((f) => (staleFacets.some((s) => s.key === f.key) ? { ...f, value: "all" } : f))
+    .filter((f) => f.options.length >= 2 || f.value !== "all");
 
   const streams = useMemo(() => {
     const visible = addonFiltered.filter(

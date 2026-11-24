@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { goBigPictureTab } from "@/lib/big-picture";
 import { SFX } from "@/lib/sfx";
@@ -30,13 +30,9 @@ export function BpShows({ onSelect }: { onSelect: (m: Meta) => void }) {
 
   // Anime episodes belong to the Anime lane's own CW row. Without this they show
   // up in both tabs.
-  const cw = useMemo(
-    () =>
-      cwReady
-        ? cwPool.filter((i) => i.type === "series" && !isAnimeCwItem(i)).slice(0, CW_LIMIT)
-        : [],
-    [cwReady, cwPool],
-  );
+  const cw = cwReady
+    ? cwPool.filter((i) => i.type === "series" && !isAnimeCwItem(i)).slice(0, CW_LIMIT)
+    : [];
   // BOTH conditions, and frozen once. Latching on cwReady alone read the answer
   // while the catalogs were still loading, so a page whose rows land before the
   // Stremio library does stamped data-bp-autofocus on row zero and then moved it

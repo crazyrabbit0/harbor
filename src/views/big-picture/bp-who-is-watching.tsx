@@ -1,5 +1,5 @@
 import { RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { SFX } from "@/lib/sfx";
 import { useProfiles, type Profile } from "@/lib/profiles";
 import { useBpT } from "./bp-i18n";
@@ -57,72 +57,61 @@ export function BpWhoIsWatching({ onClose }: { onClose: () => void }) {
     [],
   );
 
-  const after = useCallback((ms: number, fn: () => void) => {
+  const after = (ms: number, fn: () => void) => {
     timers.current.push(window.setTimeout(fn, ms));
-  }, []);
+  };
 
-  const rows = useMemo(() => bpWhoRows(profiles), [profiles]);
+  const rows = bpWhoRows(profiles);
   const faceSize = bpWhoFaceSize(profiles.length);
   const nameSize = bpWhoNameSize(profiles.length);
   const kidsAllowed = bpWhoKidSelectable();
   const blocked = blockedId ? (profiles.find((p) => p.id === blockedId) ?? null) : null;
 
-  const commit = useCallback(
-    (id: string, unlocked: boolean) => {
-      // The gate now lives in selectProfile. choose() already routes a locked profile
-      // to the PIN pad, so a refusal here means the roster changed underneath us.
-      // Falling back to the list beats closing onto a profile that was never selected.
-      const ok = unlocked ? selectProfile(id, { unlocked: true }) : selectProfile(id);
-      if (!ok) {
-        setExiting(false);
-        setChosenId(null);
-        setView({ kind: "list" });
-        return;
-      }
+  const commit = (id: string, unlocked: boolean) => {
+    // choose() sends locked profiles to the PIN pad, so a refusal here means the roster changed: show the list.
+    const ok = unlocked ? selectProfile(id, { unlocked: true }) : selectProfile(id);
+    if (!ok) {
+      setExiting(false);
+      setChosenId(null);
+      setView({ kind: "list" });
+      return;
+    }
+    onClose();
+  };
+
+  const choose = (profile: Profile) => {
+    if (chosenId || exiting) return;
+    if (profile.id === activeId) {
       onClose();
-    },
-    [onClose, selectProfile],
-  );
+      return;
+    }
+    if (profile.kid && !kidsAllowed) {
+      setBlockedId(profile.id);
+      after(BLOCKED_NOTICE_MS, () => setBlockedId(null));
+      return;
+    }
+    setBlockedId(null);
+    if (profile.passwordHash) {
+      setView({ kind: "pin", profileId: profile.id });
+      return;
+    }
+    if (reduce) {
+      commit(profile.id, false);
+      return;
+    }
+    setChosenId(profile.id);
+    after(CHOOSE_MS, () => setExiting(true));
+    after(COMMIT_MS, () => commit(profile.id, false));
+  };
 
-  const choose = useCallback(
-    (profile: Profile) => {
-      if (chosenId || exiting) return;
-      if (profile.id === activeId) {
-        onClose();
-        return;
-      }
-      if (profile.kid && !kidsAllowed) {
-        setBlockedId(profile.id);
-        after(BLOCKED_NOTICE_MS, () => setBlockedId(null));
-        return;
-      }
-      setBlockedId(null);
-      if (profile.passwordHash) {
-        setView({ kind: "pin", profileId: profile.id });
-        return;
-      }
-      if (reduce) {
-        commit(profile.id, false);
-        return;
-      }
-      setChosenId(profile.id);
-      after(CHOOSE_MS, () => setExiting(true));
-      after(COMMIT_MS, () => commit(profile.id, false));
-    },
-    [activeId, after, chosenId, commit, exiting, kidsAllowed, onClose, reduce],
-  );
-
-  const unlocked = useCallback(
-    (id: string) => {
-      if (reduce) {
-        commit(id, true);
-        return;
-      }
-      setExiting(true);
-      after(UNLOCK_MS, () => commit(id, true));
-    },
-    [after, commit, reduce],
-  );
+  const unlocked = (id: string) => {
+    if (reduce) {
+      commit(id, true);
+      return;
+    }
+    setExiting(true);
+    after(UNLOCK_MS, () => commit(id, true));
+  };
 
   // Coming back from the PIN pad has to put the ring on the tile it came from,
   // otherwise the seed pass drops it on the active profile and the user has to

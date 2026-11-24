@@ -48,20 +48,20 @@ export function useBpPlayerChrome(params: { playing: boolean; pinned: boolean })
     setActivity((n) => n + 1);
   }, []);
 
-  const wakeChrome = useCallback(() => {
+  const wakeChrome = () => {
     setMounted(true);
     setPhase("up");
     lastNote.current = 0;
     setActivity((n) => n + 1);
-  }, []);
+  };
 
-  const peekChrome = useCallback(() => {
+  const peekChrome = () => {
     setMounted(true);
     if (phaseRef.current !== "up") setPhase("peek");
     noteActivity();
-  }, [noteActivity]);
+  };
 
-  const hideChrome = useCallback(() => setPhase("down"), []);
+  const hideChrome = () => setPhase("down");
 
   // A paused film is a title card, so the chrome stays. Only a running picture
   // earns the countdown, and a pinned panel or an open menu suspends it. The

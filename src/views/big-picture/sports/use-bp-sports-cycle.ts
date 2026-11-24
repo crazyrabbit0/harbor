@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 const HOLD_MS = 7000;
 
@@ -53,7 +53,7 @@ export function useBpSportsCycle(
     };
   }, [enabled, count, restart]);
 
-  const bump = useCallback(() => setRestart((n) => n + 1), []);
+  const bump = () => setRestart((n) => n + 1);
 
   return { index, bump };
 }

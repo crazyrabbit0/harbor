@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { isRtl, useUiLanguage } from "@/lib/i18n";
 import { useSettings } from "@/lib/settings";
@@ -77,7 +77,7 @@ export function BpAmbient({ pool, still }: { pool: Meta[]; still?: boolean }) {
   const [readySrc, setReadySrc] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const playing = Boolean(trailerSrc) && readySrc === trailerSrc;
-  const onTrailerReady = useCallback(() => setReadySrc(trailerSrc), [trailerSrc]);
+  const onTrailerReady = () => setReadySrc(trailerSrc);
 
   useEffect(() => {
     const v = videoRef.current;

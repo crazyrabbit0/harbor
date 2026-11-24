@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { exitBigPicture, goBigPictureTab } from "@/lib/big-picture";
 import {
   getSportsConsentServerSnapshot,
@@ -114,15 +107,15 @@ export function BpSettings() {
     return () => SFX.setTheme(settings.bigPictureSound);
   }, [cat, depth, settings.bigPictureSound]);
 
-  const leave = useCallback(() => {
+  const leave = () => {
     SFX.close();
     exitBigPicture();
-  }, []);
+  };
 
-  const reviewSportsNotice = useCallback(() => {
+  const reviewSportsNotice = () => {
     resetSportsConsent();
     goBigPictureTab("sports");
-  }, []);
+  };
 
   if (pane !== "root") {
     return (

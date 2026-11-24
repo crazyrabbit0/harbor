@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useChannelStatsVersion } from "@/lib/iptv/channel-stats";
 import { useFavorites } from "@/lib/iptv/favorites";
 import { useSettings } from "@/lib/settings";
@@ -27,7 +27,7 @@ export function BpLiveRow({ lead, autofocusFirst }: { lead: BpRowLead; autofocus
   // one frame lets the arriving focus cancel it, and leaving the row entirely
   // is then the only path that reaches the clear.
   const blurRef = useRef(0);
-  const onHot = useCallback((next: NowItem | null) => {
+  const onHot = (next: NowItem | null) => {
     if (blurRef.current) {
       cancelAnimationFrame(blurRef.current);
       blurRef.current = 0;
@@ -40,7 +40,7 @@ export function BpLiveRow({ lead, autofocusFirst }: { lead: BpRowLead; autofocus
       blurRef.current = 0;
       setHot(null);
     });
-  }, []);
+  };
 
   useEffect(
     () => () => {

@@ -124,7 +124,7 @@ export function BpCwCard({
     targetWidth: bpBoxPx(fluid ? BP_FLUID_BOX.wide : CW_CARD_BOX),
   });
   const src = useProxiedImageSrc(art.url);
-  const meta = useMemo(() => cwMeta(item, art.url), [item, art.url]);
+  const meta = cwMeta(item, art.url);
   const [loaded, setLoaded] = useState(false);
   const t = useBpT();
   const ep = episodeLabel(item, t);

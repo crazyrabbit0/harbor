@@ -64,15 +64,11 @@ export function BpSportsPersonalize({ onClose }: { onClose: () => void }) {
   const [retry, setRetry] = useState(0);
   const [saveError, setSaveError] = useState(false);
 
-  const groups = useMemo(() => [...new Map(HUB_GROUPS.map((g) => [g.key, g])).values()], []);
-  const teamLeagues = useMemo(
-    () => HUB_LEAGUES.filter((l) => leagues.includes(l.key) && !EVENT_GROUPS.includes(l.group)),
-    [leagues],
+  const groups = [...new Map(HUB_GROUPS.map((g) => [g.key, g])).values()];
+  const teamLeagues = HUB_LEAGUES.filter(
+    (l) => leagues.includes(l.key) && !EVENT_GROUPS.includes(l.group),
   );
-  const stepLeagues = useMemo(
-    () => HUB_LEAGUES.filter((l) => chosenGroups.includes(l.group)),
-    [chosenGroups],
-  );
+  const stepLeagues = HUB_LEAGUES.filter((l) => chosenGroups.includes(l.group));
 
   const wantTeams = step === 2 && teamLeagues.some((l) => l.key === league);
   const teamReqKey = wantTeams ? `${league}:${retry}` : "";

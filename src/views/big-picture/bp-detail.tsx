@@ -95,10 +95,7 @@ export function BpDetail({
   const isSeries = shell.type === "series" || shell.type === "anime";
   const title = detail?.title || shell.name;
   const poster = shell.poster ?? detail?.poster;
-  const videoMark = useMemo(
-    () => (isSeries ? bpResumeMark(meta, cwEntry, episodeIds) : { resumed: false }),
-    [meta, cwEntry, isSeries, episodeIds],
-  );
+  const videoMark = isSeries ? bpResumeMark(meta, cwEntry, episodeIds) : { resumed: false };
   // The kitsu videos on the meta carry no stream mapping, so once the ordered
   // anime episodes exist they own the resume target and Play resolves.
   const mark = isSeries && anime.resume ? anime.resume : videoMark;

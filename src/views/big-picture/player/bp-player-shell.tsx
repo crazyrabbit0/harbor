@@ -101,11 +101,11 @@ export function BpPlayerShell({
   const panel = forcePanel ?? openId;
 
   const slots = useMemo(() => collectBpPlayerSlots(children), [children]);
-  const panels = useMemo(() => bpSlotsIn(slots, "panel"), [slots]);
-  const stage = useMemo(() => bpSlotsIn(slots, "stage"), [slots]);
-  const top = useMemo(() => bpSlotsIn(slots, "top"), [slots]);
-  const transport = useMemo(() => bpSlotsIn(slots, "transport"), [slots]);
-  const rail = useMemo(() => bpSlotsIn(slots, "rail"), [slots]);
+  const panels = bpSlotsIn(slots, "panel");
+  const stage = bpSlotsIn(slots, "stage");
+  const top = bpSlotsIn(slots, "top");
+  const transport = bpSlotsIn(slots, "transport");
+  const rail = bpSlotsIn(slots, "rail");
   const activePanel = useMemo(() => bpPanelSlot(slots, panel), [slots, panel]);
 
   const playback = useBpPlayback(src, tick);
@@ -162,23 +162,17 @@ export function BpPlayerShell({
     wakeChrome();
   }, [locked, wakeChrome]);
 
-  const openPanel = useCallback(
-    (id: string) => {
-      if (locked) return;
-      setOpenId(id);
-      wakeChrome();
-    },
-    [locked, wakeChrome],
-  );
+  const openPanel = (id: string) => {
+    if (locked) return;
+    setOpenId(id);
+    wakeChrome();
+  };
 
-  const togglePanel = useCallback(
-    (id: string) => {
-      if (locked) return;
-      setOpenId((cur) => (cur === id ? null : id));
-      wakeChrome();
-    },
-    [locked, wakeChrome],
-  );
+  const togglePanel = (id: string) => {
+    if (locked) return;
+    setOpenId((cur) => (cur === id ? null : id));
+    wakeChrome();
+  };
 
   const onBack = useCallback(() => {
     if (runBpBack()) return;
@@ -231,37 +225,21 @@ export function BpPlayerShell({
     onOptions: wakeChrome,
   });
 
-  const api = useMemo<BpPlayerShellApi>(
-    () => ({
-      src,
-      playback,
-      phase,
-      chromeUp: phase === "up",
-      wakeChrome,
-      peekChrome,
-      hideChrome,
-      holdChrome,
-      panel,
-      openPanel,
-      closePanel,
-      togglePanel,
-      exit: exitPlayback,
-    }),
-    [
-      src,
-      playback,
-      phase,
-      wakeChrome,
-      peekChrome,
-      hideChrome,
-      holdChrome,
-      panel,
-      openPanel,
-      closePanel,
-      togglePanel,
-      exitPlayback,
-    ],
-  );
+  const api: BpPlayerShellApi = {
+    src,
+    playback,
+    phase,
+    chromeUp: phase === "up",
+    wakeChrome,
+    peekChrome,
+    hideChrome,
+    holdChrome,
+    panel,
+    openPanel,
+    closePanel,
+    togglePanel,
+    exit: exitPlayback,
+  };
 
   const rootStyle = useMemo<CSSProperties>(() => {
     const o = bpOverscan();

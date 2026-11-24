@@ -80,13 +80,10 @@ function useAnilistFeed(enabled: boolean, reload: number): BpLibFeed {
     };
   }, [enabled, userId, reqKey]);
 
-  const cached = useMemo(
-    () =>
-      enabled && userId != null
-        ? (readCachedCollection(userId)?.flatMap((g) => g.entries) ?? null)
-        : null,
-    [enabled, userId],
-  );
+  const cached =
+    enabled && userId != null
+      ? (readCachedCollection(userId)?.flatMap((g) => g.entries) ?? null)
+      : null;
 
   const raw =
     state.key === reqKey && reqKey !== ""
@@ -146,11 +143,8 @@ function useMalFeed(enabled: boolean, reload: number): BpLibFeed {
     };
   }, [enabled, isConnected, reqKey]);
 
-  const cached = useMemo(
-    () =>
-      enabled && isConnected ? (readCachedMalList()?.flatMap((g) => g.entries) ?? null) : null,
-    [enabled, isConnected],
-  );
+  const cached =
+    enabled && isConnected ? (readCachedMalList()?.flatMap((g) => g.entries) ?? null) : null;
 
   const raw = state.key === reqKey && reqKey !== "" ? state.raw : (cached ?? state.raw);
   const status: BpLibStatus =
@@ -221,10 +215,7 @@ function useSimklFeed(enabled: boolean, reload: number): BpLibFeed {
     };
   }, [enabled, isConnected, reqKey]);
 
-  const local = useMemo(
-    () => (enabled && isConnected ? getLocalCache() : null),
-    [enabled, isConnected],
-  );
+  const local = enabled && isConnected ? getLocalCache() : null;
   const cache = state.key === reqKey && reqKey !== "" ? state.cache : (local ?? state.cache);
   const status: BpLibStatus =
     !enabled || !isConnected

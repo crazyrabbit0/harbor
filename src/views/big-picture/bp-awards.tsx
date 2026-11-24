@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { AwardLogo } from "@/components/icons/award-logo";
 import { AWARD_CATALOG } from "@/lib/awards-catalog";
 import { mergeBundledAwards } from "@/lib/awards-history";
@@ -13,17 +12,13 @@ export function BpAwards({ meta, imdbId }: { meta: Meta; imdbId?: string | null 
   const live = useAwards(isAnime ? undefined : (imdbId ?? undefined), meta.type === "series");
 
   const awardsV = useBundledAwardsVersion();
-  const chips = useMemo(
-    () =>
-      readAtVersion(awardsV, () => {
-        if (isAnime) return [];
-        const merged = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));
-        return awardSummary(merged)
-          .filter((s) => s.wins > 0 || s.nominations > 0)
-          .slice(0, 4);
-      }),
-    [awardsV, isAnime, live, meta.name, meta.releaseInfo],
-  );
+  const chips = readAtVersion(awardsV, () => {
+    if (isAnime) return [];
+    const merged = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));
+    return awardSummary(merged)
+      .filter((s) => s.wins > 0 || s.nominations > 0)
+      .slice(0, 4);
+  });
 
   if (chips.length === 0) return null;
 

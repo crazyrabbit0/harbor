@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { topMovies, topSeries, type Meta } from "@/lib/cinemeta";
 import type { HomeRow } from "@/lib/home/home-types";
 import type { BpTileShape } from "./bp-tile";
@@ -231,7 +231,7 @@ function useBuiltCatalog(kind: BpCatalogKind): {
     };
   }, [cacheKey, reqKey, kind, tmdbKey, region]);
 
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = () => setAttempt((n) => n + 1);
 
   if (primed) return { built: primed, loading: false, failed: false, retry };
   if (state.key === reqKey) {
@@ -312,20 +312,16 @@ export function useBpCatalogPage(kind: BpCatalogKind): BpCatalogPage {
 
 export function useBpShows(): BpShowsPage {
   const page = useBpCatalogPage("shows");
-  const custom = useMemo(() => loadPageRows("shows"), []);
-  const runtimeTitleKeys = useMemo(
-    () =>
-      new Set(
-        page.rows
-          .filter(
-            (row) =>
-              row.key.startsWith("collection-") ||
-              row.sourceRow != null ||
-              custom.renamed[row.key] != null,
-          )
-          .map((row) => row.key),
-      ),
-    [page.rows, custom],
+  const custom = loadPageRows("shows");
+  const runtimeTitleKeys = new Set(
+    page.rows
+      .filter(
+        (row) =>
+          row.key.startsWith("collection-") ||
+          row.sourceRow != null ||
+          custom.renamed[row.key] != null,
+      )
+      .map((row) => row.key),
   );
 
   return { ...page, runtimeTitleKeys };

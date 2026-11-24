@@ -51,15 +51,9 @@ export function BpHome({ onSelect }: { onSelect: (m: Meta) => void }) {
   const { band, art: bandArt } = useBpBandState(BAND_SETTLE_MS);
   const identityUp = band?.owns === "band";
 
-  const services = useMemo(
-    () =>
-      settings.tmdbKey
-        ? (Object.keys(settings.streaming) as StreamingService[]).filter(
-            (s) => settings.streaming[s],
-          )
-        : [],
-    [settings.tmdbKey, settings.streaming],
-  );
+  const services = settings.tmdbKey
+    ? (Object.keys(settings.streaming) as StreamingService[]).filter((s) => settings.streaming[s])
+    : [];
   const showServices = services.length > 0;
   const showCollections = Boolean(settings.tmdbKey) && !collectionsHidden;
   const cwShown = !cwHidden && (!cwReady || cw.length > 0);

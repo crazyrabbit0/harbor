@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Captions,
   CaptionsOff,
@@ -85,7 +85,7 @@ export function BpPlayerSubtitles(props: BpPlayerSubtitlesProps) {
     return tracks.filter((track) => keep.has(track));
   }, [tracks, preferred, importedTitles, selectedId]);
   const groups = useMemo(() => groupByLang(langTracks), [langTracks]);
-  const secondary = useMemo(() => tracks.find((track) => track.secondary) ?? null, [tracks]);
+  const secondary = tracks.find((track) => track.secondary) ?? null;
   const visible = useMemo(() => {
     const pool =
       activeLang === ALL
@@ -98,23 +98,20 @@ export function BpPlayerSubtitles(props: BpPlayerSubtitlesProps) {
       return !(forcedOnly && !track.forced);
     });
   }, [activeLang, langTracks, groups, source, hideHI, forcedOnly]);
-  const best = useMemo(() => pickBestMatch(visible, search?.hints ?? null), [visible, search]);
+  const best = pickBestMatch(visible, search?.hints ?? null);
   const better = best && best.track.id !== selectedId ? best : null;
   const pickSecondary = props.onSelectSecondary ?? setSecondarySub;
 
   const isSeries = props.season != null && props.episode != null;
-  const home = useMemo<BpSubtitleTarget>(
-    () => ({
-      imdbId: props.metaImdbId ?? "",
-      type: isSeries ? "series" : "movie",
-      title: props.metaTitle ?? "",
-      season: props.season ?? undefined,
-      episode: props.episode ?? undefined,
-    }),
-    [props.metaImdbId, props.metaTitle, props.season, props.episode, isSeries],
-  );
+  const home: BpSubtitleTarget = {
+    imdbId: props.metaImdbId ?? "",
+    type: isSeries ? "series" : "movie",
+    title: props.metaTitle ?? "",
+    season: props.season ?? undefined,
+    episode: props.episode ?? undefined,
+  };
 
-  const loadLocal = useCallback(async () => {
+  const loadLocal = async () => {
     setLocalError(null);
     const pick = async () => {
       const { open } = await loadDialog();
@@ -134,7 +131,7 @@ export function BpPlayerSubtitles(props: BpPlayerSubtitlesProps) {
     await pick().catch(() => {
       setLocalError(t("Couldn't load that subtitle file. Try another."));
     });
-  }, [t, onAddSubtitle]);
+  };
 
   // The shell seeds focus from routeKey, which carries the panel id but not the
   // lane, so a lane swap would leave the ring on a tab chip with the list below

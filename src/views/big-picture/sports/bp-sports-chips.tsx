@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { RefreshCw, Star } from "lucide-react";
 import { useUiLanguage } from "@/lib/i18n";
 import { SportIcon } from "@/views/sports/sport-icon";
@@ -48,13 +47,10 @@ export function BpSportsChips({
   const shown = groups;
   const rest = 0;
 
-  const stamp = useMemo(
-    () =>
-      status.at > 0
-        ? new Date(status.at).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
-        : "",
-    [status.at, locale],
-  );
+  const stamp =
+    status.at > 0
+      ? new Date(status.at).toLocaleTimeString(locale, { hour: "numeric", minute: "2-digit" })
+      : "";
   const note =
     mode === "explore"
       ? ""

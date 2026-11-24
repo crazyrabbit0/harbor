@@ -55,7 +55,7 @@ function BpSportsFaceOffSide({
   alt: string;
   mirrored: boolean;
 }) {
-  const list = useMemo(() => sources.filter((src) => src.length > 0), [sources]);
+  const list = sources.filter((src) => src.length > 0);
   const chain = list.join("|");
   const [prevChain, setPrevChain] = useState(chain);
   const [at, setAt] = useState(0);
@@ -120,7 +120,7 @@ function BpSportsHeroMark({
   sport: string;
   alt: string;
 }) {
-  const list = useMemo(() => sources.filter((src) => src.length > 0), [sources]);
+  const list = sources.filter((src) => src.length > 0);
   const chain = list.join("|");
   const [prevChain, setPrevChain] = useState(chain);
   const [at, setAt] = useState(0);

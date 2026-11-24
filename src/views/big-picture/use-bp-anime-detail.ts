@@ -1,12 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useAnilistWatched } from "@/lib/anilist/use-anilist-watched";
 import type { EpisodeProgress } from "@/lib/episode-progress";
@@ -281,15 +273,9 @@ export function useBpAnimeDetail(meta: Meta | null, opts?: BpAnimeDetailOptions)
     settings,
   });
 
-  const onOrderType = useCallback(
-    (value: TvdbOrderType) => update({ tvdbSeasonType: value }),
-    [update],
-  );
+  const onOrderType = (value: TvdbOrderType) => update({ tvdbSeasonType: value });
 
-  const showSeason = useMemo(
-    () => new Set(shown.map((e) => e.imdbSeason ?? e.seasonNumber ?? 1)).size > 1,
-    [shown],
-  );
+  const showSeason = new Set(shown.map((e) => e.imdbSeason ?? e.seasonNumber ?? 1)).size > 1;
 
   let resume: BpAnimeDetail["resume"] = null;
   if (shown.length > 0) {

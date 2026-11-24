@@ -141,13 +141,10 @@ export function BpStreams({
   // behind it. Every other mode here is an opaque full-page surface.
   const setModalNode = useBpPageModal(mode !== "switch");
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const modalRef = useCallback(
-    (el: HTMLDivElement | null) => {
-      rootRef.current = el;
-      setModalNode(el);
-    },
-    [setModalNode],
-  );
+  const modalRef = (el: HTMLDivElement | null) => {
+    rootRef.current = el;
+    setModalNode(el);
+  };
   const s = useBpStreams({ meta, episode });
   const play = useBpStreamPlay({ meta, episode, s, autoPlay, resume, intent, onPick });
   const download = intent === "download";

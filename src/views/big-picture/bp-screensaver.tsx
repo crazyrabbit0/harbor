@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useLiveGamepad } from "@/lib/gamepad/live";
 import { useSettings } from "@/lib/settings";
@@ -50,12 +50,9 @@ export function BpScreensaver({ blocked }: { blocked: boolean }) {
   }
   const mounted = show || exiting;
 
-  const reduce = useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
-    [],
-  );
+  const reduce =
+    typeof window !== "undefined" &&
+    !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
     if (show) {

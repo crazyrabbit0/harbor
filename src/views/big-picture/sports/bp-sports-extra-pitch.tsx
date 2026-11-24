@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import type { MatchPlayer, SportsGame, SportsMatchDetail } from "@/lib/sports/espn-types";
 import {
   buildPitchLayout,
@@ -96,14 +96,8 @@ export function BpSportsPitchCell({
 }) {
   const t = useBpT();
   const [expanded, setExpanded] = useState(false);
-  const home = useMemo(
-    () => markers(detail.homeRoster, detail.homeFormation ?? "", "home", detail),
-    [detail],
-  );
-  const away = useMemo(
-    () => markers(detail.awayRoster, detail.awayFormation ?? "", "away", detail),
-    [detail],
-  );
+  const home = markers(detail.homeRoster, detail.homeFormation ?? "", "home", detail);
+  const away = markers(detail.awayRoster, detail.awayFormation ?? "", "away", detail);
   const bench = [...home.bench, ...away.bench];
 
   return (

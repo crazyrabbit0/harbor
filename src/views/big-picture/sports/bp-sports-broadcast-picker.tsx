@@ -94,10 +94,7 @@ export function BpSportsWatchPicker({
     const def = leagueForTag(league);
     return def ? getLeagueLabel(def) : league;
   }, [league]);
-  const attachedIds = useMemo(
-    () => (league ? (attachments.channels[league] ?? []) : []),
-    [attachments, league],
-  );
+  const attachedIds = league ? (attachments.channels[league] ?? []) : [];
   const canSearch = index.channels.length > 0;
   const seedAt = shows.length > 0 ? "show" : matches.length > 0 ? "match" : "action";
 

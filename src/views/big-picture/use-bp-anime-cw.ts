@@ -210,19 +210,15 @@ export function useBpAnimeCwBase(): BpAnimeCwBase {
     void detectAnimeForCw(libItems);
   }, [libItems]);
 
-  const resurfaceLibrary = useMemo(
-    () =>
-      readAtVersion(manualWatchedVer, () => {
-        const manual = manualWatchedLibraryItems().filter(isAnimeCwItem);
-        if (manual.length === 0) return libItems;
-        const memberIds = new Set(libItems.filter(isCwMember).map((i) => i._id));
-        const usable = manual.filter((i) => !memberIds.has(i._id));
-        if (usable.length === 0) return libItems;
-        const overrideIds = new Set(usable.map((i) => i._id));
-        return [...libItems.filter((i) => !overrideIds.has(i._id)), ...usable];
-      }),
-    [libItems, manualWatchedVer],
-  );
+  const resurfaceLibrary = readAtVersion(manualWatchedVer, () => {
+    const manual = manualWatchedLibraryItems().filter(isAnimeCwItem);
+    if (manual.length === 0) return libItems;
+    const memberIds = new Set(libItems.filter(isCwMember).map((i) => i._id));
+    const usable = manual.filter((i) => !memberIds.has(i._id));
+    if (usable.length === 0) return libItems;
+    const overrideIds = new Set(usable.map((i) => i._id));
+    return [...libItems.filter((i) => !overrideIds.has(i._id)), ...usable];
+  });
 
   const sig = raw
     .map((i) => `${i._id}:${i.state?.season ?? ""}:${i.state?.episode ?? ""}`)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type { IptvChannel } from "@/lib/iptv/types";
 import {
   bpOverlayOpen,
@@ -251,12 +251,12 @@ export function useBpGuideNav(params: BpGuideNavParams): {
     recoverBpFocus(p.guideRef.current);
   });
 
-  const setAnchorMs = useCallback((ms: number) => {
+  const setAnchorMs = (ms: number) => {
     anchorRef.current = ms;
     runRef.current = IDLE_RUN;
-  }, []);
+  };
 
-  const onWheel = useCallback((e: React.WheelEvent) => {
+  const onWheel = (e: React.WheelEvent) => {
     const p = ref.current;
     if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
       p.panView(e.deltaX);
@@ -267,7 +267,7 @@ export function useBpGuideNav(params: BpGuideNavParams): {
     if (steps === 0) return;
     wheelRef.current -= steps * WHEEL_STEP_PX;
     guideMove(p, anchorRef, pendingRef, runRef, steps > 0 ? "down" : "up");
-  }, []);
+  };
 
   return { setAnchorMs, onWheel };
 }

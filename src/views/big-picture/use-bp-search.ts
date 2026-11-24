@@ -459,10 +459,7 @@ export function useBpSearch(filter: BpSearchFilter): BpSearchState {
   // Snapping back to "all" because a late publish emptied the group rebuilds the whole
   // rail on its own, which is the one thing progressive arrival must never do.
   const active = filter;
-  const sections = useMemo(
-    () => (active === "all" ? all : all.filter((s) => s.group === active)),
-    [all, active],
-  );
+  const sections = active === "all" ? all : all.filter((s) => s.group === active);
 
   const total = bpDistinctCount(sections);
 

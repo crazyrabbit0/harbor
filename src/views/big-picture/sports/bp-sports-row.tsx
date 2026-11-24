@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import type { SportsGame } from "@/lib/sports/espn-types";
 import { gameKey } from "@/lib/sports/hub-cache";
 import { BpRowHeader } from "../bp-row-header";
@@ -27,13 +27,10 @@ export function BpSportsRow({
 }) {
   const [shown, setShown] = useState(CHUNK);
 
-  const onCardFocus = useCallback(
-    (index: number, game: SportsGame) => {
-      setShown((current) => (index >= current - LOOKAHEAD ? current + CHUNK : current));
-      onFocusGame?.(game);
-    },
-    [onFocusGame],
-  );
+  const onCardFocus = (index: number, game: SportsGame) => {
+    setShown((current) => (index >= current - LOOKAHEAD ? current + CHUNK : current));
+    onFocusGame?.(game);
+  };
 
   if (!row.games.length) return null;
 

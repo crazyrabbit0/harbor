@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { CalendarClock, ChevronLeft, KeyRound, Tv } from "lucide-react";
 import {
   EMPTY_PLAYLIST_FORM,
@@ -104,7 +104,7 @@ export function BpLiveSetup({
   const [form, setForm] = useState<PlaylistFormValue>(EMPTY_PLAYLIST_FORM);
   const [reveal, setReveal] = useState(false);
   const [active, setActive] = useState<string | null>(null);
-  const fields = useMemo(() => fieldsFor(form.kind, t), [form.kind, t]);
+  const fields = fieldsFor(form.kind, t);
   const ready = complete(form);
   // Back is row 0 when present, so everything below shifts by one. The run has
   // to stay contiguous: bpRailStep treats a gap as the end of the rail.

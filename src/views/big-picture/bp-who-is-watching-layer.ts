@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useProfiles } from "@/lib/profiles";
 
 /**
@@ -47,11 +47,11 @@ export function useBpWhoLayer(): BpWhoLayer {
 
   const canClose = activeId != null;
 
-  const close = useCallback(() => {
+  const close = () => {
     if (activeId == null) return;
     setManual(false);
     closePicker();
-  }, [activeId, closePicker]);
+  };
 
   return { open: manual || pickerOpen, canClose, close };
 }

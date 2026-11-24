@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { SFX } from "@/lib/sfx";
@@ -38,7 +38,7 @@ export function BpCollectionItems({
 }) {
   const t = useBpT();
   const boxRef = useRef<HTMLDivElement | null>(null);
-  const metas = useMemo(() => open.items.map(toMeta), [open.items]);
+  const metas = open.items.map(toMeta);
 
   useEffect(
     () =>

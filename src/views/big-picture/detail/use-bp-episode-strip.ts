@@ -98,17 +98,14 @@ export function useBpEpisodeStrip({
     );
     return { bySeason: grouped, seasonCounts: counts };
   });
-  const seasons = useMemo(() => [...bySeason.keys()].sort((a, b) => a - b), [bySeason]);
-  const offsets = useMemo(() => seasonOffsets(seasonCounts), [seasonCounts]);
+  const seasons = [...bySeason.keys()].sort((a, b) => a - b);
+  const offsets = seasonOffsets(seasonCounts);
   const [season, setSeason] = useState<number | null>(null);
   const [watchedTick, setWatchedTick] = useState(0);
 
   useEffect(() => subscribeManualWatched(() => setWatchedTick((n) => n + 1)), []);
 
-  const remote = useMemo(
-    () => readAtVersion(watchedTick, () => remoteWatchedKeys(live.id)),
-    [live.id, watchedTick],
-  );
+  const remote = readAtVersion(watchedTick, () => remoteWatchedKeys(live.id));
 
   const resumeAt = useMemo(() => {
     const dur = cwEntry?.state?.duration ?? 0;
@@ -149,13 +146,9 @@ export function useBpEpisodeStrip({
   // The source pair, matching progressOf: bpResumeMark aims Play at the same
   // episode without advancing past a finished one, so the card the strip parks
   // on is always the card the Play button would play.
-  const rawResume = useMemo(
-    () =>
-      resumeAt
-        ? all.findIndex((e) => e.season === resumeAt.season && e.episode === resumeAt.episode)
-        : -1,
-    [all, resumeAt],
-  );
+  const rawResume = resumeAt
+    ? all.findIndex((e) => e.season === resumeAt.season && e.episode === resumeAt.episode)
+    : -1;
   const parkIndex = rawResume >= 0 && rawResume < Math.min(total, MAX_REACH) ? rawResume : -1;
   const reach = parkIndex < 0 ? 0 : Math.min(parkIndex + 12, MAX_REACH);
   const win = useBpEpisodeWindow(total, reach, `${live.id}:${active}`);
