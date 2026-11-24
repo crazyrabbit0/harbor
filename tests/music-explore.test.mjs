@@ -287,17 +287,14 @@ test("unknown artist counts stay unknown; real listeners and plays stay separate
   assert.equal(result.listeners, 2400);
   assert.equal(result.plays, 12345);
 });
-test("all Explore labels exist in every locale with matching placeholders", () => {
-  const base = new URL("../src/lib/i18n/locales/", import.meta.url);
-  const table = (lang) =>
+test("all Explore labels exist in every locale with matching placeholders", async () => {
+  const table = async (lang) =>
     Object.fromEntries(
-      [
-        ...fs
-          .readFileSync(new URL(`${lang}/music-taste.ts`, base), "utf8")
-          .matchAll(/"(music\.explore\.[^"]+)":\s*("(?:[^"\\]|\\.)*")/g),
-      ].map((m) => [m[1], JSON.parse(m[2])]),
+      Object.entries(
+        (await import(`../src/lib/i18n/locales/${lang}/music-taste.ts`)).default,
+      ).filter(([key]) => key.startsWith("music.explore.")),
     );
-  const en = table("en");
+  const en = await table("en");
   assert.equal(Object.keys(en).length, 49);
   for (const lang of [
     "ar",
@@ -316,7 +313,7 @@ test("all Explore labels exist in every locale with matching placeholders", () =
     "vi",
     "zh",
   ]) {
-    const local = table(lang);
+    const local = await table(lang);
     assert.deepEqual(Object.keys(local).sort(), Object.keys(en).sort(), lang);
     for (const key in en)
       assert.deepEqual(
