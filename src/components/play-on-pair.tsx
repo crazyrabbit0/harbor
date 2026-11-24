@@ -1,5 +1,5 @@
 import { AlertCircle, Check, Loader2, Tv, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useT } from "@/lib/i18n";
 import { useNow } from "@/lib/use-now";
@@ -141,7 +141,7 @@ function PairPanel({ instance }: { instance: HarborInstance }) {
   const clean = normalizePairCode(typed);
   const ready = clean.length === len && phase.kind === "entering";
 
-  const submit = useCallback(async () => {
+  const submit = async () => {
     const live = session.current;
     if (!live) return;
     setPhase((prev) =>
@@ -157,14 +157,14 @@ function PairPanel({ instance }: { instance: HarborInstance }) {
       return;
     }
     setPhase({ kind: "failed", code: result.code });
-  }, [clean, instance.name]);
+  };
 
-  const retry = useCallback(() => {
+  const retry = () => {
     session.current?.close();
     setTyped("");
     setPhase({ kind: "opening" });
     setAttempt((n) => n + 1);
-  }, []);
+  };
 
   const label = instance.name?.trim() || t("Harbor");
   const where = `${platformLabel(instance.platform)} / ${instance.host}`;

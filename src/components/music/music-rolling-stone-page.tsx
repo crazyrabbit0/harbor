@@ -26,7 +26,7 @@ export function MusicRollingStonePage({
   const [decade, setDecade] = useState<number | null>(null);
   const [genre, setGenre] = useState("all");
   const [query, setQuery] = useState("");
-  const genres = useMemo(() => rollingStoneGenres(), []);
+  const genres = rollingStoneGenres();
   const items = useMemo(() => {
     const needle = query.trim().toLocaleLowerCase();
     return rollingStoneItems({ decade, genre: genre === "all" ? null : genre }).filter(

@@ -98,13 +98,10 @@ export function MusicWatch({
   }
   const preparationError = prepState?.key === activePrepareKey && prepState.error;
   const ready = active && prepState?.key === activePrepareKey && prepState.ready;
-  const showVideo = useCallback(
-    (next: boolean) => {
-      setVideoShowing(next);
-      onVideoShowing?.(next);
-    },
-    [onVideoShowing],
-  );
+  const showVideo = (next: boolean) => {
+    setVideoShowing(next);
+    onVideoShowing?.(next);
+  };
   // The surface keeps one home in the page. Fullscreen moves that home into the overlay rather
   // than rendering the surface somewhere else, so the instance, its controls and its lyrics survive.
   useLayoutEffect(() => {

@@ -205,6 +205,6 @@ export function LinkedReview({
   onPersonClick: (id: number) => void;
 }) {
   const { rx, nameToId } = useMemo(() => buildNameIndex(people), [people]);
-  const nodes = useMemo(() => parseInline(text), [text]);
+  const nodes = parseInline(text);
   return <>{renderNodes(nodes, rx, nameToId, onPersonClick)}</>;
 }

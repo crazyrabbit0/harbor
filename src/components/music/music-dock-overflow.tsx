@@ -1,5 +1,5 @@
 import { MusicGlyph } from "@/components/icons/music-glyph";
-import { useCallback, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { AnchoredMenu } from "@/components/anchored-menu";
 import { useT } from "@/lib/i18n";
 import "./music-dock-overflow.css";
@@ -33,15 +33,15 @@ export function MusicDockOverflow({
   const menu = useRef<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
 
-  const bind = useCallback((node: HTMLDivElement | null) => {
+  const bind = (node: HTMLDivElement | null) => {
     menu.current = node;
     node?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-  }, []);
+  };
 
-  const close = useCallback(() => {
+  const close = () => {
     if (menu.current?.contains(document.activeElement)) anchor.current?.focus();
     setOpen(false);
-  }, []);
+  };
 
   const usable = actions.filter((action) => !action.disabled);
   if (usable.length === 0) return null;

@@ -65,7 +65,7 @@ export function XrayAbout({
     const merged = base ? [base, ...list.filter((b) => b !== base)] : list;
     return [...new Set(merged)];
   }, [details, meta.background]);
-  const videos = useMemo(() => collectVideos(details, title), [details, title]);
+  const videos = collectVideos(details, title);
 
   const [hero, setHero] = useState(backdrops[0]);
   const shown = hero ?? backdrops[0];

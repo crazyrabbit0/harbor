@@ -1,6 +1,6 @@
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { FolderOpen, Tv } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { EpgProgram } from "@/lib/iptv/types";
 import {
   buildChoices,
@@ -51,10 +51,7 @@ export function NewRecordingView({
   getDefaultDir: () => Promise<string>;
 }) {
   const t = useT();
-  const choices = useMemo(
-    () => buildChoices(currentProgram, nextProgram, t),
-    [currentProgram, nextProgram, t],
-  );
+  const choices = buildChoices(currentProgram, nextProgram, t);
   const defaultKind = choices.find((c) => c.kind !== "custom")?.kind ?? "custom";
   const [selectedKind, setSelectedKind] = useState<DurationKind>(defaultKind);
   const [customMinutes, setCustomMinutes] = useState(60);

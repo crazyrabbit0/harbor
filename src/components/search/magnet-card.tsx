@@ -1,6 +1,6 @@
 import { AlertCircle, FileVideo, Loader2, Magnet } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { parse } from "parse-torrent-title";
 import { awaitCastServerReady, remoteStreamServerUrl } from "@/lib/stremio-server";
 import { parseMagnet } from "@/lib/torrent/magnet";
@@ -39,7 +39,7 @@ type MagnetMatch = {
 export function MagnetCard({ raw, onClose }: { raw: string; onClose: () => void }) {
   const { openPlayer } = useViewActions();
   const t = useT();
-  const parsed = useMemo(() => parseMagnet(raw), [raw]);
+  const parsed = parseMagnet(raw);
   const [mode, setMode] = useState<Mode>("idle");
   const [files, setFiles] = useState<TorrentFile[]>([]);
   const [engine, setEngine] = useState<AddResult | null>(null);
@@ -60,7 +60,7 @@ export function MagnetCard({ raw, onClose }: { raw: string; onClose: () => void 
   );
 
   const dn = parsed?.name ?? null;
-  const label = useMemo(() => cleanReleaseName(dn, t), [dn, t]);
+  const label = cleanReleaseName(dn, t);
 
   const [dnSeen, setDnSeen] = useState(dn);
   if (dnSeen !== dn) {

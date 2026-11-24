@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useT, useUiLanguage } from "@/lib/i18n";
 
 type Question = {
@@ -509,10 +509,7 @@ function AgeGateDialog({ onClose, onPass }: { onClose: () => void; onPass: () =>
   const t = useT();
   const isAr = useUiLanguage() === "ar";
   const [seed, setSeed] = useState(() => Date.now() % 1_000_000);
-  const questions = useMemo(
-    () => pickThree(seed, isAr ? AR_QUESTION_BANK : QUESTION_BANK),
-    [seed, isAr],
-  );
+  const questions = pickThree(seed, isAr ? AR_QUESTION_BANK : QUESTION_BANK);
   const [picks, setPicks] = useState<(number | null)[]>([null, null, null]);
   const [submitted, setSubmitted] = useState(false);
   const [verified, setVerified] = useState(false);

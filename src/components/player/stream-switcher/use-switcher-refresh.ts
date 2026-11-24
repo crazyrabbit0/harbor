@@ -84,7 +84,7 @@ export function useSwitcherRefresh(params: {
     [addons, debrids, meta, episode, imdbId, settings],
   );
 
-  const refresh = useCallback(async () => {
+  const refresh = async () => {
     if (!addons) return;
     const streamIds = await buildStreamIdsWithIdentity(
       meta.id,
@@ -93,7 +93,7 @@ export function useSwitcherRefresh(params: {
       meta.behaviorHints?.defaultVideoId,
     );
     await startForStreamIds(streamIds);
-  }, [addons, meta, episode, imdbId, startForStreamIds]);
+  };
 
   const autoFilledRef = useRef(false);
   useEffect(() => {

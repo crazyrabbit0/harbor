@@ -1,5 +1,5 @@
 import { ListPlus, RefreshCw, X } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { APP_VERSION } from "@/lib/build-info";
 import { useT } from "@/lib/i18n";
@@ -168,66 +168,60 @@ function PlayOnPanel({ request, themeId }: { request: PlayOnRequest; themeId: st
     };
   }, []);
 
-  const payload = useMemo(
-    () => ({
-      metaId: request.meta.id,
-      metaType: request.meta.type,
-      name: request.meta.name,
-      poster: request.meta.poster,
-      season: request.episode?.season,
-      episode: request.episode?.episode,
-      resume: true,
-      fromInstance: identity?.id,
-      fromName: identity?.name,
-      theme: themeId,
-    }),
-    [request, identity, themeId],
-  );
+  const payload = {
+    metaId: request.meta.id,
+    metaType: request.meta.type,
+    name: request.meta.name,
+    poster: request.meta.poster,
+    season: request.episode?.season,
+    episode: request.episode?.episode,
+    resume: true,
+    fromInstance: identity?.id,
+    fromName: identity?.name,
+    theme: themeId,
+  };
 
-  const clearRow = useCallback((id: string) => {
+  const clearRow = (id: string) => {
     setRows((prev) => {
       if (!(id in prev)) return prev;
       const next = { ...prev };
       delete next[id];
       return next;
     });
-  }, []);
+  };
 
-  const runRemote = useCallback(
-    async (instance: HarborInstance, action: PlayOnAction) => {
-      setRows((prev) => ({
-        ...prev,
-        [instance.id]: { kind: "busy", text: t("Sending to that Harbor") },
-      }));
-      const result = await sendToInstance(instance, action, payload);
-      if (!alive.current) return;
-      if (result.ok) {
-        setRows((prev) => ({ ...prev, [instance.id]: { kind: "done", text: t("On its way") } }));
-        window.setTimeout(() => closePlayOn(), 620);
-        return;
-      }
-      if (needsPairing(result.reason)) {
-        clearRow(instance.id);
-        openPairFlow(instance);
-        return;
-      }
-      setRows((prev) => ({
-        ...prev,
-        [instance.id]: { kind: "failed", text: failureText(result.reason) },
-      }));
-    },
-    [clearRow, payload, t],
-  );
+  const runRemote = async (instance: HarborInstance, action: PlayOnAction) => {
+    setRows((prev) => ({
+      ...prev,
+      [instance.id]: { kind: "busy", text: t("Sending to that Harbor") },
+    }));
+    const result = await sendToInstance(instance, action, payload);
+    if (!alive.current) return;
+    if (result.ok) {
+      setRows((prev) => ({ ...prev, [instance.id]: { kind: "done", text: t("On its way") } }));
+      window.setTimeout(() => closePlayOn(), 620);
+      return;
+    }
+    if (needsPairing(result.reason)) {
+      clearRow(instance.id);
+      openPairFlow(instance);
+      return;
+    }
+    setRows((prev) => ({
+      ...prev,
+      [instance.id]: { kind: "failed", text: failureText(result.reason) },
+    }));
+  };
 
-  const playHere = useCallback(() => {
+  const playHere = () => {
     closePlayOn();
     openPicker(request.meta, request.episode, { autoPlay: true, resume: true });
-  }, [openPicker, request]);
+  };
 
-  const queueHere = useCallback(() => {
+  const queueHere = () => {
     queueAdd(request.meta, request.episode);
     closePlayOn();
-  }, [request]);
+  };
 
   const roster = useDeviceRoster(peers, settled);
   const pairedIds = usePairedIds();

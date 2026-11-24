@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { FolderOpen, Music2, Pause, Play, Radio, Server } from "@/components/icons/music-icons";
 import { Poster } from "@/components/poster";
 import {
@@ -59,10 +59,7 @@ export function MusicHero({
   const player = useMusicPlayer();
   const { connections, status, reload } = useMusicConnections();
   const subject = track ?? player.recents[0] ?? null;
-  const source = useMemo(
-    () => connections.find((row) => row.id === subject?.connectorId),
-    [connections, subject?.connectorId],
-  );
+  const source = connections.find((row) => row.id === subject?.connectorId);
   const blocked = source ? source.status !== "connected" : false;
   const playable = connections.some(
     (row) => row.status === "connected" && row.capabilities.includes("play"),
@@ -200,12 +197,8 @@ function ConnectHero({
           body: "music.hero.connectBody",
           cta: "music.hero.connectCta",
         };
-  const fastest = useMemo(
-    () =>
-      FAST_KINDS.map((kind) => connections.find((row) => row.kind === kind)).filter(
-        (row): row is MusicConnection => Boolean(row),
-      ),
-    [connections],
+  const fastest = FAST_KINDS.map((kind) => connections.find((row) => row.kind === kind)).filter(
+    (row): row is MusicConnection => Boolean(row),
   );
 
   return (

@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -285,18 +284,15 @@ export function MusicVideoSurface({
     clock.addEventListener("timeupdate", time);
     return () => clock.removeEventListener("timeupdate", time);
   }, [stream, picture, sound]);
-  const resume = useCallback(() => {
+  const resume = () => {
     void sound?.play().catch(() => {});
     void picture?.play().catch(() => {});
-  }, [picture, sound]);
-  const toggleLyrics = useCallback(
-    () =>
-      setLyricsOn((on) => {
-        lyricsPreferred = !on;
-        return !on;
-      }),
-    [setLyricsOn],
-  );
+  };
+  const toggleLyrics = () =>
+    setLyricsOn((on) => {
+      lyricsPreferred = !on;
+      return !on;
+    });
   const lyricsKey = lyricsOn && ready ? key : "";
   if (!lyricsKey && lyricsResult !== null) setLyricsResult(null);
   const currentLyrics = lyricsKey && lyricsResult?.key === lyricsKey ? lyricsResult : null;
@@ -328,14 +324,14 @@ export function MusicVideoSurface({
       clearTimeout(stuck);
     };
   }, [waitKey, settled]);
-  const again = useCallback(() => {
+  const again = () => {
     if (onRetry) {
       onRetry();
       return;
     }
     setAttempt((count) => count + 1);
     retryMusicVideo(track);
-  }, [onRetry, track, setAttempt]);
+  };
   if (!fullscreen && idle) setIdle(false);
   // Fullscreen is a lean-back surface: the chrome rests on its own the way a film player does.
   useEffect(() => {

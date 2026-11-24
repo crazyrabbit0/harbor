@@ -77,18 +77,15 @@ export function useExpandingCard({
     [artworkKey, enabled, meta, tmdbKey],
   );
 
-  const expandReadyCard = useCallback(
-    (url: string | undefined) => {
-      if (!url || !row || !enabled) return;
-      if (!focusIntentRef.current) return;
-      const anchor = cardRef.current?.querySelector<HTMLElement>("[data-preview-anchor]");
-      if (!anchor) return;
-      row.expand(expandedCardWidth(anchor.getBoundingClientRect().height));
-    },
-    [cardRef, enabled, row],
-  );
+  const expandReadyCard = (url: string | undefined) => {
+    if (!url || !row || !enabled) return;
+    if (!focusIntentRef.current) return;
+    const anchor = cardRef.current?.querySelector<HTMLElement>("[data-preview-anchor]");
+    if (!anchor) return;
+    row.expand(expandedCardWidth(anchor.getBoundingClientRect().height));
+  };
 
-  const armFocus = useCallback(() => {
+  const armFocus = () => {
     if (!enabled) return;
     focusIntentRef.current = true;
     const currentArtwork = artworkRef.current;
@@ -97,34 +94,28 @@ export function useExpandingCard({
       return;
     }
     void loadArtwork("high");
-  }, [enabled, expandReadyCard, loadArtwork]);
+  };
 
-  const onArtworkReady = useCallback(
-    (url: string) => {
-      if (artworkKeyRef.current !== artworkKey) return;
-      artworkReadyRef.current = true;
-      setArtworkState((current) =>
-        current.key === artworkKey && current.url === url ? { ...current, ready: true } : current,
-      );
-      expandReadyCard(url);
-    },
-    [artworkKey, expandReadyCard],
-  );
+  const onArtworkReady = (url: string) => {
+    if (artworkKeyRef.current !== artworkKey) return;
+    artworkReadyRef.current = true;
+    setArtworkState((current) =>
+      current.key === artworkKey && current.url === url ? { ...current, ready: true } : current,
+    );
+    expandReadyCard(url);
+  };
 
-  const onArtworkError = useCallback(
-    (url: string) => {
-      if (artworkKeyRef.current !== artworkKey) return;
-      invalidateExpandingCardArtwork(artworkKey, url);
-      artworkRef.current = undefined;
-      artworkReadyRef.current = false;
-      setArtworkState((current) =>
-        current.key === artworkKey && current.url === url ? { key: artworkKey } : current,
-      );
-    },
-    [artworkKey],
-  );
+  const onArtworkError = (url: string) => {
+    if (artworkKeyRef.current !== artworkKey) return;
+    invalidateExpandingCardArtwork(artworkKey, url);
+    artworkRef.current = undefined;
+    artworkReadyRef.current = false;
+    setArtworkState((current) =>
+      current.key === artworkKey && current.url === url ? { key: artworkKey } : current,
+    );
+  };
 
-  const onFocus = useCallback(() => {
+  const onFocus = () => {
     if (
       typeof document !== "undefined" &&
       document.documentElement.getAttribute("data-input-modality") === "pointer"
@@ -133,11 +124,11 @@ export function useExpandingCard({
       return;
     }
     armFocus();
-  }, [armFocus]);
-  const onBlur = useCallback(() => {
+  };
+  const onBlur = () => {
     focusIntentRef.current = false;
     row?.collapse();
-  }, [row]);
+  };
 
   useEffect(() => {
     if (!enabled) return;

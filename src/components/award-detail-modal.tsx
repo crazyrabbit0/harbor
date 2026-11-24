@@ -70,7 +70,7 @@ export function AwardDetailModal({
     return { top, left, place };
   }, [anchor]);
 
-  const groups = useMemo(() => groupEntries(entries), [entries]);
+  const groups = groupEntries(entries);
 
   const wins = entries.filter((e) => e.result === "won").length;
   const noms = entries.filter((e) => e.result === "nominated").length;

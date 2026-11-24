@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { AwardLogo, laurelColorFor } from "@/components/icons/award-logo";
 import { AWARD_CATALOG } from "@/lib/awards-catalog";
 import { mergeBundledAwards } from "@/lib/awards-history";
@@ -28,17 +27,13 @@ export function AwardChips({
   const live = useAwards(isAnime ? undefined : (imdbId ?? undefined), meta.type === "series");
   const { openAward } = useViewActions();
   const awardsV = useBundledAwardsVersion(!isAnime);
-  const chips = useMemo(
-    () =>
-      readAtVersion(awardsV, () => {
-        if (isAnime) return [];
-        const awards = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));
-        return awardSummary(awards)
-          .filter((s) => s.wins > 0 || s.nominations > 0)
-          .slice(0, limit);
-      }),
-    [awardsV, isAnime, live, meta.name, meta.releaseInfo, limit],
-  );
+  const chips = readAtVersion(awardsV, () => {
+    if (isAnime) return [];
+    const awards = mergeBundledAwards(live, meta.name, parseAwardYear(meta.releaseInfo));
+    return awardSummary(awards)
+      .filter((s) => s.wins > 0 || s.nominations > 0)
+      .slice(0, limit);
+  });
 
   if (chips.length === 0) return null;
   const iconPx = size === "sm" ? 13 : 15;

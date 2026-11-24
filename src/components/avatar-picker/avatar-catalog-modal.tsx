@@ -111,27 +111,19 @@ export function AvatarCatalogModal({
     return [...catalog, ...packGroups];
   }, [packs]);
 
-  const total = useMemo(() => groups.reduce((n, g) => n + g.items.length, 0), [groups]);
-  const railGroups = useMemo<RailGroup[]>(
-    () =>
-      groups.map((g) => ({
-        id: g.id,
-        label: g.label,
-        count: g.items.length,
-        packId: g.packId,
-        badge: g.id === UPLOADS_ID ? uploadsBadge : 0,
-      })),
-    [groups, uploadsBadge],
-  );
+  const total = groups.reduce((n, g) => n + g.items.length, 0);
+  const railGroups: RailGroup[] = groups.map((g) => ({
+    id: g.id,
+    label: g.label,
+    count: g.items.length,
+    packId: g.packId,
+    badge: g.id === UPLOADS_ID ? uploadsBadge : 0,
+  }));
 
   const query = q.trim().toLowerCase();
-  const searchResults = useMemo(
-    () =>
-      query
-        ? groups.flatMap((g) => g.items).filter((it) => it.name.toLowerCase().includes(query))
-        : null,
-    [groups, query],
-  );
+  const searchResults = query
+    ? groups.flatMap((g) => g.items).filter((it) => it.name.toLowerCase().includes(query))
+    : null;
   const currentGroup = section === "all" ? null : groups.find((g) => g.id === section);
 
   const handlePick = async (item: GridItem) => {

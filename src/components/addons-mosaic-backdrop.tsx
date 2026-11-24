@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ScaledBlur } from "@/components/scaled-blur";
 import { listAddons, type SAAddon } from "@/lib/providers/stremio-addons";
 
@@ -56,11 +56,8 @@ export function AddonsMosaicBackdrop() {
     };
   }, []);
 
-  const fade = useMemo(
-    () =>
-      "radial-gradient(ellipse 80% 60% at 50% 0%, transparent 0%, var(--color-canvas) 70%), linear-gradient(180deg, transparent 0%, transparent 30%, var(--color-canvas) 100%)",
-    [],
-  );
+  const fade =
+    "radial-gradient(ellipse 80% 60% at 50% 0%, transparent 0%, var(--color-canvas) 70%), linear-gradient(180deg, transparent 0%, transparent 30%, var(--color-canvas) 100%)";
 
   return (
     <div

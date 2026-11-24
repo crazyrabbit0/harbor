@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { AwardLogo, laurelColorFor } from "@/components/icons/award-logo";
 import { Laurel } from "@/components/icons/laurel";
@@ -50,8 +50,8 @@ export function PersonHoverCard({
   }, [personId, settings.tmdbKey]);
 
   const liveAwards = useAwards(person?.imdbId ?? undefined);
-  const chips = useMemo(() => awardSummary(liveAwards ?? []).slice(0, 4), [liveAwards]);
-  const knownFor = useMemo(() => topKnownFor(person), [person]);
+  const chips = awardSummary(liveAwards ?? []).slice(0, 4);
+  const knownFor = topKnownFor(person);
 
   const gap = 10;
   const below = anchor.bottom + gap + CARD_H < window.innerHeight;

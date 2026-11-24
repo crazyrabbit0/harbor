@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { useTogether, type ChatMessage } from "@/lib/together/provider";
 import { useViewSelector } from "@/lib/view";
 
@@ -21,9 +21,9 @@ export function TogetherChatToast() {
 
   if ((modalOpen || player) && toasts.length > 0) setToasts([]);
 
-  const expire = useCallback((id: string) => {
+  const expire = (id: string) => {
     setToasts((cur) => cur.filter((m) => `${m.from}-${m.at}` !== id));
-  }, []);
+  };
 
   if (player) return null;
   if (snapshot.state !== "joined") return null;

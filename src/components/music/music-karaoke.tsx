@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type JSX, type KeyboardEvent } from "react";
 import { Loader2, MicVocal, X } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import { useReducedMotion } from "@/lib/use-reduced-motion";
@@ -157,7 +157,7 @@ export function MusicKaraoke({
     };
   }, [open]);
 
-  const trap = useCallback((event: KeyboardEvent<HTMLDivElement>) => {
+  const trap = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Tab") return;
     const stops = shell.current?.querySelectorAll<HTMLElement>("button:not([disabled])");
     if (!stops || stops.length === 0) return;
@@ -172,7 +172,7 @@ export function MusicKaraoke({
       event.preventDefault();
       first.focus();
     }
-  }, []);
+  };
 
   if (!open) return null;
 

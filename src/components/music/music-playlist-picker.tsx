@@ -1,10 +1,8 @@
 import {
   createContext,
-  useCallback,
   useContext,
   useEffect,
   useId,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -44,14 +42,11 @@ export function MusicPlaylistPickerProvider({
   active?: boolean;
 }) {
   const [track, setTrack] = useState<MusicTrack | null>(null);
-  const openPlaylistPicker = useCallback(
-    (next: MusicTrack) => {
-      if (active) setTrack(next);
-    },
-    [active],
-  );
+  const openPlaylistPicker = (next: MusicTrack) => {
+    if (active) setTrack(next);
+  };
   if (!active && track !== null) setTrack(null);
-  const value = useMemo(() => ({ openPlaylistPicker }), [openPlaylistPicker]);
+  const value = { openPlaylistPicker };
 
   return (
     <Context.Provider value={value}>

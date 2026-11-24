@@ -1,5 +1,5 @@
 import { ChevronRight } from "lucide-react";
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { LazyMount } from "@/components/lazy-mount";
 import { PickCard } from "@/components/pick-card";
 import { TopRankCard } from "@/components/top-rank-card";
@@ -143,9 +143,9 @@ export const CatalogRows = memo(function CatalogRows({
   const { openGrid } = useViewActions();
   const shown = useHideAnimeRows(rows);
   const posterRow = usePosterRow(148, kids);
-  const allKeys = useMemo(() => shown.map((r) => r.key), [shown]);
-  const display = useMemo(() => applyPageRows(shown, custom, editMode), [shown, custom, editMode]);
-  const orderKeys = useMemo(() => orderedRowKeys(allKeys, custom), [allKeys, custom]);
+  const allKeys = shown.map((r) => r.key);
+  const display = applyPageRows(shown, custom, editMode);
+  const orderKeys = orderedRowKeys(allKeys, custom);
   return (
     <>
       {display.map((row, i) => {

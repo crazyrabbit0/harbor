@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import nytLogo from "@/assets/awards/nyt-logo.svg";
 import { CuratedCardBadge } from "@/components/curated-card-badge";
 import { PickCard } from "@/components/pick-card";
@@ -33,10 +32,7 @@ export function CuratedListRow({ listId, title }: { listId: string; title?: stri
   const t = useT();
   const { openCuratedList } = useViewActions();
   const list = curatedList(listId);
-  const cards = useMemo(
-    () => (list ? list.head.map((item) => ({ item, meta: itemMeta(list, item) })) : []),
-    [list],
-  );
+  const cards = list ? list.head.map((item) => ({ item, meta: itemMeta(list, item) })) : [];
 
   if (!list || cards.length === 0) return null;
   const label = title ?? t(list.title);

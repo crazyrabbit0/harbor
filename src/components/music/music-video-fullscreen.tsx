@@ -90,10 +90,10 @@ export function MusicVideoFullscreen({ track }: { track?: MusicTrack | null }) {
 
   useEscape(exitMusicVideoFullscreen, active, stageRef);
 
-  const setStage = useCallback((node: HTMLDivElement | null) => {
+  const setStage = (node: HTMLDivElement | null) => {
     stageRef.current = node;
     setMusicVideoFullscreenStage(node);
-  }, []);
+  };
 
   if (!active) return null;
   return createPortal(

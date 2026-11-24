@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Plus, Trash2 } from "@/components/icons/music-icons";
 import { useT } from "@/lib/i18n";
 import { Dropdown } from "@/components/dropdown";
@@ -222,10 +222,7 @@ export function ParametricEditor({ draft, applied, update }: Props) {
   const t = useT();
   const [text, setText] = useState("");
   const [invalid, setInvalid] = useState(false);
-  const headroom = useMemo(
-    () => (draft.autoHeadroom ? peqHeadroom(draft.peqFilters, draft.eqStrength) : 0),
-    [draft.peqFilters, draft.eqStrength, draft.autoHeadroom],
-  );
+  const headroom = draft.autoHeadroom ? peqHeadroom(draft.peqFilters, draft.eqStrength) : 0;
   const edit = (index: number, partial: Partial<PeqFilter>) =>
     update({
       peqFilters: draft.peqFilters.map((f, i) => (i === index ? { ...f, ...partial } : f)),

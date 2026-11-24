@@ -1,5 +1,5 @@
 import { NavArrow } from "@/components/nav-arrow";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useT } from "@/lib/i18n";
 import { peekCachedLogo, resolveLogo } from "@/lib/logo";
@@ -79,42 +79,39 @@ export function BigCardStack({
     };
   }, [items, settings.tmdbKey, logos, active]);
 
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0 && e.pointerType === "mouse") return;
     if (e.target instanceof Element && e.target.closest("button, a, [data-no-drag]")) return;
     dragRef.current = { x: e.clientX, pointerId: e.pointerId, moved: false };
     setDragging(true);
-  }, []);
+  };
 
-  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const d = dragRef.current;
     if (!d || d.pointerId !== e.pointerId) return;
     const dx = e.clientX - d.x;
     if (Math.abs(dx) > 6) d.moved = true;
-  }, []);
+  };
 
-  const handlePointerUp = useCallback(
-    (e: React.PointerEvent<HTMLDivElement>) => {
-      const d = dragRef.current;
-      if (!d || d.pointerId !== e.pointerId) return;
-      const dx = e.clientX - d.x;
-      const moved = d.moved;
-      dragRef.current = null;
-      setDragging(false);
-      if (moved) {
-        if (dx < -40) onNext?.();
-        else if (dx > 40) onPrev?.();
-      } else if (!moved) {
-        openMeta({ ...current, logo: logos[current.id] ?? current.logo });
-      }
-    },
-    [current, onNext, onPrev, openMeta, logos],
-  );
-
-  const handlePointerCancel = useCallback(() => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current;
+    if (!d || d.pointerId !== e.pointerId) return;
+    const dx = e.clientX - d.x;
+    const moved = d.moved;
     dragRef.current = null;
     setDragging(false);
-  }, []);
+    if (moved) {
+      if (dx < -40) onNext?.();
+      else if (dx > 40) onPrev?.();
+    } else if (!moved) {
+      openMeta({ ...current, logo: logos[current.id] ?? current.logo });
+    }
+  };
+
+  const handlePointerCancel = () => {
+    dragRef.current = null;
+    setDragging(false);
+  };
 
   const logo = logos[current.id] ?? undefined;
 

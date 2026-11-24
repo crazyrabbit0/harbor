@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { AwardLogo, laurelColorFor } from "@/components/icons/award-logo";
 import { Laurel } from "@/components/icons/laurel";
 import { awardSourceMeta, findAnyAwardWins, parseAwardYear } from "@/lib/anime-awards";
@@ -149,11 +149,8 @@ function ClassicCorner({
   const { ref, tier } = useHostTier();
   const live = useAwards(imdbId ?? undefined, isSeries);
   const awardsV = useBundledAwardsVersion();
-  const awards = useMemo(
-    () => readAtVersion(awardsV, () => mergeBundledAwards(live, name, year)),
-    [awardsV, live, name, year],
-  );
-  const summary = useMemo(() => pickHeroAwards(awardSummary(awards)), [awards]);
+  const awards = readAtVersion(awardsV, () => mergeBundledAwards(live, name, year));
+  const summary = pickHeroAwards(awardSummary(awards));
   const top = summary[0];
   const show = !!top && tier !== "hidden";
   const won = !!top && top.wins > 0;

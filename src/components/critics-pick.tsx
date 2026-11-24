@@ -1,6 +1,6 @@
 import { ChevronLeft, ChevronRight, ExternalLink, Quote, Star } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { pickRandom } from "@/lib/feed/tags";
 import { useImdbRating } from "@/lib/imdb-rating";
@@ -118,16 +118,13 @@ export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
     setReviewFor(meta.id);
     setReviewIdx(0);
   }
-  const changeReview = useCallback(
-    (dir: number) => {
-      setReviewVisible(false);
-      window.setTimeout(() => {
-        setReviewIdx((i) => (i + dir + reviews.length) % reviews.length);
-        setReviewVisible(true);
-      }, 190);
-    },
-    [reviews.length, setReviewIdx, setReviewVisible],
-  );
+  const changeReview = (dir: number) => {
+    setReviewVisible(false);
+    window.setTimeout(() => {
+      setReviewIdx((i) => (i + dir + reviews.length) % reviews.length);
+      setReviewVisible(true);
+    }, 190);
+  };
   const reviewFade = {
     transition: "opacity 200ms ease, transform 200ms ease",
     opacity: reviewVisible ? 1 : 0,
@@ -168,13 +165,10 @@ export function CriticsPick({ meta, title }: { meta: Meta; title?: string }) {
     setLightbox({ images: lightboxImages, startIndex, title: meta.name });
   };
 
-  const handlePersonClick = useCallback(
-    (id: number) => {
-      setOverviewOpen(false);
-      openPerson(id);
-    },
-    [openPerson, setOverviewOpen],
-  );
+  const handlePersonClick = (id: number) => {
+    setOverviewOpen(false);
+    openPerson(id);
+  };
 
   const draggedRef = useRef(false);
 

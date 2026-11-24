@@ -139,10 +139,7 @@ export function MusicLibrary({
     return built;
   }, [player.likedTracks, player.recents, playlists, shelf, filter, t]);
 
-  const arranged = useMemo(
-    () => arrangeCollections(entries, filter === "spotify" ? "all" : filter, sort, query),
-    [entries, filter, sort, query],
-  );
+  const arranged = arrangeCollections(entries, filter === "spotify" ? "all" : filter, sort, query);
 
   const createPlaylist = (event: FormEvent) => {
     event.preventDefault();

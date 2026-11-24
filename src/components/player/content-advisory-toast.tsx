@@ -1,5 +1,5 @@
 import { EyeOff, Ghost, Heart, Info, MessageSquareWarning, Swords, Wine, X } from "lucide-react";
-import { type FocusEvent, useEffect, useMemo, useState } from "react";
+import { type FocusEvent, useEffect, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { ignoreAdvisory } from "@/lib/player/content-advisory-ignore";
 import { usePlaybackPositionGated } from "@/lib/player/playback-clock";
@@ -88,15 +88,9 @@ export function ContentAdvisoryToast({
     settings.contentAdvisoryTheme === "monochrome" ? SEV_STYLE_MONO : SEV_STYLE_COLORED;
   const positionSec = usePlaybackPositionGated(enabled);
   const hasPlaybackStarted = preview || positionSec > 0.3;
-  const rated = useMemo(
-    () =>
-      (categories ?? [])
-        .filter(
-          (category) => SEV_RANK[category.severity] !== undefined && category.severity !== "None",
-        )
-        .sort((a, b) => (SEV_RANK[b.severity] ?? 0) - (SEV_RANK[a.severity] ?? 0)),
-    [categories],
-  );
+  const rated = (categories ?? [])
+    .filter((category) => SEV_RANK[category.severity] !== undefined && category.severity !== "None")
+    .sort((a, b) => (SEV_RANK[b.severity] ?? 0) - (SEV_RANK[a.severity] ?? 0));
   const hasContent = rated.length > 0 || !!mpaRating;
   const [active, setActive] = useState(preview);
   const [phase, setPhase] = useState<Phase>(preview ? "holding" : "idle");

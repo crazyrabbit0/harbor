@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useBigPicture } from "@/lib/big-picture";
 import { useSettingsSelector } from "@/lib/settings";
@@ -99,12 +99,9 @@ export function ScreensaverRoot() {
 
   const [items, setItems] = useState<AmbientItem[]>([]);
   const fetchedRef = useRef(false);
-  const reduce = useMemo(
-    () =>
-      typeof window !== "undefined" &&
-      !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
-    [],
-  );
+  const reduce =
+    typeof window !== "undefined" &&
+    !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 
   useEffect(() => {
     fetchedRef.current = false;

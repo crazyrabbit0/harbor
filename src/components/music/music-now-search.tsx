@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Check, Loader2, Play, Plus, Search, X } from "@/components/icons/music-icons";
 import { Poster } from "@/components/poster";
 import { MusicTrackPlaybackMark } from "./music-now-playing-mark";
@@ -51,12 +51,12 @@ export function MusicNowSearch({ onClose }: { onClose: () => void }) {
     inputRef.current?.focus({ preventScroll: true });
   }, []);
 
-  const restart = useCallback(() => {
+  const restart = () => {
     videoCursors.current.clear();
     setLimit(NOW_SEARCH_PAGE);
     setCursor(-1);
     setNextLimit(null);
-  }, []);
+  };
 
   const trimmed = query.trim();
   const searchKey = trimmed ? `${mode}\0${trimmed}\0${limit}\0${attempt}` : "";

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { absoluteNumberFor, seasonOffsets } from "@/lib/episode-absolute";
 import {
@@ -72,10 +72,8 @@ export function useSeasonBrowser(
   }, [offsetsKey, effMeta, settings.tmdbKey]);
 
   // Display only: PlayEpisode.absoluteNumber feeds anime numbering, so it is never written onto the episode.
-  const absoluteFor = useCallback(
-    (ep: PlayEpisode) => ep.absoluteNumber ?? absoluteNumberFor(offsets, ep.season, ep.episode),
-    [offsets],
-  );
+  const absoluteFor = (ep: PlayEpisode) =>
+    ep.absoluteNumber ?? absoluteNumberFor(offsets, ep.season, ep.episode);
 
   const imdbKey = open ? effMeta.id : null;
   const [imdbState, setImdbState] = useState<{

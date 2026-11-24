@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useMusicNavigate } from "./music-navigate";
 import { loadArtistEntities } from "@/lib/music/artist-entities";
 import { requestMusicGenre, requestMusicLabel, requestMusicSearch } from "@/lib/music/navigation";
@@ -75,19 +75,16 @@ export function MusicLinkedBio({
     return () => controller.abort();
   }, [profile.id, profile.name]);
 
-  const entities = useMemo<Entity[]>(
-    () => [
-      ...profile.members.map((member) => ({
-        text: member.name,
-        run: () => goToArtist(member.name),
-      })),
-      ...extra,
-      ...profile.genres.map((genre) => ({ text: genre, run: () => requestMusicGenre(genre) })),
-    ],
-    [profile.members, profile.genres, extra, goToArtist],
-  );
+  const entities: Entity[] = [
+    ...profile.members.map((member) => ({
+      text: member.name,
+      run: () => goToArtist(member.name),
+    })),
+    ...extra,
+    ...profile.genres.map((genre) => ({ text: genre, run: () => requestMusicGenre(genre) })),
+  ];
 
-  const parts = useMemo(() => linkedBioParts(body, entities), [body, entities]);
+  const parts = linkedBioParts(body, entities);
 
   return (
     <>

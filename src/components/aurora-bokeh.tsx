@@ -1,5 +1,3 @@
-import { useMemo } from "react";
-
 const ORBS = 7;
 const STOPS = 10;
 const SPREAD = 3;
@@ -59,26 +57,24 @@ function orbGradient(color: string, fade: number, sigma: number): string {
 }
 
 export function AuroraBokeh() {
-  const orbs = useMemo<Orb[]>(() => {
-    return Array.from({ length: ORBS }, (_, i) => {
-      const r1 = seeded(i * 3 + 1);
-      const r2 = seeded(i * 3 + 2);
-      const r3 = seeded(i * 3 + 3);
-      const size = 180 + r1 * 220;
-      const blur = 24 + r3 * 28;
-      // A plain "circle" gradient reaches the box corner, so 65% of it is 0.65 * size / sqrt(2).
-      const fade = (0.65 * size) / Math.SQRT2;
-      return {
-        x: r1 * 100,
-        y: r2 * 100,
-        box: 2 * (fade + SPREAD * blur),
-        gradient: orbGradient(PALETTE[i % PALETTE.length], fade, blur),
-        opacity: 0.4 + r2 * 0.35,
-        delay: -r1 * 30,
-        duration: 28 + r3 * 24,
-      };
-    });
-  }, []);
+  const orbs: Orb[] = Array.from({ length: ORBS }, (_, i) => {
+    const r1 = seeded(i * 3 + 1);
+    const r2 = seeded(i * 3 + 2);
+    const r3 = seeded(i * 3 + 3);
+    const size = 180 + r1 * 220;
+    const blur = 24 + r3 * 28;
+    // A plain "circle" gradient reaches the box corner, so 65% of it is 0.65 * size / sqrt(2).
+    const fade = (0.65 * size) / Math.SQRT2;
+    return {
+      x: r1 * 100,
+      y: r2 * 100,
+      box: 2 * (fade + SPREAD * blur),
+      gradient: orbGradient(PALETTE[i % PALETTE.length], fade, blur),
+      opacity: 0.4 + r2 * 0.35,
+      delay: -r1 * 30,
+      duration: 28 + r3 * 24,
+    };
+  });
 
   return (
     <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">

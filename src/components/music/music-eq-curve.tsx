@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useId,
   useRef,
   type PointerEvent as ReactPointerEvent,
@@ -65,23 +64,20 @@ export function MusicEqCurve({
     ? `${line} L ${bandX(MUSIC_EQ_FREQUENCIES.length - 1).toFixed(2)} ${(PAD_T + PLOT_H).toFixed(2)} L ${PAD_L.toFixed(2)} ${(PAD_T + PLOT_H).toFixed(2)} Z`
     : "";
 
-  const setBand = useCallback(
-    (index: number, gain: number) => {
-      const next = clamp(Math.round(gain * 2) / 2);
-      if ((bands[index] ?? 0) === next) return;
-      onChange(MUSIC_EQ_FREQUENCIES.map((_, i) => (i === index ? next : (bands[i] ?? 0))));
-    },
-    [bands, onChange],
-  );
+  const setBand = (index: number, gain: number) => {
+    const next = clamp(Math.round(gain * 2) / 2);
+    if ((bands[index] ?? 0) === next) return;
+    onChange(MUSIC_EQ_FREQUENCIES.map((_, i) => (i === index ? next : (bands[i] ?? 0))));
+  };
 
-  const pointerGain = useCallback((clientY: number) => {
+  const pointerGain = (clientY: number) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return 0;
     const vbY = ((clientY - rect.top) / rect.height) * VBH;
     return clamp(((MID_Y - vbY) / (PLOT_H / 2)) * RANGE);
-  }, []);
+  };
 
-  const nearestBand = useCallback((clientX: number) => {
+  const nearestBand = (clientX: number) => {
     const rect = svgRef.current?.getBoundingClientRect();
     if (!rect) return 0;
     const vbX = ((clientX - rect.left) / rect.width) * VBW;
@@ -95,28 +91,22 @@ export function MusicEqCurve({
       }
     });
     return index;
-  }, []);
+  };
 
-  const onPointerDown = useCallback(
-    (event: ReactPointerEvent<SVGSVGElement>) => {
-      if (disabled || event.button !== 0) return;
-      const index = nearestBand(event.clientX);
-      activeBand.current = index;
-      event.currentTarget.setPointerCapture(event.pointerId);
-      setBand(index, pointerGain(event.clientY));
-    },
-    [disabled, nearestBand, pointerGain, setBand],
-  );
+  const onPointerDown = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (disabled || event.button !== 0) return;
+    const index = nearestBand(event.clientX);
+    activeBand.current = index;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setBand(index, pointerGain(event.clientY));
+  };
 
-  const onPointerMove = useCallback(
-    (event: ReactPointerEvent<SVGSVGElement>) => {
-      if (activeBand.current === null) return;
-      setBand(activeBand.current, pointerGain(event.clientY));
-    },
-    [pointerGain, setBand],
-  );
+  const onPointerMove = (event: ReactPointerEvent<SVGSVGElement>) => {
+    if (activeBand.current === null) return;
+    setBand(activeBand.current, pointerGain(event.clientY));
+  };
 
-  const release = useCallback((event: ReactPointerEvent<SVGSVGElement>) => {
+  const release = (event: ReactPointerEvent<SVGSVGElement>) => {
     if (activeBand.current === null) return;
     activeBand.current = null;
     try {
@@ -124,30 +114,27 @@ export function MusicEqCurve({
     } catch {
       /* pointer already released */
     }
-  }, []);
+  };
 
-  const onHandleKey = useCallback(
-    (event: ReactKeyboardEvent<SVGCircleElement>, index: number) => {
-      const step = event.shiftKey ? 1 : 0.5;
-      if (event.key === "ArrowUp" || event.key === "ArrowRight") {
-        event.preventDefault();
-        setBand(index, (bands[index] ?? 0) + step);
-      } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
-        event.preventDefault();
-        setBand(index, (bands[index] ?? 0) - step);
-      } else if (event.key === "Home") {
-        event.preventDefault();
-        setBand(index, RANGE);
-      } else if (event.key === "End") {
-        event.preventDefault();
-        setBand(index, -RANGE);
-      } else if (event.key === "Backspace" || event.key === "Delete") {
-        event.preventDefault();
-        setBand(index, 0);
-      }
-    },
-    [bands, setBand],
-  );
+  const onHandleKey = (event: ReactKeyboardEvent<SVGCircleElement>, index: number) => {
+    const step = event.shiftKey ? 1 : 0.5;
+    if (event.key === "ArrowUp" || event.key === "ArrowRight") {
+      event.preventDefault();
+      setBand(index, (bands[index] ?? 0) + step);
+    } else if (event.key === "ArrowDown" || event.key === "ArrowLeft") {
+      event.preventDefault();
+      setBand(index, (bands[index] ?? 0) - step);
+    } else if (event.key === "Home") {
+      event.preventDefault();
+      setBand(index, RANGE);
+    } else if (event.key === "End") {
+      event.preventDefault();
+      setBand(index, -RANGE);
+    } else if (event.key === "Backspace" || event.key === "Delete") {
+      event.preventDefault();
+      setBand(index, 0);
+    }
+  };
 
   return (
     <div className={`music-eq-curve${disabled ? " is-disabled" : ""}`}>

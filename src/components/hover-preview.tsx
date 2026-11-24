@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useContextMenu } from "@/lib/context-menu";
 import { setPreviewTmdbKey } from "@/lib/hover-preview/preview-data";
 import {
@@ -324,21 +317,18 @@ export function HoverPreview() {
 
   useEffect(() => () => setHoverPreviewPanel(null), []);
 
-  const setLayerEl = useCallback(
-    (key: number) => (el: HTMLDivElement | null) => {
-      if (el) layerEls.current.set(key, el);
-      else layerEls.current.delete(key);
-    },
-    [],
-  );
+  const setLayerEl = (key: number) => (el: HTMLDivElement | null) => {
+    if (el) layerEls.current.set(key, el);
+    else layerEls.current.delete(key);
+  };
 
-  const onDetails = useCallback(() => {
+  const onDetails = () => {
     const payload = sceneRef.current?.current.payload;
     closeHoverPreview("hard");
     if (payload) viewRef.current.openMeta(payload.meta);
-  }, []);
+  };
 
-  const onPlay = useCallback(() => {
+  const onPlay = () => {
     const payload = sceneRef.current?.current.payload;
     closeHoverPreview("hard");
     if (!payload) return;
@@ -351,52 +341,49 @@ export function HoverPreview() {
       autoPlay: getSettings().instantPlay,
       resume: true,
     });
-  }, [getSettings]);
+  };
 
-  const onPanelPointerMove = useCallback((e: React.PointerEvent) => {
+  const onPanelPointerMove = (e: React.PointerEvent) => {
     const last = lastPosRef.current;
     if (last) travelRef.current += Math.hypot(e.clientX - last.x, e.clientY - last.y);
     lastPosRef.current = { x: e.clientX, y: e.clientY };
-  }, []);
+  };
 
-  const onPanelPointerDown = useCallback((e: React.PointerEvent) => {
+  const onPanelPointerDown = (e: React.PointerEvent) => {
     downPosRef.current = { x: e.clientX, y: e.clientY };
-  }, []);
+  };
 
-  const onPanelClick = useCallback(
-    (e: React.MouseEvent) => {
-      const s = sceneRef.current;
-      if (!s || s.exiting) return;
-      const down = downPosRef.current;
-      downPosRef.current = null;
-      if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > PANEL_DRAG_CLICK_PX) return;
-      const payload = s.current.payload;
-      const shielded =
-        performance.now() - openedAtRef.current < CLICK_SHIELD_MS &&
-        travelRef.current < CLICK_SHIELD_MOVE_PX;
-      closeHoverPreview("hard");
-      const resume = payload.data.resume;
-      if (!shielded && resume && !resume.external) {
-        const episode =
-          resume.season != null && resume.episode != null
-            ? { season: resume.season, episode: resume.episode }
-            : undefined;
-        viewRef.current.openPicker(payload.meta, episode, {
-          autoPlay: getSettings().instantPlay,
-          resume: true,
-        });
-      } else {
-        viewRef.current.openMeta(payload.meta);
-      }
-    },
-    [getSettings],
-  );
+  const onPanelClick = (e: React.MouseEvent) => {
+    const s = sceneRef.current;
+    if (!s || s.exiting) return;
+    const down = downPosRef.current;
+    downPosRef.current = null;
+    if (down && Math.hypot(e.clientX - down.x, e.clientY - down.y) > PANEL_DRAG_CLICK_PX) return;
+    const payload = s.current.payload;
+    const shielded =
+      performance.now() - openedAtRef.current < CLICK_SHIELD_MS &&
+      travelRef.current < CLICK_SHIELD_MOVE_PX;
+    closeHoverPreview("hard");
+    const resume = payload.data.resume;
+    if (!shielded && resume && !resume.external) {
+      const episode =
+        resume.season != null && resume.episode != null
+          ? { season: resume.season, episode: resume.episode }
+          : undefined;
+      viewRef.current.openPicker(payload.meta, episode, {
+        autoPlay: getSettings().instantPlay,
+        resume: true,
+      });
+    } else {
+      viewRef.current.openMeta(payload.meta);
+    }
+  };
 
-  const onPanelContextMenu = useCallback((e: React.MouseEvent) => {
+  const onPanelContextMenu = (e: React.MouseEvent) => {
     const payload = sceneRef.current?.current.payload;
     closeHoverPreview("hard");
     if (payload) menuRef.current.open(e, { kind: "meta", meta: payload.meta });
-  }, []);
+  };
 
   if (!scene) return null;
 

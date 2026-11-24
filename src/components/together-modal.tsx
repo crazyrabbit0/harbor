@@ -1,5 +1,5 @@
 import { Check, Copy, LogOut, MousePointer2, Plus } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { Meta } from "@/lib/cinemeta";
 import { useSettingsSelector, useSettingsUpdate } from "@/lib/settings";
@@ -154,10 +154,7 @@ export function TogetherPopover({
     openSettings("relay");
   };
 
-  const participants = useMemo(
-    () => snapshot.participants.slice().sort((a, b) => a.joinedAt - b.joinedAt),
-    [snapshot.participants],
-  );
+  const participants = snapshot.participants.slice().sort((a, b) => a.joinedAt - b.joinedAt);
 
   const listen = useListenTogether();
   const roomMedia = snapshot.syncState;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { Check, LoaderCircle } from "@/components/icons/music-icons";
 import "./music-action-feedback.css";
 
@@ -56,10 +56,10 @@ export function useMusicActionReceipt(identity?: string) {
     },
     [identity],
   );
-  const confirm = useCallback(() => {
+  const confirm = () => {
     if (timer.current) clearTimeout(timer.current);
     setConfirmedFor({ identity });
     timer.current = setTimeout(() => setConfirmedFor(null), 1200);
-  }, [identity]);
+  };
   return { confirmed: confirmedFor !== null && confirmedFor.identity === identity, confirm };
 }

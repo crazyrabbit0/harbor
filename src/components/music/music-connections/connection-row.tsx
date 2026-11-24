@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import {
   AudioLines,
   FolderOpen,
@@ -97,10 +97,7 @@ export function MusicConnectionRow({
   };
 
   const Icon = KIND_ICON[connection.kind];
-  const folderKey = useMemo(
-    () => connection.needs.find((field) => field.kind === "folder")?.key,
-    [connection.needs],
-  );
+  const folderKey = connection.needs.find((field) => field.kind === "folder")?.key;
   const incomplete =
     (spotifySetup && !(values.clientId ?? "").trim()) ||
     connection.needs.some((field) => field.required && !(values[field.key] ?? "").trim());

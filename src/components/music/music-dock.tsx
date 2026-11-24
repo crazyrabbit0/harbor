@@ -169,7 +169,7 @@ export function MusicDock() {
   const [collapsed, setCollapsed] = useState(false);
   const [sourceOpen, setSourceOpen] = useState(false);
   const [closing, setClosing] = useState(false);
-  const closeSource = useCallback(() => setSourceOpen(false), []);
+  const closeSource = () => setSourceOpen(false);
   useEffect(() => {
     const recover = () => {
       setQueueOpen(false);
@@ -182,12 +182,12 @@ export function MusicDock() {
   const nowExit = useModalExit(closeExpanded, expanded);
   // Playback ticks must not restart the exit timer and strand the dock off-screen.
   const collapseDock = useCallback(() => setCollapsed(true), []);
-  const expandDock = useCallback(() => setCollapsed(false), []);
+  const expandDock = () => setCollapsed(false);
   const collapseExit = useModalExit(collapseDock, !collapsed);
   useEffect(() => trackViewportBottom(), []);
   const reopenAfterBack = useRef(false);
   const backRestore = useRef<(() => void) | null>(null);
-  const armExpandRestore = useCallback(() => {
+  const armExpandRestore = () => {
     backRestore.current?.();
     backRestore.current = pushBackHandler(() => {
       backRestore.current?.();
@@ -195,7 +195,7 @@ export function MusicDock() {
       reopenAfterBack.current = true;
       return false;
     });
-  }, []);
+  };
   useEffect(
     () => () => {
       backRestore.current?.();
@@ -327,7 +327,7 @@ export function MusicDock() {
     }, 1000);
     return () => window.clearInterval(timer);
   }, [skipKey]);
-  const attachVolumeWheel = useCallback((node: HTMLSpanElement | null) => {
+  const attachVolumeWheel = (node: HTMLSpanElement | null) => {
     if (!node) return;
     const adjust = (event: WheelEvent) => {
       if (event.ctrlKey || !(event.deltaY || event.deltaX)) return;
@@ -337,7 +337,7 @@ export function MusicDock() {
     };
     node.addEventListener("wheel", adjust, { passive: false });
     return () => node.removeEventListener("wheel", adjust);
-  }, []);
+  };
 
   useEffect(() => {
     if (topKind !== "player") return;

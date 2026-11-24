@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { needsImdbForPoster, needsTmdbForPoster, rpdbPoster } from "@/lib/providers/rpdb";
 import { useTitlePoster } from "@/lib/title-poster";
 import {
@@ -383,53 +383,47 @@ function PosterBody({
     };
   }, [exhausted, retry]);
 
-  const fail = useCallback(
-    (url: string) => {
-      const now = Date.now();
-      const b = failBurstRef.current;
-      if (now - b.t > 1000) {
-        b.t = now;
-        b.n = 0;
-      }
-      if (++b.n > 24) return;
-      if (failedRef.current.has(url)) return;
-      failedRef.current.add(url);
-      setFailedSet(new Set(failedRef.current));
-      setLoaded(false);
-      setIdx((i) => i + 1);
-    },
-    [setFailedSet, setLoaded, setIdx],
-  );
+  const fail = (url: string) => {
+    const now = Date.now();
+    const b = failBurstRef.current;
+    if (now - b.t > 1000) {
+      b.t = now;
+      b.n = 0;
+    }
+    if (++b.n > 24) return;
+    if (failedRef.current.has(url)) return;
+    failedRef.current.add(url);
+    setFailedSet(new Set(failedRef.current));
+    setLoaded(false);
+    setIdx((i) => i + 1);
+  };
   const currentRef = useRef(current);
   useLayoutEffect(() => {
     currentRef.current = current;
   }, [current]);
   const imgElRef = useRef<HTMLImageElement | null>(null);
   // Ref callbacks run before this component's layout effects, so the attach reads `current` directly.
-  const handleImgRef = useCallback(
-    (el: HTMLImageElement | null) => {
-      imgElRef.current = el;
-      if (!el) return;
-      if (el.complete) {
-        if (el.naturalWidth > 0) {
+  const handleImgRef = (el: HTMLImageElement | null) => {
+    imgElRef.current = el;
+    if (!el) return;
+    if (el.complete) {
+      if (el.naturalWidth > 0) {
+        setLoaded(true);
+        setDisplayed(current);
+      } else if (current) fail(current);
+      return;
+    }
+    const target = current;
+    el.decode().then(
+      () => {
+        if (imgElRef.current === el && currentRef.current === target && target) {
           setLoaded(true);
-          setDisplayed(current);
-        } else if (current) fail(current);
-        return;
-      }
-      const target = current;
-      el.decode().then(
-        () => {
-          if (imgElRef.current === el && currentRef.current === target && target) {
-            setLoaded(true);
-            setDisplayed(target);
-          }
-        },
-        () => {},
-      );
-    },
-    [fail, current, setLoaded, setDisplayed],
-  );
+          setDisplayed(target);
+        }
+      },
+      () => {},
+    );
+  };
   useEffect(() => {
     if (loaded || !current) return;
     const el = imgElRef.current;
