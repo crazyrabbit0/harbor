@@ -73,27 +73,27 @@ export const PanelsLayer = memo(function PanelsLayer({
           aria-label={t("Up next")}
           tabIndex={upNextButtonVisible ? 0 : -1}
           aria-hidden={!upNextButtonVisible}
-          className={`group absolute top-1/2 z-20 flex min-h-32 -translate-y-1/2 flex-col items-center justify-center gap-3 py-4 bg-elevated/45 text-ink shadow-[0_6px_20px_-10px_rgba(0,0,0,0.5)] backdrop-blur-md transition-[padding,background,opacity] duration-300 hover:bg-elevated/85 ${
+          className={`group absolute top-1/2 z-20 flex min-h-36 -translate-y-1/2 flex-col items-center justify-center gap-3 py-5 bg-elevated/85 text-ink shadow-[0_8px_28px_-8px_rgba(0,0,0,0.75)] backdrop-blur-md transition-[padding,background,opacity] duration-300 hover:bg-elevated ${
             upNextButtonVisible
-              ? "pointer-events-auto opacity-40 hover:opacity-100"
+              ? "pointer-events-auto opacity-90 hover:opacity-100"
               : "pointer-events-none opacity-0"
           } ${
             episodesCorner === "top-left" || episodesCorner === "bottom-left"
-              ? "left-0 rounded-r-2xl border-y border-r border-edge-soft pl-3 pr-3 hover:pr-3.5"
-              : "right-0 rounded-l-2xl border-y border-l border-edge-soft pl-3 pr-3 hover:pl-3.5"
+              ? "left-0 rounded-r-2xl border-y border-r border-edge pl-3.5 pr-3.5 hover:pr-4"
+              : "right-0 rounded-l-2xl border-y border-l border-edge pl-3.5 pr-3.5 hover:pl-4"
           }`}
         >
           <img
             src="/player-icons/up-next.png"
-            width={22}
-            height={22}
+            width={28}
+            height={28}
             alt=""
             draggable={false}
             aria-hidden
             className="select-none"
           />
           <span
-            className="whitespace-nowrap text-[11px] font-semibold uppercase tracking-[0.28em]"
+            className="whitespace-nowrap text-xs font-bold uppercase tracking-[0.28em]"
             style={{ writingMode: "vertical-rl", transform: "rotate(180deg)" }}
           >
             {t("Up Next")}
