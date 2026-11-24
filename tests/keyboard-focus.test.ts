@@ -6,7 +6,11 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { shouldHandleGlobalKeyboardEvent } from "../src/lib/hotkeys.ts";
 import { nextTabStop } from "../src/lib/tab-cycle.ts";
+import { getThemeById } from "../src/lib/theme.ts";
 import { hookHarness, loadModule } from "./helpers/hook-harness.ts";
+import { searchOverlayHarness } from "./helpers/search-overlay-harness.ts";
+import { settingsNavHarness } from "./helpers/settings-nav-harness.ts";
+import { all, treeHarness } from "./helpers/tree-render.ts";
 import { tvDom } from "./helpers/tv-dom.ts";
 import { tvNavigationHarness as nav } from "./helpers/tv-navigation-harness.ts";
 
@@ -160,7 +164,22 @@ test("vertical theme nav zones participate in sidebar edge navigation", () => {
   top.get("#c1").focus();
   top.api.moveFocus("left");
   assert.equal(active(top), "c1", "top chrome is not a sidebar");
-  assert.match(read("src/lib/theme.ts"), /<aside class="fsh-rail" data-tv-nav-zone/);
+
+  // The Feishin theme's own rail HTML, mounted as the page's sidebar.
+  const feishin = getThemeById("feishin")!.html!.replace(
+    /<button /g,
+    '<button data-rect="0,100,40,40" ',
+  );
+  const themed = nav(`${feishin}<main><button id="c1" data-rect="200,100,100,40"></button></main>`);
+  themed.mount();
+  const rail = themed.get(".fsh-rail");
+  const scrolled: unknown[] = [];
+  Object.defineProperty(rail, "scrollHeight", { value: 900 });
+  rail.scrollTo = (to: unknown) => scrolled.push(to);
+  themed.get("#c1").focus();
+  themed.api.moveFocus("left");
+  assert.ok(themed.document.activeElement.closest(".fsh-rail"), "the theme rail is reachable");
+  assert.equal(scrolled.length, 1, "a long theme rail scrolls its own items into view");
 });
 
 test("sidebar entry and exit follow physical position in LTR and RTL", () => {
@@ -230,10 +249,11 @@ test("settings search separates navigation focus from explicit text mode", () =>
     "true",
     "Tab focus gets the same nav mode",
   );
-  assert.match(
-    read("src/views/settings/nav.tsx"),
-    /<div data-settings-search-field data-tv-text-field /,
-  );
+  const field = settingsNavHarness()
+    .tools()
+    .find((el) => el.props["data-settings-search-field"] !== undefined);
+  assert.equal(field?.props["data-tv-text-field"], true, "the real field is a TV text-field cell");
+  assert.ok(all(field).some((el) => el.type === "input"));
   const css = read("src/index.css");
   assert.match(css, /data-tv-search-nav-focused/);
   assert.match(css, /data-tv-search-editing-focused/);
@@ -265,14 +285,59 @@ test("every global search listener uses the shared keyboard eligibility guard", 
   dom.key("f", { target: dom.get("#b") });
   assert.deepEqual(opened, [true]);
   for (const file of ["src/chrome/topbar.tsx", "src/chrome/royal-topbar.tsx"]) {
-    assert.match(read(file), /if \(!shouldHandleGlobalKeyboardEvent\(e\)\) return;/);
+    const pill = topbarSearchPill(file, hotkeys, dom.globals);
+    dom.key("f", { target: dom.get("#q") });
+    assert.deepEqual(pill.opened, [], `${file}: typing f in a field does not open search`);
+    dom.key("f", { target: dom.get("#b") });
+    assert.deepEqual(pill.opened, [true], `${file}: f elsewhere opens search`);
+    pill.unmount();
   }
 });
 
+// Mounts a top bar's own SearchPill with the real hotkeys module; `opened` records each search open.
+function topbarSearchPill(file: string, hotkeys: object, globals: Record<string, unknown>) {
+  const opened: boolean[] = [];
+  const open = () => opened.push(true);
+  const h = treeHarness(
+    file,
+    {
+      "@/lib/hotkeys": hotkeys,
+      "@/lib/search-context": { useSearch: () => ({ setOpen: open }) },
+      "@/lib/settings": {
+        useSettingsSelector: (pick: (s: object) => unknown) =>
+          pick({ hotkeys: { globalSearchFocus: "f" }, liquidGlass: false }),
+      },
+      "@/lib/i18n": { useT: () => (key: string) => key },
+    },
+    { lenient: true, globals, expose: ["SearchPill"] },
+  );
+  h.render({ type: h.exports.SearchPill, props: { onOpen: open } });
+  return { opened, unmount: () => h.unmount() };
+}
+
 test("settings sidebar account row uses a spatial cell container", () => {
-  assert.match(
-    read("src/views/settings/settings-sidebar.tsx"),
-    /<div data-tv-nav-cell className="hset-rail-me">/,
+  const h = treeHarness(
+    "src/views/settings/settings-sidebar.tsx",
+    {
+      "@/lib/auth": { useAuth: () => ({ user: null }) },
+      "@/lib/i18n": { useT: () => (key: string) => key },
+      "@/lib/profiles": {
+        useProfiles: () => ({
+          profiles: [],
+          activeProfile: { id: "p", name: "P" },
+          updateProfile() {},
+        }),
+      },
+      "@/lib/settings": { useSettings: () => ({ settings: {}, update() {} }) },
+    },
+    { lenient: true, expose: ["RailAccount"] },
+  );
+  const row = all(h.render({ type: h.exports.RailAccount, props: {} }))[1];
+  assert.equal(row.type, "div");
+  assert.equal(row.props["data-tv-nav-cell"], true, "the account row is one nav cell");
+  assert.ok(
+    all(row).some((el) => el.type === "button"),
+    "with the avatar button inside it",
   );
 });
 
@@ -297,14 +362,19 @@ test("home search overlay types directly and closes through its modal closer on 
     ["close"],
   );
   assert.deepEqual(n.backs, [], "the overlay closes itself before the page goes back");
-  const overlay = read("src/components/search/search-overlay.tsx");
-  assert.match(overlay, /data-search-overlay="true"/);
-  assert.match(overlay, /data-tv-focus-scope=\{closing \? undefined : "true"\}/);
-  assert.match(
-    overlay,
-    /<TvModalClose onClose=\{handleModalClose\} label=\{t\("Close search"\)\} \/>/,
-  );
-  assert.match(overlay, /data-tv-text-auto="true"/);
+
+  const overlay = searchOverlayHarness();
+  const root = overlay.elements.find((el) => el.props["data-search-overlay"] !== undefined)!;
+  assert.equal(root.props["data-search-overlay"], "true");
+  assert.equal(root.props["data-tv-focus-scope"], "true");
+  const closer = overlay.elements.find((el) => el.type === "TvModalClose")!;
+  closer.props.onClose();
+  assert.deepEqual(overlay.calls.setOpen, [false], "the modal closer closes search");
+  const input = overlay.elements.find((el) => el.type === "input")!;
+  assert.equal(input.props["data-tv-text-auto"], "true");
+  const closing = searchOverlayHarness({ closing: true });
+  const fading = closing.elements.find((el) => el.props["data-search-overlay"] !== undefined)!;
+  assert.equal(fading.props["data-tv-focus-scope"], undefined, "a closing overlay frees focus");
 });
 
 test("search Tab navigation stays scoped, wraps both ways, and removes its listener", () => {
@@ -316,16 +386,25 @@ test("search Tab navigation stays scoped, wraps both ways, and removes its liste
   assert.equal(nextTabStop(stops, "action", true), "input");
   assert.equal(nextTabStop(stops, "input", true), "result");
   assert.equal(nextTabStop(stops, "outside", true), "result");
-  const overlay = read("src/components/search/search-overlay.tsx");
-  assert.match(
-    overlay,
-    /if \(!\(e\.target instanceof Node\) \|\| !root\.contains\(e\.target\)\) return;/,
-  );
-  assert.match(
-    overlay,
-    /nextTabStop\(els, document\.activeElement as HTMLElement, e\.shiftKey\)\.focus\(\)/,
-  );
-  assert.match(overlay, /return \(\) => root\.removeEventListener\("keydown", onKeyDown\)/);
+
+  const overlay = searchOverlayHarness();
+  const [input, action, result] = overlay.stops;
+  const focused = () => (overlay.document.activeElement as { id?: string } | null)?.id;
+  assert.equal(overlay.keydown("Tab", overlay.outside), false, "Tab from outside is left alone");
+  assert.equal(overlay.keydown("Tab", input), true);
+  assert.equal(focused(), "input", "focus outside the stops starts at the first");
+  input.focus();
+  overlay.keydown("Tab", input);
+  assert.equal(focused(), "action");
+  result.focus();
+  overlay.keydown("Tab", result);
+  assert.equal(focused(), "input", "Tab wraps forward");
+  overlay.keydown("Tab", input, true);
+  assert.equal(focused(), "result", "Shift+Tab wraps back");
+  action.focus();
+  assert.equal(overlay.keydown("ArrowDown", action), false, "other keys are not trapped");
+  overlay.unmount();
+  assert.equal(overlay.listenerCount(), 0, "closing removes the Tab trap");
 });
 
 test("focus restoration never borrows a rounded radius onto page roots", () => {

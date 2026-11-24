@@ -45,10 +45,15 @@ export function settingsNavHarness() {
     input.props.onKeyDown({ key: "Enter" });
     return calls;
   }
+  /** Every element the settings search tools render for `query`. */
+  const tools = (query = "") =>
+    all(
+      h.render({ type: h.exports.SettingsTools, props: { query, setQuery() {}, onSubmit() {} } }),
+    );
   const search = (query: string) =>
     h.run(() => h.exports.useNavSearch(query.trim().toLowerCase())) as {
       matches: { id: string }[] | null;
       optionMatches: Option[] | null;
     };
-  return { options, submit, search };
+  return { options, submit, search, tools };
 }

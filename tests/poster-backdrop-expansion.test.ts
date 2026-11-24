@@ -9,6 +9,9 @@ import * as expansion from "../src/lib/poster-backdrop-expansion.ts";
 import { DEFAULT } from "../src/lib/settings/defaults.ts";
 import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness.ts";
 import { componentHarness, elements, stubModule } from "./helpers/component-harness.ts";
+import ts from "typescript";
+import { expandingRowHarness } from "./helpers/expanding-row-harness.ts";
+import { jsxAttribute, sourceCallback } from "./helpers/source-callback.ts";
 import { tvNavigationHarness } from "./helpers/tv-navigation-harness.ts";
 
 const {
@@ -100,12 +103,45 @@ test("wide artwork prefers a different TMDB image and upgrades its resolution", 
 });
 
 test("Expanding Cards reflows the row and keeps artwork under the card badges", () => {
-  const row = read("src/components/row.tsx");
+  const classes = (row: ReturnType<typeof expandingRowHarness>) =>
+    String(row.trackNode().props.className).split(/\s+/);
+  const plain = expandingRowHarness({ posterBackdropExpansion: false });
+  assert.ok(classes(plain).includes("grid"));
+  assert.deepEqual(plain.expansions(), [undefined, undefined], "a plain row hands cards nothing");
+
+  const row = expandingRowHarness({ posterBackdropExpansion: true });
+  for (const token of [
+    "harbor-expanding-card-scope",
+    "harbor-expanding-row",
+    "flex",
+    "flex-nowrap",
+  ])
+    assert.ok(classes(row).includes(token), token);
+  assert.equal(row.trackNode().props.style.gridAutoColumns, undefined, "cards size by flex basis");
+  const [first] = row.expansions();
+  const cell = row.cell(first);
+  assert.equal(cell.props["data-tv-nav-base-width"], first.baseWidth);
+  assert.equal(cell.props.style.flexBasis, `${first.baseWidth}px`);
+  const grown = row.cell({ ...first, expandedWidth: first.baseWidth * 2 });
+  assert.equal(grown.props.style.flexBasis, `${first.baseWidth * 2}px`, "expanded cards widen");
+  assert.equal(grown.props["data-tv-nav-base-width"], first.baseWidth, "and keep their nav width");
+  assert.equal(
+    expandingRowHarness({ posterBackdropExpansion: true }, "landscape").expansions()[0],
+    undefined,
+    "only portrait rows expand",
+  );
+
+  first.onExpand(0, first.baseWidth * 2);
+  row.render();
+  row.settle();
+  assert.equal(row.track.style.scrollSnapType, "none", "an expanded card keeps snapping off");
+  row.expansions()[0].onCollapse(0);
+  row.render();
+  row.settle();
+  assert.equal(row.track.style.scrollSnapType, "", "collapsing restores snapping");
+
+  // pick-card.tsx is over 1000 lines; its artwork-before-badges order is checked as text.
   const card = read("src/components/pick-card.tsx");
-  assert.match(row, /\? "harbor-expanding-card-scope harbor-expanding-row flex flex-nowrap"/);
-  assert.match(row, /flexBasis: `\$\{expansion\.expandedWidth \?\? expansion\.baseWidth\}px`,/);
-  assert.match(row, /data-tv-nav-base-width=\{expansion\?\.baseWidth\}/);
-  assert.match(row, /if \(!expandedCard\) track\.style\.scrollSnapType = "";/);
   assert.ok(
     card.indexOf("<ExpandingCardArtwork") < card.indexOf("<ScoreStack"),
     "wide artwork must remain underneath IMDb and other card badges",
@@ -204,9 +240,15 @@ test("Focused Card, Expanding Cards, and Poster Dock remain independent settings
     { posterBackdropExpansion: true },
     { posterDockMagnification: true },
   ]);
-  assert.match(
-    read("src/components/row.tsx"),
-    /const dockEnabled = effShape === "portrait" && settings\.posterDockMagnification;/,
+  const dockPad = (settings: Record<string, unknown>, shape?: string) =>
+    String(expandingRowHarness(settings, shape).trackNode().props.className).includes("pt-14");
+  assert.equal(dockPad({ posterDockMagnification: true }), true, "the dock follows its own toggle");
+  assert.equal(dockPad({ posterDockMagnification: true, posterBackdropExpansion: true }), true);
+  assert.equal(dockPad({ posterDockMagnification: false, posterBackdropExpansion: true }), false);
+  assert.equal(
+    dockPad({ posterDockMagnification: true }, "landscape"),
+    false,
+    "portrait rows only",
   );
 });
 
@@ -281,12 +323,21 @@ test("Focused Card is global and independent from card expansion", () => {
   card.onFocus();
   assert.deepEqual(off.prepared, [], "and never loads wide artwork there");
   assert.equal(expandingCard({ focusEnabled: false }).render().focusEnabled, false);
-  assert.match(
-    read("src/components/pick-card.tsx"),
-    /expandingCard\.focusEnabled\s*\? "group-focus:\[-webkit-transform:translate3d\(0,-0\.5rem,0\)\]/,
-  );
+  const frame = (focusEnabled: boolean) =>
+    String(
+      cardAttr("div", "className", {
+        tiltable: false,
+        expandingCard: { enabled: false, focusEnabled },
+      }),
+    ).split(/\s+/);
+  assert.ok(frame(true).includes("group-focus:[transform:translate3d(0,-0.5rem,0)]"));
+  assert.ok(!frame(false).some((c) => c.startsWith("group-focus:")), "off means no focus lift");
   assert.match(read("src/index.css"), /#root\[data-card-focus-active\]/);
 });
+
+// pick-card.tsx is over 1000 lines; one JSX attribute of its card runs alone with `scope`.
+const cardAttr = (tag: string, attr: string, scope: Record<string, unknown>) =>
+  sourceCallback("src/components/pick-card.tsx", jsxAttribute(tag, attr), scope);
 
 test("pointer focus never expands cards and keeps the hover preview", async () => {
   const c = expandingCard({ modality: "pointer" });
@@ -294,10 +345,40 @@ test("pointer focus never expands cards and keeps the hover preview", async () =
   assert.deepEqual(c.prepared, [], "a mouse focus asks for no artwork");
   c.render().onArtworkReady("ignored");
   assert.deepEqual(c.widths, []);
-  const card = read("src/components/pick-card.tsx");
-  assert.match(card, /if \(!expandingCard\.enabled\) hoverPreviewFocus\(meta, e\.currentTarget\);/);
-  assert.match(card, /hoverPreviewEnter\(meta, e\.currentTarget, e\.buttons\);/);
-  assert.match(card, /kids \|\| !settings\.hoverPreviewEnabled \? "none"/);
+
+  const previews: unknown[][] = [];
+  const meta = { id: "tt1" };
+  const anchor = { id: "anchor" };
+  const focus = (enabled: boolean) => {
+    previews.length = 0;
+    cardAttr("button", "onFocus", {
+      meta,
+      expandingCard: { enabled, onFocus() {} },
+      hoverPreviewFocus: (...args: unknown[]) => previews.push(["focus", ...args]),
+    })({ currentTarget: anchor });
+    return [...previews];
+  };
+  assert.deepEqual(focus(false), [["focus", meta, anchor]], "without expansion focus previews");
+  assert.deepEqual(focus(true), [], "an expanding card replaces the preview on focus");
+  previews.length = 0;
+  cardAttr("div", "onPointerEnter", {
+    meta,
+    tiltable: false,
+    hoverPreviewEnter: (...args: unknown[]) => previews.push(["enter", ...args]),
+  })({ currentTarget: anchor, buttons: 0 });
+  assert.deepEqual(previews, [["enter", meta, anchor, 0]], "the pointer always previews");
+  const cardStyle = (kids: boolean, hoverPreviewEnabled: boolean) =>
+    sourceCallback(
+      "src/components/pick-card.tsx",
+      (node, source) =>
+        ts.isVariableDeclaration(node) && node.name.getText(source) === "cardStyle"
+          ? node.initializer
+          : undefined,
+      { kids, settings: { hoverPreviewEnabled, cardHoverStyle: "zoom" } },
+    );
+  assert.equal(cardStyle(false, true), "zoom");
+  assert.equal(cardStyle(false, false), "none", "previews off means no hover style");
+  assert.equal(cardStyle(true, true), "none", "kids cards never preview");
 });
 
 test("wide artwork is prepared before the row is allowed to expand", async () => {

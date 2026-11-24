@@ -405,8 +405,39 @@ test("home and anime room absorb legacy cloud anime items into local CW", () => 
   assert.equal(h.saved[0].season, 1);
   assert.equal(h.saved[0].episode, 7, "kitsu video ids carry the episode as their third part");
   assert.equal(h.saved[0].positionMs, 60000);
-  // Home's load effect is too large to run; its one absorb line stays as text.
-  assert.match(read("src/views/home.tsx"), /if \(!hideSharedCw\) absorbCloudAnimeCw\(view\);/);
+});
+
+test("home absorbs its loaded library unless the shared CW is hidden", async () => {
+  const absorbed: unknown[] = [];
+  const runEffect = async (hideSharedCw: boolean) => {
+    const lib = [{ _id: "kitsu:1", removed: true, temp: false, state: {} }];
+    const noop = () => {};
+    const cleanup = sourceCallback("src/views/home.tsx", effectContaining("absorbCloudAnimeCw"), {
+      authKey: "key",
+      active: false,
+      hideSharedCw,
+      lastLibraryRef: { current: null },
+      trackedRef: { current: new Set() },
+      libraryIfChanged: async () => lib,
+      isCorruptAnimeEntry: () => false,
+      setItems: noop,
+      absorbCloudAnimeCw: (items: unknown) => absorbed.push(items),
+      reconcileRemoteWatched: noop,
+      user: null,
+      readImportedSince: () => 0,
+      saveResumeBatch: noop,
+      localStorage: { setItem: noop },
+      repairLibraryNames: async () => {},
+      settings: { tmdbKey: "" },
+    })();
+    await flushPromises();
+    cleanup();
+    return lib;
+  };
+  await runEffect(true);
+  assert.deepEqual(absorbed, []);
+  const lib = await runEffect(false);
+  assert.deepEqual(absorbed, [lib]);
 });
 
 test("anime room absorbs its loaded library unless the shared CW is hidden", async () => {
