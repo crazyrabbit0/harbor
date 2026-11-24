@@ -69,7 +69,7 @@ export function ChapterNavigator({
   const [src, setSrc] = useState("all");
 
   const chapters = manga?.chapters ?? [];
-  const sources = useMemo(() => collectSources(chapters), [chapters]);
+  const sources = collectSources(chapters);
   const multiSource = sources.length > 1;
   const effSrc = sources.some((s) => s.id === src) ? src : "all";
 

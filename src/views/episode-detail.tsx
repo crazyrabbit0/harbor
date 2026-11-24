@@ -209,9 +209,9 @@ export function EpisodeDetailView({
     openPicker(playback?.meta ?? seriesMeta, playEpisode, { autoPlay: settings.instantPlay });
   }, [seriesMeta, episodeData, playback, openPicker, settings.instantPlay]);
 
-  const handleSeriesClick = useCallback(() => {
+  const handleSeriesClick = () => {
     if (seriesMeta) openMeta(seriesMeta);
-  }, [seriesMeta, openMeta]);
+  };
 
   if (error) {
     return (

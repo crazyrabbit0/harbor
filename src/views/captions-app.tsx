@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronDown, Maximize2, Minimize2, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
@@ -67,33 +67,33 @@ export function CaptionsApp() {
     el.scrollTop = el.scrollHeight;
   }, [cue.text, atBottom]);
 
-  const onScroll = useCallback(() => {
+  const onScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
     setAtBottom(el.scrollHeight - el.scrollTop - el.clientHeight < 8);
-  }, []);
+  };
 
-  const toBottom = useCallback(() => {
+  const toBottom = () => {
     const el = scrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
     setAtBottom(true);
-  }, []);
+  };
 
-  const resize = useCallback(async () => {
+  const resize = async () => {
     const next = !big;
     setBig(next);
     const s = next ? LARGE : SMALL;
     try {
       await getCurrentWindow().setSize(new LogicalSize(s.w, s.h));
     } catch {}
-  }, [big]);
+  };
 
-  const close = useCallback(() => {
+  const close = () => {
     void invoke("captions_close").catch(() => {});
-  }, []);
+  };
 
-  const drag = useCallback((e: React.PointerEvent) => {
+  const drag = (e: React.PointerEvent) => {
     if (e.button !== 0) return;
     const el = e.target as HTMLElement;
     if (el.closest("[data-no-drag]")) return;
@@ -108,7 +108,7 @@ export function CaptionsApp() {
     void getCurrentWindow()
       .startDragging()
       .catch(() => {});
-  }, []);
+  };
 
   const shown = cue.text || last;
 

@@ -160,22 +160,15 @@ export function GameWowAddonManager({
     );
     return () => controller.abort();
   }, [browseEnabled, browseKey]);
-  const result = useMemo(
-    () =>
-      selectWowAddonCatalog(
-        catalog?.addons ?? [],
-        categories?.categories ?? [],
-        query,
-        category === "all" ? null : Number(category),
-        sort,
-        page,
-      ),
-    [catalog, categories, query, category, sort, page],
+  const result = selectWowAddonCatalog(
+    catalog?.addons ?? [],
+    categories?.categories ?? [],
+    query,
+    category === "all" ? null : Number(category),
+    sort,
+    page,
   );
-  const byCategory = useMemo(
-    () => new Map(categories?.categories.map((item) => [item.id, item])),
-    [categories],
-  );
+  const byCategory = new Map(categories?.categories.map((item) => [item.id, item]));
   const available = !loading && !workspaceError && workspace?.id === id;
   const imports = useMemo(() => {
     const candidates = new Map<number, { id: number; title: string; version: string }>();

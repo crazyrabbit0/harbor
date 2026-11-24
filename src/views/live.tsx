@@ -198,18 +198,14 @@ export function LiveView({ active }: { active: boolean }) {
         })),
     [sources],
   );
-  const managedSources = useMemo<IptvPlaylistSource[]>(
-    () =>
-      sources.map((p) => ({
-        id: p.id,
-        name: p.name,
-        url: p.url,
-        epgUrl: p.epgUrl,
-        kind: p.kind,
-        xtream: p.xtream,
-      })),
-    [sources],
-  );
+  const managedSources: IptvPlaylistSource[] = sources.map((p) => ({
+    id: p.id,
+    name: p.name,
+    url: p.url,
+    epgUrl: p.epgUrl,
+    kind: p.kind,
+    xtream: p.xtream,
+  }));
   const stubSources = useMemo(() => {
     const ids = new Set<string>();
     for (const f of favorites.items.values()) if (!f.url) ids.add(f.sourceId);

@@ -73,7 +73,7 @@ export function useFeed(): FeedState {
     };
   }, [tick]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
     fetchFriendsFeed(cursor)
@@ -83,7 +83,7 @@ export function useFeed(): FeedState {
       })
       .catch(() => {})
       .finally(() => setLoadingMore(false));
-  }, [cursor, loadingMore]);
+  };
 
   return {
     items,

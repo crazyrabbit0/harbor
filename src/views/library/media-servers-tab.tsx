@@ -148,14 +148,8 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
       ),
     [items, connections],
   );
-  const itemByKey = useMemo(
-    () => new Map(items.map((item) => [`${item.connectionId}:${item.id}`, item])),
-    [items],
-  );
-  const connectionById = useMemo(
-    () => new Map(connections.map((connection) => [connection.id, connection])),
-    [connections],
-  );
+  const itemByKey = new Map(items.map((item) => [`${item.connectionId}:${item.id}`, item]));
+  const connectionById = new Map(connections.map((connection) => [connection.id, connection]));
   if (!loading && library !== "all" && !items.some((item) => item.libraryId === library))
     setLibrary("all");
   const [cardsFor, setCardsFor] = useState<{
@@ -213,50 +207,41 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
     return () => window.clearTimeout(timer);
   }, [busyKey]);
   useReportFeatured(useMemo(() => cards.map((card) => card.meta), [cards]));
-  const counts = useMemo(
-    () => ({
-      all: titles.length,
-      movie: titles.filter((title) => title.kind === "movie").length,
-      series: titles.filter((title) => title.kind === "series").length,
-    }),
-    [titles],
-  );
-  const genres = useMemo(
-    () =>
-      [...new Set(cards.flatMap((card) => card.meta.genres ?? []))].sort().map((name) => ({
-        name,
-        count: cards.filter((card) => card.meta.genres?.includes(name)).length,
-      })),
-    [cards],
-  );
-  const visible = useMemo(
-    () =>
-      readAtVersion(selectedGenres, () => {
-        const mul = sortDir === "asc" ? 1 : -1;
-        return cards
-          .filter(
-            (card) =>
-              (type === "all" || card.title.kind === type) &&
-              (server === "all" || card.title.connectionIds.includes(server)) &&
-              (library === "all" || card.title.libraryIds.includes(library)) &&
-              [...selectedGenres].every((name) => card.meta.genres?.includes(name)) &&
-              (!query.trim() || card.meta.name.toLowerCase().includes(query.trim().toLowerCase())),
-          )
-          .sort((a, b) => {
-            if (sort === "title") return mul * a.meta.name.localeCompare(b.meta.name);
-            const value = (entry: Card) =>
-              sort === "year"
-                ? Number(entry.meta.releaseInfo?.slice(0, 4) ?? 0)
-                : sort === "rating"
-                  ? Number(entry.meta.imdbRating ?? 0)
-                  : sort === "runtime"
-                    ? Number(entry.meta.runtime?.match(/\d+/)?.[0] ?? 0)
-                    : (entry.title.addedAt ?? 0);
-            return mul * (value(a) - value(b));
-          });
-      }),
-    [cards, type, server, library, selectedGenres, query, sort, sortDir],
-  );
+  const counts = {
+    all: titles.length,
+    movie: titles.filter((title) => title.kind === "movie").length,
+    series: titles.filter((title) => title.kind === "series").length,
+  };
+  const genres = [...new Set(cards.flatMap((card) => card.meta.genres ?? []))]
+    .sort()
+    .map((name) => ({
+      name,
+      count: cards.filter((card) => card.meta.genres?.includes(name)).length,
+    }));
+  const visible = readAtVersion(selectedGenres, () => {
+    const mul = sortDir === "asc" ? 1 : -1;
+    return cards
+      .filter(
+        (card) =>
+          (type === "all" || card.title.kind === type) &&
+          (server === "all" || card.title.connectionIds.includes(server)) &&
+          (library === "all" || card.title.libraryIds.includes(library)) &&
+          [...selectedGenres].every((name) => card.meta.genres?.includes(name)) &&
+          (!query.trim() || card.meta.name.toLowerCase().includes(query.trim().toLowerCase())),
+      )
+      .sort((a, b) => {
+        if (sort === "title") return mul * a.meta.name.localeCompare(b.meta.name);
+        const value = (entry: Card) =>
+          sort === "year"
+            ? Number(entry.meta.releaseInfo?.slice(0, 4) ?? 0)
+            : sort === "rating"
+              ? Number(entry.meta.imdbRating ?? 0)
+              : sort === "runtime"
+                ? Number(entry.meta.runtime?.match(/\d+/)?.[0] ?? 0)
+                : (entry.title.addedAt ?? 0);
+        return mul * (value(a) - value(b));
+      });
+  });
   const unmatched = titles.filter(
     (title) => !title.identity.tmdbId && !title.identity.imdbId && !title.identity.tvdbId,
   );
@@ -304,29 +289,26 @@ export function MediaServersTab({ scrollRef }: { scrollRef?: RefObject<HTMLEleme
         },
       ] satisfies LocalEntry[])
     : null;
-  const renderCard = useCallback(
-    (card: Card) => {
-      const physical = card.title.itemKeys.flatMap((key) => {
-        const item = itemByKey.get(key);
-        return item ? [item] : [];
-      });
-      const cardConnections = card.title.connectionIds.flatMap((id) => {
-        const connection = connectionById.get(id);
-        return connection ? [connection] : [];
-      });
-      return (
-        <ServerCard
-          card={card}
-          physical={physical}
-          connections={connections}
-          cardConnections={cardConnections}
-          onOpen={() => openMeta(card.meta)}
-          onReview={() => setReviewing(card.title)}
-        />
-      );
-    },
-    [connectionById, connections, itemByKey, openMeta],
-  );
+  const renderCard = (card: Card) => {
+    const physical = card.title.itemKeys.flatMap((key) => {
+      const item = itemByKey.get(key);
+      return item ? [item] : [];
+    });
+    const cardConnections = card.title.connectionIds.flatMap((id) => {
+      const connection = connectionById.get(id);
+      return connection ? [connection] : [];
+    });
+    return (
+      <ServerCard
+        card={card}
+        physical={physical}
+        connections={connections}
+        cardConnections={cardConnections}
+        onOpen={() => openMeta(card.meta)}
+        onReview={() => setReviewing(card.title)}
+      />
+    );
+  };
   if (connections.length === 0)
     return (
       <div className="flex flex-col items-center gap-4 rounded-2xl border border-dashed border-edge-soft bg-canvas/30 px-8 py-16 text-center">

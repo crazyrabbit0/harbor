@@ -316,45 +316,42 @@ export function DetailView({
   const [enrichedBg, setEnrichedBg] = useState<string | undefined>(undefined);
   const [seasonArt, setSeasonArt] = useState<SeasonArt | null>(null);
   const seasonEntryRef = useRef<string | null>(null);
-  const handleSeasonArt = useCallback(
-    (
-      sel: {
-        background?: string;
-        description?: string;
-        logo?: string;
-        name?: string;
-        entryId: string;
-      } | null,
-    ) => {
-      if (!sel) {
-        seasonEntryRef.current = null;
-        setSeasonArt(null);
-        return;
-      }
-      seasonEntryRef.current = sel.entryId;
-      const cachedLogo = peekAnimeArt(sel.entryId)?.logo;
-      setSeasonArt({
-        background: sel.background,
-        description: sel.description,
-        logo: cachedLogo ?? sel.logo,
-      });
-      if (!cachedLogo && sel.name) {
-        const entryId = sel.entryId;
-        void resolveLogo(
-          getSettings().tmdbKey,
-          { id: entryId, type: "series", name: sel.name },
-          { preferOwn: true },
-        )
-          .then((u) => {
-            if (u && seasonEntryRef.current === entryId) {
-              setSeasonArt((p) => (p ? { ...p, logo: u } : p));
-            }
-          })
-          .catch(() => {});
-      }
-    },
-    [getSettings],
-  );
+  const handleSeasonArt = (
+    sel: {
+      background?: string;
+      description?: string;
+      logo?: string;
+      name?: string;
+      entryId: string;
+    } | null,
+  ) => {
+    if (!sel) {
+      seasonEntryRef.current = null;
+      setSeasonArt(null);
+      return;
+    }
+    seasonEntryRef.current = sel.entryId;
+    const cachedLogo = peekAnimeArt(sel.entryId)?.logo;
+    setSeasonArt({
+      background: sel.background,
+      description: sel.description,
+      logo: cachedLogo ?? sel.logo,
+    });
+    if (!cachedLogo && sel.name) {
+      const entryId = sel.entryId;
+      void resolveLogo(
+        getSettings().tmdbKey,
+        { id: entryId, type: "series", name: sel.name },
+        { preferOwn: true },
+      )
+        .then((u) => {
+          if (u && seasonEntryRef.current === entryId) {
+            setSeasonArt((p) => (p ? { ...p, logo: u } : p));
+          }
+        })
+        .catch(() => {});
+    }
+  };
   // Season picker swaps franchise seasons in-place without re-running animeDetails, so the
   // localized TMDB series overview must be passed down for the season hero description.
   const detailOverview = detail?.overview;
@@ -1258,21 +1255,13 @@ export function DetailView({
     detail?.imdbId ?? undefined,
     isAnime,
   );
-  const reasonedRecommendations = useMemo(
-    () => orderByReason(shownRecommendations, graphReasons),
-    [shownRecommendations, graphReasons],
-  );
-  const reasonedSimilar = useMemo(
-    () => orderByReason(shownSimilar, graphReasons),
-    [shownSimilar, graphReasons],
-  );
+  const reasonedRecommendations = orderByReason(shownRecommendations, graphReasons);
+  const reasonedSimilar = orderByReason(shownSimilar, graphReasons);
   const liveAwards = useAwards(detail?.imdbId ?? undefined, meta.type === "series");
   const bundledAwardsV = useBundledAwardsVersion();
   const releaseYear = releaseYearNum ?? undefined;
-  const awards = useMemo(
-    () =>
-      readAtVersion(bundledAwardsV, () => mergeBundledAwards(liveAwards, meta.name, releaseYear)),
-    [liveAwards, meta.name, releaseYear, bundledAwardsV],
+  const awards = readAtVersion(bundledAwardsV, () =>
+    mergeBundledAwards(liveAwards, meta.name, releaseYear),
   );
   const heroAwardSummary = pickHeroAwards(awardSummary(awards));
   const awardsInDescription = (settings.themePreset as string) === "elegantfin";
@@ -1571,161 +1560,136 @@ export function DetailView({
     playMeta,
   ]);
 
-  const episodeName = useCallback(
-    (season: number, episode: number): string | undefined => {
-      const videos = playMeta.videos ?? cinemetaFull?.videos;
-      const match = videos?.find(
-        (v) => (v.season ?? 1) === season && (v.episode ?? v.number) === episode,
-      );
-      return match?.name || match?.title || undefined;
-    },
-    [playMeta.videos, cinemetaFull?.videos],
-  );
+  const episodeName = (season: number, episode: number): string | undefined => {
+    const videos = playMeta.videos ?? cinemetaFull?.videos;
+    const match = videos?.find(
+      (v) => (v.season ?? 1) === season && (v.episode ?? v.number) === episode,
+    );
+    return match?.name || match?.title || undefined;
+  };
 
-  const smartPlay = useCallback(
-    async (forcePicker = false) => {
-      if (inSession) claimHost(true);
-      const opts = { autoPlay: !forcePicker && settings.instantPlay, resume: !forcePicker };
-      const launch = async (episode: PlayEpisode | undefined) => {
-        const stream = () => openPicker(playMeta, episode, opts);
-        if (forcePicker) {
-          stream();
-          return;
-        }
-        const tmdbMatch = meta.id.match(/^tmdb:(?:movie|tv):(\d+)$/);
-        const identity = {
-          tmdbId: tmdbMatch ? Number(tmdbMatch[1]) : undefined,
-          imdbId: detail?.imdbId ?? (meta.id.startsWith("tt") ? meta.id : undefined),
-        };
-        const connections = mediaServerConnections();
-        const indexed = await mediaServerItems();
-        const serverItems = matchingServerItems(
-          indexed,
-          identity,
-          isSeries ? "series" : "movie",
-          episode?.season,
-          episode?.episode,
-        );
-        const serverCopies = serverPlayableCopies(serverItems, connections);
-        const local = resolveLocalPlayVersions(playMeta, episode ?? null, detail?.imdbId);
-        const decision = decidePlaybackSource(settings, local.length, serverCopies);
-        if (decision.kind === "online") {
-          stream();
-          return;
-        }
-        if (decision.kind === "local" && local[0]) {
-          openPlayer(localPlayerSrc(local[0], isAnime, episode));
-          return;
-        }
-        const playServer = (copy: (typeof serverCopies)[number]) => {
-          const connection = connections.find((entry) => entry.id === copy.connectionId);
-          const item = serverItems.find(
-            (entry) => entry.connectionId === copy.connectionId && entry.id === copy.itemId,
-          );
-          if (!connection || !item) return;
-          void createMediaServerPlayerSrc({
-            meta: playMeta,
-            imdbId: identity.imdbId,
-            episode,
-            connection,
-            item,
-            versionId: copy.version.id,
-          }).then(openPlayer);
-        };
-        if (decision.kind === "home-server") {
-          playServer(decision.copy);
-          return;
-        }
-        if (decision.kind === "chooser") {
-          openLocalVersions({
-            title: playMeta.name,
-            poster: playMeta.poster,
-            entries: local,
-            onPlayLocal: (entry) => openPlayer(localPlayerSrc(entry, isAnime, episode)),
-            serverCopies,
-            onPlayServer: playServer,
-            onStream: stream,
-          });
-          return;
-        }
+  const smartPlay = async (forcePicker = false) => {
+    if (inSession) claimHost(true);
+    const opts = { autoPlay: !forcePicker && settings.instantPlay, resume: !forcePicker };
+    const launch = async (episode: PlayEpisode | undefined) => {
+      const stream = () => openPicker(playMeta, episode, opts);
+      if (forcePicker) {
+        stream();
+        return;
+      }
+      const tmdbMatch = meta.id.match(/^tmdb:(?:movie|tv):(\d+)$/);
+      const identity = {
+        tmdbId: tmdbMatch ? Number(tmdbMatch[1]) : undefined,
+        imdbId: detail?.imdbId ?? (meta.id.startsWith("tt") ? meta.id : undefined),
       };
-      if (!isSeries) {
-        if (meta.type === "other" && cinemetaFull?.videos?.length) {
-          const first = cinemetaFull.videos[0];
-          await launch({
-            season: first.season ?? 0,
-            episode: first.episode ?? 1,
-            name: first.name ?? first.title,
-            videoId: first.id,
-            still: first.thumbnail,
-          });
-          return;
-        }
-        await launch(undefined);
+      const connections = mediaServerConnections();
+      const indexed = await mediaServerItems();
+      const serverItems = matchingServerItems(
+        indexed,
+        identity,
+        isSeries ? "series" : "movie",
+        episode?.season,
+        episode?.episode,
+      );
+      const serverCopies = serverPlayableCopies(serverItems, connections);
+      const local = resolveLocalPlayVersions(playMeta, episode ?? null, detail?.imdbId);
+      const decision = decidePlaybackSource(settings, local.length, serverCopies);
+      if (decision.kind === "online") {
+        stream();
         return;
       }
-      if (isAnime) {
-        await launch(animePlayEpisode(animeEpisodes, lastPlay, idAnime, animeCanonicalId));
+      if (decision.kind === "local" && local[0]) {
+        openPlayer(localPlayerSrc(local[0], isAnime, episode));
         return;
       }
-      if (lastPlay) {
-        await launch({
-          season: lastPlay.season,
-          episode: lastPlay.episode,
-          name: episodeName(lastPlay.season, lastPlay.episode),
+      const playServer = (copy: (typeof serverCopies)[number]) => {
+        const connection = connections.find((entry) => entry.id === copy.connectionId);
+        const item = serverItems.find(
+          (entry) => entry.connectionId === copy.connectionId && entry.id === copy.itemId,
+        );
+        if (!connection || !item) return;
+        void createMediaServerPlayerSrc({
+          meta: playMeta,
+          imdbId: identity.imdbId,
+          episode,
+          connection,
+          item,
+          versionId: copy.version.id,
+        }).then(openPlayer);
+      };
+      if (decision.kind === "home-server") {
+        playServer(decision.copy);
+        return;
+      }
+      if (decision.kind === "chooser") {
+        openLocalVersions({
+          title: playMeta.name,
+          poster: playMeta.poster,
+          entries: local,
+          onPlayLocal: (entry) => openPlayer(localPlayerSrc(entry, isAnime, episode)),
+          serverCopies,
+          onPlayServer: playServer,
+          onStream: stream,
         });
         return;
       }
-      if (authKey) {
-        const candidates: string[] = [];
-        if (meta.id.startsWith("tt")) candidates.push(meta.id);
-        if (detail?.imdbId?.startsWith("tt") && !candidates.includes(detail.imdbId)) {
-          candidates.push(detail.imdbId);
-        }
-        if (!meta.id.startsWith("tt") && CLOUD_OK.test(meta.id)) candidates.push(meta.id);
-        for (const cid of candidates) {
-          const item = await libraryGetOne(authKey, cid).catch(() => null);
-          const st = item?.state;
-          if (st && (st.timeOffset ?? 0) > 0) {
-            const se = episodeFromVideoId(st.video_id);
-            const season = st.season ?? se?.season;
-            const episode = st.episode ?? se?.episode;
-            if (
-              typeof season === "number" &&
-              typeof episode === "number" &&
-              season >= 1 &&
-              episode >= 1
-            ) {
-              await launch({ season, episode, name: episodeName(season, episode) });
-              return;
-            }
-          }
-          if (item) break;
-        }
+    };
+    if (!isSeries) {
+      if (meta.type === "other" && cinemetaFull?.videos?.length) {
+        const first = cinemetaFull.videos[0];
+        await launch({
+          season: first.season ?? 0,
+          episode: first.episode ?? 1,
+          name: first.name ?? first.title,
+          videoId: first.id,
+          still: first.thumbnail,
+        });
+        return;
       }
-      await launch({ season: 1, episode: 1, name: episodeName(1, 1) });
-    },
-    [
-      isSeries,
-      isAnime,
-      idAnime,
-      animeCanonicalId,
-      animeEpisodes,
-      lastPlay,
-      openPicker,
-      openPlayer,
-      playMeta,
-      settings,
-      inSession,
-      claimHost,
-      authKey,
-      meta.id,
-      meta.type,
-      detail,
-      cinemetaFull,
-      episodeName,
-    ],
-  );
+      await launch(undefined);
+      return;
+    }
+    if (isAnime) {
+      await launch(animePlayEpisode(animeEpisodes, lastPlay, idAnime, animeCanonicalId));
+      return;
+    }
+    if (lastPlay) {
+      await launch({
+        season: lastPlay.season,
+        episode: lastPlay.episode,
+        name: episodeName(lastPlay.season, lastPlay.episode),
+      });
+      return;
+    }
+    if (authKey) {
+      const candidates: string[] = [];
+      if (meta.id.startsWith("tt")) candidates.push(meta.id);
+      if (detail?.imdbId?.startsWith("tt") && !candidates.includes(detail.imdbId)) {
+        candidates.push(detail.imdbId);
+      }
+      if (!meta.id.startsWith("tt") && CLOUD_OK.test(meta.id)) candidates.push(meta.id);
+      for (const cid of candidates) {
+        const item = await libraryGetOne(authKey, cid).catch(() => null);
+        const st = item?.state;
+        if (st && (st.timeOffset ?? 0) > 0) {
+          const se = episodeFromVideoId(st.video_id);
+          const season = st.season ?? se?.season;
+          const episode = st.episode ?? se?.episode;
+          if (
+            typeof season === "number" &&
+            typeof episode === "number" &&
+            season >= 1 &&
+            episode >= 1
+          ) {
+            await launch({ season, episode, name: episodeName(season, episode) });
+            return;
+          }
+        }
+        if (item) break;
+      }
+    }
+    await launch({ season: 1, episode: 1, name: episodeName(1, 1) });
+  };
   const smartPlayLabel =
     inSession && !liveContext
       ? t("Play Together")

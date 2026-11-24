@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { Trash2, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useSectionBack } from "@/lib/section-back";
@@ -19,24 +19,21 @@ export function GameSteamShortcutActivity({
     { closing, close } = useModalExit(onClose);
   const language = useUiLanguage(),
     [today] = useState(() => new Date().toDateString());
-  const dates = useMemo(
-    () => ({
-      time: new Intl.DateTimeFormat(language, {
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }),
-      full: new Intl.DateTimeFormat(language, {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }),
+  const dates = {
+    time: new Intl.DateTimeFormat(language, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
     }),
-    [language],
-  );
+    full: new Intl.DateTimeFormat(language, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }),
+  };
   const { store, state } = library.activity;
   useSectionBack(close, true);
   useEffect(() => {

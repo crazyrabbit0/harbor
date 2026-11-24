@@ -1,6 +1,6 @@
 import { AlertCircle, ArrowUpCircle, Blocks, ChevronDown, Loader2, RefreshCw } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
   listExtensions,
   updateExtension,
@@ -146,10 +146,7 @@ export function ExtensionsManager({ config }: { config: ServerConfig }) {
     };
   }, [config.baseUrl, config.auth?.username, config.auth?.password, reload, reqKey]);
 
-  const filtered = useMemo(
-    () => load.items.filter((e) => matches(e, query.trim())),
-    [load.items, query],
-  );
+  const filtered = load.items.filter((e) => matches(e, query.trim()));
   const installed = filtered.filter((e) => e.installed);
   const updatable = installed.filter((e) => e.hasUpdate);
   const available = filtered.filter((e) => !e.installed);

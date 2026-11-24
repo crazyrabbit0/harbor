@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePlaylists, writePlaylists } from "@/lib/iptv/playlists-store";
 import { clearPlaylistCache } from "@/lib/iptv/store";
 import { clearEpg } from "@/lib/iptv/epg-store";
@@ -63,20 +63,16 @@ export function useVodSources() {
   const favorites = useFavorites();
   const t = useT();
 
-  const sources = useMemo<IptvPlaylistSource[]>(
-    () =>
-      playlists
-        .filter((p) => (p.kind ?? "m3u") !== "epg")
-        .map((p) => ({
-          id: p.id,
-          name: p.name,
-          url: p.url,
-          epgUrl: p.epgUrl,
-          kind: p.kind,
-          xtream: p.xtream,
-        })),
-    [playlists],
-  );
+  const sources: IptvPlaylistSource[] = playlists
+    .filter((p) => (p.kind ?? "m3u") !== "epg")
+    .map((p) => ({
+      id: p.id,
+      name: p.name,
+      url: p.url,
+      epgUrl: p.epgUrl,
+      kind: p.kind,
+      xtream: p.xtream,
+    }));
 
   const [activeId, setActiveId] = useState<string | null>(() => readActive());
   const validActiveId =
@@ -93,53 +89,44 @@ export function useVodSources() {
     writeActive(activeId);
   }, [activeId]);
 
-  const selectId = useCallback((id: string) => {
+  const selectId = (id: string) => {
     setActiveId(id);
     writeActive(id);
-  }, []);
+  };
 
-  const addPlaylist = useCallback(
-    (entry: PlaylistFormValue) => {
-      if (entry.kind === "epg") return;
-      const id = `pl-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-      const persisted = writePlaylists([...playlists, materialize(id, entry)]);
-      if (!persisted) {
-        console.warn("harbor: playlist not persisted (storage quota)", id);
-        void alertDialog(
-          t("Couldn't save the playlist. Free up storage space in Settings and try again."),
-        );
-      }
-      setActiveId(id);
-      writeActive(id);
-    },
-    [playlists, t],
-  );
+  const addPlaylist = (entry: PlaylistFormValue) => {
+    if (entry.kind === "epg") return;
+    const id = `pl-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const persisted = writePlaylists([...playlists, materialize(id, entry)]);
+    if (!persisted) {
+      console.warn("harbor: playlist not persisted (storage quota)", id);
+      void alertDialog(
+        t("Couldn't save the playlist. Free up storage space in Settings and try again."),
+      );
+    }
+    setActiveId(id);
+    writeActive(id);
+  };
 
-  const editPlaylist = useCallback(
-    (id: string, entry: PlaylistFormValue) => {
-      const next = playlists.map((s) => (s.id === id ? materialize(id, entry) : s));
-      writePlaylists(next);
-      clearPlaylistCache(id);
-      clearXtreamVodLibraryCache(id);
-      clearEpg(id);
-    },
-    [playlists],
-  );
+  const editPlaylist = (id: string, entry: PlaylistFormValue) => {
+    const next = playlists.map((s) => (s.id === id ? materialize(id, entry) : s));
+    writePlaylists(next);
+    clearPlaylistCache(id);
+    clearXtreamVodLibraryCache(id);
+    clearEpg(id);
+  };
 
-  const removePlaylist = useCallback(
-    (id: string) => {
-      const next = playlists.filter((s) => s.id !== id);
-      if (activeId === id) {
-        const fallback = next[0]?.id ?? null;
-        setActiveId(fallback);
-        writeActive(fallback);
-      }
-      writePlaylists(next);
-      clearXtreamVodLibraryCache(id);
-      purgePlaylistState(id, favorites.removeForSource);
-    },
-    [playlists, activeId, favorites.removeForSource],
-  );
+  const removePlaylist = (id: string) => {
+    const next = playlists.filter((s) => s.id !== id);
+    if (activeId === id) {
+      const fallback = next[0]?.id ?? null;
+      setActiveId(fallback);
+      writeActive(fallback);
+    }
+    writePlaylists(next);
+    clearXtreamVodLibraryCache(id);
+    purgePlaylistState(id, favorites.removeForSource);
+  };
 
   return { sources, activeId, selectId, addPlaylist, editPlaylist, removePlaylist };
 }

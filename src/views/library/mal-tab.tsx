@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchMalList, readCachedMalList } from "@/lib/mal/lists";
 import { deleteListEntry, saveListEntry } from "@/lib/mal/mutations";
 import { useMal } from "@/lib/mal/provider";
@@ -66,96 +66,87 @@ export function MalTab() {
     };
   }, [isConnected]);
 
-  const setBusyFor = useCallback((id: number, on: boolean) => {
+  const setBusyFor = (id: number, on: boolean) => {
     setBusy((prev) => {
       const next = new Set(prev);
       if (on) next.add(id);
       else next.delete(id);
       return next;
     });
-  }, []);
+  };
 
-  const applyLocal = useCallback((id: number, patch: Partial<MalListEntry>) => {
+  const applyLocal = (id: number, patch: Partial<MalListEntry>) => {
     setEntries((prev) => prev.map((e) => (e.anime.id === id ? { ...e, ...patch } : e)));
-  }, []);
+  };
 
-  const commitStatus = useCallback(
-    async (entry: MalListEntry, next: MalListStatus) => {
-      setBusyFor(entry.anime.id, true);
-      const total = entry.anime.numEpisodes;
-      const completing = next === "completed" && total != null;
-      applyLocal(entry.anime.id, {
+  const commitStatus = async (entry: MalListEntry, next: MalListStatus) => {
+    setBusyFor(entry.anime.id, true);
+    const total = entry.anime.numEpisodes;
+    const completing = next === "completed" && total != null;
+    applyLocal(entry.anime.id, {
+      status: next,
+      ...(completing ? { numEpisodesWatched: total } : {}),
+    } as Partial<MalListEntry>);
+    const work = async () => {
+      const saved = await saveListEntry({
+        malId: entry.anime.id,
         status: next,
         ...(completing ? { numEpisodesWatched: total } : {}),
+      });
+      applyLocal(entry.anime.id, {
+        status: saved.status,
+        numEpisodesWatched: saved.numEpisodesWatched,
       } as Partial<MalListEntry>);
-      const work = async () => {
-        const saved = await saveListEntry({
-          malId: entry.anime.id,
-          status: next,
-          ...(completing ? { numEpisodesWatched: total } : {}),
-        });
+    };
+    await work()
+      .catch(() => {
         applyLocal(entry.anime.id, {
-          status: saved.status,
-          numEpisodesWatched: saved.numEpisodesWatched,
+          status: entry.status,
+          numEpisodesWatched: entry.numEpisodesWatched,
         } as Partial<MalListEntry>);
-      };
-      await work()
-        .catch(() => {
-          applyLocal(entry.anime.id, {
-            status: entry.status,
-            numEpisodesWatched: entry.numEpisodesWatched,
-          } as Partial<MalListEntry>);
-        })
-        .finally(() => {
-          setBusyFor(entry.anime.id, false);
-        });
-    },
-    [applyLocal, setBusyFor],
-  );
+      })
+      .finally(() => {
+        setBusyFor(entry.anime.id, false);
+      });
+  };
 
-  const commitProgress = useCallback(
-    async (entry: MalListEntry, next: number) => {
-      setBusyFor(entry.anime.id, true);
-      applyLocal(entry.anime.id, { numEpisodesWatched: next } as Partial<MalListEntry>);
-      const work = async () => {
-        const saved = await saveListEntry({ malId: entry.anime.id, numEpisodesWatched: next });
+  const commitProgress = async (entry: MalListEntry, next: number) => {
+    setBusyFor(entry.anime.id, true);
+    applyLocal(entry.anime.id, { numEpisodesWatched: next } as Partial<MalListEntry>);
+    const work = async () => {
+      const saved = await saveListEntry({ malId: entry.anime.id, numEpisodesWatched: next });
+      applyLocal(entry.anime.id, {
+        status: saved.status,
+        numEpisodesWatched: saved.numEpisodesWatched,
+      } as Partial<MalListEntry>);
+    };
+    await work()
+      .catch(() => {
         applyLocal(entry.anime.id, {
-          status: saved.status,
-          numEpisodesWatched: saved.numEpisodesWatched,
+          numEpisodesWatched: entry.numEpisodesWatched,
         } as Partial<MalListEntry>);
-      };
-      await work()
-        .catch(() => {
-          applyLocal(entry.anime.id, {
-            numEpisodesWatched: entry.numEpisodesWatched,
-          } as Partial<MalListEntry>);
-        })
-        .finally(() => {
-          setBusyFor(entry.anime.id, false);
-        });
-    },
-    [applyLocal, setBusyFor],
-  );
+      })
+      .finally(() => {
+        setBusyFor(entry.anime.id, false);
+      });
+  };
 
-  const commitRemove = useCallback(
-    async (entry: MalListEntry) => {
-      setBusyFor(entry.anime.id, true);
-      setEntries((prev) => prev.filter((e) => e.anime.id !== entry.anime.id));
-      const work = async () => {
-        await deleteListEntry(entry.anime.id);
-      };
-      await work()
-        .catch(() => {
-          setEntries((prev) =>
-            prev.some((e) => e.anime.id === entry.anime.id) ? prev : [...prev, entry],
-          );
-        })
-        .finally(() => {
-          setBusyFor(entry.anime.id, false);
-        });
-    },
-    [setBusyFor],
-  );
+  const commitRemove = async (entry: MalListEntry) => {
+    setBusyFor(entry.anime.id, true);
+    setEntries((prev) => prev.filter((e) => e.anime.id !== entry.anime.id));
+    const work = async () => {
+      await deleteListEntry(entry.anime.id);
+    };
+    await work()
+      .catch(() => {
+        setEntries((prev) =>
+          prev.some((e) => e.anime.id === entry.anime.id) ? prev : [...prev, entry],
+        );
+      })
+      .finally(() => {
+        setBusyFor(entry.anime.id, false);
+      });
+  };
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -166,14 +157,11 @@ export function MalTab() {
     });
   }, [entries, type, query]);
 
-  const counts = useMemo(
-    () => ({
-      all: visible.length,
-      movie: visible.filter((e) => entryType(e) === "movie").length,
-      series: visible.filter((e) => entryType(e) === "series").length,
-    }),
-    [visible],
-  );
+  const counts = {
+    all: visible.length,
+    movie: visible.filter((e) => entryType(e) === "movie").length,
+    series: visible.filter((e) => entryType(e) === "series").length,
+  };
 
   if (status === "loading") {
     return <p className="text-[13px] text-ink-muted">{t("Loading your MyAnimeList…")}</p>;

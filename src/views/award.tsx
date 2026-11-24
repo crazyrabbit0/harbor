@@ -1,5 +1,5 @@
 import { LayoutGrid, List } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { laurelColorFor } from "@/components/icons/award-logo";
 import { AWARD_CATALOG } from "@/lib/awards-catalog";
@@ -51,14 +51,14 @@ export function AwardView({ awardType }: { awardType: AwardType }) {
 
   useScrollMemory(`award:${awardType}`, scrollRef);
 
-  const selectMode = useCallback((m: AwardMode) => {
+  const selectMode = (m: AwardMode) => {
     setMode(m);
     try {
       localStorage.setItem(MODE_KEY, m);
     } catch {
       /* ignore */
     }
-  }, []);
+  };
 
   const [seenSource, setSeenSource] = useState({ awardType, tmdbKey: settings.tmdbKey });
   if (seenSource.awardType !== awardType || seenSource.tmdbKey !== settings.tmdbKey) {
@@ -99,7 +99,7 @@ export function AwardView({ awardType }: { awardType: AwardType }) {
     };
   }, [awardType, settings.tmdbKey]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (loadingMore || loadingFilms || filmsDone || !settings.tmdbKey) return;
     setLoadingMore(true);
     targetRef.current += PAGE;
@@ -110,12 +110,12 @@ export function AwardView({ awardType }: { awardType: AwardType }) {
         setLoadingMore(false);
       })
       .catch(() => setLoadingMore(false));
-  }, [awardType, settings.tmdbKey, loadingMore, loadingFilms, filmsDone]);
+  };
 
-  const onViewAll = useCallback(() => {
+  const onViewAll = () => {
     setExpanded(true);
     loadMore();
-  }, [loadMore]);
+  };
 
   const tint = laurelColorFor(awardType) ?? "#E8AA6C";
   const hasKey = !!settings.tmdbKey;

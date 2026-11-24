@@ -185,17 +185,13 @@ export function Lcd({
     };
   }, [height, ramp]);
 
-  const gradient = useMemo(
-    () =>
-      ramp
-        .map((color, row) => {
-          const from = (row / height) * 100;
-          const to = ((row + 1) / height) * 100;
-          return `${color} ${from}% ${to}%`;
-        })
-        .join(", "),
-    [ramp, height],
-  );
+  const gradient = ramp
+    .map((color, row) => {
+      const from = (row / height) * 100;
+      const to = ((row + 1) / height) * 100;
+      return `${color} ${from}% ${to}%`;
+    })
+    .join(", ");
 
   return (
     <>

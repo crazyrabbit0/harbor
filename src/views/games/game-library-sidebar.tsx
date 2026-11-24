@@ -3,7 +3,7 @@ import { GameNotesDialog } from "./game-notes-launcher";
 import { gameVideoSearchUrl } from "@/lib/games/video-search";
 import { launcherSessionBusy } from "@/lib/games/launcher-sessions";
 import { Play } from "@/components/icons/play-filled";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import {
   ArrowDown,
@@ -166,7 +166,7 @@ export function GameLibrarySidebar({
   const [context, setContext] = useState<(LibraryMenuTarget & { profile: string }) | null>(null);
   const contextOrigin = useRef<HTMLElement | null>(null);
   const contextReturnFocus = useRef(true);
-  const closeContext = useCallback(() => {
+  const closeContext = () => {
     setContext(null);
     requestAnimationFrame(() => {
       if (!contextReturnFocus.current) return;
@@ -175,7 +175,7 @@ export function GameLibrarySidebar({
         origin.focus({ preventScroll: true });
       else input.current?.focus({ preventScroll: true });
     });
-  }, []);
+  };
   const showContext = (game: QuickGame, origin: HTMLElement, x?: number, y?: number) => {
     if (editing || !active || concealed) return;
     const box = origin.getBoundingClientRect();

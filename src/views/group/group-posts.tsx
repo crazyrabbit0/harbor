@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Loader2, MessagesSquare } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { fetchGroupPosts, type GroupPost } from "@/lib/social/group-posts";
@@ -45,7 +45,7 @@ export function GroupPosts({
     return () => ctrl.abort();
   }, [detail.id, detail.isMember]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (!cursor || more) return;
     setMore(true);
     fetchGroupPosts(detail.id, cursor)
@@ -55,7 +55,7 @@ export function GroupPosts({
       })
       .catch(() => {})
       .finally(() => setMore(false));
-  }, [cursor, more, detail.id]);
+  };
 
   const sort = (list: GroupPost[]) =>
     [...list].sort(

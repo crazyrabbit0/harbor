@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { errorText } from "@/components/music/music-connections/connection-row";
 import { loadHomeRows } from "@/lib/music/catalog";
 import { getLastFmStatus, type LastFmStatus } from "@/lib/music/lastfm";
@@ -51,7 +51,7 @@ export function useMusicData(recents: MusicTrack[]): MusicData {
   } | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [releaseRefresh, setReleaseRefresh] = useState(0);
-  const reloadFresh = useCallback(() => setReleaseRefresh((value) => value + 1), []);
+  const reloadFresh = () => setReleaseRefresh((value) => value + 1);
   useEffect(() => {
     const refresh = () => setReleaseRefresh((value) => value + 1);
     const timer = window.setInterval(refresh, 30 * 60 * 1000);
@@ -146,7 +146,7 @@ export function useMusicData(recents: MusicTrack[]): MusicData {
       : "loading";
   const freshError = !historyKey ? "" : (freshCurrent?.error ?? "");
 
-  const homeRows = useMemo(() => entries.map((entry) => entry.row), [entries]);
+  const homeRows = entries.map((entry) => entry.row);
   const reload = useCallback(() => setAttempt((value) => value + 1), []);
   useEffect(() => {
     window.addEventListener("harbor:music-library-changed", reload);

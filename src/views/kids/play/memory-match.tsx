@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PartyPopper, RotateCcw } from "lucide-react";
 import { useT } from "@/lib/i18n";
 
@@ -60,15 +60,11 @@ export function MemoryMatch() {
     }, 850);
   };
 
-  const confetti = useMemo(
-    () =>
-      Array.from({ length: 14 }, (_, i) => ({
-        left: (i * 41) % 100,
-        delay: (i * 0.17) % 1.4,
-        art: PAIRS[i % PAIRS.length],
-      })),
-    [],
-  );
+  const confetti = Array.from({ length: 14 }, (_, i) => ({
+    left: (i * 41) % 100,
+    delay: (i * 0.17) % 1.4,
+    art: PAIRS[i % PAIRS.length],
+  }));
 
   useEffect(() => {
     if (!won) return;

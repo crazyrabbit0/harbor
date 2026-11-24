@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { useSettingsSelector } from "@/lib/settings";
 import { type Meta } from "@/lib/cinemeta";
@@ -111,96 +111,90 @@ export function WatchlistTab({
     };
   }, [authKey, settings.libraryBookmarkedOnly, mode, refreshSeq]);
 
-  const handleRemove = useCallback(
-    async (stremioId: string) => {
-      if (!authKey) return;
-      guardSeq.current += 1;
-      pendingRemovals.current += 1;
-      const allLocals = readLocalEntries();
-      const closure = filmClosure([stremioId], allLocals, trakt);
-      evictWatchlistAggregate(closure);
-      const twins = allLocals.filter((l) => closure.has(l.id));
-      setStremio((prev) => prev.filter((i) => !closure.has(i._id)));
-      setLocalEntries((prev) => prev.filter((e) => !closure.has(e.id)));
-      setTrakt((prev) =>
-        prev.filter((t) => {
-          const tk = traktTmdbForm(t.type, t.ids.tmdb);
-          return !((t.ids.imdb && closure.has(t.ids.imdb)) || (tk && closure.has(tk)));
-        }),
-      );
-      setRawCount((c) => Math.max(0, c - 1));
-      const work = async () => {
-        const tr = stremioIdToTraktTarget(stremioId);
-        const simklTarget = (() => {
-          if (!simklConnected()) return null;
-          const sr = stremioIdToSimklTarget(stremioId);
-          return sr.ok ? sr.target : null;
-        })();
-        const results = await Promise.allSettled([
-          ...Array.from(
-            new Set([
-              stremioId,
-              ...stremio.filter((item) => closure.has(item._id)).map((item) => item._id),
-            ]),
-            (id) => removeStremioBookmark(authKey, id),
-          ),
-          ...(tr.ok ? [removeTraktWatchlist(tr.target).catch(() => false)] : []),
-          ...(simklTarget ? [removeSimklWatchlist(simklTarget).catch(() => false)] : []),
-        ]);
-        if (results.some((result) => result.status === "rejected"))
-          throw new Error("Watchlist removal failed");
-        for (const l of twins) removeFromWatchlist(l.id);
-      };
-      await work()
-        .catch(() => {
-          setLocalEntries(readLocalEntries());
-        })
-        .finally(() => {
-          pendingRemovals.current -= 1;
-          guardSeq.current += 1;
-          setRefreshSeq((value) => value + 1);
-        });
-      const revalidate = () => {
-        const s = guardSeq.current;
-        const isCurrent = () => guardSeq.current === s && pendingRemovals.current === 0;
-        void refreshWatchlistAggregates(authKey, traktConnected, simklConnected(), isCurrent)
-          .then((items) => {
-            if (!isCurrent()) return;
-            setTrakt(items);
-          })
-          .catch(() => {});
-      };
-      revalidate();
-    },
-    [authKey, stremio, trakt, traktConnected],
-  );
-
-  const handleRemoveLocal = useCallback(
-    (localId: string) => {
-      const all = readLocalEntries();
-      const e = all.find((x) => x.id === localId);
-      if (!e) return;
-      guardSeq.current += 1;
-      const closure = filmClosure(e.imdbId ? [e.id, e.imdbId] : [e.id], all, trakt);
-      evictWatchlistAggregate(closure);
-      setLocalEntries((prev) => prev.filter((x) => !closure.has(x.id)));
-      setStremio((prev) => prev.filter((i) => !closure.has(i._id)));
-      setTrakt((prev) =>
-        prev.filter((t) => {
-          const tk = traktTmdbForm(t.type, t.ids.tmdb);
-          return !((t.ids.imdb && closure.has(t.ids.imdb)) || (tk && closure.has(tk)));
-        }),
-      );
-      toggleWatchlist({
-        id: e.id,
-        type: e.type,
-        name: e.name,
-        poster: e.poster,
-        imdbId: e.imdbId ?? null,
+  const handleRemove = async (stremioId: string) => {
+    if (!authKey) return;
+    guardSeq.current += 1;
+    pendingRemovals.current += 1;
+    const allLocals = readLocalEntries();
+    const closure = filmClosure([stremioId], allLocals, trakt);
+    evictWatchlistAggregate(closure);
+    const twins = allLocals.filter((l) => closure.has(l.id));
+    setStremio((prev) => prev.filter((i) => !closure.has(i._id)));
+    setLocalEntries((prev) => prev.filter((e) => !closure.has(e.id)));
+    setTrakt((prev) =>
+      prev.filter((t) => {
+        const tk = traktTmdbForm(t.type, t.ids.tmdb);
+        return !((t.ids.imdb && closure.has(t.ids.imdb)) || (tk && closure.has(tk)));
+      }),
+    );
+    setRawCount((c) => Math.max(0, c - 1));
+    const work = async () => {
+      const tr = stremioIdToTraktTarget(stremioId);
+      const simklTarget = (() => {
+        if (!simklConnected()) return null;
+        const sr = stremioIdToSimklTarget(stremioId);
+        return sr.ok ? sr.target : null;
+      })();
+      const results = await Promise.allSettled([
+        ...Array.from(
+          new Set([
+            stremioId,
+            ...stremio.filter((item) => closure.has(item._id)).map((item) => item._id),
+          ]),
+          (id) => removeStremioBookmark(authKey, id),
+        ),
+        ...(tr.ok ? [removeTraktWatchlist(tr.target).catch(() => false)] : []),
+        ...(simklTarget ? [removeSimklWatchlist(simklTarget).catch(() => false)] : []),
+      ]);
+      if (results.some((result) => result.status === "rejected"))
+        throw new Error("Watchlist removal failed");
+      for (const l of twins) removeFromWatchlist(l.id);
+    };
+    await work()
+      .catch(() => {
+        setLocalEntries(readLocalEntries());
+      })
+      .finally(() => {
+        pendingRemovals.current -= 1;
+        guardSeq.current += 1;
+        setRefreshSeq((value) => value + 1);
       });
-    },
-    [trakt],
-  );
+    const revalidate = () => {
+      const s = guardSeq.current;
+      const isCurrent = () => guardSeq.current === s && pendingRemovals.current === 0;
+      void refreshWatchlistAggregates(authKey, traktConnected, simklConnected(), isCurrent)
+        .then((items) => {
+          if (!isCurrent()) return;
+          setTrakt(items);
+        })
+        .catch(() => {});
+    };
+    revalidate();
+  };
+
+  const handleRemoveLocal = (localId: string) => {
+    const all = readLocalEntries();
+    const e = all.find((x) => x.id === localId);
+    if (!e) return;
+    guardSeq.current += 1;
+    const closure = filmClosure(e.imdbId ? [e.id, e.imdbId] : [e.id], all, trakt);
+    evictWatchlistAggregate(closure);
+    setLocalEntries((prev) => prev.filter((x) => !closure.has(x.id)));
+    setStremio((prev) => prev.filter((i) => !closure.has(i._id)));
+    setTrakt((prev) =>
+      prev.filter((t) => {
+        const tk = traktTmdbForm(t.type, t.ids.tmdb);
+        return !((t.ids.imdb && closure.has(t.ids.imdb)) || (tk && closure.has(tk)));
+      }),
+    );
+    toggleWatchlist({
+      id: e.id,
+      type: e.type,
+      name: e.name,
+      poster: e.poster,
+      imdbId: e.imdbId ?? null,
+    });
+  };
 
   useEffect(() => {
     if (!traktConnected) return;
@@ -242,10 +236,10 @@ export function WatchlistTab({
       localStorage.setItem("harbor.watchlist.flat", value);
     } catch {}
   }, [flat]);
-  const toggleFlat = useCallback(() => {
+  const toggleFlat = () => {
     setFlat((v) => !v);
-  }, []);
-  const counts = useMemo(() => countByType(merged), [merged]);
+  };
+  const counts = countByType(merged);
   const visible = useMemo(() => applyFilter(merged, type, query), [merged, type, query]);
   useReportFeatured(useMemo(() => visible.map((v) => v.meta), [visible]));
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { dismissEpisodes, isDismissed, newEpisodesFor, type NewEpisode } from "@/lib/new-episodes";
 import type { LibraryItem } from "@/lib/stremio";
 import { readAtVersion } from "@/lib/read-at-version";
@@ -50,26 +50,22 @@ export function useNewEpisodes(items: LibraryItem[], enabled: boolean) {
     };
   }, [active, enabled, signature, series.length]);
 
-  const episodes = useMemo(
-    () =>
-      readAtVersion(dismissedVer, () => {
-        return found.filter((ep) => !isDismissed(ep.key));
-      }),
-    [found, dismissedVer],
-  );
+  const episodes = readAtVersion(dismissedVer, () => {
+    return found.filter((ep) => !isDismissed(ep.key));
+  });
 
-  const dismissOne = useCallback((key: string) => {
+  const dismissOne = (key: string) => {
     dismissEpisodes([key]);
     setDismissedVer((v) => v + 1);
-  }, []);
+  };
 
-  const dismissAll = useCallback(() => {
+  const dismissAll = () => {
     setFound((current) => {
       dismissEpisodes(current.map((ep) => ep.key));
       return current;
     });
     setDismissedVer((v) => v + 1);
-  }, []);
+  };
 
   return { episodes, dismissOne, dismissAll };
 }

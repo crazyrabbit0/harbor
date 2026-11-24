@@ -9,7 +9,7 @@ import {
   Trash2,
   Wand2,
 } from "lucide-react";
-import { memo, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import { Poster } from "@/components/poster";
 import { removeLocalEntry, type LocalEntry } from "@/lib/local-library";
 import { localGroupKey, sortVersions } from "@/lib/local-library/versions";
@@ -85,7 +85,7 @@ function ShowGroupCardImpl({
   const { openPlayer } = useViewActions();
   const [confirm, setConfirm] = useState(false);
   const poster = useLocalPoster(head);
-  const episodeIds = useMemo(() => episodes.map((e) => e.id), [episodes]);
+  const episodeIds = episodes.map((e) => e.id);
   const needsReview = episodes.some((e) => e.needsReview);
   const countLabel =
     episodes.length === 1 ? t("1 episode") : t("{n} episodes", { n: episodes.length });

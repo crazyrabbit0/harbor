@@ -170,7 +170,7 @@ export function AddonsView({ active = true }: { active?: boolean }) {
     [],
   );
 
-  const allAddons = useMemo(() => [...byId.values()], [byId]);
+  const allAddons = [...byId.values()];
 
   const installed = useMemo(() => {
     const seq = [...loadDisplayOrder(), ...loadInstalled().map((e) => e.transportUrl)];

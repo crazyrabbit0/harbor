@@ -480,7 +480,7 @@ export function SourceReleaseRow({
   game?: DownloadGame;
   downloads: GameTransfers;
 }) {
-  const files = useMemo(() => uniqueSourceFiles(release.files), [release.files]);
+  const files = uniqueSourceFiles(release.files);
   const t = useT(),
     [feedback, setFeedback] = useState(""),
     resolveLink = useSourceLink(),

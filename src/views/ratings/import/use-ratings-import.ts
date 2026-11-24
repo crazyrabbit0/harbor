@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSettingsSelector } from "@/lib/settings";
 import { importRatingsBulk } from "@/lib/ratings/import/bulk";
 import { recordImport } from "@/lib/ratings/import/receipts";
@@ -140,124 +140,115 @@ export function useRatingsImport(): RatingsImport {
     };
   }, []);
 
-  const push = useCallback<Push>((p, force = false) => {
+  const push: Push = (p, force = false) => {
     snap.current = { ...snap.current, ...p };
     const now = Date.now();
     if (!force && now - at.current < PROGRESS_MS) return;
     at.current = now;
     if (live.current) setProgress(snap.current);
-  }, []);
+  };
 
-  const run = useCallback(
-    async (source: RatingsSource, input: ImportSourceInput) => {
-      ctrl.current?.abort();
-      const ac = new AbortController();
-      ctrl.current = ac;
-      snap.current = { ...BLANK };
-      at.current = 0;
-      setProgress(snap.current);
-      setOutcome(null);
-      setError(null);
-      setCancelling(false);
-      setStatus("running");
+  const run = async (source: RatingsSource, input: ImportSourceInput) => {
+    ctrl.current?.abort();
+    const ac = new AbortController();
+    ctrl.current = ac;
+    snap.current = { ...BLANK };
+    at.current = 0;
+    setProgress(snap.current);
+    setOutcome(null);
+    setError(null);
+    setCancelling(false);
+    setStatus("running");
 
-      const stale = () => !live.current || ctrl.current !== ac;
-      const startedAt = Date.now();
-      let saved = 0;
+    const stale = () => !live.current || ctrl.current !== ac;
+    const startedAt = Date.now();
+    let saved = 0;
 
-      const work = async () => {
-        const rows = await source.fetchRatings(input, (p) => push(p), ac.signal);
-        if (ac.signal.aborted) throw abortError();
-        const scanned = Math.max(snap.current.total ?? 0, snap.current.fetched, rows.length);
-        push({ phase: "fetch", fetched: rows.length, total: rows.length }, true);
+    const work = async () => {
+      const rows = await source.fetchRatings(input, (p) => push(p), ac.signal);
+      if (ac.signal.aborted) throw abortError();
+      const scanned = Math.max(snap.current.total ?? 0, snap.current.fetched, rows.length);
+      push({ phase: "fetch", fetched: rows.length, total: rows.length }, true);
 
-        const found = await resolveAll(rows, push, ac.signal, tmdbKey);
-        push(
-          {
-            phase: "write",
-            total: found.targets.length,
-            written: 0,
-            failed: found.unmatched,
-            message: undefined,
-          },
-          true,
-        );
+      const found = await resolveAll(rows, push, ac.signal, tmdbKey);
+      push(
+        {
+          phase: "write",
+          total: found.targets.length,
+          written: 0,
+          failed: found.unmatched,
+          message: undefined,
+        },
+        true,
+      );
 
-        const write = found.targets.length
-          ? await importRatingsBulk(
-              found.targets,
-              (written, failed, note) => {
-                saved = written;
-                push({
-                  written,
-                  failed: found.unmatched + failed,
-                  ...(note ? { message: note } : {}),
-                });
-              },
-              ac.signal,
-            )
-          : { written: 0, failed: 0 };
-        saved = write.written;
-        if (ac.signal.aborted) throw abortError();
-        push(
-          { phase: "done", written: write.written, failed: found.unmatched + write.failed },
-          true,
-        );
+      const write = found.targets.length
+        ? await importRatingsBulk(
+            found.targets,
+            (written, failed, note) => {
+              saved = written;
+              push({
+                written,
+                failed: found.unmatched + failed,
+                ...(note ? { message: note } : {}),
+              });
+            },
+            ac.signal,
+          )
+        : { written: 0, failed: 0 };
+      saved = write.written;
+      if (ac.signal.aborted) throw abortError();
+      push({ phase: "done", written: write.written, failed: found.unmatched + write.failed }, true);
 
+      if (stale()) return;
+      setOutcome({
+        sourceId: source.id,
+        sourceLabel: source.label,
+        scanned,
+        candidates: rows.length,
+        skipped: Math.max(0, scanned - rows.length),
+        imported: write.written,
+        unmatched: found.unmatched,
+        manga: found.manga,
+        writeFailed: write.failed,
+        samples: found.samples,
+      });
+      setStatus("done");
+    };
+    await work()
+      .catch((e: unknown) => {
         if (stale()) return;
-        setOutcome({
-          sourceId: source.id,
-          sourceLabel: source.label,
-          scanned,
-          candidates: rows.length,
-          skipped: Math.max(0, scanned - rows.length),
-          imported: write.written,
-          unmatched: found.unmatched,
-          manga: found.manga,
-          writeFailed: write.failed,
-          samples: found.samples,
-        });
-        setStatus("done");
-      };
-      await work()
-        .catch((e: unknown) => {
-          if (stale()) return;
-          push({}, true);
-          if (isAbort(e)) {
-            setStatus("cancelled");
-            return;
-          }
-          setError(e instanceof Error ? e.message.trim() || null : null);
-          setStatus("error");
-        })
-        .finally(() => {
-          if (saved > 0) {
-            recordImport({
-              sourceId: source.id,
-              sourceLabel: source.label,
-              count: saved,
-              startedAt,
-              finishedAt: Date.now(),
-            });
-          }
-        });
-    },
-    [push, tmdbKey],
-  );
+        push({}, true);
+        if (isAbort(e)) {
+          setStatus("cancelled");
+          return;
+        }
+        setError(e instanceof Error ? e.message.trim() || null : null);
+        setStatus("error");
+      })
+      .finally(() => {
+        if (saved > 0) {
+          recordImport({
+            sourceId: source.id,
+            sourceLabel: source.label,
+            count: saved,
+            startedAt,
+            finishedAt: Date.now(),
+          });
+        }
+      });
+  };
 
-  const start = useCallback(
-    (source: RatingsSource, input: ImportSourceInput) => {
-      void run(source, input);
-    },
-    [run],
-  );
+  const start = (source: RatingsSource, input: ImportSourceInput) => {
+    void run(source, input);
+  };
 
-  const cancel = useCallback(() => {
+  const cancel = () => {
     setCancelling(true);
     ctrl.current?.abort();
-  }, []);
+  };
 
-  const reset = useCallback(() => {
+  const reset = () => {
     ctrl.current?.abort();
     ctrl.current = null;
     snap.current = { ...BLANK };
@@ -267,7 +258,7 @@ export function useRatingsImport(): RatingsImport {
     setError(null);
     setCancelling(false);
     setStatus("idle");
-  }, []);
+  };
 
   return { status, cancelling, progress, outcome, error, start, cancel, reset };
 }

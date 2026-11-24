@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Ban, Check, ChevronDown, Clock, Eye, Pause, Repeat, Trash2 } from "lucide-react";
 import type { RemoteLibraryAction, RemoteTrackers } from "@/lib/remote/protocol";
 import { useT } from "@/lib/i18n";
@@ -115,10 +115,7 @@ export function TrackGroup({
   send: (op: RemoteLibraryAction) => boolean;
 }) {
   const t = useT();
-  const rows = useMemo(
-    () => buildRows(trackers, isAnime, isSeriesLike),
-    [trackers, isAnime, isSeriesLike],
-  );
+  const rows = buildRows(trackers, isAnime, isSeriesLike);
   const [open, setOpen] = useState<TrackerId | null>(null);
   const [chosen, setChosen] = useState<Partial<Record<TrackerId, string>>>({});
   const [note, setNote] = useState<{ id: TrackerId; text: string; ok: boolean } | null>(null);

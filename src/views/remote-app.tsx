@@ -179,16 +179,13 @@ function TouchpadSurface({
   const pointerIdRef = useRef<number | null>(null);
   const lastSwipeTimeRef = useRef<number>(0);
 
-  const fireDir = useCallback(
-    (dx: number, dy: number) => {
-      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
-      const horizontal = Math.abs(dx) >= Math.abs(dy);
-      const key: RemoteNavKey = horizontal ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
-      lastSwipeTimeRef.current = Date.now();
-      onNav(key);
-    },
-    [onNav],
-  );
+  const fireDir = (dx: number, dy: number) => {
+    if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+    const horizontal = Math.abs(dx) >= Math.abs(dy);
+    const key: RemoteNavKey = horizontal ? (dx > 0 ? "right" : "left") : dy > 0 ? "down" : "up";
+    lastSwipeTimeRef.current = Date.now();
+    onNav(key);
+  };
 
   const onPointerDown = (e: ReactPointerEvent) => {
     if (pointerIdRef.current != null) return;
@@ -527,33 +524,27 @@ function RemoteBody({
     return () => window.clearTimeout(t);
   }, [textEntryActive, textDismissed, snapshot.idle]);
 
-  const pushText = useCallback(
-    (value: string) => {
-      if (setTextTimer.current) clearTimeout(setTextTimer.current);
-      setTextTimer.current = setTimeout(() => onSetText(value), 40);
-    },
-    [onSetText],
-  );
+  const pushText = (value: string) => {
+    if (setTextTimer.current) clearTimeout(setTextTimer.current);
+    setTextTimer.current = setTimeout(() => onSetText(value), 40);
+  };
 
-  const dismissTextEntry = useCallback(() => {
+  const dismissTextEntry = () => {
     if (setTextTimer.current) clearTimeout(setTextTimer.current);
     setTextDismissed(true);
     setTyping(false);
     textInputRef.current?.blur();
     // Disarm on the host without blurring so HTPC focus stays put.
     onBlurText();
-  }, [onBlurText]);
+  };
 
-  const submitTextEntry = useCallback(
-    (value: string) => {
-      if (setTextTimer.current) clearTimeout(setTextTimer.current);
-      onSubmitText(value);
-      setTextDismissed(true);
-      setTyping(false);
-      textInputRef.current?.blur();
-    },
-    [onSubmitText],
-  );
+  const submitTextEntry = (value: string) => {
+    if (setTextTimer.current) clearTimeout(setTextTimer.current);
+    onSubmitText(value);
+    setTextDismissed(true);
+    setTyping(false);
+    textInputRef.current?.blur();
+  };
 
   const showTextOverlay = !textDismissed && (textEntryActive || typing) && !!heldTextEntry;
 
@@ -786,9 +777,9 @@ export function RemoteApp() {
   }, [status, wasConnected]);
 
   const closeSheet = useCallback(() => setSheetOpen(false), []);
-  const goHome = useCallback(() => {
+  const goHome = () => {
     window.location.assign("/");
-  }, []);
+  };
 
   const onBack = useCallback(() => {
     if (sheetOpen) {
@@ -801,13 +792,10 @@ export function RemoteApp() {
     return true;
   }, [sheetOpen, closeSheet, sendCommand, watching]);
 
-  const onNav = useCallback(
-    (key: RemoteNavKey) => {
-      if (key === "back" && watching) setConfirmBack(true);
-      else sendCommand({ action: "nav", key });
-    },
-    [sendCommand, watching],
-  );
+  const onNav = (key: RemoteNavKey) => {
+    if (key === "back" && watching) setConfirmBack(true);
+    else sendCommand({ action: "nav", key });
+  };
 
   useKeyboardNavigation({ wrap: false, onBack });
 

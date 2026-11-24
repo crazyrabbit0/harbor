@@ -344,10 +344,8 @@ export function HotEventsContent({
 
   const [sport, setSport] = useState("all");
 
-  const ranked = useMemo(
-    () => hotEvents(games, now, (game) => favourites.some((team) => involvesTeam(game, team))),
-
-    [games, now, favourites],
+  const ranked = hotEvents(games, now, (game) =>
+    favourites.some((team) => involvesTeam(game, team)),
   );
 
   const items = ranked.filter(
@@ -627,16 +625,11 @@ export function HotEvents({
     "upcoming",
   );
 
-  const games = useMemo(
-    () =>
-      mergeSlices([
-        { at: 1, games: seed },
+  const games = mergeSlices([
+    { at: 1, games: seed },
 
-        { at: 2, games: feed.games },
-      ]),
-
-    [seed, feed.games],
-  );
+    { at: 2, games: feed.games },
+  ]);
 
   return (
     <HotEventsContent

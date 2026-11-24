@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { boatBuilt } from "./setup-boat";
 import { SetupHarbor, type HarborSession } from "./setup-harbor";
 import { SetupRecovery } from "./setup-recovery";
@@ -19,15 +19,15 @@ import { useSetupLink } from "./use-setup-link";
 type Pending = { code: string; session: HarborSession };
 
 export function MobileOnboard({ onExit }: { onExit: () => void }) {
-  const token = useMemo(() => setupToken(), []);
+  const token = setupToken();
 
   // Strips ?setup= as well as closing the page. Without it a reload re-enters
   // setup against a code the TV has already retired, with nothing on screen
   // that can get the user to the remote they were promised.
-  const leave = useCallback(() => {
+  const leave = () => {
     clearSetupToken();
     onExit();
-  }, [onExit]);
+  };
 
   if (!token) {
     return (
@@ -59,10 +59,10 @@ function OnboardFlow({ token, onExit }: { token: string; onExit: () => void }) {
     return () => window.removeEventListener("pagehide", bye);
   }, []);
 
-  const leave = useCallback(() => {
+  const leave = () => {
     abandonRef.current();
     onExit();
-  }, [onExit]);
+  };
 
   // The TV drops a step out of `pending` the moment it lands. Recomputing the
   // queue from every offer would advance the phone off the success screen the

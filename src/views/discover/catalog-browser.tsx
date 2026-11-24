@@ -188,17 +188,14 @@ export function CatalogBrowser() {
 
   if (!type && types.length) setType(types[0]);
 
-  const ofType = useMemo(() => catalogs.filter((c) => c.type === type), [catalogs, type]);
+  const ofType = catalogs.filter((c) => c.type === type);
 
   if (ofType.length && !ofType.some((c) => c.key === catKey)) {
     setCatKey(ofType[0].key);
     setGenre(null);
   }
 
-  const selected = useMemo(
-    () => catalogs.find((c) => c.key === catKey) ?? null,
-    [catalogs, catKey],
-  );
+  const selected = catalogs.find((c) => c.key === catKey) ?? null;
 
   if (catalogs.length === 0 || types.length === 0) return null;
 

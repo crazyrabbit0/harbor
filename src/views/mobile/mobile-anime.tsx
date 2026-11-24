@@ -168,10 +168,7 @@ export function MobileAnime() {
     return { top10, trend, rows };
   }, [rowsByKey, hero.metas, anilistTrending]);
 
-  const anyRowData = useMemo(
-    () => SPECS.some((s) => (rowsByKey[s.key]?.metas.length ?? 0) > 0),
-    [rowsByKey],
-  );
+  const anyRowData = SPECS.some((s) => (rowsByKey[s.key]?.metas.length ?? 0) > 0);
 
   if (loading && !anyRowData && hero.metas.length === 0) return <AnimeSkeleton />;
   if (!loading && !anyRowData && anilistTrending.length === 0 && hero.metas.length === 0) {

@@ -255,18 +255,18 @@ export function DeckWaveform({
     };
   }, [paint]);
 
-  const bound = useCallback((seconds: number) => Math.max(0, Math.min(total.current, seconds)), []);
+  const bound = (seconds: number) => Math.max(0, Math.min(total.current, seconds));
 
-  const pushSeek = useCallback((seconds: number, force: boolean) => {
+  const pushSeek = (seconds: number, force: boolean) => {
     const last = scrub.current;
     const now = performance.now();
     if (Math.abs(seconds - last.value) < 0.01) return;
     if (!force && now - last.at < SEEK_MS) return;
     scrub.current = { at: now, value: seconds };
     sendDeckCommand({ kind: "seek", seconds });
-  }, []);
+  };
 
-  const land = useCallback(() => {
+  const land = () => {
     const active = haul.current !== null || rails.current !== null;
     haul.current = null;
     rails.current = null;
@@ -275,18 +275,15 @@ export function DeckWaveform({
     if (!active || next === null) return;
     settleScroll(scroll.current, next, performance.now());
     pushSeek(next, true);
-  }, [pushSeek]);
+  };
 
-  const railSeconds = useCallback(
-    (clientX: number) => {
-      const strip = rails.current;
-      if (!strip) return 0;
-      return bound(((clientX - strip.left) / strip.width) * total.current);
-    },
-    [bound],
-  );
+  const railSeconds = (clientX: number) => {
+    const strip = rails.current;
+    if (!strip) return 0;
+    return bound(((clientX - strip.left) / strip.width) * total.current);
+  };
 
-  const anchorTwin = useCallback(() => {
+  const anchorTwin = () => {
     const other = twin.current;
     if (!other.live) return;
     mark.current = other.paused
@@ -294,7 +291,7 @@ export function DeckWaveform({
       : other.position + (performance.now() - other.at) / 1000;
     ticks.current = TEXT_EVERY - 1;
     setAnchored(true);
-  }, []);
+  };
 
   const grid = view?.grid ?? null;
   const strong = grid && grid.confidence >= GRID_MIN_CONFIDENCE ? grid : null;

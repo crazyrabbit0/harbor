@@ -1,6 +1,6 @@
 import { ScoreMetric, ScoreBreakdown } from "./score-breakdown";
 import { TeamProfileLink, teamIdentity } from "./team-profile-link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, LoaderCircle, MapPin, Play } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
@@ -47,10 +47,7 @@ export function EventMetadata({ game, league }: { game: SportsGame; league: Leag
       : readPublishedEvent(game, league);
   const event = current?.game || game;
   const artwork = event.artwork || current?.banner || current?.square || event.poster;
-  const classification = useMemo(
-    () => current?.entrants ?? parseCompetitionResultText(current?.resultText),
-    [current?.entrants, current?.resultText],
-  );
+  const classification = current?.entrants ?? parseCompetitionResultText(current?.resultText);
   const hasScore = event.home.score !== "" && event.away.score !== "";
   const venue = current?.venue?.name || event.context?.venue;
   return (

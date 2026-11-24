@@ -1,5 +1,5 @@
 import { PartyPopper, Star } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useT } from "@/lib/i18n";
 import type { LearnTopic } from "./learn-types";
 import { saveStars } from "./learn-types";
@@ -22,15 +22,11 @@ export function QuizView({ topic, onDone }: { topic: LearnTopic; onDone: () => v
   const [finished, setFinished] = useState(false);
   const q = topic.quiz[qIdx];
 
-  const confetti = useMemo(
-    () =>
-      Array.from({ length: 12 }, (_, i) => ({
-        left: (i * 43 + 7) % 100,
-        delay: (i * 0.19) % 1.5,
-        art: CONFETTI_ART[i % CONFETTI_ART.length],
-      })),
-    [],
-  );
+  const confetti = Array.from({ length: 12 }, (_, i) => ({
+    left: (i * 43 + 7) % 100,
+    delay: (i * 0.19) % 1.5,
+    art: CONFETTI_ART[i % CONFETTI_ART.length],
+  }));
 
   const answer = (i: number) => {
     if (picked != null) return;

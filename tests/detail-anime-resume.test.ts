@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import ts from "typescript";
+import { unwrappedInitializer } from "./helpers/source-callback.ts";
 import { animePlayEpisode } from "../src/views/detail/anime-play-episode.ts";
 import { buildStreamIds } from "../src/lib/streams/stream-ids.ts";
 import * as identityCore from "../src/lib/streams/anime-identity-core.ts";
@@ -18,7 +19,7 @@ let playBody = "";
 let prefetchBody = "";
 function visit(node: ts.Node) {
   if (ts.isVariableDeclaration(node) && node.name.getText(ast) === "smartPlay") {
-    playBody = (node.initializer as ts.CallExpression).arguments[0].getText(ast);
+    playBody = unwrappedInitializer(node.initializer!).getText(ast);
   }
   if (
     ts.isCallExpression(node) &&

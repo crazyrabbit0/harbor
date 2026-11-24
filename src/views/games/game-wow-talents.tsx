@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { ArrowUpRight, Check, Copy, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -37,12 +37,12 @@ export function GameWowTalents({
     Object.values(talents.groups)
       .flat()
       .find((node) => node.nodeId === selectedId);
-  const dismiss = useCallback(() => {
+  const dismiss = () => {
     setSelected(null);
     requestAnimationFrame(() => {
       if (trigger.current?.isConnected) trigger.current.focus({ preventScroll: true });
     });
-  }, []);
+  };
   if (!talents)
     return (
       <p className="games-wow-status" role="status">

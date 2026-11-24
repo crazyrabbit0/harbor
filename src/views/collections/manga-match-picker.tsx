@@ -41,7 +41,7 @@ export function MangaMatchPicker({
   const [hits, setHits] = useState<MangaSummary[] | null>(null);
   const [tagNames, setTagNames] = useState<Map<string, string>>(new Map());
   const [busy, setBusy] = useState(false);
-  const fallbackSourceName = useMemo(() => activeMangaSource().name, []);
+  const fallbackSourceName = activeMangaSource().name;
 
   useEffect(() => {
     const timer = window.setTimeout(() => setDebounced(query), 350);

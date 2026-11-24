@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import ts from "typescript";
-import { objectProperty, sourceCallback } from "./helpers/source-callback.ts";
+import { objectProperty, sourceCallback, unwrappedInitializer } from "./helpers/source-callback.ts";
 
 // player.tsx is too large to load, so its mouse-hold callbacks run on their own with the view's locals faked.
 const source = readFileSync(new URL("../src/views/player.tsx", import.meta.url), "utf8");
@@ -42,7 +42,7 @@ const handler = (name: string) => {
   assert.ok(attr && ts.isJsxAttribute(attr) && attr.initializer, name);
   return (attr.initializer as ts.JsxExpression).expression!.getText(tree);
 };
-const releaseFn = (release.initializer as ts.CallExpression).arguments[0].getText(tree);
+const releaseFn = unwrappedInitializer(release.initializer!).getText(tree);
 const names = [
   "onPointerDown",
   "onPointerUp",

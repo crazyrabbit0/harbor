@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUp, ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -122,10 +122,7 @@ export function GameDotaCompanion({ active }: { active: boolean }) {
     return () => controller.abort();
   }, [active, engaged, attempt]);
   const heroes = feed.data?.items ?? [];
-  const filtered = useMemo(
-    () => filterDotaHeroes(heroes, query, attribute, sample, sort),
-    [heroes, query, attribute, sample, sort],
-  );
+  const filtered = filterDotaHeroes(heroes, query, attribute, sample, sort);
   const hero = heroes.find((item) => item.id === selected);
   const percent = new Intl.NumberFormat(language, { style: "percent", maximumFractionDigits: 1 });
   const search = (value: string) => {

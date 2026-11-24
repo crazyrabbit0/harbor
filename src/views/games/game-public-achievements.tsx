@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Check, Eye, EyeOff, LockKeyhole, RefreshCw, Search, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -131,9 +131,8 @@ export function PublicAchievementsModal({
             .includes(query.trim().toLocaleLowerCase()))),
   );
   const earned = personal?.items.filter((item) => item.unlocked).length ?? 0;
-  const ownedIds = useMemo(
-    () => new Set((personal?.items ?? []).filter((item) => item.unlocked).map((item) => item.id)),
-    [personal],
+  const ownedIds = new Set(
+    (personal?.items ?? []).filter((item) => item.unlocked).map((item) => item.id),
   );
   return (
     <ModalShell

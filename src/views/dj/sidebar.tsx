@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -84,50 +83,38 @@ export function DeckBrowser({
 
   if (active >= rows.length) setActive(rows.length - 1);
 
-  const audition = useCallback(
-    (index: number, commit: boolean) => {
-      const row = rows[index];
-      if (!row) return;
-      void playSample(row.sample, commit ? level.current : level.current * PREVIEW).catch(() => {});
-    },
-    [rows],
-  );
+  const audition = (index: number, commit: boolean) => {
+    const row = rows[index];
+    if (!row) return;
+    void playSample(row.sample, commit ? level.current : level.current * PREVIEW).catch(() => {});
+  };
 
-  const pick = useCallback(
-    (index: number) => {
-      setActive(index);
-      audition(index, false);
-    },
-    [audition],
-  );
+  const pick = (index: number) => {
+    setActive(index);
+    audition(index, false);
+  };
 
-  const store = useCallback((next: Record<string, DeckSample>) => {
+  const store = (next: Record<string, DeckSample>) => {
     setPads(next);
     writeSamples(next);
-  }, []);
+  };
 
-  const move = useCallback(
-    (from: number, to: number) => {
-      const carried = pads[from];
-      if (!carried || from === to) return;
-      const next = { ...pads };
-      const landing = next[to];
-      next[to] = carried;
-      if (landing) next[from] = landing;
-      else delete next[from];
-      store(next);
-    },
-    [pads, store],
-  );
+  const move = (from: number, to: number) => {
+    const carried = pads[from];
+    if (!carried || from === to) return;
+    const next = { ...pads };
+    const landing = next[to];
+    next[to] = carried;
+    if (landing) next[from] = landing;
+    else delete next[from];
+    store(next);
+  };
 
-  const wipe = useCallback(
-    (slot: number) => {
-      const next = { ...pads };
-      delete next[slot];
-      store(next);
-    },
-    [pads, store],
-  );
+  const wipe = (slot: number) => {
+    const next = { ...pads };
+    delete next[slot];
+    store(next);
+  };
 
   const accept = (files: FileList | null) => {
     if (!files || files.length === 0) return;
@@ -227,10 +214,7 @@ export function DeckBrowser({
     }
   };
 
-  const ahead = useMemo(
-    () => queue.slice(queueIndex + 1, queueIndex + 1 + AHEAD),
-    [queue, queueIndex],
-  );
+  const ahead = queue.slice(queueIndex + 1, queueIndex + 1 + AHEAD);
   const full = SLOTS.every((slot) => pads[slot]);
   const note = tooBig ? t("dj.samples.tooBig") : full ? t("dj.browser.full") : t("dj.browser.hint");
   const here = rows[active];

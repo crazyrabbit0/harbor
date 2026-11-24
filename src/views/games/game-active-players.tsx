@@ -2,7 +2,7 @@ import { GameAvailabilityBadge, useGameAvailabilityIndex } from "./game-availabi
 import { gameAvailability } from "@/lib/games/availability";
 import { GameActiveSkeleton } from "./game-loading";
 import { observeWithin } from "@/lib/visibility";
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { NavChevron } from "@/components/nav-arrow";
 import { RefreshCw } from "lucide-react";
 import { HoverTooltip } from "@/components/hover-tooltip";
@@ -154,17 +154,14 @@ export function GameActivePlayers({
     );
     return () => request.abort();
   }, [deckRunKey]);
-  const all: AudienceGame[] = useMemo(
-    () =>
-      board === "steam"
-        ? (chart?.games ?? [])
-        : board === "xbox"
-          ? (xboxChart?.data ?? [])
-          : board === "deck"
-            ? (deckChart?.data.games ?? [])
-            : audienceChart(board),
-    [board, chart, xboxChart, deckChart],
-  );
+  const all: AudienceGame[] =
+    board === "steam"
+      ? (chart?.games ?? [])
+      : board === "xbox"
+        ? (xboxChart?.data ?? [])
+        : board === "deck"
+          ? (deckChart?.data.games ?? [])
+          : audienceChart(board);
   const pages = Math.ceil(all.length / 6),
     currentPage = Math.min(page, Math.max(0, pages - 1)),
     games = audiencePage(all, currentPage),

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { CatalogRows } from "@/components/catalog/catalog-rows";
 import { CatalogCustomizeBar } from "@/components/catalog/customize-bar";
@@ -92,10 +92,10 @@ export function Movies({ active = true }: { active?: boolean }) {
     letterboxd.listRefs,
   ]);
 
-  const scrollCb = useCallback((el: HTMLElement | null) => {
+  const scrollCb = (el: HTMLElement | null) => {
     (scrollRef as { current: HTMLElement | null }).current = el;
     setScrollEl(el);
-  }, []);
+  };
 
   const catalogKey = `${settings.tmdbKey}\n${settings.region}`;
   const [catalogFor, setCatalogFor] = useState(catalogKey);
@@ -202,7 +202,7 @@ export function Movies({ active = true }: { active?: boolean }) {
     };
   }, [settings.tmdbKey, settings.region]);
 
-  const loadMore = useCallback((rowKey: string) => {
+  const loadMore = (rowKey: string) => {
     if (loadingRef.current.has(rowKey)) return;
     const row = rowsRef.current.find((r) => r.key === rowKey);
     if (!row || !row.fetcher || !row.hasMore || row.metas.length >= MAX_PER_ROW) return;
@@ -231,7 +231,7 @@ export function Movies({ active = true }: { active?: boolean }) {
       .finally(() => {
         loadingRef.current.delete(rowKey);
       });
-  }, []);
+  };
 
   const shownHero = useHideAnimeMetas(hero);
   const shownLetterboxdRows = useHideAnimeRows(letterboxdRows);

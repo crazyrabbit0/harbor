@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { Check, ChevronDown, Languages } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { readAtVersion } from "@/lib/read-at-version";
@@ -26,10 +26,7 @@ export function LanguageDropdown() {
   const [open, setOpen] = useState(false);
   const serverBase = activeMangaSource()?.baseUrl;
   const rev = useSyncExternalStore(subscribeMangaLangFilter, mangaLangFilterRevision);
-  const filter = useMemo(
-    () => readAtVersion(rev, () => loadMangaLangFilter(serverBase)),
-    [serverBase, rev],
-  );
+  const filter = readAtVersion(rev, () => loadMangaLangFilter(serverBase));
   const [langs, setLangs] = useState<string[] | null>(null);
   const ref = useOutsideClose(open, () => setOpen(false));
 
@@ -58,18 +55,14 @@ export function LanguageDropdown() {
   const isAll = filter.includes(ALL_LANGS);
   const summary = isAll ? t("All") : t("{n} selected", { n: filter.length });
 
-  const rows = useMemo(
-    () =>
-      (langs ?? [])
-        .map((code) => ({
-          code,
-          badge: code.split(/[-_]/)[0].toUpperCase(),
-          name: languageName(code),
-          checked: !isAll && filter.includes(code),
-        }))
-        .sort((a, b) => Number(b.checked) - Number(a.checked) || a.name.localeCompare(b.name)),
-    [langs, filter, isAll],
-  );
+  const rows = (langs ?? [])
+    .map((code) => ({
+      code,
+      badge: code.split(/[-_]/)[0].toUpperCase(),
+      name: languageName(code),
+      checked: !isAll && filter.includes(code),
+    }))
+    .sort((a, b) => Number(b.checked) - Number(a.checked) || a.name.localeCompare(b.name));
 
   return (
     <div ref={ref} className="relative">

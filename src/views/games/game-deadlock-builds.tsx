@@ -42,12 +42,12 @@ export function GameDeadlockBuilds({
   const t = useT(),
     trigger = useRef<HTMLButtonElement>(null),
     [open, setOpen] = useState(false);
-  const dismiss = useCallback(() => {
+  const dismiss = () => {
     setOpen(false);
     requestAnimationFrame(() => {
       if (trigger.current?.isConnected) trigger.current.focus({ preventScroll: true });
     });
-  }, []);
+  };
   if (!active && open) setOpen(false);
   return (
     <>

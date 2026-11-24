@@ -62,23 +62,20 @@ export function useFloatingMedia() {
       off.forEach((fn) => fn());
     };
   }, [take]);
-  const property = useCallback(
-    async (name: string, value: unknown) => {
-      const trackChange = name === "aid" || name === "sid";
-      try {
-        await invoke("mpv_set_property", { name, value });
-        take(name, value);
-        setError(false);
-        if (trackChange) {
-          const list = await invoke("mpv_get_property", { name: "track-list" });
-          take("track-list", list);
-        }
-      } catch {
-        setError(true);
+  const property = async (name: string, value: unknown) => {
+    const trackChange = name === "aid" || name === "sid";
+    try {
+      await invoke("mpv_set_property", { name, value });
+      take(name, value);
+      setError(false);
+      if (trackChange) {
+        const list = await invoke("mpv_get_property", { name: "track-list" });
+        take("track-list", list);
       }
-    },
-    [take],
-  );
+    } catch {
+      setError(true);
+    }
+  };
   return { volume, muted, speed, subDelay, tracks, chapters, error, property, setError };
 }
 

@@ -302,16 +302,12 @@ export function MangaBrowse({
 
   // Search results follow the arranged extension order, with sources that have
   // no custom position falling in alphabetically after the ordered ones.
-  const sortedSearchGroups = useMemo(
-    () =>
-      [...searchGroups].sort(
-        bySuwayomiSourceOrder(
-          orderedIds,
-          (g) => g.sourceId,
-          (g) => g.name,
-        ),
-      ),
-    [searchGroups, orderedIds],
+  const sortedSearchGroups = [...searchGroups].sort(
+    bySuwayomiSourceOrder(
+      orderedIds,
+      (g) => g.sourceId,
+      (g) => g.name,
+    ),
   );
 
   const loadMore = useCallback(() => {

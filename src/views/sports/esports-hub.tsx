@@ -242,13 +242,8 @@ export function EsportsHub({ active, refresh = 0 }: { active: boolean; refresh?:
   const relevantFeeds = Object.values(feeds).filter(
     (feed) => feed && (selected === "all" || feed.game === selected),
   );
-  const rowGames = useMemo(
-    () =>
-      selected === "all"
-        ? ESPORTS_ROW_GAMES
-        : ESPORTS_ROW_GAMES.filter((game) => game === selected),
-    [selected],
-  );
+  const rowGames =
+    selected === "all" ? ESPORTS_ROW_GAMES : ESPORTS_ROW_GAMES.filter((game) => game === selected);
   const matches = useMemo(() => {
     const logoById = new Map(teams.map((team) => [String(team.id), team.logo]));
     const list = Object.values(feeds)

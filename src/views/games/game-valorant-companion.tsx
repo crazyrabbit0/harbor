@@ -1,5 +1,5 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowUpRight,
   BookOpen,
@@ -149,10 +149,7 @@ function Companion({ active, onGuides }: { active: boolean; onGuides?: () => voi
     );
     return () => controller.abort();
   }, [metaEnabled, tier, map, filterKey, attempt, metaRequestKey]);
-  const ranked = useMemo(
-    () => rankValorantAgents(agents ?? [], current?.data ?? null, role, query, sort),
-    [agents, current?.data, role, query, sort],
-  );
+  const ranked = rankValorantAgents(agents ?? [], current?.data ?? null, role, query, sort);
   const selected = ranked.find((v) => v.agent.id === selection) ?? ranked[0];
   const number = new Intl.NumberFormat(language, { maximumFractionDigits: 1 });
   const roles = VALORANT_ROLES.map((value) => ({

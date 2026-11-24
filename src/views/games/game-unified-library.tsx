@@ -1,7 +1,7 @@
 import { launcherSessionBusy, launcherSessionLabel } from "@/lib/games/launcher-sessions";
 import { useLibraryShuffle } from "@/hooks/use-library-shuffle";
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { convertFileSrc, isTauri } from "@tauri-apps/api/core";
 import {
   ArrowUpRight,
@@ -163,47 +163,27 @@ export function GameUnifiedLibraryView({
     setPrevLimitScope({ query, filters: nextFilters });
     setLimit(36);
   }
-  const all = useMemo(
-    () =>
-      unifiedLibrary({
-        installed: library.scan?.games ?? [],
-        steamKnown: !!library.scan && !library.error,
-        steamComplete: !library.scan?.warnings.length,
-        account: account.status.snapshot,
-        steamImports: access.steamImports?.data.games,
-        shortcuts: shortcuts?.games,
-        custom: custom.data.games,
-        customHealth: custom.health,
-        retro: emulation.data,
-        launchers: launchers.scan,
-        launchersKnown: !!launchers.scan && !launchers.error,
-        preferences: prefs.data,
-      }),
-    [
-      access.steamImports?.data.games,
-      library.scan,
-      library.error,
-      shortcuts?.games,
-      account.status,
-      custom.data.games,
-      custom.health,
-      emulation.data,
-      launchers.scan,
-      launchers.error,
-      prefs.data,
-    ],
-  );
-  const games = useMemo(
-      () =>
-        filterUnifiedLibrary(all, {
-          ...filters,
-          query,
-          ...(shuffle.enabled ? ({ sort: "shuffle", shuffleSeed: shuffle.seed } as const) : {}),
-        }),
-      [all, filters, query, shuffle.enabled, shuffle.seed],
-    ),
+  const all = unifiedLibrary({
+    installed: library.scan?.games ?? [],
+    steamKnown: !!library.scan && !library.error,
+    steamComplete: !library.scan?.warnings.length,
+    account: account.status.snapshot,
+    steamImports: access.steamImports?.data.games,
+    shortcuts: shortcuts?.games,
+    custom: custom.data.games,
+    customHealth: custom.health,
+    retro: emulation.data,
+    launchers: launchers.scan,
+    launchersKnown: !!launchers.scan && !launchers.error,
+    preferences: prefs.data,
+  });
+  const games = filterUnifiedLibrary(all, {
+      ...filters,
+      query,
+      ...(shuffle.enabled ? ({ sort: "shuffle", shuffleSeed: shuffle.seed } as const) : {}),
+    }),
     shown = games.slice(0, limit);
-  const drives = useMemo(() => libraryDrives(all, filters.drive), [all, filters.drive]);
+  const drives = libraryDrives(all, filters.drive);
   const ids = shown.flatMap((item) => (item.game?.steamId ? [item.game.steamId] : [])).join(",");
   const missingArt = shown.flatMap((item) =>
       item.game &&

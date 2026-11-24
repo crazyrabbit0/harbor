@@ -418,7 +418,7 @@ function AttachPopover({
     };
   }, [anchor, onClose]);
 
-  const rows = useMemo(() => searchSportsChannels(index, query, 60), [index, query]);
+  const rows = searchSportsChannels(index, query, 60);
   const attached = new Set(attachedIds);
 
   return (

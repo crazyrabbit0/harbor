@@ -350,10 +350,7 @@ export function GameNotes({
         if (file.current) file.current.value = "";
       });
   };
-  const review = useMemo(
-    () => importReview(importing, usingGuide ? guide : null, split, incoming),
-    [importing, guide, usingGuide, split, incoming],
-  );
+  const review = importReview(importing, usingGuide ? guide : null, split, incoming);
   const applyImport = () => {
     try {
       const next = mergeGameNotes(notes, review.notes, replace);

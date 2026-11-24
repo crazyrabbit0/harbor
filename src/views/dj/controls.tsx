@@ -75,7 +75,7 @@ function useLatch(value: number) {
 
   useEffect(() => () => window.clearTimeout(timer.current), []);
 
-  const push = useCallback((next: number) => {
+  const push = (next: number) => {
     aim.current = next;
     setHeld(next);
     window.clearTimeout(timer.current);
@@ -83,9 +83,9 @@ function useLatch(value: number) {
       aim.current = null;
       setHeld(null);
     }, LATCH_MS);
-  }, []);
+  };
 
-  const read = useCallback(() => aim.current ?? live.current, []);
+  const read = () => aim.current ?? live.current;
 
   return { shown: held ?? value, read, push };
 }
@@ -97,28 +97,25 @@ function useThrow(span: number, min: number, max: number, apply: (value: number)
     latest.current = apply;
   }, [apply]);
 
-  const grab = useCallback((event: PointerEvent<HTMLElement>, from: number) => {
+  const grab = (event: PointerEvent<HTMLElement>, from: number) => {
     if (event.button === 1) event.preventDefault();
     event.currentTarget.setPointerCapture(event.pointerId);
     grip.current = { value: from, moved: 0 };
-  }, []);
+  };
 
-  const drag = useCallback(
-    (event: PointerEvent<HTMLElement>) => {
-      const held = grip.current;
-      if (!held) return;
-      const reach = isFine(event) ? REACH * FINE_DIVISOR : REACH;
-      held.value = clamp(held.value - (event.movementY / reach) * span, min, max);
-      held.moved += Math.abs(event.movementY);
-      if (held.moved < DEAD_ZONE) return;
-      latest.current(held.value);
-    },
-    [max, min, span],
-  );
+  const drag = (event: PointerEvent<HTMLElement>) => {
+    const held = grip.current;
+    if (!held) return;
+    const reach = isFine(event) ? REACH * FINE_DIVISOR : REACH;
+    held.value = clamp(held.value - (event.movementY / reach) * span, min, max);
+    held.moved += Math.abs(event.movementY);
+    if (held.moved < DEAD_ZONE) return;
+    latest.current(held.value);
+  };
 
-  const drop = useCallback(() => {
+  const drop = () => {
     grip.current = null;
-  }, []);
+  };
 
   return { grab, drag, drop };
 }
@@ -182,10 +179,10 @@ export function Knob({
     settle.current = onSettle ?? (() => {});
   });
   const rest = useRef(0);
-  const restSettle = useCallback(() => {
+  const restSettle = () => {
     window.clearTimeout(rest.current);
     rest.current = window.setTimeout(() => settle.current(), REST_MS);
-  }, []);
+  };
   useEffect(() => () => window.clearTimeout(rest.current), []);
 
   const apply = useCallback(
@@ -298,10 +295,10 @@ export function Fader({
     send.current = onCommit;
   }, [onCommit]);
   const rest = useRef(0);
-  const restCommit = useCallback(() => {
+  const restCommit = () => {
     window.clearTimeout(rest.current);
     rest.current = window.setTimeout(() => send.current?.(read()), REST_MS);
-  }, [read]);
+  };
   useEffect(() => () => window.clearTimeout(rest.current), []);
 
   const apply = useCallback(

@@ -35,13 +35,9 @@ export function FavoritesTab() {
     };
   }, [mediaItems]);
 
-  const characters = useMemo<AnimeCharacter[]>(
-    () =>
-      [...charItems.values()]
-        .sort((a, b) => b.addedAt - a.addedAt)
-        .map((e) => ({ id: Number(e.id), name: e.name, image: e.image })),
-    [charItems],
-  );
+  const characters: AnimeCharacter[] = [...charItems.values()]
+    .sort((a, b) => b.addedAt - a.addedAt)
+    .map((e) => ({ id: Number(e.id), name: e.name, image: e.image }));
 
   if (characters.length === 0 && anime.length === 0 && movies.length === 0 && shows.length === 0) {
     return <EmptyFavorites />;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   sourceLatest,
   sourcePopular,
@@ -74,7 +74,7 @@ export function useSourceFeed(
       });
   }, [config.baseUrl, config.auth?.username, config.auth?.password, sourceId, mode, query, reload]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (loadingMore || !hasNext) return;
     const token = reqRef.current;
     const next = pageRef.current + 1;
@@ -93,9 +93,9 @@ export function useSourceFeed(
       .finally(() => {
         if (token === reqRef.current) setLoadingMore(false);
       });
-  }, [config, sourceId, mode, query, hasNext, loadingMore]);
+  };
 
-  const retry = useCallback(() => setReload((n) => n + 1), []);
+  const retry = () => setReload((n) => n + 1);
 
   return { items, state, loadingMore, loadMoreFailed, hasNext, loadMore, retry };
 }

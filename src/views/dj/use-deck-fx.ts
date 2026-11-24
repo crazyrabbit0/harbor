@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   beatMs,
   clearMusicFx,
@@ -99,33 +99,25 @@ export function useDeckFx({
     }, FLUSH_MS);
   }, []);
 
-  const adjust = useCallback(
-    (patch: Partial<MusicFx>) => push({ ...latest.current, ...patch, bpm: tempo.current }),
-    [push],
-  );
+  const adjust = (patch: Partial<MusicFx>) =>
+    push({ ...latest.current, ...patch, bpm: tempo.current });
 
   useEffect(() => {
     if (latest.current.kind === "off") return;
     push({ ...latest.current, bpm: tempo.current });
   }, [bpm, push]);
 
-  const release = useCallback(
-    (kind: ReleaseKind) => {
-      const fxRig = engine();
-      if (fxRig.busy) return;
-      setRunning(kind);
-      void fxRig
-        .run(kind, live.current(), beatMs(tempo.current, latest.current.beats))
-        .catch(() => false)
-        .then(() => setRunning(null));
-    },
-    [engine],
-  );
+  const release = (kind: ReleaseKind) => {
+    const fxRig = engine();
+    if (fxRig.busy) return;
+    setRunning(kind);
+    void fxRig
+      .run(kind, live.current(), beatMs(tempo.current, latest.current.beats))
+      .catch(() => false)
+      .then(() => setRunning(null));
+  };
 
-  const divisions = useMemo(
-    () => FX_DIVISIONS.map((beats) => ({ beats, label: divisionLabel(beats) })),
-    [],
-  );
+  const divisions = FX_DIVISIONS.map((beats) => ({ beats, label: divisionLabel(beats) }));
 
   return { fx, adjust, release, running, ready, divisions, kinds: FX_KINDS };
 }

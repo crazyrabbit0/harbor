@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Pin, Puzzle, SlidersHorizontal, X } from "lucide-react";
 import { PencilOutlineIcon } from "@/components/icons/pencil-outline";
 import { Search } from "@/components/icons/search-icon";
@@ -98,10 +98,7 @@ export function Catalogs({ active = true }: { active?: boolean }) {
     update({ catalogsPinned: arr });
   };
 
-  const hiddenCount = useMemo(
-    () => (customize ? 0 : catalogs.filter((c) => hiddenSet.has(c.key)).length),
-    [customize, catalogs, hiddenSet],
-  );
+  const hiddenCount = customize ? 0 : catalogs.filter((c) => hiddenSet.has(c.key)).length;
 
   return (
     <main className="flex-1 overflow-y-auto px-12 pb-24 pt-28">

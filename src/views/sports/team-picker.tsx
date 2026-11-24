@@ -108,20 +108,16 @@ export function TeamPicker({
   }, []);
 
   const needle = query.trim();
-  const sections = useMemo(
-    () =>
-      keys
-        .map((key) => {
-          const all =
-            fetchedByLeague.sig === keySig && key in fetchedByLeague.map
-              ? fetchedByLeague.map[key]
-              : cachedLeagueTeams(key);
-          const teams = needle ? all.filter((team) => matchesTeamSearch(team, needle)) : all;
-          return { key, teams };
-        })
-        .filter((s) => s.teams.length > 0),
-    [keys, keySig, fetchedByLeague, needle],
-  );
+  const sections = keys
+    .map((key) => {
+      const all =
+        fetchedByLeague.sig === keySig && key in fetchedByLeague.map
+          ? fetchedByLeague.map[key]
+          : cachedLeagueTeams(key);
+      const teams = needle ? all.filter((team) => matchesTeamSearch(team, needle)) : all;
+      return { key, teams };
+    })
+    .filter((s) => s.teams.length > 0);
 
   return createPortal(
     <div

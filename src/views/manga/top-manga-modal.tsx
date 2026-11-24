@@ -98,10 +98,10 @@ export function TopMangaModal({
     [activeId],
   );
 
-  const fallback: MangaSummary[] = useMemo(
-    () => collection.titles.map((title, i) => ({ id: `syn:${collection.id}:${i}`, title })),
-    [collection],
-  );
+  const fallback: MangaSummary[] = collection.titles.map((title, i) => ({
+    id: `syn:${collection.id}:${i}`,
+    title,
+  }));
 
   const loadKey = open ? `${collection.id}\0${reloadNonce}` : "";
   const [prevLoadKey, setPrevLoadKey] = useState(loadKey);

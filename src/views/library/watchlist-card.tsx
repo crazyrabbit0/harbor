@@ -1,5 +1,5 @@
 import { Bookmark, Trash2 } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Poster, usePosterChain } from "@/components/poster";
 import { hasEmbeddedStreams, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { useSettingsSelector } from "@/lib/settings";
@@ -26,9 +26,9 @@ export function WatchlistCard({ meta, onRemove }: { meta: Meta; onRemove?: () =>
   const hydrationSkipped = !!meta.poster && !!meta.name && !posterFailed && !needsAddonHydration;
   if (hydrationSkipped && hydratedState !== null) setHydrated(null);
   const hydrated = hydrationSkipped ? null : hydratedState;
-  const onPosterError = useCallback(() => {
+  const onPosterError = () => {
     setPosterFailed(true);
-  }, []);
+  };
   useEffect(() => {
     if (hydrationSkipped) return;
     const el = cardRef.current;

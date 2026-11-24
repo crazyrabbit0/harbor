@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useSectionBack } from "@/lib/section-back";
@@ -79,15 +79,9 @@ export function GameLibraryTitles({
       if (previous?.isConnected) previous.focus({ preventScroll: true });
     };
   }, []);
-  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
-  const targets = useMemo(
-    () => (scope === "selected" ? items.filter((item) => selected.has(item.id)) : items),
-    [items, scope, selected],
-  );
-  const rows = useMemo(
-    () => reviewLibraryTitles(targets, draft, restore),
-    [targets, draft, restore],
-  );
+  const selected = new Set(selectedIds);
+  const targets = scope === "selected" ? items.filter((item) => selected.has(item.id)) : items;
+  const rows = reviewLibraryTitles(targets, draft, restore);
   const changed = rows.filter((row) => row.changed);
   const patch = (value: Partial<LibraryTitleRules>) => {
     setDraft((previous) => ({ ...previous, ...value }));

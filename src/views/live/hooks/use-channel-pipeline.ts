@@ -72,14 +72,8 @@ export function useChannelPipeline(params: {
     for (const c of liveChannels) if (c.group) set.add(c.group);
     return [...set];
   }, [liveChannels]);
-  const sortedGroups = useMemo(
-    () => sortGroupsByRelevance(liveGroups, region, languages),
-    [liveGroups, region, languages],
-  );
-  const userGroups = useMemo(
-    () => applyUserGroupOrder(sortedGroups, groupPrefs),
-    [sortedGroups, groupPrefs],
-  );
+  const sortedGroups = sortGroupsByRelevance(liveGroups, region, languages);
+  const userGroups = applyUserGroupOrder(sortedGroups, groupPrefs);
 
   const topRows = useMemo(() => rowsForRegion(region), [region]);
   const showTopRows = mode === "grid" && group === null && !query.trim() && topRows.length > 0;

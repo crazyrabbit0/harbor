@@ -1,5 +1,5 @@
 import { Play } from "@/components/icons/play-filled";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowUpRight, ChevronDown, RefreshCw, Search, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -183,10 +183,7 @@ function Heroes({
     );
     return () => controller.abort();
   }, [requestKey, language, attempt]);
-  const heroes = useMemo(
-    () => filterOverwatchHeroes(feed.data?.items ?? [], query, role, stadium),
-    [feed.data, query, role, stadium],
-  );
+  const heroes = filterOverwatchHeroes(feed.data?.items ?? [], query, role, stadium);
   const selected = heroes.find((hero) => hero.key === selection) ?? heroes[0];
   const reset = () => {
     setLimit(16);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { fetchMediaListCollection, readCachedCollection } from "@/lib/anilist/lists";
 import { deleteListEntry, saveListEntry } from "@/lib/anilist/mutations";
 import { useAnilist } from "@/lib/anilist/provider";
@@ -60,80 +60,71 @@ export function AnilistTab() {
     };
   }, [userId]);
 
-  const setBusyFor = useCallback((id: number, on: boolean) => {
+  const setBusyFor = (id: number, on: boolean) => {
     setBusy((prev) => {
       const next = new Set(prev);
       if (on) next.add(id);
       else next.delete(id);
       return next;
     });
-  }, []);
+  };
 
-  const applyLocal = useCallback((id: number, patch: Partial<AnilistMediaEntry>) => {
+  const applyLocal = (id: number, patch: Partial<AnilistMediaEntry>) => {
     setEntries((prev) => prev.map((e) => (e.id === id ? { ...e, ...patch } : e)));
-  }, []);
+  };
 
-  const commitStatus = useCallback(
-    async (entry: AnilistMediaEntry, next: MediaListStatus) => {
-      setBusyFor(entry.id, true);
-      const total = entry.media.episodes;
-      const completing = next === "COMPLETED" && total != null;
-      applyLocal(entry.id, { status: next, ...(completing ? { progress: total } : {}) });
-      const work = async () => {
-        const saved = await saveListEntry({
-          mediaId: entry.media.id,
-          status: next,
-          ...(completing ? { progress: total } : {}),
-        });
-        applyLocal(entry.id, { status: saved.status, progress: saved.progress });
-      };
-      await work()
-        .catch(() => {
-          applyLocal(entry.id, { status: entry.status, progress: entry.progress });
-        })
-        .finally(() => {
-          setBusyFor(entry.id, false);
-        });
-    },
-    [applyLocal, setBusyFor],
-  );
+  const commitStatus = async (entry: AnilistMediaEntry, next: MediaListStatus) => {
+    setBusyFor(entry.id, true);
+    const total = entry.media.episodes;
+    const completing = next === "COMPLETED" && total != null;
+    applyLocal(entry.id, { status: next, ...(completing ? { progress: total } : {}) });
+    const work = async () => {
+      const saved = await saveListEntry({
+        mediaId: entry.media.id,
+        status: next,
+        ...(completing ? { progress: total } : {}),
+      });
+      applyLocal(entry.id, { status: saved.status, progress: saved.progress });
+    };
+    await work()
+      .catch(() => {
+        applyLocal(entry.id, { status: entry.status, progress: entry.progress });
+      })
+      .finally(() => {
+        setBusyFor(entry.id, false);
+      });
+  };
 
-  const commitProgress = useCallback(
-    async (entry: AnilistMediaEntry, next: number) => {
-      setBusyFor(entry.id, true);
-      applyLocal(entry.id, { progress: next });
-      const work = async () => {
-        const saved = await saveListEntry({ mediaId: entry.media.id, progress: next });
-        applyLocal(entry.id, { status: saved.status, progress: saved.progress });
-      };
-      await work()
-        .catch(() => {
-          applyLocal(entry.id, { progress: entry.progress });
-        })
-        .finally(() => {
-          setBusyFor(entry.id, false);
-        });
-    },
-    [applyLocal, setBusyFor],
-  );
+  const commitProgress = async (entry: AnilistMediaEntry, next: number) => {
+    setBusyFor(entry.id, true);
+    applyLocal(entry.id, { progress: next });
+    const work = async () => {
+      const saved = await saveListEntry({ mediaId: entry.media.id, progress: next });
+      applyLocal(entry.id, { status: saved.status, progress: saved.progress });
+    };
+    await work()
+      .catch(() => {
+        applyLocal(entry.id, { progress: entry.progress });
+      })
+      .finally(() => {
+        setBusyFor(entry.id, false);
+      });
+  };
 
-  const commitRemove = useCallback(
-    async (entry: AnilistMediaEntry) => {
-      setBusyFor(entry.id, true);
-      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-      const work = async () => {
-        await deleteListEntry(entry.id);
-      };
-      await work()
-        .catch(() => {
-          setEntries((prev) => (prev.some((e) => e.id === entry.id) ? prev : [...prev, entry]));
-        })
-        .finally(() => {
-          setBusyFor(entry.id, false);
-        });
-    },
-    [setBusyFor],
-  );
+  const commitRemove = async (entry: AnilistMediaEntry) => {
+    setBusyFor(entry.id, true);
+    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+    const work = async () => {
+      await deleteListEntry(entry.id);
+    };
+    await work()
+      .catch(() => {
+        setEntries((prev) => (prev.some((e) => e.id === entry.id) ? prev : [...prev, entry]));
+      })
+      .finally(() => {
+        setBusyFor(entry.id, false);
+      });
+  };
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -144,14 +135,11 @@ export function AnilistTab() {
     });
   }, [entries, type, query]);
 
-  const counts = useMemo(
-    () => ({
-      all: visible.length,
-      movie: visible.filter((e) => entryType(e) === "movie").length,
-      series: visible.filter((e) => entryType(e) === "series").length,
-    }),
-    [visible],
-  );
+  const counts = {
+    all: visible.length,
+    movie: visible.filter((e) => entryType(e) === "movie").length,
+    series: visible.filter((e) => entryType(e) === "series").length,
+  };
 
   if (status === "loading") {
     return <p className="text-[13px] text-ink-muted">{t("Loading your AniList…")}</p>;

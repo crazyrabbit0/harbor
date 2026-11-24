@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { invoke } from "@tauri-apps/api/core";
 import { Check, Copy, Smartphone, X } from "lucide-react";
@@ -30,7 +30,7 @@ export function PhoneRemoteButton() {
 }
 
 function Qr({ url }: { url: string }) {
-  const qr = useMemo(() => buildHandoffQr(url), [url]);
+  const qr = buildHandoffQr(url);
   if (!qr) return null;
   return (
     <svg

@@ -129,28 +129,19 @@ export function GameConsolePage({
     );
   const catalog = useRomPage(filters, active && near),
     games = catalog.page?.games ?? [];
-  const library = useMemo(
-    () => [
-      ...new Map(
-        [
-          ...(popular.page?.games ?? []),
-          ...(rated.page?.games ?? []),
-          ...(catalog.page?.games ?? []),
-        ].map((game) => [game.igdbId, game]),
-      ).values(),
-    ],
-    [popular.page, rated.page, catalog.page],
-  );
-  const groups = useMemo(() => romCollections(library), [library]);
-  const genreOptions = useMemo(
-    () => connections(library.flatMap((game) => game.genres)),
-    [library],
-  );
-  const modeOptions = useMemo(() => connections(library.flatMap((game) => game.modes)), [library]);
-  const perspectiveOptions = useMemo(
-    () => connections(library.flatMap((game) => game.perspectives)),
-    [library],
-  );
+  const library = [
+    ...new Map(
+      [
+        ...(popular.page?.games ?? []),
+        ...(rated.page?.games ?? []),
+        ...(catalog.page?.games ?? []),
+      ].map((game) => [game.igdbId, game]),
+    ).values(),
+  ];
+  const groups = romCollections(library);
+  const genreOptions = connections(library.flatMap((game) => game.genres));
+  const modeOptions = connections(library.flatMap((game) => game.modes));
+  const perspectiveOptions = connections(library.flatMap((game) => game.perspectives));
   const feature = popular.page?.games.find(
     (game) => game.screenshots.length > 0 || (game.hero && game.hero !== game.portrait),
   );

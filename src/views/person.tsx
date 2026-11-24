@@ -66,18 +66,15 @@ export function PersonView({ personId }: { personId: number }) {
   const personRank = rank(personId, person?.knownForDepartment ?? "Acting");
   const liveAwards = useAwards(person?.imdbId ?? undefined);
   const awardsV = useBundledAwardsVersion();
-  const awardEntries = useMemo(
-    () => readAtVersion(awardsV, () => mergeBundledPersonAwards(liveAwards, person?.name)),
-    [awardsV, liveAwards, person?.name],
+  const awardEntries = readAtVersion(awardsV, () =>
+    mergeBundledPersonAwards(liveAwards, person?.name),
   );
-  const awardChips = useMemo(() => awardSummary(awardEntries), [awardEntries]);
+  const awardChips = awardSummary(awardEntries);
   const [openAward, setOpenAward] = useState<{ type: AwardType; anchor: DOMRect } | null>(null);
   const [sort, setSort] = useState<FilmographySort>("popularity");
   const [minRating, setMinRating] = useState(0);
-  const openAwardEntries = useMemo(
-    () => (openAward && awardEntries ? awardEntries.filter((e) => e.type === openAward.type) : []),
-    [openAward, awardEntries],
-  );
+  const openAwardEntries =
+    openAward && awardEntries ? awardEntries.filter((e) => e.type === openAward.type) : [];
   useScrollMemory(`person:${personId}`, scrollRef);
 
   const personKey = `${personId}\n${settings.tmdbKey}`;
@@ -123,31 +120,20 @@ export function PersonView({ personId }: { personId: number }) {
       .sort((a, b) => notableScore(b) - notableScore(a))
       .slice(0, 12);
   }, [sortedCast, sortedCrew, person]);
-  const topPerformances = useMemo(
-    () =>
-      rankByRating(
-        sortedCast.filter((c) => !isCameoOrGuest(c)),
-        TOP_PERFORMANCE_COUNT,
-      ),
-    [sortedCast],
+  const topPerformances = rankByRating(
+    sortedCast.filter((c) => !isCameoOrGuest(c)),
+    TOP_PERFORMANCE_COUNT,
   );
   const collaborators = useCollaborators(person);
 
-  const film = useMemo(
-    () => buildFilmography(sortedCast, sortedCrew, sort, minRating),
-    [sortedCast, sortedCrew, sort, minRating],
-  );
+  const film = buildFilmography(sortedCast, sortedCrew, sort, minRating);
   const watchedVersion = useSyncExternalStore(
     subscribeMovieWatched,
     movieWatchedVersion,
     movieWatchedVersion,
   );
-  const completion = useMemo(
-    () =>
-      readAtVersion(watchedVersion, () =>
-        filmographyCompletion(signatureFilms(person?.knownForDepartment, sortedCast, sortedCrew)),
-      ),
-    [person?.knownForDepartment, sortedCast, sortedCrew, watchedVersion],
+  const completion = readAtVersion(watchedVersion, () =>
+    filmographyCompletion(signatureFilms(person?.knownForDepartment, sortedCast, sortedCrew)),
   );
 
   const photo = person?.profilePath

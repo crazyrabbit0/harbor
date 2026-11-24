@@ -1,7 +1,6 @@
 import {
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
@@ -119,7 +118,7 @@ function ArrangeExtensionsModal({
   onClose: () => void;
 }) {
   const t = useT();
-  const ordered = useMemo(() => applySuwayomiSourceOrder(sources, order), [sources, order]);
+  const ordered = applySuwayomiSourceOrder(sources, order);
   const [held, setHeld] = useState<string | null>(null);
   const [grab, setGrab] = useState<{ x: number; y: number; dx: number; dy: number } | null>(null);
   const [over, setOver] = useState<string | null>(null);

@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { BookFlip, type BookApi } from "@/views/manga/manga-reader/book-view";
 import { proxied, READER_BG_HEX } from "./local-reader-types";
 import { usePinchZoom } from "./hooks/use-pinch-zoom";
@@ -28,7 +28,7 @@ export function ModeBook({
 }) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const pinch = usePinchZoom({ zoom, onZoom, onPan, rootRef: wrapRef });
-  const proxiedPages = useMemo(() => pages.map(proxied), [pages]);
+  const proxiedPages = pages.map(proxied);
   const turnRef = useRef(onTurn);
   useLayoutEffect(() => {
     turnRef.current = onTurn;

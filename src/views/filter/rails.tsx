@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { useSettingsSelector } from "@/lib/settings";
 import type { MetaFilter } from "@/lib/view";
 import { CinemetaFallback } from "./cinemeta-fallback";
@@ -9,7 +8,7 @@ import { TopicSection } from "./topic-section";
 
 export function Rails({ filter }: { filter: MetaFilter }) {
   const settings = useSettingsSelector((s) => ({ tmdbKey: s.tmdbKey }));
-  const rails = useMemo(() => railsForFilter(filter), [filter]);
+  const rails = railsForFilter(filter);
   if (!settings.tmdbKey) {
     return <CinemetaFallback filter={filter} />;
   }

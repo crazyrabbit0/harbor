@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
@@ -38,7 +37,7 @@ export function PostBody({
   const openTimer = useRef<number | null>(null);
   const closeTimer = useRef<number | null>(null);
 
-  const html = useMemo(() => renderBbcode(body, new Set(scanMentions(body).notified)), [body]);
+  const html = renderBbcode(body, new Set(scanMentions(body).notified));
 
   const clearOpen = () => {
     if (openTimer.current) window.clearTimeout(openTimer.current);

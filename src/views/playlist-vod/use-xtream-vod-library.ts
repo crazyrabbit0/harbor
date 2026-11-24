@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { createCatalogPublicationGate } from "@/lib/iptv/catalog-publication-gate";
 import {
   deleteIptvCache,
@@ -289,9 +289,9 @@ export function useXtreamVodLibrary(source: IptvPlaylistSource | null) {
     source?.xtream?.password,
   ]);
 
-  const refresh = useCallback(() => {
+  const refresh = () => {
     if (source) void load(source, true);
-  }, [source]);
+  };
 
   return {
     ...snapshot,

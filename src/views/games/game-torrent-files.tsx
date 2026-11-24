@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Archive,
   ChevronRight,
@@ -64,9 +64,9 @@ export function TorrentFiles({
     [query, setQuery] = useState(""),
     [collapsed, setCollapsed] = useState(new Set<string>()),
     [limit, setLimit] = useState(100);
-  const tree = useMemo(() => torrentTree(files), [files]);
-  const rows = useMemo(() => visibleTorrentTree(tree, collapsed, query), [tree, collapsed, query]);
-  const selectable = useMemo(() => files.filter((file) => !file.padding), [files]);
+  const tree = torrentTree(files);
+  const rows = visibleTorrentTree(tree, collapsed, query);
+  const selectable = files.filter((file) => !file.padding);
   const all = selectable.length > 0 && selectable.every((file) => selected.has(file.index));
   return (
     <section className="games-torrent-file-section" aria-label={t("games.torrent.fileList")}>

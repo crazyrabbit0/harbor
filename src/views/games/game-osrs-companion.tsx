@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUpRight, ChevronDown, RefreshCw, Search } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -69,17 +69,13 @@ export function GameOsrsCompanion({ active }: { active: boolean }) {
     );
     return () => request.abort();
   }, [active, visible, retry]);
-  const filtered = useMemo(
-    () =>
-      items
-        .filter(
-          (item) =>
-            (membership === "all" || item.members === (membership === "members")) &&
-            item.name.toLowerCase().includes(query.trim().toLowerCase()),
-        )
-        .sort((a, b) => a.name.localeCompare(b.name, "en")),
-    [items, query, membership],
-  );
+  const filtered = items
+    .filter(
+      (item) =>
+        (membership === "all" || item.members === (membership === "members")) &&
+        item.name.toLowerCase().includes(query.trim().toLowerCase()),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name, "en"));
   const item = items.find((row) => row.id === selected),
     shown = filtered.slice(0, count);
   return (

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import { Box, Layers, Paintbrush, Users } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { MinecraftContentIcon } from "./minecraft-content-icon";
@@ -94,14 +94,14 @@ export function GameMinecraft({
       .catch(() => {});
     return () => controller.abort();
   }, [active, artwork]);
-  const studioReady = useCallback(() => {
+  const studioReady = () => {
     if (!scrollToStudio.current) return;
     scrollToStudio.current = false;
     nav.current?.scrollIntoView({
       block: "start",
       behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "instant" : "smooth",
     });
-  }, []);
+  };
   const browse = () => {
     setTab("discover");
     requestAnimationFrame(() => {

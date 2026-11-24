@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Loader2, X } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
@@ -146,7 +146,7 @@ export function IdentifyModal({
     };
   }, [head?.id, key, kind, query]);
 
-  const noKey = useMemo(() => !key, [key]);
+  const noKey = !key;
 
   if (!head || !target) return null;
 

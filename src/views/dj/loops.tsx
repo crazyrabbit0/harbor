@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { sendDeckCommand } from "@/lib/music/deck-sync";
 import { Hardware } from "./controls";
@@ -42,13 +42,13 @@ export function LoopBay({
     sendDeckCommand({ kind: "loop", start: null, end: null });
   }, [trackId]);
 
-  const apply = useCallback((from: number | null, to: number | null) => {
+  const apply = (from: number | null, to: number | null) => {
     setStart(from);
     setEnd(to);
     const on = from !== null && to !== null && to > from;
     setActive(on);
     sendDeckCommand({ kind: "loop", start: on ? from : null, end: on ? to : null });
-  }, []);
+  };
 
   const markIn = () => apply(readPosition(), end !== null && end > readPosition() ? end : null);
   const markOut = () => {

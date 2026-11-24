@@ -7,7 +7,7 @@ import {
   Loader2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   localEntryToMeta,
   removeLocalEntry,
@@ -68,7 +68,7 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
   const scan = useLocalScan({ items, setToast });
   const { runExport, onExportOne } = useLocalExport(setToast);
 
-  const onResolveIdentify = useCallback((ids: string[], res: IdentifyResolution) => {
+  const onResolveIdentify = (ids: string[], res: IdentifyResolution) => {
     updateLocalEntries(ids, {
       tmdbId: res.tmdbId,
       imdbId: res.imdbId,
@@ -78,9 +78,9 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
       type: res.type,
       needsReview: false,
     });
-  }, []);
+  };
 
-  const toggleSelect = useCallback((ids: string[]) => {
+  const toggleSelect = (ids: string[]) => {
     setSelected((prev) => {
       const next = new Set(prev);
       const allIn = ids.every((id) => next.has(id));
@@ -88,15 +88,15 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
       else ids.forEach((id) => next.add(id));
       return next;
     });
-  }, []);
+  };
 
-  const exitSelect = useCallback(() => {
+  const exitSelect = () => {
     setSelectMode(false);
     setSelected(new Set());
     anchorRef.current = null;
-  }, []);
+  };
 
-  const bulkDelete = useCallback(async () => {
+  const bulkDelete = async () => {
     if (selected.size === 0) return;
     const n = selected.size;
     const ok = await confirmDialog(
@@ -105,7 +105,7 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
     if (!ok) return;
     selected.forEach((id) => removeLocalEntry(id));
     exitSelect();
-  }, [selected, exitSelect, t]);
+  };
 
   const { settings, update } = useSettings();
   const swept = useRef(false);
@@ -116,7 +116,7 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
     void autoScan();
   }, [libraryReady, settings.localAutoScan, autoScan]);
 
-  const bulkExport = useCallback(async () => {
+  const bulkExport = async () => {
     const list = items.filter((i) => selected.has(i.id) && i.tmdbId != null);
     if (list.length === 0) {
       setToast(t("Select identified titles to export."));
@@ -131,7 +131,7 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
           : t("Exported {ok}, {fail} failed", { ok, fail }),
     );
     exitSelect();
-  }, [items, selected, runExport, exitSelect, t]);
+  };
 
   // Matches the column width Grid derives in ./shared, so the virtualized rows
   // keep the same density as the rest of the library tabs.
@@ -159,40 +159,33 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
       (a, b) => b.count - a.count || a.name.localeCompare(b.name),
     );
   }, [items]);
-  const toggleGenre = useCallback((genre: string) => {
+  const toggleGenre = (genre: string) => {
     setGenres((prev) => {
       const next = new Set(prev);
       if (next.has(genre)) next.delete(genre);
       else next.add(genre);
       return next;
     });
-  }, []);
-  const clearGenres = useCallback(() => setGenres(new Set()), []);
-  const reviewGroups = useMemo(
-    () =>
-      groupLocal(items)
-        .filter((g) =>
-          g.kind === "movie"
-            ? g.versions.some((e) => e.needsReview)
-            : g.episodes.some((e) => e.needsReview),
-        )
-        .map((g) => (g.kind === "movie" ? g.versions : g.episodes)),
-    [items],
-  );
+  };
+  const clearGenres = () => setGenres(new Set());
+  const reviewGroups = groupLocal(items)
+    .filter((g) =>
+      g.kind === "movie"
+        ? g.versions.some((e) => e.needsReview)
+        : g.episodes.some((e) => e.needsReview),
+    )
+    .map((g) => (g.kind === "movie" ? g.versions : g.episodes));
   const reviewCount = reviewGroups.length;
   // Dismissal hides the titles known at the time; a later scan that finds more brings it back.
   const reviewShown = reviewCount > settings.localReviewDismissedCount;
   // Local files are one row per episode; count distinct shows/movies (as
   // grouped for the grid) rather than the underlying file count.
-  const allGroups = useMemo(() => groupLocal(items), [items]);
-  const counts = useMemo(
-    () => ({
-      all: allGroups.length,
-      movie: allGroups.filter((g) => g.kind === "movie").length,
-      series: allGroups.filter((g) => g.kind === "show").length,
-    }),
-    [allGroups],
-  );
+  const allGroups = groupLocal(items);
+  const counts = {
+    all: allGroups.length,
+    movie: allGroups.filter((g) => g.kind === "movie").length,
+    series: allGroups.filter((g) => g.kind === "show").length,
+  };
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
     return items.filter((it) => {
@@ -209,31 +202,28 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
     () => sortGroups(groupLocal(visible), sortKey, sortDir),
     [visible, sortKey, sortDir],
   );
-  const selectItems = useCallback(
-    (ids: string[], range?: boolean) => {
-      const key = ids[0];
-      if (!key) return;
-      if (range && anchorRef.current && anchorRef.current !== key) {
-        const units = groups.map((g) =>
-          g.kind === "movie" ? [g.entry.id] : g.episodes.map((e) => e.id),
-        );
-        const a = units.findIndex((u) => u.includes(anchorRef.current!));
-        const b = units.findIndex((u) => u.includes(key));
-        if (a !== -1 && b !== -1) {
-          const [lo, hi] = a <= b ? [a, b] : [b, a];
-          setSelected((prev) => {
-            const next = new Set(prev);
-            for (let i = lo; i <= hi; i++) units[i].forEach((id) => next.add(id));
-            return next;
-          });
-          return;
-        }
+  const selectItems = (ids: string[], range?: boolean) => {
+    const key = ids[0];
+    if (!key) return;
+    if (range && anchorRef.current && anchorRef.current !== key) {
+      const units = groups.map((g) =>
+        g.kind === "movie" ? [g.entry.id] : g.episodes.map((e) => e.id),
+      );
+      const a = units.findIndex((u) => u.includes(anchorRef.current!));
+      const b = units.findIndex((u) => u.includes(key));
+      if (a !== -1 && b !== -1) {
+        const [lo, hi] = a <= b ? [a, b] : [b, a];
+        setSelected((prev) => {
+          const next = new Set(prev);
+          for (let i = lo; i <= hi; i++) units[i].forEach((id) => next.add(id));
+          return next;
+        });
+        return;
       }
-      anchorRef.current = key;
-      toggleSelect(ids);
-    },
-    [groups, toggleSelect],
-  );
+    }
+    anchorRef.current = key;
+    toggleSelect(ids);
+  };
 
   // localEntryToMeta returns null without a tmdb/imdb id, and the hero needs a
   // resolvable id to fetch a backdrop, so unidentified files are left out.
@@ -247,12 +237,12 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
     ),
   );
 
-  const openFirstReview = useCallback(() => {
+  const openFirstReview = () => {
     if (reviewGroups[0]) setIdentify(reviewGroups[0]);
-  }, [reviewGroups]);
+  };
 
   const allSelected = visible.length > 0 && visible.every((i) => selected.has(i.id));
-  const selectAll = useCallback(() => {
+  const selectAll = () => {
     setSelected((prev) => {
       if (visible.every((i) => prev.has(i.id))) {
         const next = new Set(prev);
@@ -261,8 +251,8 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
       }
       return new Set([...prev, ...visible.map((i) => i.id)]);
     });
-  }, [visible]);
-  const invertSelection = useCallback(() => {
+  };
+  const invertSelection = () => {
     setSelected((prev) => {
       const next = new Set(prev);
       for (const it of visible) {
@@ -271,35 +261,29 @@ export function LocalTab({ scrollRef }: { scrollRef?: RefObject<HTMLElement | nu
       }
       return next;
     });
-  }, [visible]);
+  };
 
-  const openAddFolder = useCallback(() => {
+  const openAddFolder = () => {
     setShowFolders(false);
     void scan.onAddFolder();
-  }, [scan]);
+  };
 
-  const onFixMatchCb = useCallback((e: LocalEntry | LocalEntry[]) => {
+  const onFixMatchCb = (e: LocalEntry | LocalEntry[]) => {
     setIdentify(Array.isArray(e) ? e : [e]);
-  }, []);
-  const onOpenDetailCb = useCallback(
-    (e: LocalEntry) => {
-      const m = localEntryToMeta(e);
-      if (m) openMeta(m);
-    },
-    [openMeta],
-  );
+  };
+  const onOpenDetailCb = (e: LocalEntry) => {
+    const m = localEntryToMeta(e);
+    if (m) openMeta(m);
+  };
   // Stable identity keeps the memoized cards from re-rendering on every toast,
   // scan-progress tick or selection change.
-  const cardProps: LocalCardProps = useMemo(
-    () => ({
-      selectMode,
-      onToggleSelect: selectItems,
-      onFixMatch: onFixMatchCb,
-      onExport: onExportOne,
-      onOpenDetail: onOpenDetailCb,
-    }),
-    [selectMode, selectItems, onFixMatchCb, onExportOne, onOpenDetailCb],
-  );
+  const cardProps: LocalCardProps = {
+    selectMode,
+    onToggleSelect: selectItems,
+    onFixMatch: onFixMatchCb,
+    onExport: onExportOne,
+    onOpenDetail: onOpenDetailCb,
+  };
 
   const modals = (
     <>

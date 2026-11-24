@@ -1,5 +1,5 @@
 import { GameVideoSearchLinks } from "./game-video-search";
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ArrowUpRight, Link2, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { useSectionBack } from "@/lib/section-back";
@@ -198,17 +198,9 @@ export function GameLibraryLinks({
       });
     return () => abort.abort();
   }, [attempt, source]);
-  const targets = useMemo(
-    () =>
-      scope === "selected"
-        ? (loaded ?? []).filter((item) => selected.has(item.id))
-        : (loaded ?? []),
-    [loaded, scope, selected],
-  );
-  const rows = useMemo(
-      () => reviewLibraryLinks(targets, initial.entries, language, restore),
-      [targets, initial, language, restore],
-    ),
+  const targets =
+    scope === "selected" ? (loaded ?? []).filter((item) => selected.has(item.id)) : (loaded ?? []);
+  const rows = reviewLibraryLinks(targets, initial.entries, language, restore),
     changed = rows.filter((row) => row.changed);
   const save = async () => {
     if (!loaded || pending.current || !preferences.ready || preferences.busy) return;

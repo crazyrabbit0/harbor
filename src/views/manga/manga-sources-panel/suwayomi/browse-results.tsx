@@ -1,6 +1,6 @@
 import { AlertCircle, ChevronLeft, Loader2, RefreshCw, SearchX } from "lucide-react";
 import { Search } from "@/components/icons/search-icon";
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { ServerConfig, SuwayomiSource } from "@/lib/manga/sources/suwayomi/provider";
 import type { MangaSummary } from "@/lib/manga/types";
 import { useT } from "@/lib/i18n";
@@ -53,13 +53,10 @@ export function BrowseResults({
   const [query, setQuery] = useState("");
   const mode: FeedMode = sort === "latest" ? "latest" : "popular";
   const feed = useSourceFeed(config, source.id, mode, query);
-  const items = useMemo(
-    () =>
-      sort === "alphabetical"
-        ? [...feed.items].sort((a, b) => a.title.localeCompare(b.title))
-        : feed.items,
-    [feed.items, sort],
-  );
+  const items =
+    sort === "alphabetical"
+      ? [...feed.items].sort((a, b) => a.title.localeCompare(b.title))
+      : feed.items;
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   // Auto-load more when the sentinel scrolls into view (800px root margin

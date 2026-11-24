@@ -1,7 +1,7 @@
 import { ScoreMetric, ScoreBreakdown } from "./score-breakdown";
 import { sportsLeagueByTag } from "@/lib/sports/provider";
 import { TeamProfileLink, teamIdentity } from "./team-profile-link";
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { PlayEventIcon } from "./play-event-icon";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import type {
@@ -203,16 +203,12 @@ function EventCard({ event, mirrored }: { event: MatchEvent; mirrored: boolean }
 }
 
 function Timeline({ detail }: { detail: SportsMatchDetail }) {
-  const sides = useMemo(
-    () =>
-      detail.events.map((event) => {
-        const needle = `${event.participantName || ""} ${event.text || ""}`;
-        if (matchPlayerByName(needle, detail.homeRoster)) return "home" as const;
-        if (matchPlayerByName(needle, detail.awayRoster)) return "away" as const;
-        return null;
-      }),
-    [detail.events, detail.homeRoster, detail.awayRoster],
-  );
+  const sides = detail.events.map((event) => {
+    const needle = `${event.participantName || ""} ${event.text || ""}`;
+    if (matchPlayerByName(needle, detail.homeRoster)) return "home" as const;
+    if (matchPlayerByName(needle, detail.awayRoster)) return "away" as const;
+    return null;
+  });
 
   return (
     <div className="relative flex flex-col gap-2 py-1">

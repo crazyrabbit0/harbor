@@ -1,4 +1,4 @@
-import { Fragment, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useId, useLayoutEffect, useRef, useState } from "react";
 import { useNow } from "@/lib/use-now";
 import { RefreshCw, Search, X } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
@@ -57,15 +57,9 @@ export function GameReleaseCalendar({
     dayTrigger = useRef<HTMLButtonElement | null>(null);
   const expandedFocus = useRef(false);
   const data = useSavedGameReleases(games, active, request);
-  const calendar = useMemo(
-    () => gameReleaseCalendar(games, data.results, year, month, query, platform),
-    [games, data.results, year, month, query, platform],
-  );
+  const calendar = gameReleaseCalendar(games, data.results, year, month, query, platform);
   if (platform !== calendar.platform) setPlatform(calendar.platform);
-  const cells = useMemo(
-    () => buildMonthCells(year, month, weekStartsMonday),
-    [year, month, weekStartsMonday],
-  );
+  const cells = buildMonthCells(year, month, weekStartsMonday);
   const [droppedDays, setDroppedDays] = useState(0);
   if (
     expandedDay &&

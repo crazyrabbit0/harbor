@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown } from "lucide-react";
 import { pushBackHandler } from "@/lib/back-intercept";
@@ -55,10 +55,7 @@ export function EveSystemField({
   }
   if (!active && open) setOpen(false);
   if (!open && box !== null) setBox(null);
-  const matches = useMemo(
-    () => filterEveSystems(universe, text, language),
-    [universe, text, language],
-  );
+  const matches = filterEveSystems(universe, text, language);
   const choose = (value: number) => {
     onChange(value);
     setText(eveName(universe.byId.get(value)?.names, language));

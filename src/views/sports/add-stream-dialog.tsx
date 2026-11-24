@@ -124,7 +124,7 @@ export function AddStreamDialog({
 
   const target = normalizePageUrl(input);
 
-  const run = useCallback(async () => {
+  const run = async () => {
     const url = normalizePageUrl(input);
     if (!url) return;
     runRef.current?.abort();
@@ -137,20 +137,20 @@ export function AddStreamDialog({
     runRef.current = null;
     setPicked(result.candidates[0]?.url ?? "");
     setPhase({ kind: "done", result });
-  }, [input]);
+  };
 
-  const cancelRun = useCallback(() => {
+  const cancelRun = () => {
     runRef.current?.abort();
     runRef.current = null;
     setPhase({ kind: "idle" });
-  }, []);
+  };
 
-  const paste = useCallback(async () => {
+  const paste = async () => {
     try {
       const text = await navigator.clipboard.readText();
       if (text.trim()) setInput(text.trim());
     } catch {}
-  }, []);
+  };
 
   const result = phase.kind === "done" ? phase.result : null;
   const chosen = result?.candidates.find((c) => c.url === picked) ?? null;

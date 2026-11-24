@@ -1,4 +1,4 @@
-import { useCallback, useRef, type CSSProperties, type ReactNode } from "react";
+import { useRef, type CSSProperties, type ReactNode } from "react";
 import { Poster } from "@/components/poster";
 import { useArtGlow } from "../big-picture/bp-art-color";
 import "../ebook-book3d.css";
@@ -56,18 +56,18 @@ export function EBookBook3D({
   const titleFit =
     title.length > 78 ? 0.56 : title.length > 54 ? 0.68 : title.length > 34 ? 0.82 : 1;
   const root = useRef<HTMLDivElement>(null);
-  const track = useCallback((event: { clientX: number; clientY: number }) => {
+  const track = (event: { clientX: number; clientY: number }) => {
     const el = root.current;
     if (!el) return;
     const box = el.getBoundingClientRect();
     if (!box.width || !box.height) return;
     el.style.setProperty("--hbk-mx", String((event.clientX - box.left) / box.width - 0.5));
     el.style.setProperty("--hbk-my", String((event.clientY - box.top) / box.height - 0.5));
-  }, []);
-  const release = useCallback(() => {
+  };
+  const release = () => {
     root.current?.style.setProperty("--hbk-mx", "0");
     root.current?.style.setProperty("--hbk-my", "0");
-  }, []);
+  };
   return (
     <div
       ref={root}

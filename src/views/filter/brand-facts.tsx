@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useCinemetaRating } from "@/lib/providers/cinemeta-rating";
 import { MOVIE_GENRES, TV_GENRES } from "@/lib/feed/tags";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -108,7 +108,7 @@ export function BrandFacts({
   const t = useT();
   const uiLang = useUiLanguage();
   const { openFilter } = useViewActions();
-  const region = useMemo(() => regionNamer(uiLang), [uiLang]);
+  const region = regionNamer(uiLang);
   const tv = filter.mediaType === "tv";
   const acclaimedImdb = useCinemetaRating(stats?.mostAcclaimed?.imdbId ?? undefined);
   const genreTable = tv ? TV_GENRES : MOVIE_GENRES;

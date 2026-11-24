@@ -71,8 +71,8 @@ export function BrandsView({ brand }: { brand: BrandKind }) {
   const [country, setCountry] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(PAGE);
-  const region = useMemo(() => regionNames(uiLang), [uiLang]);
-  const genres = useMemo(() => genreNames(brand), [brand]);
+  const region = regionNames(uiLang);
+  const genres = genreNames(brand);
 
   const countries = useMemo(() => {
     const counts = new Map<string, number>();

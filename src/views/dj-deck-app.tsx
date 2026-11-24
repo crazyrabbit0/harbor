@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { getCurrentWindow, LogicalSize } from "@tauri-apps/api/window";
 import {
   ChevronDown,
@@ -98,21 +98,18 @@ export function DjDeckApp() {
     settings.eqMode === "graphic"
       ? matchEqPreset(settings.eqBands)
       : matchPeqPreset(settings.peqFilters, MUSIC_EQ_FREQUENCIES);
-  const applyPreset = useCallback(
-    (id: string) => {
-      const preset = MUSIC_EQ_PRESETS.find((item) => item.id === id);
-      if (!preset) return;
-      set(
-        settings.eqMode === "graphic"
-          ? { eqBands: [...preset.bands], eqEnabled: true }
-          : {
-              peqFilters: peqPresetFilters(preset, MUSIC_EQ_FREQUENCIES),
-              eqEnabled: true,
-            },
-      );
-    },
-    [set, settings.eqMode],
-  );
+  const applyPreset = (id: string) => {
+    const preset = MUSIC_EQ_PRESETS.find((item) => item.id === id);
+    if (!preset) return;
+    set(
+      settings.eqMode === "graphic"
+        ? { eqBands: [...preset.bands], eqEnabled: true }
+        : {
+            peqFilters: peqPresetFilters(preset, MUSIC_EQ_FREQUENCIES),
+            eqEnabled: true,
+          },
+    );
+  };
   const [state, setState] = useState(getMusicState);
   useMusicAudioSettings();
   const [mode, setMode] = useState<"ez" | "advanced">("ez");
@@ -165,7 +162,7 @@ export function DjDeckApp() {
   const advanced = mode === "advanced";
   const liked = isMusicLiked(state.likedIds, track);
 
-  const swap = useCallback((next: "ez" | "advanced") => {
+  const swap = (next: "ez" | "advanced") => {
     setMode(next);
     writeMode(next);
     const [width, height] = SIZES[next];
@@ -175,16 +172,13 @@ export function DjDeckApp() {
       .isMaximized()
       .then((max) => (max ? null : win.setSize(new LogicalSize(width, height))))
       .catch(() => {});
-  }, []);
+  };
 
-  const shapeEq = useCallback(
-    (nextKills: Record<string, boolean>, nextFilter: number) => {
-      setKills(nextKills);
-      setFilter(nextFilter);
-      set({ eqBands: composeEq(nextKills, nextFilter), eqEnabled: true, eqMode: "graphic" });
-    },
-    [set],
-  );
+  const shapeEq = (nextKills: Record<string, boolean>, nextFilter: number) => {
+    setKills(nextKills);
+    setFilter(nextFilter);
+    set({ eqBands: composeEq(nextKills, nextFilter), eqEnabled: true, eqMode: "graphic" });
+  };
 
   const fxDeck = useDeckFx({
     trackKey: track ? `${track.connectorId ?? ""}:${track.id}` : "",
@@ -194,10 +188,7 @@ export function DjDeckApp() {
   });
 
   const progress = state.duration > 0 ? state.currentTime / state.duration : 0;
-  const upNext = useMemo(
-    () => state.queue.slice(state.queueIndex + 1, state.queueIndex + (advanced ? 9 : 6)),
-    [state.queue, state.queueIndex, advanced],
-  );
+  const upNext = state.queue.slice(state.queueIndex + 1, state.queueIndex + (advanced ? 9 : 6));
 
   return (
     <main

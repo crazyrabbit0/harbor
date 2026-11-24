@@ -6,7 +6,7 @@ import {
   SlidersHorizontal,
   Star,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   applyCalendarFilter,
   groupByDate,
@@ -161,18 +161,12 @@ export function CalendarView({
     return out;
   }, [source, items, filter, watchlistOnly, libraryNames, settings.hideContent.anime]);
 
-  const grouped = useMemo(() => groupByDate(filtered), [filtered]);
-  const cells = useMemo(
-    () => buildMonthCells(year, month, settings.weekStartsMonday),
-    [year, month, settings.weekStartsMonday],
-  );
+  const grouped = groupByDate(filtered);
+  const cells = buildMonthCells(year, month, settings.weekStartsMonday);
 
-  const openItem = useCallback(
-    (item: CalendarItem) => {
-      openMeta(calendarToMeta(item), { episodeHint: calendarEpisodeHint(item) ?? undefined });
-    },
-    [openMeta],
-  );
+  const openItem = (item: CalendarItem) => {
+    openMeta(calendarToMeta(item), { episodeHint: calendarEpisodeHint(item) ?? undefined });
+  };
 
   const goPrev = () => {
     if (month === 0) {

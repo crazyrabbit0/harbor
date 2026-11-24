@@ -1,5 +1,5 @@
 import { Clock } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/lib/auth";
 import { library, removeStremioLibraryItem, type LibraryItem } from "@/lib/stremio";
 import { fetchWatchedHistory, type HistoryItem } from "@/lib/trakt/history";
@@ -39,7 +39,7 @@ export function HistoryTab() {
     null,
   );
   const [reloadKey, setReloadKey] = useState(0);
-  const refresh = useCallback(() => setReloadKey((k) => k + 1), []);
+  const refresh = () => setReloadKey((k) => k + 1);
   const [stremioFor, setStremioFor] = useState(authKey);
   if (stremioFor !== authKey) {
     setStremioFor(authKey);
@@ -77,20 +77,17 @@ export function HistoryTab() {
     };
   }, [authKey, reloadKey]);
 
-  const handleRemove = useCallback(
-    async (stremioId: string) => {
-      if (!authKey) return;
-      setStremio((prev) => prev.filter((i) => i._id !== stremioId));
-      try {
-        await removeStremioLibraryItem(authKey, stremioId);
-      } catch {
-        library(authKey)
-          .then((items) => setStremio(filterHistory(items)))
-          .catch(() => {});
-      }
-    },
-    [authKey],
-  );
+  const handleRemove = async (stremioId: string) => {
+    if (!authKey) return;
+    setStremio((prev) => prev.filter((i) => i._id !== stremioId));
+    try {
+      await removeStremioLibraryItem(authKey, stremioId);
+    } catch {
+      library(authKey)
+        .then((items) => setStremio(filterHistory(items)))
+        .catch(() => {});
+    }
+  };
 
   useEffect(() => {
     if (!traktConnected) return;
@@ -120,19 +117,19 @@ export function HistoryTab() {
       localStorage.setItem("harbor.history.flat", value);
     } catch {}
   }, [flat]);
-  const toggleFlat = useCallback(() => {
+  const toggleFlat = () => {
     setFlat((v) => !v);
-  }, []);
+  };
   const [view, setView] = useState<HistoryView>(() =>
     localStorage.getItem("harbor.history.view") === "episodes" ? "episodes" : "posters",
   );
-  const setViewPersist = useCallback((next: HistoryView) => {
+  const setViewPersist = (next: HistoryView) => {
     setView(next);
     try {
       localStorage.setItem("harbor.history.view", next);
     } catch {}
-  }, []);
-  const counts = useMemo(() => countByType(merged), [merged]);
+  };
+  const counts = countByType(merged);
   const visible = useMemo(() => applyFilter(merged, type, query), [merged, type, query]);
   useReportFeatured(useMemo(() => visible.map((v) => v.meta), [visible]));
   const groups = useMemo(() => {

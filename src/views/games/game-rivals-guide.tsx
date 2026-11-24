@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { BookOpen, RefreshCw, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { Dropdown } from "@/components/dropdown";
@@ -22,10 +22,10 @@ export function GameRivalsGuide({ hero, active }: { hero: RivalsHero; active: bo
     setPrevActive(active);
     if (!active && open) setOpen(false);
   }
-  const dismiss = useCallback(() => {
+  const dismiss = () => {
     setOpen(false);
     requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
-  }, []);
+  };
   if (!hero.guide) return null;
   return (
     <>

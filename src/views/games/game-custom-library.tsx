@@ -540,10 +540,10 @@ function CustomGameEditor({
     live = useRef(true);
   const [playtimeEditing, setPlaytimeEditing] = useState(false);
   const playtimeBack = useRef<(() => void) | null>(null),
-    setPlaytimeBack = useCallback((handler: (() => void) | null) => {
+    setPlaytimeBack = (handler: (() => void) | null) => {
       playtimeBack.current = handler;
       setPlaytimeEditing(!!handler);
-    }, []);
+    };
   const closeHandler = useRef(onClose);
   useLayoutEffect(() => {
     closeHandler.current = onClose;

@@ -90,7 +90,7 @@ export function GuideView({
     setAwayFromNow(nowX < from + 40 || nowX > to - 40);
   };
   const scrolledRef = useRef(false);
-  const tvgIdCounts = useMemo(() => computeTvgIdCounts(allChannels), [allChannels]);
+  const tvgIdCounts = computeTvgIdCounts(allChannels);
   const epgMapVersion = useEpgMapVersion();
   const [matchTarget, setMatchTarget] = useState<IptvChannel | null>(null);
   const matchTriggerRef = useRef<HTMLButtonElement | null>(null);
@@ -123,15 +123,11 @@ export function GuideView({
     }, PREVIEW_DWELL_MS);
   };
 
-  const programsByChannel = useMemo(
-    () =>
-      readAtVersion(epgMapVersion, () => {
-        const m = new Map<string, EpgProgram[]>();
-        for (const ch of channels) m.set(ch.id, epgProgramsForChannel(ch, epg, tvgIdCounts) ?? []);
-        return m;
-      }),
-    [channels, epg, tvgIdCounts, epgMapVersion],
-  );
+  const programsByChannel = readAtVersion(epgMapVersion, () => {
+    const m = new Map<string, EpgProgram[]>();
+    for (const ch of channels) m.set(ch.id, epgProgramsForChannel(ch, epg, tvgIdCounts) ?? []);
+    return m;
+  });
 
   const [colPx, setColPx] = useState<number>(loadColPx);
   const dragRef = useRef<{ startX: number; startW: number } | null>(null);

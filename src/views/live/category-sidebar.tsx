@@ -25,7 +25,7 @@ export function CategorySidebar({
   const t = useT();
   const total = Array.from(counts.values()).reduce((a, b) => a + b, 0);
   const prefs = useGroupPrefs(sourceId);
-  const pinnedSet = useMemo(() => new Set(prefs.pinned), [prefs.pinned]);
+  const pinnedSet = new Set(prefs.pinned);
   const [showHidden, setShowHidden] = useState(false);
   const [filter, setFilter] = useState("");
   const visibleGroups = useMemo(() => {

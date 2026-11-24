@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft, Film } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { topMovies, topSeries } from "@/lib/cinemeta";
@@ -65,26 +65,23 @@ export function MobileGenrePage({
   const tmdbId = media === "movie" ? GENRE_TMDB[genre.genre]?.movie : GENRE_TMDB[genre.genre]?.tv;
   const usesTmdb = !!(key && tmdbId != null);
 
-  const fetchPage = useCallback<CatalogFetch>(
-    (page) => {
-      if (key && tmdbId != null) {
-        return tmdbDiscover(key, media, {
-          with_genres: String(tmdbId),
-          sort_by: "popularity.desc",
-          include_adult: "false",
-          "vote_count.gte": "30",
-          page: String(page),
-        }).then((metas) => ({ metas, more: metas.length >= TMDB_PAGE_SIZE && page < MAX_PAGE }));
-      }
-      const skip = (page - 1) * CINEMETA_PAGE;
-      const req = media === "movie" ? topMovies(genre.genre, skip) : topSeries(genre.genre, skip);
-      return req.then((metas) => ({
-        metas,
-        more: metas.length >= CINEMETA_PAGE && page < CINEMETA_MAX_PAGE,
-      }));
-    },
-    [key, tmdbId, media, genre.genre],
-  );
+  const fetchPage: CatalogFetch = (page) => {
+    if (key && tmdbId != null) {
+      return tmdbDiscover(key, media, {
+        with_genres: String(tmdbId),
+        sort_by: "popularity.desc",
+        include_adult: "false",
+        "vote_count.gte": "30",
+        page: String(page),
+      }).then((metas) => ({ metas, more: metas.length >= TMDB_PAGE_SIZE && page < MAX_PAGE }));
+    }
+    const skip = (page - 1) * CINEMETA_PAGE;
+    const req = media === "movie" ? topMovies(genre.genre, skip) : topSeries(genre.genre, skip);
+    return req.then((metas) => ({
+      metas,
+      more: metas.length >= CINEMETA_PAGE && page < CINEMETA_MAX_PAGE,
+    }));
+  };
 
   return (
     <div

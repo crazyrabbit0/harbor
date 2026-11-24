@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { PickCard } from "@/components/pick-card";
 import { Row, usePosterRow } from "@/components/row";
 import { useT } from "@/lib/i18n";
@@ -16,10 +15,7 @@ export function CountryCanon({
 }) {
   const t = useT();
   const posterRow = usePosterRow();
-  const metas = useMemo(
-    () => (titles ?? []).map((title) => canonMeta(title, mediaType)),
-    [titles, mediaType],
-  );
+  const metas = (titles ?? []).map((title) => canonMeta(title, mediaType));
   if (titles !== null && metas.length < MIN_CANON) return null;
   const kicker =
     mediaType === "tv"

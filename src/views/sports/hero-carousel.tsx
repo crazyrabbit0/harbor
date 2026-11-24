@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { isRtl, useT, useUiLanguage } from "@/lib/i18n";
 import { useMediaQuery } from "@/lib/use-media-query";
@@ -41,26 +41,23 @@ export function SportsHeroCarousel({
   const idxRef = useRef(0);
   const activeIdRef = useRef<string | null>(null);
 
-  const go = useCallback(
-    (delta: 1 | -1) => {
-      const n = slides.length;
-      if (n < 2) return;
-      const cur = idxRef.current;
-      const next = (((cur + delta) % n) + n) % n;
-      idxRef.current = next;
-      setNav((p) => ({ seq: p.seq + 1, dir: delta, from: slides[cur]?.id ?? null }));
-      setIdx(next);
-    },
-    [slides],
-  );
+  const go = (delta: 1 | -1) => {
+    const n = slides.length;
+    if (n < 2) return;
+    const cur = idxRef.current;
+    const next = (((cur + delta) % n) + n) % n;
+    idxRef.current = next;
+    setNav((p) => ({ seq: p.seq + 1, dir: delta, from: slides[cur]?.id ?? null }));
+    setIdx(next);
+  };
 
   const lastAutoRef = useRef(0);
-  const onDwellEnd = useCallback(() => {
+  const onDwellEnd = () => {
     const stamp = Date.now();
     if (stamp - lastAutoRef.current < DWELL_MS / 2) return;
     lastAutoRef.current = stamp;
     go(1);
-  }, [go]);
+  };
 
   useEffect(() => {
     const want = activeIdRef.current;

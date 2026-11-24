@@ -30,11 +30,23 @@ export function sourceCallback(file: string, pick: Pick, scope: Record<string, u
 export const hookArgument =
   (name: string): Pick =>
   (node, source) =>
-    ts.isVariableDeclaration(node) &&
-    node.name.getText(source) === name &&
-    node.initializer &&
-    ts.isCallExpression(node.initializer)
-      ? node.initializer.arguments[0]
+    ts.isVariableDeclaration(node) && node.name.getText(source) === name && node.initializer
+      ? unwrappedInitializer(node.initializer)
+      : undefined;
+
+/** The function a `const` holds, whether plain or still wrapped in a memo hook call. */
+export function unwrappedInitializer(initializer: ts.Expression): ts.Expression {
+  return ts.isCallExpression(initializer) && initializer.arguments[0]
+    ? initializer.arguments[0]
+    : initializer;
+}
+
+/** Picks the function that initializes `const <name>`, unwrapping a memo hook call around it. */
+export const constFunction =
+  (name: string): Pick =>
+  (node, source) =>
+    ts.isVariableDeclaration(node) && node.name.getText(source) === name && node.initializer
+      ? unwrappedInitializer(node.initializer)
       : undefined;
 
 /** Picks the first argument of a `callee(...)` call whose callback text contains `marker`. */

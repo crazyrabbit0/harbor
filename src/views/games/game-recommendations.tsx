@@ -165,10 +165,9 @@ export function GameRecommendations({
     () => recommendationExclusions(saved, library, preferences),
     [saved, library, preferences],
   );
-  const libraryIds = useMemo(() => new Set(library.games.flatMap(gameIdentities)), [library]);
-  const savedByIdentity = useMemo(
-    () => new Map(saved.flatMap((game) => gameIdentities(game).map((id) => [id, game] as const))),
-    [saved],
+  const libraryIds = new Set(library.games.flatMap(gameIdentities));
+  const savedByIdentity = new Map(
+    saved.flatMap((game) => gameIdentities(game).map((id) => [id, game] as const)),
   );
   // Rank each fetched page separately so appending a batch never reshuffles earlier cards.
   const allPicks = useMemo(() => {
@@ -187,11 +186,8 @@ export function GameRecommendations({
     }
     return ranked;
   }, [groups, known, preferences.hidden, seeds]);
-  const matchingPicks = useMemo(
-    () => recommendationsForPlatform(allPicks, preferences.platform),
-    [allPicks, preferences.platform],
-  );
-  const picks = useMemo(() => matchingPicks.slice(0, visibleCount), [matchingPicks, visibleCount]);
+  const matchingPicks = recommendationsForPlatform(allPicks, preferences.platform);
+  const picks = matchingPicks.slice(0, visibleCount);
   const hasMore =
     matchingPicks.length > visibleCount ||
     groups.some((group) => group.page === sourcePage && group.nextOffset != null);
@@ -204,16 +200,12 @@ export function GameRecommendations({
       .filter((group) => seeds.some((seed) => seed.game.id === group.seed.game.id))
       .map((group) => group.cachedAt),
   );
-  const platforms = useMemo(
-    () =>
-      [
-        ...new Set([
-          ...allPicks.flatMap((pick) => recommendationPlatformNames(pick.game)),
-          ...(preferences.platform !== "all" ? [preferences.platform] : []),
-        ]),
-      ].sort((a, b) => a.localeCompare(b, language)),
-    [allPicks, preferences.platform, language],
-  );
+  const platforms = [
+    ...new Set([
+      ...allPicks.flatMap((pick) => recommendationPlatformNames(pick.game)),
+      ...(preferences.platform !== "all" ? [preferences.platform] : []),
+    ]),
+  ].sort((a, b) => a.localeCompare(b, language));
   useEffect(() => {
     extending.current = false;
   }, [profile, seedKey, language, pending, visibleCount]);

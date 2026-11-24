@@ -1,6 +1,6 @@
 import { GameFileIcon } from "./game-file-icon";
 import { SourceFilesLoading } from "./game-source-loading";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PublicBatchRequest, PublicFilesRequest } from "@/lib/generated/games-requests-ipc";
 import { ArrowDown, ArrowUpRight, Check, ShieldCheck, Square, SquareCheck } from "lucide-react";
@@ -58,11 +58,8 @@ export function SourcePublicFiles({
   const multiple = (result?.files.length ?? 0) > 1 && !downloads.selectionOnly;
   const file = result?.files.find((item) => item.id === focused),
     saving = downloads.busy.includes("new");
-  const eligible = useMemo(() => result?.files.filter(canPreparePublicFile) ?? [], [result]);
-  const chosen = useMemo(
-    () => (result ? publicFileSelection(result, selected) : []),
-    [result, selected],
-  );
+  const eligible = result?.files.filter(canPreparePublicFile) ?? [];
+  const chosen = result ? publicFileSelection(result, selected) : [];
   const allSelected = eligible.length > 0 && chosen.length === eligible.length;
   const canSelectAll = eligible.length <= PUBLIC_BATCH_LIMIT;
   const review = async () => {

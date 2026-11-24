@@ -61,11 +61,8 @@ export function TraktTab() {
 
   const [type, setType] = useState<TypeKey>("all");
   const [query, setQuery] = useState("");
-  const combined = useMemo(
-    () => [...watchlistEntries, ...historyEntries],
-    [watchlistEntries, historyEntries],
-  );
-  const counts = useMemo(() => countByType(combined), [combined]);
+  const combined = [...watchlistEntries, ...historyEntries];
+  const counts = countByType(combined);
   const visibleW = useMemo(
     () => applyFilter(watchlistEntries, type, query),
     [watchlistEntries, type, query],

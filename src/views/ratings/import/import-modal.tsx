@@ -53,31 +53,28 @@ export function ImportModal({ onClose }: { onClose: () => void }) {
     };
   }, [dismiss]);
 
-  const pick = useCallback(
-    (source: RatingsSource) => {
-      setPicked(source);
-      setFile(null);
-      setKeys(NO_KEYS);
-      if (source.kind === "session") start(source, {});
-    },
-    [start],
-  );
+  const pick = (source: RatingsSource) => {
+    setPicked(source);
+    setFile(null);
+    setKeys(NO_KEYS);
+    if (source.kind === "session") start(source, {});
+  };
 
-  const begin = useCallback(() => {
+  const begin = () => {
     if (!picked) return;
     const input: ImportSourceInput =
       picked.kind === "file"
         ? { file: file ?? undefined }
         : { apiKey: keys.apiKey.trim() || undefined, username: keys.username.trim() || undefined };
     start(picked, input);
-  }, [file, keys, picked, start]);
+  };
 
-  const again = useCallback(() => {
+  const again = () => {
     reset();
     setPicked(null);
     setFile(null);
     setKeys(NO_KEYS);
-  }, [reset]);
+  };
 
   let body: ReactNode;
   if (!signedIn) {

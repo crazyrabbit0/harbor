@@ -189,7 +189,7 @@ function SportsHubView({ active = false }: { active?: boolean }) {
       ? ["SOCCER_ALL", ...others]
       : others;
   }, [leagues, group, scope.leagueFilter, tab]);
-  const liveRange = useMemo(() => liveDateRange(today), [today]);
+  const liveRange = liveDateRange(today);
   const boardDay = tab === "live" ? liveRange : day;
   const boardFeed = useSportsHub(
     boardLeagues,
@@ -235,12 +235,9 @@ function SportsHubView({ active = false }: { active?: boolean }) {
       ]),
     [board.games, upcoming.games],
   );
-  const liveNow = useMemo(() => currentLiveGames(board.games), [board.games]);
+  const liveNow = currentLiveGames(board.games);
   useEffect(() => syncSportsReminders(all), [all]);
-  const next = useMemo(
-    () => eventCards(all.filter((g) => g.state === "pre" && g.startMs >= now)),
-    [all, now],
-  );
+  const next = eventCards(all.filter((g) => g.state === "pre" && g.startMs >= now));
   const filtered = group === "all" ? all : all.filter((g) => hubLeague(g.league)?.group === group);
   const live = board.games.filter((g) => g.state === "in");
   const following = filtered.filter((g) => fav.teams.some((team) => involvesTeam(g, team)));
@@ -283,20 +280,15 @@ function SportsHubView({ active = false }: { active?: boolean }) {
       ? 0
       : board.failed + (tab === "live" ? 0 : upcoming.failed);
   const statusStale = board.stale || (tab !== "live" && upcoming.stale);
-  const brokenLeagues = useMemo(
-    () => [
-      ...new Set(
-        [...board.failedKeys, ...(tab === "live" ? [] : upcoming.failedKeys)]
-          .map((key) => key.split("@")[0])
-          .map((key) =>
-            key === "SOCCER_ALL"
-              ? "Soccer"
-              : HUB_LEAGUES.find((l) => l.key === key)?.labelEn || key,
-          ),
-      ),
-    ],
-    [board.failedKeys, upcoming.failedKeys, tab],
-  );
+  const brokenLeagues = [
+    ...new Set(
+      [...board.failedKeys, ...(tab === "live" ? [] : upcoming.failedKeys)]
+        .map((key) => key.split("@")[0])
+        .map((key) =>
+          key === "SOCCER_ALL" ? "Soccer" : HUB_LEAGUES.find((l) => l.key === key)?.labelEn || key,
+        ),
+    ),
+  ];
   const brokenShown =
     brokenLeagues.slice(0, 3).join(", ") +
     (brokenLeagues.length > 3 ? ` +${brokenLeagues.length - 3}` : "");

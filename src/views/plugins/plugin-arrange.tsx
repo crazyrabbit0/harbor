@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -182,14 +181,11 @@ export function PluginArrange({
   const [over, setOver] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  const apply = useCallback(
-    (next: SectionOrder) => {
-      setOrder(next);
-      writeOrder(next);
-      onChanged(next);
-    },
-    [onChanged],
-  );
+  const apply = (next: SectionOrder) => {
+    setOrder(next);
+    writeOrder(next);
+    onChanged(next);
+  };
 
   const listed = listedIn(groups, order);
   const rowId = (plugin: string, key: string | null) => `${plugin}::${key ?? ""}`;

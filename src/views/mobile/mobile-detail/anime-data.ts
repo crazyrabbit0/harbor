@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useSettings } from "@/lib/settings";
 import { animeDetails } from "@/lib/providers/anime-detail";
@@ -66,10 +66,7 @@ export function useAnimeDetail(
     };
   }, [isAnime, meta.id]);
 
-  const canonicalId = useMemo(
-    () => syncCanonical(meta.id) ?? resolvedKitsu,
-    [meta.id, resolvedKitsu],
-  );
+  const canonicalId = syncCanonical(meta.id) ?? resolvedKitsu;
 
   return { detail, canonicalId, loading };
 }
