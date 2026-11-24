@@ -163,6 +163,8 @@ export class MusicQueueOrder {
       }
       return remember(track);
     }
+    // A lone track under repeat-all has no other track to deal, so it follows itself.
+    if (modes.repeat === "all" && current && queue.length === 1) return remember(current);
     return remember(null);
   }
 }

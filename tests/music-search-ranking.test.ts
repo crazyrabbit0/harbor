@@ -293,7 +293,6 @@ test("ranking reorders the grids without dropping anything", () => {
   assert.equal(ranked.top?.id, ranked.artists[0].id);
 });
 
-// Carried over from tests/music/search-ranking.test.mjs, which can no longer load this module.
 const MINION = results({
   top: { kind: "artist", id: "account", connectorId: "catalog", name: "Rich Minion" },
   artists: [artist({ id: "account", name: "Rich Minion" })],
