@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Check, Loader2, RefreshCw, Search, X } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { CoverImg } from "@/components/cover-img";
@@ -55,18 +55,15 @@ export function ReaderMatchPicker({
   }, []);
 
   // Start fresh (title query, loading state, unconfirmed) every time the tab switches.
-  const switchTracker = useCallback(
-    (next: MangaTracker) => {
-      setActive(next);
-      setQuery(title);
-      setDebounced(title);
-      setHits(null);
-      setManualBusy(false);
-      setLinkingId(null);
-      confirmedRef.current = false;
-    },
-    [title],
-  );
+  const switchTracker = (next: MangaTracker) => {
+    setActive(next);
+    setQuery(title);
+    setDebounced(title);
+    setHits(null);
+    setManualBusy(false);
+    setLinkingId(null);
+    confirmedRef.current = false;
+  };
 
   const markDone = (tracker: MangaTracker) => {
     const nextDone = new Set(done).add(tracker);
@@ -83,7 +80,7 @@ export function ReaderMatchPicker({
     markDone(active);
   };
 
-  const load = useCallback(async (q: string) => {
+  const load = async (q: string) => {
     const tracker = activeRef.current;
     setManualBusy(true);
     const work = async () => {
@@ -97,7 +94,7 @@ export function ReaderMatchPicker({
       .finally(() => {
         if (activeRef.current === tracker) setManualBusy(false);
       });
-  }, []);
+  };
 
   useEffect(() => {
     const id = window.setTimeout(() => setDebounced(query.trim() || title), 350);

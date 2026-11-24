@@ -75,7 +75,7 @@ export function LetterboxdTab() {
   const [type, setType] = useState<TypeKey>("all");
   const [query, setQuery] = useState("");
 
-  const counts = useMemo(() => countByType(items), [items]);
+  const counts = countByType(items);
   const visible = useMemo(() => applyFilter(items, type, query), [items, type, query]);
   useReportFeatured(useMemo(() => visible.map((v) => v.meta), [visible]));
 

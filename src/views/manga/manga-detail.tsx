@@ -1,7 +1,7 @@
 import { NavGlyph } from "@/components/icons/nav-glyph";
 import { UiIcon } from "@/components/ui-icon";
 import { PopIcon } from "@/components/pop-icon";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CoverImg } from "@/components/cover-img";
 import { Award, BookOpen, ChevronLeft, Flame, RotateCcw, Sparkles, Star } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -320,16 +320,10 @@ export function MangaDetail({
     return () => window.removeEventListener(MANGA_READ_CHAPTER_EVENT, onRequest);
   }, [mangaId, chapters, selectedLang]);
 
-  const langs = useMemo(() => chapterLanguages(chapters), [chapters]);
-  const langFiltered = useMemo(
-    () => chapters.filter((c) => c.language === selectedLang),
-    [chapters, selectedLang],
-  );
+  const langs = chapterLanguages(chapters);
+  const langFiltered = chapters.filter((c) => c.language === selectedLang);
   const muInfo = useMangaUpdates(detail?.title);
-  const coverage = useMemo(
-    () => (muInfo ? coverageOf(muInfo, langFiltered) : null),
-    [muInfo, langFiltered],
-  );
+  const coverage = muInfo ? coverageOf(muInfo, langFiltered) : null;
 
   const retry = () => setRetryTick((n) => n + 1);
   const noContent = !detail && chapters.length === 0;

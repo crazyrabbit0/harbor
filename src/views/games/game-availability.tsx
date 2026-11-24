@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo, type ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import { Download, Library, Pause } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import {
@@ -24,9 +24,11 @@ export function GameAvailabilityScope({
   downloads: GameTransfers;
   children: ReactNode;
 }) {
-  const index = useMemo(
-    () => gameAvailabilityIndex(profile, library, downloads.records, downloads.torrents.records),
-    [profile, library, downloads.records, downloads.torrents.records],
+  const index = gameAvailabilityIndex(
+    profile,
+    library,
+    downloads.records,
+    downloads.torrents.records,
   );
   return <Context.Provider value={index}>{children}</Context.Provider>;
 }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { MusicCatalogRow } from "@/components/music/music-catalog-row";
 import { useT } from "@/lib/i18n";
 import { searchTyped } from "@/lib/music/catalog";
@@ -94,7 +94,7 @@ function HabitRow({
   onPlay: Props["onPlay"];
   onOpen: Props["onOpen"];
 }) {
-  const items = useMemo(() => tracks.map(trackItem), [tracks]);
+  const items = tracks.map(trackItem);
   if (status === "ready" && tracks.length === 0) return null;
   return (
     <MusicCatalogRow
@@ -138,7 +138,7 @@ export function MusicExploreBands({ recents, liked, active, onPlay, onOpen, genr
       .slice(0, 18);
   }, [recents]);
 
-  const forgotten = useMemo(() => forgottenFavourites(liked, recents), [liked, recents]);
+  const forgotten = forgottenFavourites(liked, recents);
 
   // On a genre page every row belongs to that genre, filtered by the artist's cached tags.
   // A row left with nothing is dropped instead of rendering empty.
@@ -153,19 +153,16 @@ export function MusicExploreBands({ recents, liked, active, onPlay, onOpen, genr
       live = false;
     };
   }, [genre]);
-  const scoped = useCallback(
-    (list: readonly MusicTrack[]) =>
-      genre
-        ? list.filter((track) =>
-            genreMatchesTags(genre, tags.get(genreSearchKey(track.artist ?? "")) ?? []),
-          )
-        : [...list],
-    [genre, tags],
-  );
-  const seasonList = useMemo(() => scoped(seasonTracks.tracks), [scoped, seasonTracks.tracks]);
-  const partList = useMemo(() => scoped(partTracks.tracks), [scoped, partTracks.tracks]);
-  const repeatList = useMemo(() => scoped(onRepeat), [scoped, onRepeat]);
-  const forgottenList = useMemo(() => scoped(forgotten), [scoped, forgotten]);
+  const scoped = (list: readonly MusicTrack[]) =>
+    genre
+      ? list.filter((track) =>
+          genreMatchesTags(genre, tags.get(genreSearchKey(track.artist ?? "")) ?? []),
+        )
+      : [...list];
+  const seasonList = scoped(seasonTracks.tracks);
+  const partList = scoped(partTracks.tracks);
+  const repeatList = scoped(onRepeat);
+  const forgottenList = scoped(forgotten);
 
   return (
     <>

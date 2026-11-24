@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { torrentEngineList, type TorrentListItem } from "@/lib/torrent/local-engine";
 
 export function useActiveTorrents(active: boolean): {
@@ -7,9 +7,9 @@ export function useActiveTorrents(active: boolean): {
 } {
   const [items, setItems] = useState<TorrentListItem[]>([]);
 
-  const refresh = useCallback(() => {
+  const refresh = () => {
     void torrentEngineList().then(setItems);
-  }, []);
+  };
 
   useEffect(() => {
     if (!active) return;

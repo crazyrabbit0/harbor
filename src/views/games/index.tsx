@@ -175,34 +175,19 @@ function GamesViewContent({
     if (!active && !mediaReturn.current && settings.gamesOpenInLibrary) setTab("library");
   }, [active, settings.gamesOpenInLibrary]);
   const steamAccount = useSteamAccount(profileId, active);
-  const collectionLibrary = useMemo(
-    () =>
-      unifiedLibrary({
-        steamImports: access.steamImports.data.games,
-        installed: library.scan?.games ?? [],
-        steamKnown: !!library.scan && !library.error,
-        steamComplete: !library.scan?.warnings.length,
-        account: steamAccount.status.snapshot,
-        custom: customLibrary.data.games,
-        customHealth: customLibrary.health,
-        retro: emulation.data,
-        launchers: access.launchers.scan,
-        launchersKnown: !!access.launchers.scan && !access.launchers.error,
-        preferences: libraryPreferences.data,
-      }),
-    [
-      access.steamImports.data.games,
-      library.scan,
-      library.error,
-      steamAccount.status.snapshot,
-      customLibrary.data.games,
-      customLibrary.health,
-      emulation.data,
-      access.launchers.scan,
-      access.launchers.error,
-      libraryPreferences.data,
-    ],
-  );
+  const collectionLibrary = unifiedLibrary({
+    steamImports: access.steamImports.data.games,
+    installed: library.scan?.games ?? [],
+    steamKnown: !!library.scan && !library.error,
+    steamComplete: !library.scan?.warnings.length,
+    account: steamAccount.status.snapshot,
+    custom: customLibrary.data.games,
+    customHealth: customLibrary.health,
+    retro: emulation.data,
+    launchers: access.launchers.scan,
+    launchersKnown: !!access.launchers.scan && !access.launchers.error,
+    preferences: libraryPreferences.data,
+  });
   const downloads = useGameTransfers(profileId, active);
   const setupState = useGameSetup(profileId, true, customLibrary);
   const archiveState = useGameArchives(profileId, true);

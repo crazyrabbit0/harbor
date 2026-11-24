@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Download as DownloadIcon } from "lucide-react";
 import { Poster, usePosterChain } from "@/components/poster";
 import { useSettingsSelector } from "@/lib/settings";
@@ -66,15 +66,12 @@ export function DownloadsView({ active = false }: { active?: boolean }) {
   const items = useDownloads();
   const [filter, setFilter] = useState<Filter>("all");
 
-  const counts = useMemo(
-    () => ({
-      all: items.length,
-      active: items.filter((d) => matchesFilter(d, "active")).length,
-      saved: items.filter((d) => matchesFilter(d, "saved")).length,
-      issues: items.filter((d) => matchesFilter(d, "issues")).length,
-    }),
-    [items],
-  );
+  const counts = {
+    all: items.length,
+    active: items.filter((d) => matchesFilter(d, "active")).length,
+    saved: items.filter((d) => matchesFilter(d, "saved")).length,
+    issues: items.filter((d) => matchesFilter(d, "issues")).length,
+  };
   const effective: Filter = filter !== "all" && counts[filter] === 0 ? "all" : filter;
 
   const totalBps = items.reduce(
@@ -101,10 +98,7 @@ export function DownloadsView({ active = false }: { active?: boolean }) {
           .filter(Boolean)
           .join("  ·  ");
 
-  const groups = useMemo(
-    () => buildGroups(items.filter((d) => matchesFilter(d, effective))),
-    [items, effective],
-  );
+  const groups = buildGroups(items.filter((d) => matchesFilter(d, effective)));
 
   return (
     <main className="flex-1 overflow-y-auto bg-canvas px-5 pb-24 pt-[max(6rem,var(--harbor-floating-back-space,0px))] sm:px-8 lg:px-12 lg:pt-[max(7rem,var(--harbor-floating-back-space,0px))]">
@@ -243,7 +237,7 @@ function ShowGroup({ group }: { group: Extract<DownloadGroup, { kind: "show" }> 
     group.poster ?? undefined,
     "series",
   );
-  const episodes = useMemo(() => [...group.items].sort(bySeasonEpisode), [group.items]);
+  const episodes = [...group.items].sort(bySeasonEpisode);
   const totalBytes = episodes.reduce(
     (sum, d) => (d.status === "done" ? sum + (d.totalBytes ?? d.receivedBytes) : sum),
     0,

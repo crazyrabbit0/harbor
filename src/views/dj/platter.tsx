@@ -1,5 +1,4 @@
 import {
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -85,13 +84,10 @@ export function Platter({
     tempo.current = speed;
   }, [speed]);
 
-  const cap = useCallback(
-    (position: number) => {
-      const bounded = Math.max(0, position);
-      return duration > 0 ? Math.min(duration, bounded) : bounded;
-    },
-    [duration],
-  );
+  const cap = (position: number) => {
+    const bounded = Math.max(0, position);
+    return duration > 0 ? Math.min(duration, bounded) : bounded;
+  };
 
   useEffect(() => {
     const engine = acquireTakeover();
@@ -172,22 +168,22 @@ export function Platter({
     };
   }, []);
 
-  const angleAt = useCallback((event: { clientX: number; clientY: number }) => {
+  const angleAt = (event: { clientX: number; clientY: number }) => {
     const box = root.current?.getBoundingClientRect();
     if (!box) return 0;
     return Math.atan2(
       event.clientY - (box.top + box.height / 2),
       event.clientX - (box.left + box.width / 2),
     );
-  }, []);
+  };
 
-  const onDisc = useCallback((event: { clientX: number; clientY: number }) => {
+  const onDisc = (event: { clientX: number; clientY: number }) => {
     const box = root.current?.getBoundingClientRect();
     if (!box || !box.width) return false;
     const dx = event.clientX - (box.left + box.width / 2);
     const dy = event.clientY - (box.top + box.height / 2);
     return Math.hypot(dx, dy) <= box.width / 2;
-  }, []);
+  };
 
   const down = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0 || !onDisc(event)) return;

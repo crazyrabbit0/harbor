@@ -258,11 +258,11 @@ export function EBookView() {
   const browseTagRef = useRef<string | undefined>(ebookSourceBrowseTag("any", "popular"));
   const awardSearchScopesRef = useRef(new Set<string>());
   const needsPopularMetadata = sourceCatalogItems !== null && sourceCatalogItems.length === 0;
-  const openCardMenu = useCallback((ebook: EBook, event: ReactMouseEvent<HTMLElement>) => {
+  const openCardMenu = (ebook: EBook, event: ReactMouseEvent<HTMLElement>) => {
     event.preventDefault();
     event.stopPropagation();
     setWheelTarget({ ebook, x: event.clientX, y: event.clientY });
-  }, []);
+  };
   const collectionScope = eBookCollectionCacheScope(
     providerId,
     providers.map((provider) => provider.id),
@@ -296,18 +296,13 @@ export function EBookView() {
     () => resolvedCollections.flatMap((collection) => collection.books),
     [resolvedCollections],
   );
-  const seriesCollections = useMemo(
-    () => resolvedCollections.filter((collection) => collection.kind === "series"),
-    [resolvedCollections],
+  const seriesCollections = resolvedCollections.filter(
+    (collection) => collection.kind === "series",
   );
-  const catalogCollections = useMemo(
-    () => resolvedCollections.filter((collection) => collection.kind === "catalog"),
-    [resolvedCollections],
+  const catalogCollections = resolvedCollections.filter(
+    (collection) => collection.kind === "catalog",
   );
-  const awardCollections = useMemo(
-    () => resolvedCollections.filter((collection) => collection.kind === "award"),
-    [resolvedCollections],
-  );
+  const awardCollections = resolvedCollections.filter((collection) => collection.kind === "award");
   const collectionsLoading =
     resolvedCollections.length === 0 && (sourceCatalogItems === null || collectionsRefreshing);
   const currentItems = useMemo(() => {
@@ -327,34 +322,22 @@ export function EBookView() {
       favorites.map((ebook) => currentItems.get(ebook.id) ?? mergeEBookMetadata([ebook], [])[0]),
     [currentItems, favorites],
   );
-  const continueBookmarks = useMemo(
-    () =>
-      readAtVersion(resumeVersion, () => {
-        const candidates = new Map<string, EBook>();
-        for (const ebook of [
-          ...(sourceItems ?? []),
-          ...(sourceCatalogItems ?? []),
-          ...(results ?? []),
-          ...displaySaved,
-          ...displayFavorites,
-        ])
-          candidates.set(ebook.id, ebook);
-        return [...candidates.values()]
-          .map((ebook) => ({ ebook, resume: loadEBookResume(activeId ?? "default", ebook.id) }))
-          .filter((item) => item.resume !== null)
-          .sort((left, right) => right.resume!.updatedAt - left.resume!.updatedAt)
-          .map((item) => item.ebook);
-      }),
-    [
-      activeId,
-      displayFavorites,
-      displaySaved,
-      results,
-      resumeVersion,
-      sourceCatalogItems,
-      sourceItems,
-    ],
-  );
+  const continueBookmarks = readAtVersion(resumeVersion, () => {
+    const candidates = new Map<string, EBook>();
+    for (const ebook of [
+      ...(sourceItems ?? []),
+      ...(sourceCatalogItems ?? []),
+      ...(results ?? []),
+      ...displaySaved,
+      ...displayFavorites,
+    ])
+      candidates.set(ebook.id, ebook);
+    return [...candidates.values()]
+      .map((ebook) => ({ ebook, resume: loadEBookResume(activeId ?? "default", ebook.id) }))
+      .filter((item) => item.resume !== null)
+      .sort((left, right) => right.resume!.updatedAt - left.resume!.updatedAt)
+      .map((item) => item.ebook);
+  });
   const loadedSourceCandidates = useMemo(() => {
     const candidates = new Map<string, EBook>();
     for (const item of [
@@ -368,11 +351,11 @@ export function EBookView() {
     }
     return [...candidates.values()];
   }, [results, sourceCatalogItems, sourceItems]);
-  const mergeResolvedSources = useCallback((books: EBook[]) => {
+  const mergeResolvedSources = (books: EBook[]) => {
     setSourceItems((current) => updateSourceItems(current, books, true));
     setSourceCatalogItems((current) => updateSourceItems(current, books, true));
     setResults((current) => (current ? updateSourceItems(current, books, true) : current));
-  }, []);
+  };
   useEffect(() => {
     const preventNativeMenu = (event: MouseEvent) => {
       const target = event.target;
@@ -695,7 +678,7 @@ export function EBookView() {
 
   const staleStreakRef = useRef(0);
   const loadFailRef = useRef(0);
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (!hasMore || loadingMoreRef.current) return;
     const sourceId = sourceSeq.current;
     const searchId = searchSeq.current;
@@ -751,7 +734,7 @@ export function EBookView() {
         loadingMoreRef.current = false;
         setLoadingMore(false);
       });
-  }, [hasMore, providerId, query, results, sourceItems]);
+  };
 
   const wheelMenu = wheelTarget ? (
     <EBookWheelMenu
@@ -3149,14 +3132,11 @@ function EBookDetails({
     },
     [chapters, ebook, profile, sourceRoute],
   );
-  const readChapter = useCallback(
-    (chapter: EBookChapter) => {
-      if (!sourceRoute || !ebook) return;
-      setReading({ chapter, content: null });
-      fetchChapter(chapter);
-    },
-    [ebook, fetchChapter, sourceRoute],
-  );
+  const readChapter = (chapter: EBookChapter) => {
+    if (!sourceRoute || !ebook) return;
+    setReading({ chapter, content: null });
+    fetchChapter(chapter);
+  };
   // undefined: nothing to auto-open yet; null: consume the intent without opening a chapter.
   let autoReadTarget: EBookChapter | null | undefined;
   const resetsSettled =

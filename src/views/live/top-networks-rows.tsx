@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Tv } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import type { IptvChannel } from "@/lib/iptv/types";
@@ -18,13 +18,9 @@ export function TopNetworksRows({
   channels: IptvChannel[];
   onPlay: (ch: IptvChannel) => void;
 }) {
-  const resolvedRows = useMemo(
-    () =>
-      rows
-        .map((row) => ({ row, resolved: resolveNetworks(channels, row.networks) }))
-        .filter((r) => r.resolved.length > 0),
-    [rows, channels],
-  );
+  const resolvedRows = rows
+    .map((row) => ({ row, resolved: resolveNetworks(channels, row.networks) }))
+    .filter((r) => r.resolved.length > 0);
   if (resolvedRows.length === 0) return null;
   return (
     <div className="flex flex-col gap-6 pb-3">

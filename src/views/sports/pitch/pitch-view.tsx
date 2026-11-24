@@ -1,6 +1,6 @@
 import { TeamProfileLink, teamIdentity } from "../team-profile-link";
 import type { TeamIdentity } from "@/lib/sports/team-profile";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { isRtl, useT, useUiLanguage } from "@/lib/i18n";
 import type { MatchPlayer, SportsMatchDetail } from "@/lib/sports/espn";
@@ -196,31 +196,13 @@ function PitchLayoutView({ detail }: { detail: SportsMatchDetail }) {
   const compact = orientation === "horizontal" ? width < 720 : width < 420;
   const mirror = rtl && orientation === "horizontal";
 
-  const homeLayout = useMemo(
-    () => buildPitchLayout(detail.homeRoster, detail.homeFormation ?? "", "home"),
-    [detail.homeRoster, detail.homeFormation],
-  );
-  const awayLayout = useMemo(
-    () => buildPitchLayout(detail.awayRoster, detail.awayFormation ?? "", "away"),
-    [detail.awayRoster, detail.awayFormation],
-  );
+  const homeLayout = buildPitchLayout(detail.homeRoster, detail.homeFormation ?? "", "home");
+  const awayLayout = buildPitchLayout(detail.awayRoster, detail.awayFormation ?? "", "away");
 
-  const homeGoals = useMemo(
-    () => goalsFromEvents(detail.events, detail.homeRoster),
-    [detail.events, detail.homeRoster],
-  );
-  const awayGoals = useMemo(
-    () => goalsFromEvents(detail.events, detail.awayRoster),
-    [detail.events, detail.awayRoster],
-  );
-  const homeSubs = useMemo(
-    () => subStatesFromEvents(detail.events, detail.homeRoster),
-    [detail.events, detail.homeRoster],
-  );
-  const awaySubs = useMemo(
-    () => subStatesFromEvents(detail.events, detail.awayRoster),
-    [detail.events, detail.awayRoster],
-  );
+  const homeGoals = goalsFromEvents(detail.events, detail.homeRoster);
+  const awayGoals = goalsFromEvents(detail.events, detail.awayRoster);
+  const homeSubs = subStatesFromEvents(detail.events, detail.homeRoster);
+  const awaySubs = subStatesFromEvents(detail.events, detail.awayRoster);
 
   const hasPlayers = homeLayout.slots.length > 0 || awayLayout.slots.length > 0;
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { allowFsPaths, localLibraryPaths } from "@/lib/fs-scope";
 import {
   addLocalEntries,
@@ -44,96 +44,92 @@ export function useLocalScan({
   const [progress, setProgress] = useState<{ found: number; total: number } | null>(null);
   const [pending, setPending] = useState<PendingScan | null>(null);
 
-  const scanFolder = useCallback(
-    async (folder: string, restoreRemoved = false) => {
-      setError(null);
-      setBusy(true);
-      const work = async () => {
-        const { invoke } = await loadTauriCore();
-        const scanned = (await invoke("harbor_scan_folder", {
-          folder,
-          minSizeMb: Math.max(0, Math.round(settings.localMinFileSizeMb ?? 50)),
-        })) as ScannedFile[];
-        if (scanned.length === 0) {
-          setError(t("No video files found in that folder."));
-          setBusy(false);
-          return;
-        }
-        const removed = removedLocalPaths();
-        const files = restoreRemoved
-          ? scanned
-          : scanned.filter((file) => !removed.has(localPathKey(file.path)));
-        if (!files.length) {
-          setBusy(false);
-          return;
-        }
-        clearSidecarCache();
-        const nfoCount = await countNfoFor(files.map((f) => f.path));
+  const scanFolder = async (folder: string, restoreRemoved = false) => {
+    setError(null);
+    setBusy(true);
+    const work = async () => {
+      const { invoke } = await loadTauriCore();
+      const scanned = (await invoke("harbor_scan_folder", {
+        folder,
+        minSizeMb: Math.max(0, Math.round(settings.localMinFileSizeMb ?? 50)),
+      })) as ScannedFile[];
+      if (scanned.length === 0) {
+        setError(t("No video files found in that folder."));
         setBusy(false);
-        setPending({ folder, files, nfoCount, restoreRemoved });
-      };
-      await work().catch((e) => {
-        console.warn("[library] folder scan failed", e);
-        setError(e instanceof Error ? e.message : t("Couldn't scan that folder."));
+        return;
+      }
+      const removed = removedLocalPaths();
+      const files = restoreRemoved
+        ? scanned
+        : scanned.filter((file) => !removed.has(localPathKey(file.path)));
+      if (!files.length) {
         setBusy(false);
-      });
-    },
-    [t, settings.localMinFileSizeMb],
-  );
+        return;
+      }
+      clearSidecarCache();
+      const nfoCount = await countNfoFor(files.map((f) => f.path));
+      setBusy(false);
+      setPending({ folder, files, nfoCount, restoreRemoved });
+    };
+    await work().catch((e) => {
+      console.warn("[library] folder scan failed", e);
+      setError(e instanceof Error ? e.message : t("Couldn't scan that folder."));
+      setBusy(false);
+    });
+  };
 
-  const onAddFolder = useCallback(async () => {
+  const onAddFolder = async () => {
     const { open } = await loadDialog();
     const folder = await open({ directory: true, multiple: false });
     if (typeof folder !== "string") return;
     // Sidecars and posters sit in subfolders and the parent folder, beyond the dialog's own grant.
     await allowFsPaths(localLibraryPaths([{ folder }]));
     await scanFolder(folder, true);
-  }, [scanFolder]);
+  };
 
-  const runScan = useCallback(
-    async (files: ScannedFile[], mode: ScanMode, folder?: string, restoreRemoved = false) => {
-      setBusy(true);
-      setError(null);
-      setProgress({ found: 0, total: files.length });
-      const tmdbKey = settings.tmdbKey?.trim() || null;
-      const entries: LocalEntry[] = [];
-      const work = async () => {
-        for (let i = 0; i < files.length; i++) {
-          const f = files[i];
-          const parsed = parseFilename(f.filename);
-          const built =
-            mode === "nfo"
-              ? await buildNfoEntry(f, parsed, tmdbKey)
-              : await buildTmdbEntry(f, parsed, tmdbKey);
-          entries.push(folder ? { ...built, folder } : built);
-          setProgress({ found: i + 1, total: files.length });
-        }
-        addLocalEntries(entries, restoreRemoved);
-      };
-      await work()
-        .catch((e) => {
-          console.warn("[library] scan failed", e);
-          setError(e instanceof Error ? e.message : t("Couldn't scan that folder."));
-        })
-        .finally(() => {
-          setProgress(null);
-          setBusy(false);
-        });
-    },
-    [settings.tmdbKey, t],
-  );
+  const runScan = async (
+    files: ScannedFile[],
+    mode: ScanMode,
+    folder?: string,
+    restoreRemoved = false,
+  ) => {
+    setBusy(true);
+    setError(null);
+    setProgress({ found: 0, total: files.length });
+    const tmdbKey = settings.tmdbKey?.trim() || null;
+    const entries: LocalEntry[] = [];
+    const work = async () => {
+      for (let i = 0; i < files.length; i++) {
+        const f = files[i];
+        const parsed = parseFilename(f.filename);
+        const built =
+          mode === "nfo"
+            ? await buildNfoEntry(f, parsed, tmdbKey)
+            : await buildTmdbEntry(f, parsed, tmdbKey);
+        entries.push(folder ? { ...built, folder } : built);
+        setProgress({ found: i + 1, total: files.length });
+      }
+      addLocalEntries(entries, restoreRemoved);
+    };
+    await work()
+      .catch((e) => {
+        console.warn("[library] scan failed", e);
+        setError(e instanceof Error ? e.message : t("Couldn't scan that folder."));
+      })
+      .finally(() => {
+        setProgress(null);
+        setBusy(false);
+      });
+  };
 
-  const onPickMode = useCallback(
-    (mode: ScanMode) => {
-      const files = pending?.files ?? [];
-      const folder = pending?.folder;
-      const restoreRemoved = pending?.restoreRemoved;
-      setPending(null);
-      update({ localScanMode: mode });
-      if (files.length) void runScan(files, mode, folder, restoreRemoved);
-    },
-    [pending, runScan, update],
-  );
+  const onPickMode = (mode: ScanMode) => {
+    const files = pending?.files ?? [];
+    const folder = pending?.folder;
+    const restoreRemoved = pending?.restoreRemoved;
+    setPending(null);
+    update({ localScanMode: mode });
+    if (files.length) void runScan(files, mode, folder, restoreRemoved);
+  };
 
   const folders = useMemo<SourceFolder[]>(() => {
     const counts = new Map<string, number>();
@@ -147,15 +143,12 @@ export function useLocalScan({
     foldersRef.current = folders;
   }, [folders]);
 
-  const removeFolder = useCallback(
-    (path: string) => {
-      removeLocalFolder(path);
-      setToast(t("Removed folder from your library"));
-    },
-    [setToast, t],
-  );
+  const removeFolder = (path: string) => {
+    removeLocalFolder(path);
+    setToast(t("Removed folder from your library"));
+  };
 
-  const autoScan = useCallback(async () => {
+  const autoScan = async () => {
     if (sweeping.current || busy || pending) return;
     const targets = foldersRef.current;
     if (!targets.length) return;
@@ -214,15 +207,7 @@ export function useLocalScan({
         setProgress(null);
         sweeping.current = false;
       });
-  }, [
-    busy,
-    pending,
-    settings.localMinFileSizeMb,
-    settings.localScanMode,
-    settings.tmdbKey,
-    setToast,
-    t,
-  ]);
+  };
 
   return {
     busy,

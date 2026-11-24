@@ -215,13 +215,9 @@ export function AllExtensionsView({
     };
   }, [config]);
 
-  const favList = useMemo(
-    () =>
-      [...favs.values()]
-        .sort((a, b) => b.addedAt - a.addedAt)
-        .map((e) => ({ id: e.id, title: e.title, cover: e.cover })),
-    [favs],
-  );
+  const favList = [...favs.values()]
+    .sort((a, b) => b.addedAt - a.addedAt)
+    .map((e) => ({ id: e.id, title: e.title, cover: e.cover }));
 
   const alphaSorted = useMemo(() => {
     if (!sources) return [];

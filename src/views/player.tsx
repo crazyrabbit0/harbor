@@ -357,10 +357,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   usePauseOnInactive({ bridgeRef, snapRef });
 
   const showWaiting = inRoom && !hasStarted;
-  const selfName = useMemo(
-    () => roomSnapshot.participants.find((p) => p.id === clientId)?.name ?? "You",
-    [roomSnapshot.participants, clientId],
-  );
+  const selfName = roomSnapshot.participants.find((p) => p.id === clientId)?.name ?? "You";
   const selfColor = settings.harborColor || nameColor(selfName);
   const playing = snap.status === "playing";
 
@@ -421,24 +418,19 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     (src.meta.type === "series" || adjacent.next != null || adjacent.prev != null) &&
     (!inRoom || isHost);
   const roomGuest = inRoom && !isHost;
-  const broadcastEpisode = useCallback(
-    (ep: PlayEpisode) => {
-      if (!inRoom || !isHost) return;
-      claimHost(true);
-      sendInvite(buildPlayInvite(src.meta, ep));
-    },
-    [inRoom, isHost, claimHost, sendInvite, src.meta],
-  );
+  const broadcastEpisode = (ep: PlayEpisode) => {
+    if (!inRoom || !isHost) return;
+    claimHost(true);
+    sendInvite(buildPlayInvite(src.meta, ep));
+  };
 
   const [autoNextCancelledFor, setAutoNextCancelledFor] = useState<string | null>(null);
   if (autoNextCancelledFor !== null && autoNextCancelledFor !== src.url) {
     setAutoNextCancelledFor(null);
   }
   const autoNextCancelled = autoNextCancelledFor === src.url;
-  const setAutoNextCancelled = useCallback(
-    (cancelled: boolean) => setAutoNextCancelledFor(cancelled ? src.url : null),
-    [src.url],
-  );
+  const setAutoNextCancelled = (cancelled: boolean) =>
+    setAutoNextCancelledFor(cancelled ? src.url : null);
 
   const startedNearEndRef = useStartedNearEnd(src.url, snap.status, snap.durationSec);
 
@@ -751,13 +743,13 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   ]);
 
   const [dvrOpen, setDvrOpen] = useState(false);
-  const pickAnotherOrGuide = useCallback(() => {
+  const pickAnotherOrGuide = () => {
     if (liveOverlay.isLive) {
       liveOverlay.setOpen(true);
     } else {
       pickAnother();
     }
-  }, [liveOverlay, pickAnother]);
+  };
 
   const [episodePanelOpen, setEpisodePanelOpen] = useState(false);
   const { watchedFor } = usePlayerWatched({
@@ -882,10 +874,10 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     };
   }, [showSyncToast, t]);
   const enterTextSync = textSync.enter;
-  const handleEnterSync = useCallback(() => {
+  const handleEnterSync = () => {
     suspendAutoSyncForManualTiming();
     void enterTextSync(src.url, src.headers);
-  }, [enterTextSync, src.url, src.headers, suspendAutoSyncForManualTiming]);
+  };
 
   const volumeIndicatorTimerRef = useRef<number | null>(null);
   const [volumeIndicator, setVolumeIndicator] = useState<VolumeIndicatorState>({
@@ -999,34 +991,31 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   const suppressMouseClickRef = useRef(false);
   const suppressMouseClickTimerRef = useRef<number | null>(null);
 
-  const releaseMouseHoldSpeed = useCallback(
-    (suppressClick: boolean) => {
-      const hold = mouseHoldRef.current;
-      if (hold.pointerId == null) return;
-      if (hold.timer != null) {
-        window.clearTimeout(hold.timer);
-        hold.timer = null;
-      }
-      const wasEngaged = hold.engaged;
-      hold.pointerId = null;
-      hold.engaged = false;
-      if (!wasEngaged) return;
+  const releaseMouseHoldSpeed = (suppressClick: boolean) => {
+    const hold = mouseHoldRef.current;
+    if (hold.pointerId == null) return;
+    if (hold.timer != null) {
+      window.clearTimeout(hold.timer);
+      hold.timer = null;
+    }
+    const wasEngaged = hold.engaged;
+    hold.pointerId = null;
+    hold.engaged = false;
+    if (!wasEngaged) return;
 
-      bridgeRef.current?.setRate(hold.baseRate);
-      setMouseHoldSpeedActive(false);
-      if (!suppressClick) return;
+    bridgeRef.current?.setRate(hold.baseRate);
+    setMouseHoldSpeedActive(false);
+    if (!suppressClick) return;
 
-      suppressMouseClickRef.current = true;
-      if (suppressMouseClickTimerRef.current != null) {
-        window.clearTimeout(suppressMouseClickTimerRef.current);
-      }
-      suppressMouseClickTimerRef.current = window.setTimeout(() => {
-        suppressMouseClickRef.current = false;
-        suppressMouseClickTimerRef.current = null;
-      }, 0);
-    },
-    [bridgeRef],
-  );
+    suppressMouseClickRef.current = true;
+    if (suppressMouseClickTimerRef.current != null) {
+      window.clearTimeout(suppressMouseClickTimerRef.current);
+    }
+    suppressMouseClickTimerRef.current = window.setTimeout(() => {
+      suppressMouseClickRef.current = false;
+      suppressMouseClickTimerRef.current = null;
+    }, 0);
+  };
 
   useEffect(() => {
     return () => {
@@ -1395,7 +1384,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     exitPlayer,
   });
 
-  const cancelToPicker = useCallback(() => {
+  const cancelToPicker = () => {
     if (isLocalSrc || src.meta.id?.startsWith("iptv:")) {
       void closePlayer();
       return;
@@ -1403,7 +1392,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
     bridgeRef.current?.destroy();
     bridgeRef.current = null;
     openPicker(src.meta, src.episode, { autoPlay: false });
-  }, [bridgeRef, closePlayer, isLocalSrc, openPicker, src.episode, src.meta]);
+  };
   const { variant: streamPillVariant, dismiss: dismissStreamPill } = useStreamPill({
     srcUrl: src.url,
     snap,
@@ -1517,24 +1506,21 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
   useEffect(() => {
     volumeRef.current = snap.volume;
   }, [snap.volume]);
-  const onVolumeWheel = useCallback(
-    (deltaY: number) => {
-      const dir = deltaY < 0 ? 1 : -1;
-      const boost = !isKid && bridgeRef.current?.capabilities().engine === "mpv";
-      const max = boost ? Math.max(1, Math.min(6, settings.volumeBoostMax || 2)) : 1;
-      const next = Math.min(max, Math.max(0, volumeRef.current + dir * 0.05));
-      volumeRef.current = next;
-      bridgeRef.current?.setVolume(next);
-      bridgeRef.current?.setMuted(false);
-      writePlayerVolume({ volume: next, muted: false });
+  const onVolumeWheel = (deltaY: number) => {
+    const dir = deltaY < 0 ? 1 : -1;
+    const boost = !isKid && bridgeRef.current?.capabilities().engine === "mpv";
+    const max = boost ? Math.max(1, Math.min(6, settings.volumeBoostMax || 2)) : 1;
+    const next = Math.min(max, Math.max(0, volumeRef.current + dir * 0.05));
+    volumeRef.current = next;
+    bridgeRef.current?.setVolume(next);
+    bridgeRef.current?.setMuted(false);
+    writePlayerVolume({ volume: next, muted: false });
 
-      if (settings.playerVolumeSfx) SFX.volumeChange(dir > 0);
-      showVolumeFeedback(next, false);
-    },
-    [bridgeRef, showVolumeFeedback, isKid, settings.playerVolumeSfx, settings.volumeBoostMax],
-  );
+    if (settings.playerVolumeSfx) SFX.volumeChange(dir > 0);
+    showVolumeFeedback(next, false);
+  };
 
-  const onLoaderRetry = useCallback(() => {
+  const onLoaderRetry = () => {
     const b = bridgeRef.current;
     if (b) {
       void b.load({
@@ -1545,7 +1531,7 @@ function NativePlayerView({ src }: { src: PlayerSrc }) {
         headers: src.headers,
       });
     }
-  }, [bridgeRef, src]);
+  };
 
   const playerExtras: PlayerExtras = {
     loop: quickToolsEnabled ? ab : undefined,

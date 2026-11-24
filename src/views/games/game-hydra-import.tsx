@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { HydraImportRequest } from "@/lib/generated/games-requests-ipc";
 import { FileUp, FolderOpen, Search, X } from "lucide-react";
@@ -152,23 +152,20 @@ export function GameHydraImport({
   }, [phase, !!review]);
   const known = new Set(sources.sources.map((source) => source.url)),
     term = query.trim().toLocaleLowerCase();
-  const rows = useMemo(
-    () => [
-      ...plans.map((plan) => ({
-        key: `game:${plan.original.key}`,
-        name: plan.original.name,
-        plan,
-        source: undefined,
-      })),
-      ...(review?.report.sources ?? []).map((source) => ({
-        key: `source:${source.key}`,
-        name: source.name,
-        plan: undefined,
-        source,
-      })),
-    ],
-    [plans, review],
-  );
+  const rows = [
+    ...plans.map((plan) => ({
+      key: `game:${plan.original.key}`,
+      name: plan.original.name,
+      plan,
+      source: undefined,
+    })),
+    ...(review?.report.sources ?? []).map((source) => ({
+      key: `source:${source.key}`,
+      name: source.name,
+      plan: undefined,
+      source,
+    })),
+  ];
   const visible = rows.filter(
     (row) => !term || `${row.name} ${row.source?.url ?? ""}`.toLocaleLowerCase().includes(term),
   );

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MusicCollectionGrid } from "@/components/music/music-collection-grid";
 import { MusicSectionHead } from "@/components/music/music-track-grid";
 import { MusicTrackGrid } from "@/components/music/music-track-grid";
@@ -125,57 +125,47 @@ export function MusicGenreDeep({
     return () => observer.disconnect();
   }, [laneDone, busy, failed, active, onArtists, tracks.length, artists.length]);
 
-  const fansLabel = useMemo(
-    () => new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 1 }),
-    [],
-  );
+  const fansLabel = new Intl.NumberFormat(undefined, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  });
 
-  const albumEntries: MusicCollectionEntry[] = useMemo(
-    () =>
-      albums.map((album) => ({
-        key: album.id,
-        kind: "album",
-        id: album.id,
-        name: album.title,
-        subtitle: album.artist ?? "",
-        artwork: [firstArtwork(album.artwork)].filter(Boolean),
-        count: 0,
-        stamp: 0,
-        pinned: false,
-        round: false,
-        item: album,
-      })),
-    [albums],
-  );
+  const albumEntries: MusicCollectionEntry[] = albums.map((album) => ({
+    key: album.id,
+    kind: "album",
+    id: album.id,
+    name: album.title,
+    subtitle: album.artist ?? "",
+    artwork: [firstArtwork(album.artwork)].filter(Boolean),
+    count: 0,
+    stamp: 0,
+    pinned: false,
+    round: false,
+    item: album,
+  }));
 
-  const artistEntries: MusicCollectionEntry[] = useMemo(
-    () =>
-      [...artists]
-        .sort((a, b) => b.score - a.score || b.fans - a.fans || a.name.localeCompare(b.name))
-        .map((artist) => ({
-          key: artist.id,
-          kind: "artist",
-          id: artist.id,
-          name: artist.name,
-          subtitle:
-            artist.fans > 0
-              ? t("music.explore.fans", { count: fansLabel.format(artist.fans) })
-              : "",
-          artwork: [artist.artwork].filter(Boolean),
-          count: 0,
-          stamp: 0,
-          pinned: false,
-          round: true,
-          item: {
-            kind: "artist",
-            id: artist.id,
-            connectorId: "catalog",
-            name: artist.name,
-            artwork: artist.artwork,
-          },
-        })),
-    [artists, fansLabel, t],
-  );
+  const artistEntries: MusicCollectionEntry[] = [...artists]
+    .sort((a, b) => b.score - a.score || b.fans - a.fans || a.name.localeCompare(b.name))
+    .map((artist) => ({
+      key: artist.id,
+      kind: "artist",
+      id: artist.id,
+      name: artist.name,
+      subtitle:
+        artist.fans > 0 ? t("music.explore.fans", { count: fansLabel.format(artist.fans) }) : "",
+      artwork: [artist.artwork].filter(Boolean),
+      count: 0,
+      stamp: 0,
+      pinned: false,
+      round: true,
+      item: {
+        kind: "artist",
+        id: artist.id,
+        connectorId: "catalog",
+        name: artist.name,
+        artwork: artist.artwork,
+      },
+    }));
 
   if (laneDone && tracks.length === 0 && artists.length === 0) return null;
 

@@ -109,10 +109,7 @@ export function PeopleView({ init }: { init: PeopleInit }) {
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
 
-  const countryEntry = useMemo(
-    () => (country ? countries.find((c) => c.iso === country) : undefined),
-    [countries, country],
-  );
+  const countryEntry = country ? countries.find((c) => c.iso === country) : undefined;
   const serverCountry =
     countryEntry?.file && countryEntry.code ? countryEntry.code.toLowerCase() : null;
   const { status, people } = usePeopleRankings({

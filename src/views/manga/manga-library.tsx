@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { List, Star, type LucideIcon } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useMangaFavorites } from "@/lib/manga-favorites";
@@ -128,15 +128,9 @@ export function MangaLibrary({ scrollRef }: { scrollRef: React.RefObject<HTMLEle
   useLayoutEffect(() => {
     openRef.current = open;
   }, [open]);
-  const openRailTitle = useCallback(
-    (m: MangaSummary) => void openRef.current(m.id, m.title, m.altTitle),
-    [],
-  );
+  const openRailTitle = (m: MangaSummary) => void openRef.current(m.id, m.title, m.altTitle);
   const { items } = useMangaFavorites();
-  const favs = useMemo(
-    (): MangaSummary[] => [...items.values()].sort((a, b) => b.addedAt - a.addedAt),
-    [items],
-  );
+  const favs = [...items.values()].sort((a, b) => b.addedAt - a.addedAt);
   const [active, setActive] = useState<LibrarySection>("favorites");
   const swapRef = useRef<HTMLDivElement | null>(null);
 

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { PickCard } from "@/components/pick-card";
 import { Row, usePosterRow } from "@/components/row";
 import { loadListItems } from "@/lib/curated/items";
@@ -28,10 +28,7 @@ export function YearTopTen({ year }: { year: number }) {
     };
   }, []);
 
-  const honoured = useMemo(
-    () => (items ?? []).filter((item) => item.awardYear === year),
-    [items, year],
-  );
+  const honoured = (items ?? []).filter((item) => item.awardYear === year);
 
   if (!list || honoured.length < MIN_TITLES) return null;
   return (

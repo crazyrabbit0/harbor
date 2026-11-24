@@ -202,14 +202,8 @@ export function PlayPicker({
   }, [downloadKey, meta.id, episode?.season, episode?.episode]);
   const downloadMatch =
     downloadKey !== null && downloadResult?.key === downloadKey ? downloadResult.item : null;
-  const downloadEntry = useMemo(
-    () => (downloadMatch ? downloadLocalEntry(downloadMatch) : null),
-    [downloadMatch],
-  );
-  const diskEntries = useMemo(
-    () => (downloadEntry ? [downloadEntry, ...localMatches] : localMatches),
-    [downloadEntry, localMatches],
-  );
+  const downloadEntry = downloadMatch ? downloadLocalEntry(downloadMatch) : null;
+  const diskEntries = downloadEntry ? [downloadEntry, ...localMatches] : localMatches;
   const { addons } = useAddons(authKey, settings);
   const isAnimeLogo = /^(kitsu|mal|anilist|anidb):/.test(meta.id);
   const logoKey = `${meta.id}|${settings.tmdbKey}|${meta.logo ?? ""}|${meta.originalLanguage ?? ""}`;
@@ -320,10 +314,7 @@ export function PlayPicker({
       hostSourceForMedia && result ? buildMatchScores(result.picker.all, hostSourceForMedia) : null,
     [result, hostSourceForMedia],
   );
-  const matchFor = useCallback(
-    (s: ScoredStream) => (hostMatch ? matchBadge(hostMatch.get(s)) : null),
-    [hostMatch],
-  );
+  const matchFor = (s: ScoredStream) => (hostMatch ? matchBadge(hostMatch.get(s)) : null);
 
   const isCached = useCallback(
     (s: ScoredStream) =>
@@ -405,7 +396,7 @@ export function PlayPicker({
     episode?.season,
   ]);
 
-  const anyAddonRanked = useMemo(() => (addons ?? []).some((a) => isAddonRanked(a)), [addons]);
+  const anyAddonRanked = (addons ?? []).some((a) => isAddonRanked(a));
   const addonOrderMode = settings.streamSort === "addon" || anyAddonRanked;
   const displayStreams = useMemo(() => {
     const all = filteredPicker?.all ?? [];
@@ -458,10 +449,7 @@ export function PlayPicker({
     return result.picker.all.filter((s) => !isCached(s)).length;
   }, [result, debrids.length, isCached]);
 
-  const populatedTiers = useMemo(
-    () => TIER_ORDER.filter((t) => filteredPicker?.byTier[t]),
-    [filteredPicker],
-  );
+  const populatedTiers = TIER_ORDER.filter((t) => filteredPicker?.byTier[t]);
 
   if (selectedTier === null && filteredPicker?.primary) {
     setSelectedTier(filteredPicker.primary.tier);
@@ -632,13 +620,10 @@ export function PlayPicker({
     setResolving,
   });
 
-  const playManually = useCallback(
-    (s: ScoredStream) => {
-      setAutoCancelled(true);
-      onPlay(s);
-    },
-    [onPlay],
-  );
+  const playManually = (s: ScoredStream) => {
+    setAutoCancelled(true);
+    onPlay(s);
+  };
 
   useEffect(() => {
     if (!resolving) return;
@@ -782,7 +767,7 @@ export function PlayPicker({
   const [perEpisodeStatus, setPerEpisodeStatus] = useState<PerEpisodeStatus | null>(null);
   const perEpisodeAcRef = useRef<AbortController | null>(null);
   useEffect(() => () => perEpisodeAcRef.current?.abort(), []);
-  const startPerEpisodeSeason = useCallback(async () => {
+  const startPerEpisodeSeason = async () => {
     const targets = seasonEpisodes ?? [];
     if (targets.length === 0 || perEpisodeAcRef.current) return;
     const ac = new AbortController();
@@ -819,7 +804,7 @@ export function PlayPicker({
       perEpisodeAcRef.current = null;
       setPerEpisodeBusy(false);
     }
-  }, [addons, debrids, meta, seasonEpisodes]);
+  };
   const engineWarming = isEngineWarmingError(pickerError);
   const pickerErrorText = pickerError ? translatePickerError(t, pickerError) : null;
   useEffect(() => {

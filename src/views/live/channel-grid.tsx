@@ -100,7 +100,7 @@ export function ChannelGrid({
 
 export function ErrorBlock({ message, onRetry }: { message: string; onRetry: () => void }) {
   const t = useT();
-  const classified = useMemo(() => classifyError(message), [message]);
+  const classified = classifyError(message);
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 

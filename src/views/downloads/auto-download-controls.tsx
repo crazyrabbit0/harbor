@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AnchoredMenu } from "@/components/anchored-menu";
 import type { AutoDlStop } from "@/lib/auto-download";
 import { t, useT } from "@/lib/i18n";
@@ -92,7 +92,7 @@ export function InlineChoice<T>({
   const translate = useT();
   const ref = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const close = useCallback(() => setOpen(false), []);
+  const close = () => setOpen(false);
   return (
     <span className="relative inline-flex">
       <button

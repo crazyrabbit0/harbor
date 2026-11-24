@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import { Check, Heart, RefreshCw, Search, SlidersHorizontal, X } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
@@ -61,10 +61,10 @@ export function GameDiscoveryPicker(props: Props) {
   const t = useT(),
     [shown, setShown] = useState(false),
     trigger = useRef<HTMLButtonElement>(null);
-  const dismiss = useCallback(() => {
+  const dismiss = () => {
     setShown(false);
     requestAnimationFrame(() => trigger.current?.focus({ preventScroll: true }));
-  }, []);
+  };
   if (!props.active && shown) setShown(false);
   if (!props.active) return null;
   return (
@@ -142,15 +142,11 @@ function PickerModal({
     custom: contextCustom,
     launchers: contextLaunchers,
   } = libraryContext;
-  const library = useMemo(
-    () =>
-      buildRecommendationLibrary(installed, emulation, {
-        steam: contextSteam,
-        custom: contextCustom,
-        launchers: contextLaunchers,
-      }),
-    [installed, emulation, contextSteam, contextCustom, contextLaunchers],
-  );
+  const library = buildRecommendationLibrary(installed, emulation, {
+    steam: contextSteam,
+    custom: contextCustom,
+    launchers: contextLaunchers,
+  });
   const { options, favorites } = preferences;
   const signals = discoverySignals(
     favorites,

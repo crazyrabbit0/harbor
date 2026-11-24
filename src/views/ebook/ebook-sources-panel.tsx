@@ -23,7 +23,7 @@ import {
 import { allowFsPaths } from "@/lib/fs-scope";
 import "./ebook-sources-panel.css";
 import { createPortal } from "react-dom";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   addEBookRepo,
   browseEBookRepo,
@@ -923,8 +923,8 @@ export function EBookSourcesView({ onBack }: { onBack: () => void }) {
       extensions();
     };
   }, []);
-  const sources = useMemo(() => readAtVersion(tick, () => listEBookSources()), [tick]);
-  const installed = useMemo(() => readAtVersion(tick, () => installedEBookPlugins()), [tick]);
+  const sources = readAtVersion(tick, () => listEBookSources());
+  const installed = readAtVersion(tick, () => installedEBookPlugins());
   const total = sources.length + installed.length;
   const [activeSection, setActiveSection] = useState("ebook-source-library");
   useEffect(() => {

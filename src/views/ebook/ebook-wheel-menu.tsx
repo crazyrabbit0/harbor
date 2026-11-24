@@ -11,7 +11,7 @@ import {
   Play,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ComponentType } from "react";
+import { useEffect, useRef, useState, type ComponentType } from "react";
 import { createPortal } from "react-dom";
 import { emitListToast } from "@/components/lists/list-toast";
 import type { EBook } from "@/lib/ebook/api";
@@ -208,53 +208,50 @@ export function EBookWheelMenu({
       });
   };
 
-  const actions = useMemo<WheelAction[]>(
-    () => [
-      {
-        id: "read",
-        label: resume ? t("Continue Reading") : t("Start Reading"),
-        Icon: Play,
-        onClick: () => {
-          onStartReading(ebook);
-          onClose();
-        },
+  const actions: WheelAction[] = [
+    {
+      id: "read",
+      label: resume ? t("Continue Reading") : t("Start Reading"),
+      Icon: Play,
+      onClick: () => {
+        onStartReading(ebook);
+        onClose();
       },
-      { id: "details", label: t("Book Details"), Icon: Info, onClick: () => setMode("details") },
-      { id: "download", label: t("Download"), Icon: Download, onClick: () => setMode("download") },
-      {
-        id: "shelf",
-        label: onShelf ? t("On Shelf") : t("Add to Shelf"),
-        Icon: ShelfBooksIcon,
-        active: onShelf,
-        onClick: () => {
-          const next = toggleEBookLibrary(ebook);
-          setOnShelf(next);
-          emitListToast(next ? t("Added to Shelf") : t("Removed from Shelf"));
-          onClose();
-        },
+    },
+    { id: "details", label: t("Book Details"), Icon: Info, onClick: () => setMode("details") },
+    { id: "download", label: t("Download"), Icon: Download, onClick: () => setMode("download") },
+    {
+      id: "shelf",
+      label: onShelf ? t("On Shelf") : t("Add to Shelf"),
+      Icon: ShelfBooksIcon,
+      active: onShelf,
+      onClick: () => {
+        const next = toggleEBookLibrary(ebook);
+        setOnShelf(next);
+        emitListToast(next ? t("Added to Shelf") : t("Removed from Shelf"));
+        onClose();
       },
-      {
-        id: "bookmark",
-        label: readLater ? t("Bookmarked") : t("Bookmark"),
-        Icon: Bookmark,
-        active: readLater,
-        onClick: () => {
-          const next = toggleEBookReadLater(ebook);
-          setReadLater(next);
-          emitListToast(next ? t("Bookmarked to read later") : t("Bookmark removed"));
-          onClose();
-        },
+    },
+    {
+      id: "bookmark",
+      label: readLater ? t("Bookmarked") : t("Bookmark"),
+      Icon: Bookmark,
+      active: readLater,
+      onClick: () => {
+        const next = toggleEBookReadLater(ebook);
+        setReadLater(next);
+        emitListToast(next ? t("Bookmarked to read later") : t("Bookmark removed"));
+        onClose();
       },
-      {
-        id: "watched",
-        label: completed ? t("Marked as read") : t("Mark as Read"),
-        Icon: completed ? Check : Eye,
-        active: completed,
-        onClick: () => void markCompleted(),
-      },
-    ],
-    [completed, ebook, markCompleted, onClose, onShelf, onStartReading, readLater, resume, t],
-  );
+    },
+    {
+      id: "watched",
+      label: completed ? t("Marked as read") : t("Mark as Read"),
+      Icon: completed ? Check : Eye,
+      active: completed,
+      onClick: () => void markCompleted(),
+    },
+  ];
 
   const node = (
     <div className="fixed inset-0 z-[220]" onContextMenu={(event) => event.preventDefault()}>

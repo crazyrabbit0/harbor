@@ -10,7 +10,7 @@ import {
   Star,
 } from "lucide-react";
 import { UiIcon } from "@/components/ui-icon";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import traktLogo from "@/assets/trakt.svg";
 import anilistLogo from "@/assets/anilist.png";
 import simklLogo from "@/assets/simkl.png";
@@ -164,10 +164,7 @@ export function LibraryView({ active }: { active: boolean }) {
  */
 function LibraryHero({ tabKey }: { tabKey: Tab }) {
   const metas = useLibraryFeatured();
-  const slides = useMemo(
-    () => pickFeatured(metas, tabKey).map((meta) => ({ meta })),
-    [metas, tabKey],
-  );
+  const slides = pickFeatured(metas, tabKey).map((meta) => ({ meta }));
   if (slides.length < 2) return null;
   return <HeroCarousel slides={slides} />;
 }

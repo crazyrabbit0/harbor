@@ -1,13 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, QrCode, WifiOff } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import type { RemoteCommand, RemoteSnapshot } from "@/lib/remote/protocol";
@@ -87,49 +78,40 @@ export function MobileRemoteProvider({ children }: { children: ReactNode }) {
     update,
   ]);
 
-  const showFlash = useCallback((ok: boolean, text: string) => {
+  const showFlash = (ok: boolean, text: string) => {
     setFlash({ ok, text });
     window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => setFlash(null), 2200);
-  }, []);
+  };
 
   const connected = status === "connected";
 
-  const playOnHost = useCallback(
-    (meta: Meta, opts?: PlayOpts) => {
-      const sent = sendCommand({
-        action: "playMeta",
-        metaId: meta.id,
-        metaType: meta.type,
-        name: meta.name,
-        poster: meta.poster,
-        season: opts?.season,
-        episode: opts?.episode,
-        resume: opts?.resume ?? true,
-      });
-      showFlash(sent, sent ? `Playing on your computer` : "Not connected to a computer");
-    },
-    [sendCommand, showFlash],
-  );
+  const playOnHost = (meta: Meta, opts?: PlayOpts) => {
+    const sent = sendCommand({
+      action: "playMeta",
+      metaId: meta.id,
+      metaType: meta.type,
+      name: meta.name,
+      poster: meta.poster,
+      season: opts?.season,
+      episode: opts?.episode,
+      resume: opts?.resume ?? true,
+    });
+    showFlash(sent, sent ? `Playing on your computer` : "Not connected to a computer");
+  };
 
-  const openOnHost = useCallback(
-    (meta: Meta) => {
-      const sent = sendCommand({
-        action: "openMeta",
-        metaId: meta.id,
-        metaType: meta.type,
-        name: meta.name,
-        poster: meta.poster,
-      });
-      showFlash(sent, sent ? `Opened on your computer` : "Not connected to a computer");
-    },
-    [sendCommand, showFlash],
-  );
+  const openOnHost = (meta: Meta) => {
+    const sent = sendCommand({
+      action: "openMeta",
+      metaId: meta.id,
+      metaType: meta.type,
+      name: meta.name,
+      poster: meta.poster,
+    });
+    showFlash(sent, sent ? `Opened on your computer` : "Not connected to a computer");
+  };
 
-  const value = useMemo<MobileRemoteValue>(
-    () => ({ connected, snapshot, playOnHost, openOnHost, sendCommand }),
-    [connected, snapshot, playOnHost, openOnHost, sendCommand],
-  );
+  const value: MobileRemoteValue = { connected, snapshot, playOnHost, openOnHost, sendCommand };
 
   return (
     <Ctx.Provider value={value}>

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import ts from "typescript";
+import { unwrappedInitializer } from "./helpers/source-callback.ts";
 import {
   catalogModule,
   clientFixture,
@@ -199,7 +200,7 @@ function discoverCallback(name, deps) {
   let callback;
   function visit(node) {
     if (ts.isVariableDeclaration(node) && node.name.getText(ast) === name)
-      callback = node.initializer.arguments[0].getText(ast);
+      callback = unwrappedInitializer(node.initializer).getText(ast);
     ts.forEachChild(node, visit);
   }
   visit(ast);

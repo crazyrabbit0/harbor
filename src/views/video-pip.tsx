@@ -205,14 +205,14 @@ export function VideoPipApp() {
     return () => root?.removeEventListener("wheel", wheel);
   }, [media.volume, media.property, wake]);
 
-  const stop = useCallback(() => {
+  const stop = () => {
     void leaveFullscreen()
       .then(async () => {
         await invoke("pip_window_exit");
         await invoke("mpv_command", { cmd: ["stop"] });
       })
       .catch(() => setMediaError(true));
-  }, [leaveFullscreen, setMediaError]);
+  };
 
   useEffect(() => {
     const keys = (event: KeyboardEvent) => {

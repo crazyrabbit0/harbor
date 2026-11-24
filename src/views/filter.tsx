@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { selectSpotlights } from "@/lib/feed/genre-spotlights";
 import { SeenIdsProvider } from "@/lib/feed/seen-ids";
@@ -25,10 +25,7 @@ import {
 export function FilterView({ filter }: { filter: MetaFilter }) {
   const scrollRef = useRef<HTMLElement>(null);
   const seenRef = useRef(new Map<string, string>());
-  const expectedSpotlights = useMemo(
-    () => (filter.kind === "genre" ? selectSpotlights(filter.name).length : 0),
-    [filter],
-  );
+  const expectedSpotlights = filter.kind === "genre" ? selectSpotlights(filter.name).length : 0;
   const [doneSpotlights, setDoneSpotlights] = useState(0);
   const [timedOut, setTimedOut] = useState(false);
   const [seenFilter, setSeenFilter] = useState(filter);
@@ -42,9 +39,9 @@ export function FilterView({ filter }: { filter: MetaFilter }) {
     const t = window.setTimeout(() => setTimedOut(true), SPOTLIGHT_TIMEOUT_MS);
     return () => window.clearTimeout(t);
   }, [filter]);
-  const markDone = useCallback(() => setDoneSpotlights((n) => n + 1), []);
+  const markDone = () => setDoneSpotlights((n) => n + 1);
   const ready = expectedSpotlights === 0 || doneSpotlights >= expectedSpotlights || timedOut;
-  const gate = useMemo<SpotlightGate>(() => ({ ready, markDone }), [ready, markDone]);
+  const gate: SpotlightGate = { ready, markDone };
   useScrollMemory(filterKey(filter), scrollRef);
   return (
     <SeenIdsProvider value={seenRef}>

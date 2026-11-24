@@ -134,17 +134,10 @@ export function EsportsEventPage({
     [event.name, event.game],
   );
   const detail = useEsportsEventDetail(event, series);
-  const own = useMemo(
-    () =>
-      matches.filter(
-        (match) => match.game === event.game && event.eventIds.includes(match.event.id),
-      ),
-    [matches, event.game, event.eventIds],
+  const own = matches.filter(
+    (match) => match.game === event.game && event.eventIds.includes(match.event.id),
   );
-  const live = useMemo(
-    () => currentEsportsMatches(own).filter((match) => match.state === "live"),
-    [own],
-  );
+  const live = currentEsportsMatches(own).filter((match) => match.state === "live");
   useEffect(() => {
     close.current?.focus();
     return () => {

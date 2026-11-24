@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ArrowLeft, Check, FolderPlus, MoreHorizontal, Pin, Plus, Search, X } from "lucide-react";
 import { ModalShell, useModalExit } from "@/components/modal-shell";
 import { Dropdown } from "@/components/dropdown";
@@ -302,28 +302,20 @@ export function GamePersonalCollections({
     [sort, setSort] = useState("added");
   const [dynamic, setDynamic] = useState(false),
     [rules, setRules] = useState<CollectionRules>(defaultCollectionRules);
-  const members = useMemo(
-    () =>
-      Object.fromEntries(
-        state.data.collections.map((c) => [
-          c.id,
-          c.rules
-            ? dynamicCollectionGames(c.rules, unified)
-            : c.gameIds.map((id) => state.data.games[id]),
-        ]),
-      ),
-    [state.data, unified],
+  const members = Object.fromEntries(
+    state.data.collections.map((c) => [
+      c.id,
+      c.rules
+        ? dynamicCollectionGames(c.rules, unified)
+        : c.gameIds.map((id) => state.data.games[id]),
+    ]),
   );
-  const resolved = useMemo(
-    () =>
-      resolveCollectionLibrary(
-        Object.values(members).flat(),
-        library.customLibrary.data.games,
-        library.emulation.data,
-      ),
-    [members, library.customLibrary.data.games, library.emulation.data],
+  const resolved = resolveCollectionLibrary(
+    Object.values(members).flat(),
+    library.customLibrary.data.games,
+    library.emulation.data,
   );
-  const draftCount = useMemo(() => dynamicCollectionGames(rules, unified).length, [rules, unified]);
+  const draftCount = dynamicCollectionGames(rules, unified).length;
   const artwork = (game: PersonalCollectionGame) =>
     game.local
       ? localCollectionArtwork(resolved[game.id], library.preferences)

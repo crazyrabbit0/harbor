@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Meta } from "@/lib/cinemeta";
 import { awardSummary, pickHeroAwards, useAwards } from "@/lib/providers/wikidata";
@@ -61,19 +61,19 @@ export function MobileDetail({ meta, onClose }: { meta: Meta; onClose: () => voi
     scrollRef.current?.scrollTo({ top: 0 });
   }, [current.id]);
 
-  const close = useCallback(() => {
+  const close = () => {
     if (reduced) onClose();
     else setClosing(true);
-  }, [reduced, onClose]);
+  };
 
-  const back = useCallback(() => {
+  const back = () => {
     if (activeStack.length > 1) setStack((s) => s.slice(0, -1));
     else close();
-  }, [activeStack.length, close]);
+  };
 
-  const openMeta = useCallback((m: Meta) => {
+  const openMeta = (m: Meta) => {
     setStack((s) => (s[s.length - 1]?.id === m.id ? s : [...s, m]));
-  }, []);
+  };
 
   const node = (
     <div
@@ -124,10 +124,8 @@ function DetailBody({
       : undefined,
   );
 
-  const handlePerson = useCallback(
-    (id: number, name: string) => openOnHost({ id: `person:${id}`, type: "movie", name } as Meta),
-    [openOnHost],
-  );
+  const handlePerson = (id: number, name: string) =>
+    openOnHost({ id: `person:${id}`, type: "movie", name } as Meta);
 
   const isSeries = !isAnime && (detail?.kind === "tv" || meta.type === "series");
   const title = detail?.title || meta.name;
@@ -172,15 +170,14 @@ function DetailBody({
   const releaseYear = Number(year) || undefined;
   const liveAwards = useAwards(imdbId ?? undefined, isSeries);
   const awardsV = useBundledAwardsVersion();
-  const awards = useMemo(
-    () => readAtVersion(awardsV, () => mergeBundledAwards(liveAwards, meta.name, releaseYear)),
-    [awardsV, liveAwards, meta.name, releaseYear],
+  const awards = readAtVersion(awardsV, () =>
+    mergeBundledAwards(liveAwards, meta.name, releaseYear),
   );
-  const awardGroups = useMemo(() => awardSummary(awards), [awards]);
-  const heroAwardSummary = useMemo(() => pickHeroAwards(awardGroups), [awardGroups]);
+  const awardGroups = awardSummary(awards);
+  const heroAwardSummary = pickHeroAwards(awardGroups);
 
-  const seasons = useMemo(() => seasonList(full, detail), [full, detail]);
-  const first = useMemo(() => firstEpisode(full, seasons), [full, seasons]);
+  const seasons = seasonList(full, detail);
+  const first = firstEpisode(full, seasons);
   const trailerId = detail?.trailerCandidates?.[0] ?? meta.trailerStreams?.[0]?.ytId ?? null;
 
   const { recItems, simItems } = useMemo(() => {

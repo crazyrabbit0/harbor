@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
 import {
   Archive,
   ArrowLeft,
@@ -74,17 +74,13 @@ export function GameSaveModal({
     root = useRef<HTMLDivElement>(null),
     heading = useRef<HTMLHeadingElement>(null);
   const language = useUiLanguage();
-  const dateFormat = useMemo(
-    () =>
-      new Intl.DateTimeFormat(language, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      }),
-    [language],
-  );
+  const dateFormat = new Intl.DateTimeFormat(language, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
   const { closing, close } = useModalExit(onClose),
     saves = useGameSaves(profile, game, simsPath);
   const [label, setLabel] = useState(""),

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Star } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { Poster, usePosterChain } from "@/components/poster";
@@ -116,7 +116,7 @@ export function MobileCatalogGrid({
       });
   }, [resetKey, enabled, initialPages, retry]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (loadingRef.current || exhausted || status !== "ready" || !enabled) return;
     const my = reqRef.current;
     loadingRef.current = true;
@@ -143,7 +143,7 @@ export function MobileCatalogGrid({
           setGrid((prev) => (prev ? { ...prev, loadingMore: false } : prev));
         }
       });
-  }, [exhausted, status, enabled, nextPage]);
+  };
 
   if (status === "loading") return <GridSkeleton />;
   if (status === "error") return <ErrorState onRetry={() => setRetry((r) => r + 1)} />;

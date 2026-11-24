@@ -1,7 +1,6 @@
 import {
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -102,7 +101,7 @@ export function MinecraftSkinStudio({
   const current = useRef(snapshot),
     stroke = useRef<{ start: Snapshot; point: [number, number] } | null>(null),
     loadRevision = useRef(0);
-  const texture = useMemo(() => skinPng(snapshot.pixels), [snapshot.pixels]);
+  const texture = skinPng(snapshot.pixels);
   const rect = skinFaceRect(part, face, outer, snapshot.model);
   const record = (): SkinDraft => ({
     id: draftId,

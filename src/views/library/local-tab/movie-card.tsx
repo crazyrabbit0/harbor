@@ -10,7 +10,7 @@ import {
   Wand2,
 } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useState } from "react";
 import { Poster } from "@/components/poster";
 import { removeLocalEntry, type LocalEntry } from "@/lib/local-library";
 import { useViewActions } from "@/lib/view";
@@ -38,26 +38,23 @@ function OwnedCardImpl({
 
   const epLabel = episodeLabel(entry);
   const versionCount = versions.length;
-  const ids = useMemo(() => versions.map((v) => v.id), [versions]);
-  const onActivate = useCallback(
-    (range = false) => {
-      if (selectMode) {
-        onToggleSelect(ids, range);
-        return;
-      }
-      if (versionCount > 1) {
-        openLocalVersions({
-          title: entry.title,
-          poster: poster.src,
-          entries: versions,
-          onPlayLocal: (v) => openPlayer(localPlayerSrc(v)),
-        });
-        return;
-      }
-      openPlayer(localPlayerSrc(entry));
-    },
-    [selectMode, entry, versions, versionCount, ids, poster.src, openPlayer, onToggleSelect],
-  );
+  const ids = versions.map((v) => v.id);
+  const onActivate = (range = false) => {
+    if (selectMode) {
+      onToggleSelect(ids, range);
+      return;
+    }
+    if (versionCount > 1) {
+      openLocalVersions({
+        title: entry.title,
+        poster: poster.src,
+        entries: versions,
+        onPlayLocal: (v) => openPlayer(localPlayerSrc(v)),
+      });
+      return;
+    }
+    openPlayer(localPlayerSrc(entry));
+  };
 
   return (
     <div

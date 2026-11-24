@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { ArrowUpRight, RefreshCw, Search } from "lucide-react";
 import { Dropdown } from "@/components/dropdown";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -92,14 +92,8 @@ export function GameRivalsCompanion({ active }: { active: boolean }) {
     read(loadRivalsPairs("synergy", controller.signal, attempt > 0), setSynergy);
     return () => controller.abort();
   }, [active, activated, attempt, revision]);
-  const roster = useMemo(
-    () => rivalsRoster(official.data ?? [], stats.data),
-    [official.data, stats.data],
-  );
-  const heroes = useMemo(
-    () => filterRivalsHeroes(roster, query, role, sort),
-    [roster, query, role, sort],
-  );
+  const roster = rivalsRoster(official.data ?? [], stats.data);
+  const heroes = filterRivalsHeroes(roster, query, role, sort);
   const selected = heroes.find((hero) => hero.key === selection) ?? heroes[0];
   const busy = [official, stats, counters, synergy].some((feed) => feed.busy);
   const stale = [stats, counters, synergy].some(

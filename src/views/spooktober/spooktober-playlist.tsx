@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Plus, Search, X } from "@/components/icons/music-icons";
 import { MusicActionGlyph } from "@/components/music/music-action-feedback";
 import { Dropdown } from "@/components/dropdown";
@@ -63,22 +63,19 @@ export function SpooktoberMusicProvider({
   active?: boolean;
 }) {
   const { setView } = useViewActions();
-  const navigate = useMemo(
-    () => ({
-      goToArtist: (name: string, track?: MusicTrack) => {
-        setView("music");
-        requestMusicExplore({
-          kind: "artist",
-          track: { ...(track ?? navigationTrack(name)), artist: name },
-        });
-      },
-      goToAlbum: (album: string, artist: string) => {
-        setView("music");
-        requestMusicExplore({ kind: "album", track: navigationTrack(artist, album) });
-      },
-    }),
-    [setView],
-  );
+  const navigate = {
+    goToArtist: (name: string, track?: MusicTrack) => {
+      setView("music");
+      requestMusicExplore({
+        kind: "artist",
+        track: { ...(track ?? navigationTrack(name)), artist: name },
+      });
+    },
+    goToAlbum: (album: string, artist: string) => {
+      setView("music");
+      requestMusicExplore({ kind: "album", track: navigationTrack(artist, album) });
+    },
+  };
   return (
     <MusicConnectionsProvider active={active}>
       <MusicSourcePickerProvider active={active}>
@@ -111,30 +108,25 @@ function ConnectionPage({ children, active }: { children: ReactNode; active: boo
 
 export function useSpooktoberMusicPlayback() {
   const { openSourcePicker } = useMusicSourcePicker();
-  const play = useCallback(
-    (
-      track: MusicTrack,
-      queue: MusicTrack[] = [track],
-      playlist?: { id: string; title: string },
-    ) => {
-      // The prefixed ID routes dock/menu navigation back to the festival, separately
-      // from native library playlist IDs created when the user saves a copy.
-      if (playlist)
-        recordMusicPlaylistPlayback(
-          { id: `spooktober:${playlist.id}`, name: playlist.title, tracks: queue },
-          queue,
-        );
-      else registerMusicQueueOrigin(queue, null);
-      // The ready callback keeps a music video on the dock instead of handing it to the Music
-      // view's watch page, so it stays controllable from the bottom bar and Now Playing.
-      openSourcePicker(track, queue, () => {});
-    },
-    [openSourcePicker],
-  );
-  const playVideo = useCallback((track: MusicTrack) => {
+  const play = (
+    track: MusicTrack,
+    queue: MusicTrack[] = [track],
+    playlist?: { id: string; title: string },
+  ) => {
+    // The prefixed ID sends dock and menu navigation to the festival, apart from a saved copy's library ID.
+    if (playlist)
+      recordMusicPlaylistPlayback(
+        { id: `spooktober:${playlist.id}`, name: playlist.title, tracks: queue },
+        queue,
+      );
+    else registerMusicQueueOrigin(queue, null);
+    // The ready callback keeps a music video on the dock, so the bottom bar and Now Playing control it.
+    openSourcePicker(track, queue, () => {});
+  };
+  const playVideo = (track: MusicTrack) => {
     registerMusicQueueOrigin([track], null);
     void playMusic(track, [track]).catch(() => {});
-  }, []);
+  };
   return { play, playVideo };
 }
 
@@ -232,10 +224,7 @@ export function SpooktoberPlaylist({
     const songs = new Map(data.songs.map((song) => [song.id, song]));
     return playlist.songIds.map((id) => spooktoberSongToTrack(songs.get(id)!));
   }, [data, playlist]);
-  const positions = useMemo(
-    () => new Map(tracks.map((track, index) => [track.id, index + 1])),
-    [tracks],
-  );
+  const positions = new Map(tracks.map((track, index) => [track.id, index + 1]));
   const [focusFor, setFocusFor] = useState({ active, focusTrackId, tracks });
   if (
     focusFor.active !== active ||

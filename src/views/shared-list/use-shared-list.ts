@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchSummary, ProfileNotFound } from "@/lib/social/profile-api";
 import type { ProfileSummary } from "@/lib/social/profile-types";
 import type { FeaturedList } from "@/lib/social/featured-lists";
@@ -17,7 +17,7 @@ export function useSharedList(handle: string, listId: string): SharedListBundle 
   const [summary, setSummary] = useState<ProfileSummary | null>(null);
   const [list, setList] = useState<FeaturedList | null>(null);
   const [nonce, setNonce] = useState(0);
-  const reload = useCallback(() => setNonce((n) => n + 1), []);
+  const reload = () => setNonce((n) => n + 1);
 
   const requestKey = handle && listId ? `${handle}\n${listId}\n${nonce}` : null;
   const [requestFor, setRequestFor] = useState(requestKey);

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Download } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
@@ -77,18 +77,15 @@ export function GameHackFiles({
   }, [requestKey, active]);
   const current = state?.key === requestKey ? state : undefined,
     release = current?.release ?? knownRelease;
-  const entry: SourceRelease = useMemo(
-    () => ({
-      id: key,
-      title: game.name,
-      igdbId: game.igdbId,
-      sourcePage: release?.page,
-      kind: release?.method === "modpack" ? "mod" : "patch",
-      version: current?.version,
-      files: current?.files ?? [],
-    }),
-    [key, game.name, game.igdbId, release?.page, release?.method, current],
-  );
+  const entry: SourceRelease = {
+    id: key,
+    title: game.name,
+    igdbId: game.igdbId,
+    sourcePage: release?.page,
+    kind: release?.method === "modpack" ? "mod" : "patch",
+    version: current?.version,
+    files: current?.files ?? [],
+  };
   const source: GameSource = {
     id: `hack-project:${game.id}`,
     url: release?.page ?? "",

@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Play } from "lucide-react";
 import { useT, useUiLanguage } from "@/lib/i18n";
 import { openUrl } from "@/lib/window";
@@ -88,17 +88,11 @@ export function EsportsEventStages({
   const locale = useUiLanguage();
   const [stage, setStage] = useState("");
   const [phase, setPhase] = useState<"all" | "upcoming" | "completed">("all");
-  const stages = useMemo(
-    () =>
-      [
-        ...new Set(
-          matches
-            .map((match) => match.event.stage)
-            .filter((value): value is string => !!value?.trim()),
-        ),
-      ].slice(0, 12),
-    [matches],
-  );
+  const stages = [
+    ...new Set(
+      matches.map((match) => match.event.stage).filter((value): value is string => !!value?.trim()),
+    ),
+  ].slice(0, 12);
   const shown = matches
     .filter((match) => !stage || match.event.stage === stage)
     .filter((match) =>

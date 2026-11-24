@@ -1,4 +1,4 @@
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Check, Copy } from "lucide-react";
 import { copyText } from "@/components/player/copy-link-button";
@@ -8,7 +8,7 @@ import { useT } from "@/lib/i18n";
 export function GuideMarkup({ html }: { html: string }) {
   const root = useRef<HTMLDivElement>(null),
     [blocks, setBlocks] = useState<{ host: HTMLElement; text: string }[]>([]);
-  const markup = useMemo(() => ({ __html: html }), [html]);
+  const markup = { __html: html };
   useLayoutEffect(() => {
     const element = root.current;
     if (!element) return;

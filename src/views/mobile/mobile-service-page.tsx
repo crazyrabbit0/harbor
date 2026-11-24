@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
 import { ChevronLeft, Film } from "lucide-react";
 import type { Meta } from "@/lib/cinemeta";
 import { ServiceLogo } from "@/components/service-logo";
@@ -75,10 +75,8 @@ export function MobileServicePage({
   const key = settings.tmdbKey;
   const region = settings.region;
 
-  const fetchPage = useCallback(
-    (page: number) => fetchServicePage(key, providerIds, region, media, genreId, page),
-    [key, providerIds, region, media, genreId],
-  );
+  const fetchPage = (page: number) =>
+    fetchServicePage(key, providerIds, region, media, genreId, page);
 
   const changeMedia = (next: ServiceMedia) => {
     if (next === media) return;

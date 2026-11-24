@@ -251,14 +251,11 @@ function MusicViewContent({ active }: { active: boolean }) {
   const [nav] = useState(() => new MusicNavState());
   const shownGeneration = useSyncExternalStore(nav.subscribe, nav.getGeneration, nav.getGeneration);
   const trailDepth = useSyncExternalStore(nav.subscribe, nav.getTrailDepth, nav.getTrailDepth);
-  const scrollCb = useCallback(
-    (el: HTMLElement | null) => {
-      (scrollRef as { current: HTMLElement | null }).current = el;
-      nav.setScrollEl(el);
-      setScrollEl(el);
-    },
-    [nav],
-  );
+  const scrollCb = (el: HTMLElement | null) => {
+    (scrollRef as { current: HTMLElement | null }).current = el;
+    nav.setScrollEl(el);
+    setScrollEl(el);
+  };
   useScrollMemory("music", scrollRef, active);
 
   const [genre, setGenre] = useState<MusicGenreEntry | null>(null);
@@ -343,11 +340,11 @@ function MusicViewContent({ active }: { active: boolean }) {
     kind: "playlist" | "liked" | "recent";
     id: string;
   } | null>(null);
-  const closeCollectionPage = useCallback(() => setCollectionPage(null), []);
-  const openCollection = useCallback((entry: MusicCollectionEntry) => {
+  const closeCollectionPage = () => setCollectionPage(null);
+  const openCollection = (entry: MusicCollectionEntry) => {
     if (entry.kind === "playlist" || entry.kind === "liked" || entry.kind === "recent")
       setCollectionPage({ kind: entry.kind, id: entry.id });
-  }, []);
+  };
   const closeWatch = () => {
     setWatch(null);
     if (nav.watchFromVideos) {
@@ -617,10 +614,10 @@ function MusicViewContent({ active }: { active: boolean }) {
                   : `tab:${tab}`;
   useMusicScrollContinuity(scrollRef, layerKey);
 
-  const retry = useCallback(() => {
+  const retry = () => {
     reloadConnections();
     data.reload();
-  }, [data, reloadConnections]);
+  };
 
   const playTrack = useCallback(
     (track: MusicTrack, queue: MusicTrack[]) => {
@@ -688,7 +685,7 @@ function MusicViewContent({ active }: { active: boolean }) {
     [nav, loadPendingDetail],
   );
 
-  const loadMoreArtistTracks = useCallback(async () => {
+  const loadMoreArtistTracks = async () => {
     const current = nav.detail;
     if (
       !current ||
@@ -735,9 +732,9 @@ function MusicViewContent({ active }: { active: boolean }) {
           value ? { ...value, loadingMore: false, moreError: errorText(cause) } : value,
         );
     });
-  }, [nav]);
+  };
 
-  const loadMoreArtistReleases = useCallback(async () => {
+  const loadMoreArtistReleases = async () => {
     const current = nav.detail;
     if (
       !current ||
@@ -785,7 +782,7 @@ function MusicViewContent({ active }: { active: boolean }) {
             : value,
         );
     });
-  }, [nav]);
+  };
 
   const [libraryTarget, setLibraryTarget] = useState<{
     view?: string;
@@ -1135,10 +1132,7 @@ function MusicViewContent({ active }: { active: boolean }) {
     return () => window.removeEventListener(MUSIC_LABEL_EVENT, receive);
   }, [openLabel]);
 
-  const slots = useMemo(
-    () => splitHomeRows(data.homeRows, connections),
-    [data.homeRows, connections],
-  );
+  const slots = splitHomeRows(data.homeRows, connections);
 
   const chartsTracks = tracksOf(slots.charts[0]?.items ?? []).length;
   const context: MusicBandContext = {

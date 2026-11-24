@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRatingPoster } from "@/lib/ratings/poster";
 import { createPortal } from "react-dom";
 import { Eye, Loader2, X } from "lucide-react";
@@ -100,7 +100,7 @@ export function UserRatings({
     };
   }, [handle, type]);
 
-  const loadMore = useCallback(async () => {
+  const loadMore = async () => {
     const current = request.current;
     if (
       !cursor ||
@@ -132,7 +132,7 @@ export function UserRatings({
           setMore(false);
         }
       });
-  }, [cursor, handle, type]);
+  };
 
   return createPortal(
     <div

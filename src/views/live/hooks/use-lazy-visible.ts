@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
 
 const INITIAL_BATCH = 24;
 const BATCH_SIZE = 24;
@@ -60,15 +60,15 @@ export function useLazyVisible<T>(
     return () => obs.disconnect();
   }, [sentinel, rootRef]);
 
-  const sentinelRef = useCallback((el: HTMLDivElement | null) => setSentinel(el), []);
+  const sentinelRef = (el: HTMLDivElement | null) => setSentinel(el);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     setShown((n) => {
       const ceiling = Math.min(itemsLenRef.current, MAX_SHOWN);
       if (n >= ceiling) return n;
       return Math.min(ceiling, n + BATCH_SIZE);
     });
-  }, []);
+  };
 
   const ceiling = Math.min(items.length, MAX_SHOWN);
   return {

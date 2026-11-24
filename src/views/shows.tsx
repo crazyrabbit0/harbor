@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { BackToTop } from "@/components/back-to-top";
 import { CatalogRows } from "@/components/catalog/catalog-rows";
 import { CatalogCustomizeBar } from "@/components/catalog/customize-bar";
@@ -81,10 +81,10 @@ export function Shows({ active = true }: { active?: boolean }) {
 
   useScrollMemory("shows", scrollRef, active);
 
-  const scrollCb = useCallback((el: HTMLElement | null) => {
+  const scrollCb = (el: HTMLElement | null) => {
     (scrollRef as { current: HTMLElement | null }).current = el;
     setScrollEl(el);
-  }, []);
+  };
 
   if (!authKey && items.length > 0) setItems([]);
   useEffect(() => {
@@ -233,7 +233,7 @@ export function Shows({ active = true }: { active?: boolean }) {
     publishResumeStates(cwItems);
   }, [cwItems]);
 
-  const loadMore = useCallback((rowKey: string) => {
+  const loadMore = (rowKey: string) => {
     if (loadingRef.current.has(rowKey)) return;
     const row = rowsRef.current.find((r) => r.key === rowKey);
     if (!row || !row.fetcher || !row.hasMore || row.metas.length >= MAX_PER_ROW) return;
@@ -262,7 +262,7 @@ export function Shows({ active = true }: { active?: boolean }) {
       .finally(() => {
         loadingRef.current.delete(rowKey);
       });
-  }, []);
+  };
 
   const shownHero = useHideAnimeMetas(hero);
   const trendingMetas = useMemo(() => rows.find((r) => r.key === "trending")?.metas ?? [], [rows]);
@@ -318,19 +318,15 @@ export function Shows({ active = true }: { active?: boolean }) {
     ];
   }, [top10, rows, allRestRows]);
 
-  const onDismissCw = useCallback(
-    (item: LibraryItem) =>
-      item.manualWatched
-        ? dismissManualWatched(item._id)
-        : item.local
-          ? clearLocalCw(item._id)
-          : dismissCw(item, authKey),
-    [authKey],
-  );
-  const cwCards = useMemo(
-    () => cwItems.map((it) => <ContinueCard key={it._id} item={it} onDismiss={onDismissCw} />),
-    [cwItems, onDismissCw],
-  );
+  const onDismissCw = (item: LibraryItem) =>
+    item.manualWatched
+      ? dismissManualWatched(item._id)
+      : item.local
+        ? clearLocalCw(item._id)
+        : dismissCw(item, authKey);
+  const cwCards = cwItems.map((it) => (
+    <ContinueCard key={it._id} item={it} onDismiss={onDismissCw} />
+  ));
   return (
     <main ref={scrollCb} className="relative h-full overflow-y-auto overflow-x-hidden bg-canvas">
       <ScrollRootContext.Provider value={scrollEl}>

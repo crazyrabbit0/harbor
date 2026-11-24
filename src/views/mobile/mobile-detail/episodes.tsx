@@ -94,31 +94,27 @@ export function EpisodeSection({
     else setOverride({ metaId: meta.id, provider: "tvdb", seasonType: value });
   };
 
-  const seasonOptions = useMemo<SeasonEntry[]>(
-    () =>
-      readAtVersion(language, () => {
-        if (ordering) {
-          return ordering.seasons
-            .filter((s) => s.seasonNumber >= 1)
-            .map((s) => {
-              const label =
-                s.name && s.name.trim()
-                  ? s.name
-                  : translate("Season {number}", { number: s.seasonNumber });
-              return {
-                number: s.seasonNumber,
-                label,
-                badge: seasonTypeBadge(s.seasonNumber, label),
-              };
-            });
-        }
-        return seasons.map((n) => ({
-          number: n,
-          label: translate("Season {number}", { number: n }),
-        }));
-      }),
-    [ordering, seasons, language],
-  );
+  const seasonOptions: SeasonEntry[] = readAtVersion(language, () => {
+    if (ordering) {
+      return ordering.seasons
+        .filter((s) => s.seasonNumber >= 1)
+        .map((s) => {
+          const label =
+            s.name && s.name.trim()
+              ? s.name
+              : translate("Season {number}", { number: s.seasonNumber });
+          return {
+            number: s.seasonNumber,
+            label,
+            badge: seasonTypeBadge(s.seasonNumber, label),
+          };
+        });
+    }
+    return seasons.map((n) => ({
+      number: n,
+      label: translate("Season {number}", { number: n }),
+    }));
+  });
 
   const [season, setSeason] = useState<number>(() => {
     const v = getViewedSeason(meta.id);

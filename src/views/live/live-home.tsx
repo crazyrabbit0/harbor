@@ -65,7 +65,7 @@ export function LiveHome({
     favorites,
   });
   const countryPrefs = useCountryPrefs(sourceId);
-  const tvgCounts = useMemo(() => computeTvgIdCounts(channels), [channels]);
+  const tvgCounts = computeTvgIdCounts(channels);
   const settings = useSettingsSelector((s) => ({ sportsLeagues: s.sportsLeagues }));
   const update = useSettingsUpdate();
   const userSportsLeagues = settings.sportsLeagues?.length

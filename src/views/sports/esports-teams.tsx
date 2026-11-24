@@ -1,4 +1,4 @@
-import { lazy, Suspense, useId, useRef, useEffect, useState, useMemo, type ReactNode } from "react";
+import { lazy, Suspense, useId, useRef, useEffect, useState, type ReactNode } from "react";
 import { ArrowRight, ChevronRight, ExternalLink, Search, Users, X } from "lucide-react";
 import { ModalShell } from "@/components/modal-shell";
 import { useT, useUiLanguage } from "@/lib/i18n";
@@ -96,9 +96,11 @@ export function TeamMatches({
   const historyData = history.key === fullHistoryKey ? history.data : undefined;
   const historyFailed = history.key === fullHistoryKey && history.failed === true;
   const historyLoading = historySupported && !historyData && !historyFailed;
-  const allMatches = useMemo(
-    () => mergeEsportsTeamHistory(team.game, team.id, team.matches, historyData?.matches || []),
-    [team.game, team.id, team.matches, historyData],
+  const allMatches = mergeEsportsTeamHistory(
+    team.game,
+    team.id,
+    team.matches,
+    historyData?.matches || [],
   );
   const recent = allMatches
     .filter((match) => match.state === "recent")
@@ -493,10 +495,7 @@ export function EsportsTeams({
     setLimit(48);
     setTeam(null);
   }
-  const entries = useMemo(
-    () => esportsTeamDirectory(matches, rankings?.teams),
-    [matches, rankings],
-  );
+  const entries = esportsTeamDirectory(matches, rankings?.teams);
   const sourceTeams = entries.filter(
     (team) =>
       (selected === "all" || selected === team.game) &&

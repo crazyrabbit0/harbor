@@ -189,10 +189,7 @@ export function CommunityCollectionEditor({
     for (const h of hits) c[h.type]++;
     return c;
   }, [hits]);
-  const filteredHits = useMemo(
-    () => (typeFilter === "all" ? hits : hits.filter((h) => h.type === typeFilter)),
-    [hits, typeFilter],
-  );
+  const filteredHits = typeFilter === "all" ? hits : hits.filter((h) => h.type === typeFilter);
   const orderedItems = useMemo(() => {
     const source = collection?.items ?? [];
     const byId = new Map(source.map((it) => [it.id, it] as const));

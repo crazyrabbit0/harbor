@@ -48,7 +48,7 @@ export function ChannelPicker({
     return pl?.channels ?? [];
   }, [playlistId, channels, playlists]);
 
-  const tvgIdCounts = useMemo(() => computeTvgIdCounts(scopedChannels), [scopedChannels]);
+  const tvgIdCounts = computeTvgIdCounts(scopedChannels);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();

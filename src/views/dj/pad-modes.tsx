@@ -162,16 +162,13 @@ export function PadDeck({
     [cues, readPosition, trackId],
   );
 
-  const dropCue = useCallback(
-    (slot: number) => {
-      if (typeof cues[slot] !== "number") return;
-      const next = [...cues];
-      delete next[slot];
-      setCues(next);
-      if (trackId) writeCues(trackId, next);
-    },
-    [cues, trackId],
-  );
+  const dropCue = (slot: number) => {
+    if (typeof cues[slot] !== "number") return;
+    const next = [...cues];
+    delete next[slot];
+    setCues(next);
+    if (trackId) writeCues(trackId, next);
+  };
 
   const startRoll = useCallback(
     (slot: number) => {

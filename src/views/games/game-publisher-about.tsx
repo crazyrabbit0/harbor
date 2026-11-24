@@ -28,7 +28,7 @@ export function GamePublisherAbout({
     region = useRef<HTMLDivElement>(null),
     reduced = useReducedMotion();
   const markup = useMemo(() => (html ? sanitizePublisherHtml(html) : ""), [html]);
-  const content = useMemo(() => ({ __html: markup }), [markup]);
+  const content = { __html: markup };
   const [motion, setMotion] = useState<boolean | null>(null);
   const [height, setHeight] = useState(0);
   const clipped = height > 450 && !expanded;

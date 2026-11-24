@@ -1,5 +1,5 @@
 import { musicGenreName } from "@/lib/music/genre-catalog";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Dropdown } from "@/components/dropdown";
 import { Check, Search, X } from "@/components/icons/music-icons";
 import { MusicDiscoveryIcon } from "@/components/music/music-discovery-icon";
@@ -46,7 +46,7 @@ export function MusicGenreBrowser({
     language = useUiLanguage();
   const [filters, setFilters] = useState(() => readFilters(mode));
   const [selectedOnly, setSelectedOnly] = useState(false);
-  const regions = useMemo(() => new Intl.DisplayNames([language], { type: "region" }), [language]);
+  const regions = new Intl.DisplayNames([language], { type: "region" });
   const countryName = (code: string) => regions.of(code) ?? code;
   const countries = [...MUSIC_GENRE_COUNTRIES].sort((a, b) =>
     countryName(a).localeCompare(countryName(b), language),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUpRight, ChevronDown, ChevronUp, Trophy } from "lucide-react";
 
 import { useT } from "@/lib/i18n";
@@ -100,10 +100,7 @@ export function GameUpdates({
     [attempt, setAttempt] = useState(0),
     [page, setPage] = useState(0);
   const pages = Math.ceil((items?.length ?? 0) / pageSize);
-  const artwork = useMemo(
-    () => selectNewsArtwork(items ?? [], screenshots, excludedArtwork),
-    [items, screenshots, excludedArtwork],
-  );
+  const artwork = selectNewsArtwork(items ?? [], screenshots, excludedArtwork);
   const [unavailableImages, setUnavailableImages] = useState<Set<string>>(() => new Set());
   const runKey = ready ? `${appId}:${attempt}` : null;
   const [prevRunKey, setPrevRunKey] = useState(runKey);

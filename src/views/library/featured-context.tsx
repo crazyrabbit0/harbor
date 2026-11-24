@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 
 type Ctx = {
@@ -15,10 +15,10 @@ const FeaturedContext = createContext<Ctx | null>(null);
  */
 export function LibraryFeaturedProvider({ children }: { children: React.ReactNode }) {
   const [metas, setMetas] = useState<Meta[]>([]);
-  const report = useCallback((next: Meta[]) => {
+  const report = (next: Meta[]) => {
     setMetas((prev) => (sameIds(prev, next) ? prev : next));
-  }, []);
-  const value = useMemo(() => ({ metas, report }), [metas, report]);
+  };
+  const value = { metas, report };
   return <FeaturedContext.Provider value={value}>{children}</FeaturedContext.Provider>;
 }
 

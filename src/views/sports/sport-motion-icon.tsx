@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { NavLottie } from "@/components/icons/nav-lottie";
 import baseballBasketball from "@/assets/lottie/nav/sports/baseball-basketball.json";
 import soccerHockey from "@/assets/lottie/nav/sports/soccer-hockey.json";
@@ -18,7 +18,7 @@ const clips: Record<string, object> = {
 /** The supplied morphs have room here; navigation uses the lightweight static basketball. */
 export function SportMotionIcon({ name }: { name: string }) {
   const [hovered, setHovered] = useState(false);
-  const data = useMemo(() => (clips[name] ? structuredClone(clips[name]) : null), [name]);
+  const data = clips[name] ? structuredClone(clips[name]) : null;
   const fallback = (
     <span className="sh-sport-motion-still">
       <SportIcon name={name} size={36} />

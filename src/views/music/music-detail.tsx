@@ -7,7 +7,7 @@ import { MusicVideoDiscovery } from "@/components/music/music-video-discovery";
 import { MusicArtistFilmography } from "@/components/music/music-artist-filmography";
 import { MusicTrackCredits } from "@/components/music/music-listening-details";
 import { MusicSoundtrackLink } from "@/components/music/music-soundtrack-link";
-import { useEffect, useId, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import {
   ArrowDownAZ,
   ChevronLeft,
@@ -157,10 +157,7 @@ export function MusicDetail({
     onAddToQueue: heroTrack ? () => enqueueMusic(heroTrack) : undefined,
     onGoToArtist: heroTrack ? () => onArtistSearch(heroTrack.artist) : undefined,
   });
-  const trackNumbers = useMemo(
-    () => new Map(tracks.map((track, index) => [track, index + 1])),
-    [tracks],
-  );
+  const trackNumbers = new Map(tracks.map((track, index) => [track, index + 1]));
   const title = item.kind === "album" || item.kind === "track" ? item.title : item.name;
   const source = musicSourceLink(item);
   const artwork = Array.isArray(item.artwork) ? item.artwork[0] : item.artwork;

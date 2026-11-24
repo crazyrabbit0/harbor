@@ -1,7 +1,6 @@
 import {
   Component,
   Suspense,
-  useCallback,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -69,7 +68,7 @@ export function deferredGameView<P extends object>(
     const handoff = useRef<(() => void) | null>(null),
       cancel = useRef<(() => void) | null>(null);
     useEffect(() => () => cancel.current?.(), []);
-    const ready = useCallback(() => handoff.current?.(), []);
+    const ready = () => handoff.current?.();
     const retry = (element: HTMLElement) => {
       cancel.current?.();
       const parent = element.parentElement,

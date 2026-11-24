@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { meta as fetchCinemetaMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 
@@ -117,7 +117,7 @@ export function KnownTileHover({ meta, rect }: { meta: Meta; rect: DOMRect }) {
 
   const backdrop = art;
   const description = (full?.description ?? meta.description ?? "").trim();
-  const people = useMemo(() => peopleLine(full), [full]);
+  const people = peopleLine(full);
   const year = meta.releaseInfo ?? full?.releaseInfo;
 
   return createPortal(

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { fetchMyGroups, fetchPublicGroups, type Group } from "@/lib/social/groups";
 
 export type DiscoveryState = {
@@ -75,7 +75,7 @@ export function useGroupDiscovery(signedIn: boolean): DiscoveryState {
     };
   }, [q, tag, tick]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (!cursor || loadingMore) return;
     setLoadingMore(true);
     fetchPublicGroups({ q: q.trim() || undefined, tag: tag || undefined, cursor })
@@ -85,9 +85,9 @@ export function useGroupDiscovery(signedIn: boolean): DiscoveryState {
       })
       .catch(() => {})
       .finally(() => setLoadingMore(false));
-  }, [cursor, loadingMore, q, tag]);
+  };
 
-  const reload = useCallback(() => setTick((n) => n + 1), []);
+  const reload = () => setTick((n) => n + 1);
 
   return {
     q,

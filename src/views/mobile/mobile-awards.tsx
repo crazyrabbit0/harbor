@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, KeyRound, LayoutGrid, List, Trophy } from "lucide-react";
 import { AwardLogo, laurelColorFor } from "@/components/icons/award-logo";
@@ -86,19 +86,19 @@ export function MobileAwards({
   const meta = AWARD_CATALOG[awardType];
   const tint = laurelColorFor(awardType);
 
-  const close = useCallback(() => {
+  const close = () => {
     if (reduced) onClose();
     else setClosing(true);
-  }, [reduced, onClose]);
+  };
 
-  const selectMode = useCallback((m: Mode) => {
+  const selectMode = (m: Mode) => {
     setMode(m);
     try {
       localStorage.setItem(MODE_KEY, m);
     } catch {
       /* ignore */
     }
-  }, []);
+  };
 
   useEffect(() => {
     if (!hasKey) return;
@@ -117,7 +117,7 @@ export function MobileAwards({
     };
   }, [awardType, key, hasKey, fetchKey]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (loadingMore || loading || done || !key) return;
     setResult((prev) => (prev && prev.key === fetchKey ? { ...prev, loadingMore: true } : prev));
     targetRef.current += STEP;
@@ -134,7 +134,7 @@ export function MobileAwards({
           prev && prev.key === fetchKey ? { ...prev, loadingMore: false } : prev,
         );
       });
-  }, [awardType, key, fetchKey, loading, loadingMore, done]);
+  };
 
   const node = (
     <div

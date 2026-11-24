@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import type { RailDef } from "@/lib/feed";
 import { FeedShelf } from "@/components/feed-shelf";
@@ -62,22 +62,22 @@ export function Rail({
   const items = deduped[railId] ?? null;
   const title = def ? (titleOverride === undefined ? t(def.shelf.title) : titleOverride) : "";
   const kicker = def?.shelf.kicker ? t(def.shelf.kicker) : def?.shelf.kicker;
-  const shelf = useMemo(() => (def ? { ...def.shelf, title, kicker } : null), [def, title, kicker]);
+  const shelf = def ? { ...def.shelf, title, kicker } : null;
   // Callbacks read the latest values through a ref so parking the page does not hand the row new props.
   const latest = useRef({ active, loadMore, railId, def, items, title });
   useEffect(() => {
     latest.current = { active, loadMore, railId, def, items, title };
   }, [active, loadMore, railId, def, items, title]);
-  const onEndReached = useCallback(() => {
+  const onEndReached = () => {
     const l = latest.current;
     if (l.active) l.loadMore(l.railId);
-  }, []);
-  const onViewAll = useCallback(() => {
+  };
+  const onViewAll = () => {
     const l = latest.current;
     if (!l.def) return;
     const d = l.def;
     openGrid({ title: l.title, fetcher: (page) => d.fetch(page), initial: l.items ?? undefined });
-  }, [openGrid]);
+  };
   if (!def || !shelf) return null;
   return (
     <div

@@ -3,7 +3,6 @@ import {
   Suspense,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -101,28 +100,16 @@ function useAccess(
     setShortcutDetails(null);
   }
   const storedSaved = savedState.profile === profile ? savedState.games : [];
-  const quick = useMemo(
-    () =>
-      quickLibrary(
-        library.scan?.games ?? [],
-        customLibrary.data.games,
-        emulation.data,
-        storedSaved,
-        libraryPreferences.data,
-        launchers.scan,
-        { shortcuts: shortcuts.games },
-      ),
-    [
-      library.scan,
-      customLibrary.data.games,
-      emulation.data,
-      storedSaved,
-      libraryPreferences.data,
-      launchers.scan,
-      shortcuts.games,
-    ],
+  const quick = quickLibrary(
+    library.scan?.games ?? [],
+    customLibrary.data.games,
+    emulation.data,
+    storedSaved,
+    libraryPreferences.data,
+    launchers.scan,
+    { shortcuts: shortcuts.games },
   );
-  const saved = useMemo(() => libraryFavoriteGames(storedSaved, quick), [storedSaved, quick]);
+  const saved = libraryFavoriteGames(storedSaved, quick);
   const saving = useRef(false),
     owner = useRef(profile);
   useLayoutEffect(() => {

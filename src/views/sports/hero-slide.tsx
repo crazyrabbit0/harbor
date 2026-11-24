@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { MapPin, Play } from "lucide-react";
 import { useT } from "@/lib/i18n";
 import { useNow } from "@/lib/use-now";
@@ -54,7 +54,7 @@ export function HeroSlide({
   onWatch?: (game: SportsGame) => void;
 }) {
   const t = useT();
-  const def = useMemo(() => sportsLeagueByTag(game.league), [game.league]);
+  const def = sportsLeagueByTag(game.league);
   const live = game.state === "in";
   const done = game.state === "post";
   const decided = done && (game.home.winner || game.away.winner);

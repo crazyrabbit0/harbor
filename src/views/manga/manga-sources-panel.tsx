@@ -301,10 +301,7 @@ export function MangaSourcesView({
       }),
     [tick],
   );
-  const total = useMemo(
-    () => readAtVersion(tick, () => listMangaSources().filter((s) => s.id !== "all").length),
-    [tick],
-  );
+  const total = readAtVersion(tick, () => listMangaSources().filter((s) => s.id !== "all").length);
 
   const prevIds = useRef<Set<string>>(new Set(customs.map((s) => s.id)));
   const [flashIds, setFlashIds] = useState<Set<string>>(new Set());

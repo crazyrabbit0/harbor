@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { meta as fetchMeta, narrowMediaType, type Meta } from "@/lib/cinemeta";
 import { shuffle } from "@/lib/feed/tags";
 import { browseFetcher, type BrowseCatalog } from "@/lib/catalog-browse";
@@ -153,7 +153,7 @@ export function PluginHero({
   const [slides, setSlides] = useState<Slide[]>([]);
   const [active, setActive] = useState(0);
   const key = catalogs.map((c) => c.key).join("|");
-  const onActive = useCallback((index: number) => setActive(index), []);
+  const onActive = (index: number) => setActive(index);
   // The rows are keyed by their ids: the same selection rebuilt as new objects is not a change.
   const catalogsRef = useRef(catalogs);
   useLayoutEffect(() => {

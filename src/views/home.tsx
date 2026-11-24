@@ -1,6 +1,5 @@
 import {
   startTransition,
-  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -226,7 +225,7 @@ export function Home({
     animeRowsRef.current = animeRows;
   }, [animeRows]);
 
-  const loadMore = useCallback((rowKey: string) => {
+  const loadMore = (rowKey: string) => {
     const inMain = rowsRef.current.find((r) => r.key === rowKey);
     const row = inMain ?? animeRowsRef.current.find((r) => r.key === rowKey);
     const setOwner = inMain ? setRows : setAnimeRows;
@@ -259,7 +258,7 @@ export function Home({
       .finally(() => {
         if (loadingRef.current.get(rowKey) === row.fetcher) loadingRef.current.delete(rowKey);
       });
-  }, []);
+  };
 
   useEffect(() => {
     const onAddonsChanged = () => setAddonsTick((t) => t + 1);
@@ -831,21 +830,18 @@ export function Home({
     publishResumeStates(cwItems);
   }, [cwItems]);
 
-  const onDismissCw = useCallback(
-    (item: LibraryItem) => {
-      if (item.manualWatched) {
-        dismissManualWatched(item._id);
-        return;
-      }
-      if (item.local) {
-        clearLocalCw(item._id);
-        dismissCw(item, authKey);
-        return;
-      }
+  const onDismissCw = (item: LibraryItem) => {
+    if (item.manualWatched) {
+      dismissManualWatched(item._id);
+      return;
+    }
+    if (item.local) {
+      clearLocalCw(item._id);
       dismissCw(item, authKey);
-    },
-    [authKey],
-  );
+      return;
+    }
+    dismissCw(item, authKey);
+  };
 
   const { items: favItems } = useMediaFavorites();
   const { items: localItems } = useLocalWatchlist();
@@ -944,10 +940,10 @@ export function Home({
 
   const scrollRef = useRef<HTMLElement>(null);
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
-  const scrollCb = useCallback((el: HTMLElement | null) => {
+  const scrollCb = (el: HTMLElement | null) => {
     (scrollRef as { current: HTMLElement | null }).current = el;
     setScrollEl(el);
-  }, []);
+  };
   useScrollMemory("home", scrollRef, active);
 
   const shownRows = useHideAnimeRows(rows);
@@ -1040,13 +1036,9 @@ export function Home({
     }
     return out;
   }, [customLists, homeRowsCustom.listRows]);
-  const availableListRows = useMemo(
-    () =>
-      customLists
-        .filter((l) => l.items.length > 0 && !(homeRowsCustom.listRows ?? []).includes(l.id))
-        .map((l) => ({ id: l.id, name: l.name })),
-    [customLists, homeRowsCustom.listRows],
-  );
+  const availableListRows = customLists
+    .filter((l) => l.items.length > 0 && !(homeRowsCustom.listRows ?? []).includes(l.id))
+    .map((l) => ({ id: l.id, name: l.name }));
 
   const homeCollections = useCollectionRowsForPage("home");
   const collectionHomeRows = useMemo<HomeRow[]>(
@@ -1100,124 +1092,75 @@ export function Home({
     ],
   );
   const shownFilterableRows = useHideAnimeRows(filterableRows);
-  const allCustomizableRows = useMemo(
-    () => [...sourceRows, ...shownFilterableRows],
-    [sourceRows, shownFilterableRows],
-  );
-  const visibleRows = useMemo(
-    () => applyHomeRowCustomization(allCustomizableRows, homeRowsCustom, false),
-    [allCustomizableRows, homeRowsCustom],
-  );
-  const editRows = useMemo(
-    () => applyHomeRowCustomization(allCustomizableRows, homeRowsCustom, true),
-    [allCustomizableRows, homeRowsCustom],
-  );
-  const orderKeys = useMemo(
-    () => effectiveOrder(editRows, homeRowsCustom),
-    [editRows, homeRowsCustom],
-  );
+  const allCustomizableRows = [...sourceRows, ...shownFilterableRows];
+  const visibleRows = applyHomeRowCustomization(allCustomizableRows, homeRowsCustom, false);
+  const editRows = applyHomeRowCustomization(allCustomizableRows, homeRowsCustom, true);
+  const orderKeys = effectiveOrder(editRows, homeRowsCustom);
 
-  const mutateHomeRows = useCallback(
-    (next: HomeRowCustomization) => update({ homeRows: next }),
-    [update],
-  );
-  const handleMove = useCallback(
-    (key: string, delta: -1 | 1) => mutateHomeRows(moveRow(homeRowsCustom, editRows, key, delta)),
-    [homeRowsCustom, editRows, mutateHomeRows],
-  );
-  const handleToggleHidden = useCallback(
-    (key: string) => mutateHomeRows(toggleRowHidden(homeRowsCustom, key)),
-    [homeRowsCustom, mutateHomeRows],
-  );
-  const handleRename = useCallback(
-    (key: string, label: string) => mutateHomeRows(renameRow(homeRowsCustom, key, label)),
-    [homeRowsCustom, mutateHomeRows],
-  );
-  const handleToggleNumerals = useCallback(
-    (key: string) => mutateHomeRows(toggleRowNumerals(homeRowsCustom, key)),
-    [homeRowsCustom, mutateHomeRows],
-  );
-  const handleToggleHero = useCallback(
-    (key: string) => mutateHomeRows(toggleHeroSource(homeRowsCustom, key)),
-    [homeRowsCustom, mutateHomeRows],
-  );
-  const handleAddListRow = useCallback(
-    (listId: string) => mutateHomeRows(addListRow(homeRowsCustom, listId)),
-    [homeRowsCustom, mutateHomeRows],
-  );
-  const handleTogglePlaySquare = useCallback(
-    () => mutateHomeRows(togglePlayButtonSquare(homeRowsCustom)),
-    [homeRowsCustom, mutateHomeRows],
-  );
-  const handleToggleMoreInfo = useCallback(
-    () => mutateHomeRows(toggleSecondaryMoreInfo(homeRowsCustom)),
-    [homeRowsCustom, mutateHomeRows],
-  );
-  const handleToggleCwTop = useCallback(
-    () => mutateHomeRows(toggleCwTop(homeRowsCustom)),
-    [homeRowsCustom, mutateHomeRows],
-  );
+  const mutateHomeRows = (next: HomeRowCustomization) => update({ homeRows: next });
+  const handleMove = (key: string, delta: -1 | 1) =>
+    mutateHomeRows(moveRow(homeRowsCustom, editRows, key, delta));
+  const handleToggleHidden = (key: string) => mutateHomeRows(toggleRowHidden(homeRowsCustom, key));
+  const handleRename = (key: string, label: string) =>
+    mutateHomeRows(renameRow(homeRowsCustom, key, label));
+  const handleToggleNumerals = (key: string) =>
+    mutateHomeRows(toggleRowNumerals(homeRowsCustom, key));
+  const handleToggleHero = (key: string) => mutateHomeRows(toggleHeroSource(homeRowsCustom, key));
+  const handleAddListRow = (listId: string) => mutateHomeRows(addListRow(homeRowsCustom, listId));
+  const handleTogglePlaySquare = () => mutateHomeRows(togglePlayButtonSquare(homeRowsCustom));
+  const handleToggleMoreInfo = () => mutateHomeRows(toggleSecondaryMoreInfo(homeRowsCustom));
+  const handleToggleCwTop = () => mutateHomeRows(toggleCwTop(homeRowsCustom));
 
-  const handleSaveCustomSources = useCallback(
-    (newSources: SourceRow[]) => {
-      const existing = homeRowsCustom.customSources || [];
-      const next = [...existing];
-      for (const ns of newSources) {
-        const idx = next.findIndex((s) => s.id === ns.id);
-        if (idx >= 0) {
-          next[idx] = ns;
-        } else {
-          next.push(ns);
-        }
+  const handleSaveCustomSources = (newSources: SourceRow[]) => {
+    const existing = homeRowsCustom.customSources || [];
+    const next = [...existing];
+    for (const ns of newSources) {
+      const idx = next.findIndex((s) => s.id === ns.id);
+      if (idx >= 0) {
+        next[idx] = ns;
+      } else {
+        next.push(ns);
       }
-      mutateHomeRows({ ...homeRowsCustom, customSources: next });
-    },
-    [homeRowsCustom, mutateHomeRows],
-  );
+    }
+    mutateHomeRows({ ...homeRowsCustom, customSources: next });
+  };
 
-  const handleDeleteCustomSource = useCallback(
-    (key: string) => {
-      const id = key.replace(/^source-/, "");
-      mutateHomeRows({
-        ...homeRowsCustom,
-        customSources: (homeRowsCustom.customSources || []).filter((sr) => sr.id !== id),
-      });
-    },
-    [homeRowsCustom, mutateHomeRows],
-  );
+  const handleDeleteCustomSource = (key: string) => {
+    const id = key.replace(/^source-/, "");
+    mutateHomeRows({
+      ...homeRowsCustom,
+      customSources: (homeRowsCustom.customSources || []).filter((sr) => sr.id !== id),
+    });
+  };
 
-  const handleEditFolderImages = useCallback(
-    (sourceId: string, folderId: string, coverImageUrl: string, focusGifUrl: string) => {
-      mutateHomeRows({
-        ...homeRowsCustom,
-        customSources: (homeRowsCustom.customSources || []).map((sr) => {
-          if (sr.id !== sourceId) return sr;
-          return {
-            ...sr,
-            folders: sr.folders.map((f) => {
-              if (f.id !== folderId) return f;
-              return {
-                ...f,
-                coverImageUrl: coverImageUrl || null,
-                focusGifUrl: focusGifUrl || null,
-              };
-            }),
-          };
-        }),
-      });
-    },
-    [homeRowsCustom, mutateHomeRows],
-  );
+  const handleEditFolderImages = (
+    sourceId: string,
+    folderId: string,
+    coverImageUrl: string,
+    focusGifUrl: string,
+  ) => {
+    mutateHomeRows({
+      ...homeRowsCustom,
+      customSources: (homeRowsCustom.customSources || []).map((sr) => {
+        if (sr.id !== sourceId) return sr;
+        return {
+          ...sr,
+          folders: sr.folders.map((f) => {
+            if (f.id !== folderId) return f;
+            return {
+              ...f,
+              coverImageUrl: coverImageUrl || null,
+              focusGifUrl: focusGifUrl || null,
+            };
+          }),
+        };
+      }),
+    });
+  };
 
-  const enabledServices = useMemo(
-    () =>
-      settings.tmdbKey
-        ? (Object.keys(settings.streaming) as StreamingService[]).filter(
-            (s) => settings.streaming[s],
-          )
-        : [],
-    [settings.tmdbKey, settings.streaming],
-  );
+  const enabledServices = settings.tmdbKey
+    ? (Object.keys(settings.streaming) as StreamingService[]).filter((s) => settings.streaming[s])
+    : [];
 
   const cwHidden = homeRowsCustom.hidden.includes("cw");
   const cwTop = !!homeRowsCustom.cwTop;

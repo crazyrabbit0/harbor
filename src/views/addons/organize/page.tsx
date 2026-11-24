@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import { ArrowLeft, ChevronDown, CloudUpload, History, Info, Loader2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getUserAddonsRaw, type Addon } from "@/lib/addons";
 import { loadInstalled, reorderInstalled, type InstalledAddon } from "@/lib/addon-store";
 import { moveDeviceAddonsToAccount, type MoveStep } from "@/lib/addons-store/move-to-account";
@@ -51,10 +51,7 @@ export function OrganizeAddonsPage({
   const [moving, setMoving] = useState<MoveStep | null>(null);
   const backupsWrapRef = useRef<HTMLDivElement>(null);
   const backedUpRef = useRef(false);
-  const backupCount = useMemo(
-    () => readAtVersion(backupsKey, () => loadBackups().length),
-    [backupsKey],
-  );
+  const backupCount = readAtVersion(backupsKey, () => loadBackups().length);
 
   const applyLocal = () => {
     const device = loadInstalled();

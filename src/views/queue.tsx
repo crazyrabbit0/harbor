@@ -86,12 +86,10 @@ export function QueueView() {
     [pool, leaveAnim, activeIndex],
   );
 
-  const nextIdAfterRemoval = useCallback(
-    () => pool[activeIndex + 1]?.meta.id ?? pool[activeIndex - 1]?.meta.id ?? null,
-    [pool, activeIndex],
-  );
+  const nextIdAfterRemoval = () =>
+    pool[activeIndex + 1]?.meta.id ?? pool[activeIndex - 1]?.meta.id ?? null;
 
-  const onSkip = useCallback(() => {
+  const onSkip = () => {
     if (!item || leaveAnim) return;
     const id = item.meta.id;
     const nextId = nextIdAfterRemoval();
@@ -103,9 +101,9 @@ export function QueueView() {
       setActiveId(nextId);
       setLeaveAnim(null);
     }, 200);
-  }, [item, leaveAnim, nextIdAfterRemoval]);
+  };
 
-  const onNotInterested = useCallback(() => {
+  const onNotInterested = () => {
     if (!item || leaveAnim) return;
     const id = item.meta.id;
     const nextId = nextIdAfterRemoval();
@@ -117,7 +115,7 @@ export function QueueView() {
       setActiveId(nextId);
       setLeaveAnim(null);
     }, 240);
-  }, [item, leaveAnim, nextIdAfterRemoval]);
+  };
 
   const extensionPageRef = useRef(2);
   const extendingRef = useRef(false);

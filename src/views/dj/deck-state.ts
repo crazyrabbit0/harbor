@@ -49,7 +49,7 @@ export function useLiveAudio() {
     [],
   );
 
-  const set = useCallback((patch: Partial<MusicAudioSettingsValue>) => {
+  const set = (patch: Partial<MusicAudioSettingsValue>) => {
     pending.current = { ...pending.current, ...patch };
     setDraft((current) => ({ ...current, ...patch }));
     if (timer.current) return;
@@ -61,9 +61,9 @@ export function useLiveAudio() {
         () => {},
       );
     }, FLUSH_MS);
-  }, []);
+  };
 
-  const reset = useCallback(() => {
+  const reset = () => {
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = 0;
     pending.current = {};
@@ -71,7 +71,7 @@ export function useLiveAudio() {
     void saveMusicAudioSettings(
       normalizeMusicAudio({ ...latest.current, ...NEUTRAL_MIX, eqBands: Array(10).fill(0) }),
     ).catch(() => {});
-  }, []);
+  };
 
   return { settings, set, reset };
 }

@@ -1,4 +1,4 @@
-import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { lazy, memo, Suspense, useEffect, useState } from "react";
 import { Home } from "@/views/home";
 import { isSpooktoberSeason, nextSpooktoberDateCheck } from "@/lib/spooktober-season";
 import { useViewActions } from "@/lib/view";
@@ -32,7 +32,7 @@ export const SpooktoberHome = memo(function SpooktoberHome({
   const [festivalOpened, setFestivalOpened] = useState(false);
   const [entryToken, setEntryToken] = useState(0);
   const [playlistRequest, setPlaylistRequest] = useState<SpooktoberPlaylistRequest | null>(null);
-  const close = useCallback(() => {
+  const close = () => {
     setScreen("home");
     setPlaylistRequest(null);
     requestAnimationFrame(() =>
@@ -40,30 +40,26 @@ export const SpooktoberHome = memo(function SpooktoberHome({
         .querySelector<HTMLButtonElement>("[data-spooktober-invitation]")
         ?.focus({ preventScroll: true }),
     );
-  }, []);
-  const prepareFestival = useCallback(() => {
+  };
+  const prepareFestival = () => {
     void loadLoadingScene();
     setFestivalOpened(true);
-  }, []);
-  const openFestival = useCallback(() => {
+  };
+  const openFestival = () => {
     void loadLoadingScene();
     setFestivalOpened(true);
     setEntryToken((value) => value + 1);
     setScreen("festival");
-  }, []);
+  };
   const collapsed = isDismissed("spooktober");
-  const invitation = useMemo(
-    () =>
-      available ? (
-        <SpooktoberInvitation
-          collapsed={collapsed}
-          onDismiss={() => dismiss("spooktober")}
-          onOpen={openFestival}
-          onPrepare={prepareFestival}
-        />
-      ) : undefined,
-    [available, collapsed, dismiss, openFestival, prepareFestival],
-  );
+  const invitation = available ? (
+    <SpooktoberInvitation
+      collapsed={collapsed}
+      onDismiss={() => dismiss("spooktober")}
+      onOpen={openFestival}
+      onPrepare={prepareFestival}
+    />
+  ) : undefined;
   useEffect(() => {
     const receive = () => {
       const request = takeSpooktoberPlaylistRequest();

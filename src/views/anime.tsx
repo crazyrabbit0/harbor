@@ -227,33 +227,30 @@ export function AnimeView({ active = true }: { active?: boolean }) {
       });
   }, []);
 
-  const retryRow = useCallback(
-    (key: string) => {
-      if (loadingRef.current.has(key)) return;
-      const spec = SPECS.find((s) => s.key === key);
-      const row = rowsRef.current[key];
-      if (!spec || !row) return;
-      if (row.metas.length > 0) {
-        loadMore(key);
-        return;
-      }
-      loadingRef.current.add(key);
-      setRowsByKey((prev) => ({ ...prev, [key]: { ...prev[key], ready: false, failed: false } }));
-      spec
-        .fetcher(1)
-        .then((metas) => {
-          setRowsByKey((prev) => ({
-            ...prev,
-            [key]: { metas, page: 1, hasMore: metas.length >= ROW_MIN_VISIBLE, ready: true },
-          }));
-        })
-        .catch(() => {
-          setRowsByKey((prev) => ({ ...prev, [key]: { ...prev[key], ready: true, failed: true } }));
-        })
-        .finally(() => loadingRef.current.delete(key));
-    },
-    [loadMore],
-  );
+  const retryRow = (key: string) => {
+    if (loadingRef.current.has(key)) return;
+    const spec = SPECS.find((s) => s.key === key);
+    const row = rowsRef.current[key];
+    if (!spec || !row) return;
+    if (row.metas.length > 0) {
+      loadMore(key);
+      return;
+    }
+    loadingRef.current.add(key);
+    setRowsByKey((prev) => ({ ...prev, [key]: { ...prev[key], ready: false, failed: false } }));
+    spec
+      .fetcher(1)
+      .then((metas) => {
+        setRowsByKey((prev) => ({
+          ...prev,
+          [key]: { metas, page: 1, hasMore: metas.length >= ROW_MIN_VISIBLE, ready: true },
+        }));
+      })
+      .catch(() => {
+        setRowsByKey((prev) => ({ ...prev, [key]: { ...prev[key], ready: true, failed: true } }));
+      })
+      .finally(() => loadingRef.current.delete(key));
+  };
 
   const filterSig = `${settings.animeExcludeOrigins.join(",")}|${settings.animeHideWatchedPicks}`;
   const [heroSeed, setHeroSeed] = useState(() => Math.floor(Math.random() * 0x7fffffff));
@@ -833,10 +830,7 @@ export function AnimeView({ active = true }: { active?: boolean }) {
     out.sort((a, b) => b.year - a.year);
     return out;
   }, [rowsByKey, awardWinnerEntries]);
-  const awardWinnerMetas = useMemo<Meta[]>(
-    () => awardWinnersRaw.map((x) => x.meta),
-    [awardWinnersRaw],
-  );
+  const awardWinnerMetas: Meta[] = awardWinnersRaw.map((x) => x.meta);
   const awardLookupByMetaId = useMemo(() => {
     const out: Record<string, string> = {};
     for (const x of awardWinnersRaw) out[x.meta.id] = x.lookupName;
@@ -903,10 +897,10 @@ export function AnimeView({ active = true }: { active?: boolean }) {
 
   const scrollRef = useRef<HTMLElement>(null);
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
-  const scrollCb = useCallback((el: HTMLElement | null) => {
+  const scrollCb = (el: HTMLElement | null) => {
     (scrollRef as { current: HTMLElement | null }).current = el;
     setScrollEl(el);
-  }, []);
+  };
   useScrollMemory("anime", scrollRef, active);
   const animeCollections = useCollectionRowsForPage("anime");
 

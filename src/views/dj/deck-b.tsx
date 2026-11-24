@@ -146,18 +146,15 @@ export function DeckB({ next }: { next: MusicTrack | undefined }) {
     };
   }, [sync]);
 
-  const slide = useCallback(
-    (value: number) => {
-      dragging.current = true;
-      setFade(value);
-      void setCrossfade(value)
-        .then(() => sync())
-        .catch(() => {});
-    },
-    [sync],
-  );
+  const slide = (value: number) => {
+    dragging.current = true;
+    setFade(value);
+    void setCrossfade(value)
+      .then(() => sync())
+      .catch(() => {});
+  };
 
-  const load = useCallback(async () => {
+  const load = async () => {
     if (!next) return;
     cued = next;
     setLoaded(next);
@@ -198,7 +195,7 @@ export function DeckB({ next }: { next: MusicTrack | undefined }) {
     cued = null;
     setLoaded(null);
     setFailed(t("dj.b.noSource"));
-  }, [fade, next, sync, t]);
+  };
 
   const isLive = state?.live ?? false;
   const onAir = false;

@@ -292,7 +292,7 @@ export function SimklTab() {
       .filter((x): x is WatchlistMerged => x !== null);
   }, [cache, subTab, statusFilter, enhancedFranchises]);
 
-  const counts = useMemo(() => countByType(filteredItems), [filteredItems]);
+  const counts = countByType(filteredItems);
   const visible = useMemo(
     () => applyFilter(filteredItems, type, query),
     [filteredItems, type, query],

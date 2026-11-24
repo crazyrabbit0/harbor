@@ -121,10 +121,10 @@ const isSpecialRow = (key: string) => key.startsWith("special:");
 export function Discover({ active = true }: { active?: boolean }) {
   const scrollRef = useRef<HTMLElement>(null);
   const [scrollEl, setScrollEl] = useState<HTMLElement | null>(null);
-  const scrollCb = useCallback((el: HTMLElement | null) => {
+  const scrollCb = (el: HTMLElement | null) => {
     (scrollRef as { current: HTMLElement | null }).current = el;
     setScrollEl(el);
-  }, []);
+  };
   useScrollMemory("discover", scrollRef, active);
 
   const { settings } = useSettings();
@@ -419,35 +419,32 @@ export function Discover({ active = true }: { active?: boolean }) {
     for (const id of DEDUP_PRIORITY) ensureLoadedRef.current(id);
   }, [epoch, active]);
 
-  const loadMore = useCallback(
-    (railId: string) => {
-      if (railPagesRef.current[railId] == null) return;
-      if (railLoadingRef.current[railId]) return;
-      if (railExhaustedRef.current[railId]) return;
-      const cur = railPagesRef.current[railId] ?? 1;
-      if (cur >= MAX_RAIL_PAGES) return;
-      const def = dailyRows.find((r) => r.id === railId);
-      if (!def) return;
-      const next = cur + 1;
-      const myEpoch = epoch;
-      railLoadingRef.current[railId] = true;
-      def
-        .fetch(next)
-        .then((list) => {
-          if (epochRef.current !== myEpoch) return;
-          railPagesRef.current[railId] = next;
-          if (list.length < MIN_PAGE_YIELD) railExhaustedRef.current[railId] = true;
-          startTransition(() =>
-            setRails((prev) => ({ ...prev, [railId]: [...(prev[railId] ?? []), ...list] })),
-          );
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (epochRef.current === myEpoch) railLoadingRef.current[railId] = false;
-        });
-    },
-    [dailyRows, epoch],
-  );
+  const loadMore = (railId: string) => {
+    if (railPagesRef.current[railId] == null) return;
+    if (railLoadingRef.current[railId]) return;
+    if (railExhaustedRef.current[railId]) return;
+    const cur = railPagesRef.current[railId] ?? 1;
+    if (cur >= MAX_RAIL_PAGES) return;
+    const def = dailyRows.find((r) => r.id === railId);
+    if (!def) return;
+    const next = cur + 1;
+    const myEpoch = epoch;
+    railLoadingRef.current[railId] = true;
+    def
+      .fetch(next)
+      .then((list) => {
+        if (epochRef.current !== myEpoch) return;
+        railPagesRef.current[railId] = next;
+        if (list.length < MIN_PAGE_YIELD) railExhaustedRef.current[railId] = true;
+        startTransition(() =>
+          setRails((prev) => ({ ...prev, [railId]: [...(prev[railId] ?? []), ...list] })),
+        );
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (epochRef.current === myEpoch) railLoadingRef.current[railId] = false;
+      });
+  };
 
   const featuredIds = useMemo(() => new Set(featured.map((m) => m.id)), [featured]);
 
@@ -469,19 +466,15 @@ export function Discover({ active = true }: { active?: boolean }) {
   const deduped = useDedupedRows(rails, order, featuredIds, criticsPick?.id, DEDUP_PRIORITY);
   const hideAnime = useHideAnime();
   const animeVersion = useDetectedAnimeVersion();
-  const dedupedShown = useMemo(
-    () =>
-      readAtVersion(animeVersion, () => {
-        if (!hideAnime) return deduped;
-        const out: Record<string, Meta[] | null> = {};
-        for (const key in deduped) {
-          const v = deduped[key];
-          out[key] = v ? v.filter((m) => !metaLooksAnime(m)) : v;
-        }
-        return out;
-      }),
-    [hideAnime, deduped, animeVersion],
-  );
+  const dedupedShown = readAtVersion(animeVersion, () => {
+    if (!hideAnime) return deduped;
+    const out: Record<string, Meta[] | null> = {};
+    for (const key in deduped) {
+      const v = deduped[key];
+      out[key] = v ? v.filter((m) => !metaLooksAnime(m)) : v;
+    }
+    return out;
+  });
 
   const railItems = useMemo(() => {
     const base: RowItem[] = dailyRows.map((r) => ({ key: r.id, title: r.shelf.title }));
@@ -500,23 +493,13 @@ export function Discover({ active = true }: { active?: boolean }) {
     });
     return out;
   }, [dailyRows]);
-  const railKeys = useMemo(() => railItems.map((r) => r.key), [railItems]);
-  const visibleRails = useMemo(
-    () => applyPageRows(railItems, pageRows.custom, false),
-    [railItems, pageRows.custom],
-  );
-  const editRails = useMemo(
-    () =>
-      applyPageRows(railItems, pageRows.custom, true).filter((item) => {
-        const d = dedupedShown[item.key];
-        return isSpecialRow(item.key) || d == null || d.length > 0;
-      }),
-    [railItems, pageRows.custom, dedupedShown],
-  );
-  const orderKeys = useMemo(
-    () => orderedRowKeys(railKeys, pageRows.custom),
-    [railKeys, pageRows.custom],
-  );
+  const railKeys = railItems.map((r) => r.key);
+  const visibleRails = applyPageRows(railItems, pageRows.custom, false);
+  const editRails = applyPageRows(railItems, pageRows.custom, true).filter((item) => {
+    const d = dedupedShown[item.key];
+    return isSpecialRow(item.key) || d == null || d.length > 0;
+  });
+  const orderKeys = orderedRowKeys(railKeys, pageRows.custom);
   const surprisePool = useMemo(() => {
     const seen = new Set<string>();
     const out: Meta[] = [];

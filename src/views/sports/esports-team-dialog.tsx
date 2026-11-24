@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type { EsportsMatch, EsportsTeam } from "@/lib/sports/esports-feeds";
 import { esportsTeamDirectory, type EsportsTeamEntry } from "@/lib/sports/esports-team-directory";
 import { fetchEsportsRankings, type EsportsRankings } from "@/lib/sports/esports-rankings";
@@ -161,13 +161,9 @@ export function EsportsTeamDialog({
   const failed =
     (!!profileKey && profileState?.key === profileKey && profileState.failed) ||
     (!!csKey && csState?.key === csKey && csState.failed);
-  const entry = useMemo<EsportsTeamEntry>(
-    () =>
-      esportsTeamDirectory(matches, rankings?.teams).find(
-        (item) => item.game === selection.game && item.id === selection.team.id,
-      ) || { ...selection.team, game: selection.game, matches: [] },
-    [matches, rankings, selection],
-  );
+  const entry: EsportsTeamEntry = esportsTeamDirectory(matches, rankings?.teams).find(
+    (item) => item.game === selection.game && item.id === selection.team.id,
+  ) || { ...selection.team, game: selection.game, matches: [] };
   if (
     selection.game === "dota2" &&
     /^\d+$/.test(selection.team.id) &&

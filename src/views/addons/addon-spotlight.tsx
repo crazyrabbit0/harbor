@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, Check, Loader2, Plus, Star, TrendingUp } from "lucide-react";
 import {
   addonSiteUrl,
@@ -94,10 +94,7 @@ function SpotlightCard({
   const background = m?.background;
   const installed = !!m?.id && installedIds.has(m.id);
   const manifestTypes = m?.types;
-  const types = useMemo(
-    () => (Array.isArray(manifestTypes) ? manifestTypes.slice(0, 4) : []),
-    [manifestTypes],
-  );
+  const types = Array.isArray(manifestTypes) ? manifestTypes.slice(0, 4) : [];
 
   const install = async () => {
     if (!m?.id || busy || installed) return;

@@ -1,5 +1,5 @@
 import { ArrowLeft, Pencil, Rows3 } from "lucide-react";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useT } from "@/lib/i18n";
 import { posterPlate } from "@/components/poster";
 import { ResultPoster } from "@/components/search/result-poster";
@@ -49,21 +49,18 @@ export function CommunityCollectionPage({
     for (const it of items) c[it.type]++;
     return c;
   }, [items]);
-  const filteredItems = useMemo(
-    () => (typeFilter === "all" ? items : items.filter((it) => it.type === typeFilter)),
-    [items, typeFilter],
-  );
+  const filteredItems = typeFilter === "all" ? items : items.filter((it) => it.type === typeFilter);
   const [gridHeight, setGridHeight] = useState<number>();
   const [matchItem, setMatchItem] = useState<CollectionItem | null>(null);
   const gridObs = useRef<ResizeObserver | null>(null);
-  const gridMeasureRef = useCallback((el: HTMLDivElement | null) => {
+  const gridMeasureRef = (el: HTMLDivElement | null) => {
     gridObs.current?.disconnect();
     if (!el) return;
     const ro = new ResizeObserver(() => setGridHeight(el.offsetHeight));
     ro.observe(el);
     gridObs.current = ro;
     setGridHeight(el.offsetHeight);
-  }, []);
+  };
 
   if (!collection) {
     return (

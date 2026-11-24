@@ -1,4 +1,3 @@
-import { useCallback } from "react";
 import { ContinueCard } from "@/components/continue-card";
 import { Row } from "@/components/row";
 import { useT } from "@/lib/i18n";
@@ -20,32 +19,29 @@ export function LocalCwRow() {
   const { openPlayer } = useViewActions();
   const cards = useLocalContinueWatching();
 
-  const play = useCallback(
-    (entry: LocalEntry, item: LibraryItem) => {
-      const versions =
-        entry.type === "show" && entry.season != null && entry.episode != null
-          ? findLocalEpisodeVersions(entry.season, entry.episode, entry.tmdbId, entry.imdbId)
-          : findLocalMovieVersions(entry.tmdbId, entry.imdbId);
-      const start = (target: LocalEntry) => {
-        const src = localPlayerSrc(target);
-        // Keep the CW id so playback resumes and updates the same entry.
-        openPlayer({ ...src, meta: { ...src.meta, id: item._id } });
-      };
-      if (versions.length > 1) {
-        openLocalVersions({
-          title: entry.title,
-          poster: item.poster ?? entry.poster ?? null,
-          entries: versions,
-          onPlayLocal: start,
-        });
-        return;
-      }
-      start(entry);
-    },
-    [openPlayer],
-  );
+  const play = (entry: LocalEntry, item: LibraryItem) => {
+    const versions =
+      entry.type === "show" && entry.season != null && entry.episode != null
+        ? findLocalEpisodeVersions(entry.season, entry.episode, entry.tmdbId, entry.imdbId)
+        : findLocalMovieVersions(entry.tmdbId, entry.imdbId);
+    const start = (target: LocalEntry) => {
+      const src = localPlayerSrc(target);
+      // Keep the CW id so playback resumes and updates the same entry.
+      openPlayer({ ...src, meta: { ...src.meta, id: item._id } });
+    };
+    if (versions.length > 1) {
+      openLocalVersions({
+        title: entry.title,
+        poster: item.poster ?? entry.poster ?? null,
+        entries: versions,
+        onPlayLocal: start,
+      });
+      return;
+    }
+    start(entry);
+  };
 
-  const onDismiss = useCallback((item: LibraryItem) => clearLocalCw(item._id), []);
+  const onDismiss = (item: LibraryItem) => clearLocalCw(item._id);
 
   if (cards.length === 0) return null;
 

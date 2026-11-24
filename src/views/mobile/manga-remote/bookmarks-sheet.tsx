@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { Bookmark, BookmarkPlus, Check, Trash2 } from "lucide-react";
 import { useMobileRemote } from "../mobile-remote";
 import { useRegisterSheet } from "../mobile-sheet-lock";
@@ -20,10 +20,7 @@ export function BookmarksSheet({ open, onClose }: { open: boolean; onClose: () =
   if (!open && saved) setSaved(false);
   const showSaved = open && saved;
 
-  const chapterIds = useMemo(
-    () => new Set((manga?.chapters ?? []).map((c) => c.id)),
-    [manga?.chapters],
-  );
+  const chapterIds = new Set((manga?.chapters ?? []).map((c) => c.id));
 
   const timeAgo = (ts: number): string => {
     const seconds = Math.max(0, Math.round((now - ts) / 1000));

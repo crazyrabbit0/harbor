@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowUpRight, Check, Download, FolderOpen, LoaderCircle, RefreshCw } from "lucide-react";
 import { ModProjectPage } from "./mod-project-page";
 import { useSectionBack } from "@/lib/section-back";
@@ -80,7 +80,7 @@ export function GameSimsCatalog({
     };
   }, [active, attempt]);
   const [targetKey, setTargetKey] = useState("");
-  const existing = useMemo(() => simsCreatorExisting(data), [data]);
+  const existing = simsCreatorExisting(data);
   const target =
     existing.targets.find((item) => item.key === targetKey) ??
     existing.targets.find((item) => item.version) ??
