@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import type { SportsGame } from "@/lib/sports/espn-types";
 import {
   getSportsConsentServerSnapshot,
@@ -67,21 +67,18 @@ function BpSportsPage() {
     forceBpMeta(null);
   }, []);
 
-  const publishWatch = useCallback((next: BpSportsWatchFn) => setWatch(() => next), []);
+  const publishWatch = (next: BpSportsWatchFn) => setWatch(() => next);
 
-  const closeTuning = useCallback(() => {
+  const closeTuning = () => {
     setTuning(false);
     window.requestAnimationFrame(() => recoverBpFocus());
-  }, []);
+  };
 
   const signature = bpRailSignature([sports.signature, tuning ? "tune" : ""]);
   const { railRef, activeRow, railShift } = useBpRail(signature);
   useBpLayoutReflow({ railRef, signature, routeKey: "sports" });
 
-  const anyLive = useMemo(
-    () => rows.some((row) => row.games.some((game) => game.state === "in")),
-    [rows],
-  );
+  const anyLive = rows.some((row) => row.games.some((game) => game.state === "in"));
 
   const seedRow = mode === "schedule" ? -1 : rows.findIndex((row) => row.games.length > 0);
   const entries = useMemo<BpRailEntry[]>(() => {

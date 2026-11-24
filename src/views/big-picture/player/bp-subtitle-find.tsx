@@ -61,10 +61,7 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
   const { authKey } = useAuth();
   const addedUrls = useAddedSubs();
   const translationJobs = useTranslationJobs();
-  const translatingUrls = useMemo(
-    () => new Set(translationJobs.map((job) => job.url)),
-    [translationJobs],
-  );
+  const translatingUrls = new Set(translationJobs.map((job) => job.url));
   const { home, hideHI, forcedOnly, onAddSubtitle } = props;
 
   const [target, setTarget] = useState<BpSubtitleTarget>(home);
@@ -142,17 +139,14 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
     [addons, home, settings, props.candidateIds, props.stremioId],
   );
 
-  const run = useCallback(
-    async (tgt: BpSubtitleTarget) => {
-      ranOnce.current = true;
-      setAutoStarted(true);
-      setSearching(true);
-      setResults(null);
-      setLimit(PAGE);
-      await executeSearch(tgt);
-    },
-    [executeSearch],
-  );
+  const run = async (tgt: BpSubtitleTarget) => {
+    ranOnce.current = true;
+    setAutoStarted(true);
+    setSearching(true);
+    setResults(null);
+    setLimit(PAGE);
+    await executeSearch(tgt);
+  };
 
   if (addons !== null && !autoStarted && (target.imdbId || target.title)) {
     setAutoStarted(true);
@@ -167,7 +161,7 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
     void executeSearch(target);
   }, [autoStarted, target, executeSearch]);
 
-  const submit = useCallback(async () => {
+  const submit = async () => {
     const parsed = parseTitleQuery(query);
     if (parsed.title.length < 2) {
       void run(target);
@@ -188,7 +182,7 @@ export function BpSubtitleFind(props: BpSubtitleFindProps) {
     setTarget(next);
     setOverride(true);
     await run(next);
-  }, [query, run, target]);
+  };
 
   const changeEp = (patch: Partial<BpSubtitleTarget>) => {
     const next = { ...target, ...patch };

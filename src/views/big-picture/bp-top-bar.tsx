@@ -5,7 +5,7 @@ import { LibraryIcon } from "@/components/icons/library-icon";
 import { MoviesIcon } from "@/components/icons/movies-icon";
 import { SettingsIcon } from "@/components/icons/settings-icon";
 import { TvIcon } from "@/components/icons/tv-icon";
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useGamepads } from "@/lib/gamepad/store";
 import { useParental, type HiddenTabs, type LockableTab } from "@/lib/parental";
 import { useSettings } from "@/lib/settings";
@@ -248,8 +248,8 @@ export function BpTopBar({ active }: { active: BigPictureTabKind }) {
   const tabs = useMemo(() => visibleTabs(gate), [gate]);
   // Settings leaves the strip for the far right, but it stays in the same track
   // so Right off the last tab still reaches it instead of dying on a boundary.
-  const strip = useMemo(() => tabs.filter((tab) => tab.kind !== "settings"), [tabs]);
-  const cog = useMemo(() => tabs.find((tab) => tab.kind === "settings"), [tabs]);
+  const strip = tabs.filter((tab) => tab.kind !== "settings");
+  const cog = tabs.find((tab) => tab.kind === "settings");
   const trackRef = useRef<HTMLDivElement | null>(null);
   const navRef = useRef<HTMLElement | null>(null);
   const [hintState, setHintState] = useState<{ active: BigPictureTabKind; hint: BpHint }>({
@@ -258,19 +258,16 @@ export function BpTopBar({ active }: { active: BigPictureTabKind }) {
   });
   const hint = hintState.active === active ? hintState.hint : null;
 
-  const onHint = useCallback(
-    (el: HTMLElement | null, label: string) => {
-      const nav = navRef.current;
-      if (!el || !nav || !label) {
-        setHintState({ active, hint: null });
-        return;
-      }
-      const a = el.getBoundingClientRect();
-      const b = nav.getBoundingClientRect();
-      setHintState({ active, hint: { x: a.left - b.left + a.width / 2, label } });
-    },
-    [active],
-  );
+  const onHint = (el: HTMLElement | null, label: string) => {
+    const nav = navRef.current;
+    if (!el || !nav || !label) {
+      setHintState({ active, hint: null });
+      return;
+    }
+    const a = el.getBoundingClientRect();
+    const b = nav.getBoundingClientRect();
+    setHintState({ active, hint: { x: a.left - b.left + a.width / 2, label } });
+  };
 
   // Reaching a tab through a click or the shoulder cycle leaves focus on the
   // page body, so nothing else ever scrolls the strip to the current tab.

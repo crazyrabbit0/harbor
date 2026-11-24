@@ -59,9 +59,9 @@ function useBoundaryClock(): [number, (boundaryMs: number) => void] {
     return () => window.clearInterval(id);
   }, []);
 
-  const setBoundary = useCallback((boundaryMs: number) => {
+  const setBoundary = (boundaryMs: number) => {
     boundaryRef.current = Math.min(boundaryMs, Date.now() + MAX_STALE_MS);
-  }, []);
+  };
 
   return [nowMs, setBoundary];
 }
@@ -163,10 +163,10 @@ export function useBpLive(enabled = true): BpLive {
     [sources, storedId],
   );
   const activeId = activeSource?.id ?? "";
-  const setActiveId = useCallback((id: string) => {
+  const setActiveId = (id: string) => {
     writeActiveId(id);
     setStoredId(id);
-  }, []);
+  };
 
   const { state, refresh } = useIptvPlaylist(enabled ? activeSource : null);
   const playlist = state.kind === "ready" ? state.playlist : null;
@@ -183,7 +183,7 @@ export function useBpLive(enabled = true): BpLive {
     return sortChannelsByGroupRelevance(live, settings.region, settings.preferredLanguages);
   }, [playlist, settings.region, settings.preferredLanguages]);
 
-  const tvgCounts = useMemo(() => computeTvgIdCounts(channels), [channels]);
+  const tvgCounts = computeTvgIdCounts(channels);
   const [nowMs, setBoundary] = useBoundaryClock();
 
   const home = useLiveHome({

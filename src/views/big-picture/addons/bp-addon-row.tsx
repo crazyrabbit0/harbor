@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { pushBigPicture } from "@/lib/big-picture";
 import { useBpT } from "../bp-i18n";
 import { BpRowHeader } from "../bp-row-header";
@@ -11,7 +11,7 @@ export function BpAddonRow() {
   const t = useBpT();
   const { entries, posters, onFocusAddon } = useBpAddonRow();
 
-  const byUrl = useMemo(() => new Map(entries.map((e) => [e.transportUrl, e] as const)), [entries]);
+  const byUrl = new Map(entries.map((e) => [e.transportUrl, e] as const));
 
   // same() in use-bp-sections compares poster lists by length alone, which is
   // only safe because the pool appends and never replaces: a base's list length
@@ -59,7 +59,7 @@ export function BpAddonRow() {
 
   useEffect(() => () => publishBpBandArt("addons", null), []);
 
-  const openAddon = useCallback((entry: BpAddonEntry) => {
+  const openAddon = (entry: BpAddonEntry) => {
     pushBigPicture({
       kind: "addon",
       addonId: entry.id,
@@ -67,7 +67,7 @@ export function BpAddonRow() {
       base: entry.base,
       logo: entry.logo,
     });
-  }, []);
+  };
 
   const title = t("Your addons");
 

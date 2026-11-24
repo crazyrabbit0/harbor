@@ -54,7 +54,7 @@ export function BpAnimeAward({
   const year = yearState.source === source ? yearState.year : null;
 
   const data = useMemo(() => readAnimeAwardSource(source), [source]);
-  const sources = useMemo(() => allAwardSources(), []);
+  const sources = allAwardSources();
   const totalWins = data.categories.reduce((n, c) => n + c.winners.length, 0);
   const yearSpan =
     data.years.length === 0

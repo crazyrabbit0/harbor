@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { SFX } from "@/lib/sfx";
@@ -146,11 +146,8 @@ export function BpGalleryRow({
   const box = BOX[shape];
   const cellPx = bpBoxPx(box);
 
-  const step = useCallback(
-    (delta: number) =>
-      setOpen((cur) => (cur === null ? cur : (cur + delta + images.length) % images.length)),
-    [images.length],
-  );
+  const step = (delta: number) =>
+    setOpen((cur) => (cur === null ? cur : (cur + delta + images.length) % images.length));
 
   if (images.length === 0) return null;
 

@@ -1,4 +1,4 @@
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { useDeferredValue, useEffect, useRef, useState } from "react";
 import { Pin, Search, Tv } from "lucide-react";
 import { SFX } from "@/lib/sfx";
 import type { IptvChannel } from "@/lib/iptv/types";
@@ -52,8 +52,8 @@ export function BpSportsBroadcastSearch({
   const seedRef = useRef<HTMLButtonElement | null>(null);
   const fieldRef = useRef<HTMLInputElement | null>(null);
   const deferred = useDeferredValue(query);
-  const rows = useMemo(() => searchSportsChannels(index, deferred, 30), [index, deferred]);
-  const attached = useMemo(() => new Set(attachedIds), [attachedIds]);
+  const rows = searchSportsChannels(index, deferred, 30);
+  const attached = new Set(attachedIds);
 
   useEffect(() => {
     const previous = currentBpFocus(bpFirstVisible("[data-bp-root]"));

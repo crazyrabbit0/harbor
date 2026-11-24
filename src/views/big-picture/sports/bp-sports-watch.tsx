@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { goBigPictureTab } from "@/lib/big-picture";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import type { SportsGame } from "@/lib/sports/espn-types";
@@ -123,46 +123,40 @@ export function useBpSportsWatch(
                       ? "picker"
                       : "setup";
 
-  const pick = useCallback(
-    (match: ChannelMatch) => {
-      setPicking(false);
-      setAttachedStream(game.id, null);
-      playChannel(match.channel, label);
-    },
-    [playChannel, label, game.id],
-  );
+  const pick = (match: ChannelMatch) => {
+    setPicking(false);
+    setAttachedStream(game.id, null);
+    playChannel(match.channel, label);
+  };
 
-  const playSearched = useCallback(
-    (channel: Parameters<typeof playChannel>[0]) => {
-      setPicking(false);
-      setAttachedStream(game.id, null);
-      playChannel(channel, label);
-    },
-    [playChannel, label, game.id],
-  );
+  const playSearched = (channel: Parameters<typeof playChannel>[0]) => {
+    setPicking(false);
+    setAttachedStream(game.id, null);
+    playChannel(channel, label);
+  };
 
-  const openSetup = useCallback(() => {
+  const openSetup = () => {
     setPicking(false);
     goBigPictureTab("live");
-  }, []);
+  };
 
-  const openPicker = useCallback(() => {
+  const openPicker = () => {
     setAuto(null);
     setPicking(true);
-  }, []);
+  };
 
-  const openAddons = useCallback(() => {
+  const openAddons = () => {
     setAuto(null);
     setPicking(false);
     addonsRef.current?.open();
-  }, []);
+  };
 
-  const close = useCallback(() => {
+  const close = () => {
     setAuto(null);
     setPicking(false);
-  }, []);
+  };
 
-  const press = useCallback(() => {
+  const press = () => {
     if (plan === "stream" && stream) {
       playStream(stream, label);
       return;
@@ -186,7 +180,7 @@ export function useBpSportsWatch(
     }
     setAuto(null);
     setPicking(true);
-  }, [plan, stream, shows, pickCount, selected, playStream, playChannel, label]);
+  };
 
   const copy = useMemo(() => {
     if (plan === "finished") return t("Game finished");
@@ -200,31 +194,17 @@ export function useBpSportsWatch(
     return t("Set up Live TV");
   }, [plan, pickCount, game.state, matches.length, t]);
 
-  const pickerProps = useMemo<BpSportsPickerProps>(
-    () => ({
-      matches,
-      onPick: pick,
-      onSetup: openSetup,
-      onClose: close,
-      game,
-      broadcasts: shows,
-      autoBroadcast: auto,
-      onChannel: playSearched,
-      onAddons: addons?.available ? openAddons : undefined,
-    }),
-    [
-      matches,
-      pick,
-      openSetup,
-      close,
-      game,
-      shows,
-      auto,
-      playSearched,
-      addons?.available,
-      openAddons,
-    ],
-  );
+  const pickerProps: BpSportsPickerProps = {
+    matches,
+    onPick: pick,
+    onSetup: openSetup,
+    onClose: close,
+    game,
+    broadcasts: shows,
+    autoBroadcast: auto,
+    onChannel: playSearched,
+    onAddons: addons?.available ? openAddons : undefined,
+  };
 
   return {
     addonPrimary: plan === "addons",

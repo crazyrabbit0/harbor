@@ -3,7 +3,6 @@ import {
   useContext,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   type ReactNode,
 } from "react";
@@ -204,7 +203,7 @@ export function BpSportsCard({
   const single = bpSportsSingleSubject(game);
   const art = single ? bpSportsCardArt(game) : undefined;
   const scored = !stale && game.state !== "pre";
-  const context = useMemo(() => (single ? [] : matchCardContext(game)), [game, single]);
+  const context = single ? [] : matchCardContext(game);
   const line = context.find((row) => row.kind !== "start");
   const quiet = line
     ? line.value

@@ -12,27 +12,23 @@ export type BpMoviesPage = BpCatalogPage & {
 export function useBpMovies(): BpMoviesPage {
   const page = useBpCatalogPage("movies");
   const letterboxd = useBpLetterboxdRows();
-  const custom = useMemo(() => loadPageRows("movies"), []);
+  const custom = loadPageRows("movies");
 
   const rows = useMemo(() => {
     if (letterboxd.length === 0) return page.rows;
     const at = page.rows[0]?.key === BP_TOP10_ROW_KEY ? 1 : 0;
     return [...page.rows.slice(0, at), ...letterboxd, ...page.rows.slice(at)];
   }, [page.rows, letterboxd]);
-  const runtimeTitleKeys = useMemo(
-    () =>
-      new Set(
-        rows
-          .filter(
-            (row) =>
-              row.key.startsWith("letterboxd-") ||
-              row.key.startsWith("collection-") ||
-              row.sourceRow != null ||
-              custom.renamed[row.key] != null,
-          )
-          .map((row) => row.key),
-      ),
-    [rows, custom],
+  const runtimeTitleKeys = new Set(
+    rows
+      .filter(
+        (row) =>
+          row.key.startsWith("letterboxd-") ||
+          row.key.startsWith("collection-") ||
+          row.sourceRow != null ||
+          custom.renamed[row.key] != null,
+      )
+      .map((row) => row.key),
   );
 
   return { ...page, rows, runtimeTitleKeys };

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import anilistLogo from "@/assets/anilist.png";
 import malLogo from "@/assets/mal.png";
 import simklLogo from "@/assets/simkl.png";
@@ -114,27 +114,24 @@ function useBpSimkl(
     };
   }, [reqKey, harborId, type]);
 
-  const set = useCallback(
-    (id: string) => {
-      if (!target) return;
-      const next = id as WatchlistStatus;
-      const prev = status;
-      setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
-      void setSimklStatus(target, next)
-        .then((saved) => setState((cur) => (cur.key === reqKey ? { ...cur, status: saved } : cur)))
-        .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
-    },
-    [target, status, reqKey],
-  );
+  const set = (id: string) => {
+    if (!target) return;
+    const next = id as WatchlistStatus;
+    const prev = status;
+    setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
+    void setSimklStatus(target, next)
+      .then((saved) => setState((cur) => (cur.key === reqKey ? { ...cur, status: saved } : cur)))
+      .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
+  };
 
-  const remove = useCallback(() => {
+  const remove = () => {
     if (!target) return;
     const prev = status;
     setState((cur) => (cur.key === reqKey ? { ...cur, status: null } : cur));
     void clearSimklStatus(target).catch(() =>
       setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)),
     );
-  }, [target, status, reqKey]);
+  };
 
   if (!isConnected || !enabled || !target) return null;
   const order = target.kind === "movie" ? MOVIE_STATUS_ORDER : SHOW_STATUS_ORDER;
@@ -189,29 +186,26 @@ function useBpAnilist(harborId: string, enabled: boolean): BpTracker | null {
     };
   }, [reqKey, harborId]);
 
-  const set = useCallback(
-    (id: string) => {
-      if (mediaId == null) return;
-      const next = id as MediaListStatus;
-      const prev = status;
-      setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
-      void anilistSave({ mediaId, status: next })
-        .then((saved) =>
-          setState((cur) => (cur.key === reqKey ? { ...cur, entryId: saved.id } : cur)),
-        )
-        .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
-    },
-    [mediaId, status, reqKey],
-  );
+  const set = (id: string) => {
+    if (mediaId == null) return;
+    const next = id as MediaListStatus;
+    const prev = status;
+    setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
+    void anilistSave({ mediaId, status: next })
+      .then((saved) =>
+        setState((cur) => (cur.key === reqKey ? { ...cur, entryId: saved.id } : cur)),
+      )
+      .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
+  };
 
-  const remove = useCallback(() => {
+  const remove = () => {
     if (entryId == null) return;
     const prev = status;
     setState((cur) => (cur.key === reqKey ? { ...cur, status: null } : cur));
     void anilistDelete(entryId)
       .then(() => setState((cur) => (cur.key === reqKey ? { ...cur, entryId: null } : cur)))
       .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
-  }, [entryId, status, reqKey]);
+  };
 
   if (!isConnected || !enabled || mediaId == null) return null;
   return {
@@ -256,29 +250,26 @@ function useBpMal(harborId: string, enabled: boolean): BpTracker | null {
     };
   }, [reqKey, harborId]);
 
-  const set = useCallback(
-    (id: string) => {
-      if (malId == null) return;
-      const next = id as MalListStatus;
-      const prev = status;
-      setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
-      void malSave({ malId, status: next })
-        .then((saved) =>
-          setState((cur) => (cur.key === reqKey ? { ...cur, status: saved.status } : cur)),
-        )
-        .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
-    },
-    [malId, status, reqKey],
-  );
+  const set = (id: string) => {
+    if (malId == null) return;
+    const next = id as MalListStatus;
+    const prev = status;
+    setState((cur) => (cur.key === reqKey ? { ...cur, status: next } : cur));
+    void malSave({ malId, status: next })
+      .then((saved) =>
+        setState((cur) => (cur.key === reqKey ? { ...cur, status: saved.status } : cur)),
+      )
+      .catch(() => setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)));
+  };
 
-  const remove = useCallback(() => {
+  const remove = () => {
     if (malId == null) return;
     const prev = status;
     setState((cur) => (cur.key === reqKey ? { ...cur, status: null } : cur));
     void malDelete(malId).catch(() =>
       setState((cur) => (cur.key === reqKey ? { ...cur, status: prev } : cur)),
     );
-  }, [malId, status, reqKey]);
+  };
 
   if (!isConnected || !enabled || malId == null) return null;
   return {

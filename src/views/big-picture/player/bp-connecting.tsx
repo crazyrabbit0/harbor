@@ -139,11 +139,11 @@ export function BpConnecting({
   }, [onCancel]);
 
   const retry = status.retry;
-  const tryAgain = useCallback(() => {
+  const tryAgain = () => {
     SFX.click();
     retry();
     onRetry?.();
-  }, [retry, onRetry]);
+  };
 
   useEffect(() => {
     if (!showing) return;

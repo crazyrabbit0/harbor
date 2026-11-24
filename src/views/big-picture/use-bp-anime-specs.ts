@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   EMPTY_ROW,
   ROW_MAX_PAGES,
@@ -57,7 +57,7 @@ export function useBpAnimeSpecs(): BpAnimeSpecs {
     };
   }, []);
 
-  const loadMore = useCallback((key: string) => {
+  const loadMore = (key: string) => {
     if (loadingRef.current.has(key)) return;
     const spec = SPECS.find((s) => s.key === key);
     const row = rowsRef.current[key];
@@ -89,7 +89,7 @@ export function useBpAnimeSpecs(): BpAnimeSpecs {
       .finally(() => {
         loadingRef.current.delete(key);
       });
-  }, []);
+  };
 
   let readyCount = 0;
   let itemCount = 0;

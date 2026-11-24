@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Film } from "lucide-react";
 import { ImdbIcon } from "@/components/icons/imdb-icon";
 import tmdbLogo from "@/assets/addon-logos/tmdb.png";
@@ -67,7 +66,7 @@ function BpCreditCard({
   autofocus?: boolean;
   ratings?: Map<string, string>;
 }) {
-  const meta = useMemo(() => creditToMeta(credit), [credit]);
+  const meta = creditToMeta(credit);
   // No useBpPosterChain here, deliberately. Every credit id is tmdb:movie:N or
   // tmdb:tv:N, and needsImdbForPoster is true for exactly that shape, so an
   // RPDB user pays one tmdbImdbId per card. This page mounts every card of

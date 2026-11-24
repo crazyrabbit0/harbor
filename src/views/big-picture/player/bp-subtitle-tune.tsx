@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { Loader2, Wand2 } from "lucide-react";
 import { useAutoSyncHandle } from "@/components/player/autosync/autosync-store";
 import { loadSubPresets } from "@/lib/player/sub-presets";
@@ -73,7 +72,7 @@ export function BpSubtitleSync({
 export function BpSubtitleLook() {
   const t = useBpT();
   const { settings, update } = useSettings();
-  const presets = useMemo(() => loadSubPresets(), []);
+  const presets = loadSubPresets();
 
   return (
     <>

@@ -33,10 +33,10 @@ export function useBpRowGrid(): {
   const [target, setTarget] = useState<BpRowGridTarget | null>(null);
   const fromRef = useRef("");
 
-  const open = useCallback((next: BpRowGridTarget) => {
+  const open = (next: BpRowGridTarget) => {
     fromRef.current = next.rowKey;
     setTarget(next);
-  }, []);
+  };
 
   // Back is the only way out, which is the same contract bp-anime's award view
   // and Discover's overlays already teach and the hint bar already prints. A

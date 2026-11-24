@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { Meta } from "@/lib/cinemeta";
 import { useSearch } from "@/lib/search-context";
 import { useSettings } from "@/lib/settings";
@@ -125,18 +125,18 @@ export function BpSearch({ onSelect }: { onSelect: (m: Meta) => void }) {
   // The keyboard is a bottom sheet that only exists once the field is activated.
   // The sheet lands the ring on its own first key when it opens, so this just
   // flips the state; on Android the OS keyboard drives the native input instead.
-  const startTyping = useCallback(() => {
+  const startTyping = () => {
     markBpInteracted();
     setTyping(true);
     if (isAndroid()) inputRef.current?.focus();
-  }, []);
+  };
 
   // The only way out of the sheet, wired to the Done key and to Back. The ring
   // returns to the field so the next OK reopens the keyboard where it left off.
-  const stopTyping = useCallback(() => {
+  const stopTyping = () => {
     setTyping(false);
     setBpFocus(inputRef.current, { silent: true });
-  }, []);
+  };
 
   const mosaicPool = useMemo(() => {
     const seen = new Set<string>();
@@ -152,43 +152,32 @@ export function BpSearch({ onSelect }: { onSelect: (m: Meta) => void }) {
     return out;
   }, [rows]);
 
-  const commit = useCallback(() => {
+  const commit = () => {
     if (!idle) recordRecent(query);
-  }, [idle, query, recordRecent]);
+  };
 
-  const pick = useCallback(
-    (m: Meta) => {
-      commit();
-      onSelect(m);
-    },
-    [commit, onSelect],
-  );
+  const pick = (m: Meta) => {
+    commit();
+    onSelect(m);
+  };
 
-  const handlers = useMemo(
-    () => ({ onSelect: pick, onCommit: commit, openManga }),
-    [pick, commit, openManga],
-  );
+  const handlers = { onSelect: pick, onCommit: commit, openManga };
 
   // One renderer for every state. Splitting settled rows off into a second row
   // component is what made the addon mark appear only while a row was empty and
   // vanish the instant it had something to attribute.
-  const railSlots = useMemo<BpSearchSlot[]>(
-    () =>
-      slots.map((s) => ({
-        key: s.key,
-        band: BAND_OF[s.group],
-        title: s.label,
-        state: bpSlotState(s),
-        shape: SHAPE_OF[s.kind],
-        cells: bpSearchCells(s, handlers),
-        source: bpAddonSource(s),
-        portrait: s.portrait,
-        // Only an addon row can be retried into existence. Everything else that
-        // came back empty came back empty on purpose.
-        onRetry: s.addonState === "failed" ? retry : undefined,
-      })),
-    [slots, handlers, retry],
-  );
+  const railSlots: BpSearchSlot[] = slots.map((s) => ({
+    key: s.key,
+    band: BAND_OF[s.group],
+    title: s.label,
+    state: bpSlotState(s),
+    shape: SHAPE_OF[s.kind],
+    cells: bpSearchCells(s, handlers),
+    source: bpAddonSource(s),
+    portrait: s.portrait,
+    // Only a failed addon row can be retried; every other empty row is empty on purpose.
+    onRetry: s.addonState === "failed" ? retry : undefined,
+  }));
 
   const anyShown = railSlots.some((s) => bpGroupRenders(s.state, s.cells.length));
   const showEmpty = idle ? suggestions.length === 0 : settled && bpSearchSlotsEmpty(railSlots);

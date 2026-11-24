@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Check } from "lucide-react";
 import { Play } from "@/components/icons/play-filled";
 import { formatAirDate } from "@/lib/dates";
@@ -64,10 +64,7 @@ function BpAnimeEpisodeCard({
 }) {
   const t = useBpT();
   const epLabel = t("Episode {n}", { n: ep.number });
-  const chain = useMemo(
-    () => [ep.thumbnail, ep.thumbnailFallback].filter((u): u is string => !!u),
-    [ep.thumbnail, ep.thumbnailFallback],
-  );
+  const chain = [ep.thumbnail, ep.thumbnailFallback].filter((u): u is string => !!u);
   const tag =
     showSeason && ep.imdbSeason != null && ep.imdbEpisode != null
       ? t("S{s} E{e}", { s: ep.imdbSeason, e: ep.imdbEpisode })
