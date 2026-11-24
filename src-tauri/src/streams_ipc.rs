@@ -1,9 +1,10 @@
-//! harbor-core's stream enums exported to src/lib/generated/streams-ipc.ts by the `export_bindings` test.
+//! harbor-core's stream enums and pipeline structs, exported to src/lib/generated/streams-ipc.ts by `export_bindings`.
 
 #[cfg(test)]
 mod tests {
     use harbor_core::{
-        AudioCodec, Codec, Container, DebridSlug, HdrFormat, Resolution, Source, Tier,
+        AudioCodec, AudioInfo, Codec, Container, Contributor, DebridSlug, HdrFormat, ParsedStream,
+        Resolution, ScoreReason, ScoredStream, Source, Stream, StreamSubtitle, Tier,
     };
     use ts_rs::TS;
 
@@ -19,6 +20,13 @@ mod tests {
             Tier::decl(&cfg),
             DebridSlug::decl(&cfg),
             Container::decl(&cfg),
+            AudioInfo::decl(&cfg),
+            StreamSubtitle::decl(&cfg),
+            Contributor::decl(&cfg),
+            Stream::decl(&cfg),
+            ParsedStream::decl(&cfg),
+            ScoreReason::decl(&cfg),
+            ScoredStream::decl(&cfg),
         ];
         crate::ipc_bindings::check("streams-ipc.ts", "streams_ipc.rs", &decls);
     }

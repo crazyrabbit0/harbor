@@ -152,27 +152,34 @@ pub enum Container {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct AudioInfo {
     pub codec: AudioCodec,
     pub channels: u16,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub bit_depth: Option<u8>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct StreamSubtitle {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub id: Option<String>,
     pub url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub lang: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub m: Option<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct Contributor {
     pub id: String,
     pub name: String,
@@ -182,45 +189,63 @@ pub struct Contributor {
 /// preserved as a JSON value so we don't lose addon-specific keys when round-tripping.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct Stream {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub name: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub title: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub description: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub info_hash: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional, type = "number"))]
     pub file_idx: Option<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub yt_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub external_url: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub subtitles: Option<Vec<StreamSubtitle>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional, type = "Record<string, unknown>"))]
     pub behavior_hints: Option<serde_json::Value>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub sources: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub availability: Option<f64>,
     pub addon_id: String,
     pub addon_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub addon_priority: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub addon_return_idx: Option<u32>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(feature = "ts", ts(optional))]
     pub contributors: Option<Vec<Contributor>>,
     #[serde(flatten)]
+    #[cfg_attr(feature = "ts", ts(skip))]
     pub extra: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ParsedStream {
     #[serde(flatten)]
     pub stream: Stream,
@@ -232,11 +257,14 @@ pub struct ParsedStream {
     pub source: Source,
     pub audio: AudioInfo,
     pub audio_languages: Vec<String>,
+    #[cfg_attr(feature = "ts", ts(type = "number | null"))]
     pub size: Option<u64>,
     pub seeders: Option<u32>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(type = "Partial<Record<DebridSlug, boolean>>"))]
     pub cached: std::collections::BTreeMap<String, bool>,
     #[serde(default)]
+    #[cfg_attr(feature = "ts", ts(type = "Partial<Record<DebridSlug, boolean>>"))]
     pub in_library: std::collections::BTreeMap<String, bool>,
     pub container: Option<Container>,
     pub release_group: Option<String>,
@@ -273,6 +301,7 @@ impl Default for AudioInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ScoreReason {
     pub signal: String,
     pub delta: f64,
@@ -280,6 +309,7 @@ pub struct ScoreReason {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "ts", derive(ts_rs::TS))]
 pub struct ScoredStream {
     #[serde(flatten)]
     pub parsed: ParsedStream,

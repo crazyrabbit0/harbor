@@ -1,39 +1,45 @@
 import type {
   AudioCodec,
+  AudioInfo,
   Codec,
   Container,
+  Contributor,
   DebridSlug,
   HdrFormat,
+  ParsedStream as CoreParsedStream,
   Resolution,
+  ScoreReason,
+  ScoredStream as CoreScoredStream,
   Source,
+  Stream as CoreStream,
+  StreamSubtitle,
   Tier,
 } from "@/lib/generated/streams-ipc";
 
-// The stream enums come from harbor-core, so the Rust ranking and this TypeScript fallback share one set of names.
-export type { AudioCodec, Codec, Container, DebridSlug, HdrFormat, Resolution, Source, Tier };
+// The stream types come from harbor-core, so the Rust ranking and this TypeScript fallback share one shape.
+export type {
+  AudioCodec,
+  AudioInfo,
+  Codec,
+  Container,
+  Contributor,
+  DebridSlug,
+  HdrFormat,
+  Resolution,
+  ScoreReason,
+  Source,
+  StreamSubtitle,
+  Tier,
+};
 
 export type ProxyHeaders = {
   request?: Record<string, string>;
   response?: Record<string, string>;
 };
 
-export type StreamSubtitle = {
-  id?: string;
-  url: string;
-  lang?: string;
-  m?: string;
-};
-
-export type Stream = {
-  name?: string;
-  title?: string;
-  description?: string;
-  infoHash?: string;
-  fileIdx?: number;
+// Fields harbor-core keeps in its catch-all map: Rust passes them through without reading them.
+type StreamExtras = {
   fileMustInclude?: string;
-  url?: string;
-  ytId?: string;
-  externalUrl?: string;
   nzbUrl?: string;
   servers?: string[];
   rarUrls?: string[];
@@ -41,7 +47,6 @@ export type Stream = {
   tarUrls?: string[];
   tgzUrls?: string[];
   sevenZipUrls?: string[];
-  subtitles?: StreamSubtitle[];
   behaviorHints?: {
     bingeGroup?: string;
     videoHash?: string;
@@ -53,69 +58,25 @@ export type Stream = {
     proxyHeaders?: ProxyHeaders;
     headers?: Record<string, string>;
   } & Record<string, unknown>;
-  sources?: string[];
-  availability?: number;
   liveStreamCheck?: boolean;
-  addonId: string;
-  addonName: string;
   addonUrl?: string;
   addonRanked?: boolean;
-  addonPriority?: number;
-  addonReturnIdx?: number;
-  contributors?: Array<{ id: string; name: string }>;
 };
 
-export type AudioInfo = {
-  codec: AudioCodec;
-  channels: number;
-  bitDepth?: number;
-};
+export type Stream = Omit<CoreStream, "behaviorHints"> & StreamExtras;
 
-export type ParsedStream = Stream & {
-  parsedTitle: string;
-  episodeTitle: string | null;
-  resolution: Resolution;
-  hdrFormat: HdrFormat | null;
-  codec: Codec;
-  source: Source;
-  audio: AudioInfo;
-  audioLanguages: string[];
-  size: number | null;
-  seeders: number | null;
-  cached: Partial<Record<DebridSlug, boolean>>;
-  cacheVerified: Partial<Record<DebridSlug, boolean>>;
-  inLibrary: Partial<Record<DebridSlug, boolean>>;
-  container: Container | null;
-  releaseGroup: string | null;
-  releaseGroupNormalized: string | null;
-  remux: boolean;
-  edition: string | null;
-  year: number | null;
-  yearRange: [number, number] | null;
-  season: number | null;
-  episode: number | null;
-  episodeEnd: number | null;
-  seasonPack: boolean;
-  discIndex: number | null;
-  repackIteration: number;
-  proper: boolean;
-  hardcoded: boolean;
-  animeHash: string | null;
-  scamScore: number;
-};
+type StreamOwnKeys = keyof CoreStream;
 
-export type ScoreReason = {
-  signal: string;
-  delta: number;
-};
+export type ParsedStream = Stream &
+  Omit<CoreParsedStream, StreamOwnKeys> & {
+    cacheVerified: Partial<Record<DebridSlug, boolean>>;
+  };
 
-export type ScoredStream = ParsedStream & {
-  score: number;
-  reasons: ScoreReason[];
-  tier: Tier;
-  nativeIdx?: number;
-  nameAbsent?: boolean;
-};
+export type ScoredStream = ParsedStream &
+  Pick<CoreScoredStream, "score" | "reasons" | "tier"> & {
+    nativeIdx?: number;
+    nameAbsent?: boolean;
+  };
 
 export type RankedPicker = {
   primary: ScoredStream | null;
