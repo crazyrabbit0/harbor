@@ -1,11 +1,10 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import "./_localstorage-stub.ts";
 import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness.ts";
+import { treeHarness } from "./helpers/tree-render.ts";
 import {
   icons,
   jsx,
@@ -506,16 +505,68 @@ test("chapter batches expose pause and resume controls", async () => {
     failed: 2,
   });
 
-  // chapter-list.tsx is too large to render here; pin the one line that wires its button to the batch.
-  const lines = readFileSync(
-    new URL("../src/views/manga/manga-detail/chapter-list.tsx", import.meta.url),
-    "utf8",
-  )
-    .split(/\r?\n/)
-    .map((line: string) => line.trim());
-  assert.ok(
-    lines.includes("pauseMangaDownloadBatch(mangaId);"),
-    "chapter-list.tsx lacks the pause call",
+  // The chapter list's batch button pauses, resumes or starts the batch for its manga.
+  const batchCalls: unknown[][] = [];
+  let status = "downloading";
+  const list = treeHarness(
+    "src/views/manga/manga-detail/chapter-list.tsx",
+    {
+      "@tanstack/react-virtual": {
+        useVirtualizer: () => ({ getVirtualItems: () => [], getTotalSize: () => 0 }),
+      },
+      "@/lib/i18n": { t: makeT().t, useT: () => makeT().t },
+      "@/lib/context-menu": { useContextMenu: () => ({ open: () => {} }) },
+      "@/lib/manga/model": { languageName: (code: string) => code },
+      "@/lib/manga-progress": {
+        useMangaProgressEntry: () => undefined,
+        useReadMangaChapterIds: () => new Set(),
+      },
+      "@/lib/manga-downloads": {
+        downloadAllChapters: async (...args: unknown[]) => void batchCalls.push(["start", ...args]),
+        downloadChapter: () => {},
+        pauseMangaDownloadBatch: (id: string) => void batchCalls.push(["pause", id]),
+        resumeMangaDownloadBatch: (id: string) => void batchCalls.push(["resume", id]),
+        useMangaDownloadBatch: () => ({ status, done: 0, total: 2 }),
+        useMangaDownloadGroup: () => ({ status: "idle" }),
+      },
+      "@/lib/manga/sources": { listMangaSources: () => [], sourceIconUrl: () => undefined },
+      "@/lib/manga/chapter-identity": { chapterGroupKey: (c: { id: string }) => c.id },
+    },
+    {
+      lenient: true,
+      globals: {
+        localStorage,
+        window: { addEventListener: () => {}, removeEventListener: () => {} },
+      },
+    },
+  );
+  const props = {
+    chapters: [
+      { id: "c1", chapter: "1" },
+      { id: "c2", chapter: "2" },
+    ],
+    langs: [],
+    selectedLang: "en",
+    onSelectLang: () => {},
+    onRead: () => {},
+    mangaId: "m",
+  };
+  const batchButton = () =>
+    nodes(list.run(() => list.exports.ChapterList(props))).find((n) =>
+      ["Pause downloads", "Resume downloads", "Download all"].includes(n.props["aria-label"]),
+    )!;
+  batchButton().props.onClick();
+  status = "paused";
+  batchButton().props.onClick();
+  status = "idle";
+  batchButton().props.onClick();
+  assert.deepEqual(
+    batchCalls.map(([kind, id]) => [kind, id]),
+    [
+      ["pause", "m"],
+      ["resume", "m"],
+      ["start", "m"],
+    ],
   );
 });
 

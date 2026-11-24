@@ -1,14 +1,13 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readdirSync, readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { filterTracksByPreferredLanguage, isKnownLanguage } from "../src/lib/subtitles/language.ts";
 import { subtitleLanguage } from "../src/lib/local-library/player-src.ts";
 import { fetchSubtitlesIntoPlayer } from "../src/lib/subtitles/fetch-into-player.ts";
 import type { SubResult } from "../src/lib/subtitles/types.ts";
 import { flushPromises } from "./helpers/hook-harness.ts";
+import { ANCHORED_POPUPS, openedPopupClass } from "./helpers/player-popup-harness.ts";
 import {
   all,
   loadAddonProvider,
@@ -328,20 +327,12 @@ test("subtitle popup fills compact players while staying above the controls", ()
 });
 
 test("every anchored player popup shares one anchor", () => {
-  const root = new URL("../src/components/player/", import.meta.url);
-  const drifted: string[] = [];
-  const walk = (dir: URL) => {
-    for (const e of readdirSync(dir, { withFileTypes: true })) {
-      if (e.isDirectory()) {
-        walk(new URL(`${e.name}/`, dir));
-      } else if (e.name.endsWith(".tsx")) {
-        const at = new URL(e.name, dir);
-        const src = readFileSync(at, "utf8");
-        const hit = src.match(/fixed end-\S+ bottom-\[\d+px\]/);
-        if (hit && hit[0] !== "fixed end-14 bottom-[150px]") drifted.push(`${e.name} ${hit[0]}`);
-      }
-    }
-  };
-  walk(root);
-  assert.deepEqual(drifted, []);
+  const anchors = ANCHORED_POPUPS.map((id) => [
+    id,
+    openedPopupClass(id)?.match(/^fixed end-\S+ bottom-\[\d+px\]/)?.[0],
+  ]);
+  assert.deepEqual(
+    anchors,
+    ANCHORED_POPUPS.map((id) => [id, "fixed end-14 bottom-[150px]"]),
+  );
 });

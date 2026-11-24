@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
 import type { EBook } from "../src/lib/ebook/api.ts";
+import { ebookSourceBrowseTag } from "../src/lib/ebook/browse-filters.ts";
 import { loadEBookApi } from "./helpers/ebook-harness.ts";
+import { clickScreen, ebookViewHarness, ofKind } from "./helpers/ebook-view-harness.ts";
 import { flushPromises, loadModule } from "./helpers/hook-harness.ts";
 
 const METADATA_KEY = "harbor.ebook.metadata.v1";
@@ -331,26 +332,47 @@ test("local EPUB catalog entries expose their embedded cover before metadata mer
   );
 });
 
-// views/ebook.tsx is 3,451 lines with an unmanageable import graph, so its wiring stays as text.
-const view = readFileSync(new URL("../src/views/ebook.tsx", import.meta.url), "utf8");
+const POPULAR_TAG = ebookSourceBrowseTag("any", "popular");
 
-test("eBook collections use the installed source catalog without reverse metadata searches", () => {
-  assert.match(view, /buildSourceEBookCollections\(\[\s*\.\.\.\(sourceCatalogItems \?\? \[\]\),/);
-  assert.match(
-    view,
-    /await loadSourceEBookCatalogPage\(\s*providerId,\s*nextCursor,\s*browseTagRef\.current,\s*\)/,
+test("eBook collections use the installed source catalog without reverse metadata searches", async () => {
+  const listed = [book("Dune"), book("Emma", ["Jane Austen"])];
+  const view = ebookViewHarness({ sourceItems: listed });
+  await view.settle(view.render);
+  clickScreen(view, "Collections");
+  const tree = await view.settle(view.render, 40);
+  assert.deepEqual(view.calls.catalogPages[0], ["plugin:p", {}, POPULAR_TAG]);
+  const popular = ofKind(tree, "MangaRail").find((rail) => rail.key === "catalog:popular");
+  assert.deepEqual(
+    popular?.props.items.map((item: EBook) => item.title),
+    ["Dune", "Emma"],
+    "the collection is built from the installed source catalog",
   );
-  assert.match(view, /\(title\) => searchSourceEBookCatalog\(title, providerId\),/);
-  assert.doesNotMatch(view, /ebookCollections\(/);
-  assert.doesNotMatch(view, /searchSourceEBooks\(book\.title/);
+  assert.ok(view.calls.catalogSearches.length > 0, "award titles are searched in the source");
+  assert.ok(view.calls.catalogSearches.every(([, provider]) => provider === "plugin:p"));
+  assert.deepEqual(view.calls.reverseSearches, [], "no metadata or per-book reverse search runs");
 });
 
-test("the Popular eBooks rail fetches metadata only when the source has no popular books", () => {
-  assert.match(
-    view,
-    /const needsPopularMetadata = sourceCatalogItems !== null && sourceCatalogItems\.length === 0;/,
+test("the Popular eBooks rail fetches metadata only when the source has no popular books", async () => {
+  const popularRail = (view: ReturnType<typeof ebookViewHarness>, tree: unknown) =>
+    ofKind(tree, view.exports.EBookRail).find((rail) => rail.props.title === "Popular eBooks");
+  const listed = [book("Dune")];
+  const withSource = ebookViewHarness({ sourceItems: listed, popular: [book("Metadata")] });
+  await withSource.settle(withSource.render);
+  withSource.runTimers();
+  const sourceTree = await withSource.settle(withSource.render);
+  assert.equal(withSource.calls.popular, 0, "a source with books needs no metadata lookup");
+  assert.deepEqual(
+    popularRail(withSource, sourceTree)?.props.items.map((item: EBook) => item.title),
+    ["Dune"],
   );
-  assert.match(view, /if \(!needsPopularMetadata\) return;\s*let active = true;/);
-  assert.match(view, /const popularBooks = preferredEBookPopular\(sourceCatalogItems, popular\);/);
-  assert.match(view, /items: popularBooks,/);
+
+  const empty = ebookViewHarness({ sourceItems: [], popular: [book("Metadata")] });
+  await empty.settle(empty.render);
+  empty.runTimers();
+  const emptyTree = await empty.settle(empty.render);
+  assert.equal(empty.calls.popular, 1, "an empty source falls back to metadata once");
+  assert.deepEqual(
+    popularRail(empty, emptyTree)?.props.items.map((item: EBook) => item.title),
+    ["Metadata"],
+  );
 });

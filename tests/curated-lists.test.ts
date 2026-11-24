@@ -1,20 +1,17 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { LIST_SEEDS } from "../src/lib/curated/catalog";
 import { rankInItems, type CuratedListItem, type CuratedSnapshot } from "../src/lib/curated/types";
 import en from "../src/lib/i18n/locales/en";
 import { curatedListsHarness, readJson } from "./helpers/curated-lists-harness";
 import { flushPromises, hookHarness, loadModule } from "./helpers/hook-harness";
+import { sourceFunction } from "./helpers/source-function";
 
 const { REGISTRY_LATEST_LIST_ID } = loadModule("src/lib/film-registry/inductions.ts", {
   "@/data/film-registry/inductions.json": { default: { inductions: {} } },
 });
-
-const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
 const index = readJson("src/data/curated/index.json") as {
   builtAt: string;
@@ -382,14 +379,24 @@ test("only the rails Discover actually renders claim one", () => {
     lists.filter((id: string) => !own.includes(id)),
     "the rest reach the reader through the canon shelf",
   );
-  // discover.tsx is too large and entangled to render, so its three switch arms stay as text.
-  const discover = read("src/views/discover.tsx");
-  assert.match(discover, /case "special:nyt-tv":\s*return <CuratedListRow listId="nyt-tv-100" /);
-  assert.match(
-    discover,
-    /case "special:film-registry":\s*return <CuratedListRow listId=\{REGISTRY_LATEST_LIST_ID\} /,
+  // Discover's own row renderer, run with its components as named stand-ins.
+  const components = Object.fromEntries(
+    ["CuratedListRow", "CuratedListTiles", "GenreTiles", "LanguageTiles", "AwardTiles"].map(
+      (name) => [name, name],
+    ),
   );
-  assert.match(discover, /case "special:canon":\s*return <CuratedListTiles /);
+  const renderRow = sourceFunction("src/views/discover.tsx", "renderRow", {
+    ...components,
+    REGISTRY_LATEST_LIST_ID,
+    pageRows: { custom: { renamed: {} } },
+  });
+  const row = (key: string) => {
+    const node = renderRow({ key, title: "x" });
+    return [node.type, node.props.listId];
+  };
+  assert.deepEqual(row("special:nyt-tv"), ["CuratedListRow", "nyt-tv-100"]);
+  assert.deepEqual(row("special:film-registry"), ["CuratedListRow", REGISTRY_LATEST_LIST_ID]);
+  assert.deepEqual(row("special:canon"), ["CuratedListTiles", undefined]);
 });
 
 test("English strings for every descriptor are registered", () => {
