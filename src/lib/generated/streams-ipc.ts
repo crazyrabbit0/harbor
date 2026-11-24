@@ -15,3 +15,17 @@ export type Tier = "4K_DV" | "4K_HDR" | "4K" | "1080p_HDR" | "1080p" | "720p" | 
 export type DebridSlug = "rd" | "tb" | "ad" | "pm" | "dl";
 
 export type Container = "mkv" | "mp4" | "m4v" | "avi" | "webm" | "mov" | "ts" | "wmv";
+
+export type AudioInfo = { codec: AudioCodec, channels: number, bitDepth?: number, };
+
+export type StreamSubtitle = { id?: string, url: string, lang?: string, m?: string, };
+
+export type Contributor = { id: string, name: string, };
+
+export type Stream = { name?: string, title?: string, description?: string, infoHash?: string, fileIdx?: number, url?: string, ytId?: string, externalUrl?: string, subtitles?: Array<StreamSubtitle>, behaviorHints?: Record<string, unknown>, sources?: Array<string>, availability?: number, addonId: string, addonName: string, addonPriority?: number, addonReturnIdx?: number, contributors?: Array<Contributor>, };
+
+export type ParsedStream = { parsedTitle: string, episodeTitle: string | null, resolution: Resolution, hdrFormat: HdrFormat | null, codec: Codec, source: Source, audio: AudioInfo, audioLanguages: Array<string>, size: number | null, seeders: number | null, cached: Partial<Record<DebridSlug, boolean>>, inLibrary: Partial<Record<DebridSlug, boolean>>, container: Container | null, releaseGroup: string | null, releaseGroupNormalized: string | null, remux: boolean, edition: string | null, year: number | null, yearRange: [number, number] | null, season: number | null, episode: number | null, episodeEnd: number | null, seasonPack: boolean, discIndex: number | null, repackIteration: number, proper: boolean, hardcoded: boolean, animeHash: string | null, scamScore: number, name?: string, title?: string, description?: string, infoHash?: string, fileIdx?: number, url?: string, ytId?: string, externalUrl?: string, subtitles?: Array<StreamSubtitle>, behaviorHints?: Record<string, unknown>, sources?: Array<string>, availability?: number, addonId: string, addonName: string, addonPriority?: number, addonReturnIdx?: number, contributors?: Array<Contributor>, };
+
+export type ScoreReason = { signal: string, delta: number, };
+
+export type ScoredStream = { score: number, reasons: Array<ScoreReason>, tier: Tier, parsedTitle: string, episodeTitle: string | null, resolution: Resolution, hdrFormat: HdrFormat | null, codec: Codec, source: Source, audio: AudioInfo, audioLanguages: Array<string>, size: number | null, seeders: number | null, cached: Partial<Record<DebridSlug, boolean>>, inLibrary: Partial<Record<DebridSlug, boolean>>, container: Container | null, releaseGroup: string | null, releaseGroupNormalized: string | null, remux: boolean, edition: string | null, year: number | null, yearRange: [number, number] | null, season: number | null, episode: number | null, episodeEnd: number | null, seasonPack: boolean, discIndex: number | null, repackIteration: number, proper: boolean, hardcoded: boolean, animeHash: string | null, scamScore: number, name?: string, title?: string, description?: string, infoHash?: string, fileIdx?: number, url?: string, ytId?: string, externalUrl?: string, subtitles?: Array<StreamSubtitle>, behaviorHints?: Record<string, unknown>, sources?: Array<string>, availability?: number, addonId: string, addonName: string, addonPriority?: number, addonReturnIdx?: number, contributors?: Array<Contributor>, };
