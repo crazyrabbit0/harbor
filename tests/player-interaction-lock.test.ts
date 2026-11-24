@@ -1,18 +1,12 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { html5BridgeHarness } from "./helpers/html5-bridge-harness.ts";
 import { hookHarness } from "./helpers/hook-harness.ts";
+import { callbackContaining, sourceCallback } from "./helpers/source-callback.ts";
 import { effectiveBinding, eventToBinding, HOTKEYS } from "../src/lib/hotkeys.ts";
 import { playerTvNavigationEnabled } from "../src/lib/player/tv-navigation.ts";
-
-const at = (path: string) => new URL(`../${path}`, import.meta.url);
-const read = (path: string) => readFileSync(at(path), "utf8");
-
-const player = read("src/views/player.tsx");
 
 class FakeElement {
   unlock: boolean;
@@ -165,10 +159,24 @@ test("TV focus navigation stays off while the screen is locked or the player is 
   assert.equal(playerTvNavigationEnabled({ ...on, pipDocked: true }), false);
   assert.equal(playerTvNavigationEnabled({ ...on, playerTvNavigation: false }), false);
   assert.equal(playerTvNavigationEnabled({ ...on, tvNavigation: false }), false);
-  // player.tsx is too large to load, so only its playerTvNavigationEnabled call is read as text.
-  const call = /enabled: playerTvNavigationEnabled\(\{([\s\S]*?)\}\)/.exec(player)?.[1] ?? "";
-  assert.match(call, /^\s*screenLocked,$/m, "the player passes its live lock state");
-  assert.match(call, /pipDocked: src\.pipDocked/);
+  // player.tsx is too large to load, so only its playerTvNavigationEnabled argument runs with `scope`.
+  const passed = (screenLocked: boolean, pipDocked: boolean) =>
+    sourceCallback(
+      "src/views/player.tsx",
+      callbackContaining("playerTvNavigationEnabled", "screenLocked"),
+      {
+        settings: { tvNavigation: true, playerTvNavigation: true },
+        screenLocked,
+        src: { pipDocked },
+      },
+    );
+  assert.equal(passed(true, false).screenLocked, true, "the player passes its live lock state");
+  assert.equal(passed(false, false).screenLocked, false);
+  assert.equal(passed(false, true).pipDocked, true);
+  assert.equal(passed(false, false).pipDocked, false);
+  assert.equal(playerTvNavigationEnabled(passed(false, false)), true);
+  assert.equal(playerTvNavigationEnabled(passed(true, false)), false);
+  assert.equal(playerTvNavigationEnabled(passed(false, true)), false);
 });
 
 test("the html5 media session ignores OS media keys while the screen is locked", async () => {

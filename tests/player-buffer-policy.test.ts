@@ -1,13 +1,12 @@
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import assert from "node:assert/strict";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
-import { readFileSync } from "node:fs";
-// @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import type { Settings } from "../src/lib/settings/types.ts";
 import { compileMpvOptions, svpMpvLines } from "../src/lib/player/mpv-tuning.ts";
 import { resolvePlaybackDownloadedFraction } from "../src/lib/player/playback-clock.ts";
 import { playbackStartupProfile } from "../src/lib/player/startup-profile.ts";
+import { effectContaining, sourceCallback } from "./helpers/source-callback.ts";
 
 test("only the P2P engine reports whole-file download progress", () => {
   assert.equal(
@@ -36,10 +35,31 @@ test("only the P2P engine reports whole-file download progress", () => {
   );
 });
 
-// player.tsx is too large to load, so only its local-source wiring statement is read as text.
+// player.tsx is too large to load, so only its download-progress effect runs with `scope`.
 test("a fully downloaded local file is reported as cached immediately, not buffering", () => {
-  const source = readFileSync(new URL("../src/views/player.tsx", import.meta.url), "utf8");
-  assert.match(source, /\} else if \(isLocalSrc\) \{\n\s*setPlaybackDownloaded\(1\);\n/);
+  const run = (isLocalSrc: boolean) => {
+    const reported: number[] = [];
+    const effect = sourceCallback(
+      "src/views/player.tsx",
+      effectContaining("resolvePlaybackDownloadedFraction("),
+      {
+        src: { url: "https://cdn/x/master.m3u8/hlsv2/", isLive: false, meta: { id: "tt1" } },
+        isP2pEngine: false,
+        isLocalSrc,
+        engineStats: null,
+        snap: { durationSec: 100 },
+        setPlaybackDownloaded: (value: number) => reported.push(value),
+        resolvePlaybackDownloadedFraction,
+        getPlaybackPosition: () => 0,
+        getPlaybackBuffered: () => 0,
+        subscribePlaybackClock: () => () => {},
+      },
+    );
+    effect();
+    return reported;
+  };
+  assert.deepEqual(run(true), [1], "a local file is fully cached at once");
+  assert.deepEqual(run(false), [0], "a remote HLS stream reports nothing cached");
 });
 
 test("bigger buffer mode increases Harbor defaults and waits for a useful reserve", () => {

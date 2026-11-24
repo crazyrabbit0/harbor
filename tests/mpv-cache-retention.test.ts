@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import { loadModule } from "./helpers/hook-harness.ts";
+import { sourceEffect } from "./helpers/source-effect.ts";
 
 // The cache folder and the sweep itself are unit-tested in playback_cache.rs and temp_prune.rs; this checks the wiring between files.
 const at = (p: string) => new URL(`../${p}`, import.meta.url);
@@ -43,10 +44,18 @@ test("the torrent cache keeps its own cap and retention", async () => {
       { dir: "D:/cache", retentionHours: 48, maxGb: 20, restart: false },
     ],
   ]);
-  // App.tsx is too large to load, so only its options effect call is read as text.
-  const app = readFileSync(at("src/App.tsx"), "utf8");
-  assert.match(
-    app,
-    /torrentEngineSetOptions\(\s*settings\.streamCacheDir \|\| null,\s*settings\.streamCacheRetentionHours,\s*settings\.streamCacheMaxGb,\s*false,\s*\);/,
-  );
+  // App.tsx is too large to load, so only its options effect runs with a recording engine call.
+  const optionsEffect = sourceEffect("src/App.tsx", "torrentEngineSetOptions(");
+  const applied = (streamCacheDir: string) => {
+    const sent: unknown[][] = [];
+    const settings = { streamCacheDir, streamCacheRetentionHours: 48, streamCacheMaxGb: 20 };
+    const { deps } = optionsEffect({
+      settings,
+      torrentEngineSetOptions: async (...args: unknown[]) => void sent.push(args),
+    });
+    assert.deepEqual(deps, [streamCacheDir, 48, 20], "the effect reruns on each cache setting");
+    return sent;
+  };
+  assert.deepEqual(applied("D:/cache"), [["D:/cache", 48, 20, false]]);
+  assert.deepEqual(applied(""), [[null, 48, 20, false]], "an empty folder means the default");
 });

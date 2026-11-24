@@ -5,6 +5,7 @@ import { readFileSync } from "node:fs";
 // @ts-expect-error Node test types are intentionally outside the browser-only tsconfig.
 import test from "node:test";
 import ts from "typescript";
+import { objectProperty, sourceCallback } from "./helpers/source-callback.ts";
 
 // player.tsx is too large to load, so its mouse-hold callbacks run on their own with the view's locals faked.
 const source = readFileSync(new URL("../src/views/player.tsx", import.meta.url), "utf8");
@@ -187,5 +188,18 @@ test("mouse hold is released when the pointer is cancelled or capture is lost", 
 });
 
 test("the overlay shows the speed HUD for a mouse hold too", () => {
-  assert.ok(source.includes("holdSpeedActive: holdSpeedActive || mouseHoldSpeedActive,"));
+  for (const holdSpeedActive of [false, true]) {
+    for (const mouseHoldSpeedActive of [false, true]) {
+      const shown = sourceCallback(
+        "src/views/player.tsx",
+        objectProperty("overlayProps", "holdSpeedActive"),
+        { holdSpeedActive, mouseHoldSpeedActive },
+      );
+      assert.equal(
+        shown,
+        holdSpeedActive || mouseHoldSpeedActive,
+        `key hold ${holdSpeedActive}, mouse hold ${mouseHoldSpeedActive}`,
+      );
+    }
+  }
 });

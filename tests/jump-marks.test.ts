@@ -7,6 +7,7 @@ import test from "node:test";
 import { flushPromises, hookHarness } from "./helpers/hook-harness.ts";
 import { named, ofType, treeHarness } from "./helpers/tree-render.ts";
 import { keyboardShortcutsHarness } from "./helpers/keyboard-shortcuts-harness.ts";
+import { callbackContaining, sourceCallback } from "./helpers/source-callback.ts";
 
 const at = (p: string) => new URL(`../${p}`, import.meta.url);
 const read = (p: string) => readFileSync(at(p), "utf8");
@@ -266,9 +267,22 @@ test("the 0-9 frames are prefetched once the source opens, not on hover", async 
   h.render(torrent);
   assert.equal(prefetched.length, 1, "torrent sources only show buffered frames");
 
-  // player.tsx is too large to load, so only its useTrickplay wiring line is read as text.
-  const player = read("src/views/player.tsx");
-  assert.match(player, /prefetchDurationSec: jumpDigitsShown \? snap\.durationSec : 0/);
+  // player.tsx is too large to load, so only its useTrickplay argument object runs with `scope`.
+  const trickplayArgs = (jumpDigitsShown: boolean) =>
+    sourceCallback(
+      "src/views/player.tsx",
+      callbackContaining("useTrickplay", "prefetchDurationSec"),
+      {
+        playUrl: "http://x/a.mkv",
+        settings: { seekPreviewEnabled: true },
+        isLiveLike: false,
+        jumpDigitsShown,
+        snap: { durationSec: 1234 },
+      },
+    );
+  assert.equal(trickplayArgs(true).prefetchDurationSec, 1234, "digits shown prefetch the length");
+  assert.equal(trickplayArgs(false).prefetchDurationSec, 0, "hidden digits prefetch nothing");
+  assert.equal(trickplayArgs(true).url, "http://x/a.mkv");
   const rust = read("src-tauri/src/thumbs.rs");
   assert.match(rust, /pub async fn thumbs_prefetch/);
   assert.match(rust, /Semaphore::new\(PREFETCH_PARALLEL\)/);
