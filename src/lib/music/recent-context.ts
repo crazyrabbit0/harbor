@@ -324,7 +324,7 @@ export function useMusicTrackContext(
 }
 
 export async function reopenMusicMix(
-  context: MusicRecentContext,
+  context: Omit<MusicRecentContext, "at">,
   open: (request: MusicExploreRequest) => void = requestMusicExplore,
 ): Promise<void> {
   const seed = context.seed;

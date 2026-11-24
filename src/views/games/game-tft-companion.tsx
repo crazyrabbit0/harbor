@@ -67,7 +67,8 @@ export function GameTftCompanion({ active, profile }: { active: boolean; profile
     [importFailed, setImportFailed] = useState(false),
     [incoming, setIncoming] = useState<{ set: string; units: string[]; revision: number } | null>(
       null,
-    );
+    ),
+    importCount = useRef(0);
   useEffect(() => {
     if (!active || !root.current) return;
     const observer = new IntersectionObserver(
@@ -169,8 +170,12 @@ export function GameTftCompanion({ active, profile }: { active: boolean; profile
                 try {
                   const decoded = decodeTftTeam(code, catalog);
                   setSelected(decoded.set.id);
-                  // oxlint-disable-next-line react/purity -- runs in the submit handler
-                  setIncoming({ set: decoded.set.id, units: decoded.units, revision: Date.now() });
+                  importCount.current += 1;
+                  setIncoming({
+                    set: decoded.set.id,
+                    units: decoded.units,
+                    revision: importCount.current,
+                  });
                   setCode("");
                   setImportFailed(false);
                 } catch {

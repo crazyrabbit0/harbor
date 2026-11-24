@@ -360,6 +360,37 @@ test("manga reading progress and read chapters reach user-data.json", async () =
   assert.equal(store.isDurableKey("harbor.manga.match.anilist.v1.p1"), false);
 });
 
+test("manga progress is stamped when recorded unless the caller gives a time", async () => {
+  localStorage.clear();
+  const { loadModule } = await import("./helpers/hook-harness.ts");
+  const progress = loadModule("src/lib/manga-progress.ts", {
+    react: { useEffect() {}, useState: (v: unknown) => [v, () => {}] },
+    "./profiles": { useProfiles: () => ({ activeId: "p1" }) },
+    "./manga/sources/suwayomi/progress-bridge": { queueSuwayomiProgress() {} },
+    "./durable-store": store,
+  });
+  const base = {
+    title: "Stamped",
+    chapterId: "c1",
+    chapterNumber: "1",
+    chapterLabel: "Chapter 1",
+    page: 1,
+    totalPages: 10,
+  };
+  mock.timers.enable({ apis: ["Date"], now: 5_000 });
+  try {
+    progress.recordMangaProgress("p1", { ...base, id: "fresh" });
+  } finally {
+    mock.timers.reset();
+  }
+  progress.recordMangaProgress("p1", { ...base, id: "given", updatedAt: 42 });
+  const byId = new Map(
+    progress.listMangaProgress("p1").map((e: { id: string; updatedAt: number }) => [e.id, e]),
+  );
+  assert.equal(byId.get("fresh")?.updatedAt, 5_000);
+  assert.equal(byId.get("given")?.updatedAt, 42);
+});
+
 test("manga and eBook bookmarks and eBook annotations reach user-data.json", async () => {
   localStorage.clear();
   const { loadModule } = await import("./helpers/hook-harness.ts");

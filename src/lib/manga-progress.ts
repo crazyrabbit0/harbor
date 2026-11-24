@@ -60,7 +60,11 @@ function write(pid: string, list: MangaProgressEntry[]): void {
   }
 }
 
-export function recordMangaProgress(pid: string, entry: MangaProgressEntry): void {
+export function recordMangaProgress(
+  pid: string,
+  input: Omit<MangaProgressEntry, "updatedAt"> & { updatedAt?: number },
+): void {
+  const entry: MangaProgressEntry = { ...input, updatedAt: input.updatedAt ?? Date.now() };
   if (!entry.id || !entry.title) return;
   const prev = listMangaProgress(pid).filter((e) => e.id !== entry.id);
   write(pid, [entry, ...prev]);
