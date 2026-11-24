@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import { handleLinkOutActivation } from "@/lib/social/link-out-activation";
 import { openLinkOut } from "@/lib/social/link-out";
 import { useT } from "@/lib/i18n";
@@ -108,7 +107,7 @@ function render(nodes: CNode[]): React.ReactNode {
 }
 
 export function CommentBody({ text }: { text: string }) {
-  const nodes = useMemo(() => parseComment(text), [text]);
+  const nodes = parseComment(text);
   return (
     <div className="max-w-[70ch] break-words text-[15.5px] font-normal leading-[22px] tracking-[-0.02px] text-ink [word-break:break-word]">
       {render(nodes)}

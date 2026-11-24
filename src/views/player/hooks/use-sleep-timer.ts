@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import { getPlaybackPosition } from "@/lib/player/playback-clock";
 import {
@@ -49,13 +49,13 @@ export function useSleepTimer(params: {
     return () => registerSleepFireHandler(null);
   }, [bridgeRef]);
 
-  const set = useCallback((next: SleepMode) => {
+  const set = (next: SleepMode) => {
     setSleepMode(next);
-  }, []);
+  };
 
-  const cancel = useCallback(() => {
+  const cancel = () => {
     clearSleepMode();
-  }, []);
+  };
 
   useEffect(() => {
     if (mode.kind !== "end_episode" && mode.kind !== "end_next_episode") return;

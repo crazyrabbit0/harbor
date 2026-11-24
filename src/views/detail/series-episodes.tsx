@@ -486,16 +486,12 @@ export function SeriesEpisodes({
     picker.onSelect(key);
   };
   const markSeason = useMarkSeason({ meta, active, enrichedEpisodes, simklConnected });
-  const downloadEpisodes = useMemo(
-    () =>
-      enrichedEpisodes.map((ep) => ({
-        season: ep.seasonNumber,
-        episode: ep.episodeNumber,
-        name: ep.name || undefined,
-        runtime: ep.runtime ?? undefined,
-      })),
-    [enrichedEpisodes],
-  );
+  const downloadEpisodes = enrichedEpisodes.map((ep) => ({
+    season: ep.seasonNumber,
+    episode: ep.episodeNumber,
+    name: ep.name || undefined,
+    runtime: ep.runtime ?? undefined,
+  }));
 
   return (
     <div data-episodes className="flex scroll-mt-24 flex-col gap-6">

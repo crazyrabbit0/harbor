@@ -2,7 +2,6 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type CSSProperties,
@@ -82,9 +81,9 @@ export function useChromeVisibility(params: {
     wakeChromeRef.current = wakeChrome;
   });
 
-  const hideForResume = useCallback(() => {
+  const hideForResume = () => {
     resumeHideRef.current = true;
-  }, []);
+  };
 
   useEffect(() => {
     const playingChanged = prevPlayingRef.current !== playing;
@@ -216,15 +215,11 @@ export function useChromeVisibility(params: {
     }
   }, [anyMenuOpen]);
 
-  const cursorStyle: CSSProperties = useMemo(
-    () =>
-      drawMode
-        ? { cursor: "none" }
-        : !effectiveChromeVisible && playing
-          ? { cursor: "none" }
-          : { cursor: "default" },
-    [drawMode, effectiveChromeVisible, playing],
-  );
+  const cursorStyle: CSSProperties = drawMode
+    ? { cursor: "none" }
+    : !effectiveChromeVisible && playing
+      ? { cursor: "none" }
+      : { cursor: "default" };
 
   return {
     chromeVisible: effectiveChromeVisible,

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import { getPlaybackPosition, subscribePlaybackClock } from "@/lib/player/playback-clock";
 
@@ -52,26 +52,26 @@ export function useAbLoop(params: {
     });
   }, [a, b, bridgeRef]);
 
-  const setA = useCallback(() => {
+  const setA = () => {
     const t = Math.max(0, positionRef.current);
     setLoop((cur) => ({
       resetKey: cur.resetKey,
       a: t,
       b: cur.b != null && cur.b <= t ? null : cur.b,
     }));
-  }, []);
+  };
 
-  const setB = useCallback(() => {
+  const setB = () => {
     const t = Math.max(0, positionRef.current);
     setLoop((cur) => {
       if (cur.a == null || t <= cur.a) return cur;
       return { resetKey: cur.resetKey, a: cur.a, b: t };
     });
-  }, []);
+  };
 
-  const clear = useCallback(() => {
+  const clear = () => {
     setLoop((cur) => ({ resetKey: cur.resetKey, a: null, b: null }));
-  }, []);
+  };
 
   void durationSec;
 

@@ -1,5 +1,5 @@
 import { Check, ChevronDown } from "./icons";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { AnchoredMenu } from "@/components/anchored-menu";
 import { advanceFocus } from "@/lib/keyboard-navigation";
 import { getDirection, isBackKey } from "@/lib/keyboard-navigation/geometry";
@@ -88,14 +88,14 @@ export function RegionPicker({
   const current = REGIONS.find((r) => r.code === value);
   const currentCode = current?.code ?? value;
 
-  const enterMenu = useCallback((el: HTMLDivElement | null) => {
+  const enterMenu = (el: HTMLDivElement | null) => {
     listRef.current = el;
     if (!el) return;
     const target =
       el.querySelector<HTMLElement>('[data-selected="true"]') ??
       el.querySelector<HTMLElement>('[role="option"]');
     if (target) advanceFocus(target);
-  }, []);
+  };
 
   const close = (restore: boolean) => {
     setOpen(false);
@@ -128,22 +128,18 @@ export function RegionPicker({
     advanceFocus(next, dir);
   };
 
-  const filtered: Array<{ code: string; label: string }> = useMemo(
-    () =>
-      readAtVersion(language, () => {
-        const q = query.trim().toLocaleLowerCase();
-        if (!q) return REGIONS;
-        return REGIONS.filter((region) => {
-          const localizedLabel = t(region.label).toLocaleLowerCase();
-          return (
-            localizedLabel.includes(q) ||
-            region.label.toLocaleLowerCase().includes(q) ||
-            region.code.toLocaleLowerCase().includes(q)
-          );
-        });
-      }),
-    [language, query],
-  );
+  const filtered: Array<{ code: string; label: string }> = readAtVersion(language, () => {
+    const q = query.trim().toLocaleLowerCase();
+    if (!q) return REGIONS;
+    return REGIONS.filter((region) => {
+      const localizedLabel = t(region.label).toLocaleLowerCase();
+      return (
+        localizedLabel.includes(q) ||
+        region.label.toLocaleLowerCase().includes(q) ||
+        region.code.toLocaleLowerCase().includes(q)
+      );
+    });
+  });
 
   return (
     <div className="relative">

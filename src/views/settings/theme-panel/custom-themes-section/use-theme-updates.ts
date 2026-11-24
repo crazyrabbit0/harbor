@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { browseThemes, downloadTheme } from "@/lib/theme-store";
 import { getDownloadRecords, markStoreThemeUpdated } from "@/lib/theme-updates";
 
@@ -48,7 +48,7 @@ export function useThemeUpdates() {
     };
   }, []);
 
-  const updateOne = useCallback(async (u: ThemeUpdate) => {
+  const updateOne = async (u: ThemeUpdate) => {
     setBusy(u.storeId);
     await downloadTheme(u.storeId, null, u.to)
       .then(() => {
@@ -57,7 +57,7 @@ export function useThemeUpdates() {
       })
       .catch(() => {})
       .finally(() => setBusy(null));
-  }, []);
+  };
 
   return { updates, busy, updateOne };
 }

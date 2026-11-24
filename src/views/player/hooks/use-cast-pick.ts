@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type RefObject } from "react";
+import { useEffect, useState, type RefObject } from "react";
 import {
   guessContentType,
   type CastDeviceInfo,
@@ -130,147 +130,132 @@ export function useCastPick(params: {
     return () => window.clearTimeout(timeoutId);
   }, [castIncompatError]);
 
-  const onPickDevice = useCallback(
-    async (device: CastDeviceInfo) => {
-      if (device.audio_only) {
-        const snap = snapRef.current;
-        closeCastMenu();
-        const embedded = snap.audioTracks.filter((track) => !track.external);
-        const selected = snap.audioTracks.find((track) => track.selected);
-        if (selected?.external || (!selected && embedded.length > 1)) {
-          setCastIncompatError(t("video.cast.trackUnavailable"));
-          return;
-        }
-        if (src.isLive || src.meta.id?.startsWith("iptv:")) {
-          setCastIncompatError(t("video.cast.liveUnsupported"));
-          return;
-        }
-        if (device.kind !== "dlna") {
-          setCastIncompatError(
-            t(device.kind === "airplay" ? "music.cast.airplay" : "video.cast.protocol"),
-          );
-          return;
-        }
-        setCastTranscoding(true);
-        await pickCastDevice(device, {
-          url: src.url,
-          headers: src.headers,
-          title: src.title,
-          poster: src.meta.poster ?? undefined,
-          contentType: guessContentType(src.url, src.streamRef?.title ?? src.title),
-          startTimeSec: getPlaybackPosition(),
-          audioOnly: true,
-          audioTrackOrdinal: selected ? embedded.indexOf(selected) : undefined,
-        });
-        return;
-      }
+  const onPickDevice = async (device: CastDeviceInfo) => {
+    if (device.audio_only) {
       const snap = snapRef.current;
-      const resolved = await resolveCompatibleCastUrl(src, device, debrids, {
-        width: snap.videoWidth,
-        height: snap.videoHeight,
+      closeCastMenu();
+      const embedded = snap.audioTracks.filter((track) => !track.external);
+      const selected = snap.audioTracks.find((track) => track.selected);
+      if (selected?.external || (!selected && embedded.length > 1)) {
+        setCastIncompatError(t("video.cast.trackUnavailable"));
+        return;
+      }
+      if (src.isLive || src.meta.id?.startsWith("iptv:")) {
+        setCastIncompatError(t("video.cast.liveUnsupported"));
+        return;
+      }
+      if (device.kind !== "dlna") {
+        setCastIncompatError(
+          t(device.kind === "airplay" ? "music.cast.airplay" : "video.cast.protocol"),
+        );
+        return;
+      }
+      setCastTranscoding(true);
+      await pickCastDevice(device, {
+        url: src.url,
+        headers: src.headers,
+        title: src.title,
+        poster: src.meta.poster ?? undefined,
+        contentType: guessContentType(src.url, src.streamRef?.title ?? src.title),
+        startTimeSec: getPlaybackPosition(),
+        audioOnly: true,
+        audioTrackOrdinal: selected ? embedded.indexOf(selected) : undefined,
       });
-      if (resolved.kind === "incompatible") {
-        const hint =
-          resolved.candidatesChecked === 0
-            ? t(
-                '{deviceLabel} can\'t play this stream ({reasons}). Click "Pick another" first to load alternatives, then try casting again.',
-                {
-                  deviceLabel: resolved.caps.label,
-                  reasons: formatCastReasons(resolved.reasons),
-                },
-              )
-            : t(
-                "{deviceLabel} can't play this stream ({reasons}) and none of the {count} available alternatives match its capabilities.",
-                {
-                  deviceLabel: resolved.caps.label,
-                  reasons: formatCastReasons(resolved.reasons),
-                  count: resolved.candidatesChecked,
-                },
-              );
-        setCastIncompatError(hint);
-        closeCastMenu();
-        return;
-      }
-      if (resolved.kind === "needs-ffmpeg") {
-        setCastErrorInfo({
-          title: t("Install ffmpeg"),
-          message: t(
-            "{deviceLabel} can't decode this stream natively ({reasons}). Harbor uses ffmpeg to convert it into a format your TV understands.",
-            {
-              deviceLabel: resolved.caps.label,
-              reasons: formatCastReasons(resolved.reasons),
-            },
-          ),
-          steps: [
-            localizedFfmpegInstallStep(),
-            t("Restart Harbor after the install completes."),
-            t("Open the cast menu and try this device again."),
-          ],
-          deviceName: device.name,
-        });
-        closeCastMenu();
-        return;
-      }
-      if (resolved.kind === "swapped") {
-        console.info(
-          `[cast] swapped stream for ${resolved.caps.label}: ${resolved.reasons.join(", ")} -> ${resolved.alt.parsedTitle ?? resolved.alt.title ?? "alt"}`,
-        );
-      }
-      if (resolved.kind === "transcode") {
-        console.info(
-          `[cast] transcoding for ${resolved.caps.label}: ${resolved.reasons.join(", ")}`,
-        );
-      }
-      const isLiveIptv = src.meta.id?.startsWith("iptv:") ?? false;
-      const burnSub = burnSubsOnTv ? buildCastSub(snap.subtitleTracks) : null;
-      const forceTranscode = resolved.kind === "transcode" || isLiveIptv || burnSub != null;
-      const profile = forceTranscode ? UNIVERSAL_SAFE_PROFILE : undefined;
-      // An ordinal counts embedded tracks only, and only fits the source the player is showing.
-      const embeddedAudio = snap.audioTracks.filter((track) => !track.external);
-      const selectedAudio = embeddedAudio.find((track) => track.selected);
-      const sameSource = resolved.url === src.url;
-      // A snapshot that missed a track-list update still has mpv's own answer.
-      const noAudioSelected = !snap.audioTracks.some((track) => track.selected);
-      const audioTrackOrdinal = !sameSource
-        ? undefined
-        : selectedAudio
-          ? embeddedAudio.indexOf(selectedAudio)
-          : noAudioSelected
-            ? ((await readMpvEmbeddedAudioOrdinal()) ?? undefined)
-            : undefined;
-      setCastTranscoding(forceTranscode);
-      await pickCastDevice(
-        device,
-        {
-          url: resolved.url,
-          title: src.title,
-          poster: src.meta.poster ?? undefined,
-          contentType: forceTranscode
-            ? "application/x-mpegURL"
-            : guessContentType(resolved.url, src.streamRef?.title ?? src.title),
-          startTimeSec: isLiveIptv ? 0 : getPlaybackPosition(),
-          headers: isLiveIptv ? { "user-agent": "VLC/3.0.20 LibVLC/3.0.20" } : undefined,
-          transcode: forceTranscode,
-          profile,
-          subtitle: burnSub,
-          subStyle: burnSub ? buildCastSubStyle(settings) : null,
-          audioTrackOrdinal,
-        },
-        () => bridgeRef.current?.pause(),
+      return;
+    }
+    const snap = snapRef.current;
+    const resolved = await resolveCompatibleCastUrl(src, device, debrids, {
+      width: snap.videoWidth,
+      height: snap.videoHeight,
+    });
+    if (resolved.kind === "incompatible") {
+      const hint =
+        resolved.candidatesChecked === 0
+          ? t(
+              '{deviceLabel} can\'t play this stream ({reasons}). Click "Pick another" first to load alternatives, then try casting again.',
+              {
+                deviceLabel: resolved.caps.label,
+                reasons: formatCastReasons(resolved.reasons),
+              },
+            )
+          : t(
+              "{deviceLabel} can't play this stream ({reasons}) and none of the {count} available alternatives match its capabilities.",
+              {
+                deviceLabel: resolved.caps.label,
+                reasons: formatCastReasons(resolved.reasons),
+                count: resolved.candidatesChecked,
+              },
+            );
+      setCastIncompatError(hint);
+      closeCastMenu();
+      return;
+    }
+    if (resolved.kind === "needs-ffmpeg") {
+      setCastErrorInfo({
+        title: t("Install ffmpeg"),
+        message: t(
+          "{deviceLabel} can't decode this stream natively ({reasons}). Harbor uses ffmpeg to convert it into a format your TV understands.",
+          {
+            deviceLabel: resolved.caps.label,
+            reasons: formatCastReasons(resolved.reasons),
+          },
+        ),
+        steps: [
+          localizedFfmpegInstallStep(),
+          t("Restart Harbor after the install completes."),
+          t("Open the cast menu and try this device again."),
+        ],
+        deviceName: device.name,
+      });
+      closeCastMenu();
+      return;
+    }
+    if (resolved.kind === "swapped") {
+      console.info(
+        `[cast] swapped stream for ${resolved.caps.label}: ${resolved.reasons.join(", ")} -> ${resolved.alt.parsedTitle ?? resolved.alt.title ?? "alt"}`,
       );
-    },
-    [
-      src,
-      debrids,
-      snapRef,
-      bridgeRef,
-      settings,
-      burnSubsOnTv,
-      closeCastMenu,
-      pickCastDevice,
-      setCastErrorInfo,
-    ],
-  );
+    }
+    if (resolved.kind === "transcode") {
+      console.info(`[cast] transcoding for ${resolved.caps.label}: ${resolved.reasons.join(", ")}`);
+    }
+    const isLiveIptv = src.meta.id?.startsWith("iptv:") ?? false;
+    const burnSub = burnSubsOnTv ? buildCastSub(snap.subtitleTracks) : null;
+    const forceTranscode = resolved.kind === "transcode" || isLiveIptv || burnSub != null;
+    const profile = forceTranscode ? UNIVERSAL_SAFE_PROFILE : undefined;
+    // An ordinal counts embedded tracks only, and only fits the source the player is showing.
+    const embeddedAudio = snap.audioTracks.filter((track) => !track.external);
+    const selectedAudio = embeddedAudio.find((track) => track.selected);
+    const sameSource = resolved.url === src.url;
+    // A snapshot that missed a track-list update still has mpv's own answer.
+    const noAudioSelected = !snap.audioTracks.some((track) => track.selected);
+    const audioTrackOrdinal = !sameSource
+      ? undefined
+      : selectedAudio
+        ? embeddedAudio.indexOf(selectedAudio)
+        : noAudioSelected
+          ? ((await readMpvEmbeddedAudioOrdinal()) ?? undefined)
+          : undefined;
+    setCastTranscoding(forceTranscode);
+    await pickCastDevice(
+      device,
+      {
+        url: resolved.url,
+        title: src.title,
+        poster: src.meta.poster ?? undefined,
+        contentType: forceTranscode
+          ? "application/x-mpegURL"
+          : guessContentType(resolved.url, src.streamRef?.title ?? src.title),
+        startTimeSec: isLiveIptv ? 0 : getPlaybackPosition(),
+        headers: isLiveIptv ? { "user-agent": "VLC/3.0.20 LibVLC/3.0.20" } : undefined,
+        transcode: forceTranscode,
+        profile,
+        subtitle: burnSub,
+        subStyle: burnSub ? buildCastSubStyle(settings) : null,
+        audioTrackOrdinal,
+      },
+      () => bridgeRef.current?.pause(),
+    );
+  };
 
   return {
     castIncompatError,

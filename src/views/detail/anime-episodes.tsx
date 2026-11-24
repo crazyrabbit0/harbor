@@ -154,9 +154,8 @@ export function AnimeEpisodes({
     episodes,
     franchise.length > 1 && !soloEntry,
   );
-  const soloPickerFranchise = useMemo(
-    () => franchise.filter((f) => f.meta.id !== rootEntryId && !isFranchiseExtra(f)),
-    [franchise, rootEntryId],
+  const soloPickerFranchise = franchise.filter(
+    (f) => f.meta.id !== rootEntryId && !isFranchiseExtra(f),
   );
   const pickerFranchise =
     soloEntry && soloPickerFranchise.length > 0 ? soloPickerFranchise : franchise;
@@ -232,13 +231,9 @@ export function AnimeEpisodes({
     },
     [entryScope, currentId, franchise, franchiseEpisodes, openMeta],
   );
-  const entryEpisodes = useMemo(
-    () =>
-      activeIsAnchor
-        ? episodes
-        : franchiseEpisodes.filter((ep) => ep.sourceMetaId === activeEntryId),
-    [activeIsAnchor, franchiseEpisodes, activeEntryId, episodes],
-  );
+  const entryEpisodes = activeIsAnchor
+    ? episodes
+    : franchiseEpisodes.filter((ep) => ep.sourceMetaId === activeEntryId);
   const tvdbPanel = useAnimeTvdbPanel(
     parseKitsuId(meta.id),
     imdbId ?? null,
@@ -334,10 +329,8 @@ export function AnimeEpisodes({
     entryPoolEpisodes,
   );
   const { watchedKeys: entryMalWatched } = useMalWatched(displaySourceId ?? "", entryPoolEpisodes);
-  const showSeason = useMemo(
-    () => new Set(displayEpisodes.map((e) => e.imdbSeason ?? e.seasonNumber ?? 1)).size > 1,
-    [displayEpisodes],
-  );
+  const showSeason =
+    new Set(displayEpisodes.map((e) => e.imdbSeason ?? e.seasonNumber ?? 1)).size > 1;
   const { pickerItems, selectPickerItem, franchiseActiveKey } = useAnimeFranchiseNav(
     effectiveOrder,
     franchise,
@@ -353,15 +346,12 @@ export function AnimeEpisodes({
   const renderCount = renderState.key === windowKey ? renderState.count : WINDOW_STEP;
   const orderActiveKey = order?.activeKey;
   // Reset renderCount only on explicit season switches, never when async ordering picks an initial key.
-  const onPickerSelect = useCallback(
-    (key: string) => {
-      if (!key.startsWith("nav:") && key !== orderActiveKey) {
-        setRenderState({ key: windowKey, count: WINDOW_STEP });
-      }
-      selectPickerItem(key);
-    },
-    [selectPickerItem, windowKey, orderActiveKey],
-  );
+  const onPickerSelect = (key: string) => {
+    if (!key.startsWith("nav:") && key !== orderActiveKey) {
+      setRenderState({ key: windowKey, count: WINDOW_STEP });
+    }
+    selectPickerItem(key);
+  };
   const [watchedMenu, setWatchedMenu] = useState<WatchedMenuTarget | null>(null);
   const openWatchedMenu = (
     e: React.MouseEvent,
@@ -510,13 +500,10 @@ export function AnimeEpisodes({
     ready: !isOneOff && displayEpisodes.length > 0 && !(tvdbPanel.active && !tvdbPanel.panel),
     beforeScroll: reveal,
   });
-  const pickSeason = useCallback(
-    (key: string) => {
-      markPicked();
-      onPickerSelect(key);
-    },
-    [markPicked, onPickerSelect],
-  );
+  const pickSeason = (key: string) => {
+    markPicked();
+    onPickerSelect(key);
+  };
   const pickTvdbSeason = (key: string) => {
     markPicked();
     tvdbPanel.panel?.onSelect(key);
@@ -525,10 +512,9 @@ export function AnimeEpisodes({
     markPicked();
     onSelectEntry(entryId);
   };
-  const franchiseStepKeys = useMemo(
-    () => pickerFranchise.filter((f) => !isFranchiseExtra(f)).map((f) => f.meta.id),
-    [pickerFranchise],
-  );
+  const franchiseStepKeys = pickerFranchise
+    .filter((f) => !isFranchiseExtra(f))
+    .map((f) => f.meta.id);
 
   const didJumpRef = useRef("");
   useEffect(() => {
@@ -546,20 +532,16 @@ export function AnimeEpisodes({
     });
   }, [settings.episodeAutoScroll, nextUpNum, nextUpId, episodes, meta.id, reveal, scrollRef]);
 
-  const downloadEpisodes = useMemo(
-    () =>
-      displayEpisodes.map((e) => ({
-        season: e.seasonNumber || 1,
-        episode: e.number,
-        name: e.title || undefined,
-        kitsuStreamId: e.streamId,
-        imdbId: e.imdbId,
-        imdbSeason: e.imdbSeason,
-        imdbEpisode: e.imdbEpisode,
-        tvdbEpisodeId: e.tvdbEpisodeId,
-      })),
-    [displayEpisodes],
-  );
+  const downloadEpisodes = displayEpisodes.map((e) => ({
+    season: e.seasonNumber || 1,
+    episode: e.number,
+    name: e.title || undefined,
+    kitsuStreamId: e.streamId,
+    imdbId: e.imdbId,
+    imdbSeason: e.imdbSeason,
+    imdbEpisode: e.imdbEpisode,
+    tvdbEpisodeId: e.tvdbEpisodeId,
+  }));
   return (
     <div data-anime-episodes className="flex flex-col gap-6 scroll-mt-24">
       <div className="flex flex-col gap-4">

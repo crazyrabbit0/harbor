@@ -1,7 +1,7 @@
 import { useSubTabs } from "./sub-tabs";
 import { StreamCacheSection } from "./player-panel/p2p-advanced-section";
 import { Check, Database, HardDrive, Trash2 } from "./icons";
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useT } from "@/lib/i18n";
 import { readAtVersion } from "@/lib/read-at-version";
 import { clearPickerCache, pickerCacheCount } from "@/lib/picker-cache";
@@ -235,18 +235,14 @@ export function StoragePanel() {
     };
   }, [tick]);
 
-  const ls = useMemo(() => readAtVersion(tick, () => localStorageBreakdown()), [tick]);
+  const ls = readAtVersion(tick, () => localStorageBreakdown());
   const THUMB_CACHE_CAP_BYTES = 256 * 1024 * 1024;
 
-  const cacheUsage = useMemo(
-    () =>
-      readAtVersion(tick, () => ({
-        picker: pickerCacheCount(),
-        manga: bytesOfPrefix("harbor.manga.cache.v2."),
-        dead: bytesOfKey("harbor.dead-streams.v1"),
-      })),
-    [tick],
-  );
+  const cacheUsage = readAtVersion(tick, () => ({
+    picker: pickerCacheCount(),
+    manga: bytesOfPrefix("harbor.manga.cache.v2."),
+    dead: bytesOfKey("harbor.dead-streams.v1"),
+  }));
 
   const [thumbSize, setThumbSize] = useState<ThumbCacheSize | null>(null);
   useEffect(() => {

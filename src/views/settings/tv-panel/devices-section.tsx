@@ -66,12 +66,12 @@ export function TvDevicesSection() {
     });
   }, []);
 
-  const scan = useCallback(() => {
+  const scan = () => {
     setReach({});
     setSettled(false);
     setScanning(true);
     startSweep();
-  }, [startSweep]);
+  };
 
   useEffect(() => {
     void harborIdentity().then((who) => {

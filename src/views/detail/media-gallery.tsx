@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { createPortal } from "react-dom";
 import { saveImageToDisk, saveTrailerToDisk } from "@/lib/download/save-binary";
@@ -58,87 +58,69 @@ export function MediaGallery({
   );
   const [toast, setToast] = useState<string | null>(null);
 
-  const flash = useCallback((text: string) => {
+  const flash = (text: string) => {
     setToast(text);
     window.setTimeout(() => setToast((cur) => (cur === text ? null : cur)), 2400);
-  }, []);
+  };
 
-  const slug = useMemo(() => baseName(title), [title]);
+  const slug = baseName(title);
 
-  const downloadImage = useCallback(
-    (url: string, kind: string, i: number) => {
-      saveImageToDisk(url, `${slug}-${kind}-${i + 1}`)
-        .then((r) => {
-          if (r.saved) flash(t("Saved to disk"));
-        })
-        .catch(() => flash(t("Download failed")));
-    },
-    [slug, flash],
-  );
+  const downloadImage = (url: string, kind: string, i: number) => {
+    saveImageToDisk(url, `${slug}-${kind}-${i + 1}`)
+      .then((r) => {
+        if (r.saved) flash(t("Saved to disk"));
+      })
+      .catch(() => flash(t("Download failed")));
+  };
 
-  const downloadVideo = useCallback(
-    (v: GalleryVideo) => {
-      flash(t("Downloading..."));
-      saveTrailerToDisk(
-        v.ytId,
-        resolveTrailerQuality(settings.trailerQuality),
-        `${slug}-${baseName(v.name)}`,
-      )
-        .then((r) => flash(r.saved ? t("Saved to disk") : t("Download failed")))
-        .catch(() => flash(t("Download failed")));
-    },
-    [slug, settings.trailerQuality, flash],
-  );
+  const downloadVideo = (v: GalleryVideo) => {
+    flash(t("Downloading..."));
+    saveTrailerToDisk(
+      v.ytId,
+      resolveTrailerQuality(settings.trailerQuality),
+      `${slug}-${baseName(v.name)}`,
+    )
+      .then((r) => flash(r.saved ? t("Saved to disk") : t("Download failed")))
+      .catch(() => flash(t("Download failed")));
+  };
 
-  const setBackdrop = useCallback(
-    (url: string) => {
-      update({ theme: { ...settings.theme, backgroundImage: url, backgroundDim: BACKDROP_DIM } });
-      flash(t("Set as theme backdrop"));
-    },
-    [settings.theme, update, flash],
-  );
+  const setBackdrop = (url: string) => {
+    update({ theme: { ...settings.theme, backgroundImage: url, backgroundDim: BACKDROP_DIM } });
+    flash(t("Set as theme backdrop"));
+  };
 
   const pinnedLogo = useTitleLogo(metaId);
-  const setLogo = useCallback(
-    (url: string) => {
-      if (pinnedLogo === url) {
-        clearTitleLogo(metaId);
-        flash(t("Logo reset to default"));
-        return;
-      }
-      setTitleLogo(metaId, url);
-      flash(t("Set as show logo"));
-    },
-    [metaId, pinnedLogo, flash],
-  );
+  const setLogo = (url: string) => {
+    if (pinnedLogo === url) {
+      clearTitleLogo(metaId);
+      flash(t("Logo reset to default"));
+      return;
+    }
+    setTitleLogo(metaId, url);
+    flash(t("Set as show logo"));
+  };
 
   const pinnedPoster = useTitlePoster(metaId);
-  const setPoster = useCallback(
-    (url: string) => {
-      if (pinnedPoster === url) {
-        clearTitlePoster(metaId);
-        flash(t("Poster reset to default"));
-        return;
-      }
-      setTitlePoster(metaId, url);
-      flash(t("Set as show poster"));
-    },
-    [metaId, pinnedPoster, flash],
-  );
+  const setPoster = (url: string) => {
+    if (pinnedPoster === url) {
+      clearTitlePoster(metaId);
+      flash(t("Poster reset to default"));
+      return;
+    }
+    setTitlePoster(metaId, url);
+    flash(t("Set as show poster"));
+  };
 
   const pinnedBackdrop = useTitleBackdrop(metaId);
-  const setShowBackdrop = useCallback(
-    (url: string) => {
-      if (pinnedBackdrop === url) {
-        clearTitleBackdrop(metaId);
-        flash(t("Backdrop reset to default"));
-        return;
-      }
-      setTitleBackdrop(metaId, url);
-      flash(t("Set as show backdrop"));
-    },
-    [metaId, pinnedBackdrop, flash],
-  );
+  const setShowBackdrop = (url: string) => {
+    if (pinnedBackdrop === url) {
+      clearTitleBackdrop(metaId);
+      flash(t("Backdrop reset to default"));
+      return;
+    }
+    setTitleBackdrop(metaId, url);
+    flash(t("Set as show backdrop"));
+  };
 
   if (tabs.length === 0) return null;
 

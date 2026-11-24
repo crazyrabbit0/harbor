@@ -6,7 +6,7 @@ import {
   revokeThemeJsConsent,
   subscribeThemeJsConsent,
 } from "@/lib/theme-js-consent";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ActiveBanner } from "./custom-themes-section/active-banner";
 import { ExportBlock } from "./custom-themes-section/export-block";
 import { HeroCards } from "./custom-themes-section/hero-cards";
@@ -130,7 +130,7 @@ export function CustomThemesSection({
   const activeId = settings.theme.preset;
   const activeTheme = activeId === "custom" ? null : getThemeById(activeId);
 
-  const entries = useMemo(() => buildEntries(themes), [themes]);
+  const entries = buildEntries(themes);
 
   const activateTheme = (id: string, nav?: ThemePreset["navCustomization"]) => {
     const next = getThemeById(id);

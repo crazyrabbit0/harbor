@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePlaylists } from "@/lib/iptv/playlists-store";
 import { headersFromChannel } from "@/lib/iptv/channel-headers";
 import type { IptvChannel, IptvPlaylistSource } from "@/lib/iptv/types";
@@ -52,22 +52,18 @@ export function useLiveChannelOverlay(params: {
     return { id: found.id, name: found.name, url: found.url, epgUrl: found.epgUrl };
   }, [activeOverrideSourceId, playingSource, playlists]);
 
-  const availableSources: IptvPlaylistSource[] = useMemo(
-    () =>
-      playlists.map((p) => ({
-        id: p.id,
-        name: p.name,
-        url: p.url,
-        epgUrl: p.epgUrl,
-      })),
-    [playlists],
-  );
+  const availableSources: IptvPlaylistSource[] = playlists.map((p) => ({
+    id: p.id,
+    name: p.name,
+    url: p.url,
+    epgUrl: p.epgUrl,
+  }));
 
-  const selectSource = useCallback((id: string) => {
+  const selectSource = (id: string) => {
     setOverrideSourceId(id);
     setGroup(null);
     setQuery("");
-  }, []);
+  };
 
   useEffect(() => {
     if (!effectiveOpen) return;
@@ -99,40 +95,37 @@ export function useLiveChannelOverlay(params: {
     lastSrcRef.current = src;
   }, [isLive, src]);
 
-  const goPrevChannel = useCallback(() => {
+  const goPrevChannel = () => {
     const stack = prevStackRef.current;
     let prev = stack.pop();
     while (prev && prev.meta.id === lastSrcRef.current?.meta.id) prev = stack.pop();
     if (prev) replacePlayerSrc(preservePreviewMode(lastSrcRef.current ?? src, prev));
-  }, [replacePlayerSrc, src]);
+  };
 
-  const switchChannel = useCallback(
-    (channel: IptvChannel, program?: string) => {
-      const newMeta: Meta = {
-        id: `iptv:${channel.id}`,
-        type: "tv",
-        name: channel.name,
-        poster: channel.logo ?? undefined,
-        logo: channel.logo ?? undefined,
-        background: channel.logo ?? undefined,
-        description: channel.group ? `Live channel: ${channel.group}` : "Live channel",
-        releaseInfo: "Live",
-      };
-      const newSrc: PlayerSrc = {
-        meta: newMeta,
-        url: channel.url,
-        title: channel.name,
-        subtitle: channel.group ?? "Live",
-        notWebReady: true,
-        isLive: true,
-        headers: headersFromChannel(channel),
-        liveProgram: program,
-      };
-      replacePlayerSrc(preservePreviewMode(src, newSrc));
-      setOpen(false);
-    },
-    [replacePlayerSrc, src],
-  );
+  const switchChannel = (channel: IptvChannel, program?: string) => {
+    const newMeta: Meta = {
+      id: `iptv:${channel.id}`,
+      type: "tv",
+      name: channel.name,
+      poster: channel.logo ?? undefined,
+      logo: channel.logo ?? undefined,
+      background: channel.logo ?? undefined,
+      description: channel.group ? `Live channel: ${channel.group}` : "Live channel",
+      releaseInfo: "Live",
+    };
+    const newSrc: PlayerSrc = {
+      meta: newMeta,
+      url: channel.url,
+      title: channel.name,
+      subtitle: channel.group ?? "Live",
+      notWebReady: true,
+      isLive: true,
+      headers: headersFromChannel(channel),
+      liveProgram: program,
+    };
+    replacePlayerSrc(preservePreviewMode(src, newSrc));
+    setOpen(false);
+  };
 
   return {
     open: effectiveOpen,

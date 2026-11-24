@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import type { Draft } from "../studio-types";
 
 type Updater = Draft | ((prev: Draft) => Draft);
@@ -14,7 +14,7 @@ export function useDraftHistory(initial: () => Draft) {
   }));
   const lastPushAt = useRef(0);
 
-  const setDraft = useCallback((updater: Updater) => {
+  const setDraft = (updater: Updater) => {
     setState((s) => {
       const next =
         typeof updater === "function" ? (updater as (p: Draft) => Draft)(s.draft) : updater;
@@ -25,9 +25,9 @@ export function useDraftHistory(initial: () => Draft) {
       const past = coalesce ? s.past : [...s.past, s.draft].slice(-MAX_DEPTH);
       return { draft: next, past, future: [] };
     });
-  }, []);
+  };
 
-  const undo = useCallback(() => {
+  const undo = () => {
     lastPushAt.current = 0;
     setState((s) => {
       if (s.past.length === 0) return s;
@@ -37,9 +37,9 @@ export function useDraftHistory(initial: () => Draft) {
         future: [...s.future, s.draft],
       };
     });
-  }, []);
+  };
 
-  const redo = useCallback(() => {
+  const redo = () => {
     lastPushAt.current = 0;
     setState((s) => {
       if (s.future.length === 0) return s;
@@ -49,7 +49,7 @@ export function useDraftHistory(initial: () => Draft) {
         future: s.future.slice(0, -1),
       };
     });
-  }, []);
+  };
 
   return {
     draft: state.draft,

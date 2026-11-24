@@ -1,4 +1,4 @@
-import { memo, useMemo } from "react";
+import { memo } from "react";
 import { AvatarDock } from "@/components/player/avatar-dock";
 import { ChatOverlay } from "@/components/player/chat-overlay";
 import type { PanelCorner } from "@/lib/player-chrome";
@@ -78,11 +78,8 @@ export const RoomLayer = memo(function RoomLayer({
   foreignNotice: { title: string | null; from: string } | null;
   onDismissForeign: () => void;
 }) {
-  const everyoneReady = useMemo(
-    () => participants.length > 0 && participants.every((p) => p.ready),
-    [participants],
-  );
-  const notReady = useMemo(() => participants.filter((p) => !p.ready), [participants]);
+  const everyoneReady = participants.length > 0 && participants.every((p) => p.ready);
+  const notReady = participants.filter((p) => !p.ready);
   return (
     <>
       {inRoom && !pipMode && (

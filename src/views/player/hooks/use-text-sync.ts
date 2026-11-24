@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import type { PlayerBridge, TrackInfo } from "@/lib/player/bridge";
 import { getPlaybackPosition } from "@/lib/player/playback-clock";
@@ -138,7 +138,7 @@ export function useTextSync(
     constant,
   ]);
 
-  const enter = useCallback(async (sourceUrl: string | null, headers?: Record<string, string>) => {
+  const enter = async (sourceUrl: string | null, headers?: Record<string, string>) => {
     const b = bridgeRef.current;
     if (!b) return;
     const session = ++sessionGeneration.current;
@@ -175,9 +175,9 @@ export function useTextSync(
       sourceFormat: res.source.format,
       sourceTrack,
     });
-  }, []);
+  };
 
-  const syncFromHere = useCallback((cueIndex: number) => {
+  const syncFromHere = (cueIndex: number) => {
     setState((prev) => {
       if (prev.syncMode !== "active" || !prev.cues) return prev;
       const cue = prev.cues[cueIndex];
@@ -196,26 +196,26 @@ export function useTextSync(
       const points = prev.points.length < 2 ? [...prev.points, point] : [prev.points[0], point];
       return { ...prev, points, nudge: 0 };
     });
-  }, []);
+  };
 
-  const setRangeStart = useCallback((i: number) => {
+  const setRangeStart = (i: number) => {
     setState((prev) => ({ ...prev, rangeStart: i, rangeEnd: null }));
-  }, []);
-  const setRangeEnd = useCallback((i: number) => {
+  };
+  const setRangeEnd = (i: number) => {
     setState((prev) => (prev.rangeStart == null ? prev : { ...prev, rangeEnd: i }));
-  }, []);
-  const clearRange = useCallback(() => {
+  };
+  const clearRange = () => {
     setState((prev) => ({ ...prev, rangeStart: null, rangeEnd: null }));
-  }, []);
-  const clearSegments = useCallback(() => {
+  };
+  const clearSegments = () => {
     setState((prev) => ({ ...prev, segments: [], rangeStart: null, rangeEnd: null }));
-  }, []);
+  };
 
-  const nudgeBy = useCallback((delta: number) => {
+  const nudgeBy = (delta: number) => {
     setState((prev) => ({ ...prev, nudge: round3(prev.nudge + delta) }));
-  }, []);
+  };
 
-  const reset = useCallback(() => {
+  const reset = () => {
     setState((prev) => ({
       ...prev,
       points: [],
@@ -224,22 +224,22 @@ export function useTextSync(
       rangeStart: null,
       rangeEnd: null,
     }));
-  }, []);
+  };
 
-  const seekTo = useCallback((cueIndex: number) => {
+  const seekTo = (cueIndex: number) => {
     const cue = stateRef.current.cues?.[cueIndex];
     if (cue) bridgeRef.current?.seek(cue.start);
-  }, []);
+  };
 
-  const exit = useCallback(() => {
+  const exit = () => {
     sessionGeneration.current += 1;
     previewGeneration.current += 1;
     if (regenTimer.current) window.clearTimeout(regenTimer.current);
     regenTimer.current = null;
     setState(INITIAL);
-  }, []);
+  };
 
-  const discard = useCallback(() => {
+  const discard = () => {
     const b = bridgeRef.current;
     if (stateRef.current.sourceTrack) {
       b?.setSubtitleTrack(stateRef.current.sourceTrack.id);
@@ -247,9 +247,9 @@ export function useTextSync(
     }
     b?.setSubDelay(stateRef.current.baseOffset);
     exit();
-  }, [exit]);
+  };
 
-  const save = useCallback(async (): Promise<SaveResult> => {
+  const save = async (): Promise<SaveResult> => {
     const b = bridgeRef.current;
     const cur = stateRef.current;
     const session = sessionGeneration.current;
@@ -324,7 +324,7 @@ export function useTextSync(
       ok: false,
       reason: e instanceof Error ? e.message : String(e),
     }));
-  }, [exit]);
+  };
 
   useEffect(
     () => () => {

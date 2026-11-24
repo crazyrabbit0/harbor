@@ -90,14 +90,11 @@ export function NativeTrailerPlayer({
     else v.pause();
   }, [ref]);
 
-  const seekTo = useCallback(
-    (ratio: number) => {
-      const v = ref.current;
-      if (!v || !isFinite(v.duration)) return;
-      v.currentTime = Math.max(0, Math.min(v.duration, ratio * v.duration));
-    },
-    [ref],
-  );
+  const seekTo = (ratio: number) => {
+    const v = ref.current;
+    if (!v || !isFinite(v.duration)) return;
+    v.currentTime = Math.max(0, Math.min(v.duration, ratio * v.duration));
+  };
 
   const seekBy = useCallback(
     (delta: number) => {
@@ -126,7 +123,7 @@ export function NativeTrailerPlayer({
     v.muted = !v.muted;
   }, [ref]);
 
-  const cycleSpeed = useCallback(() => {
+  const cycleSpeed = () => {
     setSpeed((cur) => {
       const idx = PLAYBACK_SPEEDS.indexOf(cur as (typeof PLAYBACK_SPEEDS)[number]);
       const next = PLAYBACK_SPEEDS[(idx + 1) % PLAYBACK_SPEEDS.length];
@@ -134,7 +131,7 @@ export function NativeTrailerPlayer({
       if (v) v.playbackRate = next;
       return next;
     });
-  }, [ref]);
+  };
 
   const togglePiP = useCallback(async () => {
     const v = ref.current;

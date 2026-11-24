@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
 import { kitsuToTvdb } from "@/lib/providers/anime-mapping";
@@ -105,7 +105,7 @@ export function useAnimeTvdbPanel(
     activeType: TvdbOrderType;
   } | null>(null);
 
-  const onSelect = useCallback((key: string) => setSelState({ scope: selScope, key }), [selScope]);
+  const onSelect = (key: string) => setSelState({ scope: selScope, key });
 
   useEffect(() => {
     if (!seriesKey) return;

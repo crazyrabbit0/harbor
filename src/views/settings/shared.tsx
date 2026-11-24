@@ -244,7 +244,7 @@ export function Section({
     };
   }, []);
 
-  const flags = useMemo(() => ({ multiGroup }), [multiGroup]);
+  const flags = { multiGroup };
   const showHeading = !bare && !echo;
 
   return (

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { t } from "@/lib/i18n";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import {
@@ -30,7 +30,7 @@ export function useFrameGrab(params: {
   const busyRef = useRef(false);
   const dismissTimer = useRef<number | null>(null);
 
-  const trigger = useCallback(async () => {
+  const trigger = async () => {
     if (busyRef.current) return;
     const bridge = bridgeRef.current;
     if (!bridge) return;
@@ -62,7 +62,7 @@ export function useFrameGrab(params: {
     await work().finally(() => {
       busyRef.current = false;
     });
-  }, [bridgeRef, src, folder]);
+  };
 
   useEffect(
     () => () => {

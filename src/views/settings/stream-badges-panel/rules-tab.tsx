@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { Info, Plus } from "../icons";
 import { Search } from "@/components/icons/search-icon";
 import { type BadgeKind } from "@/components/format-badge";
@@ -32,12 +32,8 @@ export function RulesTab() {
   const t = useT();
   const { rules, overrides } = useBadgeState();
   const [editKind, setEditKind] = useState<BadgeKind | null>(null);
-  const remaps = useMemo(
-    () =>
-      (Object.keys(overrides) as BadgeKind[]).filter(
-        (k) => overrides[k]?.image || overrides[k]?.hidden,
-      ),
-    [overrides],
+  const remaps = (Object.keys(overrides) as BadgeKind[]).filter(
+    (k) => overrides[k]?.image || overrides[k]?.hidden,
   );
   const [query, setQuery] = useState("");
   const [name, setName] = useState("");
@@ -49,15 +45,9 @@ export function RulesTab() {
   const resetRefs = useRef(new Map<BadgeKind, HTMLButtonElement>());
 
   const q = query.trim().toLowerCase();
-  const filtered = useMemo(
-    () =>
-      q
-        ? rules.filter(
-            (r) => r.name.toLowerCase().includes(q) || r.pattern.toLowerCase().includes(q),
-          )
-        : rules,
-    [rules, q],
-  );
+  const filtered = q
+    ? rules.filter((r) => r.name.toLowerCase().includes(q) || r.pattern.toLowerCase().includes(q))
+    : rules;
   const enabledCount = rules.filter((r) => r.enabled).length;
   const [armed, setArmed] = useState<string | null>(null);
 

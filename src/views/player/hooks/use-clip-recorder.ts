@@ -1,5 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { t } from "@/lib/i18n";
 import {
   captureBaseTitle,
@@ -29,55 +29,52 @@ export function useClipRecorder(params: { src: PlayerSrc; seconds: number; folde
   const busyRef = useRef(false);
   const dismissRef = useRef<number | null>(null);
 
-  const openChooser = useCallback(() => {
+  const openChooser = () => {
     if (busyRef.current) return;
     setChooserOpen((o) => !o);
-  }, []);
-  const closeChooser = useCallback(() => setChooserOpen(false), []);
+  };
+  const closeChooser = () => setChooserOpen(false);
 
-  const saveClip = useCallback(
-    async (withSubs: boolean) => {
-      setChooserOpen(false);
-      if (!isTauri || busyRef.current) return;
-      busyRef.current = true;
-      setSaving(true);
-      if (dismissRef.current) window.clearTimeout(dismissRef.current);
-      setToast({ id: Date.now(), kind: "busy", text: t("Saving clip…") });
-      const work = async () => {
-        const filename = `${safeName(captureBaseTitle(src))} - ${formatStamp(new Date())}.mp4`;
-        const dir = await captureDir(folder);
-        const outPath = dir ? await joinPath(dir, filename) : filename;
-        const result = await invoke<{ path: string; duration: number }>("mpv_clip_save", {
-          withSubs,
-          beforeSec: seconds,
-          outPath,
-        });
-        setToast({
-          id: Date.now(),
-          kind: "ok",
-          text: t("Clip saved to {path}", { path: captureDirLabel(dir, folder) }),
-          path: result.path,
-        });
-      };
-      await work()
-        .then(
-          () => {},
-          (e) => {
-            setToast({
-              id: Date.now(),
-              kind: "error",
-              text: typeof e === "string" ? e : t("Clip save failed"),
-            });
-          },
-        )
-        .finally(() => {
-          setSaving(false);
-          busyRef.current = false;
-          dismissRef.current = window.setTimeout(() => setToast(null), 6000);
-        });
-    },
-    [src, seconds, folder],
-  );
+  const saveClip = async (withSubs: boolean) => {
+    setChooserOpen(false);
+    if (!isTauri || busyRef.current) return;
+    busyRef.current = true;
+    setSaving(true);
+    if (dismissRef.current) window.clearTimeout(dismissRef.current);
+    setToast({ id: Date.now(), kind: "busy", text: t("Saving clip…") });
+    const work = async () => {
+      const filename = `${safeName(captureBaseTitle(src))} - ${formatStamp(new Date())}.mp4`;
+      const dir = await captureDir(folder);
+      const outPath = dir ? await joinPath(dir, filename) : filename;
+      const result = await invoke<{ path: string; duration: number }>("mpv_clip_save", {
+        withSubs,
+        beforeSec: seconds,
+        outPath,
+      });
+      setToast({
+        id: Date.now(),
+        kind: "ok",
+        text: t("Clip saved to {path}", { path: captureDirLabel(dir, folder) }),
+        path: result.path,
+      });
+    };
+    await work()
+      .then(
+        () => {},
+        (e) => {
+          setToast({
+            id: Date.now(),
+            kind: "error",
+            text: typeof e === "string" ? e : t("Clip save failed"),
+          });
+        },
+      )
+      .finally(() => {
+        setSaving(false);
+        busyRef.current = false;
+        dismissRef.current = window.setTimeout(() => setToast(null), 6000);
+      });
+  };
 
   useEffect(
     () => () => {

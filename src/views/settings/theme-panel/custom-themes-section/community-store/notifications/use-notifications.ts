@@ -69,12 +69,12 @@ export function useNotifications() {
     };
   }, [authed, refresh]);
 
-  const markAllRead = useCallback(async () => {
+  const markAllRead = async () => {
     if (!unread) return;
     setUnread(0);
     setItems((prev) => prev.map((n) => ({ ...n, read: true })));
     await markNotificationsRead().catch(() => {});
-  }, [unread]);
+  };
 
   return { items, unread, loading, authed, refresh, markAllRead };
 }

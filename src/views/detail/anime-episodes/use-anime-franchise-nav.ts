@@ -1,4 +1,3 @@
-import { useMemo } from "react";
 import type { FranchiseEntry } from "@/lib/providers/anime-detail";
 import type { PickerItem } from "../series-episodes/season-arc-picker";
 
@@ -11,23 +10,20 @@ export function useAnimeFranchiseNav(
   activeEntryId: string,
   onSelectEntry: (entryId: string) => void,
 ) {
-  const franchiseNav = useMemo(
-    () =>
-      order && franchise.length > 1
-        ? franchise
-            .filter((f) => f.meta.id !== currentId)
-            .map((f) => ({
-              metaId: f.meta.id,
-              key: `nav:${f.meta.id}`,
-              name: f.meta.name,
-              count: f.episodeCount ?? 0,
-              year: f.startDate?.slice(0, 4),
-            }))
-        : [],
-    [order, franchise, currentId],
-  );
+  const franchiseNav =
+    order && franchise.length > 1
+      ? franchise
+          .filter((f) => f.meta.id !== currentId)
+          .map((f) => ({
+            metaId: f.meta.id,
+            key: `nav:${f.meta.id}`,
+            name: f.meta.name,
+            count: f.episodeCount ?? 0,
+            year: f.startDate?.slice(0, 4),
+          }))
+      : [];
 
-  const pickerItems: PickerItem[] = useMemo(() => (order ? order.items : []), [order]);
+  const pickerItems: PickerItem[] = order ? order.items : [];
 
   const franchiseActiveKey = activeEntryId !== currentId ? `nav:${activeEntryId}` : undefined;
 

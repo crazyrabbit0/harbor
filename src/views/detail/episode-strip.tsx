@@ -45,61 +45,46 @@ export function EpisodeStrip({
   const playLocalAware = useLocalAwareSeriesPlay();
   const t = useT();
 
-  const gridEpisodes = useMemo<GridEpisode[]>(
-    () =>
-      episodes.map((ep) => {
-        const tmdbStill = ep.stillPath
-          ? ep.stillPath.startsWith("http")
-            ? ep.stillPath
-            : `https://image.tmdb.org/t/p/${settings.hdEpisodeImages ? "original" : "w300"}${ep.stillPath}`
-          : ep.stillUrl;
-        const stills = [tmdbStill, thumbnailFor(ep)].filter((u): u is string => !!u);
-        return {
-          key: String(ep.id),
-          number: ep.episodeNumber,
-          season: ep.seasonNumber,
-          title: ep.name || t("Episode {n}", { n: ep.episodeNumber }),
-          stills,
-          runtime: ep.runtime,
-          airDate: ep.airDate,
-          absoluteNumber: ep.absoluteNumber,
-          overview: ep.overview || undefined,
-          rating: ep.imdbRating ?? ep.voteAverage ?? undefined,
-          ratingIsImdb: ep.imdbRating != null,
-          upcoming: isUpcomingDate(ep.airDate),
-          play: (opts) =>
-            playLocalAware({
-              meta,
-              episode: {
-                season: ep.seasonNumber,
-                episode: ep.episodeNumber,
-                runtime: ep.runtime ?? undefined,
-                name: ep.name || undefined,
-                still: stills[0],
-                overview: ep.overview || undefined,
-              },
-              opts: {
-                autoPlay: settings.instantPlay || settings.seasonSourceLock,
-                resume: opts?.resume,
-              },
-              imdbId: seriesImdbId,
-              videos: cinemetaVideos,
-            }),
-        };
-      }),
-    [
-      episodes,
-      thumbnailFor,
-      meta,
-      playLocalAware,
-      settings.instantPlay,
-      settings.seasonSourceLock,
-      settings.hdEpisodeImages,
-      t,
-      seriesImdbId,
-      cinemetaVideos,
-    ],
-  );
+  const gridEpisodes: GridEpisode[] = episodes.map((ep) => {
+    const tmdbStill = ep.stillPath
+      ? ep.stillPath.startsWith("http")
+        ? ep.stillPath
+        : `https://image.tmdb.org/t/p/${settings.hdEpisodeImages ? "original" : "w300"}${ep.stillPath}`
+      : ep.stillUrl;
+    const stills = [tmdbStill, thumbnailFor(ep)].filter((u): u is string => !!u);
+    return {
+      key: String(ep.id),
+      number: ep.episodeNumber,
+      season: ep.seasonNumber,
+      title: ep.name || t("Episode {n}", { n: ep.episodeNumber }),
+      stills,
+      runtime: ep.runtime,
+      airDate: ep.airDate,
+      absoluteNumber: ep.absoluteNumber,
+      overview: ep.overview || undefined,
+      rating: ep.imdbRating ?? ep.voteAverage ?? undefined,
+      ratingIsImdb: ep.imdbRating != null,
+      upcoming: isUpcomingDate(ep.airDate),
+      play: (opts) =>
+        playLocalAware({
+          meta,
+          episode: {
+            season: ep.seasonNumber,
+            episode: ep.episodeNumber,
+            runtime: ep.runtime ?? undefined,
+            name: ep.name || undefined,
+            still: stills[0],
+            overview: ep.overview || undefined,
+          },
+          opts: {
+            autoPlay: settings.instantPlay || settings.seasonSourceLock,
+            resume: opts?.resume,
+          },
+          imdbId: seriesImdbId,
+          videos: cinemetaVideos,
+        }),
+    };
+  });
   const epByNumber = useMemo(() => {
     const m = new Map<number, Episode>();
     for (const e of episodes) m.set(e.episodeNumber, e);

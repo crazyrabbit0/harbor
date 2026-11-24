@@ -189,17 +189,12 @@ export function MyListsPicker({ onClose }: { onClose?: () => void }) {
         items: s.items,
       }));
   }, [lists, served]);
-  const entries = useMemo(() => [...lists, ...ghosts], [lists, ghosts]);
-  const ghostIds = useMemo(() => new Set(ghosts.map((g) => g.id)), [ghosts]);
-  const selectedEntries = useMemo(
-    () =>
-      selected.map((id) => entries.find((e) => e.id === id)).filter((l): l is PickableList => !!l),
-    [selected, entries],
-  );
-  const unselectedEntries = useMemo(
-    () => entries.filter((e) => !selected.includes(e.id)),
-    [entries, selected],
-  );
+  const entries = [...lists, ...ghosts];
+  const ghostIds = new Set(ghosts.map((g) => g.id));
+  const selectedEntries = selected
+    .map((id) => entries.find((e) => e.id === id))
+    .filter((l): l is PickableList => !!l);
+  const unselectedEntries = entries.filter((e) => !selected.includes(e.id));
 
   useEffect(() => {
     const handle = currentAuthor()?.handle;

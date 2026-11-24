@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { safeFetch } from "@/lib/safe-fetch";
 import { useT } from "@/lib/i18n";
 import { authToken } from "@/lib/theme-auth";
@@ -183,7 +183,7 @@ export function useFavorites(handle: string, initial?: FavoriteLists | null): Fa
     return () => ac.abort();
   }, [handle, hasSeed, attempt]);
 
-  const save = useCallback(async (kind: FavoriteKind, next: FavoriteMedia[]) => {
+  const save = async (kind: FavoriteKind, next: FavoriteMedia[]) => {
     const prev = entriesRef.current;
     const capped = next.slice(0, FAVORITE_STORE_CAP);
     const merged = { ...prev, [kind]: capped };
@@ -207,9 +207,9 @@ export function useFavorites(handle: string, initial?: FavoriteLists | null): Fa
       .finally(() => {
         setSaving(false);
       });
-  }, []);
+  };
 
-  const reload = useCallback(() => setAttempt((n) => n + 1), []);
+  const reload = () => setAttempt((n) => n + 1);
 
   return { entries, loaded, loadFailed, saving, save, reload };
 }
@@ -252,7 +252,7 @@ export function useFavoriteSearch(
     return () => ac.abort();
   }, [kind, debounced, attempt]);
 
-  const retry = useCallback(() => setAttempt((n) => n + 1), []);
+  const retry = () => setAttempt((n) => n + 1);
   return { ...view, retry };
 }
 

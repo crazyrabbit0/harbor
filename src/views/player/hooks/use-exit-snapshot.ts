@@ -98,7 +98,7 @@ export function useExitSnapshot(params: {
     [videoMountRef],
   );
 
-  const captureExitSnapshot = useCallback(async () => {
+  const captureExitSnapshot = async () => {
     const {
       src: s,
       durationSec: dur,
@@ -135,7 +135,7 @@ export function useExitSnapshot(params: {
       lastGoodRef.current = { img: fresh, id };
     }
     persist(lastGoodRef.current);
-  }, [grabFrame]);
+  };
 
   useEffect(() => {
     if (status !== "playing" || snapshotsOff) return;

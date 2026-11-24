@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import type { PlayerSnapshot } from "@/lib/player/bridge";
 
 export type StreamPillVariant = "check" | "stalled" | "failed";
@@ -62,10 +62,8 @@ export function useStreamPill(params: {
     );
     return () => window.clearTimeout(t);
   }, [srcUrl]);
-  const dismiss = useCallback(
-    () => setPillState((cur) => (cur.srcUrl === srcUrl ? { ...cur, dismissed: true } : cur)),
-    [srcUrl],
-  );
+  const dismiss = () =>
+    setPillState((cur) => (cur.srcUrl === srcUrl ? { ...cur, dismissed: true } : cur));
 
   const variant = resolveStreamPillVariant({
     snap,

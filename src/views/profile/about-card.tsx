@@ -1,5 +1,4 @@
 import { Pencil, ScrollText } from "lucide-react";
-import { useMemo } from "react";
 import { useT } from "@/lib/i18n";
 import { renderBbcode } from "@/lib/social/bbcode";
 import { handleLinkOutActivation } from "@/lib/social/link-out-activation";
@@ -20,7 +19,7 @@ export function AboutCard({
   hideTitle?: boolean;
 }) {
   const t = useT();
-  const html = useMemo(() => (description ? renderBbcode(description) : ""), [description]);
+  const html = description ? renderBbcode(description) : "";
   const copyFont = userFont ? { fontFamily: `"${userFont}", inherit` } : undefined;
 
   return (

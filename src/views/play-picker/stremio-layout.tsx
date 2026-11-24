@@ -67,7 +67,7 @@ export function StremioLayout({
     });
     return m;
   }, [addons]);
-  const addonOptions = useMemo(() => buildAddonOptions(streams, addonRank), [streams, addonRank]);
+  const addonOptions = buildAddonOptions(streams, addonRank);
   const addonFiltered = useMemo(
     () => (filter === "all" ? streams : streams.filter((s) => addonInstanceKey(s) === filter)),
     [streams, filter],
@@ -75,19 +75,15 @@ export function StremioLayout({
   if (filter !== "all" && addonFiltered.length === 0 && streams.length > 0) {
     setFilter("all");
   }
-  const facetData = useMemo(
-    () =>
-      FACET_DIMS.map((dim) => {
-        const base = addonFiltered.filter((s) => matchesFacets(s, facet, dim.key));
-        return {
-          dim,
-          options: facetOptions(base, dim),
-          total: base.length,
-          value: facet[dim.key] ?? "all",
-        };
-      }),
-    [addonFiltered, facet],
-  );
+  const facetData = FACET_DIMS.map((dim) => {
+    const base = addonFiltered.filter((s) => matchesFacets(s, facet, dim.key));
+    return {
+      dim,
+      options: facetOptions(base, dim),
+      total: base.length,
+      value: facet[dim.key] ?? "all",
+    };
+  });
   const invalidFacetKeys = facetData
     .filter((f) => f.value !== "all" && !f.options.some((o) => o.key === f.value))
     .map((f) => f.dim.key);

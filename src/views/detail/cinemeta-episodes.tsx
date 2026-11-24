@@ -100,22 +100,15 @@ export function CinemetaEpisodes({
     [grouped],
   );
 
-  const allEpisodesOrdered = useMemo(
-    () =>
-      grouped.flatMap((g) =>
-        g.episodes.map((ep, i) => ({
-          season: ep.season ?? 0,
-          episode: ep.episode ?? ep.number ?? (ep.season == null ? i + 1 : 1),
-          released: ep.released ?? null,
-        })),
-      ),
-    [grouped],
+  const allEpisodesOrdered = grouped.flatMap((g) =>
+    g.episodes.map((ep, i) => ({
+      season: ep.season ?? 0,
+      episode: ep.episode ?? ep.number ?? (ep.season == null ? i + 1 : 1),
+      released: ep.released ?? null,
+    })),
   );
 
-  const offsets = useMemo(
-    () => seasonOffsets(seasonStats.map((s) => [s.seasonNumber, s.episodeCount] as const)),
-    [seasonStats],
-  );
+  const offsets = seasonOffsets(seasonStats.map((s) => [s.seasonNumber, s.episodeCount] as const));
 
   const [active, setActive] = useState<number>(() =>
     resumeDefaultSeason(meta.id, seasonStats, combinedWatched, resumeSeason),
@@ -171,47 +164,43 @@ export function CinemetaEpisodes({
 
   // The grid and the strip read the same model; only the list walks the raw videos, because it
   // shows a description the card layouts would clip away.
-  const gridEpisodes = useMemo<GridEpisode[]>(
-    () =>
-      activeEps.map((ep, i) => {
-        const season = episodeSeason(ep);
-        const number = episodeNumber(ep, i);
-        const stills = ep.thumbnail ? [ep.thumbnail] : [];
-        const overview = ep.overview ?? ep.description;
-        const airDate = ep.released ?? null;
-        const runtime = ep.runtime ?? null;
-        return {
-          key: `${meta.id}:${season}:${number}`,
-          number,
-          season,
-          title: ep.name || ep.title || t("Episode {n}", { n: number }),
-          stills,
-          runtime,
-          airDate,
-          absoluteNumber: absoluteNumberFor(offsets, season, number),
-          overview,
-          upcoming: isUpcomingDate(airDate),
-          play: (opts) =>
-            playLocalAware({
-              meta,
-              episode: {
-                season,
-                episode: number,
-                videoId: ep.id || undefined,
-                runtime: runtime ?? undefined,
-                name: ep.name || ep.title || undefined,
-                still: stills[0],
-                overview,
-              },
-              opts: {
-                autoPlay: settings.instantPlay || settings.seasonSourceLock,
-                resume: opts?.resume,
-              },
-            }),
-        };
-      }),
-    [activeEps, meta, t, playLocalAware, settings.instantPlay, settings.seasonSourceLock, offsets],
-  );
+  const gridEpisodes: GridEpisode[] = activeEps.map((ep, i) => {
+    const season = episodeSeason(ep);
+    const number = episodeNumber(ep, i);
+    const stills = ep.thumbnail ? [ep.thumbnail] : [];
+    const overview = ep.overview ?? ep.description;
+    const airDate = ep.released ?? null;
+    const runtime = ep.runtime ?? null;
+    return {
+      key: `${meta.id}:${season}:${number}`,
+      number,
+      season,
+      title: ep.name || ep.title || t("Episode {n}", { n: number }),
+      stills,
+      runtime,
+      airDate,
+      absoluteNumber: absoluteNumberFor(offsets, season, number),
+      overview,
+      upcoming: isUpcomingDate(airDate),
+      play: (opts) =>
+        playLocalAware({
+          meta,
+          episode: {
+            season,
+            episode: number,
+            videoId: ep.id || undefined,
+            runtime: runtime ?? undefined,
+            name: ep.name || ep.title || undefined,
+            still: stills[0],
+            overview,
+          },
+          opts: {
+            autoPlay: settings.instantPlay || settings.seasonSourceLock,
+            resume: opts?.resume,
+          },
+        }),
+    };
+  });
 
   if (grouped.length === 0) return null;
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { currentAuthor, subscribeAuthor } from "@/lib/theme-auth";
 import {
   deleteComment,
@@ -59,7 +59,7 @@ export function useComments(handle: string): CommentsController {
     return () => ac.abort();
   }, [handle, authKey]);
 
-  const loadMore = useCallback(() => {
+  const loadMore = () => {
     if (!cursor) return;
     void fetchComments(handle, cursor).then((page) => {
       setComments((cur) => [...cur, ...page.comments]);
@@ -67,58 +67,49 @@ export function useComments(handle: string): CommentsController {
       setCursor(page.nextCursor);
       setHasMore(!!page.nextCursor);
     });
-  }, [handle, cursor]);
+  };
 
-  const submit = useCallback(
-    async (raw: string, parentId?: string): Promise<ComposeIssue> => {
-      const issue = validateComment(raw, lastSentAt.current, Date.now());
-      if (issue) return issue;
-      if (!authKey) return "signin";
-      const clean = stripUrls(raw.trim());
-      setSending(true);
-      const work = async () => {
-        const created = await postComment(handle, clean, parentId);
-        lastSentAt.current = Date.now();
-        setComments((cur) => [{ ...created, parentId: created.parentId ?? parentId }, ...cur]);
-        setState("ready");
-        return null;
-      };
-      return await work()
-        .catch((e) => {
-          return e instanceof ProfileApiError && e.status === 429 ? "cooldown" : "failed";
-        })
-        .finally(() => {
-          setSending(false);
-        });
-    },
-    [handle, authKey],
-  );
+  const submit = async (raw: string, parentId?: string): Promise<ComposeIssue> => {
+    const issue = validateComment(raw, lastSentAt.current, Date.now());
+    if (issue) return issue;
+    if (!authKey) return "signin";
+    const clean = stripUrls(raw.trim());
+    setSending(true);
+    const work = async () => {
+      const created = await postComment(handle, clean, parentId);
+      lastSentAt.current = Date.now();
+      setComments((cur) => [{ ...created, parentId: created.parentId ?? parentId }, ...cur]);
+      setState("ready");
+      return null;
+    };
+    return await work()
+      .catch((e) => {
+        return e instanceof ProfileApiError && e.status === 429 ? "cooldown" : "failed";
+      })
+      .finally(() => {
+        setSending(false);
+      });
+  };
 
-  const remove = useCallback(
-    (id: string) => {
-      if (!authKey) return;
-      const prev = comments;
-      setComments((cur) => cur.filter((c) => c.id !== id));
-      void deleteComment(handle, id).catch(() => setComments(prev));
-    },
-    [handle, authKey, comments],
-  );
+  const remove = (id: string) => {
+    if (!authKey) return;
+    const prev = comments;
+    setComments((cur) => cur.filter((c) => c.id !== id));
+    void deleteComment(handle, id).catch(() => setComments(prev));
+  };
 
-  const toggleLike = useCallback(
-    (id: string) => {
-      if (!authKey) return;
-      const cur = comments.find((c) => c.id === id);
-      if (!cur) return;
-      const nextLiked = !cur.liked;
-      const apply = (liked: boolean, count: number) =>
-        setComments((cs) => cs.map((c) => (c.id === id ? { ...c, liked, likeCount: count } : c)));
-      apply(nextLiked, Math.max(0, (cur.likeCount ?? 0) + (nextLiked ? 1 : -1)));
-      void setCommentLike(handle, id, nextLiked)
-        .then((r) => apply(r.liked, r.likeCount))
-        .catch(() => apply(!!cur.liked, cur.likeCount ?? 0));
-    },
-    [handle, authKey, comments],
-  );
+  const toggleLike = (id: string) => {
+    if (!authKey) return;
+    const cur = comments.find((c) => c.id === id);
+    if (!cur) return;
+    const nextLiked = !cur.liked;
+    const apply = (liked: boolean, count: number) =>
+      setComments((cs) => cs.map((c) => (c.id === id ? { ...c, liked, likeCount: count } : c)));
+    apply(nextLiked, Math.max(0, (cur.likeCount ?? 0) + (nextLiked ? 1 : -1)));
+    void setCommentLike(handle, id, nextLiked)
+      .then((r) => apply(r.liked, r.likeCount))
+      .catch(() => apply(!!cur.liked, cur.likeCount ?? 0));
+  };
 
   return { state, comments, total, cursor, hasMore, loadMore, submit, remove, toggleLike, sending };
 }

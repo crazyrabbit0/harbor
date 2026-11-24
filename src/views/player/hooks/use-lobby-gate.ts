@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { PlayerBridge } from "@/lib/player/bridge";
 import type { RoomSnapshot } from "@/lib/together/client";
 import { GUEST_ESCAPE_MS, READY_STALE_MS } from "../player-utils";
@@ -41,23 +41,23 @@ export function useLobbyGate(params: {
     mediaKey,
   } = params;
 
-  const startHost = useCallback(() => {
+  const startHost = () => {
     setHasStarted(true);
     startRoom();
     suppressOutgoingFor(0);
     bridgeRef.current?.play().catch(() => {});
-  }, [setHasStarted, startRoom, suppressOutgoingFor, bridgeRef]);
+  };
 
   useEffect(() => {
     if (!inRoom || !isHost || !hasStarted || roomSnapshot.started) return;
     startRoom();
   }, [inRoom, isHost, hasStarted, roomSnapshot.started, startRoom]);
 
-  const playWithoutSync = useCallback(() => {
+  const playWithoutSync = () => {
     initialSyncDoneRef.current = true;
     setHasStarted(true);
     bridgeRef.current?.play().catch(() => {});
-  }, [initialSyncDoneRef, setHasStarted, bridgeRef]);
+  };
 
   const escapeKey = inRoom && !isHost && !hasStarted ? mediaKey : null;
   const [escapeReadyFor, setEscapeReadyFor] = useState<string | null>(null);

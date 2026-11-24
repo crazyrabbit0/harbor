@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 export type AcquireState = "idle" | "loading" | "done" | "error";
 
@@ -22,7 +22,7 @@ export function useAcquireState(fn: () => Promise<void>): {
     [],
   );
 
-  const run = useCallback((e?: { stopPropagation?: () => void }) => {
+  const run = (e?: { stopPropagation?: () => void }) => {
     e?.stopPropagation?.();
     if (stateRef.current === "loading" || stateRef.current === "done") return;
     if (timer.current != null) {
@@ -39,7 +39,7 @@ export function useAcquireState(fn: () => Promise<void>): {
         timer.current = window.setTimeout(() => setState("idle"), 2200);
       }
     })();
-  }, []);
+  };
 
   return { state, run };
 }

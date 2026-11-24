@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   ChevronRight,
@@ -91,8 +91,8 @@ function sanitizeHtml(html: string): string {
 }
 
 function HtmlContent({ html, className }: { html: string; className?: string }) {
-  const safe = useMemo(() => sanitizeHtml(html), [html]);
-  const handleClick = useCallback((e: React.MouseEvent) => {
+  const safe = sanitizeHtml(html);
+  const handleClick = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const anchor = target.closest("a");
     if (anchor) {
@@ -104,7 +104,7 @@ function HtmlContent({ html, className }: { html: string; className?: string }) 
       const src = target.getAttribute("src");
       if (src) openUrl(src);
     }
-  }, []);
+  };
 
   return (
     <div
@@ -167,7 +167,7 @@ function CommentRow({
   const [liking, setLiking] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const handleLike = useCallback(async () => {
+  const handleLike = async () => {
     if (liking || !connected) return;
     setLiking(true);
     const wasLiked = liked;
@@ -184,7 +184,7 @@ function CommentRow({
       setLikeCount((c) => c + (wasLiked ? 1 : -1));
     }
     setLiking(false);
-  }, [liking, connected, liked, comment.id]);
+  };
 
   return (
     <div className="flex gap-3 rounded-xl bg-elevated p-4">
@@ -360,7 +360,7 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
   const hasMore = activeThreads ? activeThreads.hasMore : false;
   const loading = threadsKey !== "" && activeThreads == null;
 
-  const loadMore = useCallback(async () => {
+  const loadMore = async () => {
     if (!mediaId || !threadsKey || loadingMore || !hasMore) return;
     setLoadingMore(true);
     try {
@@ -378,9 +378,9 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
       });
     } catch {}
     setLoadingMore(false);
-  }, [mediaId, threadsKey, loadingMore, hasMore, page]);
+  };
 
-  const openThread = useCallback((thread: AnilistThread) => {
+  const openThread = (thread: AnilistThread) => {
     scrollYRef.current = window.scrollY;
     setActiveThread(thread);
     setLoadingComments(true);
@@ -389,15 +389,15 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
       .then((data) => setComments(data))
       .catch(() => {})
       .finally(() => setLoadingComments(false));
-  }, []);
+  };
 
-  const backToThreads = useCallback(() => {
+  const backToThreads = () => {
     setActiveThread(null);
     setComments([]);
     requestAnimationFrame(() => {
       window.scrollTo(0, scrollYRef.current);
     });
-  }, []);
+  };
 
   useEffect(() => {
     if (!activeThread && scrollYRef.current > 0 && sectionRef.current) {
@@ -407,7 +407,7 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
     }
   }, [activeThread]);
 
-  const handlePostComment = useCallback(async () => {
+  const handlePostComment = async () => {
     if (!activeThread || !commentText.trim() || posting) return;
     setPostError(null);
     setPosting(true);
@@ -423,13 +423,13 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
       }
     }
     setPosting(false);
-  }, [activeThread, commentText, posting, t]);
+  };
 
-  const handleDeleteComment = useCallback((id: number) => {
+  const handleDeleteComment = (id: number) => {
     setComments((prev) => prev.filter((c) => c.id !== id));
-  }, []);
+  };
 
-  const handleCreateThread = useCallback(async () => {
+  const handleCreateThread = async () => {
     if (!mediaId || !threadsKey || !threadTitle.trim() || creatingThread) return;
     setThreadError(null);
     setCreatingThread(true);
@@ -451,7 +451,7 @@ export function AnilistComments({ harborId }: { harborId: string | null }) {
       }
     }
     setCreatingThread(false);
-  }, [mediaId, threadsKey, threadTitle, threadBody, creatingThread, t]);
+  };
 
   if (!harborId || resolving) {
     return null;

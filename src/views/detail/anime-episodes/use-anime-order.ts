@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useT } from "@/lib/i18n";
 import type { KitsuEpisode } from "@/lib/providers/kitsu";
 import { tmdbLanguageIso } from "@/lib/providers/tmdb/tmdb-client";
@@ -77,7 +77,7 @@ export function useAnimeOrder(
     for (const s of foreignSeasons) subsetByKey.delete(String(s));
     return { ...built, items, subsetByKey };
   }, [built, foreignSeasons]);
-  const onSelect = useCallback((key: string) => setSelState({ metaId, key }), [metaId]);
+  const onSelect = (key: string) => setSelState({ metaId, key });
   if (!filteredBuilt) return null;
   const touched = selState?.metaId === metaId;
   const sel = touched ? selState.key : null;

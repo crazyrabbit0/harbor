@@ -1,5 +1,5 @@
 import { History } from "./icons";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useSettings } from "@/lib/settings";
 import { applyLegacyToActive, recoverableLegacyBlob } from "@/lib/settings/profile-store";
 import type { Settings } from "@/lib/settings/types";
@@ -30,7 +30,7 @@ export function SettingsRecoverRow() {
   const t = useT();
   const { settings } = useSettings();
   const [applying, setApplying] = useState(false);
-  const blob = useMemo(() => recoverableLegacyBlob(), []);
+  const blob = recoverableLegacyBlob();
   const show = blob != null && legacyDiffers(blob, settings);
   if (!show) return null;
 
