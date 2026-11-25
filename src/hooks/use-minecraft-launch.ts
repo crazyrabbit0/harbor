@@ -60,26 +60,28 @@ export function useMinecraftLaunch(profile: string, path: string, id: string, cl
     let timer: ReturnType<typeof setTimeout> | undefined;
     const read = async () => {
       if (disposed || closing) return;
-      try {
-        const value = await invoke<MinecraftLaunchState>("games_minecraft_launch_state", {
-          profile,
-          path,
-          id,
-          logs,
+      await invoke<MinecraftLaunchState>("games_minecraft_launch_state", {
+        profile,
+        path,
+        id,
+        logs,
+      })
+        .then((value) => {
+          if (disposed) return;
+          setState(value);
+          setReadError("");
+          if (value.running)
+            timer = setTimeout(() => {
+              if (document.hidden) timer = setTimeout(read, 2000);
+              else void read();
+            }, 2000);
+        })
+        .catch((reason: unknown) => {
+          if (!disposed) setReadError(minecraftLaunchError(reason));
+        })
+        .finally(() => {
+          if (!disposed) setChecking(false);
         });
-        if (disposed) return;
-        setState(value);
-        setReadError("");
-        if (value.running)
-          timer = setTimeout(() => {
-            if (document.hidden) timer = setTimeout(read, 2000);
-            else void read();
-          }, 2000);
-      } catch (reason) {
-        if (!disposed) setReadError(minecraftLaunchError(reason));
-      } finally {
-        if (!disposed) setChecking(false);
-      }
     };
     queueMicrotask(() => {
       if (!disposed && !busy) void read();
@@ -97,26 +99,28 @@ export function useMinecraftLaunch(profile: string, path: string, id: string, cl
     setError("");
     setProgress(null);
     setCanceling(false);
-    try {
-      const value = await invoke<MinecraftLaunchState>("games_minecraft_launch", {
-        profile,
-        path,
-        id,
-        operationId: operation.current,
+    await invoke<MinecraftLaunchState>("games_minecraft_launch", {
+      profile,
+      path,
+      id,
+      operationId: operation.current,
+    })
+      .then((value) => {
+        if (mounted.current) setState(value);
+      })
+      .catch((reason: unknown) => {
+        if (mounted.current && String(reason) !== "instance_canceled")
+          setError(minecraftLaunchError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        operation.current = "";
+        if (mounted.current) {
+          setBusy(false);
+          setProgress(null);
+          setCanceling(false);
+        }
       });
-      if (mounted.current) setState(value);
-    } catch (reason) {
-      if (mounted.current && String(reason) !== "instance_canceled")
-        setError(minecraftLaunchError(reason));
-    } finally {
-      pending.current = false;
-      operation.current = "";
-      if (mounted.current) {
-        setBusy(false);
-        setProgress(null);
-        setCanceling(false);
-      }
-    }
   };
   return {
     state,

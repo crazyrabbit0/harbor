@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { customLaunchError } from "@/lib/games/custom-library";
@@ -7,6 +7,11 @@ import type { ShortcutActivity, ShortcutActivityEvent } from "@/lib/games/steam-
 
 import type { ShortcutProcess } from "@/lib/generated/games-library-ipc";
 export type { ShortcutProcess };
+
+function launchErrorMessage(error: unknown) {
+  const code = error instanceof Error ? error.message : String(error);
+  return code.startsWith("shortcut_") ? shortcutError(error) : customLaunchError(error);
+}
 
 export function useSteamShortcutLaunch(
   profile: string,
@@ -30,8 +35,10 @@ export function useSteamShortcutLaunch(
     pending = useRef(false),
     finished = useRef(new Set<string>());
   const tracked = useRef(new Map<string, ShortcutActivityEvent>());
-  if (owner.current.context !== context)
-    owner.current = { context, revision: owner.current.revision + 1 };
+  useLayoutEffect(() => {
+    if (owner.current.context !== context)
+      owner.current = { context, revision: owner.current.revision + 1 };
+  }, [context]);
   useEffect(() => {
     live.current = true;
     return () => {
@@ -39,16 +46,28 @@ export function useSteamShortcutLaunch(
       sequence.current++;
     };
   }, []);
+  const [prevContext, setPrevContext] = useState(context);
+  if (prevContext !== context) {
+    setPrevContext(context);
+    setState({ context, running: [], busy: null, error: "" });
+  }
   useEffect(() => {
     sequence.current++;
-    setState({ context, running: [], busy: null, error: "" });
   }, [context]);
+  const [prevListen, setPrevListen] = useState({ profile, enabled, journal });
+  if (
+    prevListen.profile !== profile ||
+    prevListen.enabled !== enabled ||
+    prevListen.journal !== journal
+  ) {
+    setPrevListen({ profile, enabled, journal });
+    setListener({ profile, ready: false });
+  }
   useEffect(() => {
     let current = true,
       stop: (() => void) | undefined;
     finished.current.clear();
     tracked.current.clear();
-    setListener({ profile, ready: false });
     if (!enabled)
       return () => {
         current = false;
@@ -90,22 +109,19 @@ export function useSteamShortcutLaunch(
     if (!ready || owner.current.context !== context || !live.current) return;
     const request = ++sequence.current,
       revision = owner.current.revision;
-    try {
-      const running = await invoke<ShortcutProcess[]>("games_steam_shortcut_running", {
-        profile,
-        root,
-      });
-      if (live.current && owner.current.revision === revision && request === sequence.current)
-        setState((previous) => ({
-          ...previous,
-          context,
-          running: running.filter(
-            (process) => process.profile === profile && !finished.current.has(process.sessionId),
-          ),
-        }));
-    } catch {
-      /* A refresh failure must not invent an exit or enable a duplicate launch. */
-    }
+    await invoke<ShortcutProcess[]>("games_steam_shortcut_running", { profile, root })
+      .then((running) => {
+        if (live.current && owner.current.revision === revision && request === sequence.current)
+          setState((previous) => ({
+            ...previous,
+            context,
+            running: running.filter(
+              (process) => process.profile === profile && !finished.current.has(process.sessionId),
+            ),
+          }));
+      })
+      // A refresh failure must not invent an exit or enable a duplicate launch.
+      .catch(() => {});
   }, [profile, root, context, ready]);
   useEffect(() => {
     if (!active || !ready) return;
@@ -146,20 +162,20 @@ export function useSteamShortcutLaunch(
     setState((previous) => ({ ...previous, context, busy: game.id, error: "" }));
     const revision = owner.current.revision;
     const current = () => live.current && owner.current.revision === revision;
-    try {
-      const process = await invoke<ShortcutProcess>("games_launch_steam_shortcut_direct", {
-        profile,
-        root,
-        accountId: game.accountId,
-        appId: game.appId,
-        ...(game.appId === null ? { shortcutId: game.id } : {}),
-        reviewed: {
-          executable: game.executable,
-          startDirectory: game.startDirectory,
-          launchOptions: game.launchOptions,
-        },
-      });
-      if (current()) {
+    await invoke<ShortcutProcess>("games_launch_steam_shortcut_direct", {
+      profile,
+      root,
+      accountId: game.accountId,
+      appId: game.appId,
+      ...(game.appId === null ? { shortcutId: game.id } : {}),
+      reviewed: {
+        executable: game.executable,
+        startDirectory: game.startDirectory,
+        launchOptions: game.launchOptions,
+      },
+    })
+      .then((process) => {
+        if (!current()) return;
         sequence.current++;
         const activity: ShortcutActivityEvent = {
           kind: "direct",
@@ -181,11 +197,10 @@ export function useSteamShortcutLaunch(
             running: [...previous.running.filter((value) => value.id !== game.id), process],
           }));
         void refresh();
-      }
-    } catch (error) {
-      if (current()) {
-        const code = error instanceof Error ? error.message : String(error),
-          message = code.startsWith("shortcut_") ? shortcutError(error) : customLaunchError(error);
+      })
+      .catch((error: unknown) => {
+        if (!current()) return;
+        const message = launchErrorMessage(error);
         setState((previous) => ({ ...previous, error: message }));
         journal.record({
           kind: "error",
@@ -194,11 +209,11 @@ export function useSteamShortcutLaunch(
           name: game.name,
           code: message,
         });
-      }
-    } finally {
-      pending.current = false;
-      if (current()) setState((previous) => ({ ...previous, busy: null }));
-    }
+      })
+      .finally(() => {
+        pending.current = false;
+        if (current()) setState((previous) => ({ ...previous, busy: null }));
+      });
   };
   return {
     available: ready,

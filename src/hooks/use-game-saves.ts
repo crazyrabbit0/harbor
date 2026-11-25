@@ -16,6 +16,9 @@ import type { GameSummary } from "@/lib/games/types";
 import { simsError } from "@/lib/games/sims";
 import type { SaveRequest } from "@/lib/generated/games-requests-ipc";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function useGameSaves(profile: string, game: GameSummary, simsPath?: string) {
   const configId = simsPath ? `${game.id}:sims:${simsPath}` : game.id;
   const errorKey = (error: unknown) => {
@@ -76,9 +79,14 @@ export function useGameSaves(profile: string, game: GameSummary, simsPath?: stri
     );
     if (live.current && request === revision.current) setSnapshots(list);
   };
+  const loadKey = JSON.stringify([profile, game.id, available, simsPath ?? null]);
+  const [prevLoadKey, setPrevLoadKey] = useState<string | null>(null);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
+    setBusy("list");
+  }
   useEffect(() => {
     live.current = true;
-    setBusy("list");
     pending.current = true;
     const initialize = async () => {
       let value = readSaveFolders(profile, configId);
@@ -130,27 +138,27 @@ export function useGameSaves(profile: string, game: GameSummary, simsPath?: stri
     setError("");
     setProgress(null);
     operation.current = crypto.randomUUID();
-    try {
-      await run(operation.current);
-    } catch (error) {
-      if (live.current) {
-        setError(errorKey(error));
-        if (kind === "restore") discard();
-        if (kind === "restore" || kind === "recover") await refresh().catch(() => {});
-      }
-    } finally {
-      operation.current = "";
-      pending.current = false;
-      if (live.current) {
-        setBusy(null);
-        setProgress(null);
-      }
-    }
+    await run(operation.current)
+      .catch(async (error: unknown) => {
+        if (live.current) {
+          setError(errorKey(error));
+          if (kind === "restore") discard();
+          if (kind === "restore" || kind === "recover") await refresh().catch(() => {});
+        }
+      })
+      .finally(() => {
+        operation.current = "";
+        pending.current = false;
+        if (live.current) {
+          setBusy(null);
+          setProgress(null);
+        }
+      });
   };
   const choose = (kind: "source" | "vault", title: string) =>
     task("choose", async () => {
       if (simsPath && kind === "source") return;
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const path = await open({
         directory: true,
         multiple: false,
@@ -231,14 +239,12 @@ export function useGameSaves(profile: string, game: GameSummary, simsPath?: stri
       if (live.current) setReceipt(result);
       await refresh();
     });
-  const reveal = async (path: string) => {
-    try {
-      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
-      await revealItemInDir(path);
-    } catch (error) {
-      if (live.current) setError(errorKey(error));
-    }
-  };
+  const reveal = (path: string) =>
+    loadOpener()
+      .then(({ revealItemInDir }) => revealItemInDir(path))
+      .catch((error: unknown) => {
+        if (live.current) setError(errorKey(error));
+      });
   return {
     available,
     folders,

@@ -35,11 +35,14 @@ export function useInstallerObservation(
   root: RefObject<HTMLElement | null>,
 ) {
   const [visible, setVisible] = useState(false);
+  const watching = active && job ? job.id : null;
+  const [prevWatching, setPrevWatching] = useState(watching);
+  if (prevWatching !== watching) {
+    setPrevWatching(watching);
+    if (watching === null) setVisible(false);
+  }
   useEffect(() => {
-    if (!active || !job || !root.current) {
-      setVisible(false);
-      return;
-    }
+    if (!active || !job || !root.current) return;
     const observer = new IntersectionObserver((entries) =>
       setVisible(entries.some((entry) => entry.isIntersecting)),
     );

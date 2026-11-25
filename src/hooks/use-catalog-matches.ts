@@ -26,6 +26,11 @@ export function useCatalogMatches(
     checked: number;
   } | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [prevRun, setPrevRun] = useState({ sources, key, attempt });
+  if (prevRun.sources !== sources || prevRun.key !== key || prevRun.attempt !== attempt) {
+    setPrevRun({ sources, key, attempt });
+    setState({ sources, key, matches: [], error: "", failed: [], loading: true, checked: 0 });
+  }
   useEffect(() => {
     const controller = new AbortController();
     const failed: string[] = [];
@@ -46,7 +51,6 @@ export function useCatalogMatches(
           checked,
         });
     };
-    setState({ sources, key, matches: [], error: "", failed: [], loading: true, checked: 0 });
     void matchingReleasePreviewsAsync(
       sources,
       game,

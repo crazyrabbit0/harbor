@@ -21,9 +21,13 @@ export function useDownloadHistory(profile: string) {
   }));
   const [now, setNow] = useState(Date.now),
     [showHistory, setShowHistory] = useState(false);
-  useEffect(() => {
+  const [prevProfile, setPrevProfile] = useState(profile);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
     setState({ profile, dismissed: read() });
     setShowHistory(false);
+  }
+  useEffect(() => {
     const refresh = (event: StorageEvent) => {
       if (event.key === downloadHistoryKey(profile)) setState({ profile, dismissed: read() });
     };
@@ -47,7 +51,7 @@ export function useDownloadHistory(profile: string) {
     try {
       localStorage.setItem(downloadHistoryKey(profile), JSON.stringify(bounded));
     } catch {
-      /* Still clear this session when storage is unavailable. */
+      // Still clear this session when storage is unavailable.
     }
     setState({ profile, dismissed: bounded });
   };

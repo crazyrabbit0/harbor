@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -15,9 +15,11 @@ export function useGamePreparations(profile: string, active: boolean, retainedIn
   const [error, setError] = useState(""),
     [loading, setLoading] = useState(false);
   const owner = useRef(profile);
-  owner.current = profile;
   const latest = useRef({ state, retainedIntake });
-  latest.current = { state, retainedIntake };
+  useLayoutEffect(() => {
+    owner.current = profile;
+    latest.current = { state, retainedIntake };
+  }, [profile, state, retainedIntake]);
   const refreshRef = useRef<() => Promise<boolean>>(async () => false);
   const accept = (choice: PreparationChoice) => {
     if (owner.current === profile)
@@ -30,9 +32,13 @@ export function useGamePreparations(profile: string, active: boolean, retainedIn
         ),
       }));
   };
-  useEffect(() => {
+  const [prevRun, setPrevRun] = useState({ profile, active });
+  if (prevRun.profile !== profile || prevRun.active !== active) {
+    setPrevRun({ profile, active });
     setError("");
     setLoading(false);
+  }
+  useEffect(() => {
     if (!active || !isTauri()) {
       refreshRef.current = async () => false;
       return;
@@ -44,11 +50,8 @@ export function useGamePreparations(profile: string, active: boolean, retainedIn
       if (pending) return pending;
       setLoading(true);
       const before = latest.current.state.profile === profile ? latest.current.state.choices : [];
-      pending = (async () => {
-        try {
-          const choices = await invoke<PreparationChoice[]>("games_preparation_choices", {
-            profile,
-          });
+      const request = invoke<PreparationChoice[]>("games_preparation_choices", { profile })
+        .then((choices) => {
           if (!live) return false;
           setState((previous) => ({
             profile,
@@ -61,15 +64,17 @@ export function useGamePreparations(profile: string, active: boolean, retainedIn
           }));
           setError("");
           return true;
-        } catch (reason) {
+        })
+        .catch((reason: unknown) => {
           if (live) setError(preparationError(reason));
           return false;
-        } finally {
+        })
+        .finally(() => {
           pending = undefined;
           if (live) setLoading(false);
-        }
-      })();
-      return pending;
+        });
+      pending = request;
+      return request;
     };
     refreshRef.current = refresh;
     const stop = listen<PreparationChoice>("games:preparation", ({ payload }) => {

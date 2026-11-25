@@ -31,23 +31,25 @@ export function useGameStorage(
       }
       pending = true;
       last = Date.now();
-      try {
-        const drives = await invoke<GameStorageForecast[]>("games_transfer_storage", { profile });
-        if (current) setState({ profile, drives, error: false });
-      } catch {
-        if (current)
-          setState((previous) => ({
-            profile,
-            drives: previous?.profile === profile ? previous.drives : [],
-            error: true,
-          }));
-      } finally {
-        pending = false;
-        if (current && again) {
-          again = false;
-          schedule();
-        }
-      }
+      await invoke<GameStorageForecast[]>("games_transfer_storage", { profile })
+        .then((drives) => {
+          if (current) setState({ profile, drives, error: false });
+        })
+        .catch(() => {
+          if (current)
+            setState((previous) => ({
+              profile,
+              drives: previous?.profile === profile ? previous.drives : [],
+              error: true,
+            }));
+        })
+        .finally(() => {
+          pending = false;
+          if (current && again) {
+            again = false;
+            schedule();
+          }
+        });
     };
     const schedule = () => {
       clearTimeout(deferred);

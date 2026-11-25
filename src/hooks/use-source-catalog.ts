@@ -12,18 +12,34 @@ type State = CatalogBrowse & {
 export function useSourceCatalog(source: GameSource | undefined, query: string, limit: number) {
   const [state, setState] = useState<State>(),
     [attempt, setAttempt] = useState(0);
+  const [prevRun, setPrevRun] = useState<{
+    source?: GameSource;
+    query: string;
+    limit: number;
+    attempt: number;
+  }>();
+  if (
+    !prevRun ||
+    prevRun.source !== source ||
+    prevRun.query !== query ||
+    prevRun.limit !== limit ||
+    prevRun.attempt !== attempt
+  ) {
+    setPrevRun({ source, query, limit, attempt });
+    if (source)
+      setState((previous) => ({
+        source,
+        query,
+        limit,
+        entries: previous?.source === source && previous.query === query ? previous.entries : [],
+        total: previous?.source === source && previous.query === query ? previous.total : 0,
+        loading: true,
+        error: "",
+      }));
+  }
   useEffect(() => {
     if (!source) return;
     const controller = new AbortController();
-    setState((previous) => ({
-      source,
-      query,
-      limit,
-      entries: previous?.source === source && previous.query === query ? previous.entries : [],
-      total: previous?.source === source && previous.query === query ? previous.total : 0,
-      loading: true,
-      error: "",
-    }));
     const timer = setTimeout(
       () => {
         void browseSourceCatalog(source, query, limit, controller.signal)

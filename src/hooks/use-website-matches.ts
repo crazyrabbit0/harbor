@@ -59,34 +59,36 @@ export function useWebsiteMatches(
     }
     publish(current);
     await Promise.allSettled(
-      selected.map(async (website) => {
-        try {
-          const page = await fetchWebsiteSource(
-            website.source.website!,
-            game.name,
-            website.next!,
-            current.controller.signal,
-            refresh,
-            sources.profile,
-          );
-          if (scope.current !== current || current.controller.signal.aborted) return;
-          const matches = matchingReleases([{ ...website.source, entries: page.entries }], game);
-          current.matches = [
-            ...new Map(
-              [...current.matches, ...matches].map((match) => [
-                `${match.source.id}:${match.release.id}`,
-                match,
-              ]),
-            ).values(),
-          ];
-          website.next = page.next;
-        } catch {
-          if (!current.controller.signal.aborted) website.failed = true;
-        } finally {
-          website.pending = false;
-          publish(current);
-        }
-      }),
+      selected.map((website) =>
+        fetchWebsiteSource(
+          website.source.website!,
+          game.name,
+          website.next!,
+          current.controller.signal,
+          refresh,
+          sources.profile,
+        )
+          .then((page) => {
+            if (scope.current !== current || current.controller.signal.aborted) return;
+            const matches = matchingReleases([{ ...website.source, entries: page.entries }], game);
+            current.matches = [
+              ...new Map(
+                [...current.matches, ...matches].map((match) => [
+                  `${match.source.id}:${match.release.id}`,
+                  match,
+                ]),
+              ).values(),
+            ];
+            website.next = page.next;
+          })
+          .catch(() => {
+            if (!current.controller.signal.aborted) website.failed = true;
+          })
+          .finally(() => {
+            website.pending = false;
+            publish(current);
+          }),
+      ),
     );
   };
   useEffect(() => {

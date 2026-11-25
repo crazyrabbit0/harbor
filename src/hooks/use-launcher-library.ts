@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { osClass } from "@/lib/platform";
 import { canLaunchGame, launcherDispatchId, type LauncherScan } from "@/lib/games/launchers";
@@ -27,7 +27,9 @@ export function useLauncherLibrary(active: boolean, profile: string) {
     lastAttempt = useRef(0);
   const observed = useRef<LauncherScan | null>(null);
   const owner = useRef(profile);
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const [sessions, setSessions] = useState({ profile, value: emptyLauncherSessions() });
   const [sessionError, setSessionError] = useState(false);
   const sessionRead = useRef(0),
@@ -43,22 +45,21 @@ export function useLauncherLibrary(active: boolean, profile: string) {
       }
       if (!mounted.current || owner.current !== profile) return;
       const revision = ++sessionRead.current;
-      const request = (async () => {
-        try {
-          const value = await invoke<LauncherSessions>("games_launcher_sessions", { profile });
+      const request = invoke<LauncherSessions>("games_launcher_sessions", { profile })
+        .then((value) => {
           if (mounted.current && owner.current === profile && revision === sessionRead.current) {
             if (!value.error) sessionDismissed.current = false;
             setSessions({ profile, value });
             setSessionError(value.error && !sessionDismissed.current);
           }
-        } catch (error) {
+        })
+        .catch((error: unknown) => {
           // Dev frontend updates can precede the native binary. Genuine observation errors stay visible.
           const unavailable = String(error).includes("Command games_launcher_sessions not found");
           sessionUnsupported.current = unavailable;
           if (mounted.current && owner.current === profile)
             setSessionError(!unavailable && !sessionDismissed.current);
-        }
-      })();
+        });
       sessionBusy.current = request;
       await request;
       if (sessionBusy.current === request) sessionBusy.current = null;
@@ -75,14 +76,21 @@ export function useLauncherLibrary(active: boolean, profile: string) {
     [scan, sessions, profile, battlenet.status],
   );
   const liveScan = useRef(decorated);
-  liveScan.current = decorated;
-  useEffect(() => {
-    sessionRead.current++;
-    sessionDismissed.current = false;
+  useLayoutEffect(() => {
+    liveScan.current = decorated;
+  }, [decorated]);
+  // refreshSessions changes exactly when available or profile does.
+  const [prevSessionKey, setPrevSessionKey] = useState({ available, profile });
+  if (prevSessionKey.available !== available || prevSessionKey.profile !== profile) {
+    setPrevSessionKey({ available, profile });
     setLaunched(null);
     setLaunching(null);
     setLaunchError(false);
     setSessionError(false);
+  }
+  useEffect(() => {
+    sessionRead.current++;
+    sessionDismissed.current = false;
     void refreshSessions();
   }, [refreshSessions]);
   useEffect(() => {
@@ -116,21 +124,22 @@ export function useLauncherLibrary(active: boolean, profile: string) {
         setLoading(true);
         setError(false);
       }
-      try {
-        const value = await observeLauncherIdentities(
-          await invoke<LauncherScan>("games_scan_launchers"),
-        );
-        if (mounted.current) {
-          observed.current = value;
-          setScan(value);
-          setError(false);
-        }
-      } catch {
-        if (mounted.current) setError(true);
-      } finally {
-        running.current = false;
-        if (mounted.current) setLoading(false);
-      }
+      await invoke<LauncherScan>("games_scan_launchers")
+        .then(observeLauncherIdentities)
+        .then((value) => {
+          if (mounted.current) {
+            observed.current = value;
+            setScan(value);
+            setError(false);
+          }
+        })
+        .catch(() => {
+          if (mounted.current) setError(true);
+        })
+        .finally(() => {
+          running.current = false;
+          if (mounted.current) setLoading(false);
+        });
     },
     [available],
   );
@@ -170,25 +179,24 @@ export function useLauncherLibrary(active: boolean, profile: string) {
       setLaunching(id);
       setLaunched(null);
       setLaunchError(false);
-      try {
-        // Native code re-scans the product and constructs the launch command itself.
-        const tracked = await invoke<boolean>("games_launch_launcher_game", {
-          profile,
-          id: launcherDispatchId(game),
-        });
-        if (mounted.current && owner.current === profile) {
+      const current = () => mounted.current && owner.current === profile;
+      // Native code re-scans the product and constructs the launch command itself.
+      await invoke<boolean>("games_launch_launcher_game", { profile, id: launcherDispatchId(game) })
+        .then(async (tracked) => {
+          if (!current()) return;
           if (!tracked) setLaunched(id);
           await refreshSessions(true);
-        }
-      } catch {
-        if (mounted.current && owner.current === profile) {
-          setLaunchError(true);
-          void refresh();
-        }
-      } finally {
-        launchLock.current = false;
-        if (mounted.current && owner.current === profile) setLaunching(null);
-      }
+        })
+        .catch(() => {
+          if (current()) {
+            setLaunchError(true);
+            void refresh();
+          }
+        })
+        .finally(() => {
+          launchLock.current = false;
+          if (current()) setLaunching(null);
+        });
     },
     [available, refresh, refreshSessions, profile],
   );

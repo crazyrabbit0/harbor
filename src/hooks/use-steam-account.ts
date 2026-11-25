@@ -19,12 +19,16 @@ export function useSteamAccount(profile: string, active: boolean) {
     lock = useRef(false),
     initialized = useRef(false),
     lastAttempt = useRef(0);
-  useEffect(() => {
-    current.current = profile;
-    initialized.current = false;
+  const [prevProfile, setPrevProfile] = useState(profile);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
     setStatus(EMPTY);
     setLoaded(false);
     setError(null);
+  }
+  useEffect(() => {
+    current.current = profile;
+    initialized.current = false;
     return () => {
       current.current = "";
     };
@@ -36,20 +40,22 @@ export function useSteamAccount(profile: string, active: boolean) {
       setBusy(true);
       setError(null);
       lastAttempt.current = Date.now();
-      try {
-        const value = await invoke<SteamAccountStatus>(command, { profile, ...args });
-        if (current.current === profile) {
-          setStatus(value);
-          setLoaded(true);
-        }
-        return true;
-      } catch (reason) {
-        if (current.current === profile) setError(steamAccountError(reason));
-        return false;
-      } finally {
-        lock.current = false;
-        if (current.current === profile) setBusy(false);
-      }
+      return invoke<SteamAccountStatus>(command, { profile, ...args })
+        .then((value) => {
+          if (current.current === profile) {
+            setStatus(value);
+            setLoaded(true);
+          }
+          return true;
+        })
+        .catch((reason: unknown) => {
+          if (current.current === profile) setError(steamAccountError(reason));
+          return false;
+        })
+        .finally(() => {
+          lock.current = false;
+          if (current.current === profile) setBusy(false);
+        });
     },
     [profile, available],
   );
@@ -67,11 +73,8 @@ export function useSteamAccount(profile: string, active: boolean) {
     )
       void refresh();
   }, [active, available, status.connected, status.snapshot?.updatedAt, update, refresh]);
-  const connect = useCallback(
-    (target: string, key: string, remember: boolean) =>
-      update("games_connect_steam_account", { target, key, remember }),
-    [update],
-  );
+  const connect = (target: string, key: string, remember: boolean) =>
+    update("games_connect_steam_account", { target, key, remember });
   const disconnect = useCallback(async () => {
     if (!available) return false;
     try {
@@ -91,13 +94,13 @@ export function useSteamAccount(profile: string, active: boolean) {
       if (!available || installing !== null) return;
       setInstalling(appId);
       setError(null);
-      try {
-        await invoke("games_install_steam", { profile, appId });
-      } catch (reason) {
-        if (current.current === profile) setError(steamAccountError(reason));
-      } finally {
-        if (current.current === profile) setInstalling(null);
-      }
+      await invoke("games_install_steam", { profile, appId })
+        .catch((reason: unknown) => {
+          if (current.current === profile) setError(steamAccountError(reason));
+        })
+        .finally(() => {
+          if (current.current === profile) setInstalling(null);
+        });
     },
     [available, profile, installing],
   );

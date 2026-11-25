@@ -4,6 +4,19 @@ import type { SteamLibraryScan } from "@/lib/games/installed";
 import type { SteamLibraryScan as WireSteamLibraryScan } from "@/lib/generated/games-launchers-ipc";
 import { osClass } from "@/lib/platform";
 
+function withArtworkUrls(wire: WireSteamLibraryScan): SteamLibraryScan {
+  const value: SteamLibraryScan = { ...wire, games: [] };
+  value.games = wire.games.map((game) => ({
+    ...game,
+    artwork: Object.fromEntries(
+      Object.entries(game.artwork ?? {}).flatMap(([key, path]) =>
+        typeof path === "string" && path ? [[key, convertFileSrc(path)]] : [],
+      ),
+    ),
+  }));
+  return value;
+}
+
 export function useSteamLibrary(active: boolean) {
   const available = isTauri() && ["windows", "macos", "linux"].includes(osClass());
   const [scan, setScan] = useState<SteamLibraryScan | null>(null);
@@ -36,28 +49,22 @@ export function useSteamLibrary(active: boolean) {
         setLoading(true);
         setError(false);
       }
-      try {
-        const wire = await invoke<WireSteamLibraryScan>("games_scan_steam");
-        const value: SteamLibraryScan = { ...wire, games: [] };
-        value.games = wire.games.map((game) => ({
-          ...game,
-          artwork: Object.fromEntries(
-            Object.entries(game.artwork ?? {}).flatMap(([key, path]) =>
-              typeof path === "string" && path ? [[key, convertFileSrc(path)]] : [],
-            ),
-          ),
-        }));
-        if (mounted.current) {
-          hasScan.current = true;
-          setScan(value);
-          setError(false);
-        }
-      } catch {
-        if (mounted.current) setError(true);
-      } finally {
-        running.current = false;
-        if (mounted.current) setLoading(false);
-      }
+      await invoke<WireSteamLibraryScan>("games_scan_steam")
+        .then((wire) => {
+          const value = withArtworkUrls(wire);
+          if (mounted.current) {
+            hasScan.current = true;
+            setScan(value);
+            setError(false);
+          }
+        })
+        .catch(() => {
+          if (mounted.current) setError(true);
+        })
+        .finally(() => {
+          running.current = false;
+          if (mounted.current) setLoading(false);
+        });
     },
     [available],
   );
@@ -88,18 +95,20 @@ export function useSteamLibrary(active: boolean) {
       setLaunching(appId);
       setLaunched(null);
       setLaunchError(false);
-      try {
-        await invoke("games_launch_steam", { appId });
-        if (mounted.current) setLaunched(appId);
-      } catch {
-        if (mounted.current) {
-          setLaunchError(true);
-          void refresh();
-        }
-      } finally {
-        launchLock.current = false;
-        if (mounted.current) setLaunching(null);
-      }
+      await invoke("games_launch_steam", { appId })
+        .then(() => {
+          if (mounted.current) setLaunched(appId);
+        })
+        .catch(() => {
+          if (mounted.current) {
+            setLaunchError(true);
+            void refresh();
+          }
+        })
+        .finally(() => {
+          launchLock.current = false;
+          if (mounted.current) setLaunching(null);
+        });
     },
     [available, refresh],
   );

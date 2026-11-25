@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   customLaunchHealth,
@@ -27,18 +27,22 @@ export function useCustomLaunchHealth(
   const observations = useRef(new Map<string, number>());
   // Native filesystem calls cannot be cancelled. A new scan waits for the old workers to drain.
   const queue = useRef(Promise.resolve());
-  latest.current = { profile, games };
-  cache.current = state;
+  useLayoutEffect(() => {
+    latest.current = { profile, games };
+    cache.current = state;
+  }, [profile, games, state]);
   const signature = JSON.stringify(
     games.map((game) => [game.id, launchConfigKey(game.config), !!game.launchPending]),
   );
+  const scanKey = JSON.stringify([profile, active, available, signature, revision]);
+  const [prevScanKey, setPrevScanKey] = useState<string | null>(null);
+  if (prevScanKey !== scanKey) {
+    setPrevScanKey(scanKey);
+    setScan({ profile, pending: active && available });
+  }
   useEffect(() => {
-    if (!active || !available) {
-      setScan({ profile, pending: false });
-      return;
-    }
+    if (!active || !available) return;
     const controller = new AbortController();
-    setScan({ profile, pending: true });
     const current = () => !controller.signal.aborted && latest.current.profile === profile;
     queue.current = queue.current
       .catch(() => {})
@@ -86,16 +90,11 @@ export function useCustomLaunchHealth(
     window.addEventListener("focus", focus);
     return () => window.removeEventListener("focus", focus);
   }, [active, available]);
-  const health = useMemo(
-    () =>
-      Object.fromEntries(
-        games.flatMap((game) => {
-          const value =
-            state.profile === profile ? customLaunchHealth(game, state.values) : undefined;
-          return value ? [[game.id, value]] : [];
-        }),
-      ),
-    [state, profile, games],
+  const health = Object.fromEntries(
+    games.flatMap((game) => {
+      const value = state.profile === profile ? customLaunchHealth(game, state.values) : undefined;
+      return value ? [[game.id, value]] : [];
+    }),
   );
   const checking =
     active &&

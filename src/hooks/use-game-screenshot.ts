@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cacheableScreenshot } from "@/lib/games/screenshot-image-data";
 import { screenshotImages } from "@/lib/games/screenshot-images";
 
@@ -6,13 +6,20 @@ export function useGameScreenshot(source: string, active = true) {
   const [result, setResult] = useState({ source: "", url: "", failed: false }),
     [attempt, setAttempt] = useState(0);
   const current = useRef(source);
-  current.current = source;
+  useLayoutEffect(() => {
+    current.current = source;
+  }, [source]);
   const cached = cacheableScreenshot(source);
+  const loadKey = active && cached ? `${attempt}\0${source}` : null;
+  const [prevLoadKey, setPrevLoadKey] = useState(loadKey);
+  if (prevLoadKey !== loadKey) {
+    setPrevLoadKey(loadKey);
+    if (loadKey !== null) setResult({ source, url: "", failed: false });
+  }
   useEffect(() => {
     if (!active || !cached) return;
     const controller = new AbortController();
     let url = "";
-    setResult({ source, url: "", failed: false });
     void screenshotImages.load(source, controller.signal).then(
       (blob) => {
         if (controller.signal.aborted) return;

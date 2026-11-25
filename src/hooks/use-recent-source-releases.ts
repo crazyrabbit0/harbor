@@ -11,14 +11,18 @@ export function useRecentSourceReleases(sources: GameSource[]) {
     loading: boolean;
   }>();
   const [attempt, setAttempt] = useState(0);
-  useEffect(() => {
-    const request = new AbortController();
-    const failed: string[] = [];
+  const [prevRun, setPrevRun] = useState<{ sources: GameSource[]; attempt: number }>();
+  if (prevRun?.sources !== sources || prevRun.attempt !== attempt) {
+    setPrevRun({ sources, attempt });
     setState((previous) =>
       previous?.sources === sources
         ? { ...previous, loading: true }
         : { sources, entries: [], error: "", failed: [], loading: true },
     );
+  }
+  useEffect(() => {
+    const request = new AbortController();
+    const failed: string[] = [];
     void recentSourceReleasesAsync(sources, request.signal, Date.now(), (source) =>
       failed.push(source.name),
     )

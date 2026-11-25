@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { osClass } from "@/lib/platform";
 import { useSteamShortcutLaunch } from "./use-steam-shortcut-launch";
@@ -15,6 +15,44 @@ import {
   type SteamShortcutScan,
   type SteamShortcutSettings,
 } from "@/lib/games/steam-shortcuts";
+
+function withArtworkUrls(wire: WireSteamShortcutScan): SteamShortcutScan {
+  const value: SteamShortcutScan = { ...wire, games: [] };
+  value.games = wire.games.map((game) => ({
+    ...game,
+    artwork: Object.fromEntries(
+      Object.entries(game.artwork ?? {}).flatMap(([key, path]) =>
+        typeof path === "string" && path ? [[key, convertFileSrc(path)]] : [],
+      ),
+    ),
+  }));
+  return value;
+}
+
+function scanEntries(
+  value: SteamShortcutScan,
+  root: SteamShortcutSettings["root"],
+  detailed: boolean,
+  started: number,
+) {
+  const entries: ShortcutActivityEvent[] = [];
+  if (detailed) {
+    const counts = new Map<number, number>();
+    for (const game of value.games)
+      counts.set(game.accountId, (counts.get(game.accountId) ?? 0) + 1);
+    for (const accountId of value.accounts)
+      entries.push({ kind: "account", root, accountId, count: counts.get(accountId) ?? 0 });
+  }
+  entries.push({
+    kind: "scan",
+    root,
+    count: value.games.length,
+    accounts: value.accounts.length,
+    elapsed: Math.max(0, Date.now() - started),
+    warnings: value.warnings,
+  });
+  return entries;
+}
 
 export function useSteamShortcuts(profile: string, active: boolean) {
   const activity = useSteamShortcutActivity(profile),
@@ -36,7 +74,9 @@ export function useSteamShortcuts(profile: string, active: boolean) {
     live = useRef(true),
     last = useRef(0);
   const identity = useRef(profile);
-  identity.current = profile;
+  useLayoutEffect(() => {
+    identity.current = profile;
+  }, [profile]);
   useEffect(() => {
     live.current = true;
     return () => {
@@ -44,25 +84,32 @@ export function useSteamShortcuts(profile: string, active: boolean) {
       generation.current++;
     };
   }, []);
-  useEffect(() => {
-    configuration.current++;
-    generation.current++;
-    lock.current = false;
-    last.current = 0;
+  const [prevProfile, setPrevProfile] = useState(profile);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
     setState({ profile, settings: readSteamShortcutSettings(profile), scan: null });
     setError("");
     setLoading(false);
     setLaunching(null);
     setLaunched(null);
+  }
+  useEffect(() => {
+    configuration.current++;
+    generation.current++;
+    lock.current = false;
+    last.current = 0;
   }, [profile]);
   const settings = state.profile === profile ? state.settings : readSteamShortcutSettings(profile),
     scan = state.profile === profile ? state.scan : null;
   const context = JSON.stringify([profile, settings.root, settings.accountId]),
     currentContext = useRef(context);
-  currentContext.current = context;
+  useLayoutEffect(() => {
+    currentContext.current = context;
+  }, [context]);
+  const { root, accountId } = settings;
   const games = useMemo(
-    () => steamShortcutGames(scan, settings),
-    [scan, settings.root, settings.accountId],
+    () => steamShortcutGames(scan, { root, accountId }),
+    [scan, root, accountId],
   );
   const direct = useSteamShortcutLaunch(
     profile,
@@ -83,59 +130,31 @@ export function useSteamShortcuts(profile: string, active: boolean) {
     const started = Date.now();
     journal.record({
       kind: "scanStart",
-      root: settings.root,
-      accountId: settings.accountId ?? undefined,
+      root: root,
+      accountId: accountId ?? undefined,
     });
-    try {
-      const wire = await invoke<WireSteamShortcutScan>("games_scan_steam_shortcuts", {
-        root: settings.root,
-      });
-      const value: SteamShortcutScan = { ...wire, games: [] };
-      value.games = wire.games.map((game) => ({
-        ...game,
-        artwork: Object.fromEntries(
-          Object.entries(game.artwork ?? {}).flatMap(([key, path]) =>
-            typeof path === "string" && path ? [[key, convertFileSrc(path)]] : [],
-          ),
-        ),
-      }));
-      if (live.current && request === generation.current && identity.current === profile) {
-        setState({ profile, settings, scan: value });
-        const entries: ShortcutActivityEvent[] = [];
-        if (journal.getSnapshot().detailed) {
-          const counts = new Map<number, number>();
-          for (const game of value.games)
-            counts.set(game.accountId, (counts.get(game.accountId) ?? 0) + 1);
-          for (const accountId of value.accounts)
-            entries.push({
-              kind: "account",
-              root: settings.root,
-              accountId,
-              count: counts.get(accountId) ?? 0,
-            });
+    const latest = () =>
+      live.current && request === generation.current && identity.current === profile;
+    await invoke<WireSteamShortcutScan>("games_scan_steam_shortcuts", { root: root })
+      .then((wire) => {
+        const value = withArtworkUrls(wire);
+        if (!latest()) return;
+        setState({ profile, settings: { root, accountId }, scan: value });
+        journal.recordMany(scanEntries(value, root, journal.getSnapshot().detailed, started));
+      })
+      .catch((value: unknown) => {
+        if (latest()) {
+          setError(shortcutError(value));
+          journal.record({ kind: "scanError", root: root, code: shortcutError(value) });
         }
-        entries.push({
-          kind: "scan",
-          root: settings.root,
-          count: value.games.length,
-          accounts: value.accounts.length,
-          elapsed: Math.max(0, Date.now() - started),
-          warnings: value.warnings,
-        });
-        journal.recordMany(entries);
-      }
-    } catch (value) {
-      if (live.current && request === generation.current && identity.current === profile) {
-        setError(shortcutError(value));
-        journal.record({ kind: "scanError", root: settings.root, code: shortcutError(value) });
-      }
-    } finally {
-      if (request === generation.current) {
-        lock.current = false;
-        if (live.current) setLoading(false);
-      }
-    }
-  }, [available, profile, settings.root, settings.accountId, journal]);
+      })
+      .finally(() => {
+        if (request === generation.current) {
+          lock.current = false;
+          if (live.current) setLoading(false);
+        }
+      });
+  }, [available, profile, context, root, accountId, journal]);
   useEffect(() => {
     if (!active || !available) return;
     const check = () => {
@@ -197,36 +216,38 @@ export function useSteamShortcuts(profile: string, active: boolean) {
     setLaunched(null);
     setError("");
     direct.dismissError();
-    try {
-      await invoke("games_launch_steam_shortcut", {
-        root: settings.root,
-        accountId: game.accountId,
-        appId: game.appId,
+    await invoke("games_launch_steam_shortcut", {
+      root: settings.root,
+      accountId: game.accountId,
+      appId: game.appId,
+    })
+      .then(() => {
+        if (current()) {
+          setLaunched(game.id);
+          journal.record({
+            kind: "steam",
+            root: settings.root,
+            accountId: game.accountId,
+            name: game.name,
+          });
+        }
+      })
+      .catch((value: unknown) => {
+        if (current()) {
+          setError(shortcutError(value));
+          journal.record({
+            kind: "error",
+            root: settings.root,
+            accountId: game.accountId,
+            name: game.name,
+            code: shortcutError(value),
+          });
+        }
+      })
+      .finally(() => {
+        launchLock.current = false;
+        if (current()) setLaunching(null);
       });
-      if (current()) {
-        setLaunched(game.id);
-        journal.record({
-          kind: "steam",
-          root: settings.root,
-          accountId: game.accountId,
-          name: game.name,
-        });
-      }
-    } catch (value) {
-      if (current()) {
-        setError(shortcutError(value));
-        journal.record({
-          kind: "error",
-          root: settings.root,
-          accountId: game.accountId,
-          name: game.name,
-          code: shortcutError(value),
-        });
-      }
-    } finally {
-      launchLock.current = false;
-      if (current()) setLaunching(null);
-    }
   };
   useEffect(() => {
     if (!launched) return;

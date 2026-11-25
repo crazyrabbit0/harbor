@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import {
@@ -22,11 +22,13 @@ export function useGameSetup(profile: string, active: boolean, library?: CustomG
   const [state, setState] = useState<{ profile: string; jobs: SetupJob[] }>({ profile, jobs: [] });
   const generation = useRef(0);
   const owner = useRef(profile);
-  owner.current = profile;
   const jobsRef = useRef(state);
-  jobsRef.current = state;
   const libraryRef = useRef(library);
-  libraryRef.current = library;
+  useLayoutEffect(() => {
+    owner.current = profile;
+    jobsRef.current = state;
+    libraryRef.current = library;
+  }, [profile, state, library]);
   const attempted = useRef(new Set<string>());
   const registeringJobs = useRef(new Set<string>());
   const [registration, setRegistration] = useState<{
@@ -34,9 +36,13 @@ export function useGameSetup(profile: string, active: boolean, library?: CustomG
     pending: string[];
     errors: Record<string, string>;
   }>({ profile, pending: [], errors: {} });
+  const [prevProfile, setPrevProfile] = useState(profile);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
+    setRegistration({ profile, pending: [], errors: {} });
+  }
   useEffect(() => {
     attempted.current.clear();
-    setRegistration({ profile, pending: [], errors: {} });
   }, [profile]);
   useEffect(() => {
     if (state.profile !== profile || !library || library.profile !== profile) return;
@@ -70,11 +76,10 @@ export function useGameSetup(profile: string, active: boolean, library?: CustomG
         pending: [...(old.profile === profile ? old.pending : []), job.id],
         errors: old.profile === profile ? old.errors : {},
       }));
-      void (async () => {
-        try {
-          const config = await invoke<LaunchConfig>("games_validate_custom_launch", {
-            config: { ...emptyLaunchConfig(), executable },
-          });
+      void invoke<LaunchConfig>("games_validate_custom_launch", {
+        config: { ...emptyLaunchConfig(), executable },
+      })
+        .then(async (config) => {
           const currentLibrary = libraryRef.current;
           if (owner.current !== profile || currentLibrary?.profile !== profile) return;
           const game = setupLibraryGame(
@@ -84,21 +89,22 @@ export function useGameSetup(profile: string, active: boolean, library?: CustomG
             currentLibrary.data.games,
           );
           if (!(await currentLibrary.save(game))) throw Error("launch_failed");
-        } catch (reason) {
+        })
+        .catch((reason: unknown) => {
           if (owner.current === profile)
             setRegistration((old) => ({
               ...old,
               errors: { ...old.errors, [job.id]: customLaunchError(reason) },
             }));
-        } finally {
+        })
+        .finally(() => {
           registeringJobs.current.delete(pendingKey);
           if (owner.current === profile)
             setRegistration((old) => ({
               ...old,
               pending: old.pending.filter((id) => id !== job.id),
             }));
-        }
-      })();
+        });
     }
   }, [state, profile, library?.data.games]);
   useEffect(() => {
@@ -110,21 +116,22 @@ export function useGameSetup(profile: string, active: boolean, library?: CustomG
     const refresh = async () => {
       if (pending || !current()) return;
       pending = true;
-      try {
-        const records = await invoke<SetupJob[]>("games_setup_jobs", { profile });
-        if (current())
-          setState((previous) => ({
-            profile,
-            jobs: records.reduce(
-              (jobs, record) => mergeSetupJob(jobs, record, profile),
-              previous.profile === profile ? previous.jobs : [],
-            ),
-          }));
-      } catch {
-        /* Older binaries keep completed-file actions available without a job feed. */
-      } finally {
-        pending = false;
-      }
+      await invoke<SetupJob[]>("games_setup_jobs", { profile })
+        .then((records) => {
+          if (current())
+            setState((previous) => ({
+              profile,
+              jobs: records.reduce(
+                (jobs, record) => mergeSetupJob(jobs, record, profile),
+                previous.profile === profile ? previous.jobs : [],
+              ),
+            }));
+        })
+        // Older binaries keep completed-file actions available without a job feed.
+        .catch(() => {})
+        .finally(() => {
+          pending = false;
+        });
     };
     const stop = listen<SetupJob>("games:setup-job", ({ payload }) => {
       if (current() && payload.profile === profile)

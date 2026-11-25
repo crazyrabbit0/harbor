@@ -1,6 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { PreparationDraft } from "@/lib/games/download-preparation";
 
+async function runAccept(
+  accept: (selection: DownloadDestinationSelection) => Promise<boolean>,
+  selection: DownloadDestinationSelection,
+  done: () => void,
+) {
+  try {
+    return await accept(selection);
+  } finally {
+    done();
+  }
+}
+
 export type DownloadDestinationRequest = {
   name: string;
   filename?: string;
@@ -36,11 +48,9 @@ export function useGameDownloadDestination(profile: string, active: boolean) {
         accept: async (selection) => {
           if (pending.current !== next || accepting) return false;
           accepting = true;
-          try {
-            return await accept(selection);
-          } finally {
+          return runAccept(accept, selection, () => {
             accepting = false;
-          }
+          });
         },
         finish: (accepted) => {
           if (pending.current !== next) return;

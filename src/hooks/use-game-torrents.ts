@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { osClass } from "@/lib/platform";
@@ -18,6 +18,8 @@ import {
   rememberDownloadContext,
 } from "@/lib/games/download-context";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
 export function useGameTorrents(profile: string, active: boolean) {
   const available = isTauri() && ["windows", "linux", "macos"].includes(osClass());
   const [state, setState] = useState<{ profile: string; records: GameTorrent[] }>({
@@ -35,33 +37,41 @@ export function useGameTorrents(profile: string, active: boolean) {
     revision = useRef(0),
     pending = useRef(new Set<string>()),
     events = useRef(new Map<string, GameTorrent>());
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const valid = () => live.current && owner.current === profile;
   const refresh = async () => {
     if (!available) return;
-    refreshDownloadContexts();
-    const request = ++revision.current;
     setLoading(true);
     setError("");
+    await readRecords();
+  };
+  const readRecords = async () => {
+    refreshDownloadContexts();
+    const request = ++revision.current;
     events.current.clear();
-    try {
-      const records = await invoke<GameTorrent[]>("games_list_torrents", { profile });
-      if (valid() && request === revision.current)
-        setState({
-          profile,
-          records: [
-            ...new Map(
-              [...records, ...events.current.values()]
-                .filter((item) => item.profile === profile)
-                .map((item) => [item.id, mergeDownloadContext("torrent", item)]),
-            ).values(),
-          ],
-        });
-    } catch (reason) {
-      if (valid() && request === revision.current) setError(torrentError(reason));
-    } finally {
-      if (valid() && request === revision.current) setLoading(false);
-    }
+    const latest = () => valid() && request === revision.current;
+    await invoke<GameTorrent[]>("games_list_torrents", { profile })
+      .then((records) => {
+        if (latest())
+          setState({
+            profile,
+            records: [
+              ...new Map(
+                [...records, ...events.current.values()]
+                  .filter((item) => item.profile === profile)
+                  .map((item) => [item.id, mergeDownloadContext("torrent", item)]),
+              ).values(),
+            ],
+          });
+      })
+      .catch((reason: unknown) => {
+        if (latest()) setError(torrentError(reason));
+      })
+      .finally(() => {
+        if (latest()) setLoading(false);
+      });
   };
   useEffect(() => {
     live.current = true;
@@ -69,14 +79,27 @@ export function useGameTorrents(profile: string, active: boolean) {
       live.current = false;
     };
   }, []);
-  useEffect(() => {
-    pending.current.clear();
-    events.current.clear();
+  const [prevProfile, setPrevProfile] = useState(profile);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
     setBusy([]);
     setError("");
     setDraft(null);
     setDraftGame(undefined);
     setDraftReview(false);
+  }
+  const reading = active && available ? profile : null;
+  const [prevReading, setPrevReading] = useState<string | null>(null);
+  if (prevReading !== reading) {
+    setPrevReading(reading);
+    if (reading !== null) {
+      setLoading(true);
+      setError("");
+    }
+  }
+  useEffect(() => {
+    pending.current.clear();
+    events.current.clear();
   }, [profile]);
   useEffect(() => {
     if (!available) return;
@@ -105,7 +128,7 @@ export function useGameTorrents(profile: string, active: boolean) {
     };
   }, [available, profile]);
   useEffect(() => {
-    if (active) void refresh();
+    if (active && available) void readRecords();
   }, [active, available, profile]);
   const start = async (request: TorrentRequest, preparation?: PreparationDraft | null) => {
     const record = await invoke<GameTorrent>("games_start_torrent", {
@@ -135,27 +158,30 @@ export function useGameTorrents(profile: string, active: boolean) {
     pending.current.add(id);
     setBusy([...pending.current]);
     setError("");
-    try {
-      await invoke("games_torrent_action", { profile, id, action });
-      if (action === "remove") forgetDownloadContext(profile, "torrent", id);
-      if (valid()) {
-        if (action === "remove") {
-          events.current.delete(id);
-          setState((previous) => ({
-            ...previous,
-            records: previous.records.filter((item) => item.id !== id),
-          }));
-        } else await refresh();
-      }
-      return valid();
-    } catch (reason) {
-      if (valid()) setError(torrentError(reason));
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current.delete(id);
-        setBusy([...pending.current]);
-      }
+    return invoke("games_torrent_action", { profile, id, action })
+      .then(async () => {
+        if (action === "remove") forgetDownloadContext(profile, "torrent", id);
+        if (valid()) {
+          if (action === "remove") {
+            events.current.delete(id);
+            setState((previous) => ({
+              ...previous,
+              records: previous.records.filter((item) => item.id !== id),
+            }));
+          } else await refresh();
+        }
+        return valid();
+      })
+      .catch((reason: unknown) => {
+        if (valid()) setError(torrentError(reason));
+        return false;
+      })
+      .finally(release(id));
+  };
+  const release = (id: string) => () => {
+    if (valid()) {
+      pending.current.delete(id);
+      setBusy([...pending.current]);
     }
   };
   const seed = async (id: string, policy: TorrentSeedPolicy) => {
@@ -163,28 +189,23 @@ export function useGameTorrents(profile: string, active: boolean) {
     pending.current.add(id);
     setBusy([...pending.current]);
     setError("");
-    try {
-      await invoke("games_seed_torrent", { profile, id, policy });
-      if (valid()) await refresh();
-      return valid();
-    } catch (reason) {
-      if (valid()) setError(torrentError(reason));
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current.delete(id);
-        setBusy([...pending.current]);
-      }
-    }
+    return invoke("games_seed_torrent", { profile, id, policy })
+      .then(async () => {
+        if (valid()) await refresh();
+        return valid();
+      })
+      .catch((reason: unknown) => {
+        if (valid()) setError(torrentError(reason));
+        return false;
+      })
+      .finally(release(id));
   };
-  const reveal = async (record: GameTorrent) => {
-    try {
-      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
-      await revealItemInDir(record.destination);
-    } catch (reason) {
-      if (valid()) setError(torrentError(reason));
-    }
-  };
+  const reveal = (record: GameTorrent) =>
+    loadOpener()
+      .then(({ revealItemInDir }) => revealItemInDir(record.destination))
+      .catch((reason: unknown) => {
+        if (valid()) setError(torrentError(reason));
+      });
   return {
     profile,
     available,

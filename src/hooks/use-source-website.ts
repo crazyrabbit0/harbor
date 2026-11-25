@@ -23,44 +23,44 @@ export function useSourceWebsite(source: GameSource, query: string, profile?: st
     if (!source.website) return false;
     pending.current = true;
     setState((previous) => ({ ...previous, loading: true, error: "" }));
-    try {
-      const result = await fetchWebsiteSource(
-        source.website,
-        query,
-        page,
-        signal,
-        refresh,
-        profile,
-      );
-      if (signal.aborted || current !== revision.current) return false;
-      setState((previous) => ({
-        entries: [
-          ...new Map(
-            [...(append ? previous.entries : []), ...result.entries].map((entry) => [
-              entry.id,
-              entry,
-            ]),
-          ).values(),
-        ],
-        next: result.next,
-        loading: false,
-        error: "",
-      }));
-      return true;
-    } catch (error) {
-      if (!signal.aborted && current === revision.current)
-        setState((previous) => ({ ...previous, loading: false, error: sourceError(error) }));
-    } finally {
-      if (current === revision.current) pending.current = false;
-    }
-    return false;
+    return fetchWebsiteSource(source.website, query, page, signal, refresh, profile)
+      .then((result) => {
+        if (signal.aborted || current !== revision.current) return false;
+        setState((previous) => ({
+          entries: [
+            ...new Map(
+              [...(append ? previous.entries : []), ...result.entries].map((entry) => [
+                entry.id,
+                entry,
+              ]),
+            ).values(),
+          ],
+          next: result.next,
+          loading: false,
+          error: "",
+        }));
+        return true;
+      })
+      .catch((error: unknown) => {
+        if (!signal.aborted && current === revision.current)
+          setState((previous) => ({ ...previous, loading: false, error: sourceError(error) }));
+        return false;
+      })
+      .finally(() => {
+        if (current === revision.current) pending.current = false;
+      });
   };
+  const runKey = JSON.stringify([profile, source.id, source.checkedAt, source.website?.api, query]);
+  const [prevRunKey, setPrevRunKey] = useState<string | null>(null);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    setState({ entries: query.trim() ? [] : source.entries, next: null, loading: true, error: "" });
+  }
   useEffect(() => {
     const current = ++revision.current,
       controller = new AbortController();
     request.current = controller;
     pending.current = true;
-    setState({ entries: query.trim() ? [] : source.entries, next: null, loading: true, error: "" });
     const timer = setTimeout(
       () => void run(1, false, current, controller.signal),
       query.trim() ? 300 : 0,

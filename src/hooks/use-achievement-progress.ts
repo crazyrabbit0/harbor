@@ -10,6 +10,26 @@ type Progress = {
   notOwned: boolean;
 };
 
+type LinkedProgress = Pick<Progress, "personal" | "reason" | "notOwned">;
+
+async function readLinkedProgress(
+  readLinked: (appId: number) => Promise<SteamAchievements>,
+  appId: number,
+  linkedId: string,
+): Promise<LinkedProgress> {
+  try {
+    const linked = await readLinked(appId);
+    const personal = linked.appId === appId && linked.steamId === linkedId ? linked : null;
+    return { personal, reason: "", notOwned: false };
+  } catch (error) {
+    return {
+      personal: null,
+      reason: steamAccountError(error),
+      notOwned: error === "steam_account_not_owned",
+    };
+  }
+}
+
 /** Read-only progress shared by the detail preview and public achievement list. */
 export function useAchievementProgress(
   appId: number,
@@ -22,35 +42,33 @@ export function useAchievementProgress(
   const readLinked = account?.achievements;
   const identity = JSON.stringify([profile, appId, linkedId ?? null]);
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [prevRun, setPrevRun] = useState({ active, identity, attempt, readLinked });
+  const changed =
+    prevRun.active !== active ||
+    prevRun.identity !== identity ||
+    prevRun.attempt !== attempt ||
+    prevRun.readLinked !== readLinked;
+  if (changed) {
+    setPrevRun({ active, identity, attempt, readLinked });
+    if (active)
+      setProgress({ identity, personal: null, reading: true, reason: "", notOwned: false });
+  }
   useEffect(() => {
     if (!active) return;
     let current = true;
-    setProgress({ identity, personal: null, reading: true, reason: "", notOwned: false });
     void (async () => {
-      let personal: SteamAchievements | null = null,
-        reason = "",
-        notOwned = false;
-      // Never initialize the native Steam client while browsing: connecting with
-      // a game's app ID can update Steam presence, playtime and Recent Games.
-      if (current && !personal && linkedId && readLinked) {
-        // The linked-account web request does not create a game session.
-        notOwned = false;
-        reason = "";
-        try {
-          const linked = await readLinked(appId);
-          if (linked.appId === appId && linked.steamId === linkedId) personal = linked;
-        } catch (error) {
-          notOwned = error === "steam_account_not_owned";
-          reason = steamAccountError(error);
-        }
-      }
+      // Only the linked-account web request: the native Steam client would update presence and playtime.
+      const result =
+        linkedId && readLinked
+          ? await readLinkedProgress(readLinked, appId, linkedId)
+          : { personal: null, reason: "", notOwned: false };
       if (current)
         setProgress({
           identity,
-          personal,
+          personal: result.personal,
           reading: false,
-          reason: personal ? "" : reason,
-          notOwned,
+          reason: result.personal ? "" : result.reason,
+          notOwned: result.notOwned,
         });
     })();
     return () => {

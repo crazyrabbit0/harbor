@@ -10,7 +10,7 @@ import DEV_PROXY_HOST_LIST from "./src/lib/dev-proxy-hosts.json" with { type: "j
 declare const process: { env: Record<string, string | undefined> };
 
 // Folders (trailing /) and files the React Compiler memoizes; see docs/ARCHITECTURE-FOLLOWUPS.md.
-const REACT_COMPILER_DIRS = ["/src/components/", "/src/chrome/", "/src/views/"];
+const REACT_COMPILER_DIRS = ["/src/components/", "/src/chrome/", "/src/views/", "/src/hooks/"];
 // oxlint's React Compiler rules that `vp check` enforces on those folders.
 const REACT_COMPILER_RULES = [
   "error-boundaries",

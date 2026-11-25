@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { emitTo } from "@tauri-apps/api/event";
@@ -26,6 +26,45 @@ import {
   type RunningGame,
 } from "@/lib/games/emulation";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
+type RomFolder = EmulationStore["folders"][number];
+
+async function rescanFolder(folder: RomFolder): Promise<RomFolder> {
+  try {
+    const scan = await invoke<RomScan>("games_scan_roms", {
+      root: folder.root,
+      system: folder.system,
+    });
+    return {
+      ...folder,
+      ...scan,
+      games: folder.files
+        ? scan.games.filter((game) =>
+            folder.files!.some(
+              (file) => folderKey(file, folder.system) === folderKey(game.path, folder.system),
+            ),
+          )
+        : scan.games,
+      scannedAt: Date.now(),
+      unavailable: false,
+    };
+  } catch {
+    return { ...folder, unavailable: true };
+  }
+}
+
+function parsedMatches(store: EmulationStore, game: LocalGame, metadata: GameSummary | null) {
+  const matches = { ...store.matches },
+    key = folderKey(game.path, game.system);
+  if (metadata) {
+    const parsed = parseLocalMatch(metadata);
+    if (!parsed) throw Error("emulation_match_invalid");
+    matches[key] = parsed;
+  } else delete matches[key];
+  return matches;
+}
+
 export function useEmulationLibrary(profileId: string, active: boolean) {
   const available = isTauri() && ["windows", "linux", "macos"].includes(osClass());
   const [stored, setStored] = useState(() => ({ profileId, data: readEmulation(profileId) }));
@@ -35,7 +74,9 @@ export function useEmulationLibrary(profileId: string, active: boolean) {
   const [running, setRunning] = useState<RunningGame[]>([]);
   const [session, setSession] = useState<EmbeddedGame | null>(null);
   const sessionRef = useRef(session);
-  sessionRef.current = session;
+  useLayoutEffect(() => {
+    sessionRef.current = session;
+  }, [session]);
   useEffect(() => {
     if (!available) return;
     let current = true;
@@ -54,20 +95,28 @@ export function useEmulationLibrary(profileId: string, active: boolean) {
       void pending.then((stop) => stop());
     };
   }, [available, profileId]);
+  const [prevProfileId, setPrevProfileId] = useState(profileId);
+  if (prevProfileId !== profileId) {
+    setPrevProfileId(profileId);
+    setSession(null);
+    setBusy("");
+    setError("");
+  }
   useEffect(() => {
     sessionRef.current = null;
-    setSession(null);
   }, [profileId]);
   const ended = useRef(new Set<number>());
   const [detected, setDetected] = useState<Emulator[]>([]);
   const [searched, setSearched] = useState(false);
   const held = useRef(data);
-  held.current = data;
   const alive = useRef(true),
     lock = useRef(false),
     initialized = useRef(false);
   const owner = useRef(profileId);
-  owner.current = profileId;
+  useLayoutEffect(() => {
+    held.current = data;
+    owner.current = profileId;
+  }, [data, profileId]);
   const operation = useRef(0);
   const valid = () => alive.current && owner.current === profileId;
   useEffect(() => {
@@ -80,8 +129,6 @@ export function useEmulationLibrary(profileId: string, active: boolean) {
     operation.current++;
     lock.current = false;
     initialized.current = false;
-    setBusy("");
-    setError("");
   }, [profileId]);
   const commit = (next: EmulationStore) => {
     if (!valid()) return;
@@ -95,44 +142,21 @@ export function useEmulationLibrary(profileId: string, active: boolean) {
     lock.current = true;
     setBusy(key);
     setError("");
-    try {
-      await run();
-    } catch (error) {
-      if (valid()) setError(emulationError(error));
-    } finally {
-      if (operation.current === id) {
-        lock.current = false;
-        if (valid()) setBusy("");
-      }
-    }
+    await run()
+      .catch((error: unknown) => {
+        if (valid()) setError(emulationError(error));
+      })
+      .finally(() => {
+        if (operation.current === id) {
+          lock.current = false;
+          if (valid()) setBusy("");
+        }
+      });
   };
   const refresh = () =>
     work("scan", async () => {
       const folders = [];
-      for (const folder of held.current.folders) {
-        try {
-          const scan = await invoke<RomScan>("games_scan_roms", {
-            root: folder.root,
-            system: folder.system,
-          });
-          folders.push({
-            ...folder,
-            ...scan,
-            games: folder.files
-              ? scan.games.filter((game) =>
-                  folder.files!.some(
-                    (file) =>
-                      folderKey(file, folder.system) === folderKey(game.path, folder.system),
-                  ),
-                )
-              : scan.games,
-            scannedAt: Date.now(),
-            unavailable: false,
-          });
-        } catch {
-          folders.push({ ...folder, unavailable: true });
-        }
-      }
+      for (const folder of held.current.folders) folders.push(await rescanFolder(folder));
       if (valid()) commit({ ...held.current, folders });
     });
   useEffect(() => {
@@ -182,7 +206,7 @@ export function useEmulationLibrary(profileId: string, active: boolean) {
     });
   const addFolder = (system: number) =>
     work("import", async () => {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const root = await open({ directory: true, multiple: false });
       if (typeof root !== "string" || !valid()) return;
       const scan = await invoke<RomScan>("games_scan_roms", { root, system });
@@ -204,7 +228,7 @@ export function useEmulationLibrary(profileId: string, active: boolean) {
     });
   const chooseApp = (system: number, kind: Emulator["kind"], corePath?: string | null) =>
     work("configure", async () => {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const path = await open({
         multiple: false,
         directory: false,
@@ -225,7 +249,7 @@ export function useEmulationLibrary(profileId: string, active: boolean) {
     work("configure", async () => {
       const emulator = held.current.profiles[system];
       if (!emulator || emulator.kind !== "retroarch") return;
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const path = await open({
         multiple: false,
         filters: [
@@ -251,14 +275,7 @@ export function useEmulationLibrary(profileId: string, active: boolean) {
   };
   const matchGame = (game: LocalGame, metadata: GameSummary | null) => {
     try {
-      const matches = { ...held.current.matches },
-        key = folderKey(game.path, game.system);
-      if (metadata) {
-        const parsed = parseLocalMatch(metadata);
-        if (!parsed) throw Error("emulation_match_invalid");
-        matches[key] = parsed;
-      } else delete matches[key];
-      commit({ ...held.current, matches });
+      commit({ ...held.current, matches: parsedMatches(held.current, game, metadata) });
       return true;
     } catch (error) {
       setError(emulationError(error));

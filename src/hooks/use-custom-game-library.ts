@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { osClass } from "@/lib/platform";
@@ -24,6 +24,8 @@ import {
   type LaunchConfig,
 } from "@/lib/games/custom-library";
 
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
 export function useCustomGameLibrary(profile: string, active: boolean) {
   const available = isTauri() && ["windows", "macos", "linux"].includes(osClass());
   const [state, setState] = useState({ profile, data: emptyCustomLibrary() }),
@@ -35,7 +37,9 @@ export function useCustomGameLibrary(profile: string, active: boolean) {
     pending = useRef(new Set<string>()),
     finished = useRef(new Set<string>()),
     syncId = useRef(0);
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const data = state.profile === profile ? state.data : emptyCustomLibrary();
   const inspection = useCustomLaunchHealth(profile, data.games, active, available);
   const valid = () => live.current && owner.current === profile;
@@ -57,7 +61,7 @@ export function useCustomGameLibrary(profile: string, active: boolean) {
   };
   const refresh = async () => {
     const revision = ++syncId.current;
-    try {
+    const sync = async () => {
       const data = readCustomLibrary(profile);
       if (valid()) setState({ profile, data });
       if (!available) return;
@@ -71,9 +75,10 @@ export function useCustomGameLibrary(profile: string, active: boolean) {
         await change((store) =>
           history.reduce((store, event) => recordCustomExit(store, event, event.startedAt), store),
         );
-    } catch (error) {
+    };
+    await sync().catch((error: unknown) => {
       if (valid()) setError(customLaunchError(error));
-    }
+    });
   };
   useEffect(() => {
     live.current = true;
@@ -81,12 +86,16 @@ export function useCustomGameLibrary(profile: string, active: boolean) {
       live.current = false;
     };
   }, []);
-  useEffect(() => {
-    pending.current.clear();
-    finished.current.clear();
+  const [prevSync, setPrevSync] = useState({ profile, available });
+  if (prevSync.profile !== profile || prevSync.available !== available) {
+    setPrevSync({ profile, available });
     setBusy([]);
     setRunning([]);
     setError("");
+  }
+  useEffect(() => {
+    pending.current.clear();
+    finished.current.clear();
     void refresh();
     const stop = available
       ? listen<CustomExit>("games:custom-exit", (event) => {
@@ -118,18 +127,18 @@ export function useCustomGameLibrary(profile: string, active: boolean) {
     pending.current.add(id);
     setBusy([...pending.current]);
     setError("");
-    try {
-      await action();
-      return true;
-    } catch (error) {
-      if (valid()) setError(customLaunchError(error));
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current.delete(id);
-        setBusy([...pending.current]);
-      }
-    }
+    return action()
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (valid()) setError(customLaunchError(error));
+        return false;
+      })
+      .finally(() => {
+        if (valid()) {
+          pending.current.delete(id);
+          setBusy([...pending.current]);
+        }
+      });
   };
   const save = (game: CustomGame) =>
     task(game.id, async () => {
@@ -201,7 +210,7 @@ export function useCustomGameLibrary(profile: string, active: boolean) {
     });
   const chooseArtwork = (game: CustomGame, title: string) =>
     task(game.id, async () => {
-      const { open } = await import("@tauri-apps/plugin-dialog");
+      const { open } = await loadDialog();
       const path = await open({
         multiple: false,
         directory: false,
@@ -215,9 +224,9 @@ export function useCustomGameLibrary(profile: string, active: boolean) {
           timer = setTimeout(() => reject(Error("launch_artwork")), 8000);
         image.onload = () => {
           clearTimeout(timer);
-          image.naturalWidth > 0 && image.naturalWidth * image.naturalHeight <= 40_000_000
-            ? resolve()
-            : reject(Error("launch_artwork"));
+          if (image.naturalWidth > 0 && image.naturalWidth * image.naturalHeight <= 40_000_000)
+            resolve();
+          else reject(Error("launch_artwork"));
         };
         image.onerror = () => {
           clearTimeout(timer);
