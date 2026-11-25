@@ -53,11 +53,12 @@ export function MusicEventDiscovery({
     value: 0,
   });
   const index = indexState.result === current ? indexState.value : 0;
-  const featured = current?.sets[index];
+  const sets = current?.sets ?? [];
+  const featured = sets[index];
   const watch = (item: EventSet) =>
     onWatch(
       item.track,
-      current!.sets.map((set) => set.track),
+      sets.map((set) => set.track),
     );
   return (
     <section className="music-events" aria-label={t("music.explore.events")}>
