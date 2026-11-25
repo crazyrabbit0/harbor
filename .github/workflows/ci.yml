@@ -89,6 +89,9 @@ jobs:
       - name: Typecheck
         run: vp run typecheck
 
+      - name: React Compiler
+        run: vp run check:react-compiler
+
       - name: Test
         run: vp run test
 

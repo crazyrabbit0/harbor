@@ -74,6 +74,20 @@ function unreadMemoDeps(file, source) {
   return found;
 }
 
+// The compiler hoists x.y from a closure's x!.y into its cache guard, which runs during render and throws while x is null.
+function hoistedNonNullReads(source, code) {
+  const asserted = new Set(
+    [...source.matchAll(/([A-Za-z_$][\w$]*)!\.([A-Za-z_$][\w$]*)/g)].map((m) => `${m[1]}.${m[2]}`),
+  );
+  if (!asserted.size) return [];
+  const guards = code.matchAll(/\$\[\d+\] !== ([A-Za-z_$][\w$]*)\.([A-Za-z_$][\w$]*)/g);
+  const hits = new Set([...guards].map((m) => `${m[1]}.${m[2]}`).filter((p) => asserted.has(p)));
+  return [...hits].map(
+    (p) =>
+      `memo guard reads ${p} during render (source asserts ${p.replace(".", "!.")}); read it through a null-safe local`,
+  );
+}
+
 const dirs = process.argv.length > 2 ? process.argv.slice(2) : configuredDirs();
 let failed = false;
 for (const dir of dirs) {
@@ -89,7 +103,7 @@ for (const dir of dirs) {
     }
     for (const dep of unreadMemoDeps(file, source)) skipped.push(`${relative(root, file)}: ${dep}`);
     const events = [];
-    babel.transformSync(source, {
+    const output = babel.transformSync(source, {
       filename: file,
       babelrc: false,
       configFile: false,
@@ -98,6 +112,8 @@ for (const dir of dirs) {
         [compiler, { panicThreshold: "none", logger: { logEvent: (_f, e) => events.push(e) } }],
       ],
     });
+    for (const hit of hoistedNonNullReads(source, output?.code ?? ""))
+      skipped.push(`${relative(root, file)}: ${hit}`);
     for (const e of events) {
       if (e.kind === "CompileSuccess") compiled += 1;
       else if (e.kind === "CompileError" || e.kind === "PipelineError") {
