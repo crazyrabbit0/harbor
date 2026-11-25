@@ -88,11 +88,35 @@ function planGrids(): Map<Element, BpGridPlan | null> {
   return plans;
 }
 
+// Empty rail rows are hidden, so distance counts only rows that render: the rows either side of a hidden band sit next to each other on screen.
+function shownRows(rail: Element): Map<Element, number> {
+  const at = new Map<Element, number>();
+  let n = 0;
+  for (const row of rail.children) {
+    if (!(row instanceof HTMLElement) || row.dataset.bpRailRow === undefined) continue;
+    if (row.childElementCount === 0) continue;
+    at.set(row, n);
+    n += 1;
+  }
+  return at;
+}
+
 export function bpArtSweep(keepRows: number, keepCols: number): BpArtSweep {
+  const rails = new Map<Element, Map<Element, number>>();
+  const rowAt = (row: HTMLElement): number => {
+    const rail = row.parentElement;
+    if (!rail) return Number.NaN;
+    let known = rails.get(rail);
+    if (!known) {
+      known = shownRows(rail);
+      rails.set(rail, known);
+    }
+    return known.get(row) ?? Number.NaN;
+  };
   const ring = document.querySelector<HTMLElement>(RING);
   const ringRow = ring?.closest<HTMLElement>(RAIL_ROW) ?? null;
   const ringRail = ringRow?.parentElement ?? null;
-  const ringAt = ringRow ? Number(ringRow.dataset.bpRailRow) : Number.NaN;
+  const ringAt = ringRow ? rowAt(ringRow) : Number.NaN;
   if (ringRail && Number.isFinite(ringAt)) railAnchor.set(ringRail, ringAt);
 
   const plans = planGrids();
@@ -129,7 +153,7 @@ export function bpArtSweep(keepRows: number, keepCols: number): BpArtSweep {
       const row = el.closest<HTMLElement>(RAIL_ROW);
       const rail = row?.parentElement;
       if (!row || !rail) return Number.NaN;
-      const idx = Number(row.dataset.bpRailRow);
+      const idx = rowAt(row);
       // Row 0 when the ring has never entered this rail, the same default the
       // track uses below: a rail only ever scrolls because the ring moved in it.
       // Without it a page whose autofocus sits OUTSIDE the rail, which is every
@@ -150,6 +174,7 @@ export function bpArtSweep(keepRows: number, keepCols: number): BpArtSweep {
     done(): void {
       plans.clear();
       tracks.clear();
+      rails.clear();
     },
   };
 }
