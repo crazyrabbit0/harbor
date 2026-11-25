@@ -1,4 +1,5 @@
 mod locate;
+mod reply;
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -12,7 +13,12 @@ use tauri::{AppHandle, Manager, Url};
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::sync::{mpsc, oneshot, Mutex};
 
+use harbor_shared::lenient;
 use locate::{resolve_jvm, resolve_layout};
+use reply::{
+    CapstanCatalogue, CapstanCataloguePage, CapstanExtension, CapstanExtensions, CapstanLinks,
+    CapstanLoad, CapstanPing, CapstanProviders, CapstanSearch, CapstanUninstall,
+};
 
 const ENTRY_CLASS: &str = "com.harbor.capstan.bridge.Bridge";
 const DEFAULT_TIMEOUT_MS: u64 = 130_000;
@@ -263,28 +269,36 @@ async fn call(app: &AppHandle, method: &str, params: Value) -> Result<Value, Str
 }
 
 #[tauri::command]
-pub async fn capstan_ping(app: AppHandle) -> Result<Value, String> {
-    call(&app, "ping", json!({})).await
+pub async fn capstan_ping(app: AppHandle) -> Result<CapstanPing, String> {
+    call(&app, "ping", json!({})).await.map(lenient::object)
 }
 
 #[tauri::command]
-pub async fn capstan_install(app: AppHandle, path: String) -> Result<Value, String> {
-    call(&app, "install", json!({ "path": path })).await
+pub async fn capstan_install(app: AppHandle, path: String) -> Result<CapstanExtension, String> {
+    call(&app, "install", json!({ "path": path }))
+        .await
+        .map(lenient::object)
 }
 
 #[tauri::command]
-pub async fn capstan_uninstall(app: AppHandle, id: String) -> Result<Value, String> {
-    call(&app, "uninstall", json!({ "id": id })).await
+pub async fn capstan_uninstall(app: AppHandle, id: String) -> Result<CapstanUninstall, String> {
+    call(&app, "uninstall", json!({ "id": id }))
+        .await
+        .map(lenient::object)
 }
 
 #[tauri::command]
-pub async fn capstan_extensions(app: AppHandle) -> Result<Value, String> {
-    call(&app, "extensions", json!({})).await
+pub async fn capstan_extensions(app: AppHandle) -> Result<CapstanExtensions, String> {
+    call(&app, "extensions", json!({}))
+        .await
+        .map(lenient::object)
 }
 
 #[tauri::command]
-pub async fn capstan_providers(app: AppHandle) -> Result<Value, String> {
-    call(&app, "providers", json!({})).await
+pub async fn capstan_providers(app: AppHandle) -> Result<CapstanProviders, String> {
+    call(&app, "providers", json!({}))
+        .await
+        .map(lenient::object)
 }
 
 #[tauri::command]
@@ -294,7 +308,7 @@ pub async fn capstan_search(
     query: String,
     page: Option<u32>,
     quick: Option<bool>,
-) -> Result<Value, String> {
+) -> Result<CapstanSearch, String> {
     let mut params = json!({ "providerId": provider_id, "query": query });
     if let Some(page) = page {
         params["page"] = json!(page);
@@ -302,7 +316,7 @@ pub async fn capstan_search(
     if let Some(quick) = quick {
         params["quick"] = json!(quick);
     }
-    call(&app, "search", params).await
+    call(&app, "search", params).await.map(lenient::object)
 }
 
 #[tauri::command]
@@ -310,8 +324,14 @@ pub async fn capstan_load(
     app: AppHandle,
     provider_id: String,
     url: String,
-) -> Result<Value, String> {
-    call(&app, "load", json!({ "providerId": provider_id, "url": url })).await
+) -> Result<CapstanLoad, String> {
+    call(
+        &app,
+        "load",
+        json!({ "providerId": provider_id, "url": url }),
+    )
+    .await
+    .map(lenient::object)
 }
 
 #[tauri::command]
@@ -320,17 +340,22 @@ pub async fn capstan_load_links(
     provider_id: String,
     data: String,
     is_casting: Option<bool>,
-) -> Result<Value, String> {
+) -> Result<CapstanLinks, String> {
     let mut params = json!({ "providerId": provider_id, "data": data });
     if let Some(is_casting) = is_casting {
         params["isCasting"] = json!(is_casting);
     }
-    call(&app, "loadLinks", params).await
+    call(&app, "loadLinks", params).await.map(lenient::object)
 }
 
 #[tauri::command]
-pub async fn capstan_catalogue(app: AppHandle, provider_id: String) -> Result<Value, String> {
-    call(&app, "catalogue", json!({ "providerId": provider_id })).await
+pub async fn capstan_catalogue(
+    app: AppHandle,
+    provider_id: String,
+) -> Result<CapstanCatalogue, String> {
+    call(&app, "catalogue", json!({ "providerId": provider_id }))
+        .await
+        .map(lenient::object)
 }
 
 #[tauri::command]
@@ -339,10 +364,12 @@ pub async fn capstan_catalogue_page(
     provider_id: String,
     row: String,
     page: Option<u32>,
-) -> Result<Value, String> {
+) -> Result<CapstanCataloguePage, String> {
     let mut params = json!({ "providerId": provider_id, "row": row });
     if let Some(page) = page {
         params["page"] = json!(page);
     }
-    call(&app, "cataloguePage", params).await
+    call(&app, "cataloguePage", params)
+        .await
+        .map(lenient::object)
 }

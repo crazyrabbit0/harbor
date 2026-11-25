@@ -3,7 +3,7 @@
 use super::*;
 
 #[tauri::command]
-pub async fn games_pokemon(app: tauri::AppHandle, profile: String, request: serde_json::Value) -> Result<serde_json::Value, String> { pokemon_bank::dispatch(app, profile, request).await }
+pub async fn games_pokemon(app: tauri::AppHandle, profile: String, request: serde_json::Value) -> Result<pokemon_reply::Reply, String> { pokemon_bank::dispatch(app, profile, request).await.map(harbor_shared::lenient::object) }
 #[tauri::command]
 pub async fn games_retro_status(app: tauri::AppHandle, system: u32) -> Result<embedded::RuntimeStatus, String> { embedded::status(app, system).await }
 #[tauri::command]
@@ -126,7 +126,7 @@ pub fn games_minecraft_pack_cancel(profile: String, operation_id: String) { mine
 #[tauri::command]
 pub fn games_minecraft_pack_discard(profile: String, token: String) { minecraft_pack_install::discard(&profile, &token); }
 #[tauri::command]
-pub async fn games_minecraft_catalog(args: minecraft_catalog::Request) -> Result<serde_json::Value, String> { minecraft_catalog::request(args).await.map_err(String::from) }
+pub async fn games_minecraft_catalog(args: minecraft_catalog::Request) -> Result<modrinth_reply::ModrinthReply, String> { let kind = args.kind.clone(); minecraft_catalog::request(args).await.and_then(|value| modrinth_reply::read(&kind, value)).map_err(String::from) }
 #[tauri::command]
 pub async fn games_minecraft_status(app: tauri::AppHandle, profile: String) -> Result<minecraft_data::Status, String> {
     let root = minecraft_root(&app)?;
@@ -447,7 +447,7 @@ pub async fn games_cloud_pm_download(args:cloud_files::Request)->Result<cloud_fi
 #[tauri::command]
 pub async fn games_cloud_pm_retry(args:cloud_files::Request)->Result<(),String>{cloud_files::pm_retry(args).await.map_err(String::from)}
 #[tauri::command]
-pub async fn games_modrinth(kind:String,query:String,loader:String,game:String,offset:u32,sort:String)->Result<serde_json::Value,String>{modrinth::json(&modrinth::client()?,modrinth::route(&kind,&query,&loader,&game,offset,&sort)?).await.map_err(String::from)}
+pub async fn games_modrinth(kind:String,query:String,loader:String,game:String,offset:u32,sort:String)->Result<modrinth_reply::ModrinthReply,String>{modrinth::json(&modrinth::client()?,modrinth::route(&kind,&query,&loader,&game,offset,&sort)?).await.and_then(|value|modrinth_reply::read(&kind,value)).map_err(String::from)}
 #[tauri::command]
 pub async fn games_mod_workspace(profile:String,path:String,loader:Option<String>,game:Option<String>)->Result<mod_files::Workspace,String>{mods::workspace(profile,path,loader,game).await.map_err(String::from)}
 #[tauri::command]

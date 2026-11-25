@@ -1,26 +1,16 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { CapstanExtension } from "@/lib/generated/capstan-ipc";
 import { extensionsSupported, forgetBridgeProviders } from "./extension/bridge";
 import { PluginError, type NativeExtensionRef } from "./types";
 
 const ARCHIVE_DIR = "extension-archives";
 
-type InstallAnswer = {
-  id?: unknown;
-  file?: unknown;
-  providers?: unknown;
-};
-
-function refFrom(answer: InstallAnswer, fallbackFile: string): NativeExtensionRef {
-  const extensionId = typeof answer.id === "string" ? answer.id : "";
-  if (!extensionId) throw new PluginError("install-failed", "the bridge returned no extension id");
-  const providers = Array.isArray(answer.providers) ? answer.providers : [];
-  const providerIds = providers
-    .map((p) => (p && typeof p === "object" ? (p as { id?: unknown }).id : null))
-    .filter((id): id is string => typeof id === "string" && !!id);
+function refFrom(answer: CapstanExtension, fallbackFile: string): NativeExtensionRef {
+  if (!answer.id) throw new PluginError("install-failed", "the bridge returned no extension id");
   return {
-    extensionId,
-    providerIds,
-    file: typeof answer.file === "string" && answer.file ? answer.file : fallbackFile,
+    extensionId: answer.id,
+    providerIds: answer.providers.filter(Boolean),
+    file: answer.file || fallbackFile,
   };
 }
 
@@ -38,9 +28,9 @@ export async function installNativeArchive(
   const path = await join(dir, fileName);
   await writeFile(path, bytes);
   try {
-    const answer = await invoke<InstallAnswer>("capstan_install", { path });
+    const answer = await invoke<CapstanExtension>("capstan_install", { path });
     forgetBridgeProviders();
-    return refFrom(answer ?? {}, path);
+    return refFrom(answer, path);
   } catch (e) {
     if (e instanceof PluginError) throw e;
     throw new PluginError("install-failed", e instanceof Error ? e.message : String(e));

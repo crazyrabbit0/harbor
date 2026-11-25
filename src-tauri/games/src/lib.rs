@@ -3,6 +3,7 @@ mod test_lock;
 #[cfg(test)]
 mod ipc_decls;
 mod pokemon_bank;
+mod pokemon_reply;
 mod pokemon_save_discovery;
 mod retro_save_path;
 mod pokemon_workspace;
@@ -144,6 +145,7 @@ mod setup;
 mod p2p;
 mod p2p_files;
 mod modrinth;
+mod modrinth_reply;
 mod mod_files;
 mod mods;
 mod fabric_mods;

@@ -41,7 +41,7 @@ test("both catalogue commands are registered and called with the arguments Rust 
     assert.match(rust, new RegExp(`pub async fn ${command}\\b`), `${command} must exist`);
     assert.match(registry, new RegExp(`capstan::${command},`), `${command} must be registered`);
   }
-  const { mod, calls } = bridge({ rows: [] });
+  const { mod, calls } = bridge({ rows: [], sections: [], hasNext: false, note: null });
   await mod.bridgeCatalogue("prov");
   await mod.bridgeCataloguePage("prov", "Popular", 2);
   // Tauri maps camelCase arguments onto the snake_case Rust parameters.
@@ -51,18 +51,20 @@ test("both catalogue commands are registered and called with the arguments Rust 
   ]);
 });
 
+// capstan_catalogue_page answers the typed page; its leniency for malformed bridge JSON is tested in capstan/reply.rs.
 test("a page is read out of the sections the bridge writes, not a flat list", async () => {
   const a = { name: "A", url: "a" };
   const b = { name: "B", url: "b" };
   const flat = { name: "Flat", url: "f" };
   const sectioned = bridge({
-    sections: [{ items: [a] }, { items: [b] }, {}],
+    sections: [{ items: [a] }, { items: [b] }, { items: [] }],
     items: [flat],
     hasNext: true,
+    note: null,
   });
   const page = await sectioned.mod.bridgeCataloguePage("prov", "Popular", 1);
   assert.deepEqual(page, { items: [a, b], note: null, hasNext: true });
-  const last = bridge({ sections: [{ items: [a] }], hasNext: "true" });
+  const last = bridge({ sections: [{ items: [a] }], hasNext: false, note: null });
   assert.equal((await last.mod.bridgeCataloguePage("prov", "Popular", 9)).hasNext, false);
 });
 

@@ -10,6 +10,7 @@ pub mod child_window;
 pub mod fetch;
 pub mod ipc_bindings;
 pub mod lan;
+pub mod lenient;
 #[cfg(feature = "mpv")]
 pub mod mpv;
 pub mod net_guard;
