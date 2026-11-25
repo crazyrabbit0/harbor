@@ -217,16 +217,43 @@ function markDirty(): void {
  */
 export function bpArtSrc(el: HTMLImageElement | null, url: string | undefined): void {
   if (!el || !url) return;
-  if (!watched.has(el) || wanted.get(el) !== url) markDirty();
+  const fresh = !watched.has(el);
+  if (fresh || wanted.get(el) !== url) markDirty();
   wanted.set(el, url);
   watched.add(el);
   if (el.dataset.bpHeld === "1") return;
   if (el.dataset.bpArt === url) return;
-  if (!moving) {
+  if (moving) {
+    queued.set(el, url);
+    return;
+  }
+  if (!fresh) {
     arm(el);
     return;
   }
-  queued.set(el, url);
+  firstArm.add(el);
+  if (firstArm.size === 1) queueMicrotask(armFirst);
+}
+
+// A newly mounted tile is placed before its first load: arming every tile and releasing the far ones 400ms later aborted their downloads.
+const firstArm = new Set<HTMLImageElement>();
+
+function armFirst(): void {
+  const list = [...firstArm];
+  firstArm.clear();
+  const sweep = bpArtSweep(KEEP_ROWS, KEEP_COLS);
+  try {
+    for (const el of list) {
+      if (!el.isConnected || el.dataset.bpHeld === "1" || el.dataset.bpArt) continue;
+      if (moving) {
+        const url = wanted.get(el);
+        if (url) queued.set(el, url);
+      } else if (sweep.distance(el) > 0) el.dataset.bpHeld = "1";
+      else arm(el);
+    }
+  } finally {
+    sweep.done();
+  }
 }
 
 /**
