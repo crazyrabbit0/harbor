@@ -2,6 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { GameRequestPool } from "./request-pool";
 
 import type { ModPackage, ModWorkspace, ModPlan } from "@/lib/generated/games-minecraft-ipc";
+import type { ModrinthReply } from "@/lib/generated/games-modrinth-ipc";
 export type { ModPackage, ModWorkspace, ModPlan };
 
 export const MOD_LOADERS = ["fabric", "forge", "neoforge", "quilt"] as const;
@@ -82,7 +83,7 @@ export async function modRequest(params: Params, signal: AbortSignal): Promise<u
   return pool.run(async () => {
     let value: unknown;
     if (isTauri())
-      value = await invoke("games_modrinth", {
+      value = await invoke<ModrinthReply>("games_modrinth", {
         query: "",
         loader: "fabric",
         game: "",

@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import type { PokemonBankReply } from "@/lib/generated/games-pokemon-ipc";
 export type PokemonLocalRom = { path: string; root: string; system: number };
 export type PokemonDetectedSave = {
   path: string;
@@ -92,23 +93,14 @@ export type PokemonChange = {
   differences?: { field: string; before: unknown; after: unknown }[];
   transfer?: { changes: string[]; warnings: string[]; legality: string; backwards: boolean };
 };
-export type PokemonBankResponse = {
-  unreadableEntries?: number;
-  bankTruncated?: boolean;
+export type PokemonBankResponse = Omit<
+  PokemonBankReply,
+  "saves" | "changes" | "bank" | "summary"
+> & {
   saves?: PokemonDetectedSave[];
-  ready?: boolean;
-  sourcePath?: string;
-  draftSkipped?: boolean;
   changes?: PokemonChange[];
-  history?: { id: string; at: number }[];
   bank?: PokemonBankEntry[];
-  session?: string;
-  name?: string;
   summary?: PokemonSummary;
-  review?: string | null;
-  backup?: string;
-  fileName?: string;
-  format?: string;
 };
 let workspace: string | undefined;
 function workspaceId() {

@@ -1,83 +1,44 @@
 import { invoke } from "@tauri-apps/api/core";
+import type {
+  BridgeCatalogueRow,
+  BridgeEpisode as GeneratedEpisode,
+  BridgeLink,
+  BridgeMedia as GeneratedMedia,
+  BridgeProvider,
+  BridgeSearchItem,
+  BridgeSubtitle,
+  CapstanCatalogue,
+  CapstanCataloguePage,
+  CapstanLinks,
+  CapstanLoad,
+  CapstanProviders,
+  CapstanSearch,
+} from "@/lib/generated/capstan-ipc";
 
-export type BridgeProvider = {
-  id: string;
-  extensionId: string;
-  name: string;
-  lang: string;
-  mainUrl: string;
-  types: string[];
-  hasQuickSearch: boolean;
-};
+export type { BridgeCatalogueRow, BridgeLink, BridgeProvider, BridgeSearchItem, BridgeSubtitle };
 
-/** One row a provider offers to browse. `declared` is false for the single row the layer stands up
- * for a provider that answers the call and names none, which is its only way in. */
-export type BridgeCatalogueRow = {
-  name: string;
-  horizontalImages: boolean;
-  declared: boolean;
-};
+type EpisodeOptional = "posterUrl" | "description" | "runtimeMinutes" | "airDate";
 
-export type BridgeSearchItem = {
-  name: string;
-  url: string;
-  type: string | null;
-  posterUrl: string | null;
-  quality: string | null;
-};
+// Media built in the app (fixtures, older bridges) may leave the provider's optional extras out.
+export type BridgeEpisode = Omit<GeneratedEpisode, EpisodeOptional> &
+  Partial<Pick<GeneratedEpisode, EpisodeOptional>>;
 
-export type BridgeEpisode = {
-  data: string;
-  name: string | null;
-  season: number | null;
-  episode: number | null;
-  /** The provider's own still for the episode, when it has one. */
-  posterUrl?: string | null;
-  description?: string | null;
-  /** How long the episode runs, in minutes. */
-  runtimeMinutes?: number | null;
-  /** Epoch, in whichever unit the provider used; see the reader in detail.ts. */
-  airDate?: number | null;
-  track: string;
-};
+type MediaOptional =
+  | "posterUrl"
+  | "backgroundPosterUrl"
+  | "plot"
+  | "tags"
+  | "durationMinutes"
+  | "contentRating"
+  | "score"
+  | "comingSoon"
+  | "recommendations"
+  | "actors"
+  | "trailerUrls"
+  | "syncIds";
 
-export type BridgeMedia = {
-  name: string;
-  url: string;
-  type: string;
-  posterUrl?: string | null;
-  backgroundPosterUrl?: string | null;
-  year: number | null;
-  plot?: string | null;
-  tags?: string[];
-  /** How long the item runs, in minutes. */
-  durationMinutes?: number | null;
-  contentRating?: string | null;
-  /** The provider's own score out of ten. It is not an IMDb rating and is never shown as one. */
-  score?: number | null;
-  comingSoon?: boolean;
-  playableData: string | null;
-  episodes: BridgeEpisode[];
-  /** Other items the provider offers alongside this one, addressed by its own urls. */
-  recommendations?: BridgeSearchItem[];
-  actors?: string[];
-  trailerUrls?: string[];
-  /** The provider's own ids for the title, keyed `imdbId`, `tmdbId`, `kitsuId`, `malId`,
-   * `aniListId` and `simklId`. Declared only by providers that bother, so it is never assumed. */
-  syncIds?: Record<string, string>;
-};
-
-export type BridgeLink = {
-  source: string;
-  name: string;
-  url: string;
-  referer: string;
-  quality: number;
-  type: string;
-  headers: Record<string, string>;
-};
-
-export type BridgeSubtitle = { lang: string; url: string };
+export type BridgeMedia = Omit<GeneratedMedia, MediaOptional | "episodes"> &
+  Partial<Pick<GeneratedMedia, MediaOptional>> & { episodes: BridgeEpisode[] };
 
 /** Why an empty answer was empty, when the addresses the provider uses refused during the call.
  * Absent means the service answered and the emptiness is not the network's doing. */
@@ -118,16 +79,8 @@ export function warmBridge(): Promise<unknown> {
   return warming;
 }
 
-function list<T>(value: unknown, key: string): T[] {
-  if (!value || typeof value !== "object") return [];
-  const raw = (value as Record<string, unknown>)[key];
-  return Array.isArray(raw) ? (raw as T[]) : [];
-}
-
-function note(value: unknown): BridgeNote {
-  if (!value || typeof value !== "object") return null;
-  const raw = (value as Record<string, unknown>).note;
-  return typeof raw === "string" && raw.trim() ? raw.trim() : null;
+function note(raw: BridgeNote): BridgeNote {
+  return raw?.trim() || null;
 }
 
 export async function bridgeProviders(): Promise<BridgeProvider[]> {
@@ -135,10 +88,9 @@ export async function bridgeProviders(): Promise<BridgeProvider[]> {
   if (hit && Date.now() - hit.at < PROVIDER_TTL_MS) return hit.list;
   if (providerInflight) return providerInflight;
   providerInflight = (async () => {
-    const raw = await invoke("capstan_providers");
-    const found = list<BridgeProvider>(raw, "providers");
-    providerCache = { at: Date.now(), list: found };
-    return found;
+    const { providers } = await invoke<CapstanProviders>("capstan_providers");
+    providerCache = { at: Date.now(), list: providers };
+    return providers;
   })().finally(() => {
     providerInflight = null;
   });
@@ -155,47 +107,31 @@ export async function bridgeSearch(
   quick: boolean,
   page = 1,
 ): Promise<BridgeResults<BridgeSearchItem>> {
-  const raw = await invoke("capstan_search", { providerId, query, quick, page });
-  return { items: list<BridgeSearchItem>(raw, "results"), note: note(raw) };
+  const raw = await invoke<CapstanSearch>("capstan_search", { providerId, query, quick, page });
+  return { items: raw.results, note: note(raw.note) };
 }
 
 export async function bridgeLoad(
   providerId: string,
   url: string,
 ): Promise<{ media: BridgeMedia | null; note: BridgeNote }> {
-  const raw = await invoke("capstan_load", { providerId, url });
-  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const found = o.found === true && !!o.result && typeof o.result === "object";
-  return { media: found ? (o.result as BridgeMedia) : null, note: note(raw) };
+  const raw = await invoke<CapstanLoad>("capstan_load", { providerId, url });
+  return { media: raw.found ? raw.result : null, note: note(raw.note) };
 }
 
 export async function bridgeLoadLinks(providerId: string, data: string): Promise<BridgeLinkSet> {
-  const raw = await invoke("capstan_load_links", { providerId, data });
-  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const raw = await invoke<CapstanLinks>("capstan_load_links", { providerId, data });
   return {
-    success: o.success === true,
-    links: list<BridgeLink>(raw, "links"),
-    subtitles: list<BridgeSubtitle>(raw, "subtitles"),
-    note: note(raw),
+    success: raw.success,
+    links: raw.links,
+    subtitles: raw.subtitles,
+    note: note(raw.note),
   };
 }
 
-function catalogueRow(value: unknown): BridgeCatalogueRow | null {
-  if (!value || typeof value !== "object") return null;
-  const o = value as Record<string, unknown>;
-  const name = typeof o.name === "string" ? o.name.trim() : "";
-  if (!name) return null;
-  return { name, horizontalImages: o.horizontalImages === true, declared: o.declared !== false };
-}
-
 export async function bridgeCatalogue(providerId: string): Promise<BridgeCatalogueRow[]> {
-  const raw = await invoke("capstan_catalogue", { providerId });
-  const out: BridgeCatalogueRow[] = [];
-  for (const entry of list<unknown>(raw, "rows")) {
-    const made = catalogueRow(entry);
-    if (made) out.push(made);
-  }
-  return out;
+  const { rows } = await invoke<CapstanCatalogue>("capstan_catalogue", { providerId });
+  return rows.map((row) => ({ ...row, name: row.name.trim() })).filter((row) => row.name);
 }
 
 /** A provider may answer one page with several named sections, so a page is flattened back into
@@ -205,11 +141,14 @@ export async function bridgeCataloguePage(
   row: string,
   page: number,
 ): Promise<BridgeResults<BridgeSearchItem> & { hasNext: boolean }> {
-  const raw = await invoke("capstan_catalogue_page", { providerId, row, page });
-  const items: BridgeSearchItem[] = [];
-  for (const section of list<unknown>(raw, "sections")) {
-    items.push(...list<BridgeSearchItem>(section, "items"));
-  }
-  const o = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  return { items, note: note(raw), hasNext: o.hasNext === true };
+  const raw = await invoke<CapstanCataloguePage>("capstan_catalogue_page", {
+    providerId,
+    row,
+    page,
+  });
+  return {
+    items: raw.sections.flatMap((section) => section.items),
+    note: note(raw.note),
+    hasNext: raw.hasNext,
+  };
 }

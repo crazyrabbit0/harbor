@@ -224,6 +224,31 @@ mod tests {
     }
 
     #[test]
+    fn export_modrinth() {
+        use crate::modrinth_reply;
+        let decls = Decls::new().add::<modrinth_reply::ModrinthReply>().finish();
+        harbor_shared::ipc_bindings::check(
+            "games-modrinth-ipc.ts",
+            "games/src/ipc_decls.rs",
+            &decls,
+        );
+    }
+
+    #[test]
+    fn export_pokemon() {
+        use crate::pokemon_reply;
+        let decls = Decls::new()
+            .add::<pokemon_reply::HistoryEntry>()
+            .add::<pokemon_reply::Reply>()
+            .finish();
+        harbor_shared::ipc_bindings::check(
+            "games-pokemon-ipc.ts",
+            "games/src/ipc_decls.rs",
+            &decls,
+        );
+    }
+
+    #[test]
     fn export_sims() {
         use crate::{sims_catalog, sims_cc, sims_dependencies, sims_duplicates, sims_files};
         use crate::{sims_lot51, sims_mts, sims_mts_browse, sims_packs, sims_reviews, sims_store};

@@ -1,6 +1,7 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { GameRequestPool } from "./request-pool";
 import type { MinecraftCatalogRequest } from "@/lib/generated/games-requests-ipc";
+import type { ModrinthReply } from "@/lib/generated/games-modrinth-ipc";
 
 export const MINECRAFT_CONTENT = ["modpack", "mod", "resourcepack", "shader"] as const;
 export type MinecraftContent = (typeof MINECRAFT_CONTENT)[number];
@@ -169,7 +170,7 @@ export async function minecraftCatalogRequest(
   return pool.run(async () => {
     signal.throwIfAborted();
     let value: unknown;
-    if (isTauri()) value = await invoke("games_minecraft_catalog", { args: params });
+    if (isTauri()) value = await invoke<ModrinthReply>("games_minecraft_catalog", { args: params });
     else {
       const response = await fetch(url, {
         signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
