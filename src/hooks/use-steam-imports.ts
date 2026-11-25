@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   changeSteamImports,
   emptySteamImports,
@@ -17,7 +17,9 @@ export function useSteamImports(profile: string) {
     error: "",
   });
   const owner = useRef(profile);
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const refresh = () => {
     try {
       setState({ profile, data: readSteamImports(profile), ready: true, error: "" });
@@ -30,8 +32,12 @@ export function useSteamImports(profile: string) {
       });
     }
   };
-  useEffect(() => {
+  const [prevProfile, setPrevProfile] = useState<string | null>(null);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
     refresh();
+  }
+  useEffect(() => {
     const storage = (event: StorageEvent) => {
       if (event.key === null || event.key === steamImportsKey(profile)) refresh();
     };

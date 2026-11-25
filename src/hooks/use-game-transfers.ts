@@ -1,4 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { attempt } from "./attempt";
+import type { ReplacementFile } from "@/lib/games/transfer-relink";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { osClass } from "@/lib/platform";
@@ -23,6 +25,12 @@ import {
   rememberDownloadContext,
 } from "@/lib/games/download-context";
 
+const loadOpener = () => import("@tauri-apps/plugin-opener");
+
+function newerTransfer(event: GameTransfer | undefined, updated: GameTransfer) {
+  return event?.url === updated.url && event.updatedAt >= updated.updatedAt ? event : updated;
+}
+
 export function useGameTransfers(profile: string, active: boolean) {
   const torrents = useGameTorrents(profile, active);
   const destinationPicker = useGameDownloadDestination(profile, active);
@@ -40,33 +48,51 @@ export function useGameTransfers(profile: string, active: boolean) {
     pending = useRef(new Set<string>()),
     events = useRef(new Map<string, GameTransfer>()),
     refreshId = useRef(0);
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const valid = () => alive.current && owner.current === profile;
   const refresh = async () => {
     if (!available) return;
-    refreshDownloadContexts();
-    const request = ++refreshId.current;
     setLoading(true);
     setError("");
+    await readRecords();
+  };
+  const readRecords = async () => {
+    refreshDownloadContexts();
+    const request = ++refreshId.current;
     events.current.clear();
-    try {
-      const list = await invoke<GameTransfer[]>("games_list_transfers", { profile });
-      if (valid() && request === refreshId.current)
-        setState({
-          profile,
-          records: [
-            ...new Map(
-              [...list, ...events.current.values()]
-                .filter((item) => item.profile === profile)
-                .map((item) => [item.id, mergeDownloadContext("http", item)]),
-            ).values(),
-          ],
-        });
-    } catch (error) {
-      if (valid() && request === refreshId.current) setError(transferError(error));
-    } finally {
-      if (valid() && request === refreshId.current) setLoading(false);
+    const latest = () => valid() && request === refreshId.current;
+    await invoke<GameTransfer[]>("games_list_transfers", { profile })
+      .then((list) => {
+        if (latest())
+          setState({
+            profile,
+            records: [
+              ...new Map(
+                [...list, ...events.current.values()]
+                  .filter((item) => item.profile === profile)
+                  .map((item) => [item.id, mergeDownloadContext("http", item)]),
+              ).values(),
+            ],
+          });
+      })
+      .catch((error: unknown) => {
+        if (latest()) setError(transferError(error));
+      })
+      .finally(() => {
+        if (latest()) setLoading(false);
+      });
+  };
+  const release = (id: string) => () => {
+    if (valid()) {
+      pending.current.delete(id);
+      setBusy([...pending.current]);
     }
+  };
+  const failed = (error: unknown) => {
+    if (valid()) setError(transferError(error));
+    return false;
   };
   useEffect(() => {
     alive.current = true;
@@ -74,11 +100,24 @@ export function useGameTransfers(profile: string, active: boolean) {
       alive.current = false;
     };
   }, []);
+  const [prevProfile, setPrevProfile] = useState(profile);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
+    setBusy([]);
+    setError("");
+  }
+  const reading = active && available ? profile : null;
+  const [prevReading, setPrevReading] = useState<string | null>(null);
+  if (prevReading !== reading) {
+    setPrevReading(reading);
+    if (reading !== null) {
+      setLoading(true);
+      setError("");
+    }
+  }
   useEffect(() => {
     pending.current.clear();
     events.current.clear();
-    setBusy([]);
-    setError("");
   }, [profile]);
   useEffect(() => {
     if (!available) return;
@@ -105,15 +144,15 @@ export function useGameTransfers(profile: string, active: boolean) {
     };
   }, [available, profile]);
   useEffect(() => {
-    if (active) void refresh();
+    if (active && available) void readRecords();
   }, [active, available, profile]);
   const start = async (request: DownloadRequest, suggestedFilename?: string) => {
     if (!available || pending.current.has("new")) return false;
     pending.current.add("new");
     setBusy([...pending.current]);
     setError("");
-    try {
-      return await destinationPicker.choose(
+    return destinationPicker
+      .choose(
         {
           name: request.name || downloadFilename(request.url),
           filename: suggestedFilename?.trim()
@@ -149,25 +188,18 @@ export function useGameTransfers(profile: string, active: boolean) {
             }));
           return true;
         },
-      );
-    } catch (error) {
-      if (valid()) setError(transferError(error));
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current.delete("new");
-        setBusy([...pending.current]);
-      }
-    }
+      )
+      .catch(failed)
+      .finally(release("new"));
   };
   const startBatch = async (requests: BatchDownloadRequest[]) => {
     if (!available || pending.current.has("new")) return false;
     pending.current.add("new");
     setBusy([...pending.current]);
     setError("");
-    try {
+    return attempt(() => {
       validateDownloadBatch(requests);
-      return await destinationPicker.choose(
+      return destinationPicker.choose(
         {
           name: requests[0]?.game?.name || requests[0]?.name || requests[0].filename,
           filenames: requests.map((request) => request.filename),
@@ -209,15 +241,9 @@ export function useGameTransfers(profile: string, active: boolean) {
           return true;
         },
       );
-    } catch (reason) {
-      if (valid()) setError(transferError(reason));
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current.delete("new");
-        setBusy([...pending.current]);
-      }
-    }
+    })
+      .catch(failed)
+      .finally(release("new"));
   };
   const action = async (
     id: string,
@@ -227,78 +253,61 @@ export function useGameTransfers(profile: string, active: boolean) {
     pending.current.add(id);
     setBusy([...pending.current]);
     setError("");
-    try {
-      await invoke("games_transfer_action", { profile, id, action });
-      if (action === "remove") forgetDownloadContext(profile, "http", id);
-      if (valid()) {
-        if (action === "remove") {
-          events.current.delete(id);
-          setState((previous) => ({
-            ...previous,
-            records: previous.records.filter((item) => item.id !== id),
-          }));
-        } else await refresh();
-      }
-    } catch (error) {
-      if (valid()) setError(transferError(error));
-    } finally {
-      if (valid()) {
-        pending.current.delete(id);
-        setBusy([...pending.current]);
-      }
-    }
+    await invoke("games_transfer_action", { profile, id, action })
+      .then(async () => {
+        if (action === "remove") forgetDownloadContext(profile, "http", id);
+        if (valid()) {
+          if (action === "remove") {
+            events.current.delete(id);
+            setState((previous) => ({
+              ...previous,
+              records: previous.records.filter((item) => item.id !== id),
+            }));
+          } else await refresh();
+        }
+      })
+      .catch(failed)
+      .finally(release(id));
   };
-  const reveal = async (record: GameTransfer) => {
-    try {
-      const { revealItemInDir } = await import("@tauri-apps/plugin-opener");
-      await revealItemInDir(record.destination);
-    } catch (error) {
-      if (valid()) setError(transferError(error));
-    }
-  };
-  const relink = async (
-    record: GameTransfer,
-    file: import("@/lib/games/transfer-relink").ReplacementFile,
-  ) => {
+  const reveal = (record: GameTransfer) =>
+    loadOpener()
+      .then(({ revealItemInDir }) => revealItemInDir(record.destination))
+      .catch(failed)
+      .then(() => {});
+  const relink = async (record: GameTransfer, file: ReplacementFile) => {
     if (!available || !valid() || record.profile !== profile || pending.current.has(record.id))
       throw Error("transfer_state");
     pending.current.add(record.id);
     setBusy([...pending.current]);
     setError("");
-    try {
-      const updated = await invoke<GameTransfer>("games_relink_transfer", {
-        args: {
-          profile,
-          id: record.id,
-          previousUrl: record.url,
-          url: file.url,
-          filename: file.filename,
-          sourceLink: file.sourceLink,
-          browserTicket: file.browserTicket,
-          expectedBytes: file.expectedBytes,
-          expectedSha256: file.expectedSha256,
-        } satisfies TransferRelink,
-      });
-      if (updated.profile !== profile || updated.id !== record.id) throw Error("transfer_state");
-      const event = events.current.get(record.id),
-        current =
-          event?.url === updated.url && event.updatedAt >= updated.updatedAt ? event : updated;
-      if (valid())
-        setState((previous) => ({
-          profile,
-          records: [
-            ...(previous.profile === profile ? previous.records : []).filter(
-              (item) => item.id !== record.id,
-            ),
-            mergeDownloadContext("http", current),
-          ],
-        }));
-    } finally {
-      if (valid()) {
-        pending.current.delete(record.id);
-        setBusy([...pending.current]);
-      }
-    }
+    await invoke<GameTransfer>("games_relink_transfer", {
+      args: {
+        profile,
+        id: record.id,
+        previousUrl: record.url,
+        url: file.url,
+        filename: file.filename,
+        sourceLink: file.sourceLink,
+        browserTicket: file.browserTicket,
+        expectedBytes: file.expectedBytes,
+        expectedSha256: file.expectedSha256,
+      } satisfies TransferRelink,
+    })
+      .then((updated) => {
+        if (updated.profile !== profile || updated.id !== record.id) throw Error("transfer_state");
+        const current = newerTransfer(events.current.get(record.id), updated);
+        if (valid())
+          setState((previous) => ({
+            profile,
+            records: [
+              ...(previous.profile === profile ? previous.records : []).filter(
+                (item) => item.id !== record.id,
+              ),
+              mergeDownloadContext("http", current),
+            ],
+          }));
+      })
+      .finally(release(record.id));
   };
   return {
     profile,

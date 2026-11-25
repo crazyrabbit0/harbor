@@ -1,5 +1,5 @@
 import type { CollectionRules } from "@/lib/games/collection-rules";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   addCollectionGame,
   addCollectionGames,
@@ -26,7 +26,9 @@ export function usePersonalGameCollections(profile: string) {
   const owner = useRef(profile),
     alive = useRef(true),
     pending = useRef(false);
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const valid = () => alive.current && owner.current === profile;
   const reload = () => {
     try {
@@ -39,11 +41,14 @@ export function usePersonalGameCollections(profile: string) {
       setError(e instanceof Error ? e.message : "collections_read");
     }
   };
-  useEffect(() => {
-    alive.current = true;
-    setReady(false);
+  const [prevProfile, setPrevProfile] = useState<string | null>(null);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
     setBusy(false);
     reload();
+  }
+  useEffect(() => {
+    alive.current = true;
     const event = (e: StorageEvent) => {
       if (e.key === personalCollectionsKey(profile)) reload();
     };
@@ -57,20 +62,22 @@ export function usePersonalGameCollections(profile: string) {
     if (!ready || pending.current) return false;
     pending.current = true;
     setBusy(true);
-    try {
-      const data = await changePersonalCollections(profile, update);
-      if (valid()) {
-        setState({ profile, data });
-        setError("");
-      }
-      return true;
-    } catch (e) {
-      if (valid()) setError(e instanceof Error ? e.message : "collections_write");
-      return false;
-    } finally {
-      pending.current = false;
-      if (valid()) setBusy(false);
-    }
+    return changePersonalCollections(profile, update)
+      .then((data) => {
+        if (valid()) {
+          setState({ profile, data });
+          setError("");
+        }
+        return true;
+      })
+      .catch((e: unknown) => {
+        if (valid()) setError(e instanceof Error ? e.message : "collections_write");
+        return false;
+      })
+      .finally(() => {
+        pending.current = false;
+        if (valid()) setBusy(false);
+      });
   };
   const create = async (name: string, game?: PersonalCollectionGame) => {
     const id = crypto.randomUUID();

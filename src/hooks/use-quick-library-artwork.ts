@@ -6,6 +6,16 @@ import type { QuickGame } from "@/lib/games/quick-library";
 const artworkKey = (item: QuickGame) =>
   `${item.id}:${item.game?.igdbId ?? ""}:${item.game?.catalogSteamId ?? ""}`;
 
+async function loadCover(item: QuickGame, signal: AbortSignal) {
+  try {
+    const value = await loadAtlasGame(item.game!, signal);
+    return value?.portrait || value?.capsule;
+  } catch {
+    // Artwork failure must not affect the installed game or its controls.
+    return undefined;
+  }
+}
+
 /** Only visible missing covers need metadata; installed names are never used to guess an edition. */
 export function useQuickLibraryArtwork(
   items: QuickGame[],
@@ -39,14 +49,9 @@ export function useQuickLibraryArtwork(
           observer.unobserve(entry.target);
           pending = pending.then(async () => {
             if (controller.signal.aborted) return;
-            try {
-              const value = await loadAtlasGame(item.game!, controller.signal);
-              const image = value?.portrait || value?.capsule;
-              if (image && !controller.signal.aborted)
-                setCovers((previous) => ({ ...previous, [id]: image }));
-            } catch {
-              /* Artwork failure must not affect the installed game or its controls. */
-            }
+            const image = await loadCover(item, controller.signal);
+            if (image && !controller.signal.aborted)
+              setCovers((previous) => ({ ...previous, [id]: image }));
           });
         }
       },

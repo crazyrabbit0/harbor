@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { archiveError, mergeArchiveJob, type ArchiveJob } from "@/lib/games/archives";
@@ -10,9 +10,11 @@ export function useGameArchives(profile: string, active: boolean) {
   });
   const [error, setError] = useState("");
   const owner = useRef(profile);
-  owner.current = profile;
   const jobsRef = useRef(state);
-  jobsRef.current = state;
+  useLayoutEffect(() => {
+    owner.current = profile;
+    jobsRef.current = state;
+  }, [profile, state]);
   const refreshRef = useRef<() => Promise<void>>(async () => {});
   const accept = (job: ArchiveJob) => {
     if (owner.current === profile && job.profile === profile)
@@ -21,8 +23,12 @@ export function useGameArchives(profile: string, active: boolean) {
         jobs: mergeArchiveJob(previous.profile === profile ? previous.jobs : [], job, profile),
       }));
   };
-  useEffect(() => {
+  const [prevRun, setPrevRun] = useState({ profile, active });
+  if (prevRun.profile !== profile || prevRun.active !== active) {
+    setPrevRun({ profile, active });
     setError("");
+  }
+  useEffect(() => {
     if (!active || !isTauri()) return;
     let live = true,
       pending = false;
@@ -35,28 +41,29 @@ export function useGameArchives(profile: string, active: boolean) {
           job.updatedAt,
         ]),
       );
-      try {
-        const jobs = await invoke<ArchiveJob[]>("games_archive_jobs", { profile });
-        if (live)
-          setState((previous) => ({
-            profile,
-            jobs: jobs.reduce(
-              (items, job) => mergeArchiveJob(items, job, profile),
-              previous.profile === profile
-                ? previous.jobs.filter(
-                    (job) =>
-                      jobs.some((current) => current.id === job.id) ||
-                      !revisions.has(job.id) ||
-                      job.updatedAt > revisions.get(job.id)!,
-                  )
-                : [],
-            ),
-          }));
-      } catch {
-        /* A prior native version has no durable archive feed. */
-      } finally {
-        pending = false;
-      }
+      await invoke<ArchiveJob[]>("games_archive_jobs", { profile })
+        .then((jobs) => {
+          if (live)
+            setState((previous) => ({
+              profile,
+              jobs: jobs.reduce(
+                (items, job) => mergeArchiveJob(items, job, profile),
+                previous.profile === profile
+                  ? previous.jobs.filter(
+                      (job) =>
+                        jobs.some((current) => current.id === job.id) ||
+                        !revisions.has(job.id) ||
+                        job.updatedAt > revisions.get(job.id)!,
+                    )
+                  : [],
+              ),
+            }));
+        })
+        // A prior native version has no durable archive feed.
+        .catch(() => {})
+        .finally(() => {
+          pending = false;
+        });
     };
     refreshRef.current = refresh;
     const stop = listen<ArchiveJob>("games:archive-job", ({ payload }) => {
@@ -81,15 +88,14 @@ export function useGameArchives(profile: string, active: boolean) {
   const action = async (job: ArchiveJob, action: "cancel" | "remove") => {
     if (job.profile !== profile) return;
     setError("");
-    try {
-      await invoke(
-        action === "cancel" ? "games_cancel_archive" : "games_remove_archive_job",
-        action === "cancel" ? { profile, operationId: job.id } : { profile, id: job.id },
-      );
-      if (owner.current === profile) await refreshRef.current();
-    } catch (reason) {
-      if (owner.current === profile) setError(archiveError(reason));
-    }
+    await invoke(
+      action === "cancel" ? "games_cancel_archive" : "games_remove_archive_job",
+      action === "cancel" ? { profile, operationId: job.id } : { profile, id: job.id },
+    )
+      .then(() => (owner.current === profile ? refreshRef.current() : undefined))
+      .catch((reason: unknown) => {
+        if (owner.current === profile) setError(archiveError(reason));
+      });
   };
   return {
     profile,

@@ -82,19 +82,22 @@ export function useMinecraftAccount(profile: string, active: boolean) {
     setBusy(true);
     setError("");
     const ticket = ++generation.current;
-    try {
-      const value = await invoke<Challenge>("games_minecraft_begin", { profile });
-      if (mounted.current && ticket === generation.current) setChallenge(value);
-      else void invoke("games_minecraft_cancel", { profile, flow: value.flow }).catch(() => {});
-    } catch (reason) {
-      if (mounted.current && ticket === generation.current) setError(minecraftAccountError(reason));
-    } finally {
-      if (mounted.current && ticket === generation.current) {
-        connecting.current = false;
-        setBusy(false);
-        pending.current = false;
-      }
-    }
+    const latest = () => mounted.current && ticket === generation.current;
+    await invoke<Challenge>("games_minecraft_begin", { profile })
+      .then((value) => {
+        if (latest()) setChallenge(value);
+        else void invoke("games_minecraft_cancel", { profile, flow: value.flow }).catch(() => {});
+      })
+      .catch((reason: unknown) => {
+        if (latest()) setError(minecraftAccountError(reason));
+      })
+      .finally(() => {
+        if (latest()) {
+          connecting.current = false;
+          setBusy(false);
+          pending.current = false;
+        }
+      });
   };
   useEffect(() => {
     if (!challenge) return;
@@ -107,24 +110,26 @@ export function useMinecraftAccount(profile: string, active: boolean) {
           setError("games.minecraft.account.expired");
           return;
         }
-        try {
-          const value = await invoke<{ pending: boolean; interval: number; status: Status | null }>(
-            "games_minecraft_poll",
-            { profile, flow: challenge.flow },
-          );
-          if (disposed || !mounted.current || ticket !== generation.current) return;
-          if (value.pending) setChallenge({ ...challenge, interval: value.interval });
-          else {
-            if (value.status) setStatus(value.status);
-            setChallenge(null);
-            setError("");
-          }
-        } catch (reason) {
-          if (!disposed && mounted.current && ticket === generation.current) {
-            cancel();
-            setError(minecraftAccountError(reason));
-          }
-        }
+        const latest = () => !disposed && mounted.current && ticket === generation.current;
+        await invoke<{ pending: boolean; interval: number; status: Status | null }>(
+          "games_minecraft_poll",
+          { profile, flow: challenge.flow },
+        )
+          .then((value) => {
+            if (!latest()) return;
+            if (value.pending) setChallenge({ ...challenge, interval: value.interval });
+            else {
+              if (value.status) setStatus(value.status);
+              setChallenge(null);
+              setError("");
+            }
+          })
+          .catch((reason: unknown) => {
+            if (latest()) {
+              cancel();
+              setError(minecraftAccountError(reason));
+            }
+          });
       },
       Math.max(5, challenge.interval) * 1000,
     );
@@ -139,21 +144,23 @@ export function useMinecraftAccount(profile: string, active: boolean) {
     setBusy(true);
     setError("");
     const ticket = generation.current;
-    try {
-      const value = await invoke<Status>(command, { profile, ...args });
-      if (mounted.current && ticket === generation.current) {
+    const latest = () => mounted.current && ticket === generation.current;
+    return invoke<Status>(command, { profile, ...args })
+      .then((value) => {
+        if (!latest()) return false;
         setStatus(value);
         return true;
-      }
-    } catch (reason) {
-      if (mounted.current && ticket === generation.current) setError(minecraftAccountError(reason));
-    } finally {
-      if (mounted.current && ticket === generation.current) {
-        setBusy(false);
-        pending.current = false;
-      }
-    }
-    return false;
+      })
+      .catch((reason: unknown) => {
+        if (latest()) setError(minecraftAccountError(reason));
+        return false;
+      })
+      .finally(() => {
+        if (latest()) {
+          setBusy(false);
+          pending.current = false;
+        }
+      });
   };
   const disconnect = async () => {
     if (!available || pending.current) return;
@@ -161,20 +168,22 @@ export function useMinecraftAccount(profile: string, active: boolean) {
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
-      await invoke("games_minecraft_disconnect", { profile });
-      if (mounted.current)
-        setStatus((previous) => ({
-          configured: previous?.configured ?? false,
-          account: null,
-          updated_at: null,
-        }));
-    } catch (reason) {
-      if (mounted.current) setError(minecraftAccountError(reason));
-    } finally {
-      pending.current = false;
-      if (mounted.current) setBusy(false);
-    }
+    await invoke("games_minecraft_disconnect", { profile })
+      .then(() => {
+        if (mounted.current)
+          setStatus((previous) => ({
+            configured: previous?.configured ?? false,
+            account: null,
+            updated_at: null,
+          }));
+      })
+      .catch((reason: unknown) => {
+        if (mounted.current) setError(minecraftAccountError(reason));
+      })
+      .finally(() => {
+        pending.current = false;
+        if (mounted.current) setBusy(false);
+      });
   };
   return {
     available,

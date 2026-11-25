@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   LIBRARY_SHUFFLE_CHANGED,
   libraryShuffleKey,
@@ -7,12 +7,35 @@ import {
   type LibraryShuffle,
 } from "@/lib/games/library-shuffle";
 
+function writeLibraryShuffle(profile: string, enabled: boolean, reshuffle: boolean) {
+  const raw = localStorage.getItem(libraryShuffleKey(profile));
+  let previous: LibraryShuffle;
+  try {
+    previous = parseLibraryShuffle(raw);
+  } catch (error) {
+    if (!reshuffle) throw error;
+    previous = parseLibraryShuffle(null);
+  }
+  const next: LibraryShuffle = {
+    version: 1,
+    enabled,
+    seed:
+      reshuffle || (enabled && raw === null)
+        ? nextLibraryShuffleSeed(previous.seed)
+        : previous.seed,
+  };
+  localStorage.setItem(libraryShuffleKey(profile), JSON.stringify(next));
+  return next;
+}
+
 export function useLibraryShuffle(profile: string) {
   const [state, setState] = useState<{ profile: string; data: LibraryShuffle; error: boolean }>(
     () => ({ profile: "", data: parseLibraryShuffle(null), error: false }),
   );
   const current = useRef(profile);
-  current.current = profile;
+  useLayoutEffect(() => {
+    current.current = profile;
+  }, [profile]);
   useEffect(() => {
     const read = () => {
       try {
@@ -45,23 +68,7 @@ export function useLibraryShuffle(profile: string) {
   const save = (enabled: boolean, reshuffle = false) => {
     if (current.current !== profile) return false;
     try {
-      const raw = localStorage.getItem(libraryShuffleKey(profile));
-      let previous: LibraryShuffle;
-      try {
-        previous = parseLibraryShuffle(raw);
-      } catch (error) {
-        if (!reshuffle) throw error;
-        previous = parseLibraryShuffle(null);
-      }
-      const next: LibraryShuffle = {
-        version: 1,
-        enabled,
-        seed:
-          reshuffle || (enabled && raw === null)
-            ? nextLibraryShuffleSeed(previous.seed)
-            : previous.seed,
-      };
-      localStorage.setItem(libraryShuffleKey(profile), JSON.stringify(next));
+      const next = writeLibraryShuffle(profile, enabled, reshuffle);
       setState({ profile, data: next, error: false });
       window.dispatchEvent(new CustomEvent(LIBRARY_SHUFFLE_CHANGED, { detail: profile }));
       return true;

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { loadRecentSourcePage } from "@/lib/games/recent-source-page";
 import type { RecentSourceQuery } from "@/lib/games/source-recent-browse";
 import type { GameSource } from "@/lib/games/sources";
@@ -24,15 +24,23 @@ export function useRecentSourceBrowse(
   const current = state.key === key,
     limit = request.key === key ? request.limit : 24;
   const input = useRef({ sources, filters });
-  input.current = { sources, filters };
+  useLayoutEffect(() => {
+    input.current = { sources, filters };
+  }, [sources, filters]);
+  const run = active ? `${key}\0${limit}\0${request.attempt}` : null;
+  const [prevRun, setPrevRun] = useState<string | null>(null);
+  if (prevRun !== run) {
+    setPrevRun(run);
+    if (run !== null)
+      setState((previous) =>
+        previous.key === key
+          ? { ...previous, loading: true }
+          : { key, entries: [], hasMore: true, failed: [], loading: true },
+      );
+  }
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
-    setState((previous) =>
-      previous.key === key
-        ? { ...previous, loading: true }
-        : { key, entries: [], hasMore: true, failed: [], loading: true },
-    );
     const timer = setTimeout(
       () => {
         void loadRecentSourcePage(

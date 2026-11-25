@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchGameSource, inspectGameSource } from "@/lib/games/source-fetch";
 import { verifySource } from "@/lib/games/source-verification";
 import { sourceInputUrl } from "@/lib/games/source-discovery";
@@ -35,41 +35,55 @@ export function useGameSources(profile: string) {
     lifetime = useRef(new AbortController());
   const session = useRef(0);
   const metadataRefreshes = useRef(new Set<string>());
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const valid = () => alive.current && owner.current === profile;
   const sources = state.profile === profile ? state.sources : [];
   const reload = async () => {
     if (!valid()) return;
+    setLoading(true);
+    setError("");
+    await readCatalogs();
+  };
+  const readCatalogs = async () => {
     restore.current?.abort();
     const request = new AbortController();
     restore.current = request;
     const id = ++loadId.current;
+    const latest = () => !request.signal.aborted && valid() && id === loadId.current;
+    await readSourceCatalogs(profile, request.signal)
+      .then((list) => {
+        if (latest()) {
+          current.current = { profile, sources: list, loaded: true };
+          setState({ profile, sources: list });
+          setReady(true);
+        }
+      })
+      .catch((error: unknown) => {
+        if (latest()) setError(sourceError(error));
+      })
+      .finally(() => {
+        if (restore.current === request) restore.current = null;
+        if (latest()) setLoading(false);
+      });
+  };
+  const [prevProfile, setPrevProfile] = useState<string | null>(null);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
+    setReady(false);
+    setBusy([]);
+    setVerifying([]);
     setLoading(true);
     setError("");
-    try {
-      const list = await readSourceCatalogs(profile, request.signal);
-      if (!request.signal.aborted && valid() && id === loadId.current) {
-        current.current = { profile, sources: list, loaded: true };
-        setState({ profile, sources: list });
-        setReady(true);
-      }
-    } catch (error) {
-      if (!request.signal.aborted && valid() && id === loadId.current) setError(sourceError(error));
-    } finally {
-      if (restore.current === request) restore.current = null;
-      if (!request.signal.aborted && valid() && id === loadId.current) setLoading(false);
-    }
-  };
+  }
   useEffect(() => {
     session.current++;
     lifetime.current = new AbortController();
     metadataRefreshes.current.clear();
     alive.current = true;
     current.current = { profile, sources: [], loaded: false };
-    setReady(false);
-    setBusy([]);
-    setVerifying([]);
-    void reload();
+    void readCatalogs();
     return () => {
       session.current++;
       alive.current = false;
@@ -129,27 +143,30 @@ export function useGameSources(profile: string) {
     )
       throw Error("source_duplicate");
     const request = new AbortController();
+    const combined = AbortSignal.any([signal, request.signal]);
     inspections.current.add(request);
-    try {
-      const combined = AbortSignal.any([signal, request.signal]);
-      if (verify) {
-        await verifySource(profile, sourceInputUrl(url) || url, combined);
-        onVerified?.();
-      }
-      const result = await inspectGameSource(url, combined, profile);
-      if (!valid() || revision !== session.current)
-        throw new DOMException("Source profile changed", "AbortError");
-      if (
-        result.kind === "catalog" &&
-        current.current.sources.some(
-          (source) => source.id !== replacing && source.url === result.url,
+    return (
+      verify ? verifySource(profile, sourceInputUrl(url) || url, combined) : Promise.resolve()
+    )
+      .then(() => {
+        if (verify) onVerified?.();
+        return inspectGameSource(url, combined, profile);
+      })
+      .then((result) => {
+        if (!valid() || revision !== session.current)
+          throw new DOMException("Source profile changed", "AbortError");
+        if (
+          result.kind === "catalog" &&
+          current.current.sources.some(
+            (source) => source.id !== replacing && source.url === result.url,
+          )
         )
-      )
-        throw Error("source_duplicate");
-      return result;
-    } finally {
-      inspections.current.delete(request);
-    }
+          throw Error("source_duplicate");
+        return result;
+      })
+      .finally(() => {
+        inspections.current.delete(request);
+      });
   };
   const add = (url: string, manifest: SourceManifest) =>
     change((list) => {
@@ -172,61 +189,66 @@ export function useGameSources(profile: string) {
     const request = new AbortController();
     requests.current.set(source.id, request);
     setBusy([...requests.current.keys()]);
-    try {
-      if (verify) {
-        verifications.current.set(source.id, request);
-        setVerifying((ids) => [...ids, source.id]);
-        try {
-          await verifySource(profile, source.url, request.signal);
-        } finally {
-          if (valid() && verifications.current.get(source.id) === request)
-            setVerifying((ids) => ids.filter((id) => id !== source.id));
-        }
-      }
-      request.signal.throwIfAborted();
-      const manifest = await fetchGameSource(
-        source.url,
-        request.signal,
-        source.website,
-        source.name,
-        profile,
-        verify,
-      );
-      if (valid() && !request.signal.aborted)
-        await change((list) =>
-          request.signal.aborted
-            ? list
-            : list.map((item) =>
-                sameSourceRevision(item, source)
-                  ? {
-                      ...item,
-                      ...retainSourceArtwork(manifest, item),
-                      catalog: undefined,
-                      catalogIssue: undefined,
-                      checkedAt: Date.now(),
-                      error: undefined,
-                    }
-                  : item,
-              ),
-        );
-    } catch (error) {
-      if (
-        valid() &&
-        !request.signal.aborted &&
-        !(error instanceof DOMException && error.name === "AbortError")
-      )
-        await change((list) =>
-          request.signal.aborted
-            ? list
-            : list.map((item) =>
-                sameSourceRevision(item, source) ? { ...item, error: sourceError(error) } : item,
-              ),
-        );
-    } finally {
-      if (requests.current.get(source.id) === request) requests.current.delete(source.id);
-      if (verifications.current.get(source.id) === request) verifications.current.delete(source.id);
-      if (valid()) setBusy([...requests.current.keys()]);
+    let verified: Promise<unknown> = Promise.resolve();
+    if (verify) {
+      verifications.current.set(source.id, request);
+      setVerifying((ids) => [...ids, source.id]);
+      verified = verifySource(profile, source.url, request.signal).finally(() => {
+        if (valid() && verifications.current.get(source.id) === request)
+          setVerifying((ids) => ids.filter((id) => id !== source.id));
+      });
     }
+    await verified
+      .then(() => {
+        request.signal.throwIfAborted();
+        return fetchGameSource(
+          source.url,
+          request.signal,
+          source.website,
+          source.name,
+          profile,
+          verify,
+        );
+      })
+      .then(async (manifest) => {
+        if (valid() && !request.signal.aborted)
+          await change((list) =>
+            request.signal.aborted
+              ? list
+              : list.map((item) =>
+                  sameSourceRevision(item, source)
+                    ? {
+                        ...item,
+                        ...retainSourceArtwork(manifest, item),
+                        catalog: undefined,
+                        catalogIssue: undefined,
+                        checkedAt: Date.now(),
+                        error: undefined,
+                      }
+                    : item,
+                ),
+          );
+      })
+      .catch(async (error: unknown) => {
+        if (
+          valid() &&
+          !request.signal.aborted &&
+          !(error instanceof DOMException && error.name === "AbortError")
+        )
+          await change((list) =>
+            request.signal.aborted
+              ? list
+              : list.map((item) =>
+                  sameSourceRevision(item, source) ? { ...item, error: sourceError(error) } : item,
+                ),
+          );
+      })
+      .finally(() => {
+        if (requests.current.get(source.id) === request) requests.current.delete(source.id);
+        if (verifications.current.get(source.id) === request)
+          verifications.current.delete(source.id);
+        if (valid()) setBusy([...requests.current.keys()]);
+      });
   };
   useEffect(() => {
     if (!ready || loading || busy.length) return;

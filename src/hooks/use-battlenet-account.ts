@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { osClass } from "@/lib/platform";
 import {
@@ -11,7 +11,8 @@ export function useBattleNetAccount(profile: string, active: boolean) {
   const available = isTauri() && osClass() === "windows";
   const [held, setHeld] = useState({ profile, value: emptyBattleNetAccount(), loaded: false });
   const [error, setError] = useState<string | null>(null),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [importing, setImporting] = useState<string | null>(null);
   const [preferences, setPreferences] = useState<{
     profile: string;
     installed: boolean;
@@ -20,7 +21,9 @@ export function useBattleNetAccount(profile: string, active: boolean) {
   const owner = useRef(profile),
     mounted = useRef(true),
     revision = useRef(0);
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const running = useRef<{ profile: string; request: string } | null>(null),
     lock = useRef(false);
   const stored = held.profile === profile ? held.value : emptyBattleNetAccount();
@@ -40,7 +43,10 @@ export function useBattleNetAccount(profile: string, active: boolean) {
     revision.current++;
     lock.current = false;
     void invoke("games_battlenet_cancel", operation).catch(() => {});
-    if (mounted.current) setBusy(false);
+    if (mounted.current) {
+      setBusy(false);
+      setImporting(null);
+    }
   }, []);
   useEffect(() => {
     mounted.current = true;
@@ -49,13 +55,17 @@ export function useBattleNetAccount(profile: string, active: boolean) {
       cancel();
     };
   }, [cancel]);
+  const [prevProfile, setPrevProfile] = useState(profile);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
+    setBusy(false);
+    setPreferences(null);
+    setError(null);
+  }
   useEffect(() => {
     cancel();
     revision.current++;
     lock.current = false;
-    setBusy(false);
-    setPreferences(null);
-    setError(null);
   }, [profile, cancel]);
   const update = useCallback(
     async (command: string, args: Record<string, unknown> = {}) => {
@@ -70,28 +80,30 @@ export function useBattleNetAccount(profile: string, active: boolean) {
           installed: args.installed as boolean,
           uninstalled: args.uninstalled as boolean,
         });
-      if (command === "games_battlenet_import")
+      if (command === "games_battlenet_import") {
         running.current = { profile, request: args.request as string };
-      try {
-        const value = await invoke<BattleNetAccountStatus>(command, { profile, ...args });
-        if (mounted.current && owner.current === profile && serial === revision.current)
-          setHeld({ profile, value, loaded: true });
-        return serial === revision.current;
-      } catch (reason) {
-        if (mounted.current && owner.current === profile && serial === revision.current) {
-          setError(battleNetAccountError(reason));
-        }
-        return false;
-      } finally {
-        if (serial === revision.current) {
+        setImporting(profile);
+      }
+      const live = () => mounted.current && owner.current === profile;
+      return invoke<BattleNetAccountStatus>(command, { profile, ...args })
+        .then((value) => {
+          if (live() && serial === revision.current) setHeld({ profile, value, loaded: true });
+          return serial === revision.current;
+        })
+        .catch((reason: unknown) => {
+          if (live() && serial === revision.current) setError(battleNetAccountError(reason));
+          return false;
+        })
+        .finally(() => {
+          if (serial !== revision.current) return;
           running.current = null;
           lock.current = false;
-          if (mounted.current && owner.current === profile) {
+          if (mounted.current) setImporting(null);
+          if (live()) {
             setBusy(false);
             setPreferences(null);
           }
-        }
-      }
+        });
     },
     [available, profile],
   );
@@ -101,17 +113,15 @@ export function useBattleNetAccount(profile: string, active: boolean) {
     attempted.current = profile;
     void update("games_battlenet_account");
   }, [active, available, loaded, profile, update]);
-  const importAccount = useCallback(
-    (fresh: boolean) => update("games_battlenet_import", { fresh, request: crypto.randomUUID() }),
-    [update],
-  );
+  const importAccount = (fresh: boolean) =>
+    update("games_battlenet_import", { fresh, request: crypto.randomUUID() });
   return {
     profile,
     available,
     status,
     loaded,
     busy,
-    canCancel: busy && running.current?.profile === profile,
+    canCancel: busy && importing === profile,
     error,
     cancel,
     connect: () => importAccount(true),

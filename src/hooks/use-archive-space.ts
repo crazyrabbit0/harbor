@@ -11,9 +11,14 @@ export function useArchiveSpace(profile: string, token: string, parent: string, 
     value?: ArchiveSpace;
     error?: boolean;
   }>();
+  const runKey = active && token && parent ? `${key}\0${attempt}` : null;
+  const [prevRunKey, setPrevRunKey] = useState(runKey);
+  if (prevRunKey !== runKey) {
+    setPrevRunKey(runKey);
+    if (runKey !== null) setState(undefined);
+  }
   useEffect(() => {
     if (!active || !token || !parent) return;
-    setState(undefined);
     let current = true;
     const deadline = window.setTimeout(() => {
       if (current) {

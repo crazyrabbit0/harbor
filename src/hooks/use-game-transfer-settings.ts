@@ -22,17 +22,23 @@ export function useGameTransferSettings(profile: string, active: boolean, availa
   }, []);
   const refresh = async () => {
     if (!available) return;
-    const current = ++revision.current;
     setLoading(true);
     setError(false);
-    try {
-      const next = await invoke<TransferSettings>("games_transfer_settings", { profile });
-      if (alive.current && current === revision.current && next.profile === profile) setValue(next);
-    } catch {
-      if (alive.current && current === revision.current) setError(true);
-    } finally {
-      if (alive.current && current === revision.current) setLoading(false);
-    }
+    await read();
+  };
+  const read = async () => {
+    const current = ++revision.current;
+    const latest = () => alive.current && current === revision.current;
+    await invoke<TransferSettings>("games_transfer_settings", { profile })
+      .then((next) => {
+        if (latest() && next.profile === profile) setValue(next);
+      })
+      .catch(() => {
+        if (latest()) setError(true);
+      })
+      .finally(() => {
+        if (latest()) setLoading(false);
+      });
   };
   useEffect(() => {
     if (!available) return;
@@ -49,8 +55,17 @@ export function useGameTransferSettings(profile: string, active: boolean, availa
       void stop.then((unlisten) => unlisten());
     };
   }, [available, profile]);
+  const reading = active && available ? profile : null;
+  const [prevReading, setPrevReading] = useState<string | null>(null);
+  if (prevReading !== reading) {
+    setPrevReading(reading);
+    if (reading !== null) {
+      setLoading(true);
+      setError(false);
+    }
+  }
   useEffect(() => {
-    if (active) void refresh();
+    if (active && available) void read();
   }, [active, available, profile]);
   const save = async (bytesPerSecondLimit: number) => {
     if (!available || pending.current) return false;
@@ -59,21 +74,23 @@ export function useGameTransferSettings(profile: string, active: boolean, availa
     setLoading(false);
     setSaving(true);
     setError(false);
-    try {
-      const next = await invoke<TransferSettings>("games_set_transfer_bandwidth", {
-        profile,
-        bytesPerSecondLimit,
+    return invoke<TransferSettings>("games_set_transfer_bandwidth", {
+      profile,
+      bytesPerSecondLimit,
+    })
+      .then((next) => {
+        if (!alive.current || next.profile !== profile) return false;
+        setValue(next);
+        return true;
+      })
+      .catch(() => {
+        if (alive.current) setError(true);
+        return false;
+      })
+      .finally(() => {
+        pending.current = false;
+        if (alive.current) setSaving(false);
       });
-      if (!alive.current || next.profile !== profile) return false;
-      setValue(next);
-      return true;
-    } catch {
-      if (alive.current) setError(true);
-      return false;
-    } finally {
-      pending.current = false;
-      if (alive.current) setSaving(false);
-    }
   };
   return { value, loading, saving, error, refresh, save };
 }

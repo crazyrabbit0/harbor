@@ -1,5 +1,6 @@
 import { importedArtworkFor, importedArtworkIcon } from "@/lib/games/imported-artwork";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { attempt } from "./attempt";
 import { convertFileSrc, invoke, isTauri } from "@tauri-apps/api/core";
 import {
   LIBRARY_PREFERENCES_CHANGED,
@@ -31,6 +32,27 @@ import { libraryMetadataMatch, type LibraryMetadataMatch } from "@/lib/games/lib
 import type { GameSummary } from "@/lib/games/types";
 
 export type ManagedLibraryItem = { id: string; name: string; cover?: string; game?: GameSummary };
+
+const loadDialog = () => import("@tauri-apps/plugin-dialog");
+
+function checkCoverImage(canonical: string) {
+  return new Promise<void>((resolve, reject) => {
+    const image = new Image(),
+      timer = setTimeout(() => reject(Error("library_prefs_art")), 8000);
+    image.onload = () => {
+      clearTimeout(timer);
+      if (image.naturalWidth > 0 && image.naturalWidth * image.naturalHeight <= 40_000_000)
+        resolve();
+      else reject(Error("library_prefs_art"));
+    };
+    image.onerror = () => {
+      clearTimeout(timer);
+      reject(Error("library_prefs_art"));
+    };
+    image.src = convertFileSrc(canonical);
+  });
+}
+
 export function useGameLibraryPreferences(profile: string, active: boolean) {
   const [state, setState] = useState<{ profile: string; data: LibraryPreferences }>({
       profile,
@@ -43,7 +65,9 @@ export function useGameLibraryPreferences(profile: string, active: boolean) {
     live = useRef(true),
     owner = useRef(profile),
     pending = useRef(false);
-  owner.current = profile;
+  useLayoutEffect(() => {
+    owner.current = profile;
+  }, [profile]);
   const valid = () => live.current && owner.current === profile;
   const fail = (reason: unknown) => {
     const code = reason instanceof Error ? reason.message : String(reason);
@@ -72,13 +96,21 @@ export function useGameLibraryPreferences(profile: string, active: boolean) {
       fail(reason);
     }
   };
+  const [prevProfile, setPrevProfile] = useState<string | null>(null);
+  if (prevProfile !== profile) {
+    setPrevProfile(profile);
+    setBusy(false);
+    setEditing(null);
+    refresh();
+  }
+  const [prevActive, setPrevActive] = useState(active);
+  if (prevActive !== active) {
+    setPrevActive(active);
+    if (!active) setEditing(null);
+  }
   useEffect(() => {
     live.current = true;
     pending.current = false;
-    setBusy(false);
-    setReady(false);
-    setEditing(null);
-    refresh();
     const storage = (event: StorageEvent) => {
       if (event.key === libraryPreferenceKey(profile)) refresh();
     };
@@ -93,9 +125,6 @@ export function useGameLibraryPreferences(profile: string, active: boolean) {
       window.removeEventListener(LIBRARY_PREFERENCES_CHANGED, changed);
     };
   }, [profile]);
-  useEffect(() => {
-    if (!active) setEditing(null);
-  }, [active]);
   const data = state.profile === profile ? state.data : emptyLibraryPreferences();
   const write = async (ids: string[], patch: Partial<LibraryPreference>) => {
     const data = await changeLibraryPreferences(profile, ids, patch);
@@ -104,62 +133,62 @@ export function useGameLibraryPreferences(profile: string, active: boolean) {
       setError("");
     }
   };
+  const release = () => {
+    if (valid()) {
+      pending.current = false;
+      setBusy(false);
+    }
+  };
+  const settle = (task: Promise<LibraryPreferences>) =>
+    task
+      .then((next) => {
+        if (valid()) {
+          setState({ profile, data: next });
+          setError("");
+        }
+        return true;
+      })
+      .catch((reason: unknown) => {
+        if (valid()) fail(reason);
+        return false;
+      })
+      .finally(release);
   const update = async (ids: string[], patch: Partial<LibraryPreference>) => {
     if (!ready || pending.current) return false;
     pending.current = true;
     setBusy(true);
-    try {
-      await write(ids, patch);
-      return true;
-    } catch (reason) {
-      if (valid()) fail(reason);
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    return write(ids, patch)
+      .then(() => true)
+      .catch((reason: unknown) => {
+        if (valid()) fail(reason);
+        return false;
+      })
+      .finally(release);
   };
   const chooseCover = async (id: string, title: string) => {
     if (!ready || pending.current || !isTauri()) return;
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
-      const { open } = await import("@tauri-apps/plugin-dialog");
-      const path = await open({
-        title,
-        multiple: false,
-        directory: false,
-        filters: [{ name: title, extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
-      });
-      if (typeof path !== "string" || !valid()) return;
-      const canonical = await invoke<string>("games_validate_custom_artwork", { path });
-      await new Promise<void>((resolve, reject) => {
-        const image = new Image(),
-          timer = setTimeout(() => reject(Error("library_prefs_art")), 8000);
-        image.onload = () => {
-          clearTimeout(timer);
-          image.naturalWidth > 0 && image.naturalWidth * image.naturalHeight <= 40_000_000
-            ? resolve()
-            : reject(Error("library_prefs_art"));
-        };
-        image.onerror = () => {
-          clearTimeout(timer);
-          reject(Error("library_prefs_art"));
-        };
-        image.src = convertFileSrc(canonical);
-      });
-      if (valid()) await write([id], { cover: canonical });
-    } catch {
-      if (valid()) setError("games.libraryPersonal.library_prefs_art");
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    await loadDialog()
+      .then(({ open }) =>
+        open({
+          title,
+          multiple: false,
+          directory: false,
+          filters: [{ name: title, extensions: ["png", "jpg", "jpeg", "webp", "gif"] }],
+        }),
+      )
+      .then(async (path) => {
+        if (typeof path !== "string" || !valid()) return;
+        const canonical = await invoke<string>("games_validate_custom_artwork", { path });
+        await checkCoverImage(canonical);
+        if (valid()) await write([id], { cover: canonical });
+      })
+      .catch(() => {
+        if (valid()) setError("games.libraryPersonal.library_prefs_art");
+      })
+      .finally(release);
   };
   const get = (id: string) => data.entries[id] ?? defaultLibraryPreference();
   const title = (id: string, original: string) =>
@@ -174,22 +203,7 @@ export function useGameLibraryPreferences(profile: string, active: boolean) {
     if (!ready || pending.current) return false;
     pending.current = true;
     setBusy(true);
-    try {
-      const next = await changeLibraryTitles(profile, changes, rules, expectedRules);
-      if (valid()) {
-        setState({ profile, data: next });
-        setError("");
-      }
-      return true;
-    } catch (reason) {
-      if (valid()) fail(reason);
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    return settle(attempt(() => changeLibraryTitles(profile, changes, rules, expectedRules)));
   };
   const artwork = (id: string, game?: GameSummary) =>
     matchingLibraryArtwork(
@@ -241,22 +255,9 @@ export function useGameLibraryPreferences(profile: string, active: boolean) {
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
-      const next = await changeLibraryArtwork(profile, id, value, expected, expectedMetadata);
-      if (valid()) {
-        setState({ profile, data: next });
-        setError("");
-      }
-      return true;
-    } catch (reason) {
-      if (valid()) fail(reason);
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    return settle(
+      attempt(() => changeLibraryArtwork(profile, id, value, expected, expectedMetadata)),
+    );
   };
   const updateMetadata = async (
     id: string,
@@ -268,49 +269,23 @@ export function useGameLibraryPreferences(profile: string, active: boolean) {
     pending.current = true;
     setBusy(true);
     setError("");
-    try {
-      const next = await changeLibraryMetadata(
-        profile,
-        id,
-        game ? libraryMetadataMatch(game) : null,
-        expected,
-        signal,
-      );
-      if (valid()) {
-        setState({ profile, data: next });
-        setError("");
-      }
-      return true;
-    } catch (reason) {
-      if (valid()) fail(reason);
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    return settle(
+      attempt(() =>
+        changeLibraryMetadata(
+          profile,
+          id,
+          game ? libraryMetadataMatch(game) : null,
+          expected,
+          signal,
+        ),
+      ),
+    );
   };
   const updateLinkOrders = async (changes: LibraryLinkChange[]) => {
     if (!ready || pending.current) return false;
     pending.current = true;
     setBusy(true);
-    try {
-      const next = await changeLibraryLinkOrders(profile, changes);
-      if (valid()) {
-        setState({ profile, data: next });
-        setError("");
-      }
-      return true;
-    } catch (reason) {
-      if (valid()) fail(reason);
-      return false;
-    } finally {
-      if (valid()) {
-        pending.current = false;
-        setBusy(false);
-      }
-    }
+    return settle(attempt(() => changeLibraryLinkOrders(profile, changes)));
   };
   return {
     profile,
